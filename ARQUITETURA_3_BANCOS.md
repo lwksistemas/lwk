@@ -1,315 +1,339 @@
-# 🏗️ Arquitetura Multi-Database - 3 Bancos Isolados
+# 🏗️ ARQUITETURA DE 3 BANCOS ISOLADOS - POSTGRESQL
 
-## 📊 Visão Geral
+## 📊 VISÃO GERAL
 
-O sistema possui **3 tipos de bancos de dados completamente isolados**:
+Sistema implementado com PostgreSQL usando **schemas isolados** para separar dados de SuperAdmin, Suporte e Lojas.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    SISTEMA MULTI-LOJA                    │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │   BANCO 1    │  │   BANCO 2    │  │   BANCO 3    │  │
-│  │              │  │              │  │              │  │
-│  │  SUPER ADMIN │  │   SUPORTE    │  │  LOJA (N)    │  │
-│  │   (default)  │  │  (chamados)  │  │  (isolado)   │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
-│                                                          │
+│         PostgreSQL (postgresql-cubic-77760)             │
+│              Essential-0 - $5/mês                       │
 └─────────────────────────────────────────────────────────┘
+                          │
+        ┌─────────────────┼─────────────────┐
+        │                 │                 │
+   ┌────▼────┐      ┌────▼────┐      ┌────▼────┐
+   │ SCHEMA  │      │ SCHEMA  │      │ SCHEMAS │
+   │ public  │      │ suporte │      │ loja_*  │
+   └─────────┘      └─────────┘      └─────────┘
+        │                 │                 │
+   SuperAdmin        Suporte          Lojas Individuais
 ```
 
-## 🗄️ Detalhamento dos Bancos
+## 🗄️ ESTRUTURA DOS BANCOS
 
-### 1️⃣ BANCO DEFAULT - Super Admin
+### 1️⃣ BANCO DEFAULT (Schema: public)
 
-**Arquivo**: `db_superadmin.sqlite3`
+**Responsabilidade**: Gerenciamento do sistema (SuperAdmin)
 
-**Propósito**: Gerenciamento global do sistema
+**Tabelas**:
+- `auth_user` - Usuários do sistema
+- `auth_group` - Grupos de permissões
+- `superadmin_loja` - Cadastro de lojas
+- `superadmin_planoassinatura` - Planos disponíveis
+- `superadmin_tipoloja` - Tipos de loja (E-commerce, Clínica, etc)
+- Tabelas Django (admin, sessions, contenttypes)
 
 **Acesso**:
-- URL: http://localhost:3000/superadmin/login
-- Usuário: `superadmin`
-- Senha: `super123`
+```python
+# Configuração
+DATABASES['default'] = {
+    'OPTIONS': {
+        'options': '-c search_path=public'
+    }
+}
 
-**Responsabilidades**:
-- ✅ Gerenciar todas as lojas
-- ✅ Criar novos bancos para lojas
-- ✅ Visualizar métricas globais
-- ✅ Configurações do sistema
-- ✅ Gerenciar usuários super admin
+# Uso
+from superadmin.models import Loja
+lojas = Loja.objects.all()  # Usa 'default' automaticamente
+```
 
-**Modelos**:
-- User (super admins)
-- Store (registro de lojas)
-- Configurações globais
+### 2️⃣ BANCO SUPORTE (Schema: suporte)
 
----
+**Responsabilidade**: Sistema de suporte isolado
 
-### 2️⃣ BANCO SUPORTE - Sistema de Chamados
-
-**Arquivo**: `db_suporte.sqlite3`
-
-**Propósito**: Sistema isolado de suporte/tickets
+**Tabelas**:
+- `suporte_chamado` - Chamados de suporte
+- `suporte_respostachamado` - Respostas e histórico
 
 **Acesso**:
-- URL: http://localhost:3000/suporte/login
-- Usuário: `suporte`
-- Senha: `suporte123`
+```python
+# Configuração
+DATABASES['suporte'] = {
+    'OPTIONS': {
+        'options': '-c search_path=suporte,public'
+    }
+}
 
-**Responsabilidades**:
-- ✅ Gerenciar chamados de todas as lojas
-- ✅ Atender tickets
-- ✅ Histórico de atendimentos
-- ✅ Priorização de chamados
-- ✅ Respostas e comentários
-
-**Modelos**:
-- Chamado
-- RespostaChamado
-- User (equipe de suporte)
-- Group (grupo 'suporte')
-
-**Fluxo de Chamados**:
+# Uso
+from suporte.models import Chamado
+chamados = Chamado.objects.all()  # Router direciona para 'suporte'
 ```
-Loja abre chamado → Salvo no banco suporte → Equipe atende → Resolve
-```
-
----
-
-### 3️⃣ BANCOS POR LOJA - Isolamento Total
-
-**Arquivos**: `db_loja_{slug}.sqlite3`
-
-**Exemplos**:
-- `db_loja_loja-tech.sqlite3`
-- `db_loja_moda-store.sqlite3`
-
-**Propósito**: Cada loja tem seu próprio banco isolado
-
-**Acesso Loja Tech**:
-- URL: http://localhost:3000/loja/login?slug=loja-tech
-- Usuário: `admin_tech`
-- Senha: `tech123`
-
-**Acesso Moda Store**:
-- URL: http://localhost:3000/loja/login?slug=moda-store
-- Usuário: `admin_moda`
-- Senha: `moda123`
-
-**Responsabilidades**:
-- ✅ Produtos da loja
-- ✅ Pedidos da loja
-- ✅ Clientes da loja
-- ✅ Usuários da loja
-- ✅ Configurações da loja
-
-**Modelos**:
-- Store (dados da loja)
-- Product (produtos)
-- User (usuários da loja)
-- Order (pedidos - futuro)
-- Customer (clientes - futuro)
 
 **Isolamento**:
-- ❌ Loja A **NÃO** vê dados da Loja B
-- ❌ Loja A **NÃO** acessa banco da Loja B
-- ✅ Cada loja é **completamente independente**
+- ✅ Dados de suporte não misturam com SuperAdmin
+- ✅ Backup independente
+- ✅ Segurança e privacidade
 
----
+### 3️⃣ BANCOS DAS LOJAS (Schemas: loja_*)
 
-## 🔐 3 Páginas de Login Diferentes
+**Responsabilidade**: Dados individuais de cada loja
 
-### 1. Login Super Admin
-**URL**: `/superadmin/login`
-- 🎨 Tema: Roxo/Púrpura
-- 🔒 Acesso: Super administradores
-- 🎯 Destino: Dashboard global
+**Schemas Criados**:
+- `loja_template` - Template para novas lojas
+- `loja_felix` - Loja Felix
+- `loja_harmonis` - Loja Harmonis
+- `loja_loja_tech` - Loja Tech
+- `loja_moda_store` - Moda Store
 
-### 2. Login Suporte
-**URL**: `/suporte/login`
-- 🎨 Tema: Azul/Ciano
-- 🔒 Acesso: Equipe de suporte
-- 🎯 Destino: Dashboard de chamados
+**Tabelas** (por schema):
+- `stores_store` - Configurações da loja
+- `products_product` - Produtos
+- `products_category` - Categorias
+- Apps específicos por tipo:
+  - E-commerce: `ecommerce_*`
+  - Clínica: `clinica_estetica_*`
+  - CRM: `crm_vendas_*`
+  - Restaurante: `restaurante_*`
+  - Serviços: `servicos_*`
 
-### 3. Login Loja
-**URL**: `/loja/login?slug={loja-slug}`
-- 🎨 Tema: Verde/Esmeralda
-- 🔒 Acesso: Usuários da loja específica
-- 🎯 Destino: Dashboard da loja
+**Acesso**:
+```python
+# Configuração
+DATABASES['loja_felix'] = {
+    'OPTIONS': {
+        'options': '-c search_path=loja_felix,public'
+    }
+}
 
----
+# Uso (com contexto de tenant)
+from products.models import Product
+produtos = Product.objects.all()  # Router direciona para loja ativa
+```
 
-## 🔄 Database Router
+**Isolamento**:
+- ✅ Cada loja tem seus próprios dados
+- ✅ Impossível acessar dados de outra loja
+- ✅ Backup individual por loja
+- ✅ Escalabilidade ilimitada
 
-O sistema usa um **Database Router** customizado que direciona automaticamente as queries para o banco correto:
+## 🔀 DATABASE ROUTER
+
+### Arquivo: `backend/config/db_router.py`
 
 ```python
-# config/db_router.py
-
 class MultiTenantRouter:
+    """
+    Router que direciona queries para o banco correto
+    """
+    
+    # Apps que usam banco de suporte
+    suporte_apps = {'suporte'}
+    
+    # Apps que usam bancos de loja
+    loja_apps = {'stores', 'products'}
+    
     def db_for_read(self, model, **hints):
-        # Suporte → banco 'suporte'
-        if model._meta.app_label == 'suporte':
+        """Direciona leitura"""
+        if model._meta.app_label in self.suporte_apps:
             return 'suporte'
         
-        # Loja → banco 'loja_{slug}'
-        if model._meta.app_label in ['stores', 'products']:
-            return get_current_tenant_db()
+        if model._meta.app_label in self.loja_apps:
+            # Usa tenant ativo do contexto
+            return _thread_locals.current_tenant_db
         
-        # Default → banco 'default'
         return 'default'
+    
+    def db_for_write(self, model, **hints):
+        """Direciona escrita"""
+        # Mesma lógica do read
 ```
 
----
+### Como Funciona
 
-## 🚀 Como Criar Nova Loja
+1. **Query de Suporte**:
+   ```python
+   Chamado.objects.all()
+   # Router detecta app 'suporte' → usa banco 'suporte'
+   ```
 
-### Via Comando Django:
+2. **Query de Loja**:
+   ```python
+   Product.objects.all()
+   # Router detecta app 'products' → usa banco da loja ativa
+   ```
+
+3. **Query Padrão**:
+   ```python
+   User.objects.all()
+   # Router não encontra regra específica → usa 'default'
+   ```
+
+## 🎯 VANTAGENS DA ARQUITETURA
+
+### 1. Isolamento Total
+- ✅ Suporte não acessa dados de lojas
+- ✅ Lojas não acessam dados de outras lojas
+- ✅ SuperAdmin gerencia tudo sem misturar dados
+
+### 2. Segurança
+- ✅ Impossível vazamento de dados entre lojas
+- ✅ Cada schema tem suas próprias permissões
+- ✅ Auditoria independente por schema
+
+### 3. Escalabilidade
+- ✅ Adicionar nova loja = criar novo schema
+- ✅ Sem limite de lojas (até capacidade do PostgreSQL)
+- ✅ Performance não degrada com mais lojas
+
+### 4. Manutenção
+- ✅ Backup individual por schema
+- ✅ Restore seletivo (só uma loja se necessário)
+- ✅ Migrations independentes
+
+### 5. Custo
+- ✅ Um único banco PostgreSQL ($5/mês)
+- ✅ Schemas não têm custo adicional
+- ✅ Muito mais barato que bancos separados
+
+## 📈 CAPACIDADE
+
+### PostgreSQL Essential-0 ($5/mês)
+- **Armazenamento**: 1GB
+- **Conexões**: 20 simultâneas
+- **Capacidade estimada**: 30-40 lojas
+
+### Quando Escalar
+- **Essential-1** ($50/mês): 10GB, 120 conexões → 100-200 lojas
+- **Standard-0** ($200/mês): 64GB, 480 conexões → 500+ lojas
+
+## 🔧 OPERAÇÕES COMUNS
+
+### Criar Nova Loja
+
+1. **Criar schema**:
+   ```sql
+   CREATE SCHEMA loja_nomeloja;
+   ```
+
+2. **Adicionar ao settings**:
+   ```python
+   DATABASES['loja_nomeloja'] = {
+       **default_db,
+       'OPTIONS': {
+           'options': '-c search_path=loja_nomeloja,public'
+       }
+   }
+   ```
+
+3. **Aplicar migrations**:
+   ```bash
+   python manage.py migrate stores --database=loja_nomeloja
+   python manage.py migrate products --database=loja_nomeloja
+   ```
+
+### Backup de Uma Loja
 
 ```bash
-cd backend
-./venv/bin/python3 manage.py create_tenant_db nova-loja
+# Backup apenas do schema da loja
+pg_dump -n loja_harmonis DATABASE_URL > backup_harmonis.sql
+
+# Restore
+psql DATABASE_URL < backup_harmonis.sql
 ```
 
-Isso irá:
-1. ✅ Criar arquivo `db_loja_nova-loja.sqlite3`
-2. ✅ Executar todas as migrations
-3. ✅ Configurar estrutura de tabelas
-4. ✅ Preparar banco para uso
-
-### Via API (futuro):
+### Verificar Dados
 
 ```bash
-POST /api/superadmin/lojas/
-{
-  "nome": "Nova Loja",
-  "slug": "nova-loja",
-  "descricao": "Descrição da loja"
-}
+# Listar schemas
+heroku run "cd backend && python verificar_estrutura_postgres.py"
+
+# Contar registros
+heroku pg:psql -c "SELECT COUNT(*) FROM suporte.suporte_chamado"
 ```
 
----
+## 🚀 MIGRAÇÃO REALIZADA
 
-## 📁 Estrutura de Arquivos
+### Passos Executados
 
-```
-backend/
-├── db_superadmin.sqlite3      # Banco 1: Super Admin
-├── db_suporte.sqlite3          # Banco 2: Suporte
-├── db_loja_loja-tech.sqlite3  # Banco 3a: Loja Tech
-├── db_loja_moda-store.sqlite3 # Banco 3b: Moda Store
-└── db_loja_*.sqlite3           # Banco 3n: Outras lojas
-```
+1. ✅ Criado PostgreSQL Essential-0
+2. ✅ Configurado `settings_postgres.py`
+3. ✅ Criado schemas (public, suporte, loja_*)
+4. ✅ Criado tabelas no schema suporte
+5. ✅ Testado router e isolamento
+6. ✅ Criado dados de teste
 
----
+### Deploy
+- **Versão**: v48
+- **Data**: 17/01/2026
+- **Status**: ✅ Funcionando em produção
 
-## 🔒 Segurança e Isolamento
+## 📝 COMANDOS ÚTEIS
 
-### Isolamento de Dados
-```
-✅ Loja A não acessa dados da Loja B
-✅ Suporte não acessa dados das lojas
-✅ Super Admin pode acessar tudo (se necessário)
-✅ Cada banco tem suas próprias tabelas
-✅ Sem compartilhamento de dados entre lojas
-```
-
-### Autenticação
-```
-✅ JWT tokens separados por tipo de usuário
-✅ Middleware detecta tipo de acesso
-✅ Rotas protegidas por permissão
-✅ Validação de slug da loja
-```
-
----
-
-## 🎯 Fluxo de Acesso
-
-### Super Admin:
-```
-1. Acessa /superadmin/login
-2. Faz login com credenciais super admin
-3. Token JWT armazenado com tipo 'superadmin'
-4. Acessa dashboard global
-5. Queries vão para banco 'default'
-```
-
-### Suporte:
-```
-1. Acessa /suporte/login
-2. Faz login com credenciais suporte
-3. Token JWT armazenado com tipo 'suporte'
-4. Acessa dashboard de chamados
-5. Queries vão para banco 'suporte'
-```
-
-### Loja:
-```
-1. Acessa /loja/login?slug=loja-tech
-2. Faz login com credenciais da loja
-3. Token JWT armazenado com tipo 'loja' + slug
-4. Middleware configura banco 'loja_loja-tech'
-5. Queries vão para banco da loja específica
-```
-
----
-
-## 🧪 Testando o Sistema
-
-### 1. Configurar Bancos:
+### Heroku
 ```bash
-cd backend
-./venv/bin/python3 setup_multi_db.py
+# Ver configuração do PostgreSQL
+heroku pg:info
+
+# Acessar console PostgreSQL
+heroku pg:psql
+
+# Ver schemas
+heroku pg:psql -c "\dn"
+
+# Ver tabelas de um schema
+heroku pg:psql -c "\dt suporte.*"
 ```
 
-### 2. Testar Super Admin:
+### Django
 ```bash
-# Navegador
-http://localhost:3000/superadmin/login
-# Login: superadmin / super123
+# Aplicar migrations em schema específico
+heroku run "cd backend && python manage.py migrate suporte --database=suporte"
+
+# Shell com settings PostgreSQL
+heroku run "cd backend && python manage.py shell"
 ```
 
-### 3. Testar Suporte:
+## ⚠️ IMPORTANTE
+
+### Sempre usar settings correto
 ```bash
-# Navegador
-http://localhost:3000/suporte/login
-# Login: suporte / suporte123
+# Variável de ambiente
+DJANGO_SETTINGS_MODULE=config.settings_postgres
 ```
 
-### 4. Testar Loja:
+### Sempre usar `cd backend &&`
 ```bash
-# Navegador
-http://localhost:3000/loja/login?slug=loja-tech
-# Login: admin_tech / tech123
+# ✅ Correto
+heroku run "cd backend && python manage.py migrate"
+
+# ❌ Errado
+heroku run "python backend/manage.py migrate"
 ```
+
+### Nomes de schemas
+- ✅ Use underscores: `loja_moda_store`
+- ❌ Não use hífens: `loja-moda-store` (erro SQL)
+
+## 📊 MONITORAMENTO
+
+### Métricas Importantes
+- Tamanho de cada schema
+- Número de conexões por schema
+- Performance de queries
+- Taxa de crescimento de dados
+
+### Alertas
+- Uso de disco > 80%
+- Conexões > 15 (de 20)
+- Queries lentas > 1s
+
+## 🎓 REFERÊNCIAS
+
+- [PostgreSQL Schemas](https://www.postgresql.org/docs/current/ddl-schemas.html)
+- [Django Multiple Databases](https://docs.djangoproject.com/en/4.2/topics/db/multi-db/)
+- [Heroku PostgreSQL](https://devcenter.heroku.com/articles/heroku-postgresql)
 
 ---
 
-## 📊 Vantagens desta Arquitetura
-
-✅ **Isolamento Total**: Dados de cada loja completamente separados  
-✅ **Segurança**: Impossível acessar dados de outra loja  
-✅ **Escalabilidade**: Fácil adicionar novas lojas  
-✅ **Performance**: Queries não competem entre lojas  
-✅ **Backup**: Backup individual por loja  
-✅ **Compliance**: Atende requisitos de privacidade  
-✅ **Flexibilidade**: Cada loja pode ter configurações próprias  
-
----
-
-## 🔮 Próximos Passos
-
-- [ ] Dashboard Super Admin completo
-- [ ] Dashboard Suporte com lista de chamados
-- [ ] Dashboard Loja personalizado
-- [ ] API para criar lojas dinamicamente
-- [ ] Migração para PostgreSQL (produção)
-- [ ] Backup automático por banco
-- [ ] Métricas por loja
-- [ ] Relatórios consolidados
-
----
-
-**Sistema Multi-Database com 3 Bancos Isolados** 🚀
+**Sistema com 3 bancos isolados implementado e funcionando!** 🎉

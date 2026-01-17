@@ -187,19 +187,19 @@ function DashboardEcommerce({ loja }: { loja: LojaInfo }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Pedidos Hoje</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>24</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Produtos</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>156</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Estoque</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>1.234</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Faturamento</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 12.450</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 0</p>
         </div>
       </div>
     </div>
@@ -216,19 +216,19 @@ function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Pedidos Hoje</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>45</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Mesas Ocupadas</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>12/20</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0/0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Cardápio</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>68</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Faturamento</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 3.890</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 0</p>
         </div>
       </div>
     </div>
@@ -245,19 +245,19 @@ function DashboardCRM({ loja }: { loja: LojaInfo }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Leads Ativos</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>89</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Negociações</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>23</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Vendas Mês</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>156</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Receita</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 89.450</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 0</p>
         </div>
       </div>
     </div>
@@ -274,19 +274,19 @@ function DashboardServicos({ loja }: { loja: LojaInfo }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Serviços Ativos</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>34</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Clientes</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>128</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Agendamentos</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>45</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Receita</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 23.890</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 0</p>
         </div>
       </div>
     </div>

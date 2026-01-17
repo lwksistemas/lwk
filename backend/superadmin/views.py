@@ -43,7 +43,7 @@ class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
         """Buscar planos por tipo de loja"""
         tipo_id = request.query_params.get('tipo_id')
         if tipo_id:
-            planos = self.queryset.filter(tipos_loja__id=tipo_id, is_active=True)
+            planos = self.get_queryset().filter(tipos_loja__id=tipo_id, is_active=True)
             serializer = self.get_serializer(planos, many=True)
             return Response(serializer.data)
         return Response({'error': 'tipo_id é obrigatório'}, status=400)
@@ -442,7 +442,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def pendentes(self, request):
         """Lojas com pagamento pendente"""
-        pendentes = self.queryset.filter(status_pagamento__in=['pendente', 'atrasado'])
+        pendentes = self.get_queryset().filter(status_pagamento__in=['pendente', 'atrasado'])
         serializer = self.get_serializer(pendentes, many=True)
         return Response(serializer.data)
 
@@ -486,7 +486,7 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def suporte(self, request):
         """Listar apenas usuários de suporte"""
-        suporte = self.queryset.filter(tipo='suporte')
+        suporte = self.get_queryset().filter(tipo='suporte')
         serializer = self.get_serializer(suporte, many=True)
         return Response(serializer.data)
     

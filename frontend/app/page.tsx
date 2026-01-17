@@ -12,7 +12,7 @@ export default function Home() {
             LWK SISTEMAS
           </h1>
           <p className="text-xl text-blue-100">
-            Sistema Gestão de Lojas
+            Gestão de Lojas
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export default function Home() {
 
         {/* Footer */}
         <div className="text-center mt-16 text-blue-200">
-          <p>© 2026 LWK Sistemas - Todos os direitos reservados</p>
+          <p>© 2026 LWK SISTEMAS - Todos os direitos reservados</p>
         </div>
       </div>
     </div>

@@ -46,10 +46,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const [showModalFuncionario, setShowModalFuncionario] = useState(false);
 
   // State de clientes movido para o componente pai para persistir entre aberturas do modal
-  const [clientes, setClientes] = useState([
-    { id: 1, nome: 'Maria Silva Santos', email: 'maria@email.com', telefone: '(11) 98765-4321', cpf: '123.456.789-00', data_nascimento: '1985-05-15', cidade: 'São Paulo', estado: 'SP' },
-    { id: 2, nome: 'Ana Costa Oliveira', email: 'ana@email.com', telefone: '(11) 97654-3210', cpf: '987.654.321-00', data_nascimento: '1990-08-20', cidade: 'São Paulo', estado: 'SP' },
-  ]);
+  const [clientes, setClientes] = useState<any[]>([]);
 
   // Carregar dados reais (quando implementado)
   useEffect(() => {

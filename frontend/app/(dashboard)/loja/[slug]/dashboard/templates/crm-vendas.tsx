@@ -192,10 +192,8 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
   });
   const [loading, setLoading] = useState(false);
 
-  const leads = [
-    { id: 1, nome: 'João Silva', empresa: 'Tech Corp', email: 'joao@techcorp.com', telefone: '(11) 98765-4321', status: 'Novo Lead', valor_estimado: '15000', origem: 'Site' },
-    { id: 2, nome: 'Maria Santos', empresa: 'Digital Solutions', email: 'maria@digital.com', telefone: '(11) 97654-3210', status: 'Contato Inicial', valor_estimado: '25000', origem: 'Indicação' },
-  ];
+  // Lista de leads vazia inicialmente (será carregada do backend futuramente)
+  const leads: any[] = [];
 
   const origens = ['Site', 'Indicação', 'Redes Sociais', 'Email Marketing', 'Evento', 'Telefone', 'Outro'];
   const interesses = ['Produto A', 'Produto B', 'Serviço Premium', 'Consultoria', 'Outro'];

@@ -464,3 +464,185 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         suporte = self.queryset.filter(tipo='suporte')
         serializer = self.get_serializer(suporte, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], permission_classes=[])
+    def recuperar_senha(self, request):
+        """Recuperar senha de usuário do sistema (SuperAdmin ou Suporte)"""
+        email = request.data.get('email')
+        tipo = request.data.get('tipo')  # 'superadmin' ou 'suporte'
+        
+        if not email or not tipo:
+            return Response(
+                {'detail': 'Email e tipo são obrigatórios'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Buscar usuário pelo email
+            user = User.objects.get(email=email)
+            
+            # Verificar se tem UsuarioSistema associado
+            try:
+                usuario_sistema = UsuarioSistema.objects.get(user=user, tipo=tipo)
+            except UsuarioSistema.DoesNotExist:
+                return Response(
+                    {'detail': 'Usuário não encontrado ou tipo incorreto'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Gerar nova senha provisória
+            import random
+            import string
+            nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
+            
+            # Atualizar senha do usuário
+            user.set_password(nova_senha)
+            user.save()
+            
+            # Enviar email com nova senha
+            from django.core.mail import send_mail
+            
+            tipo_display = 'Super Admin' if tipo == 'superadmin' else 'Suporte'
+            url_login = f"https://lwksistemas.com.br/{tipo}/login"
+            
+            assunto = f"Recuperação de Senha - {tipo_display}"
+            mensagem = f"""
+Olá {user.first_name or user.username}!
+
+Você solicitou a recuperação de senha para acesso ao sistema.
+
+🔐 NOVOS DADOS DE ACESSO:
+• URL de Login: {url_login}
+• Usuário: {user.username}
+• Senha Provisória: {nova_senha}
+
+⚠️ IMPORTANTE:
+• Esta é uma senha provisória gerada automaticamente
+• Recomendamos alterar a senha após o login
+• Mantenha seus dados de acesso em segurança
+
+Se você não solicitou esta recuperação, entre em contato imediatamente.
+
+---
+Equipe LWK Sistemas
+            """.strip()
+            
+            send_mail(
+                subject=assunto,
+                message=mensagem,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False
+            )
+            
+            return Response({
+                'message': 'Senha provisória enviada para o email cadastrado',
+                'email': email
+            })
+            
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'Email não encontrado no sistema'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'detail': f'Erro ao enviar email: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LojaRecuperarSenhaView(viewsets.ViewSet):
+    """ViewSet para recuperação de senha de lojas"""
+    permission_classes = []
+    
+    @action(detail=False, methods=['post'])
+    def recuperar_senha(self, request):
+        """Recuperar senha de loja pelo email e slug"""
+        email = request.data.get('email')
+        slug = request.data.get('slug')
+        
+        if not email or not slug:
+            return Response(
+                {'detail': 'Email e slug são obrigatórios'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Buscar loja pelo slug
+            loja = Loja.objects.get(slug=slug, is_active=True)
+            
+            # Verificar se o email corresponde ao proprietário
+            if loja.owner.email != email:
+                return Response(
+                    {'detail': 'Email não corresponde ao proprietário da loja'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Gerar nova senha provisória
+            import random
+            import string
+            nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
+            
+            # Atualizar senha do usuário
+            loja.owner.set_password(nova_senha)
+            loja.owner.save()
+            
+            # Atualizar senha provisória na loja
+            loja.senha_provisoria = nova_senha
+            loja.senha_foi_alterada = False
+            loja.save()
+            
+            # Enviar email com nova senha
+            from django.core.mail import send_mail
+            
+            assunto = f"Recuperação de Senha - {loja.nome}"
+            mensagem = f"""
+Olá!
+
+Você solicitou a recuperação de senha para acesso à sua loja "{loja.nome}".
+
+🔐 NOVOS DADOS DE ACESSO:
+• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
+• Usuário: {loja.owner.username}
+• Senha Provisória: {nova_senha}
+
+⚠️ IMPORTANTE:
+• Esta é uma senha provisória gerada automaticamente
+• Recomendamos alterar a senha no primeiro acesso
+• Mantenha seus dados de acesso em segurança
+
+📋 INFORMAÇÕES DA LOJA:
+• Nome: {loja.nome}
+• Tipo: {loja.tipo_loja.nome}
+• Plano: {loja.plano.nome}
+
+Se você não solicitou esta recuperação, entre em contato imediatamente.
+
+---
+Equipe LWK Sistemas
+            """.strip()
+            
+            send_mail(
+                subject=assunto,
+                message=mensagem,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False
+            )
+            
+            return Response({
+                'message': 'Senha provisória enviada para o email cadastrado',
+                'email': email
+            })
+            
+        except Loja.DoesNotExist:
+            return Response(
+                {'detail': 'Loja não encontrada ou inativa'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'detail': f'Erro ao enviar email: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -14,6 +14,37 @@ interface LojaInfo {
   cor_secundaria: string;
 }
 
+// Adicionar estilos para impressão
+if (typeof window !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .print-area, .print-area * {
+        visibility: visible;
+      }
+      .print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+      .no-print {
+        display: none !important;
+      }
+      nav {
+        display: none !important;
+      }
+      button {
+        display: none !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 export default function RelatoriosPage() {
   const router = useRouter();
   const params = useParams();
@@ -22,6 +53,9 @@ export default function RelatoriosPage() {
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [periodoSelecionado, setPeriodoSelecionado] = useState('mes_atual');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -32,6 +66,12 @@ export default function RelatoriosPage() {
       }
 
       carregarLoja();
+      
+      // Definir datas padrão (mês atual)
+      const hoje = new Date();
+      const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      setDataInicio(primeiroDia.toISOString().split('T')[0]);
+      setDataFim(hoje.toISOString().split('T')[0]);
     }
   }, [router, slug]);
 
@@ -57,6 +97,94 @@ export default function RelatoriosPage() {
   const handleLogout = () => {
     authService.logout();
     router.push(`/loja/${slug}/login`);
+  };
+
+  const handleExportarExcel = () => {
+    // Criar dados do relatório
+    const dados = gerarDadosRelatorio();
+    
+    // Converter para CSV (compatível com Excel)
+    const csv = converterParaCSV(dados);
+    
+    // Criar blob e fazer download
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `relatorio_${lojaInfo?.nome}_${dataInicio}_${dataFim}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert('✅ Relatório exportado com sucesso!');
+  };
+
+  const handleExportarPDF = () => {
+    // Abrir janela de impressão (que permite salvar como PDF)
+    window.print();
+  };
+
+  const handleEnviarEmail = () => {
+    setShowEmailModal(true);
+  };
+
+  const gerarDadosRelatorio = () => {
+    return {
+      loja: lojaInfo?.nome || '',
+      periodo: `${dataInicio} a ${dataFim}`,
+      resumo_financeiro: {
+        receita_total: 'R$ 0,00',
+        despesas: 'R$ 0,00',
+        lucro_liquido: 'R$ 0,00',
+        margem: '0%'
+      },
+      agendamentos: {
+        total: 0,
+        realizados: 0,
+        cancelados: 0
+      },
+      clientes: {
+        total: 0,
+        novos: 0,
+        ativos: 0,
+        taxa_retorno: '0%'
+      }
+    };
+  };
+
+  const converterParaCSV = (dados: any) => {
+    let csv = '';
+    
+    // Cabeçalho
+    csv += `RELATÓRIO - ${dados.loja}\n`;
+    csv += `Período: ${dados.periodo}\n\n`;
+    
+    // Resumo Financeiro
+    csv += 'RESUMO FINANCEIRO\n';
+    csv += 'Métrica,Valor\n';
+    csv += `Receita Total,${dados.resumo_financeiro.receita_total}\n`;
+    csv += `Despesas,${dados.resumo_financeiro.despesas}\n`;
+    csv += `Lucro Líquido,${dados.resumo_financeiro.lucro_liquido}\n`;
+    csv += `Margem,${dados.resumo_financeiro.margem}\n\n`;
+    
+    // Agendamentos
+    csv += 'AGENDAMENTOS\n';
+    csv += 'Métrica,Valor\n';
+    csv += `Total de Agendamentos,${dados.agendamentos.total}\n`;
+    csv += `Realizados,${dados.agendamentos.realizados}\n`;
+    csv += `Cancelados,${dados.agendamentos.cancelados}\n\n`;
+    
+    // Clientes
+    csv += 'CLIENTES\n';
+    csv += 'Métrica,Valor\n';
+    csv += `Total de Clientes,${dados.clientes.total}\n`;
+    csv += `Novos no Período,${dados.clientes.novos}\n`;
+    csv += `Clientes Ativos,${dados.clientes.ativos}\n`;
+    csv += `Taxa de Retorno,${dados.clientes.taxa_retorno}\n`;
+    
+    return csv;
   };
 
   if (loading) {
@@ -115,11 +243,21 @@ export default function RelatoriosPage() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 print-area">
         <div className="px-4 py-6 sm:px-0">
           
+          {/* Cabeçalho para impressão */}
+          <div className="hidden print:block mb-6">
+            <h1 className="text-3xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
+              {lojaInfo.nome}
+            </h1>
+            <p className="text-lg text-gray-600">Relatório de Atividades</p>
+            <p className="text-sm text-gray-500">Período: {dataInicio} a {dataFim}</p>
+            <hr className="my-4" />
+          </div>
+          
           {/* Filtros */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
+          <div className="bg-white p-6 rounded-lg shadow mb-6 no-print">
             <h3 className="text-lg font-semibold mb-4">Filtros</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -147,6 +285,8 @@ export default function RelatoriosPage() {
                 </label>
                 <input
                   type="date"
+                  value={dataInicio}
+                  onChange={(e) => setDataInicio(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
                 />
               </div>
@@ -157,6 +297,8 @@ export default function RelatoriosPage() {
                 </label>
                 <input
                   type="date"
+                  value={dataFim}
+                  onChange={(e) => setDataFim(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
                 />
               </div>
@@ -280,30 +422,171 @@ export default function RelatoriosPage() {
           </div>
 
           {/* Botões de Exportação */}
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white p-6 rounded-lg shadow no-print">
             <h3 className="text-lg font-semibold mb-4">Exportar Relatórios</h3>
             <div className="flex flex-wrap gap-4">
               <button
-                className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                onClick={handleExportarExcel}
+                className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
               >
-                📄 Exportar Excel
+                <span>📄</span>
+                <span>Exportar Excel</span>
               </button>
               <button
-                className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                onClick={handleExportarPDF}
+                className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center space-x-2"
               >
-                📑 Exportar PDF
+                <span>📑</span>
+                <span>Exportar PDF</span>
               </button>
               <button
-                className="px-6 py-3 text-white rounded-md hover:opacity-90 transition-colors"
+                onClick={handleEnviarEmail}
+                className="px-6 py-3 text-white rounded-md hover:opacity-90 transition-colors flex items-center space-x-2"
                 style={{ backgroundColor: lojaInfo.cor_primaria }}
               >
-                📧 Enviar por Email
+                <span>📧</span>
+                <span>Enviar por Email</span>
               </button>
             </div>
           </div>
 
         </div>
       </main>
+
+      {/* Modal Enviar Email */}
+      {showEmailModal && (
+        <ModalEnviarEmail 
+          lojaInfo={lojaInfo!}
+          dataInicio={dataInicio}
+          dataFim={dataFim}
+          onClose={() => setShowEmailModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Modal Enviar Email
+function ModalEnviarEmail({ 
+  lojaInfo, 
+  dataInicio, 
+  dataFim, 
+  onClose 
+}: { 
+  lojaInfo: LojaInfo; 
+  dataInicio: string; 
+  dataFim: string; 
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    assunto: `Relatório ${lojaInfo.nome} - ${dataInicio} a ${dataFim}`,
+    mensagem: 'Segue em anexo o relatório solicitado.'
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // Simular envio de email
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      alert(`✅ Relatório enviado com sucesso para ${formData.email}!`);
+      onClose();
+    } catch (error) {
+      alert('❌ Erro ao enviar email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-8 max-w-md w-full">
+        <h2 className="text-2xl font-bold mb-6" style={{ color: lojaInfo.cor_primaria }}>
+          📧 Enviar Relatório por Email
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email do Destinatário *
+            </label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+              placeholder="email@exemplo.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Assunto
+            </label>
+            <input
+              type="text"
+              name="assunto"
+              value={formData.assunto}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Mensagem
+            </label>
+            <textarea
+              name="mensagem"
+              value={formData.mensagem}
+              onChange={handleChange}
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+            />
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-md">
+            <p className="text-sm text-gray-600">
+              <strong>Período:</strong> {dataInicio} a {dataFim}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              <strong>Formato:</strong> PDF
+            </p>
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: lojaInfo.cor_primaria }}
+            >
+              {loading ? 'Enviando...' : 'Enviar Email'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

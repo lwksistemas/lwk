@@ -45,6 +45,12 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const [showModalProfissional, setShowModalProfissional] = useState(false);
   const [showModalFuncionario, setShowModalFuncionario] = useState(false);
 
+  // State de clientes movido para o componente pai para persistir entre aberturas do modal
+  const [clientes, setClientes] = useState([
+    { id: 1, nome: 'Maria Silva Santos', email: 'maria@email.com', telefone: '(11) 98765-4321', cpf: '123.456.789-00', data_nascimento: '1985-05-15', cidade: 'São Paulo', estado: 'SP' },
+    { id: 2, nome: 'Ana Costa Oliveira', email: 'ana@email.com', telefone: '(11) 97654-3210', cpf: '987.654.321-00', data_nascimento: '1990-08-20', cidade: 'São Paulo', estado: 'SP' },
+  ]);
+
   // Carregar dados reais (quando implementado)
   useEffect(() => {
     // loadEstatisticas();
@@ -279,6 +285,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       {showModalCliente && (
         <ModalNovoCliente 
           loja={loja}
+          clientes={clientes}
+          setClientes={setClientes}
           onClose={() => setShowModalCliente(false)}
         />
       )}
@@ -493,7 +501,17 @@ function ModalNovoAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () =
 }
 
 // Modal Gerenciar Clientes (Listar, Criar, Editar, Excluir)
-function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+function ModalNovoCliente({ 
+  loja, 
+  clientes, 
+  setClientes, 
+  onClose 
+}: { 
+  loja: LojaInfo; 
+  clientes: any[]; 
+  setClientes: React.Dispatch<React.SetStateAction<any[]>>; 
+  onClose: () => void;
+}) {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<number | null>(null);
   const [formData, setFormData] = useState({
@@ -508,11 +526,6 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     observacoes: ''
   });
   const [loading, setLoading] = useState(false);
-
-  const clientes = [
-    { id: 1, nome: 'Maria Silva Santos', email: 'maria@email.com', telefone: '(11) 98765-4321', cpf: '123.456.789-00', data_nascimento: '1985-05-15', cidade: 'São Paulo', estado: 'SP' },
-    { id: 2, nome: 'Ana Costa Oliveira', email: 'ana@email.com', telefone: '(11) 97654-3210', cpf: '987.654.321-00', data_nascimento: '1990-08-20', cidade: 'São Paulo', estado: 'SP' },
-  ];
 
   const estados = [
     'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -551,6 +564,8 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
+      // Remover cliente do array
+      setClientes(prev => prev.filter(c => c.id !== clienteId));
       alert(`✅ Cliente "${clienteNome}" excluído com sucesso!`);
     } catch (error) {
       alert('❌ Erro ao excluir cliente');
@@ -563,8 +578,20 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
       if (clienteEditando) {
+        // Atualizar cliente existente
+        setClientes(prev => prev.map(c => 
+          c.id === clienteEditando 
+            ? { ...c, ...formData }
+            : c
+        ));
         alert(`✅ Cliente atualizado com sucesso!\n\nNome: ${formData.nome}\nEmail: ${formData.email}\nTelefone: ${formData.telefone}`);
       } else {
+        // Adicionar novo cliente
+        const novoCliente = {
+          id: Math.max(...clientes.map(c => c.id), 0) + 1,
+          ...formData
+        };
+        setClientes(prev => [...prev, novoCliente]);
         alert(`✅ Cliente cadastrado com sucesso!\n\nNome: ${formData.nome}\nEmail: ${formData.email}\nTelefone: ${formData.telefone}`);
       }
       setMostrarFormulario(false);

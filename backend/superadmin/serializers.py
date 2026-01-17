@@ -137,14 +137,17 @@ class LojaCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         import secrets
         import string
-        from django.core.mail import send_mail
-        from django.conf import settings
+        import traceback
         
-        # Extrair dados do owner
-        owner_username = validated_data.pop('owner_username')
-        owner_password = validated_data.pop('owner_password', None)
-        owner_email = validated_data.pop('owner_email')
-        dia_vencimento = validated_data.pop('dia_vencimento', 10)
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            # Extrair dados do owner
+            owner_username = validated_data.pop('owner_username')
+            owner_password = validated_data.pop('owner_password', None)
+            owner_email = validated_data.pop('owner_email')
+            dia_vencimento = validated_data.pop('dia_vencimento', 10)
         
         # Gerar senha provisória se não fornecida
         if not owner_password:
@@ -197,8 +200,13 @@ class LojaCreateSerializer(serializers.ModelSerializer):
         
         # Enviar email com senha provisória
         try:
-            assunto = f"Acesso à sua loja {loja.nome} - Senha Provisória"
-            mensagem = f"""
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            # Verificar se email está configurado
+            if hasattr(settings, 'DEFAULT_FROM_EMAIL') and settings.DEFAULT_FROM_EMAIL:
+                assunto = f"Acesso à sua loja {loja.nome} - Senha Provisória"
+                mensagem = f"""
 Olá!
 
 Sua loja "{loja.nome}" foi criada com sucesso no nosso sistema!
@@ -230,22 +238,30 @@ Bem-vindo ao nosso sistema!
 ---
 Equipe de Suporte
 Sistema Multi-Loja
-            """.strip()
-            
-            send_mail(
-                subject=assunto,
-                message=mensagem,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[owner_email],
-                fail_silently=True  # Não falhar se email não funcionar
-            )
-            
-            print(f"✅ Email enviado para {owner_email} com senha provisória")
+                """.strip()
+                
+                send_mail(
+                    subject=assunto,
+                    message=mensagem,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[owner_email],
+                    fail_silently=True  # Não falhar se email não funcionar
+                )
+                
+                print(f"✅ Email enviado para {owner_email} com senha provisória")
+            else:
+                print(f"⚠️ Email não configurado, senha provisória: {owner_password}")
             
         except Exception as e:
             print(f"⚠️ Erro ao enviar email: {e}")
+            # Não falhar a criação da loja por causa do email
         
         # Adicionar senha provisória ao contexto para retorno
         loja._senha_provisoria = owner_password
         
         return loja
+        
+        except Exception as e:
+            print(f"❌ ERRO AO CRIAR LOJA: {e}")
+            print(traceback.format_exc())
+            raise serializers.ValidationError(f"Erro ao criar loja: {str(e)}")

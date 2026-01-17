@@ -14,7 +14,8 @@ router.register(r'financeiro', FinanceiroLojaViewSet, basename='financeiro')
 router.register(r'pagamentos', PagamentoLojaViewSet, basename='pagamento')
 router.register(r'usuarios', UsuarioSistemaViewSet, basename='usuario-sistema')
 
+# IMPORTANTE: Rotas públicas devem vir ANTES do include do router
 urlpatterns = [
-    path('', include(router.urls)),
     path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),
+    path('', include(router.urls)),
 ]

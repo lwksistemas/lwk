@@ -1,5 +1,5 @@
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.core.management import call_command
@@ -552,52 +552,50 @@ Equipe LWK Sistemas
             )
 
 
-class LojaRecuperarSenhaView(viewsets.ViewSet):
-    """ViewSet para recuperação de senha de lojas"""
-    permission_classes = []
+# View para recuperação de senha de lojas (função simples, não ViewSet)
+@api_view(['POST'])
+@permission_classes([])
+def recuperar_senha_loja(request):
+    """Recuperar senha de loja pelo email e slug"""
+    email = request.data.get('email')
+    slug = request.data.get('slug')
     
-    @action(detail=False, methods=['post'])
-    def recuperar_senha(self, request):
-        """Recuperar senha de loja pelo email e slug"""
-        email = request.data.get('email')
-        slug = request.data.get('slug')
+    if not email or not slug:
+        return Response(
+            {'detail': 'Email e slug são obrigatórios'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Buscar loja pelo slug
+        loja = Loja.objects.get(slug=slug, is_active=True)
         
-        if not email or not slug:
+        # Verificar se o email corresponde ao proprietário
+        if loja.owner.email != email:
             return Response(
-                {'detail': 'Email e slug são obrigatórios'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'detail': 'Email não corresponde ao proprietário da loja'},
+                status=status.HTTP_404_NOT_FOUND
             )
         
-        try:
-            # Buscar loja pelo slug
-            loja = Loja.objects.get(slug=slug, is_active=True)
-            
-            # Verificar se o email corresponde ao proprietário
-            if loja.owner.email != email:
-                return Response(
-                    {'detail': 'Email não corresponde ao proprietário da loja'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            # Gerar nova senha provisória
-            import random
-            import string
-            nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
-            
-            # Atualizar senha do usuário
-            loja.owner.set_password(nova_senha)
-            loja.owner.save()
-            
-            # Atualizar senha provisória na loja
-            loja.senha_provisoria = nova_senha
-            loja.senha_foi_alterada = False
-            loja.save()
-            
-            # Enviar email com nova senha
-            from django.core.mail import send_mail
-            
-            assunto = f"Recuperação de Senha - {loja.nome}"
-            mensagem = f"""
+        # Gerar nova senha provisória
+        import random
+        import string
+        nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
+        
+        # Atualizar senha do usuário
+        loja.owner.set_password(nova_senha)
+        loja.owner.save()
+        
+        # Atualizar senha provisória na loja
+        loja.senha_provisoria = nova_senha
+        loja.senha_foi_alterada = False
+        loja.save()
+        
+        # Enviar email com nova senha
+        from django.core.mail import send_mail
+        
+        assunto = f"Recuperação de Senha - {loja.nome}"
+        mensagem = f"""
 Olá!
 
 Você solicitou a recuperação de senha para acesso à sua loja "{loja.nome}".
@@ -621,28 +619,28 @@ Se você não solicitou esta recuperação, entre em contato imediatamente.
 
 ---
 Equipe LWK Sistemas
-            """.strip()
-            
-            send_mail(
-                subject=assunto,
-                message=mensagem,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False
-            )
-            
-            return Response({
-                'message': 'Senha provisória enviada para o email cadastrado',
-                'email': email
-            })
-            
-        except Loja.DoesNotExist:
-            return Response(
-                {'detail': 'Loja não encontrada ou inativa'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {'detail': f'Erro ao enviar email: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        """.strip()
+        
+        send_mail(
+            subject=assunto,
+            message=mensagem,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False
+        )
+        
+        return Response({
+            'message': 'Senha provisória enviada para o email cadastrado',
+            'email': email
+        })
+        
+    except Loja.DoesNotExist:
+        return Response(
+            {'detail': 'Loja não encontrada ou inativa'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'detail': f'Erro ao enviar email: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TipoLojaViewSet, PlanoAssinaturaViewSet, LojaViewSet,
     FinanceiroLojaViewSet, PagamentoLojaViewSet, UsuarioSistemaViewSet,
-    LojaRecuperarSenhaView
+    recuperar_senha_loja
 )
 
 router = DefaultRouter()
@@ -16,5 +16,5 @@ router.register(r'usuarios', UsuarioSistemaViewSet, basename='usuario-sistema')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('lojas/recuperar_senha/', LojaRecuperarSenhaView.as_view({'post': 'recuperar_senha'}), name='loja-recuperar-senha'),
+    path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),
 ]

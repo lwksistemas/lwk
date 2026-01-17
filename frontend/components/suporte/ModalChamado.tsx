@@ -6,9 +6,11 @@ import { apiClient } from '@/lib/api-client'
 interface ModalChamadoProps {
   aberto: boolean
   onFechar: () => void
+  lojaSlug?: string
+  lojaNome?: string
 }
 
-export default function ModalChamado({ aberto, onFechar }: ModalChamadoProps) {
+export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: ModalChamadoProps) {
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [erro, setErro] = useState('')
@@ -26,7 +28,14 @@ export default function ModalChamado({ aberto, onFechar }: ModalChamadoProps) {
     setErro('')
 
     try {
-      await apiClient.post('/suporte/criar-chamado/', formData)
+      // Adicionar informações da loja se disponíveis
+      const dadosChamado = {
+        ...formData,
+        ...(lojaSlug && { loja_slug: lojaSlug }),
+        ...(lojaNome && { loja_nome: lojaNome })
+      }
+      
+      await apiClient.post('/suporte/criar-chamado/', dadosChamado)
       
       setSucesso(true)
       

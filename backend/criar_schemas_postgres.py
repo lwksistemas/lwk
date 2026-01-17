@@ -14,7 +14,7 @@ print("=" * 60)
 print("CRIAÇÃO DE SCHEMAS NO POSTGRESQL")
 print("=" * 60)
 
-schemas = ['suporte', 'loja_template', 'loja_felix', 'loja_harmonis', 'loja_loja-tech', 'loja_moda-store']
+schemas = ['suporte', 'loja_template', 'loja_felix', 'loja_harmonis', 'loja_loja_tech', 'loja_moda_store']
 
 with connection.cursor() as cursor:
     for schema in schemas:

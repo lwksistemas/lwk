@@ -3,7 +3,12 @@
 import { useState } from 'react'
 import ModalChamado from './ModalChamado'
 
-export default function BotaoSuporte() {
+interface BotaoSuporteProps {
+  lojaSlug?: string
+  lojaNome?: string
+}
+
+export default function BotaoSuporte({ lojaSlug, lojaNome }: BotaoSuporteProps = {}) {
   const [modalAberto, setModalAberto] = useState(false)
 
   return (
@@ -39,6 +44,8 @@ export default function BotaoSuporte() {
         <ModalChamado
           aberto={modalAberto}
           onFechar={() => setModalAberto(false)}
+          lojaSlug={lojaSlug}
+          lojaNome={lojaNome}
         />
       )}
     </>

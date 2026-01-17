@@ -40,11 +40,19 @@ if DATABASE_URL:
     }
     
     # Adicionar bancos das lojas existentes
-    for loja_slug in ['felix', 'harmonis', 'loja-tech', 'moda-store']:
+    # Nota: slugs com hífen são convertidos para underscore no schema
+    lojas_map = {
+        'felix': 'felix',
+        'harmonis': 'harmonis',
+        'loja-tech': 'loja_tech',
+        'moda-store': 'moda_store'
+    }
+    
+    for loja_slug, schema_name in lojas_map.items():
         DATABASES[f'loja_{loja_slug}'] = {
             **default_db,
             'OPTIONS': {
-                'options': f'-c search_path=loja_{loja_slug},public'
+                'options': f'-c search_path=loja_{schema_name},public'
             }
         }
 

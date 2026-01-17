@@ -109,12 +109,24 @@ export default function LojaDashboardDinamicoPage() {
               <h1 className="text-2xl font-bold">{lojaInfo.nome}</h1>
               <p className="text-sm opacity-90">{lojaInfo.tipo_loja_nome}</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
-            >
-              Sair
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push(`/loja/${slug}/suporte`)}
+                className="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center gap-2"
+                title="Ver meus chamados de suporte"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                Suporte
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+              >
+                Sair
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -126,6 +138,9 @@ export default function LojaDashboardDinamicoPage() {
           {renderDashboardPorTipo(lojaInfo)}
         </div>
       </main>
+
+      {/* Botão Flutuante de Suporte - Disponível em todos os dashboards */}
+      <BotaoSuporte lojaSlug={slug} lojaNome={lojaInfo.nome} />
     </div>
   );
 }
@@ -293,9 +308,6 @@ function DashboardGenerico({ loja }: { loja: LojaInfo }) {
           Em breve você terá acesso a funcionalidades personalizadas para seu tipo de negócio
         </p>
       </div>
-      
-      {/* Botão Flutuante de Suporte */}
-      <BotaoSuporte />
     </div>
   );
 }

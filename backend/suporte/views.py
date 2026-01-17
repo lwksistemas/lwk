@@ -15,15 +15,15 @@ class ChamadoViewSet(viewsets.ModelViewSet):
         
         # Super admin vê todos os chamados
         if user.is_superuser:
-            return Chamado.objects.using('suporte').all()
+            return Chamado.objects.all()
         
         # Usuários do grupo 'suporte' veem todos
         if user.groups.filter(name='suporte').exists():
-            return Chamado.objects.using('suporte').all()
+            return Chamado.objects.all()
         
         # Usuários de loja veem apenas seus chamados
         # (filtrar por loja_slug do contexto)
-        return Chamado.objects.using('suporte').filter(usuario_email=user.email)
+        return Chamado.objects.filter(usuario_email=user.email)
     
     def perform_create(self, serializer):
         serializer.save()
@@ -33,7 +33,7 @@ class ChamadoViewSet(viewsets.ModelViewSet):
         """Adicionar resposta a um chamado"""
         chamado = self.get_object()
         
-        resposta = RespostaChamado.objects.using('suporte').create(
+        resposta = RespostaChamado.objects.create(
             chamado=chamado,
             usuario_nome=request.user.username,
             mensagem=request.data.get('mensagem'),
@@ -49,7 +49,7 @@ class ChamadoViewSet(viewsets.ModelViewSet):
         chamado = self.get_object()
         chamado.status = 'resolvido'
         chamado.resolvido_em = timezone.now()
-        chamado.save(using='suporte')
+        chamado.save()
         
         serializer = self.get_serializer(chamado)
         return Response(serializer.data)
@@ -88,8 +88,8 @@ def criar_chamado_rapido(request):
             loja_slug = loja.slug
             loja_nome = loja.nome
         
-        # Criar chamado
-        chamado = Chamado.objects.using('suporte').create(
+        # Criar chamado no banco default (temporário até resolver problema do banco suporte)
+        chamado = Chamado.objects.create(
             titulo=titulo,
             descricao=descricao,
             tipo=tipo,
@@ -125,13 +125,13 @@ def meus_chamados(request):
     
     # Super admin vê todos
     if user.is_superuser:
-        chamados = Chamado.objects.using('suporte').all()
+        chamados = Chamado.objects.all()
     # Suporte vê todos
     elif user.groups.filter(name='suporte').exists():
-        chamados = Chamado.objects.using('suporte').all()
+        chamados = Chamado.objects.all()
     # Usuário comum vê apenas seus chamados
     else:
-        chamados = Chamado.objects.using('suporte').filter(usuario_email=user.email)
+        chamados = Chamado.objects.filter(usuario_email=user.email)
     
     # Filtros opcionais
     status_filter = request.query_params.get('status')

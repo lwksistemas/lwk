@@ -138,6 +138,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
         import secrets
         import string
         import traceback
+        import os
         
         try:
             from django.core.mail import send_mail
@@ -167,6 +168,48 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             validated_data['owner'] = owner
             validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
             loja = Loja.objects.create(**validated_data)
+            
+            # Criar schema no PostgreSQL automaticamente
+            try:
+                from django.db import connection
+                schema_name = loja.database_name.replace('-', '_')  # Remover hífens
+                
+                with connection.cursor() as cursor:
+                    # Criar schema
+                    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+                    print(f"✅ Schema '{schema_name}' criado no PostgreSQL")
+                
+                # Marcar como criado
+                loja.database_created = True
+                loja.save()
+                
+                # Adicionar às configurações do Django
+                from django.conf import settings
+                import dj_database_url
+                
+                DATABASE_URL = os.environ.get('DATABASE_URL')
+                if DATABASE_URL:
+                    default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+                    settings.DATABASES[loja.database_name] = {
+                        **default_db,
+                        'OPTIONS': {
+                            'options': f'-c search_path={schema_name},public'
+                        }
+                    }
+                    print(f"✅ Banco '{loja.database_name}' adicionado às configurações")
+                
+                # Aplicar migrations no novo schema
+                from django.core.management import call_command
+                try:
+                    call_command('migrate', 'stores', '--database', loja.database_name, verbosity=0)
+                    call_command('migrate', 'products', '--database', loja.database_name, verbosity=0)
+                    print(f"✅ Migrations aplicadas no schema '{schema_name}'")
+                except Exception as e:
+                    print(f"⚠️ Erro ao aplicar migrations: {e}")
+                
+            except Exception as e:
+                print(f"⚠️ Erro ao criar schema: {e}")
+                # Não falhar a criação da loja por causa do schema
             
             # Calcular valor baseado no tipo de assinatura
             if loja.tipo_assinatura == 'anual':

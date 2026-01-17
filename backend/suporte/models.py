@@ -18,8 +18,17 @@ class Chamado(models.Model):
         ('urgente', 'Urgente'),
     ]
     
+    TIPO_CHOICES = [
+        ('duvida', 'Dúvida'),
+        ('treinamento', 'Treinamento'),
+        ('problema', 'Problema Técnico'),
+        ('sugestao', 'Sugestão'),
+        ('outro', 'Outro'),
+    ]
+    
     titulo = models.CharField(max_length=200)
     descricao = models.TextField()
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='duvida')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='aberto')
     prioridade = models.CharField(max_length=20, choices=PRIORIDADE_CHOICES, default='media')
     

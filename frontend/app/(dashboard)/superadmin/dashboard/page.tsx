@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import BotaoSuporte from '@/components/suporte/BotaoSuporte';
 
 interface Estatisticas {
   total_lojas: number;
@@ -175,3 +176,6 @@ function MenuCard({ title, description, icon, href, color }: MenuCardProps) {
     </a>
   );
 }
+
+{/* Botão Flutuante de Suporte */}
+<BotaoSuporte />

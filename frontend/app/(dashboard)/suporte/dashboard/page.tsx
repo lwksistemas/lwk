@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import BotaoSuporte from '@/components/suporte/BotaoSuporte';
 
 interface Chamado {
   id: number;
@@ -182,6 +183,9 @@ export default function SuporteDashboardPage() {
           </div>
         </div>
       </main>
+      
+      {/* Botão Flutuante de Suporte */}
+      <BotaoSuporte />
     </div>
   );
 }

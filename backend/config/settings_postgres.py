@@ -4,6 +4,7 @@ Implementa arquitetura de 3 bancos isolados usando schemas
 """
 from .settings import *
 import dj_database_url
+import os
 
 # Sobrescrever configuração de bancos para usar PostgreSQL
 DATABASE_URL = os.environ.get('DATABASE_URL')

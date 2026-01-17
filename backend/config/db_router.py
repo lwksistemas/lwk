@@ -1,7 +1,7 @@
 """
 Database Router para Multi-Tenant com 3 bancos isolados:
 1. default - Super Admin
-2. suporte - Sistema de Suporte (TEMPORÁRIO: usando 'default' até resolver problema)
+2. suporte - Sistema de Suporte
 3. loja_* - Bancos dinâmicos por loja
 """
 
@@ -11,17 +11,15 @@ class MultiTenantRouter:
     """
     
     # Apps que usam o banco de suporte
-    # TEMPORÁRIO: Comentado para usar banco 'default' até resolver problema do banco isolado
-    # suporte_apps = {'suporte'}
+    suporte_apps = {'suporte'}
     
     # Apps que usam bancos de loja
     loja_apps = {'stores', 'products'}
     
     def db_for_read(self, model, **hints):
         """Direciona leitura para o banco correto"""
-        # TEMPORÁRIO: App suporte usando banco 'default'
-        # if model._meta.app_label in self.suporte_apps:
-        #     return 'suporte'
+        if model._meta.app_label in self.suporte_apps:
+            return 'suporte'
         
         # Se há um tenant ativo no contexto, usa o banco da loja
         from threading import local
@@ -34,9 +32,8 @@ class MultiTenantRouter:
     
     def db_for_write(self, model, **hints):
         """Direciona escrita para o banco correto"""
-        # TEMPORÁRIO: App suporte usando banco 'default'
-        # if model._meta.app_label in self.suporte_apps:
-        #     return 'suporte'
+        if model._meta.app_label in self.suporte_apps:
+            return 'suporte'
         
         from threading import local
         _thread_locals = local()
@@ -54,9 +51,8 @@ class MultiTenantRouter:
     
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         """Controla quais apps podem migrar em quais bancos"""
-        # TEMPORÁRIO: App suporte migrando no banco 'default'
-        # if app_label in self.suporte_apps:
-        #     return db == 'suporte'
+        if app_label in self.suporte_apps:
+            return db == 'suporte'
         
         if app_label in self.loja_apps:
             # Permite migração em qualquer banco de loja

@@ -32,6 +32,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.gzip.GZipMiddleware',  # ✅ OTIMIZAÇÃO: Compressão de resposta
     'tenants.middleware.TenantMiddleware',  # Middleware customizado
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -72,28 +73,57 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db_superadmin.sqlite3',
+        # ✅ OTIMIZAÇÃO: Connection pooling
+        'CONN_MAX_AGE': 600,  # Reutilizar conexões por 10 minutos
+        'ATOMIC_REQUESTS': False,
+        'OPTIONS': {
+            'timeout': 20,
+            'check_same_thread': False,
+        }
     },
     
     # BANCO 2: Suporte - Sistema de chamados/tickets
     'suporte': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db_suporte.sqlite3',
+        # ✅ OTIMIZAÇÃO: Connection pooling
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'timeout': 20,
+            'check_same_thread': False,
+        }
     },
     
     # BANCO 3: Template para lojas (será clonado para cada loja)
     'loja_template': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db_loja_template.sqlite3',
+        # ✅ OTIMIZAÇÃO: Connection pooling
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'timeout': 20,
+            'check_same_thread': False,
+        }
     },
     
     # Bancos das lojas existentes
     'loja_loja-tech': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db_loja_loja-tech.sqlite3',
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'timeout': 20,
+            'check_same_thread': False,
+        }
     },
     'loja_moda-store': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db_loja_moda-store.sqlite3',
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'timeout': 20,
+            'check_same_thread': False,
+        }
     },
 }
 
@@ -116,7 +146,31 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# ✅ OTIMIZAÇÃO: Whitenoise otimizado
+WHITENOISE_COMPRESS_OFFLINE = True
+WHITENOISE_MAX_AGE = 31536000  # 1 ano de cache
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ✅ OTIMIZAÇÃO: Cache em memória (grátis!)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
+    }
+}
+
+# ✅ OTIMIZAÇÃO: GZip compression
+GZIP_COMPRESSIBLE_TYPES = [
+    'text/html',
+    'text/css',
+    'text/javascript',
+    'application/javascript',
+    'application/json',
+]
 
 # REST Framework
 REST_FRAMEWORK = {
@@ -127,7 +181,16 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
+    'PAGE_SIZE': 20,  # ✅ OTIMIZAÇÃO: Paginação padrão
+    # ✅ OTIMIZAÇÃO: Throttling para prevenir abuso
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',  # 100 requisições por hora para não autenticados
+        'user': '1000/hour'  # 1000 requisições por hora para autenticados
+    }
 }
 
 # JWT Settings

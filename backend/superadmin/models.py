@@ -31,6 +31,11 @@ class TipoLoja(models.Model):
         verbose_name = 'Tipo de Loja'
         verbose_name_plural = 'Tipos de Loja'
         ordering = ['nome']
+        # ✅ OTIMIZAÇÃO: Índices para queries comuns
+        indexes = [
+            models.Index(fields=['slug'], name='tipo_loja_slug_idx'),
+            models.Index(fields=['dashboard_template'], name='tipo_loja_template_idx'),
+        ]
     
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -78,6 +83,11 @@ class PlanoAssinatura(models.Model):
         verbose_name = 'Plano de Assinatura'
         verbose_name_plural = 'Planos de Assinatura'
         ordering = ['ordem', 'preco_mensal']
+        # ✅ OTIMIZAÇÃO: Índices para queries comuns
+        indexes = [
+            models.Index(fields=['is_active', 'ordem'], name='plano_active_ordem_idx'),
+            models.Index(fields=['slug'], name='plano_slug_idx'),
+        ]
     
     def __str__(self):
         return f"{self.nome} - R$ {self.preco_mensal}/mês"
@@ -140,6 +150,15 @@ class Loja(models.Model):
         verbose_name = 'Loja'
         verbose_name_plural = 'Lojas'
         ordering = ['-created_at']
+        # ✅ OTIMIZAÇÃO: Índices para queries comuns
+        indexes = [
+            models.Index(fields=['is_active', '-created_at'], name='loja_active_created_idx'),
+            models.Index(fields=['tipo_loja', 'is_active'], name='loja_tipo_active_idx'),
+            models.Index(fields=['plano', 'is_active'], name='loja_plano_active_idx'),
+            models.Index(fields=['owner', 'is_active'], name='loja_owner_active_idx'),
+            models.Index(fields=['database_name'], name='loja_db_name_idx'),
+            models.Index(fields=['is_trial', 'trial_ends_at'], name='loja_trial_idx'),
+        ]
     
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -192,6 +211,11 @@ class FinanceiroLoja(models.Model):
     class Meta:
         verbose_name = 'Financeiro da Loja'
         verbose_name_plural = 'Financeiros das Lojas'
+        # ✅ OTIMIZAÇÃO: Índices para queries comuns
+        indexes = [
+            models.Index(fields=['status_pagamento', 'data_proxima_cobranca'], name='fin_status_data_idx'),
+            models.Index(fields=['loja', 'status_pagamento'], name='fin_loja_status_idx'),
+        ]
     
     def __str__(self):
         return f"Financeiro - {self.loja.nome}"
@@ -228,6 +252,12 @@ class PagamentoLoja(models.Model):
         verbose_name = 'Pagamento'
         verbose_name_plural = 'Pagamentos'
         ordering = ['-data_vencimento']
+        # ✅ OTIMIZAÇÃO: Índices para queries comuns
+        indexes = [
+            models.Index(fields=['loja', 'status', '-data_vencimento'], name='pag_loja_status_idx'),
+            models.Index(fields=['status', 'data_vencimento'], name='pag_status_venc_idx'),
+            models.Index(fields=['financeiro', '-data_vencimento'], name='pag_fin_venc_idx'),
+        ]
     
     def __str__(self):
         return f"{self.loja.nome} - {self.referencia_mes.strftime('%m/%Y')} - R$ {self.valor}"
@@ -266,6 +296,11 @@ class UsuarioSistema(models.Model):
     class Meta:
         verbose_name = 'Usuário do Sistema'
         verbose_name_plural = 'Usuários do Sistema'
+        # ✅ OTIMIZAÇÃO: Índices para queries comuns
+        indexes = [
+            models.Index(fields=['tipo', 'is_active'], name='usuario_tipo_active_idx'),
+            models.Index(fields=['user', 'tipo'], name='usuario_user_tipo_idx'),
+        ]
     
     def __str__(self):
         return f"{self.user.username} ({self.get_tipo_display()})"

@@ -3,18 +3,37 @@ const nextConfig = {
   reactStrictMode: true,
   
   // Otimizações de performance
-  swcMinify: true,
   compress: true,
   
   // Otimizar imagens
   images: {
     domains: ['localhost'],
-    formats: ['image/webp', 'image/avif'],
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,  // ✅ OTIMIZAÇÃO: Cache de imagens
   },
   
   // Otimizar compilação
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
+  },
+  
+  // ✅ OTIMIZAÇÃO: Webpack optimization
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          commons: {
+            name: 'commons',
+            chunks: 'all',
+            minChunks: 2,
+          },
+        },
+      };
+    }
+    return config;
   },
   
   // Headers de cache

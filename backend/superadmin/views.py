@@ -22,15 +22,21 @@ class IsSuperAdmin(permissions.BasePermission):
 
 
 class TipoLojaViewSet(viewsets.ModelViewSet):
-    queryset = TipoLoja.objects.all()
     serializer_class = TipoLojaSerializer
     permission_classes = [IsSuperAdmin]
+    
+    def get_queryset(self):
+        # ✅ OTIMIZAÇÃO: prefetch lojas relacionadas
+        return TipoLoja.objects.prefetch_related('lojas', 'planos').all()
 
 
 class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
-    queryset = PlanoAssinatura.objects.all()
     serializer_class = PlanoAssinaturaSerializer
     permission_classes = [IsSuperAdmin]
+    
+    def get_queryset(self):
+        # ✅ OTIMIZAÇÃO: prefetch relacionamentos
+        return PlanoAssinatura.objects.prefetch_related('tipos_loja', 'lojas').all()
     
     @action(detail=False, methods=['get'])
     def por_tipo(self, request):
@@ -44,7 +50,6 @@ class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
 
 
 class LojaViewSet(viewsets.ModelViewSet):
-    queryset = Loja.objects.all()
     permission_classes = [IsSuperAdmin]
     
     def get_serializer_class(self):
@@ -59,11 +64,22 @@ class LojaViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # ✅ OTIMIZAÇÃO: select_related para evitar N+1 queries
+        queryset = Loja.objects.select_related(
+            'tipo_loja',
+            'plano',
+            'owner',
+            'financeiro'
+        ).prefetch_related(
+            'pagamentos',
+            'usuarios_suporte'
+        )
+        
         # Filtrar por slug se fornecido
         slug = self.request.query_params.get('slug')
         if slug:
             queryset = queryset.filter(slug=slug)
+        
         return queryset
     
     @action(detail=False, methods=['get'], permission_classes=[])
@@ -416,9 +432,12 @@ Sistema Multi-Loja
 
 
 class FinanceiroLojaViewSet(viewsets.ModelViewSet):
-    queryset = FinanceiroLoja.objects.all()
     serializer_class = FinanceiroLojaSerializer
     permission_classes = [IsSuperAdmin]
+    
+    def get_queryset(self):
+        # ✅ OTIMIZAÇÃO: select_related para loja
+        return FinanceiroLoja.objects.select_related('loja', 'loja__plano').all()
     
     @action(detail=False, methods=['get'])
     def pendentes(self, request):
@@ -429,9 +448,12 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
 
 
 class PagamentoLojaViewSet(viewsets.ModelViewSet):
-    queryset = PagamentoLoja.objects.all()
     serializer_class = PagamentoLojaSerializer
     permission_classes = [IsSuperAdmin]
+    
+    def get_queryset(self):
+        # ✅ OTIMIZAÇÃO: select_related para loja e financeiro
+        return PagamentoLoja.objects.select_related('loja', 'financeiro').all()
     
     @action(detail=True, methods=['post'])
     def confirmar_pagamento(self, request, pk=None):
@@ -454,9 +476,12 @@ class PagamentoLojaViewSet(viewsets.ModelViewSet):
 
 
 class UsuarioSistemaViewSet(viewsets.ModelViewSet):
-    queryset = UsuarioSistema.objects.all()
     serializer_class = UsuarioSistemaSerializer
     permission_classes = [IsSuperAdmin]
+    
+    def get_queryset(self):
+        # ✅ OTIMIZAÇÃO: select_related para user
+        return UsuarioSistema.objects.select_related('user').prefetch_related('lojas_acesso').all()
     
     @action(detail=False, methods=['get'])
     def suporte(self, request):

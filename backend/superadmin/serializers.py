@@ -148,65 +148,62 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             owner_password = validated_data.pop('owner_password', None)
             owner_email = validated_data.pop('owner_email')
             dia_vencimento = validated_data.pop('dia_vencimento', 10)
-        
-        # Gerar senha provisória se não fornecida
-        if not owner_password:
-            # Gerar senha segura: 8 caracteres com letras, números e símbolos
-            alphabet = string.ascii_letters + string.digits + "!@#$%&*"
-            owner_password = ''.join(secrets.choice(alphabet) for _ in range(8))
-        
-        # Criar usuário owner da loja
-        owner = User.objects.create_user(
-            username=owner_username,
-            email=owner_email,
-            password=owner_password,
-            is_staff=True
-        )
-        
-        # Criar loja
-        validated_data['owner'] = owner
-        validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
-        loja = Loja.objects.create(**validated_data)
-        
-        # Calcular valor baseado no tipo de assinatura
-        if loja.tipo_assinatura == 'anual':
-            valor_mensalidade = loja.plano.preco_anual / 12 if loja.plano.preco_anual else loja.plano.preco_mensal
-        else:
-            valor_mensalidade = loja.plano.preco_mensal
-        
-        # Criar financeiro
-        from datetime import date, timedelta
-        from calendar import monthrange
-        
-        # Calcular próxima cobrança baseada no dia de vencimento
-        hoje = date.today()
-        if hoje.day <= dia_vencimento:
-            # Próxima cobrança neste mês
-            proxima_cobranca = date(hoje.year, hoje.month, dia_vencimento)
-        else:
-            # Próxima cobrança no próximo mês
-            if hoje.month == 12:
-                proxima_cobranca = date(hoje.year + 1, 1, dia_vencimento)
-            else:
-                proxima_cobranca = date(hoje.year, hoje.month + 1, dia_vencimento)
-        
-        FinanceiroLoja.objects.create(
-            loja=loja,
-            data_proxima_cobranca=proxima_cobranca,
-            valor_mensalidade=valor_mensalidade,
-            dia_vencimento=dia_vencimento,
-            status_pagamento='ativo' if not loja.is_trial else 'pendente'
-        )
-        
-        # Enviar email com senha provisória
-        try:
-            from django.core.mail import send_mail
-            from django.conf import settings
             
-            # Verificar se email está configurado
-            if hasattr(settings, 'DEFAULT_FROM_EMAIL') and settings.DEFAULT_FROM_EMAIL:
-                assunto = f"Acesso à sua loja {loja.nome} - Senha Provisória"
-                mensagem = f"""
+            # Gerar senha provisória se não fornecida
+            if not owner_password:
+                # Gerar senha segura: 8 caracteres com letras, números e símbolos
+                alphabet = string.ascii_letters + string.digits + "!@#$%&*"
+                owner_password = ''.join(secrets.choice(alphabet) for _ in range(8))
+        
+            # Criar usuário owner da loja
+            owner = User.objects.create_user(
+                username=owner_username,
+                email=owner_email,
+                password=owner_password,
+                is_staff=True
+            )
+            
+            # Criar loja
+            validated_data['owner'] = owner
+            validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
+            loja = Loja.objects.create(**validated_data)
+            
+            # Calcular valor baseado no tipo de assinatura
+            if loja.tipo_assinatura == 'anual':
+                valor_mensalidade = loja.plano.preco_anual / 12 if loja.plano.preco_anual else loja.plano.preco_mensal
+            else:
+                valor_mensalidade = loja.plano.preco_mensal
+            
+            # Criar financeiro
+            from datetime import date, timedelta
+            from calendar import monthrange
+            
+            # Calcular próxima cobrança baseada no dia de vencimento
+            hoje = date.today()
+            if hoje.day <= dia_vencimento:
+                # Próxima cobrança neste mês
+                proxima_cobranca = date(hoje.year, hoje.month, dia_vencimento)
+            else:
+                # Próxima cobrança no próximo mês
+                if hoje.month == 12:
+                    proxima_cobranca = date(hoje.year + 1, 1, dia_vencimento)
+                else:
+                    proxima_cobranca = date(hoje.year, hoje.month + 1, dia_vencimento)
+            
+            FinanceiroLoja.objects.create(
+                loja=loja,
+                data_proxima_cobranca=proxima_cobranca,
+                valor_mensalidade=valor_mensalidade,
+                dia_vencimento=dia_vencimento,
+                status_pagamento='ativo' if not loja.is_trial else 'pendente'
+            )
+        
+            # Enviar email com senha provisória
+            try:
+                # Verificar se email está configurado
+                if hasattr(settings, 'DEFAULT_FROM_EMAIL') and settings.DEFAULT_FROM_EMAIL:
+                    assunto = f"Acesso à sua loja {loja.nome} - Senha Provisória"
+                    mensagem = f"""
 Olá!
 
 Sua loja "{loja.nome}" foi criada com sucesso no nosso sistema!
@@ -238,28 +235,28 @@ Bem-vindo ao nosso sistema!
 ---
 Equipe de Suporte
 Sistema Multi-Loja
-                """.strip()
+                    """.strip()
+                    
+                    send_mail(
+                        subject=assunto,
+                        message=mensagem,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[owner_email],
+                        fail_silently=True  # Não falhar se email não funcionar
+                    )
+                    
+                    print(f"✅ Email enviado para {owner_email} com senha provisória")
+                else:
+                    print(f"⚠️ Email não configurado, senha provisória: {owner_password}")
                 
-                send_mail(
-                    subject=assunto,
-                    message=mensagem,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[owner_email],
-                    fail_silently=True  # Não falhar se email não funcionar
-                )
-                
-                print(f"✅ Email enviado para {owner_email} com senha provisória")
-            else:
-                print(f"⚠️ Email não configurado, senha provisória: {owner_password}")
+            except Exception as e:
+                print(f"⚠️ Erro ao enviar email: {e}")
+                # Não falhar a criação da loja por causa do email
             
-        except Exception as e:
-            print(f"⚠️ Erro ao enviar email: {e}")
-            # Não falhar a criação da loja por causa do email
-        
-        # Adicionar senha provisória ao contexto para retorno
-        loja._senha_provisoria = owner_password
-        
-        return loja
+            # Adicionar senha provisória ao contexto para retorno
+            loja._senha_provisoria = owner_password
+            
+            return loja
         
         except Exception as e:
             print(f"❌ ERRO AO CRIAR LOJA: {e}")

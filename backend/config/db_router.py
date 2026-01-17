@@ -1,22 +1,17 @@
 """
 Database Router para Multi-Tenant com 3 bancos isolados:
-1. default - Super Admin
-2. suporte - Sistema de Suporte (LOCAL: isolado | HEROKU: usa default)
-3. loja_* - Bancos dinâmicos por loja
+1. default - Super Admin (schema: public)
+2. suporte - Sistema de Suporte (schema: suporte)
+3. loja_* - Bancos dinâmicos por loja (schemas: loja_*)
 
-NOTA: No Heroku, SQLite não suporta múltiplos bancos persistentes.
-      Localmente, funciona com 3 bancos isolados.
-      Em produção (Heroku), suporte usa banco 'default'.
+Com PostgreSQL, usa schemas isolados no mesmo banco.
+Com SQLite local, usa arquivos separados.
 """
-import os
 
 class MultiTenantRouter:
     """
     Router que direciona queries para o banco correto baseado no app/model
     """
-    
-    # Detectar se está no Heroku
-    IS_HEROKU = 'DYNO' in os.environ
     
     # Apps que usam o banco de suporte
     suporte_apps = {'suporte'}
@@ -27,9 +22,7 @@ class MultiTenantRouter:
     def db_for_read(self, model, **hints):
         """Direciona leitura para o banco correto"""
         if model._meta.app_label in self.suporte_apps:
-            # No Heroku, usa 'default' (limitação do SQLite)
-            # Localmente, usa 'suporte' (banco isolado)
-            return 'default' if self.IS_HEROKU else 'suporte'
+            return 'suporte'
         
         # Se há um tenant ativo no contexto, usa o banco da loja
         from threading import local
@@ -43,9 +36,7 @@ class MultiTenantRouter:
     def db_for_write(self, model, **hints):
         """Direciona escrita para o banco correto"""
         if model._meta.app_label in self.suporte_apps:
-            # No Heroku, usa 'default' (limitação do SQLite)
-            # Localmente, usa 'suporte' (banco isolado)
-            return 'default' if self.IS_HEROKU else 'suporte'
+            return 'suporte'
         
         from threading import local
         _thread_locals = local()
@@ -64,12 +55,7 @@ class MultiTenantRouter:
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         """Controla quais apps podem migrar em quais bancos"""
         if app_label in self.suporte_apps:
-            # No Heroku, migra no 'default'
-            # Localmente, migra no 'suporte'
-            if self.IS_HEROKU:
-                return db == 'default'
-            else:
-                return db == 'suporte'
+            return db == 'suporte'
         
         if app_label in self.loja_apps:
             # Permite migração em qualquer banco de loja

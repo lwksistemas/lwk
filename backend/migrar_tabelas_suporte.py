@@ -58,19 +58,25 @@ with connection.cursor() as cursor:
 # 2. Migrar dados do schema public para suporte
 print("\n2. Migrando dados de 'public' para 'suporte'...")
 with connection.cursor() as cursor:
-    # Copiar chamados
+    # Copiar chamados (especificando colunas)
     cursor.execute("""
         INSERT INTO suporte.suporte_chamado 
-        SELECT * FROM public.suporte_chamado
+        (id, titulo, descricao, tipo, status, prioridade, loja_slug, loja_nome, 
+         usuario_nome, usuario_email, atendente_id, created_at, updated_at, resolvido_em)
+        SELECT id, titulo, descricao, tipo, status, prioridade, loja_slug, loja_nome,
+               usuario_nome, usuario_email, atendente_id, created_at, updated_at, resolvido_em
+        FROM public.suporte_chamado
         ON CONFLICT (id) DO NOTHING
     """)
     chamados_migrados = cursor.rowcount
     print(f"   ✅ {chamados_migrados} chamados migrados")
     
-    # Copiar respostas
+    # Copiar respostas (especificando colunas)
     cursor.execute("""
         INSERT INTO suporte.suporte_respostachamado 
-        SELECT * FROM public.suporte_respostachamado
+        (id, chamado_id, usuario_nome, mensagem, is_suporte, created_at)
+        SELECT id, chamado_id, usuario_nome, mensagem, is_suporte, created_at
+        FROM public.suporte_respostachamado
         ON CONFLICT (id) DO NOTHING
     """)
     respostas_migradas = cursor.rowcount

@@ -294,7 +294,7 @@ Olá!
 Conforme solicitado, seguem novamente os dados de acesso à sua loja "{loja.nome}":
 
 🔐 DADOS DE ACESSO:
-• URL de Login: http://localhost:3000{loja.login_page_url}
+• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
 • Usuário: {loja.owner.username}
 • Senha Provisória: {loja.senha_provisoria}
 

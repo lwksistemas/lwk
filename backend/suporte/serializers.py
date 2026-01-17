@@ -15,7 +15,7 @@ class ChamadoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chamado
         fields = [
-            'id', 'titulo', 'descricao', 'status', 'prioridade',
+            'id', 'titulo', 'descricao', 'tipo', 'status', 'prioridade',
             'loja_slug', 'loja_nome', 'usuario_nome', 'usuario_email',
             'atendente', 'atendente_nome', 'respostas',
             'created_at', 'updated_at', 'resolvido_em'

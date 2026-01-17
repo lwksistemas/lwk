@@ -143,6 +143,9 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
       </main>
+      
+      {/* Botão Flutuante de Suporte */}
+      <BotaoSuporte />
     </div>
   );
 }
@@ -176,6 +179,3 @@ function MenuCard({ title, description, icon, href, color }: MenuCardProps) {
     </a>
   );
 }
-
-{/* Botão Flutuante de Suporte */}
-<BotaoSuporte />

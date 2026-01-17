@@ -21,6 +21,24 @@ export default function SuporteLoginPage() {
 
     try {
       await authService.login(credentials, 'suporte');
+      
+      // Aguardar um momento para garantir que o token foi salvo
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verificar se precisa trocar senha
+      try {
+        const apiClient = (await import('@/lib/api-client')).default;
+        const checkResponse = await apiClient.get('/superadmin/usuarios/verificar_senha_provisoria/');
+        console.log('Verificação senha Suporte:', checkResponse.data);
+        
+        if (checkResponse.data.precisa_trocar_senha) {
+          router.push('/suporte/trocar-senha');
+          return;
+        }
+      } catch (checkErr) {
+        console.error('Erro ao verificar senha:', checkErr);
+      }
+      
       router.push('/suporte/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao fazer login');

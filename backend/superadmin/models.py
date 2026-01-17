@@ -247,6 +247,10 @@ class UsuarioSistema(models.Model):
     telefone = models.CharField(max_length=20, blank=True)
     foto = models.URLField(blank=True)
     
+    # Senha provisória (para recuperação de senha)
+    senha_provisoria = models.CharField(max_length=50, blank=True, help_text='Senha provisória gerada automaticamente')
+    senha_foi_alterada = models.BooleanField(default=False, help_text='Indica se o usuário já alterou a senha provisória')
+    
     # Permissões específicas
     pode_criar_lojas = models.BooleanField(default=False)
     pode_gerenciar_financeiro = models.BooleanField(default=False)

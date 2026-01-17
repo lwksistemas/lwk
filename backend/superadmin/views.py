@@ -465,6 +465,93 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(suporte, many=True)
         return Response(serializer.data)
     
+    @action(detail=False, methods=['get'], permission_classes=[])
+    def verificar_senha_provisoria(self, request):
+        """Verifica se o usuário logado precisa trocar a senha provisória"""
+        # Se não estiver autenticado, retornar False
+        if not request.user or not request.user.is_authenticated:
+            return Response({
+                'precisa_trocar_senha': False,
+                'mensagem': 'Usuário não autenticado'
+            })
+        
+        try:
+            # Buscar UsuarioSistema do usuário logado
+            usuario_sistema = UsuarioSistema.objects.get(user=request.user)
+            
+            return Response({
+                'precisa_trocar_senha': not usuario_sistema.senha_foi_alterada and bool(usuario_sistema.senha_provisoria),
+                'usuario_id': usuario_sistema.id,
+                'usuario_nome': request.user.username,
+                'tipo': usuario_sistema.tipo,
+            })
+        except UsuarioSistema.DoesNotExist:
+            return Response({
+                'precisa_trocar_senha': False,
+                'mensagem': 'Usuário não possui perfil de sistema'
+            })
+    
+    @action(detail=False, methods=['post'], permission_classes=[])
+    def alterar_senha_primeiro_acesso(self, request):
+        """Permite ao usuário alterar a senha no primeiro acesso"""
+        # Verificar se está autenticado
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {'detail': 'Autenticação necessária'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        try:
+            usuario_sistema = UsuarioSistema.objects.get(user=request.user)
+        except UsuarioSistema.DoesNotExist:
+            return Response(
+                {'detail': 'Usuário não possui perfil de sistema'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar se já alterou a senha
+        if usuario_sistema.senha_foi_alterada:
+            return Response(
+                {'detail': 'A senha já foi alterada anteriormente'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        nova_senha = request.data.get('nova_senha')
+        confirmar_senha = request.data.get('confirmar_senha')
+        
+        if not nova_senha or not confirmar_senha:
+            return Response(
+                {'detail': 'Nova senha e confirmação são obrigatórias'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if nova_senha != confirmar_senha:
+            return Response(
+                {'detail': 'As senhas não coincidem'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(nova_senha) < 6:
+            return Response(
+                {'detail': 'A senha deve ter no mínimo 6 caracteres'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Alterar senha do usuário
+        user = request.user
+        user.set_password(nova_senha)
+        user.save()
+        
+        # Marcar que a senha foi alterada
+        usuario_sistema.senha_foi_alterada = True
+        usuario_sistema.save()
+        
+        return Response({
+            'message': 'Senha alterada com sucesso!',
+            'usuario': user.username,
+            'tipo': usuario_sistema.get_tipo_display()
+        })
+    
     @action(detail=False, methods=['post'], permission_classes=[])
     def recuperar_senha(self, request):
         """Recuperar senha de usuário do sistema (SuperAdmin ou Suporte)"""
@@ -498,6 +585,11 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             # Atualizar senha do usuário
             user.set_password(nova_senha)
             user.save()
+            
+            # Atualizar senha provisória no UsuarioSistema
+            usuario_sistema.senha_provisoria = nova_senha
+            usuario_sistema.senha_foi_alterada = False
+            usuario_sistema.save()
             
             # Enviar email com nova senha
             from django.core.mail import send_mail

@@ -23,6 +23,8 @@ INSTALLED_APPS = [
     'suporte',  # App de suporte/chamados
     'tenants',  # App de gerenciamento de tenants
     'superadmin',  # App de super admin
+    'clinica_estetica',  # App de clínica de estética
+    'crm_vendas',  # App de CRM vendas
 ]
 
 MIDDLEWARE = [

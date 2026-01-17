@@ -27,6 +27,7 @@ export default function TiposLojaPage() {
   const [tipos, setTipos] = useState<TipoLoja[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingTipo, setEditingTipo] = useState<TipoLoja | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
@@ -48,6 +49,36 @@ export default function TiposLojaPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (tipo: TipoLoja) => {
+    setEditingTipo(tipo);
+    setShowModal(true);
+  };
+
+  const handleDelete = async (tipo: TipoLoja) => {
+    if (tipo.total_lojas > 0) {
+      alert('Não é possível excluir um tipo de loja que possui lojas associadas.');
+      return;
+    }
+
+    if (!confirm(`Tem certeza que deseja excluir o tipo "${tipo.nome}"?`)) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/superadmin/tipos-loja/${tipo.id}/`);
+      alert('Tipo de loja excluído com sucesso!');
+      loadTipos();
+    } catch (error: any) {
+      console.error('Erro ao excluir tipo de loja:', error);
+      alert(`Erro ao excluir: ${error.response?.data?.error || 'Erro desconhecido'}`);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingTipo(null);
   };
 
   return (
@@ -177,11 +208,17 @@ export default function TiposLojaPage() {
                         {new Date(tipo.created_at).toLocaleDateString('pt-BR')}
                       </span>
                       <div className="space-x-2">
-                        <button className="text-blue-600 hover:text-blue-800 text-sm">
+                        <button 
+                          onClick={() => handleEdit(tipo)}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
                           Editar
                         </button>
                         {tipo.total_lojas === 0 && (
-                          <button className="text-red-600 hover:text-red-800 text-sm">
+                          <button 
+                            onClick={() => handleDelete(tipo)}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium"
+                          >
                             Excluir
                           </button>
                         )}
@@ -196,27 +233,43 @@ export default function TiposLojaPage() {
       </main>
 
       {/* Modal Novo Tipo */}
-      {showModal && <NovoTipoModal onClose={() => setShowModal(false)} onSuccess={loadTipos} />}
+      {showModal && (
+        <NovoTipoModal 
+          onClose={handleCloseModal} 
+          onSuccess={loadTipos}
+          editingTipo={editingTipo}
+        />
+      )}
     </div>
   );
 }
 
 // Componente do Modal
-function NovoTipoModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function NovoTipoModal({ 
+  onClose, 
+  onSuccess,
+  editingTipo 
+}: { 
+  onClose: () => void; 
+  onSuccess: () => void;
+  editingTipo?: TipoLoja | null;
+}) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    nome: '',
-    slug: '',
-    descricao: '',
-    dashboard_template: 'default',
-    cor_primaria: '#10B981',
-    cor_secundaria: '#059669',
-    tem_produtos: true,
-    tem_servicos: false,
-    tem_agendamento: false,
-    tem_delivery: false,
-    tem_estoque: true,
+    nome: editingTipo?.nome || '',
+    slug: editingTipo?.slug || '',
+    descricao: editingTipo?.descricao || '',
+    dashboard_template: editingTipo?.dashboard_template || 'default',
+    cor_primaria: editingTipo?.cor_primaria || '#10B981',
+    cor_secundaria: editingTipo?.cor_secundaria || '#059669',
+    tem_produtos: editingTipo?.tem_produtos ?? true,
+    tem_servicos: editingTipo?.tem_servicos ?? false,
+    tem_agendamento: editingTipo?.tem_agendamento ?? false,
+    tem_delivery: editingTipo?.tem_delivery ?? false,
+    tem_estoque: editingTipo?.tem_estoque ?? true,
   });
+
+  const isEditing = !!editingTipo;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -244,13 +297,20 @@ function NovoTipoModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     setLoading(true);
 
     try {
-      await apiClient.post('/superadmin/tipos-loja/', formData);
-      alert('Tipo de loja criado com sucesso!');
+      if (isEditing && editingTipo) {
+        // Atualizar tipo existente
+        await apiClient.put(`/superadmin/tipos-loja/${editingTipo.id}/`, formData);
+        alert('Tipo de loja atualizado com sucesso!');
+      } else {
+        // Criar novo tipo
+        await apiClient.post('/superadmin/tipos-loja/', formData);
+        alert('Tipo de loja criado com sucesso!');
+      }
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Erro ao criar tipo de loja:', error);
-      alert(`Erro: ${error.response?.data?.error || JSON.stringify(error.response?.data) || 'Erro ao criar tipo'}`);
+      console.error('Erro ao salvar tipo de loja:', error);
+      alert(`Erro: ${error.response?.data?.error || JSON.stringify(error.response?.data) || 'Erro ao salvar tipo'}`);
     } finally {
       setLoading(false);
     }
@@ -268,7 +328,9 @@ function NovoTipoModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6 text-purple-900">Novo Tipo de Loja</h2>
+        <h2 className="text-2xl font-bold mb-6 text-purple-900">
+          {isEditing ? 'Editar Tipo de Loja' : 'Novo Tipo de Loja'}
+        </h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informações Básicas */}
@@ -507,7 +569,7 @@ function NovoTipoModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
               disabled={loading}
               className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Criando...' : 'Criar Tipo'}
+              {loading ? (isEditing ? 'Salvando...' : 'Criando...') : (isEditing ? 'Salvar Alterações' : 'Criar Tipo')}
             </button>
           </div>
         </form>

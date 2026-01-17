@@ -14,6 +14,30 @@
 
 ---
 
+## 🌐 Configuração de Domínio (NOVO!)
+
+### Guias de Domínio
+- **`ACAO_IMEDIATA_DOMINIO.md`** ⚡ - O que fazer AGORA
+- **`PASSO_A_PASSO_DNS.md`** 📝 - Guia visual passo a passo
+- **`DNS_CONFIGURACAO_REGISTRO_BR.md`** 🔧 - Configuração DNS detalhada
+- **`CONFIGURAR_DOMINIO.md`** 📖 - Guia completo de domínio
+- **`DOMINIO_CONFIGURADO.md`** ✅ - Status da configuração
+- **`RESUMO_DOMINIO.md`** 📊 - Resumo executivo
+- **`atualizar_variaveis_dominio.sh`** 🔧 - Script de atualização
+
+---
+
+## 🔐 Sistema de Login
+
+### Estrutura de Login
+- **`ESTRUTURA_LOGIN.md`** - Estrutura das 3 páginas de login
+- **`VALIDACAO_LOGIN_3_PAGINAS.md`** - Validação do requisito
+- **`PAGINA_LOGIN_LOJA_CRIADA.md`** - Login personalizado por loja
+- **`SENHA_PROVISORIA_IMPLEMENTADA.md`** - Sistema de senha provisória
+- **`TROCA_SENHA_OBRIGATORIA.md`** - Troca de senha no primeiro acesso
+
+---
+
 ## 🧪 Testes e Validação
 
 ### Relatórios de Teste

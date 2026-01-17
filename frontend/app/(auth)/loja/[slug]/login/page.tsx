@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { authService } from '@/lib/auth';
 import apiClient from '@/lib/api-client';
 
@@ -89,12 +90,12 @@ export default function LojaLoginDinamicoPage() {
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Loja não encontrada</h2>
             <p className="text-gray-600 mb-6">A loja "{slug}" não existe ou não está ativa.</p>
-            <a
+            <Link
               href="/"
               className="inline-block px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700"
             >
               Voltar para Home
-            </a>
+            </Link>
           </div>
         </div>
       </div>

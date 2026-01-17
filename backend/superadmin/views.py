@@ -197,6 +197,7 @@ class LojaViewSet(viewsets.ModelViewSet):
         try:
             # Coletar informações antes da exclusão
             loja_nome = loja.nome
+            loja_slug = loja.slug
             loja_id = loja.id
             database_name = loja.database_name
             database_created = loja.database_created
@@ -207,7 +208,28 @@ class LojaViewSet(viewsets.ModelViewSet):
             pagamentos_count = loja.pagamentos.count() if hasattr(loja, 'pagamentos') else 0
             outras_lojas_owner = Loja.objects.filter(owner=loja.owner).exclude(id=loja.id).count()
             
-            # 1. Remover banco de dados físico se existir
+            # 1. Remover chamados de suporte da loja
+            chamados_removidos = 0
+            respostas_removidas = 0
+            try:
+                from suporte.models import Chamado, RespostaChamado
+                
+                # Buscar chamados da loja
+                chamados = Chamado.objects.filter(loja_slug=loja_slug)
+                chamados_removidos = chamados.count()
+                
+                # Contar respostas antes de deletar
+                for chamado in chamados:
+                    respostas_removidas += chamado.respostas.count()
+                
+                # Deletar chamados (respostas são deletadas em cascade)
+                chamados.delete()
+                print(f"✅ Chamados de suporte removidos: {chamados_removidos}")
+                print(f"✅ Respostas de suporte removidas: {respostas_removidas}")
+            except Exception as e:
+                print(f"⚠️ Erro ao remover chamados de suporte: {e}")
+            
+            # 2. Remover banco de dados físico se existir
             banco_removido = False
             if database_created:
                 db_path = settings.BASE_DIR / f'db_{database_name}.sqlite3'
@@ -224,18 +246,18 @@ class LojaViewSet(viewsets.ModelViewSet):
                     banco_removido = True
                     print(f"✅ Arquivo do banco removido: {db_path}")
             
-            # 2. Coletar dados do proprietário antes da possível exclusão
+            # 3. Coletar dados do proprietário antes da possível exclusão
             owner = loja.owner
             usuario_sera_removido = outras_lojas_owner == 0
             
-            # 3. Remover a loja (isso remove automaticamente em cascade):
+            # 4. Remover a loja (isso remove automaticamente em cascade):
             # - FinanceiroLoja (OneToOneField com CASCADE)
             # - PagamentoLoja (ForeignKey com CASCADE) 
             # - Relacionamentos ManyToMany
             loja.delete()
             print(f"✅ Loja removida: {loja_nome}")
             
-            # 4. Remover usuário proprietário se não for usado por outras lojas
+            # 5. Remover usuário proprietário se não for usado por outras lojas
             usuario_removido = False
             if usuario_sera_removido:
                 # Verificar se o usuário não é superuser ou staff importante
@@ -246,7 +268,7 @@ class LojaViewSet(viewsets.ModelViewSet):
                 else:
                     print(f"⚠️ Usuário {owner_username} mantido (superuser/staff)")
             
-            # 5. Limpeza adicional de arquivos relacionados (se houver)
+            # 6. Limpeza adicional de arquivos relacionados (se houver)
             # TODO: Remover uploads, logos, etc. se implementado no futuro
             
             return Response({
@@ -254,7 +276,12 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'detalhes': {
                     'loja_id': loja_id,
                     'loja_nome': loja_nome,
+                    'loja_slug': loja_slug,
                     'loja_removida': True,
+                    'suporte': {
+                        'chamados_removidos': chamados_removidos,
+                        'respostas_removidas': respostas_removidas
+                    },
                     'banco_dados': {
                         'existia': database_created,
                         'nome': database_name,

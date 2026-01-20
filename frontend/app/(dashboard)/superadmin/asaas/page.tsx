@@ -80,9 +80,13 @@ export default function AsaasConfigPage() {
     checkStatus()
   }, [])
 
+  const API_BASE_URL = process.env.NODE_ENV === 'production' 
+    ? 'https://lwksistemas-38ad47519238.herokuapp.com' 
+    : 'http://localhost:8000'
+
   const loadConfig = async () => {
     try {
-      const response = await fetch('/api/asaas/config/', {
+      const response = await fetch(`${API_BASE_URL}/api/asaas/config/`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -99,7 +103,7 @@ export default function AsaasConfigPage() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/asaas/stats/', {
+      const response = await fetch(`${API_BASE_URL}/api/asaas/stats/`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -116,7 +120,7 @@ export default function AsaasConfigPage() {
 
   const checkStatus = async () => {
     try {
-      const response = await fetch('/api/asaas/status/', {
+      const response = await fetch(`${API_BASE_URL}/api/asaas/status/`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -134,7 +138,7 @@ export default function AsaasConfigPage() {
   const saveConfig = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/asaas/config/', {
+      const response = await fetch(`${API_BASE_URL}/api/asaas/config/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,7 +166,7 @@ export default function AsaasConfigPage() {
   const testConnection = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/asaas/test/', {
+      const response = await fetch(`${API_BASE_URL}/api/asaas/test/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
@@ -189,7 +193,7 @@ export default function AsaasConfigPage() {
   const syncPayments = async () => {
     setSyncing(true)
     try {
-      const response = await fetch('/api/asaas/sync/', {
+      const response = await fetch(`${API_BASE_URL}/api/asaas/sync/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`

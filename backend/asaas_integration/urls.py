@@ -24,4 +24,7 @@ urlpatterns = [
     path('status/', views.asaas_status, name='asaas-status'),
     path('stats/', views.asaas_stats, name='asaas-stats'),
     path('sync/', views.asaas_sync, name='asaas-sync'),
+    
+    # Webhook para receber notificações
+    path('webhook/', views.asaas_webhook, name='asaas-webhook'),
 ]

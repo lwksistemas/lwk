@@ -357,6 +357,73 @@ def get_last_sync_time():
     except:
         return None
 
+@api_view(['POST'])
+@permission_classes([])  # Webhook público, sem autenticação
+def asaas_webhook(request):
+    """Webhook para receber notificações do Asaas"""
+    
+    try:
+        # Log da requisição para debug
+        logger.info(f"Webhook Asaas recebido: {request.data}")
+        
+        # Verificar se é uma notificação de pagamento
+        event_type = request.data.get('event')
+        payment_data = request.data.get('payment', {})
+        
+        if not event_type or not payment_data:
+            return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
+        
+        # Processar apenas eventos de pagamento
+        if event_type in ['PAYMENT_CREATED', 'PAYMENT_UPDATED', 'PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED']:
+            payment_id = payment_data.get('id')
+            
+            if payment_id:
+                # Buscar ou criar o pagamento
+                payment, created = AsaasPayment.objects.get_or_create(
+                    asaas_id=payment_id,
+                    defaults={
+                        'billing_type': payment_data.get('billingType', 'UNDEFINED'),
+                        'status': payment_data.get('status', 'PENDING'),
+                        'value': payment_data.get('value', 0),
+                        'due_date': payment_data.get('dueDate'),
+                        'description': payment_data.get('description', ''),
+                        'external_reference': payment_data.get('externalReference', ''),
+                        'raw_data': payment_data
+                    }
+                )
+                
+                # Atualizar se já existia
+                if not created:
+                    payment.status = payment_data.get('status', payment.status)
+                    payment.raw_data = payment_data
+                    if payment_data.get('paymentDate'):
+                        payment.payment_date = payment_data.get('paymentDate')
+                    payment.save()
+                
+                # Buscar e associar cliente se necessário
+                customer_id = payment_data.get('customer')
+                if customer_id and not payment.customer:
+                    try:
+                        customer = AsaasCustomer.objects.get(asaas_id=customer_id)
+                        payment.customer = customer
+                        payment.save()
+                    except AsaasCustomer.DoesNotExist:
+                        # Cliente será criado na próxima sincronização
+                        pass
+                
+                logger.info(f"Pagamento {payment_id} processado via webhook: {event_type}")
+                
+                return Response({
+                    'status': 'processed',
+                    'event': event_type,
+                    'payment_id': payment_id
+                }, status=status.HTTP_200_OK)
+        
+        return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Erro no webhook Asaas: {e}")
+        # Retornar 200 mesmo com erro para não reenviar o webhook
 def set_last_sync_time():
     """Definir timestamp da última sincronização"""
     # Por enquanto, não fazemos nada específico

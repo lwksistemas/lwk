@@ -555,7 +555,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para pagamentos Asaas (somente leitura para superadmin)"""
     serializer_class = AsaasPaymentSerializer
     permission_classes = [IsSuperAdmin]
-    queryset = AsaasPayment.objects.all().select_related('asaas_customer')
+    queryset = AsaasPayment.objects.all().select_related('customer')
     
     def get_queryset(self):
         """Filtrar pagamentos com ordenação"""

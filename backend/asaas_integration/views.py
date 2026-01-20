@@ -23,6 +23,7 @@ except ImportError:
     REQUESTS_AVAILABLE = False
 
 from .models import AsaasCustomer, AsaasPayment, LojaAssinatura, AsaasConfig
+from .serializers import AsaasCustomerSerializer, AsaasPaymentSerializer, LojaAssinaturaSerializer
 from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
@@ -435,3 +436,243 @@ def get_last_sync_time():
     except Exception as e:
         logger.error(f"Erro ao obter timestamp de sincronização: {e}")
         return None
+
+
+# ViewSets para API REST
+
+class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet para assinaturas Asaas (somente leitura para superadmin)"""
+    serializer_class = LojaAssinaturaSerializer
+    permission_classes = [IsSuperAdmin]
+    queryset = LojaAssinatura.objects.all().select_related('asaas_customer', 'current_payment')
+    
+    def get_queryset(self):
+        """Filtrar assinaturas com ordenação"""
+        queryset = super().get_queryset()
+        return queryset.order_by('-created_at')
+    
+    @action(detail=False, methods=['get'])
+    def dashboard_stats(self, request):
+        """Estatísticas para dashboard financeiro"""
+        try:
+            # Estatísticas das assinaturas
+            total_assinaturas = LojaAssinatura.objects.count()
+            assinaturas_ativas = LojaAssinatura.objects.filter(ativa=True).count()
+            
+            # Estatísticas dos pagamentos
+            total_pagamentos = AsaasPayment.objects.count()
+            pagamentos_pendentes = AsaasPayment.objects.filter(status='PENDING').count()
+            pagamentos_pagos = AsaasPayment.objects.filter(
+                status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']
+            ).count()
+            pagamentos_vencidos = AsaasPayment.objects.filter(status='OVERDUE').count()
+            
+            # Receita total e pendente
+            receita_total = AsaasPayment.objects.filter(
+                status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']
+            ).aggregate(total=Sum('value'))['total'] or 0
+            
+            receita_pendente = AsaasPayment.objects.filter(
+                status__in=['PENDING', 'OVERDUE']
+            ).aggregate(total=Sum('value'))['total'] or 0
+            
+            return Response({
+                'total_assinaturas': total_assinaturas,
+                'assinaturas_ativas': assinaturas_ativas,
+                'pagamentos_pendentes': pagamentos_pendentes,
+                'pagamentos_pagos': pagamentos_pagos,
+                'pagamentos_vencidos': pagamentos_vencidos,
+                'receita_total': float(receita_total),
+                'receita_pendente': float(receita_pendente)
+            })
+            
+        except Exception as e:
+            logger.error(f"Erro ao obter estatísticas: {e}")
+            return Response(
+                {'error': f'Erro interno: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'])
+    def generate_new_payment(self, request, pk=None):
+        """Gerar nova cobrança para assinatura"""
+        try:
+            assinatura = self.get_object()
+            
+            # Importar serviço de pagamento
+            if not AsaasClient:
+                return Response(
+                    {'error': 'Serviço Asaas não disponível'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            
+            from .client import AsaasPaymentService
+            service = AsaasPaymentService()
+            
+            # Dados da loja
+            loja = Loja.objects.get(slug=assinatura.loja_slug)
+            
+            loja_data = {
+                'nome': loja.nome,
+                'email': loja.email,
+                'cpf_cnpj': loja.cpf_cnpj,
+                'telefone': loja.telefone or '',
+                'endereco': loja.endereco or '',
+                'cidade': loja.cidade or '',
+                'estado': loja.estado or '',
+                'cep': loja.cep or ''
+            }
+            
+            plano_data = {
+                'nome': assinatura.plano_nome,
+                'valor': float(assinatura.plano_valor)
+            }
+            
+            # Criar nova cobrança
+            resultado = service.create_loja_subscription_payment(loja_data, plano_data)
+            
+            if resultado.get('success'):
+                return Response({
+                    'success': True,
+                    'message': 'Nova cobrança gerada com sucesso',
+                    'payment_id': resultado.get('payment_id')
+                })
+            else:
+                return Response(
+                    {'error': resultado.get('error', 'Erro ao gerar cobrança')},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            logger.error(f"Erro ao gerar nova cobrança: {e}")
+            return Response(
+                {'error': f'Erro interno: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet para pagamentos Asaas (somente leitura para superadmin)"""
+    serializer_class = AsaasPaymentSerializer
+    permission_classes = [IsSuperAdmin]
+    queryset = AsaasPayment.objects.all().select_related('asaas_customer')
+    
+    def get_queryset(self):
+        """Filtrar pagamentos com ordenação"""
+        queryset = super().get_queryset()
+        
+        # Filtros opcionais
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        return queryset.order_by('-due_date')
+    
+    @action(detail=True, methods=['get'])
+    def download_pdf(self, request, pk=None):
+        """Baixar PDF do boleto"""
+        try:
+            payment = self.get_object()
+            
+            if not payment.asaas_id:
+                return Response(
+                    {'error': 'Pagamento não possui ID do Asaas'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not AsaasClient:
+                return Response(
+                    {'error': 'Serviço Asaas não disponível'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            
+            # Obter configuração
+            config = AsaasConfig.get_config()
+            if not config or not config.api_key:
+                return Response(
+                    {'error': 'Asaas não configurado'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Baixar PDF
+            client = AsaasClient(api_key=config.api_key, sandbox=config.is_sandbox)
+            pdf_content = client.get_payment_pdf(payment.asaas_id)
+            
+            if pdf_content:
+                from django.http import HttpResponse
+                response = HttpResponse(pdf_content, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="boleto_{payment.asaas_id}.pdf"'
+                return response
+            else:
+                return Response(
+                    {'error': 'Não foi possível baixar o PDF'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            logger.error(f"Erro ao baixar PDF: {e}")
+            return Response(
+                {'error': f'Erro interno: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'])
+    def update_status(self, request, pk=None):
+        """Atualizar status do pagamento consultando Asaas"""
+        try:
+            payment = self.get_object()
+            
+            if not payment.asaas_id:
+                return Response(
+                    {'error': 'Pagamento não possui ID do Asaas'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not AsaasClient:
+                return Response(
+                    {'error': 'Serviço Asaas não disponível'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            
+            # Obter configuração
+            config = AsaasConfig.get_config()
+            if not config or not config.api_key:
+                return Response(
+                    {'error': 'Asaas não configurado'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Consultar status no Asaas
+            client = AsaasClient(api_key=config.api_key, sandbox=config.is_sandbox)
+            result = client.get_payment(payment.asaas_id)
+            
+            if result:
+                # Atualizar status local
+                old_status = payment.status
+                payment.status = result.get('status', payment.status)
+                
+                # Atualizar data de pagamento se foi pago
+                if payment.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
+                    payment.payment_date = result.get('paymentDate')
+                
+                payment.save()
+                
+                return Response({
+                    'success': True,
+                    'message': 'Status atualizado com sucesso',
+                    'old_status': old_status,
+                    'new_status': payment.status,
+                    'status_display': payment.get_status_display()
+                })
+            else:
+                return Response(
+                    {'error': 'Não foi possível consultar o status no Asaas'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            logger.error(f"Erro ao atualizar status: {e}")
+            return Response(
+                {'error': f'Erro interno: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

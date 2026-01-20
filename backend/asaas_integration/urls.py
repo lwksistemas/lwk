@@ -7,15 +7,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Criar router vazio
+# Criar router
 router = DefaultRouter()
 
 # Importar views diretamente (sem try/except para permitir que o erro apareça)
 from . import views
 
+# Registrar ViewSets
+router.register(r'subscriptions', views.AsaasSubscriptionViewSet, basename='asaas-subscriptions')
+router.register(r'payments', views.AsaasPaymentViewSet, basename='asaas-payments')
+
 # URLs para configuração e monitoramento
 urlpatterns = [
-    # Router URLs (vazio por enquanto)
+    # Router URLs (ViewSets)
     path('', include(router.urls)),
     
     # URLs de configuração

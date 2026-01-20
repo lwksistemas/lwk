@@ -79,7 +79,7 @@ class AsaasPayment(models.Model):
     net_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor Líquido")
     
     # Datas
-    due_date = models.DateField(verbose_name="Data de Vencimento")
+    due_date = models.DateField(null=True, blank=True, verbose_name="Data de Vencimento")
     payment_date = models.DateTimeField(null=True, blank=True, verbose_name="Data do Pagamento")
     
     # URLs e dados de pagamento

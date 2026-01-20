@@ -81,10 +81,23 @@ def asaas_config(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validar formato da chave
-        if not (api_key.startswith('$aact_') or api_key.startswith('$aact_YTU5YjRlM2')):
+        # Validar formato da chave (aceitar tanto sandbox quanto produção)
+        if not api_key.startswith('$aact_'):
             return Response(
-                {'detail': 'Formato da chave API inválido'},
+                {'detail': 'Formato da chave API inválido. Deve começar com $aact_'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Detectar automaticamente se é sandbox ou produção
+        is_sandbox_key = 'hmlg' in api_key
+        if is_sandbox_key and not sandbox:
+            return Response(
+                {'detail': 'Esta é uma chave de SANDBOX. Selecione "Sandbox" como ambiente.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif not is_sandbox_key and sandbox:
+            return Response(
+                {'detail': 'Esta é uma chave de PRODUÇÃO. Selecione "Produção" como ambiente.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

@@ -9,6 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 from django.utils import timezone
 from django.db.models import Sum, Count
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from datetime import datetime, timedelta
 import os
 import logging
@@ -357,6 +359,7 @@ def get_last_sync_time():
     except:
         return None
 
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([])  # Webhook público, sem autenticação
 def asaas_webhook(request):

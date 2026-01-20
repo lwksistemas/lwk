@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Sum, Q
 from datetime import date
+from core.views import BaseModelViewSet
 from .models import Categoria, Produto, Cliente, Pedido, ItemPedido, Cupom
 from .serializers import (
     CategoriaSerializer, ProdutoSerializer, ClienteSerializer,
@@ -11,23 +12,26 @@ from .serializers import (
 )
 
 
-class CategoriaViewSet(viewsets.ModelViewSet):
+class CategoriaViewSet(BaseModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
-    permission_classes = [IsAuthenticated]
 
 
-class ProdutoViewSet(viewsets.ModelViewSet):
+class ProdutoViewSet(BaseModelViewSet):
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
         categoria_id = self.request.query_params.get('categoria_id')
         if categoria_id:
             queryset = queryset.filter(categoria_id=categoria_id)
-        is_active = self.request.query_params.get('is_active')
+        return queryset
+
+
+class ClienteViewSet(BaseModelViewSet):
+    queryset = Cliente.objects.all()
+    serializer_class = ClienteSerializer
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         return queryset

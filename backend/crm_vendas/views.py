@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Sum
 from django.utils import timezone
 from datetime import date
+from core.views import BaseModelViewSet
 from .models import Lead, Cliente, Vendedor, Produto, Venda, Pipeline
 from .serializers import (
     LeadSerializer, ClienteSerializer, VendedorSerializer,
@@ -12,10 +13,9 @@ from .serializers import (
 )
 
 
-class LeadViewSet(viewsets.ModelViewSet):
+class LeadViewSet(BaseModelViewSet):
     queryset = Lead.objects.all()
     serializer_class = LeadSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -28,6 +28,24 @@ class LeadViewSet(viewsets.ModelViewSet):
         # Filtrar por origem
         origem = self.request.query_params.get('origem')
         if origem:
+            queryset = queryset.filter(origem=origem)
+        
+        return queryset
+
+
+class ClienteViewSet(BaseModelViewSet):
+    queryset = Cliente.objects.all()
+    serializer_class = ClienteSerializer
+
+
+class VendedorViewSet(BaseModelViewSet):
+    queryset = Vendedor.objects.all()
+    serializer_class = VendedorSerializer
+
+
+class ProdutoViewSet(BaseModelViewSet):
+    queryset = Produto.objects.all()
+    serializer_class = ProdutoSerializer
             queryset = queryset.filter(origem=origem)
         
         return queryset

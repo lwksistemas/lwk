@@ -5,37 +5,59 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 
-interface FinanceiroLoja {
+interface AsaasPayment {
   id: number;
-  loja_nome: string;
-  loja_id: number;
-  data_proxima_cobranca: string;
-  valor_mensalidade: string;
-  dia_vencimento: number;
-  status_pagamento: string;
+  asaas_id: string;
+  customer_name: string;
+  customer_email: string;
+  value: string;
+  status: string;
   status_display: string;
-  total_pago: string;
-  total_pendente: string;
-  forma_pagamento: string;
-  ultimo_pagamento: string | null;
+  billing_type: string;
+  billing_type_display: string;
+  due_date: string;
+  payment_date: string | null;
+  invoice_url: string;
+  bank_slip_url: string;
+  pix_qr_code: string;
+  pix_copy_paste: string;
+  description: string;
+  is_paid: boolean;
+  is_overdue: boolean;
+  is_pending: boolean;
   created_at: string;
 }
 
-interface Estatisticas {
-  total_lojas: number;
-  lojas_ativas: number;
-  lojas_pendentes: number;
-  lojas_atrasadas: number;
-  receita_mensal_total: number;
-  receita_recebida: number;
+interface LojaAssinatura {
+  id: number;
+  loja_slug: string;
+  loja_nome: string;
+  plano_nome: string;
+  plano_valor: string;
+  ativa: boolean;
+  data_vencimento: string;
+  current_payment_data: AsaasPayment | null;
+  total_payments: number;
+  created_at: string;
+}
+
+interface AsaasStats {
+  total_assinaturas: number;
+  assinaturas_ativas: number;
+  pagamentos_pendentes: number;
+  pagamentos_pagos: number;
+  pagamentos_vencidos: number;
+  receita_total: number;
   receita_pendente: number;
 }
 
 export default function FinanceiroPage() {
   const router = useRouter();
-  const [financeiros, setFinanceiros] = useState<FinanceiroLoja[]>([]);
-  const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
+  const [assinaturas, setAssinaturas] = useState<LojaAssinatura[]>([]);
+  const [pagamentos, setPagamentos] = useState<AsaasPayment[]>([]);
+  const [stats, setStats] = useState<AsaasStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'assinaturas' | 'pagamentos'>('assinaturas');
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
 
   useEffect(() => {
@@ -43,31 +65,80 @@ export default function FinanceiroPage() {
       router.push('/superadmin/login');
       return;
     }
-    loadFinanceiros();
-    loadEstatisticas();
+    loadData();
   }, [router]);
 
-  const loadFinanceiros = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/superadmin/financeiro/');
-      const data = response.data.results || response.data;
-      setFinanceiros(Array.isArray(data) ? data : []);
+      
+      // Carregar estatísticas
+      const statsResponse = await apiClient.get('/asaas/subscriptions/dashboard_stats/');
+      setStats(statsResponse.data);
+      
+      // Carregar assinaturas
+      const assinaturasResponse = await apiClient.get('/asaas/subscriptions/');
+      setAssinaturas(assinaturasResponse.data.results || assinaturasResponse.data);
+      
+      // Carregar pagamentos
+      const pagamentosResponse = await apiClient.get('/asaas/payments/');
+      setPagamentos(pagamentosResponse.data.results || pagamentosResponse.data);
+      
     } catch (error) {
-      console.error('Erro ao carregar financeiros:', error);
-      setFinanceiros([]);
+      console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadEstatisticas = async () => {
+  const downloadBoleto = async (paymentId: number) => {
     try {
-      const response = await apiClient.get('/superadmin/lojas/estatisticas/');
-      setEstatisticas(response.data);
+      const response = await apiClient.get(`/asaas/payments/${paymentId}/download_pdf/`, {
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `boleto_${paymentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      console.error('Erro ao baixar boleto:', error);
+      alert('Erro ao baixar boleto');
     }
+  };
+
+  const updatePaymentStatus = async (paymentId: number) => {
+    try {
+      await apiClient.post(`/asaas/payments/${paymentId}/update_status/`);
+      loadData(); // Recarregar dados
+      alert('Status atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      alert('Erro ao atualizar status');
+    }
+  };
+
+  const generateNewPayment = async (assinaturaId: number) => {
+    try {
+      const response = await apiClient.post(`/asaas/subscriptions/${assinaturaId}/generate_new_payment/`);
+      if (response.data.success) {
+        loadData(); // Recarregar dados
+        alert('Nova cobrança gerada com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao gerar nova cobrança:', error);
+      alert('Erro ao gerar nova cobrança');
+    }
+  };
+
+  const copyPixCode = (pixCode: string) => {
+    navigator.clipboard.writeText(pixCode);
+    alert('Código PIX copiado!');
   };
 
   const formatCurrency = (value: string | number) => {
@@ -85,18 +156,18 @@ export default function FinanceiroPage() {
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
-      'ativo': 'bg-green-100 text-green-800',
-      'pendente': 'bg-yellow-100 text-yellow-800',
-      'atrasado': 'bg-red-100 text-red-800',
-      'suspenso': 'bg-gray-100 text-gray-800',
-      'cancelado': 'bg-red-100 text-red-800',
+      'PENDING': 'bg-yellow-100 text-yellow-800',
+      'RECEIVED': 'bg-green-100 text-green-800',
+      'CONFIRMED': 'bg-green-100 text-green-800',
+      'OVERDUE': 'bg-red-100 text-red-800',
+      'REFUNDED': 'bg-gray-100 text-gray-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const financeirosFiltrados = filtroStatus === 'todos' 
-    ? financeiros 
-    : financeiros.filter(f => f.status_pagamento === filtroStatus);
+  const pagamentosFiltrados = filtroStatus === 'todos' 
+    ? pagamentos 
+    : pagamentos.filter(p => p.status === filtroStatus);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -108,11 +179,11 @@ export default function FinanceiroPage() {
               <a href="/superadmin/dashboard" className="text-purple-200 hover:text-white">
                 ← Voltar
               </a>
-              <h1 className="text-2xl font-bold">Financeiro</h1>
+              <h1 className="text-2xl font-bold">Financeiro - Asaas</h1>
             </div>
             <div className="flex items-center space-x-4">
               <button
-                onClick={loadFinanceiros}
+                onClick={loadData}
                 className="px-4 py-2 bg-purple-700 hover:bg-purple-800 rounded-md transition-colors"
               >
                 🔄 Atualizar
@@ -126,14 +197,14 @@ export default function FinanceiroPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Estatísticas */}
-          {estatisticas && (
+          {stats && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Receita Mensal</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {formatCurrency(estatisticas.receita_mensal_total || 0)}
+                    <p className="text-sm text-gray-600">Receita Total</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatCurrency(stats.receita_total)}
                     </p>
                   </div>
                   <div className="text-3xl">💰</div>
@@ -143,9 +214,9 @@ export default function FinanceiroPage() {
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Lojas Ativas</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {estatisticas.lojas_ativas}
+                    <p className="text-sm text-gray-600">Assinaturas Ativas</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {stats.assinaturas_ativas}
                     </p>
                   </div>
                   <div className="text-3xl">✅</div>
@@ -155,9 +226,9 @@ export default function FinanceiroPage() {
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Pendentes</p>
+                    <p className="text-sm text-gray-600">Pagamentos Pendentes</p>
                     <p className="text-2xl font-bold text-yellow-600">
-                      {financeiros.filter(f => f.status_pagamento === 'pendente').length}
+                      {stats.pagamentos_pendentes}
                     </p>
                   </div>
                   <div className="text-3xl">⏳</div>
@@ -167,162 +238,257 @@ export default function FinanceiroPage() {
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Atrasados</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {financeiros.filter(f => f.status_pagamento === 'atrasado').length}
+                    <p className="text-sm text-gray-600">Receita Pendente</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {formatCurrency(stats.receita_pendente)}
                     </p>
                   </div>
-                  <div className="text-3xl">🔴</div>
+                  <div className="text-3xl">💸</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Filtros */}
-          <div className="bg-white rounded-lg shadow p-4 mb-6">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-gray-700">Filtrar por status:</span>
-              <div className="flex space-x-2">
-                {['todos', 'ativo', 'pendente', 'atrasado', 'suspenso'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFiltroStatus(status)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      filtroStatus === status
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {status === 'todos' ? 'Todos' : status.charAt(0).toUpperCase() + status.slice(1)}
-                  </button>
-                ))}
-              </div>
+          {/* Tabs */}
+          <div className="bg-white rounded-lg shadow mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex">
+                <button
+                  onClick={() => setActiveTab('assinaturas')}
+                  className={`py-4 px-6 text-sm font-medium border-b-2 ${
+                    activeTab === 'assinaturas'
+                      ? 'border-purple-500 text-purple-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Assinaturas ({assinaturas.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('pagamentos')}
+                  className={`py-4 px-6 text-sm font-medium border-b-2 ${
+                    activeTab === 'pagamentos'
+                      ? 'border-purple-500 text-purple-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Pagamentos ({pagamentos.length})
+                </button>
+              </nav>
             </div>
-          </div>
 
-          {/* Tabela de Financeiros */}
-          {loading ? (
-            <div className="text-center py-12">Carregando...</div>
-          ) : financeirosFiltrados.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <p className="text-gray-500">
-                {filtroStatus === 'todos' 
-                  ? 'Nenhum registro financeiro encontrado.' 
-                  : `Nenhuma loja com status "${filtroStatus}".`
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white shadow rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Loja
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Mensalidade
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Vencimento
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Próxima Cobrança
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Total Pago
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {financeirosFiltrados.map((financeiro) => (
-                    <tr key={financeiro.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="font-medium text-gray-900">{financeiro.loja_nome}</div>
-                          <div className="text-sm text-gray-500">
-                            {financeiro.forma_pagamento || 'Não definido'}
+            {/* Tab Content */}
+            <div className="p-6">
+              {loading ? (
+                <div className="text-center py-12">Carregando...</div>
+              ) : activeTab === 'assinaturas' ? (
+                /* Assinaturas Tab */
+                <div>
+                  {assinaturas.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">Nenhuma assinatura encontrada.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {assinaturas.map((assinatura) => (
+                        <div key={assinatura.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {assinatura.loja_nome}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                {assinatura.plano_nome} - {formatCurrency(assinatura.plano_valor)}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                Vencimento: {formatDate(assinatura.data_vencimento)}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                Total de pagamentos: {assinatura.total_payments}
+                              </p>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-1 text-xs rounded-full ${
+                                assinatura.ativa ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {assinatura.ativa ? 'Ativa' : 'Inativa'}
+                              </span>
+                              
+                              {assinatura.current_payment_data && (
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  getStatusColor(assinatura.current_payment_data.status)
+                                }`}>
+                                  {assinatura.current_payment_data.status_display}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(financeiro.status_pagamento)}`}>
-                          {financeiro.status_display}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {formatCurrency(financeiro.valor_mensalidade)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        Dia {financeiro.dia_vencimento}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {formatDate(financeiro.data_proxima_cobranca)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-medium text-green-600">
-                            {formatCurrency(financeiro.total_pago)}
-                          </div>
-                          {parseFloat(financeiro.total_pendente) > 0 && (
-                            <div className="text-xs text-red-600">
-                              Pendente: {formatCurrency(financeiro.total_pendente)}
+                          
+                          {/* Pagamento Atual */}
+                          {assinatura.current_payment_data && (
+                            <div className="mt-4 p-3 bg-gray-50 rounded">
+                              <h4 className="font-medium text-gray-900 mb-2">Pagamento Atual</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-600">Valor:</span>
+                                  <span className="ml-2 font-medium">
+                                    {formatCurrency(assinatura.current_payment_data.value)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-600">Vencimento:</span>
+                                  <span className="ml-2">
+                                    {formatDate(assinatura.current_payment_data.due_date)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-600">Status:</span>
+                                  <span className="ml-2">
+                                    {assinatura.current_payment_data.status_display}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Ações do Pagamento */}
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {assinatura.current_payment_data.bank_slip_url && (
+                                  <button
+                                    onClick={() => downloadBoleto(assinatura.current_payment_data!.id)}
+                                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                                  >
+                                    📄 Baixar Boleto
+                                  </button>
+                                )}
+                                
+                                {assinatura.current_payment_data.pix_copy_paste && (
+                                  <button
+                                    onClick={() => copyPixCode(assinatura.current_payment_data!.pix_copy_paste)}
+                                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                  >
+                                    📱 Copiar PIX
+                                  </button>
+                                )}
+                                
+                                <button
+                                  onClick={() => updatePaymentStatus(assinatura.current_payment_data!.id)}
+                                  className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                                >
+                                  🔄 Atualizar Status
+                                </button>
+                                
+                                <button
+                                  onClick={() => generateNewPayment(assinatura.id)}
+                                  className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                                >
+                                  ➕ Nova Cobrança
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm space-x-2">
-                        <button 
-                          className="text-blue-600 hover:text-blue-800"
-                          onClick={() => router.push(`/superadmin/lojas`)}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Pagamentos Tab */
+                <div>
+                  {/* Filtros */}
+                  <div className="mb-4 flex items-center space-x-4">
+                    <span className="text-sm font-medium text-gray-700">Filtrar por status:</span>
+                    <div className="flex space-x-2">
+                      {['todos', 'PENDING', 'RECEIVED', 'CONFIRMED', 'OVERDUE'].map((status) => (
+                        <button
+                          key={status}
+                          onClick={() => setFiltroStatus(status)}
+                          className={`px-3 py-1 rounded text-sm ${
+                            filtroStatus === status
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                         >
-                          Ver Loja
+                          {status === 'todos' ? 'Todos' : status}
                         </button>
-                        <button className="text-purple-600 hover:text-purple-800">
-                          Histórico
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                      ))}
+                    </div>
+                  </div>
 
-          {/* Resumo */}
-          {financeirosFiltrados.length > 0 && (
-            <div className="mt-6 bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumo Financeiro</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="border-l-4 border-purple-500 pl-4">
-                  <p className="text-sm text-gray-600">Total de Lojas</p>
-                  <p className="text-2xl font-bold text-gray-900">{financeirosFiltrados.length}</p>
+                  {pagamentosFiltrados.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">Nenhum pagamento encontrado.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Cliente
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Valor
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Vencimento
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Ações
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {pagamentosFiltrados.map((pagamento) => (
+                            <tr key={pagamento.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4">
+                                <div>
+                                  <div className="font-medium text-gray-900">{pagamento.customer_name}</div>
+                                  <div className="text-sm text-gray-500">{pagamento.customer_email}</div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                {formatCurrency(pagamento.value)}
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(pagamento.status)}`}>
+                                  {pagamento.status_display}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-500">
+                                {formatDate(pagamento.due_date)}
+                              </td>
+                              <td className="px-6 py-4 text-sm space-x-2">
+                                {pagamento.bank_slip_url && (
+                                  <button
+                                    onClick={() => downloadBoleto(pagamento.id)}
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    📄 PDF
+                                  </button>
+                                )}
+                                {pagamento.pix_copy_paste && (
+                                  <button
+                                    onClick={() => copyPixCode(pagamento.pix_copy_paste)}
+                                    className="text-green-600 hover:text-green-800"
+                                  >
+                                    📱 PIX
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => updatePaymentStatus(pagamento.id)}
+                                  className="text-purple-600 hover:text-purple-800"
+                                >
+                                  🔄 Status
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-                <div className="border-l-4 border-green-500 pl-4">
-                  <p className="text-sm text-gray-600">Receita Total Recebida</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(
-                      financeirosFiltrados.reduce((sum, f) => sum + parseFloat(f.total_pago), 0)
-                    )}
-                  </p>
-                </div>
-                <div className="border-l-4 border-red-500 pl-4">
-                  <p className="text-sm text-gray-600">Total Pendente</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {formatCurrency(
-                      financeirosFiltrados.reduce((sum, f) => sum + parseFloat(f.total_pendente), 0)
-                    )}
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </main>
     </div>

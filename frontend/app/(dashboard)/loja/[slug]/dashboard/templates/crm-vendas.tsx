@@ -380,10 +380,8 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
   });
   const [loading, setLoading] = useState(false);
 
-  const clientes = [
-    { id: 1, nome: 'Tech Solutions Ltda', email: 'contato@techsolutions.com', telefone: '(11) 3456-7890', empresa: 'Tech Solutions', cnpj: '12.345.678/0001-90', cidade: 'São Paulo', estado: 'SP' },
-    { id: 2, nome: 'Digital Marketing Corp', email: 'vendas@digitalmarketing.com', telefone: '(21) 2345-6789', empresa: 'Digital Marketing', cnpj: '98.765.432/0001-10', cidade: 'Rio de Janeiro', estado: 'RJ' },
-  ];
+  // Lista de clientes vazia inicialmente (será carregada do backend futuramente)
+  const clientes: any[] = [];
 
   const estados = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 

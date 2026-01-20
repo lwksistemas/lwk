@@ -1,23 +1,16 @@
 from django.db import models
 from django.contrib.auth.models import User
+from core.models import BaseCategoria, BaseCliente, BaseFuncionario
 
 
-class Categoria(models.Model):
+class Categoria(BaseCategoria):
     """Categorias de serviços"""
-    nome = models.CharField(max_length=100)
-    descricao = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
+    
     class Meta:
         db_table = 'servicos_categorias'
         ordering = ['nome']
         verbose_name = 'Categoria'
         verbose_name_plural = 'Categorias'
-
-    def __str__(self):
-        return self.nome
 
 
 class Servico(models.Model):
@@ -41,36 +34,16 @@ class Servico(models.Model):
         return f"{self.nome} - R$ {self.preco}"
 
 
-class Cliente(models.Model):
+class Cliente(BaseCliente):
     """Clientes"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField()
-    telefone = models.CharField(max_length=20)
-    cpf_cnpj = models.CharField(max_length=18, blank=True, null=True)
     tipo_cliente = models.CharField(max_length=20, choices=[('pf', 'Pessoa Física'), ('pj', 'Pessoa Jurídica')], default='pf')
-    
-    # Endereço
-    cep = models.CharField(max_length=9, blank=True, null=True)
-    endereco = models.CharField(max_length=200, blank=True, null=True)
-    numero = models.CharField(max_length=20, blank=True, null=True)
-    complemento = models.CharField(max_length=100, blank=True, null=True)
-    bairro = models.CharField(max_length=100, blank=True, null=True)
-    cidade = models.CharField(max_length=100, blank=True, null=True)
-    estado = models.CharField(max_length=2, blank=True, null=True)
-    
     observacoes = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'servicos_clientes'
         ordering = ['-created_at']
         verbose_name = 'Cliente'
         verbose_name_plural = 'Clientes'
-
-    def __str__(self):
-        return self.nome
 
 
 class Profissional(models.Model):
@@ -200,21 +173,11 @@ class Orcamento(models.Model):
         return f"Orçamento #{self.numero_orcamento} - {self.cliente.nome}"
 
 
-class Funcionario(models.Model):
+class Funcionario(BaseFuncionario):
     """Funcionários"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField()
-    telefone = models.CharField(max_length=20)
-    cargo = models.CharField(max_length=100)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'servicos_funcionarios'
         ordering = ['nome']
         verbose_name = 'Funcionário'
         verbose_name_plural = 'Funcionários'
-
-    def __str__(self):
-        return f"{self.nome} - {self.cargo}"

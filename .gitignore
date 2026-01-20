@@ -18,6 +18,7 @@ build/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+db_*.sqlite3
 /staticfiles/
 /media/
 
@@ -51,3 +52,7 @@ next-env.d.ts
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Backups e utilitários
+backup_dbs/
+utils/scripts_antigos/

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Sum
 from datetime import date
+from core.views import BaseModelViewSet
 from .models import Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario
 from .serializers import (
     CategoriaSerializer, ItemCardapioSerializer, MesaSerializer,
@@ -12,22 +13,36 @@ from .serializers import (
 )
 
 
-class CategoriaViewSet(viewsets.ModelViewSet):
+class CategoriaViewSet(BaseModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
-    permission_classes = [IsAuthenticated]
 
 
-class ItemCardapioViewSet(viewsets.ModelViewSet):
+class ItemCardapioViewSet(BaseModelViewSet):
     queryset = ItemCardapio.objects.all()
     serializer_class = ItemCardapioSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
         categoria_id = self.request.query_params.get('categoria_id')
         if categoria_id:
             queryset = queryset.filter(categoria_id=categoria_id)
+        return queryset
+
+
+class MesaViewSet(BaseModelViewSet):
+    queryset = Mesa.objects.all()
+    serializer_class = MesaSerializer
+
+
+class ClienteViewSet(BaseModelViewSet):
+    queryset = Cliente.objects.all()
+    serializer_class = ClienteSerializer
+
+
+class FuncionarioViewSet(BaseModelViewSet):
+    queryset = Funcionario.objects.all()
+    serializer_class = FuncionarioSerializer
         is_disponivel = self.request.query_params.get('is_disponivel')
         if is_disponivel is not None:
             queryset = queryset.filter(is_disponivel=is_disponivel.lower() == 'true')

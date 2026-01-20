@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from core.models import BaseCliente, BaseFuncionario, BaseProduto
 
 
 class Lead(models.Model):
@@ -47,20 +48,10 @@ class Lead(models.Model):
         return f"{self.nome} - {self.empresa}"
 
 
-class Cliente(models.Model):
+class Cliente(BaseCliente):
     """Clientes do CRM (leads convertidos)"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField()
-    telefone = models.CharField(max_length=20)
     empresa = models.CharField(max_length=200)
     cnpj = models.CharField(max_length=18, blank=True, null=True)
-    endereco = models.TextField(blank=True, null=True)
-    cidade = models.CharField(max_length=100, blank=True, null=True)
-    estado = models.CharField(max_length=2, blank=True, null=True)
-    observacoes = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'crm_clientes'
@@ -72,16 +63,9 @@ class Cliente(models.Model):
         return f"{self.nome} - {self.empresa}"
 
 
-class Vendedor(models.Model):
+class Vendedor(BaseFuncionario):
     """Vendedores da equipe"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField()
-    telefone = models.CharField(max_length=20)
-    cargo = models.CharField(max_length=100, default='Vendedor')
     meta_mensal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'crm_vendedores'
@@ -89,28 +73,16 @@ class Vendedor(models.Model):
         verbose_name = 'Vendedor'
         verbose_name_plural = 'Vendedores'
 
-    def __str__(self):
-        return self.nome
 
-
-class Produto(models.Model):
+class Produto(BaseProduto):
     """Produtos/Serviços oferecidos"""
-    nome = models.CharField(max_length=200)
-    descricao = models.TextField()
-    preco = models.DecimalField(max_digits=10, decimal_places=2)
     categoria = models.CharField(max_length=100)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'crm_produtos'
         ordering = ['categoria', 'nome']
         verbose_name = 'Produto'
         verbose_name_plural = 'Produtos'
-
-    def __str__(self):
-        return f"{self.nome} - R$ {self.preco}"
 
 
 class Venda(models.Model):

@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'core',  # App base com modelos abstratos
     'stores',
     'products',
     'suporte',  # App de suporte/chamados

@@ -19,29 +19,52 @@ export default function SuperAdminLoginPage() {
     setError('');
     setLoading(true);
 
+    console.log('Iniciando login com:', { username: credentials.username, password: '***' });
+
     try {
+      console.log('Chamando authService.login...');
       await authService.login(credentials, 'superadmin');
+      console.log('Login realizado com sucesso!');
       
       // Aguardar um momento para garantir que o token foi salvo
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Verificar se precisa trocar senha
       try {
+        console.log('Verificando se precisa trocar senha...');
         const apiClient = (await import('@/lib/api-client')).default;
         const checkResponse = await apiClient.get('/superadmin/usuarios/verificar_senha_provisoria/');
         console.log('Verificação senha SuperAdmin:', checkResponse.data);
         
         if (checkResponse.data.precisa_trocar_senha) {
+          console.log('Redirecionando para trocar senha...');
           router.push('/superadmin/trocar-senha');
           return;
         }
       } catch (checkErr) {
         console.error('Erro ao verificar senha:', checkErr);
+        // Continua mesmo se a verificação falhar
       }
       
+      console.log('Redirecionando para dashboard...');
       router.push('/superadmin/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erro ao fazer login');
+      console.error('Erro completo no login:', err);
+      console.error('Erro response:', err.response);
+      console.error('Erro message:', err.message);
+      
+      let errorMessage = 'Erro ao fazer login';
+      
+      if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      console.error('Mensagem de erro final:', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

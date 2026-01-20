@@ -14,9 +14,15 @@ logger = logging.getLogger(__name__)
 class AsaasClient:
     """Cliente para API do Asaas"""
     
-    def __init__(self, api_key: str = None, sandbox: bool = True):
+    def __init__(self, api_key: str = None, sandbox: bool = None):
         self.api_key = api_key or getattr(settings, 'ASAAS_API_KEY', '')
-        self.sandbox = sandbox
+        
+        # Auto-detectar sandbox se não especificado
+        if sandbox is None:
+            # Detectar automaticamente baseado na chave
+            self.sandbox = 'hmlg' in self.api_key if self.api_key else True
+        else:
+            self.sandbox = sandbox
         
         if self.sandbox:
             self.base_url = 'https://sandbox.asaas.com/api/v3'

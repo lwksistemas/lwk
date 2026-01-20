@@ -90,32 +90,22 @@ def asaas_config(request):
         
         # Detectar automaticamente se é sandbox ou produção
         is_sandbox_key = 'hmlg' in api_key
-        if is_sandbox_key and not sandbox:
-            return Response(
-                {'detail': 'Esta é uma chave de SANDBOX. Selecione "Sandbox" como ambiente.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        elif not is_sandbox_key and sandbox:
-            return Response(
-                {'detail': 'Esta é uma chave de PRODUÇÃO. Selecione "Produção" como ambiente.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         
         # Salvar configuração sem validar (validação será feita no teste)
         try:
             # Atualizar variáveis de ambiente (temporariamente)
             os.environ['ASAAS_API_KEY'] = api_key
-            os.environ['ASAAS_SANDBOX'] = str(sandbox)
+            os.environ['ASAAS_SANDBOX'] = str(is_sandbox_key)
             
             # Atualizar configurações do Django
             settings.ASAAS_API_KEY = api_key
-            settings.ASAAS_SANDBOX = sandbox
+            settings.ASAAS_SANDBOX = is_sandbox_key
             settings.ASAAS_INTEGRATION_ENABLED = enabled
             
             return Response({
                 'message': 'Configuração salva com sucesso. Use "Testar Conexão" para validar a chave.',
                 'api_key': f"{api_key[:10]}...{api_key[-4:]}",
-                'sandbox': sandbox,
+                'sandbox': is_sandbox_key,
                 'enabled': enabled
             })
             
@@ -144,8 +134,8 @@ def asaas_test(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        sandbox_env = os.environ.get('ASAAS_SANDBOX', 'True')
-        is_sandbox = sandbox_env.lower() in ['true', '1', 'yes', 'on']
+        # Auto-detectar sandbox baseado na chave
+        is_sandbox = 'hmlg' in api_key
         client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
         
         # Testar com uma requisição simples
@@ -172,8 +162,8 @@ def asaas_status(request):
     
     try:
         api_key = os.environ.get('ASAAS_API_KEY')
-        sandbox_env = os.environ.get('ASAAS_SANDBOX', 'True')
-        is_sandbox = sandbox_env.lower() in ['true', '1', 'yes', 'on']
+        # Auto-detectar sandbox baseado na chave
+        is_sandbox = 'hmlg' in api_key if api_key else True
         enabled = getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False)
         
         api_connected = False
@@ -183,6 +173,8 @@ def asaas_status(request):
             error_message = 'Biblioteca requests não disponível'
         elif api_key and enabled and AsaasClient:
             try:
+                # Auto-detectar sandbox baseado na chave
+                is_sandbox = 'hmlg' in api_key
                 client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
                 client._make_request('GET', 'customers?limit=1')
                 api_connected = True
@@ -271,8 +263,8 @@ def asaas_sync(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        sandbox_env = os.environ.get('ASAAS_SANDBOX', 'True')
-        is_sandbox = sandbox_env.lower() in ['true', '1', 'yes', 'on']
+        # Auto-detectar sandbox baseado na chave
+        is_sandbox = 'hmlg' in api_key
         client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
         
         synced_count = 0

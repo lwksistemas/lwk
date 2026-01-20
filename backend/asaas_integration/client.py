@@ -109,7 +109,15 @@ class AsaasPaymentService:
     """Serviço para gerenciar pagamentos via Asaas"""
     
     def __init__(self):
-        self.client = AsaasClient()
+        # Obter configuração do banco de dados
+        try:
+            from .models import AsaasConfig
+            config = AsaasConfig.get_config()
+            self.client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
+        except Exception as e:
+            logger.error(f"Erro ao obter configuração Asaas: {e}")
+            # Fallback para configuração vazia
+            self.client = AsaasClient(api_key='', sandbox=True)
     
     def create_loja_subscription_payment(self, loja_data: Dict[str, Any], plano_data: Dict[str, Any]) -> Dict[str, Any]:
         """

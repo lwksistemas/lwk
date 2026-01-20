@@ -99,23 +99,40 @@ def cleanup_after_loja_deletion(sender, instance, **kwargs):
         
         # 2. Remover assinaturas Asaas se existirem
         try:
-            from asaas_integration.models import LojaAssinatura, AsaasPayment, AsaasCustomer
+            # Verificar se as tabelas existem antes de tentar acessá-las
+            from django.db import connection
             
-            # Buscar assinatura da loja
-            assinaturas = LojaAssinatura.objects.filter(loja_slug=loja_slug)
-            assinaturas_removidas = assinaturas.count()
+            with connection.cursor() as cursor:
+                # Verificar se a tabela loja_assinatura existe
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'loja_assinatura'
+                    );
+                """)
+                tabela_existe = cursor.fetchone()[0]
             
-            for assinatura in assinaturas:
-                # Remover pagamentos relacionados
-                AsaasPayment.objects.filter(customer=assinatura.asaas_customer).delete()
-                # Remover cliente
-                assinatura.asaas_customer.delete()
-            
-            # Remover assinaturas
-            assinaturas.delete()
-            
-            if assinaturas_removidas > 0:
-                logger.info(f"✅ Assinaturas Asaas removidas: {assinaturas_removidas}")
+            if tabela_existe:
+                from asaas_integration.models import LojaAssinatura, AsaasPayment, AsaasCustomer
+                
+                # Buscar assinatura da loja
+                assinaturas = LojaAssinatura.objects.filter(loja_slug=loja_slug)
+                assinaturas_removidas = assinaturas.count()
+                
+                for assinatura in assinaturas:
+                    # Remover pagamentos relacionados
+                    AsaasPayment.objects.filter(customer=assinatura.asaas_customer).delete()
+                    # Remover cliente
+                    assinatura.asaas_customer.delete()
+                
+                # Remover assinaturas
+                assinaturas.delete()
+                
+                if assinaturas_removidas > 0:
+                    logger.info(f"✅ Assinaturas Asaas removidas: {assinaturas_removidas}")
+            else:
+                logger.info("ℹ️ Tabelas Asaas não existem, pulando limpeza")
+                
         except Exception as e:
             logger.warning(f"⚠️ Erro ao remover assinaturas Asaas: {e}")
         
@@ -147,21 +164,35 @@ def cleanup_after_loja_deletion(sender, instance, **kwargs):
         usuario_removido = False
         if deve_remover_owner:
             try:
+                # Usar uma nova transação para remover o usuário
+                from django.db import transaction
+                
                 # Verificar novamente se o usuário não tem outras lojas (double-check)
                 outras_lojas_atual = sender.objects.filter(owner=owner).count()
                 
                 if outras_lojas_atual == 0:
                     # Verificar se o usuário não é superuser ou staff importante
                     if not owner.is_superuser and not owner.is_staff:
-                        owner.delete()
-                        usuario_removido = True
-                        logger.info(f"✅ Usuário proprietário removido: {owner_username}")
+                        # Usar atomic para garantir que a remoção seja bem-sucedida
+                        with transaction.atomic():
+                            owner.delete()
+                            usuario_removido = True
+                            logger.info(f"✅ Usuário proprietário removido: {owner_username}")
                     else:
                         logger.info(f"⚠️ Usuário {owner_username} mantido (superuser/staff)")
                 else:
                     logger.info(f"⚠️ Usuário {owner_username} mantido (possui {outras_lojas_atual} outras lojas)")
             except Exception as e:
                 logger.error(f"❌ Erro ao remover usuário proprietário: {e}")
+                # Tentar remover em uma transação separada
+                try:
+                    from django.db import connection
+                    with connection.cursor() as cursor:
+                        cursor.execute("DELETE FROM auth_user WHERE id = %s", [owner.id])
+                    usuario_removido = True
+                    logger.info(f"✅ Usuário proprietário removido via SQL direto: {owner_username}")
+                except Exception as e2:
+                    logger.error(f"❌ Erro ao remover usuário via SQL: {e2}")
         
         # 5. Log final da limpeza
         logger.info(f"🎯 Limpeza concluída para loja: {loja_nome}")

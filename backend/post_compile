@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Post-compile hook para garantir que requests está instalado
+
+echo "🔧 Verificando e instalando dependências críticas..."
+
+# Instalar requests se não estiver disponível
+python -c "import requests" 2>/dev/null || {
+    echo "📦 Instalando requests..."
+    pip install requests==2.31.0
+    echo "✅ Requests instalado com sucesso"
+}
+
+# Verificar se asaas_integration pode ser importado
+python -c "
+try:
+    import requests
+    from asaas_integration.client import AsaasClient
+    print('✅ Integração Asaas verificada com sucesso')
+except Exception as e:
+    print(f'⚠️  Aviso: {e}')
+" || echo "⚠️  Integração será verificada no runtime"
+
+echo "✅ Post-compile concluído"

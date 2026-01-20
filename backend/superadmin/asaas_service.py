@@ -1,0 +1,178 @@
+"""
+Serviço para integração com Asaas na criação de lojas
+"""
+import logging
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+logger = logging.getLogger(__name__)
+
+class LojaAsaasService:
+    """Serviço para criar cobrança Asaas quando uma loja é criada"""
+    
+    def __init__(self):
+        # Importação condicional para evitar erro se asaas_integration não estiver disponível
+        try:
+            from asaas_integration.models import AsaasConfig
+            from asaas_integration.client import AsaasPaymentService
+            self.AsaasConfig = AsaasConfig
+            self.AsaasPaymentService = AsaasPaymentService
+            self.available = True
+        except ImportError:
+            logger.warning("Asaas integration não disponível")
+            self.available = False
+    
+    def criar_cobranca_loja(self, loja, financeiro):
+        """
+        Cria cobrança no Asaas para uma nova loja
+        
+        Args:
+            loja: Instância da Loja
+            financeiro: Instância do FinanceiroLoja
+            
+        Returns:
+            dict: Resultado da criação da cobrança
+        """
+        if not self.available:
+            return {
+                'success': False,
+                'error': 'Integração Asaas não disponível'
+            }
+        
+        try:
+            # Verificar se Asaas está configurado
+            config = self.AsaasConfig.get_config()
+            if not config.api_key or not config.enabled:
+                logger.warning("Asaas não configurado ou desabilitado")
+                return {
+                    'success': False,
+                    'error': 'Asaas não configurado'
+                }
+            
+            # Preparar dados da loja
+            loja_data = {
+                'nome': loja.nome,
+                'email': loja.owner.email,
+                'cpf_cnpj': loja.cpf_cnpj or '00000000000',  # CPF/CNPJ obrigatório
+                'telefone': '',  # Pode ser vazio
+                'endereco': '',
+                'numero': '',
+                'complemento': '',
+                'bairro': '',
+                'cidade': '',
+                'estado': '',
+                'cep': '',
+                'slug': loja.slug
+            }
+            
+            # Preparar dados do plano
+            plano_data = {
+                'nome': loja.plano.nome,
+                'preco': float(financeiro.valor_mensalidade)
+            }
+            
+            # Criar cobrança via serviço Asaas
+            service = self.AsaasPaymentService()
+            resultado = service.create_loja_subscription_payment(loja_data, plano_data)
+            
+            if resultado.get('success'):
+                # Atualizar financeiro com dados do Asaas
+                financeiro.asaas_customer_id = resultado.get('customer_id', '')
+                financeiro.asaas_payment_id = resultado.get('payment_id', '')
+                financeiro.boleto_url = resultado.get('boleto_url', '')
+                financeiro.pix_qr_code = resultado.get('pix_qr_code', '')
+                financeiro.pix_copy_paste = resultado.get('pix_copy_paste', '')
+                financeiro.status_pagamento = 'pendente'
+                financeiro.save()
+                
+                # Criar registro de pagamento
+                from .models import PagamentoLoja
+                pagamento = PagamentoLoja.objects.create(
+                    loja=loja,
+                    financeiro=financeiro,
+                    valor=financeiro.valor_mensalidade,
+                    referencia_mes=financeiro.data_proxima_cobranca.replace(day=1),
+                    status='pendente',
+                    forma_pagamento='boleto',
+                    data_vencimento=financeiro.data_proxima_cobranca,
+                    asaas_payment_id=resultado.get('payment_id', ''),
+                    boleto_url=resultado.get('boleto_url', ''),
+                    pix_qr_code=resultado.get('pix_qr_code', ''),
+                    pix_copy_paste=resultado.get('pix_copy_paste', '')
+                )
+                
+                logger.info(f"Cobrança Asaas criada para loja {loja.nome}: {resultado.get('payment_id')}")
+                
+                return {
+                    'success': True,
+                    'payment_id': resultado.get('payment_id'),
+                    'customer_id': resultado.get('customer_id'),
+                    'boleto_url': resultado.get('boleto_url'),
+                    'pix_qr_code': resultado.get('pix_qr_code'),
+                    'due_date': resultado.get('due_date'),
+                    'value': resultado.get('value'),
+                    'pagamento_id': pagamento.id
+                }
+            else:
+                logger.error(f"Erro ao criar cobrança Asaas: {resultado.get('error')}")
+                return {
+                    'success': False,
+                    'error': resultado.get('error', 'Erro desconhecido')
+                }
+                
+        except Exception as e:
+            logger.error(f"Erro no serviço Asaas: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def baixar_pdf_boleto(self, payment_id):
+        """
+        Baixa o PDF do boleto do Asaas
+        
+        Args:
+            payment_id: ID do pagamento no Asaas
+            
+        Returns:
+            bytes: Conteúdo do PDF ou None se erro
+        """
+        if not self.available:
+            return None
+        
+        try:
+            config = self.AsaasConfig.get_config()
+            if not config.api_key or not config.enabled:
+                return None
+            
+            service = self.AsaasPaymentService()
+            return service.download_boleto_pdf(payment_id)
+            
+        except Exception as e:
+            logger.error(f"Erro ao baixar PDF do boleto: {e}")
+            return None
+    
+    def consultar_status_pagamento(self, payment_id):
+        """
+        Consulta status de um pagamento no Asaas
+        
+        Args:
+            payment_id: ID do pagamento no Asaas
+            
+        Returns:
+            dict: Status do pagamento
+        """
+        if not self.available:
+            return {'success': False, 'error': 'Asaas não disponível'}
+        
+        try:
+            config = self.AsaasConfig.get_config()
+            if not config.api_key or not config.enabled:
+                return {'success': False, 'error': 'Asaas não configurado'}
+            
+            service = self.AsaasPaymentService()
+            return service.get_payment_status(payment_id)
+            
+        except Exception as e:
+            logger.error(f"Erro ao consultar status: {e}")
+            return {'success': False, 'error': str(e)}

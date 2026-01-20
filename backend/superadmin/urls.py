@@ -5,6 +5,11 @@ from .views import (
     FinanceiroLojaViewSet, PagamentoLojaViewSet, UsuarioSistemaViewSet,
     recuperar_senha_loja
 )
+from .financeiro_views import (
+    FinanceiroLojaViewSet as FinanceiroViewSet,
+    PagamentoLojaViewSet as PagamentoViewSet,
+    dashboard_financeiro_loja
+)
 
 router = DefaultRouter()
 router.register(r'tipos-loja', TipoLojaViewSet, basename='tipo-loja')
@@ -14,8 +19,13 @@ router.register(r'financeiro', FinanceiroLojaViewSet, basename='financeiro')
 router.register(r'pagamentos', PagamentoLojaViewSet, basename='pagamento')
 router.register(r'usuarios', UsuarioSistemaViewSet, basename='usuario-sistema')
 
+# Rotas específicas para dashboard financeiro das lojas
+router.register(r'loja-financeiro', FinanceiroViewSet, basename='loja-financeiro')
+router.register(r'loja-pagamentos', PagamentoViewSet, basename='loja-pagamentos')
+
 # IMPORTANTE: Rotas públicas devem vir ANTES do include do router
 urlpatterns = [
     path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),
+    path('loja/<str:loja_slug>/financeiro/', dashboard_financeiro_loja, name='dashboard-financeiro-loja'),
     path('', include(router.urls)),
 ]

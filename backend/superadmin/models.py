@@ -197,6 +197,14 @@ class FinanceiroLoja(models.Model):
     ]
     status_pagamento = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ativo')
     
+    # Integração Asaas
+    asaas_customer_id = models.CharField(max_length=100, blank=True, help_text='ID do cliente no Asaas')
+    asaas_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento atual no Asaas')
+    boleto_url = models.URLField(blank=True, help_text='URL do boleto no Asaas')
+    boleto_pdf_url = models.URLField(blank=True, help_text='URL do PDF do boleto')
+    pix_qr_code = models.TextField(blank=True, help_text='QR Code PIX')
+    pix_copy_paste = models.TextField(blank=True, help_text='PIX Copia e Cola')
+    
     # Totalizadores
     total_pago = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_pendente = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -215,6 +223,8 @@ class FinanceiroLoja(models.Model):
         indexes = [
             models.Index(fields=['status_pagamento', 'data_proxima_cobranca'], name='fin_status_data_idx'),
             models.Index(fields=['loja', 'status_pagamento'], name='fin_loja_status_idx'),
+            models.Index(fields=['asaas_customer_id'], name='fin_asaas_customer_idx'),
+            models.Index(fields=['asaas_payment_id'], name='fin_asaas_payment_idx'),
         ]
     
     def __str__(self):
@@ -238,6 +248,13 @@ class PagamentoLoja(models.Model):
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente')
     
+    # Integração Asaas
+    asaas_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento no Asaas')
+    boleto_url = models.URLField(blank=True, help_text='URL do boleto')
+    boleto_pdf_url = models.URLField(blank=True, help_text='URL do PDF do boleto')
+    pix_qr_code = models.TextField(blank=True, help_text='QR Code PIX')
+    pix_copy_paste = models.TextField(blank=True, help_text='PIX Copia e Cola')
+    
     # Detalhes
     forma_pagamento = models.CharField(max_length=50)
     comprovante = models.URLField(blank=True)
@@ -257,6 +274,7 @@ class PagamentoLoja(models.Model):
             models.Index(fields=['loja', 'status', '-data_vencimento'], name='pag_loja_status_idx'),
             models.Index(fields=['status', 'data_vencimento'], name='pag_status_venc_idx'),
             models.Index(fields=['financeiro', '-data_vencimento'], name='pag_fin_venc_idx'),
+            models.Index(fields=['asaas_payment_id'], name='pag_asaas_payment_idx'),
         ]
     
     def __str__(self):

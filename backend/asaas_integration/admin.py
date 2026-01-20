@@ -41,7 +41,7 @@ class AsaasCustomerAdmin(admin.ModelAdmin):
 class AsaasPaymentAdmin(admin.ModelAdmin):
     """Admin para cobranças Asaas"""
     
-    list_display = ['asaas_id', 'customer_name', 'value', 'status', 'billing_type', 'due_date', 'payment_date', 'actions']
+    list_display = ['asaas_id', 'customer_name', 'value', 'status', 'billing_type', 'due_date', 'payment_date', 'payment_actions']
     list_filter = ['status', 'billing_type', 'due_date', 'created_at']
     search_fields = ['asaas_id', 'customer__name', 'customer__email', 'external_reference', 'description']
     readonly_fields = ['asaas_id', 'created_at', 'updated_at', 'raw_data_display', 'payment_links']
@@ -83,14 +83,14 @@ class AsaasPaymentAdmin(admin.ModelAdmin):
         return mark_safe(' | '.join(links)) if links else '-'
     payment_links.short_description = 'Links'
     
-    def actions(self, obj):
+    def payment_actions(self, obj):
         """Ações disponíveis"""
         actions = []
         if obj.asaas_id:
             # Link para baixar PDF
             actions.append(f'<a href="/api/asaas/payments/{obj.id}/download_pdf/" target="_blank">PDF</a>')
         return mark_safe(' | '.join(actions)) if actions else '-'
-    actions.short_description = 'Ações'
+    payment_actions.short_description = 'Ações'
     
     def raw_data_display(self, obj):
         """Exibe dados brutos formatados"""
@@ -104,7 +104,7 @@ class AsaasPaymentAdmin(admin.ModelAdmin):
 class LojaAssinaturaAdmin(admin.ModelAdmin):
     """Admin para assinaturas das lojas"""
     
-    list_display = ['loja_nome', 'plano_nome', 'plano_valor', 'ativa', 'data_vencimento', 'payment_status', 'actions']
+    list_display = ['loja_nome', 'plano_nome', 'plano_valor', 'ativa', 'data_vencimento', 'payment_status', 'subscription_actions']
     list_filter = ['ativa', 'plano_nome', 'data_vencimento', 'created_at']
     search_fields = ['loja_nome', 'loja_slug', 'asaas_customer__name', 'asaas_customer__email']
     readonly_fields = ['created_at', 'updated_at', 'payment_history']
@@ -143,7 +143,7 @@ class LojaAssinaturaAdmin(admin.ModelAdmin):
         return '-'
     payment_status.short_description = 'Status Pagamento'
     
-    def actions(self, obj):
+    def subscription_actions(self, obj):
         """Ações disponíveis"""
         actions = []
         if obj.current_payment:
@@ -152,7 +152,7 @@ class LojaAssinaturaAdmin(admin.ModelAdmin):
             # Link para baixar PDF
             actions.append(f'<a href="/api/asaas/payments/{obj.current_payment.id}/download_pdf/" target="_blank">PDF</a>')
         return mark_safe(' | '.join(actions)) if actions else '-'
-    actions.short_description = 'Ações'
+    subscription_actions.short_description = 'Ações'
     
     def payment_history(self, obj):
         """Histórico de pagamentos"""

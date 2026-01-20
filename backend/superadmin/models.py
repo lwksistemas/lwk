@@ -141,6 +141,12 @@ class Loja(models.Model):
     is_trial = models.BooleanField(default=True)
     trial_ends_at = models.DateTimeField(null=True, blank=True)
     
+    # Controle de bloqueio por inadimplência
+    is_blocked = models.BooleanField(default=False, help_text='Loja bloqueada por inadimplência')
+    blocked_at = models.DateTimeField(null=True, blank=True, help_text='Data do bloqueio')
+    blocked_reason = models.CharField(max_length=255, blank=True, help_text='Motivo do bloqueio')
+    days_overdue = models.IntegerField(default=0, help_text='Dias em atraso')
+    
     # Datas
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -208,6 +214,10 @@ class FinanceiroLoja(models.Model):
     # Totalizadores
     total_pago = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_pendente = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Controle de sincronização
+    last_sync_at = models.DateTimeField(null=True, blank=True, help_text='Última sincronização com Asaas')
+    sync_error = models.TextField(blank=True, help_text='Último erro de sincronização')
     
     # Dados de pagamento
     forma_pagamento = models.CharField(max_length=50, blank=True)  # cartao, boleto, pix

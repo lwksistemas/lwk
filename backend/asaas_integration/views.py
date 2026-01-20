@@ -237,117 +237,64 @@ def asaas_stats(request):
 @api_view(['POST'])
 @permission_classes([IsSuperAdmin])
 def asaas_sync(request):
-    """Sincronizar pagamentos com a API do Asaas"""
-    
+    """Sincronização manual de pagamentos"""
     try:
-        config = AsaasConfig.get_config()
-        if not config.api_key:
-            return Response(
-                {'detail': 'Chave da API não configurada'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        from superadmin.sync_service import AsaasSyncService
         
-        client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
+        sync_service = AsaasSyncService()
+        loja_slug = request.data.get('loja')
         
-        synced_count = 0
-        errors = []
+        if loja_slug:
+            # Sincronizar loja específica
+            try:
+                from superadmin.models import Loja
+                loja = Loja.objects.get(slug=loja_slug, is_active=True)
+                resultado = sync_service.sync_loja_payments(loja)
+            except Loja.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'error': f'Loja "{loja_slug}" não encontrada'
+                }, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # Sincronizar todas as lojas
+            resultado = sync_service.sync_all_payments()
         
-        # Buscar todos os pagamentos do Asaas
-        try:
-            payments_response = client._make_request('GET', 'payments?limit=100')
-            payments = payments_response.get('data', [])
-            
-            for payment_data in payments:
-                try:
-                    # Verificar se o pagamento já existe
-                    asaas_id = payment_data['id']
-                    
-                    payment, created = AsaasPayment.objects.get_or_create(
-                        asaas_id=asaas_id,
-                        defaults={
-                            'billing_type': payment_data.get('billingType', 'UNDEFINED'),
-                            'status': payment_data.get('status', 'PENDING'),
-                            'value': payment_data.get('value', 0),
-                            'due_date': payment_data.get('dueDate'),
-                            'description': payment_data.get('description', ''),
-                            'external_reference': payment_data.get('externalReference', ''),
-                            'raw_data': payment_data
-                        }
-                    )
-                    
-                    if created:
-                        synced_count += 1
-                        
-                        # Tentar associar com cliente
-                        customer_id = payment_data.get('customer')
-                        if customer_id:
-                            try:
-                                customer = AsaasCustomer.objects.get(asaas_id=customer_id)
-                                payment.customer = customer
-                                payment.save()
-                            except AsaasCustomer.DoesNotExist:
-                                # Cliente não existe, buscar na API
-                                try:
-                                    customer_data = client._make_request('GET', f'customers/{customer_id}')
-                                    customer = AsaasCustomer.objects.create(
-                                        asaas_id=customer_id,
-                                        name=customer_data.get('name', ''),
-                                        email=customer_data.get('email', ''),
-                                        cpf_cnpj=customer_data.get('cpfCnpj', ''),
-                                        raw_data=customer_data
-                                    )
-                                    payment.customer = customer
-                                    payment.save()
-                                except Exception as e:
-                                    errors.append(f"Erro ao criar cliente {customer_id}: {str(e)}")
-                    else:
-                        # Atualizar status se mudou
-                        if payment.status != payment_data.get('status'):
-                            payment.status = payment_data.get('status', 'PENDING')
-                            payment.raw_data = payment_data
-                            payment.save()
-                            synced_count += 1
-                
-                except Exception as e:
-                    errors.append(f"Erro ao processar pagamento {payment_data.get('id', 'unknown')}: {str(e)}")
-                    
-        except Exception as e:
-            return Response(
-                {'detail': f'Erro ao buscar pagamentos: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        return Response(resultado)
         
-        # Atualizar timestamp da última sincronização
-        set_last_sync_time()
-        
-        response_data = {
-            'message': 'Sincronização concluída',
-            'synced_count': synced_count,
-            'total_payments': AsaasPayment.objects.count(),
-            'sync_time': timezone.now().isoformat()
-        }
-        
-        if errors:
-            response_data['errors'] = errors[:10]  # Limitar a 10 erros
-            response_data['total_errors'] = len(errors)
-        
-        return Response(response_data)
-        
+    except ImportError:
+        return Response({
+            'success': False,
+            'error': 'Serviço de sincronização não disponível'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except Exception as e:
-        logger.error(f"Erro na sincronização Asaas: {e}")
-        return Response(
-            {'detail': f'Erro na sincronização: {str(e)}'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        logger.error(f"Erro na sincronização manual: {e}")
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-def get_last_sync_time():
-    """Obter timestamp da última sincronização"""
+
+@api_view(['GET'])
+@permission_classes([IsSuperAdmin])
+def asaas_sync_stats(request):
+    """Estatísticas de sincronização"""
     try:
-        # Buscar o pagamento mais recente como proxy para última sync
-        last_payment = AsaasPayment.objects.order_by('-updated_at').first()
-        return last_payment.updated_at.isoformat() if last_payment else None
-    except:
-        return None
+        from superadmin.sync_service import AsaasSyncService
+        
+        sync_service = AsaasSyncService()
+        stats = sync_service.get_sync_stats()
+        
+        return Response(stats)
+        
+    except ImportError:
+        return Response({
+            'error': 'Serviço de sincronização não disponível'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        logger.error(f"Erro ao obter estatísticas: {e}")
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @csrf_exempt
 @api_view(['POST'])
@@ -366,51 +313,58 @@ def asaas_webhook(request):
         if not event_type or not payment_data:
             return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
         
-        # Processar apenas eventos de pagamento
+        # Processar apenas eventos de pagamento relevantes
         if event_type in ['PAYMENT_CREATED', 'PAYMENT_UPDATED', 'PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED']:
-            payment_id = payment_data.get('id')
             
-            if payment_id:
-                # Buscar ou criar o pagamento
-                payment, created = AsaasPayment.objects.get_or_create(
-                    asaas_id=payment_id,
-                    defaults={
-                        'billing_type': payment_data.get('billingType', 'UNDEFINED'),
-                        'status': payment_data.get('status', 'PENDING'),
-                        'value': payment_data.get('value', 0),
-                        'due_date': payment_data.get('dueDate'),
-                        'description': payment_data.get('description', ''),
-                        'external_reference': payment_data.get('externalReference', ''),
-                        'raw_data': payment_data
+            # Usar o novo serviço de sincronização
+            try:
+                from superadmin.sync_service import AsaasSyncService
+                
+                sync_service = AsaasSyncService()
+                resultado = sync_service.process_webhook_payment(payment_data)
+                
+                if resultado['success']:
+                    logger.info(f"Webhook processado com sucesso: {resultado}")
+                    
+                    response_data = {
+                        'status': 'processed',
+                        'payment_id': resultado.get('payment_id'),
+                        'status_updated': resultado.get('status_updated', False)
                     }
-                )
-                
-                # Atualizar se já existia
-                if not created:
-                    payment.status = payment_data.get('status', payment.status)
-                    payment.raw_data = payment_data
-                    if payment_data.get('paymentDate'):
-                        payment.payment_date = payment_data.get('paymentDate')
-                    payment.save()
-                
-                # Buscar e associar cliente se necessário
-                customer_id = payment_data.get('customer')
-                if customer_id and not payment.customer:
-                    try:
-                        customer = AsaasCustomer.objects.get(asaas_id=customer_id)
-                        payment.customer = customer
-                        payment.save()
-                    except AsaasCustomer.DoesNotExist:
-                        # Cliente será criado na próxima sincronização
-                        pass
-                
-                logger.info(f"Pagamento {payment_id} processado via webhook: {event_type}")
-                
+                    
+                    # Adicionar informações sobre bloqueio/desbloqueio
+                    if resultado.get('blocked'):
+                        response_data['loja_blocked'] = True
+                        logger.warning(f"Loja bloqueada via webhook: {resultado.get('payment_id')}")
+                    
+                    if resultado.get('unblocked'):
+                        response_data['loja_unblocked'] = True
+                        logger.info(f"Loja desbloqueada via webhook: {resultado.get('payment_id')}")
+                    
+                    return Response(response_data, status=status.HTTP_200_OK)
+                else:
+                    logger.error(f"Erro ao processar webhook: {resultado.get('error')}")
+                    return Response({
+                        'status': 'error',
+                        'error': resultado.get('error')
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+            except ImportError:
+                logger.error("Serviço de sincronização não disponível")
                 return Response({
-                    'status': 'processed',
-                    'event': event_type,
-                    'payment_id': payment_id
-                }, status=status.HTTP_200_OK)
+                    'status': 'error',
+                    'error': 'Serviço de sincronização não disponível'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # Evento não processado
+        return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Erro no webhook Asaas: {e}")
+        return Response({
+            'status': 'error',
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
         

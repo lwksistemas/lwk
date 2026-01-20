@@ -140,6 +140,13 @@ export default function SuperAdminDashboard() {
               href="/superadmin/relatorios"
               color="pink"
             />
+            <MenuCard
+              title="Configuração Asaas"
+              description="Configurar e monitorar integração com API Asaas"
+              icon="🔧"
+              href="/superadmin/asaas"
+              color="orange"
+            />
           </div>
         </div>
       </main>
@@ -166,6 +173,7 @@ function MenuCard({ title, description, icon, href, color }: MenuCardProps) {
     green: 'bg-green-50 hover:bg-green-100 border-green-200',
     cyan: 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200',
     pink: 'bg-pink-50 hover:bg-pink-100 border-pink-200',
+    orange: 'bg-orange-50 hover:bg-orange-100 border-orange-200',
   };
 
   return (

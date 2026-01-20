@@ -1,297 +1,329 @@
 """
 Views para integração com Asaas
-Gerencia cobranças e pagamentos no painel financeiro
+Gerencia configurações, monitoramento e sincronização
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-from django.db import transaction
+from django.conf import settings
+from django.utils import timezone
+from django.db.models import Sum, Count
 from datetime import datetime, timedelta
+import os
 import logging
 
 from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
-from .serializers import AsaasCustomerSerializer, AsaasPaymentSerializer, LojaAssinaturaSerializer
-from .client import AsaasPaymentService
+from .client import AsaasClient
+from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
 
-class AsaasCustomerViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet para clientes Asaas"""
-    queryset = AsaasCustomer.objects.all()
-    serializer_class = AsaasCustomerSerializer
-    permission_classes = [IsAuthenticated]
+class IsSuperAdmin(permissions.BasePermission):
+    """Permissão apenas para super admins"""
+    def has_permission(self, request, view):
+        return request.user and request.user.is_superuser
 
-class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet para cobranças Asaas"""
-    queryset = AsaasPayment.objects.all()
-    serializer_class = AsaasPaymentSerializer
-    permission_classes = [IsAuthenticated]
+@api_view(['GET', 'POST'])
+@permission_classes([IsSuperAdmin])
+def asaas_config(request):
+    """Gerenciar configurações do Asaas"""
     
-    @action(detail=True, methods=['get'])
-    def download_pdf(self, request, pk=None):
-        """Baixa PDF do boleto"""
-        payment = self.get_object()
+    if request.method == 'GET':
+        # Retornar configurações atuais (sem expor a chave completa)
+        api_key = os.environ.get('ASAAS_API_KEY', '')
+        masked_key = f"{api_key[:10]}...{api_key[-4:]}" if len(api_key) > 14 else api_key
+        
+        return Response({
+            'api_key': masked_key,
+            'sandbox': os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true',
+            'enabled': getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False),
+            'last_sync': get_last_sync_time()
+        })
+    
+    elif request.method == 'POST':
+        # Salvar novas configurações
+        api_key = request.data.get('api_key', '').strip()
+        sandbox = request.data.get('sandbox', True)
+        enabled = request.data.get('enabled', False)
+        
+        if not api_key:
+            return Response(
+                {'detail': 'Chave da API é obrigatória'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar formato da chave
+        if not (api_key.startswith('$aact_') or api_key.startswith('$aact_YTU5YjRlM2')):
+            return Response(
+                {'detail': 'Formato da chave API inválido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         try:
-            service = AsaasPaymentService()
-            pdf_content = service.download_boleto_pdf(payment.asaas_id)
+            # Testar a chave antes de salvar
+            client = AsaasClient(api_key=api_key, sandbox=sandbox)
+            test_result = client._make_request('GET', 'customers?limit=1')
             
-            response = HttpResponse(pdf_content, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="boleto_{payment.asaas_id}.pdf"'
-            return response
+            # Se chegou até aqui, a chave é válida
+            # Atualizar variáveis de ambiente (temporariamente)
+            os.environ['ASAAS_API_KEY'] = api_key
+            os.environ['ASAAS_SANDBOX'] = str(sandbox)
             
-        except Exception as e:
-            logger.error(f"Erro ao baixar PDF: {e}")
-            return Response(
-                {'error': 'Erro ao baixar PDF do boleto'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    @action(detail=True, methods=['post'])
-    def update_status(self, request, pk=None):
-        """Atualiza status do pagamento consultando a API"""
-        payment = self.get_object()
-        
-        try:
-            service = AsaasPaymentService()
-            result = service.get_payment_status(payment.asaas_id)
-            
-            if result['success']:
-                payment.status = result['status']
-                if result.get('payment_date'):
-                    payment.payment_date = datetime.fromisoformat(result['payment_date'].replace('Z', '+00:00'))
-                payment.raw_data = result['raw_payment']
-                payment.save()
-                
-                return Response({
-                    'success': True,
-                    'status': payment.status,
-                    'payment_date': payment.payment_date
-                })
-            else:
-                return Response(
-                    {'error': result['error']},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-        except Exception as e:
-            logger.error(f"Erro ao atualizar status: {e}")
-            return Response(
-                {'error': 'Erro ao consultar status do pagamento'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-class LojaAssinaturaViewSet(viewsets.ModelViewSet):
-    """ViewSet para assinaturas das lojas"""
-    queryset = LojaAssinatura.objects.all()
-    serializer_class = LojaAssinaturaSerializer
-    permission_classes = [IsAuthenticated]
-    
-    @action(detail=False, methods=['post'])
-    def create_for_loja(self, request):
-        """Cria assinatura para uma nova loja"""
-        try:
-            loja_data = request.data.get('loja', {})
-            plano_data = request.data.get('plano', {})
-            
-            if not loja_data or not plano_data:
-                return Response(
-                    {'error': 'Dados da loja e plano são obrigatórios'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Verificar se já existe assinatura para esta loja
-            if LojaAssinatura.objects.filter(loja_slug=loja_data['slug']).exists():
-                return Response(
-                    {'error': 'Já existe uma assinatura para esta loja'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            with transaction.atomic():
-                # Criar cobrança no Asaas
-                service = AsaasPaymentService()
-                result = service.create_loja_subscription_payment(loja_data, plano_data)
-                
-                if not result['success']:
-                    return Response(
-                        {'error': result['error']},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                # Criar cliente no banco local
-                customer = AsaasCustomer.objects.create(
-                    asaas_id=result['customer_id'],
-                    name=loja_data['nome'],
-                    email=loja_data['email'],
-                    cpf_cnpj=loja_data['cpf_cnpj'],
-                    phone=loja_data.get('telefone', ''),
-                    address=loja_data.get('endereco', ''),
-                    address_number=loja_data.get('numero', ''),
-                    complement=loja_data.get('complemento', ''),
-                    province=loja_data.get('bairro', ''),
-                    city=loja_data.get('cidade', ''),
-                    state=loja_data.get('estado', ''),
-                    postal_code=loja_data.get('cep', ''),
-                    external_reference=f"loja_{loja_data['slug']}",
-                    raw_data=result['raw_customer']
-                )
-                
-                # Criar pagamento no banco local
-                payment = AsaasPayment.objects.create(
-                    asaas_id=result['payment_id'],
-                    customer=customer,
-                    external_reference=f"loja_{loja_data['slug']}_assinatura",
-                    billing_type='BOLETO',
-                    status=result['status'],
-                    value=result['value'],
-                    due_date=datetime.strptime(result['due_date'], '%Y-%m-%d').date(),
-                    invoice_url=result['payment_url'],
-                    bank_slip_url=result['boleto_url'],
-                    pix_qr_code=result['pix_qr_code'],
-                    pix_copy_paste=result['pix_copy_paste'],
-                    description=f"Assinatura {plano_data['nome']} - Loja {loja_data['nome']}",
-                    raw_data=result['raw_payment']
-                )
-                
-                # Criar assinatura
-                assinatura = LojaAssinatura.objects.create(
-                    loja_slug=loja_data['slug'],
-                    loja_nome=loja_data['nome'],
-                    asaas_customer=customer,
-                    current_payment=payment,
-                    plano_nome=plano_data['nome'],
-                    plano_valor=plano_data['preco'],
-                    data_vencimento=payment.due_date
-                )
-                
-                return Response({
-                    'success': True,
-                    'assinatura_id': assinatura.id,
-                    'payment_id': payment.asaas_id,
-                    'payment_url': payment.invoice_url,
-                    'boleto_url': payment.bank_slip_url,
-                    'pix_qr_code': payment.pix_qr_code,
-                    'pix_copy_paste': payment.pix_copy_paste,
-                    'due_date': payment.due_date,
-                    'value': float(payment.value)
-                })
-                
-        except Exception as e:
-            logger.error(f"Erro ao criar assinatura: {e}")
-            return Response(
-                {'error': f'Erro interno: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    @action(detail=True, methods=['post'])
-    def generate_new_payment(self, request, pk=None):
-        """Gera nova cobrança para renovação da assinatura"""
-        assinatura = self.get_object()
-        
-        try:
-            with transaction.atomic():
-                # Dados para nova cobrança
-                loja_data = {
-                    'nome': assinatura.loja_nome,
-                    'slug': assinatura.loja_slug,
-                    'email': assinatura.asaas_customer.email,
-                    'cpf_cnpj': assinatura.asaas_customer.cpf_cnpj,
-                    'telefone': assinatura.asaas_customer.phone,
-                }
-                
-                plano_data = {
-                    'nome': assinatura.plano_nome,
-                    'preco': assinatura.plano_valor
-                }
-                
-                # Criar nova cobrança
-                service = AsaasPaymentService()
-                result = service.create_loja_subscription_payment(loja_data, plano_data)
-                
-                if not result['success']:
-                    return Response(
-                        {'error': result['error']},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                # Criar novo pagamento no banco local
-                payment = AsaasPayment.objects.create(
-                    asaas_id=result['payment_id'],
-                    customer=assinatura.asaas_customer,
-                    external_reference=f"loja_{assinatura.loja_slug}_renovacao",
-                    billing_type='BOLETO',
-                    status=result['status'],
-                    value=result['value'],
-                    due_date=datetime.strptime(result['due_date'], '%Y-%m-%d').date(),
-                    invoice_url=result['payment_url'],
-                    bank_slip_url=result['boleto_url'],
-                    pix_qr_code=result['pix_qr_code'],
-                    pix_copy_paste=result['pix_copy_paste'],
-                    description=f"Renovação {assinatura.plano_nome} - Loja {assinatura.loja_nome}",
-                    raw_data=result['raw_payment']
-                )
-                
-                # Atualizar assinatura
-                assinatura.current_payment = payment
-                assinatura.data_vencimento = payment.due_date
-                assinatura.save()
-                
-                return Response({
-                    'success': True,
-                    'payment_id': payment.asaas_id,
-                    'payment_url': payment.invoice_url,
-                    'boleto_url': payment.bank_slip_url,
-                    'pix_qr_code': payment.pix_qr_code,
-                    'pix_copy_paste': payment.pix_copy_paste,
-                    'due_date': payment.due_date,
-                    'value': float(payment.value)
-                })
-                
-        except Exception as e:
-            logger.error(f"Erro ao gerar nova cobrança: {e}")
-            return Response(
-                {'error': f'Erro interno: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    @action(detail=False, methods=['get'])
-    def dashboard_stats(self, request):
-        """Estatísticas para o dashboard financeiro"""
-        try:
-            total_assinaturas = LojaAssinatura.objects.count()
-            assinaturas_ativas = LojaAssinatura.objects.filter(ativa=True).count()
-            
-            # Pagamentos por status
-            pagamentos_pendentes = AsaasPayment.objects.filter(status='PENDING').count()
-            pagamentos_pagos = AsaasPayment.objects.filter(status__in=['RECEIVED', 'CONFIRMED']).count()
-            pagamentos_vencidos = AsaasPayment.objects.filter(status='OVERDUE').count()
-            
-            # Receita total
-            from django.db.models import Sum
-            receita_total = AsaasPayment.objects.filter(
-                status__in=['RECEIVED', 'CONFIRMED']
-            ).aggregate(total=Sum('value'))['total'] or 0
-            
-            receita_pendente = AsaasPayment.objects.filter(
-                status='PENDING'
-            ).aggregate(total=Sum('value'))['total'] or 0
+            # Atualizar configurações do Django
+            settings.ASAAS_API_KEY = api_key
+            settings.ASAAS_SANDBOX = sandbox
+            settings.ASAAS_INTEGRATION_ENABLED = enabled
             
             return Response({
-                'total_assinaturas': total_assinaturas,
-                'assinaturas_ativas': assinaturas_ativas,
-                'pagamentos_pendentes': pagamentos_pendentes,
-                'pagamentos_pagos': pagamentos_pagos,
-                'pagamentos_vencidos': pagamentos_vencidos,
-                'receita_total': float(receita_total),
-                'receita_pendente': float(receita_pendente)
+                'message': 'Configuração salva com sucesso',
+                'api_key': f"{api_key[:10]}...{api_key[-4:]}",
+                'sandbox': sandbox,
+                'enabled': enabled
             })
             
         except Exception as e:
-            logger.error(f"Erro ao buscar estatísticas: {e}")
             return Response(
-                {'error': 'Erro ao buscar estatísticas'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'detail': f'Erro ao validar chave API: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
             )
+
+@api_view(['POST'])
+@permission_classes([IsSuperAdmin])
+def asaas_test(request):
+    """Testar conexão com a API do Asaas"""
+    
+    try:
+        api_key = os.environ.get('ASAAS_API_KEY')
+        if not api_key:
+            return Response(
+                {'detail': 'Chave da API não configurada'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        sandbox = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
+        client = AsaasClient(api_key=api_key, sandbox=sandbox)
+        
+        # Testar com uma requisição simples
+        result = client._make_request('GET', 'customers?limit=1')
+        
+        return Response({
+            'message': 'Conexão testada com sucesso',
+            'environment': 'Sandbox' if sandbox else 'Produção',
+            'api_status': 'Conectado',
+            'test_time': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao testar API Asaas: {e}")
+        return Response(
+            {'detail': f'Erro na conexão: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+@api_view(['GET'])
+@permission_classes([IsSuperAdmin])
+def asaas_status(request):
+    """Status atual da integração Asaas"""
+    
+    try:
+        api_key = os.environ.get('ASAAS_API_KEY')
+        sandbox = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
+        enabled = getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False)
+        
+        api_connected = False
+        error_message = None
+        
+        if api_key and enabled:
+            try:
+                client = AsaasClient(api_key=api_key, sandbox=sandbox)
+                client._make_request('GET', 'customers?limit=1')
+                api_connected = True
+            except Exception as e:
+                error_message = str(e)
+        
+        return Response({
+            'api_connected': api_connected,
+            'last_check': timezone.now().isoformat(),
+            'error_message': error_message,
+            'environment': 'Sandbox' if sandbox else 'Produção',
+            'enabled': enabled
+        })
+        
+    except Exception as e:
+        return Response(
+            {'detail': f'Erro ao verificar status: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+@permission_classes([IsSuperAdmin])
+def asaas_stats(request):
+    """Estatísticas da integração Asaas"""
+    
+    try:
+        # Estatísticas dos clientes
+        total_customers = AsaasCustomer.objects.count()
+        
+        # Estatísticas dos pagamentos
+        total_payments = AsaasPayment.objects.count()
+        pending_payments = AsaasPayment.objects.filter(status='PENDING').count()
+        confirmed_payments = AsaasPayment.objects.filter(
+            status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']
+        ).count()
+        
+        # Receita total (apenas pagamentos confirmados)
+        total_revenue = AsaasPayment.objects.filter(
+            status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']
+        ).aggregate(total=Sum('value'))['total'] or 0
+        
+        # Último pagamento
+        last_payment = AsaasPayment.objects.order_by('-created_at').first()
+        last_payment_date = last_payment.created_at.isoformat() if last_payment else None
+        
+        # Estatísticas por período (últimos 30 dias)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        recent_payments = AsaasPayment.objects.filter(created_at__gte=thirty_days_ago)
+        recent_revenue = recent_payments.filter(
+            status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']
+        ).aggregate(total=Sum('value'))['total'] or 0
+        
+        return Response({
+            'total_customers': total_customers,
+            'total_payments': total_payments,
+            'pending_payments': pending_payments,
+            'confirmed_payments': confirmed_payments,
+            'total_revenue': float(total_revenue),
+            'last_payment_date': last_payment_date,
+            'recent_revenue_30d': float(recent_revenue),
+            'recent_payments_30d': recent_payments.count()
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter estatísticas Asaas: {e}")
+        return Response(
+            {'detail': f'Erro ao obter estatísticas: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@permission_classes([IsSuperAdmin])
+def asaas_sync(request):
+    """Sincronizar pagamentos com a API do Asaas"""
+    
+    try:
+        api_key = os.environ.get('ASAAS_API_KEY')
+        if not api_key:
+            return Response(
+                {'detail': 'Chave da API não configurada'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        sandbox = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
+        client = AsaasClient(api_key=api_key, sandbox=sandbox)
+        
+        synced_count = 0
+        errors = []
+        
+        # Buscar todos os pagamentos do Asaas
+        try:
+            payments_response = client._make_request('GET', 'payments?limit=100')
+            payments = payments_response.get('data', [])
+            
+            for payment_data in payments:
+                try:
+                    # Verificar se o pagamento já existe
+                    asaas_id = payment_data['id']
+                    
+                    payment, created = AsaasPayment.objects.get_or_create(
+                        asaas_id=asaas_id,
+                        defaults={
+                            'billing_type': payment_data.get('billingType', 'UNDEFINED'),
+                            'status': payment_data.get('status', 'PENDING'),
+                            'value': payment_data.get('value', 0),
+                            'due_date': payment_data.get('dueDate'),
+                            'description': payment_data.get('description', ''),
+                            'external_reference': payment_data.get('externalReference', ''),
+                            'raw_data': payment_data
+                        }
+                    )
+                    
+                    if created:
+                        synced_count += 1
+                        
+                        # Tentar associar com cliente
+                        customer_id = payment_data.get('customer')
+                        if customer_id:
+                            try:
+                                customer = AsaasCustomer.objects.get(asaas_id=customer_id)
+                                payment.customer = customer
+                                payment.save()
+                            except AsaasCustomer.DoesNotExist:
+                                # Cliente não existe, buscar na API
+                                try:
+                                    customer_data = client._make_request('GET', f'customers/{customer_id}')
+                                    customer = AsaasCustomer.objects.create(
+                                        asaas_id=customer_id,
+                                        name=customer_data.get('name', ''),
+                                        email=customer_data.get('email', ''),
+                                        cpf_cnpj=customer_data.get('cpfCnpj', ''),
+                                        raw_data=customer_data
+                                    )
+                                    payment.customer = customer
+                                    payment.save()
+                                except Exception as e:
+                                    errors.append(f"Erro ao criar cliente {customer_id}: {str(e)}")
+                    else:
+                        # Atualizar status se mudou
+                        if payment.status != payment_data.get('status'):
+                            payment.status = payment_data.get('status', 'PENDING')
+                            payment.raw_data = payment_data
+                            payment.save()
+                            synced_count += 1
+                
+                except Exception as e:
+                    errors.append(f"Erro ao processar pagamento {payment_data.get('id', 'unknown')}: {str(e)}")
+                    
+        except Exception as e:
+            return Response(
+                {'detail': f'Erro ao buscar pagamentos: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Atualizar timestamp da última sincronização
+        set_last_sync_time()
+        
+        response_data = {
+            'message': 'Sincronização concluída',
+            'synced_count': synced_count,
+            'total_payments': AsaasPayment.objects.count(),
+            'sync_time': timezone.now().isoformat()
+        }
+        
+        if errors:
+            response_data['errors'] = errors[:10]  # Limitar a 10 erros
+            response_data['total_errors'] = len(errors)
+        
+        return Response(response_data)
+        
+    except Exception as e:
+        logger.error(f"Erro na sincronização Asaas: {e}")
+        return Response(
+            {'detail': f'Erro na sincronização: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+def get_last_sync_time():
+    """Obter timestamp da última sincronização"""
+    try:
+        # Buscar o pagamento mais recente como proxy para última sync
+        last_payment = AsaasPayment.objects.order_by('-updated_at').first()
+        return last_payment.updated_at.isoformat() if last_payment else None
+    except:
+        return None
+
+def set_last_sync_time():
+    """Definir timestamp da última sincronização"""
+    # Por enquanto, não fazemos nada específico
+    # Podemos implementar um modelo de configuração no futuro
+    pass

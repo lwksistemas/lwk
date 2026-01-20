@@ -514,6 +514,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             
             loja_data = {
                 'nome': loja.nome,
+                'slug': loja.slug,
                 'email': loja.owner.email,
                 'cpf_cnpj': loja.cpf_cnpj,
                 'telefone': getattr(loja.owner, 'telefone', ''),
@@ -525,7 +526,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             
             plano_data = {
                 'nome': assinatura.plano_nome,
-                'valor': float(assinatura.plano_valor)
+                'preco': float(assinatura.plano_valor)
             }
             
             # Criar nova cobrança
@@ -601,7 +602,8 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
             if pdf_content:
                 from django.http import HttpResponse
                 response = HttpResponse(pdf_content, content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="boleto_{payment.asaas_id}.pdf"'
+                response['Content-Disposition'] = f'inline; filename="boleto_{payment.asaas_id}.pdf"'
+                response['Content-Length'] = len(pdf_content)
                 return response
             else:
                 return Response(

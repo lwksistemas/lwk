@@ -69,7 +69,7 @@ class AsaasPayment(models.Model):
     
     # Identificadores
     asaas_id = models.CharField(max_length=100, unique=True, verbose_name="ID no Asaas")
-    customer = models.ForeignKey(AsaasCustomer, on_delete=models.CASCADE, verbose_name="Cliente")
+    customer = models.ForeignKey(AsaasCustomer, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Cliente")
     external_reference = models.CharField(max_length=100, blank=True, verbose_name="Referência Externa")
     
     # Dados da cobrança

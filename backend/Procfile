@@ -1,2 +1,2 @@
-web: gunicorn config.wsgi --log-file - --settings=config.settings_production_temp
+web: gunicorn config.wsgi_temp --log-file - --settings=config.settings_production_temp
 release: python manage.py migrate --noinput --settings=config.settings_production_temp

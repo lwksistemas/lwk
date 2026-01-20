@@ -1,0 +1,1 @@
+# Migrations para integração com Asaas

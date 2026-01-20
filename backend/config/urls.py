@@ -19,6 +19,7 @@ def api_root(request):
             'suporte': '/api/suporte/',
             'stores': '/api/stores/',
             'products': '/api/products/',
+            'asaas': '/api/asaas/',
         },
         'documentacao': 'Sistema Multi-Tenant para gestão de lojas'
     })
@@ -37,4 +38,5 @@ urlpatterns = [
     path('api/products/', include('products.urls')),
     path('api/suporte/', include('suporte.urls')),
     path('api/superadmin/', include('superadmin.urls')),  # API Super Admin
+    path('api/asaas/', include('asaas_integration.urls')),  # API Asaas
 ]

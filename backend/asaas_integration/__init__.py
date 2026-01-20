@@ -1,0 +1,1 @@
+# Integração com API do Asaas para geração de boletos e PIX

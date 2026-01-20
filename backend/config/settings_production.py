@@ -25,11 +25,18 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'core',  # App base com modelos abstratos
     'stores',
     'products',
     'suporte',
     'tenants',
     'superadmin',
+    'asaas_integration',  # Integração com Asaas
+    'clinica_estetica',
+    'crm_vendas',
+    'ecommerce',
+    'restaurante',
+    'servicos',
 ]
 
 # MIDDLEWARE
@@ -105,7 +112,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CORS
 CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ORIGINS',
-    'https://lwksistemas.vercel.app'
+    'https://lwksistemas.com.br,https://frontend-r3q0a1lw4-lwks-projects-48afd555.vercel.app'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
 
@@ -146,6 +153,11 @@ X_FRAME_OPTIONS = 'DENY'
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+
+# ASAAS INTEGRATION
+ASAAS_INTEGRATION_ENABLED = True
+ASAAS_API_KEY = os.environ.get('ASAAS_API_KEY', '')
+ASAAS_SANDBOX = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
 
 # LOGGING
 LOGGING = {

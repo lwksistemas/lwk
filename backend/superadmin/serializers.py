@@ -161,7 +161,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 username=owner_username,
                 email=owner_email,
                 password=owner_password,
-                is_staff=True
+                is_staff=False  # CORREÇÃO: Usuários de loja NÃO devem ser staff
             )
             
             # Criar loja

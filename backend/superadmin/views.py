@@ -260,13 +260,28 @@ class LojaViewSet(viewsets.ModelViewSet):
             # 5. Remover usuário proprietário se não for usado por outras lojas
             usuario_removido = False
             if usuario_sera_removido:
-                # Verificar se o usuário não é superuser ou staff importante
-                if not owner.is_superuser and not owner.is_staff:
-                    owner.delete()
-                    usuario_removido = True
-                    print(f"✅ Usuário proprietário removido: {owner_username}")
+                # Verificar se o usuário não é superuser (usuários de loja não devem ser staff)
+                if not owner.is_superuser:
+                    try:
+                        # Remover grupos e permissões primeiro
+                        owner.groups.clear()
+                        owner.user_permissions.clear()
+                        
+                        # Remover o usuário
+                        owner.delete()
+                        usuario_removido = True
+                        print(f"✅ Usuário proprietário removido: {owner_username}")
+                    except Exception as e:
+                        print(f"❌ Erro ao remover usuário: {e}")
+                        # Tentar remoção direta
+                        try:
+                            owner.delete()
+                            usuario_removido = True
+                            print(f"✅ Usuário proprietário removido (método direto): {owner_username}")
+                        except Exception as e2:
+                            print(f"❌ Erro na remoção direta: {e2}")
                 else:
-                    print(f"⚠️ Usuário {owner_username} mantido (superuser/staff)")
+                    print(f"⚠️ Usuário {owner_username} mantido (é superuser do sistema)")
             
             # 6. Limpeza adicional de arquivos relacionados (se houver)
             # TODO: Remover uploads, logos, etc. se implementado no futuro

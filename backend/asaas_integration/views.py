@@ -514,13 +514,13 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             
             loja_data = {
                 'nome': loja.nome,
-                'email': loja.email,
+                'email': loja.owner.email,
                 'cpf_cnpj': loja.cpf_cnpj,
-                'telefone': loja.telefone or '',
-                'endereco': loja.endereco or '',
-                'cidade': loja.cidade or '',
-                'estado': loja.estado or '',
-                'cep': loja.cep or ''
+                'telefone': getattr(loja.owner, 'telefone', ''),
+                'endereco': getattr(loja, 'endereco', ''),
+                'cidade': getattr(loja, 'cidade', ''),
+                'estado': getattr(loja, 'estado', ''),
+                'cep': getattr(loja, 'cep', '')
             }
             
             plano_data = {
@@ -595,7 +595,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             
             # Baixar PDF
-            client = AsaasClient(api_key=config.api_key, sandbox=config.is_sandbox)
+            client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
             pdf_content = client.get_payment_pdf(payment.asaas_id)
             
             if pdf_content:
@@ -643,7 +643,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             
             # Consultar status no Asaas
-            client = AsaasClient(api_key=config.api_key, sandbox=config.is_sandbox)
+            client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
             result = client.get_payment(payment.asaas_id)
             
             if result:

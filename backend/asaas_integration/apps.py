@@ -1,7 +1,10 @@
 """
-Configuração do app de integração com Asaas
+Configuração do app Asaas Integration
 """
 from django.apps import AppConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AsaasIntegrationConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
@@ -9,5 +12,10 @@ class AsaasIntegrationConfig(AppConfig):
     verbose_name = 'Integração Asaas'
     
     def ready(self):
-        """Importa os signals quando o app estiver pronto"""
-        import asaas_integration.signals
+        """Configuração quando o app está pronto"""
+        try:
+            # Importar signals apenas quando o app estiver totalmente carregado
+            from . import signals
+            logger.info("✅ Asaas Integration: Signals carregados")
+        except Exception as e:
+            logger.warning(f"⚠️ Asaas Integration: Erro ao carregar signals: {e}")

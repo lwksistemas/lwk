@@ -1,2 +1,2 @@
-web: gunicorn config.wsgi --log-file - --settings=config.settings_production
-release: python manage.py migrate --noinput --settings=config.settings_production
+web: cd backend && gunicorn config.wsgi --log-file -
+release: cd backend && python manage.py migrate --noinput

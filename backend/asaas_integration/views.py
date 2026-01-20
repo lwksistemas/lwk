@@ -22,7 +22,7 @@ try:
 except ImportError:
     REQUESTS_AVAILABLE = False
 
-from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
+from .models import AsaasCustomer, AsaasPayment, LojaAssinatura, AsaasConfig
 from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
@@ -58,21 +58,19 @@ def asaas_config(request):
         )
     
     if request.method == 'GET':
-        # Retornar configurações atuais (sem expor a chave completa)
-        api_key = os.environ.get('ASAAS_API_KEY', '')
-        masked_key = f"{api_key[:10]}...{api_key[-4:]}" if len(api_key) > 14 else api_key
+        # Retornar configurações atuais do banco de dados
+        config = AsaasConfig.get_config()
         
         return Response({
-            'api_key': masked_key,
-            'sandbox': os.environ.get('ASAAS_SANDBOX', 'True').lower() in ['true', '1', 'yes', 'on'],
-            'enabled': getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False),
-            'last_sync': get_last_sync_time()
+            'api_key': config.api_key_masked,
+            'sandbox': config.sandbox,
+            'enabled': config.enabled,
+            'last_sync': config.last_sync.isoformat() if config.last_sync else None
         })
     
     elif request.method == 'POST':
-        # Salvar novas configurações
+        # Salvar novas configurações no banco de dados
         api_key = request.data.get('api_key', '').strip()
-        sandbox = request.data.get('sandbox', True)
         enabled = request.data.get('enabled', False)
         
         if not api_key:
@@ -81,32 +79,25 @@ def asaas_config(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validar formato da chave (aceitar tanto sandbox quanto produção)
+        # Validar formato da chave
         if not api_key.startswith('$aact_'):
             return Response(
                 {'detail': 'Formato da chave API inválido. Deve começar com $aact_'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Detectar automaticamente se é sandbox ou produção
-        is_sandbox_key = 'hmlg' in api_key
-        
-        # Salvar configuração sem validar (validação será feita no teste)
+        # Salvar configuração no banco
         try:
-            # Atualizar variáveis de ambiente (temporariamente)
-            os.environ['ASAAS_API_KEY'] = api_key
-            os.environ['ASAAS_SANDBOX'] = str(is_sandbox_key)
-            
-            # Atualizar configurações do Django
-            settings.ASAAS_API_KEY = api_key
-            settings.ASAAS_SANDBOX = is_sandbox_key
-            settings.ASAAS_INTEGRATION_ENABLED = enabled
+            config = AsaasConfig.get_config()
+            config.api_key = api_key
+            config.enabled = enabled
+            config.save()  # O sandbox será detectado automaticamente no save()
             
             return Response({
-                'message': 'Configuração salva com sucesso. Use "Testar Conexão" para validar a chave.',
-                'api_key': f"{api_key[:10]}...{api_key[-4:]}",
-                'sandbox': is_sandbox_key,
-                'enabled': enabled
+                'message': 'Configuração salva com sucesso no banco de dados.',
+                'api_key': config.api_key_masked,
+                'sandbox': config.sandbox,
+                'enabled': config.enabled
             })
             
         except Exception as e:
@@ -127,23 +118,21 @@ def asaas_test(request):
         )
     
     try:
-        api_key = os.environ.get('ASAAS_API_KEY')
-        if not api_key:
+        config = AsaasConfig.get_config()
+        if not config.api_key:
             return Response(
                 {'detail': 'Chave da API não configurada'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Auto-detectar sandbox baseado na chave
-        is_sandbox = 'hmlg' in api_key
-        client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
+        client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
         
         # Testar com uma requisição simples
         result = client._make_request('GET', 'customers?limit=1')
         
         return Response({
             'message': 'Conexão testada com sucesso',
-            'environment': 'Sandbox' if is_sandbox else 'Produção',
+            'environment': config.environment_name,
             'api_status': 'Conectado',
             'test_time': timezone.now().isoformat()
         })
@@ -161,36 +150,31 @@ def asaas_status(request):
     """Status atual da integração Asaas"""
     
     try:
-        api_key = os.environ.get('ASAAS_API_KEY')
-        # Auto-detectar sandbox baseado na chave
-        is_sandbox = 'hmlg' in api_key if api_key else True
-        enabled = getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False)
+        config = AsaasConfig.get_config()
         
         api_connected = False
         error_message = None
         
         if not REQUESTS_AVAILABLE:
             error_message = 'Biblioteca requests não disponível'
-        elif api_key and enabled and AsaasClient:
+        elif config.api_key and config.enabled and AsaasClient:
             try:
-                # Auto-detectar sandbox baseado na chave
-                is_sandbox = 'hmlg' in api_key
-                client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
+                client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
                 client._make_request('GET', 'customers?limit=1')
                 api_connected = True
             except Exception as e:
                 error_message = str(e)
-        elif not api_key:
+        elif not config.api_key:
             error_message = 'Chave da API não configurada'
-        elif not enabled:
+        elif not config.enabled:
             error_message = 'Integração desabilitada'
         
         return Response({
             'api_connected': api_connected,
             'last_check': timezone.now().isoformat(),
             'error_message': error_message,
-            'environment': 'Sandbox' if is_sandbox else 'Produção',
-            'enabled': enabled,
+            'environment': config.environment_name,
+            'enabled': config.enabled,
             'requests_available': REQUESTS_AVAILABLE
         })
         
@@ -256,16 +240,14 @@ def asaas_sync(request):
     """Sincronizar pagamentos com a API do Asaas"""
     
     try:
-        api_key = os.environ.get('ASAAS_API_KEY')
-        if not api_key:
+        config = AsaasConfig.get_config()
+        if not config.api_key:
             return Response(
                 {'detail': 'Chave da API não configurada'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Auto-detectar sandbox baseado na chave
-        is_sandbox = 'hmlg' in api_key
-        client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
+        client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
         
         synced_count = 0
         errors = []
@@ -484,6 +466,18 @@ def asaas_test_public(request):
 
 def set_last_sync_time():
     """Definir timestamp da última sincronização"""
-    # Por enquanto, não fazemos nada específico
-    # Podemos implementar um modelo de configuração no futuro
-    pass
+    try:
+        config = AsaasConfig.get_config()
+        config.last_sync = timezone.now()
+        config.save()
+    except Exception as e:
+        logger.error(f"Erro ao salvar timestamp de sincronização: {e}")
+
+def get_last_sync_time():
+    """Obter timestamp da última sincronização"""
+    try:
+        config = AsaasConfig.get_config()
+        return config.last_sync.isoformat() if config.last_sync else None
+    except Exception as e:
+        logger.error(f"Erro ao obter timestamp de sincronização: {e}")
+        return None

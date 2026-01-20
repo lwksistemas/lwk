@@ -427,6 +427,9 @@ def asaas_webhook(request):
     except Exception as e:
         logger.error(f"Erro no webhook Asaas: {e}")
         # Retornar 200 mesmo com erro para não reenviar o webhook
+        return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_200_OK)
+
+
 def set_last_sync_time():
     """Definir timestamp da última sincronização"""
     # Por enquanto, não fazemos nada específico

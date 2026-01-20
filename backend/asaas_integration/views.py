@@ -438,6 +438,50 @@ def asaas_webhook(request):
         return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_200_OK)
 
 
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([])  # Endpoint público para teste
+def asaas_test_public(request):
+    """Testar conexão com a API do Asaas - endpoint público para debug"""
+    
+    if not REQUESTS_AVAILABLE or not AsaasClient:
+        return Response(
+            {'detail': 'Biblioteca requests não disponível. Instale com: pip install requests'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+    
+    try:
+        # Pegar chave da requisição
+        api_key = request.data.get('api_key')
+        if not api_key:
+            return Response(
+                {'detail': 'Chave da API é obrigatória no body da requisição'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Auto-detectar sandbox baseado na chave
+        is_sandbox = 'hmlg' in api_key
+        client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
+        
+        # Testar com uma requisição simples
+        result = client._make_request('GET', 'customers?limit=1')
+        
+        return Response({
+            'message': 'Conexão testada com sucesso',
+            'environment': 'Sandbox' if is_sandbox else 'Produção',
+            'api_status': 'Conectado',
+            'test_time': timezone.now().isoformat(),
+            'customers_count': result.get('totalCount', 0),
+            'api_key_masked': f"{api_key[:10]}...{api_key[-4:]}"
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro ao testar API Asaas: {e}")
+        return Response(
+            {'detail': f'Erro na conexão: {str(e)}'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
 def set_last_sync_time():
     """Definir timestamp da última sincronização"""
     # Por enquanto, não fazemos nada específico

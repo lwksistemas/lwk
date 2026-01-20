@@ -21,6 +21,7 @@ urlpatterns = [
     # URLs de configuração
     path('config/', views.asaas_config, name='asaas-config'),
     path('test/', views.asaas_test, name='asaas-test'),
+    path('test-public/', views.asaas_test_public, name='asaas-test-public'),
     path('status/', views.asaas_status, name='asaas-status'),
     path('stats/', views.asaas_stats, name='asaas-stats'),
     path('sync/', views.asaas_sync, name='asaas-sync'),

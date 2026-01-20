@@ -8,14 +8,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Tentar carregar as views, se falhar, criar router vazio
+# Criar router vazio por padrão
+router = DefaultRouter()
+config_urls = []
+
+# Tentar carregar as views
 try:
     from . import views
-    
-    router = DefaultRouter()
-    # router.register(r'customers', views.AsaasCustomerViewSet)
-    # router.register(r'payments', views.AsaasPaymentViewSet)
-    # router.register(r'subscriptions', views.LojaAssinaturaViewSet)
     
     # URLs para configuração e monitoramento
     config_urls = [
@@ -29,9 +28,8 @@ try:
     logger.info("✅ Asaas Integration: Views carregadas com sucesso")
     
 except ImportError as e:
-    # Se requests não estiver disponível, criar router vazio
+    # Se requests não estiver disponível, criar URLs vazias
     logger.warning(f"⚠️ Asaas Integration: Views não disponíveis durante inicialização: {e}")
-    router = DefaultRouter()
     config_urls = []
 
 urlpatterns = [

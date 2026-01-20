@@ -82,7 +82,7 @@ export default function AsaasConfigPage() {
 
   const loadConfig = async () => {
     try {
-      const response = await fetch('/api/superadmin/asaas/config/', {
+      const response = await fetch('/api/asaas/config/', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -99,7 +99,7 @@ export default function AsaasConfigPage() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/superadmin/asaas/stats/', {
+      const response = await fetch('/api/asaas/stats/', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -116,7 +116,7 @@ export default function AsaasConfigPage() {
 
   const checkStatus = async () => {
     try {
-      const response = await fetch('/api/superadmin/asaas/status/', {
+      const response = await fetch('/api/asaas/status/', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -134,7 +134,7 @@ export default function AsaasConfigPage() {
   const saveConfig = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/superadmin/asaas/config/', {
+      const response = await fetch('/api/asaas/config/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,14 +144,16 @@ export default function AsaasConfigPage() {
       })
       
       if (response.ok) {
-        setMessage({ type: 'success', text: 'Configuração salva com sucesso!' })
+        const data = await response.json()
+        setMessage({ type: 'success', text: data.message || 'Configuração salva com sucesso!' })
         checkStatus() // Verificar status após salvar
       } else {
         const error = await response.json()
         setMessage({ type: 'error', text: error.detail || 'Erro ao salvar configuração' })
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Erro ao salvar configuração' })
+      console.error('Erro ao salvar configuração:', error)
+      setMessage({ type: 'error', text: 'Erro de conexão ao salvar configuração' })
     } finally {
       setSaving(false)
     }
@@ -160,7 +162,7 @@ export default function AsaasConfigPage() {
   const testConnection = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/superadmin/asaas/test/', {
+      const response = await fetch('/api/asaas/test/', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
@@ -170,14 +172,15 @@ export default function AsaasConfigPage() {
       const data = await response.json()
       
       if (response.ok) {
-        setMessage({ type: 'success', text: 'Conexão com Asaas testada com sucesso!' })
+        setMessage({ type: 'success', text: data.message || 'Conexão com Asaas testada com sucesso!' })
         setStatus(prev => ({ ...prev, api_connected: true, error_message: null }))
       } else {
         setMessage({ type: 'error', text: data.detail || 'Erro ao testar conexão' })
         setStatus(prev => ({ ...prev, api_connected: false, error_message: data.detail }))
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Erro ao testar conexão' })
+      console.error('Erro ao testar conexão:', error)
+      setMessage({ type: 'error', text: 'Erro de conexão ao testar API' })
     } finally {
       setLoading(false)
     }
@@ -186,7 +189,7 @@ export default function AsaasConfigPage() {
   const syncPayments = async () => {
     setSyncing(true)
     try {
-      const response = await fetch('/api/superadmin/asaas/sync/', {
+      const response = await fetch('/api/asaas/sync/', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
@@ -203,7 +206,8 @@ export default function AsaasConfigPage() {
         setMessage({ type: 'error', text: data.detail || 'Erro na sincronização' })
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Erro na sincronização' })
+      console.error('Erro na sincronização:', error)
+      setMessage({ type: 'error', text: 'Erro de conexão na sincronização' })
     } finally {
       setSyncing(false)
     }

@@ -272,6 +272,8 @@ def dashboard_financeiro_loja(request, loja_slug):
             'total_pago': float(financeiro.total_pago),
             'total_pendente': float(financeiro.total_pendente),
             'tem_asaas': bool(financeiro.asaas_payment_id),
+            'asaas_customer_id': financeiro.asaas_customer_id,
+            'asaas_payment_id': financeiro.asaas_payment_id,
             'boleto_url': financeiro.boleto_url,
             'pix_qr_code': financeiro.pix_qr_code,
             'pix_copy_paste': financeiro.pix_copy_paste

@@ -64,7 +64,7 @@ def asaas_config(request):
         
         return Response({
             'api_key': masked_key,
-            'sandbox': os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true',
+            'sandbox': os.environ.get('ASAAS_SANDBOX', 'True').lower() in ['true', '1', 'yes', 'on'],
             'enabled': getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False),
             'last_sync': get_last_sync_time()
         })
@@ -144,15 +144,16 @@ def asaas_test(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        sandbox = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
-        client = AsaasClient(api_key=api_key, sandbox=sandbox)
+        sandbox_env = os.environ.get('ASAAS_SANDBOX', 'True')
+        is_sandbox = sandbox_env.lower() in ['true', '1', 'yes', 'on']
+        client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
         
         # Testar com uma requisição simples
         result = client._make_request('GET', 'customers?limit=1')
         
         return Response({
             'message': 'Conexão testada com sucesso',
-            'environment': 'Sandbox' if sandbox else 'Produção',
+            'environment': 'Sandbox' if is_sandbox else 'Produção',
             'api_status': 'Conectado',
             'test_time': timezone.now().isoformat()
         })
@@ -171,7 +172,8 @@ def asaas_status(request):
     
     try:
         api_key = os.environ.get('ASAAS_API_KEY')
-        sandbox = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
+        sandbox_env = os.environ.get('ASAAS_SANDBOX', 'True')
+        is_sandbox = sandbox_env.lower() in ['true', '1', 'yes', 'on']
         enabled = getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False)
         
         api_connected = False
@@ -181,7 +183,7 @@ def asaas_status(request):
             error_message = 'Biblioteca requests não disponível'
         elif api_key and enabled and AsaasClient:
             try:
-                client = AsaasClient(api_key=api_key, sandbox=sandbox)
+                client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
                 client._make_request('GET', 'customers?limit=1')
                 api_connected = True
             except Exception as e:
@@ -195,7 +197,7 @@ def asaas_status(request):
             'api_connected': api_connected,
             'last_check': timezone.now().isoformat(),
             'error_message': error_message,
-            'environment': 'Sandbox' if sandbox else 'Produção',
+            'environment': 'Sandbox' if is_sandbox else 'Produção',
             'enabled': enabled,
             'requests_available': REQUESTS_AVAILABLE
         })
@@ -269,8 +271,9 @@ def asaas_sync(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        sandbox = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
-        client = AsaasClient(api_key=api_key, sandbox=sandbox)
+        sandbox_env = os.environ.get('ASAAS_SANDBOX', 'True')
+        is_sandbox = sandbox_env.lower() in ['true', '1', 'yes', 'on']
+        client = AsaasClient(api_key=api_key, sandbox=is_sandbox)
         
         synced_count = 0
         errors = []

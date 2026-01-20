@@ -86,13 +86,8 @@ def asaas_config(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Salvar configuração sem validar (validação será feita no teste)
         try:
-            # Testar a chave antes de salvar
-            if AsaasClient:
-                client = AsaasClient(api_key=api_key, sandbox=sandbox)
-                test_result = client._make_request('GET', 'customers?limit=1')
-            
-            # Se chegou até aqui, a chave é válida
             # Atualizar variáveis de ambiente (temporariamente)
             os.environ['ASAAS_API_KEY'] = api_key
             os.environ['ASAAS_SANDBOX'] = str(sandbox)
@@ -103,7 +98,7 @@ def asaas_config(request):
             settings.ASAAS_INTEGRATION_ENABLED = enabled
             
             return Response({
-                'message': 'Configuração salva com sucesso',
+                'message': 'Configuração salva com sucesso. Use "Testar Conexão" para validar a chave.',
                 'api_key': f"{api_key[:10]}...{api_key[-4:]}",
                 'sandbox': sandbox,
                 'enabled': enabled
@@ -111,8 +106,8 @@ def asaas_config(request):
             
         except Exception as e:
             return Response(
-                {'detail': f'Erro ao validar chave API: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'detail': f'Erro ao salvar configuração: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 @api_view(['POST'])

@@ -275,7 +275,7 @@ Olá!
 Sua loja "{loja.nome}" foi criada com sucesso no nosso sistema!
 
 🔐 DADOS DE ACESSO:
-• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
+• URL de Login: https://lwksistemas.com.br/loja/{loja.slug}
 • Usuário: {owner_username}
 • Senha Provisória: {owner_password}
 

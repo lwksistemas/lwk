@@ -2,12 +2,17 @@
 
 ## 📋 Informações para Configurar no Painel Asaas
 
-Para configurar o webhook no painel do Asaas (https://sandbox.asaas.com/customerConfigIntegrations/webhooks), use as seguintes informações:
+Para configurar o webhook no painel do Asaas, use as seguintes informações:
 
 ### 🔗 URL do Webhook
 ```
 https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/webhook/
 ```
+
+### 🌐 **Ambiente Correto:**
+- **Sua chave atual**: SANDBOX (ambiente de testes)
+- **Painel para configurar**: https://sandbox.asaas.com/customerConfigIntegrations/webhooks
+- **Para produção**: Use https://www.asaas.com (sem sandbox) com chave de produção
 
 ### 📡 Eventos para Monitorar
 Marque os seguintes eventos no painel do Asaas:

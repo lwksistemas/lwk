@@ -13,11 +13,31 @@ from datetime import datetime, timedelta
 import os
 import logging
 
+# Importações condicionais para evitar erros na inicialização
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+
 from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
-from .client import AsaasClient
 from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
+
+class IsSuperAdmin(permissions.BasePermission):
+    """Permissão apenas para super admins"""
+    def has_permission(self, request, view):
+        return request.user and request.user.is_superuser
+
+# Importação condicional do cliente Asaas
+if REQUESTS_AVAILABLE:
+    try:
+        from .client import AsaasClient
+    except ImportError:
+        AsaasClient = None
+else:
+    AsaasClient = None
 
 class IsSuperAdmin(permissions.BasePermission):
     """Permissão apenas para super admins"""
@@ -28,6 +48,12 @@ class IsSuperAdmin(permissions.BasePermission):
 @permission_classes([IsSuperAdmin])
 def asaas_config(request):
     """Gerenciar configurações do Asaas"""
+    
+    if not REQUESTS_AVAILABLE:
+        return Response(
+            {'detail': 'Biblioteca requests não disponível. Instale com: pip install requests'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
     
     if request.method == 'GET':
         # Retornar configurações atuais (sem expor a chave completa)
@@ -62,8 +88,9 @@ def asaas_config(request):
         
         try:
             # Testar a chave antes de salvar
-            client = AsaasClient(api_key=api_key, sandbox=sandbox)
-            test_result = client._make_request('GET', 'customers?limit=1')
+            if AsaasClient:
+                client = AsaasClient(api_key=api_key, sandbox=sandbox)
+                test_result = client._make_request('GET', 'customers?limit=1')
             
             # Se chegou até aqui, a chave é válida
             # Atualizar variáveis de ambiente (temporariamente)
@@ -92,6 +119,12 @@ def asaas_config(request):
 @permission_classes([IsSuperAdmin])
 def asaas_test(request):
     """Testar conexão com a API do Asaas"""
+    
+    if not REQUESTS_AVAILABLE or not AsaasClient:
+        return Response(
+            {'detail': 'Biblioteca requests não disponível. Instale com: pip install requests'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
     
     try:
         api_key = os.environ.get('ASAAS_API_KEY')
@@ -134,20 +167,27 @@ def asaas_status(request):
         api_connected = False
         error_message = None
         
-        if api_key and enabled:
+        if not REQUESTS_AVAILABLE:
+            error_message = 'Biblioteca requests não disponível'
+        elif api_key and enabled and AsaasClient:
             try:
                 client = AsaasClient(api_key=api_key, sandbox=sandbox)
                 client._make_request('GET', 'customers?limit=1')
                 api_connected = True
             except Exception as e:
                 error_message = str(e)
+        elif not api_key:
+            error_message = 'Chave da API não configurada'
+        elif not enabled:
+            error_message = 'Integração desabilitada'
         
         return Response({
             'api_connected': api_connected,
             'last_check': timezone.now().isoformat(),
             'error_message': error_message,
             'environment': 'Sandbox' if sandbox else 'Produção',
-            'enabled': enabled
+            'enabled': enabled,
+            'requests_available': REQUESTS_AVAILABLE
         })
         
     except Exception as e:

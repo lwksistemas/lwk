@@ -20,6 +20,11 @@ def api_root(request):
             'stores': '/api/stores/',
             'products': '/api/products/',
             'asaas': '/api/asaas/',
+            'clinica': '/api/clinica/',
+            'crm': '/api/crm/',
+            'ecommerce': '/api/ecommerce/',
+            'restaurante': '/api/restaurante/',
+            'servicos': '/api/servicos/',
         },
         'documentacao': 'Sistema Multi-Tenant para gestão de lojas'
     })
@@ -39,4 +44,11 @@ urlpatterns = [
     path('api/suporte/', include('suporte.urls')),
     path('api/superadmin/', include('superadmin.urls')),  # API Super Admin
     path('api/asaas/', include('asaas_integration.urls')),  # API Asaas
+    
+    # APIs dos tipos de loja
+    path('api/clinica/', include('clinica_estetica.urls')),
+    path('api/crm/', include('crm_vendas.urls')),
+    path('api/ecommerce/', include('ecommerce.urls')),
+    path('api/restaurante/', include('restaurante.urls')),
+    path('api/servicos/', include('servicos.urls')),
 ]

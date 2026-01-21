@@ -43,3 +43,18 @@ class ProfissionalViewSet(BaseModelViewSet):
 class FuncionarioViewSet(BaseModelViewSet):
     queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
+
+
+class AgendamentoViewSet(BaseModelViewSet):
+    queryset = Agendamento.objects.all()
+    serializer_class = AgendamentoSerializer
+
+
+class OrdemServicoViewSet(BaseModelViewSet):
+    queryset = OrdemServico.objects.all()
+    serializer_class = OrdemServicoSerializer
+
+
+class OrcamentoViewSet(BaseModelViewSet):
+    queryset = Orcamento.objects.all()
+    serializer_class = OrcamentoSerializer

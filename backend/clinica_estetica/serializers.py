@@ -1,32 +1,67 @@
 from rest_framework import serializers
-from .models import Cliente, Profissional, Procedimento, Agendamento, Funcionario
+from .models import (
+    Cliente, Profissional, Procedimento, Agendamento, Funcionario,
+    ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
+    HorarioFuncionamento, BloqueioAgenda
+)
 
 
 class ClienteSerializer(serializers.ModelSerializer):
+    total_agendamentos = serializers.SerializerMethodField()
+    ultima_visita = serializers.SerializerMethodField()
+
     class Meta:
         model = Cliente
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
 
+    def get_total_agendamentos(self, obj):
+        return obj.agendamentos.count()
+
+    def get_ultima_visita(self, obj):
+        ultimo = obj.agendamentos.filter(status='concluido').order_by('-data').first()
+        return ultimo.data if ultimo else None
+
 
 class ProfissionalSerializer(serializers.ModelSerializer):
+    total_agendamentos = serializers.SerializerMethodField()
+
     class Meta:
         model = Profissional
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
 
+    def get_total_agendamentos(self, obj):
+        return obj.agendamentos.count()
+
 
 class ProcedimentoSerializer(serializers.ModelSerializer):
+    total_protocolos = serializers.SerializerMethodField()
+
     class Meta:
         model = Procedimento
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_total_protocolos(self, obj):
+        return obj.protocolos.filter(is_active=True).count()
+
+
+class ProtocoloProcedimentoSerializer(serializers.ModelSerializer):
+    procedimento_nome = serializers.CharField(source='procedimento.nome', read_only=True)
+
+    class Meta:
+        model = ProtocoloProcedimento
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
 
 
 class AgendamentoSerializer(serializers.ModelSerializer):
     cliente_nome = serializers.CharField(source='cliente.nome', read_only=True)
+    cliente_telefone = serializers.CharField(source='cliente.telefone', read_only=True)
     profissional_nome = serializers.CharField(source='profissional.nome', read_only=True)
     procedimento_nome = serializers.CharField(source='procedimento.nome', read_only=True)
+    procedimento_duracao = serializers.IntegerField(source='procedimento.duracao', read_only=True)
 
     class Meta:
         model = Agendamento
@@ -34,8 +69,88 @@ class AgendamentoSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
+class EvolucaoPacienteSerializer(serializers.ModelSerializer):
+    cliente_nome = serializers.CharField(source='cliente.nome', read_only=True)
+    profissional_nome = serializers.CharField(source='profissional.nome', read_only=True)
+    agendamento_info = serializers.SerializerMethodField()
+    imc = serializers.ReadOnlyField()
+
+    class Meta:
+        model = EvolucaoPaciente
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at', 'data_evolucao']
+
+    def get_agendamento_info(self, obj):
+        if obj.agendamento:
+            return {
+                'procedimento': obj.agendamento.procedimento.nome,
+                'data': obj.agendamento.data,
+                'horario': obj.agendamento.horario
+            }
+        return None
+
+
+class AnamnesesTemplateSerializer(serializers.ModelSerializer):
+    procedimento_nome = serializers.CharField(source='procedimento.nome', read_only=True)
+    total_perguntas = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AnamnesesTemplate
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_total_perguntas(self, obj):
+        return len(obj.perguntas) if obj.perguntas else 0
+
+
+class AnamneseSerializer(serializers.ModelSerializer):
+    cliente_nome = serializers.CharField(source='cliente.nome', read_only=True)
+    template_nome = serializers.CharField(source='template.nome', read_only=True)
+    agendamento_info = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Anamnese
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_agendamento_info(self, obj):
+        if obj.agendamento:
+            return {
+                'procedimento': obj.agendamento.procedimento.nome,
+                'data': obj.agendamento.data,
+                'horario': obj.agendamento.horario
+            }
+        return None
+
+
+class HorarioFuncionamentoSerializer(serializers.ModelSerializer):
+    dia_semana_nome = serializers.CharField(source='get_dia_semana_display', read_only=True)
+
+    class Meta:
+        model = HorarioFuncionamento
+        fields = '__all__'
+
+
+class BloqueioAgendaSerializer(serializers.ModelSerializer):
+    tipo_nome = serializers.CharField(source='get_tipo_display', read_only=True)
+    profissional_nome = serializers.CharField(source='profissional.nome', read_only=True)
+
+    class Meta:
+        model = BloqueioAgenda
+        fields = '__all__'
+        read_only_fields = ['created_at']
+
+
 class FuncionarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Funcionario
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
+
+
+# Serializers para busca de clientes
+class ClienteBuscaSerializer(serializers.ModelSerializer):
+    """Serializer simplificado para busca de clientes"""
+    class Meta:
+        model = Cliente
+        fields = ['id', 'nome', 'telefone', 'email']

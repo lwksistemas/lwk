@@ -46,6 +46,11 @@ class VendedorViewSet(BaseModelViewSet):
 class ProdutoViewSet(BaseModelViewSet):
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        origem = self.request.query_params.get('origem')
+        if origem:
             queryset = queryset.filter(origem=origem)
         
         return queryset

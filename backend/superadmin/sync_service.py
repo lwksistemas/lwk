@@ -286,6 +286,7 @@ class AsaasSyncService:
                 }
             
             # Buscar pagamento no sistema
+            pagamento = None
             try:
                 from asaas_integration.models import AsaasPayment
                 pagamento = AsaasPayment.objects.get(asaas_id=payment_id)
@@ -296,11 +297,31 @@ class AsaasSyncService:
                     pagamento = PagamentoLoja.objects.get(asaas_payment_id=payment_id)
                     logger.info(f"Pagamento encontrado no PagamentoLoja: {payment_id}")
                 except PagamentoLoja.DoesNotExist:
-                    logger.warning(f"Pagamento {payment_id} não encontrado em nenhum modelo")
-                    return {
-                        'success': False,
-                        'error': 'Pagamento não encontrado'
-                    }
+                    # Pagamento não existe, tentar criar automaticamente
+                    logger.warning(f"Pagamento {payment_id} não encontrado, tentando criar automaticamente")
+                    
+                    try:
+                        pagamento = self._create_payment_from_webhook(payment_data)
+                        if pagamento:
+                            logger.info(f"Pagamento {payment_id} criado automaticamente via webhook")
+                        else:
+                            logger.error(f"Não foi possível criar pagamento {payment_id} automaticamente")
+                            return {
+                                'success': False,
+                                'error': 'Pagamento não encontrado e não foi possível criar automaticamente'
+                            }
+                    except Exception as e:
+                        logger.error(f"Erro ao criar pagamento automaticamente: {e}")
+                        return {
+                            'success': False,
+                            'error': f'Pagamento não encontrado e erro ao criar: {str(e)}'
+                        }
+            
+            if not pagamento:
+                return {
+                    'success': False,
+                    'error': 'Pagamento não encontrado'
+                }
             
             logger.info(f"Processando webhook para pagamento {payment_id}, evento: {event}")
             
@@ -340,6 +361,53 @@ class AsaasSyncService:
                 'success': False,
                 'error': str(e)
             }
+    
+    def _create_payment_from_webhook(self, payment_data):
+        """Cria pagamento automaticamente a partir dos dados do webhook"""
+        try:
+            from asaas_integration.models import AsaasPayment, AsaasCustomer
+            from datetime import datetime
+            
+            # Extrair dados do pagamento
+            payment_info = payment_data
+            payment_id = payment_info.get('id')
+            customer_id = payment_info.get('customer')
+            
+            if not payment_id or not customer_id:
+                logger.error("Dados insuficientes para criar pagamento automaticamente")
+                return None
+            
+            # Buscar ou criar cliente
+            customer = None
+            try:
+                customer = AsaasCustomer.objects.get(asaas_id=customer_id)
+            except AsaasCustomer.DoesNotExist:
+                # Cliente não existe, não podemos criar o pagamento sem mais informações
+                logger.error(f"Cliente {customer_id} não encontrado, não é possível criar pagamento automaticamente")
+                return None
+            
+            # Criar pagamento
+            pagamento = AsaasPayment.objects.create(
+                asaas_id=payment_id,
+                customer=customer,
+                external_reference=payment_info.get('externalReference', ''),
+                billing_type=payment_info.get('billingType', 'BOLETO'),
+                status=payment_info.get('status', 'PENDING'),
+                value=payment_info.get('value', 0),
+                net_value=payment_info.get('netValue', 0),
+                due_date=datetime.strptime(payment_info.get('dueDate'), '%Y-%m-%d').date() if payment_info.get('dueDate') else None,
+                invoice_url=payment_info.get('invoiceUrl', ''),
+                bank_slip_url=payment_info.get('bankSlipUrl', ''),
+                description=payment_info.get('description', ''),
+                raw_data=payment_data
+            )
+            
+            logger.info(f"Pagamento {payment_id} criado automaticamente via webhook")
+            return pagamento
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar pagamento automaticamente: {e}")
+            return None
     
     def get_sync_stats(self):
         """Retorna estatísticas de sincronização"""

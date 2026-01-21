@@ -12,6 +12,7 @@ router = DefaultRouter()
 
 # Importar views diretamente (sem try/except para permitir que o erro apareça)
 from . import views
+from .cleanup_view import cleanup_orphaned_data_web
 
 # Registrar ViewSets
 router.register(r'subscriptions', views.AsaasSubscriptionViewSet, basename='asaas-subscriptions')
@@ -38,4 +39,7 @@ urlpatterns = [
     # URLs de exclusão/limpeza
     path('cleanup/orphans/', views.asaas_cleanup_orphans, name='asaas-cleanup-orphans'),
     path('delete/loja/', views.asaas_delete_loja, name='asaas-delete-loja'),
+    
+    # TEMPORÁRIO: View para limpeza via web (REMOVER APÓS USO)
+    path('cleanup/web/', cleanup_orphaned_data_web, name='cleanup-web'),
 ]

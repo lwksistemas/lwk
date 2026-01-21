@@ -58,8 +58,8 @@ class LojaViewSet(viewsets.ModelViewSet):
         return LojaSerializer
     
     def get_permissions(self):
-        # Permitir acesso público ao endpoint info_publica
-        if self.action == 'info_publica':
+        # Permitir acesso público aos endpoints info_publica e debug_auth
+        if self.action in ['info_publica', 'debug_auth']:
             return []
         return super().get_permissions()
     
@@ -82,7 +82,7 @@ class LojaViewSet(viewsets.ModelViewSet):
         
         return queryset
     
-    @action(detail=False, methods=['get'], permission_classes=[])
+    @action(detail=False, methods=['get'], permission_classes=[], authentication_classes=[])
     def info_publica(self, request):
         """Retorna informações públicas da loja para página de login (sem autenticação)"""
         slug = request.query_params.get('slug')
@@ -102,6 +102,19 @@ class LojaViewSet(viewsets.ModelViewSet):
             })
         except Loja.DoesNotExist:
             return Response({'error': 'Loja não encontrada'}, status=404)
+    
+    @action(detail=False, methods=['get'], permission_classes=[], authentication_classes=[])
+    def debug_auth(self, request):
+        """Debug endpoint para verificar autenticação"""
+        return Response({
+            'authenticated': request.user.is_authenticated if hasattr(request, 'user') else False,
+            'user': str(request.user) if hasattr(request, 'user') and request.user.is_authenticated else 'Anonymous',
+            'headers': dict(request.headers),
+            'method': request.method,
+            'path': request.path,
+            'query_params': dict(request.query_params),
+            'permissions_checked': True
+        })
     
     @action(detail=False, methods=['get'], permission_classes=[])
     def verificar_senha_provisoria(self, request):

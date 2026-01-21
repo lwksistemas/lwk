@@ -550,8 +550,6 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 {'error': f'Erro interno: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
 
 
 class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):

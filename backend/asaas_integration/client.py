@@ -90,11 +90,23 @@ class AsaasClient:
     
     def get_payment_pdf(self, payment_id: str) -> bytes:
         """Baixa o PDF do boleto"""
+        # URL correta para download do PDF do boleto
         url = f"{self.base_url}/payments/{payment_id}/identificationField"
         
         try:
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
+            
+            # Verificar se o conteúdo é realmente um PDF
+            content_type = response.headers.get('content-type', '')
+            if 'application/pdf' not in content_type.lower():
+                logger.warning(f"Conteúdo retornado não é PDF: {content_type}")
+                # Tentar URL alternativa
+                url_alt = f"{self.base_url}/payments/{payment_id}/bankSlipPdf"
+                response_alt = requests.get(url_alt, headers=self.headers)
+                response_alt.raise_for_status()
+                return response_alt.content
+            
             return response.content
         except requests.exceptions.RequestException as e:
             logger.error(f"Erro ao baixar PDF do boleto: {e}")

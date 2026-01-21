@@ -269,6 +269,8 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 # Verificar se email está configurado
                 if hasattr(settings, 'DEFAULT_FROM_EMAIL') and settings.DEFAULT_FROM_EMAIL:
                     assunto = f"Acesso à sua loja {loja.nome} - Senha Provisória"
+                    
+                    # Mensagem base
                     mensagem = f"""
 Olá!
 
@@ -288,20 +290,45 @@ Sua loja "{loja.nome}" foi criada com sucesso no nosso sistema!
 • Nome: {loja.nome}
 • Tipo: {loja.tipo_loja.nome}
 • Plano: {loja.plano.nome}
-• Assinatura: {loja.get_tipo_assinatura_display()}
+• Assinatura: {loja.get_tipo_assinatura_display()}"""
+
+                    # Adicionar informações do boleto se disponível
+                    if hasattr(loja, '_asaas_data') and loja._asaas_data.get('success'):
+                        asaas_data = loja._asaas_data
+                        mensagem += f"""
+
+💰 INFORMAÇÕES DE PAGAMENTO:
+• Valor da Mensalidade: R$ {loja.plano.preco_mensal}
+• Vencimento: {asaas_data.get('due_date', 'Em breve')}
+• Status: Aguardando Pagamento"""
+                        
+                        if asaas_data.get('boleto_url'):
+                            mensagem += f"""
+• Boleto: {asaas_data.get('boleto_url')}"""
+                        
+                        if asaas_data.get('pix_copy_paste'):
+                            mensagem += f"""
+• PIX Copia e Cola: {asaas_data.get('pix_copy_paste')}"""
+
+                    mensagem += f"""
 
 🎯 PRÓXIMOS PASSOS:
 1. Acesse o link de login acima
 2. Faça login com os dados fornecidos
 3. Altere sua senha provisória
-4. Configure sua loja
+4. Configure sua loja"""
+                    
+                    if hasattr(loja, '_asaas_data') and loja._asaas_data.get('success'):
+                        mensagem += """
+5. Efetue o pagamento da primeira mensalidade"""
+
+                    mensagem += """
 
 Bem-vindo ao nosso sistema!
 
 ---
 Equipe de Suporte
-Sistema Multi-Loja
-                    """.strip()
+Sistema Multi-Loja"""
                     
                     send_mail(
                         subject=assunto,
@@ -311,7 +338,7 @@ Sistema Multi-Loja
                         fail_silently=True  # Não falhar se email não funcionar
                     )
                     
-                    print(f"✅ Email enviado para {owner_email} com senha provisória")
+                    print(f"✅ Email enviado para {owner_email} com senha provisória e dados de pagamento")
                 else:
                     print(f"⚠️ Email não configurado, senha provisória: {owner_password}")
                 

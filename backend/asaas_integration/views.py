@@ -581,6 +581,13 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
+            # Verificar se o pagamento tem URL de boleto
+            if not payment.bank_slip_url:
+                return Response(
+                    {'error': 'Boleto não disponível para este pagamento'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
             if not AsaasClient:
                 return Response(
                     {'error': 'Serviço Asaas não disponível'},
@@ -597,18 +604,27 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
             
             # Baixar PDF
             client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
-            pdf_content = client.get_payment_pdf(payment.asaas_id)
             
-            if pdf_content:
-                from django.http import HttpResponse
-                response = HttpResponse(pdf_content, content_type='application/pdf')
-                response['Content-Disposition'] = f'inline; filename="boleto_{payment.asaas_id}.pdf"'
-                response['Content-Length'] = len(pdf_content)
-                return response
-            else:
+            try:
+                pdf_content = client.get_payment_pdf(payment.asaas_id)
+                
+                if pdf_content and len(pdf_content) > 0:
+                    from django.http import HttpResponse
+                    response = HttpResponse(pdf_content, content_type='application/pdf')
+                    response['Content-Disposition'] = f'inline; filename="boleto_{payment.asaas_id}.pdf"'
+                    response['Content-Length'] = len(pdf_content)
+                    response['Cache-Control'] = 'no-cache'
+                    return response
+                else:
+                    return Response(
+                        {'error': 'PDF vazio ou não disponível'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            except Exception as pdf_error:
+                logger.error(f"Erro específico ao baixar PDF: {pdf_error}")
                 return Response(
-                    {'error': 'Não foi possível baixar o PDF'},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {'error': f'Erro ao baixar PDF: {str(pdf_error)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
                 
         except Exception as e:

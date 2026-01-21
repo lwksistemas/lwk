@@ -419,6 +419,81 @@ def asaas_test_public(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+
+@api_view(['POST'])
+@permission_classes([IsSuperAdmin])
+def asaas_sync_realtime(request):
+    """Sincronização em tempo real de pagamentos específicos"""
+    try:
+        from superadmin.sync_service import AsaasSyncService
+        
+        sync_service = AsaasSyncService()
+        
+        # Pegar parâmetros da requisição
+        payment_id = request.data.get('payment_id')
+        loja_slug = request.data.get('loja_slug')
+        
+        if payment_id:
+            # Sincronizar pagamento específico
+            try:
+                from asaas_integration.models import AsaasPayment
+                from superadmin.models import PagamentoLoja
+                
+                # Buscar pagamento
+                pagamento = None
+                try:
+                    pagamento = AsaasPayment.objects.get(asaas_id=payment_id)
+                except AsaasPayment.DoesNotExist:
+                    try:
+                        pagamento = PagamentoLoja.objects.get(asaas_payment_id=payment_id)
+                    except PagamentoLoja.DoesNotExist:
+                        return Response({
+                            'success': False,
+                            'error': f'Pagamento {payment_id} não encontrado'
+                        }, status=status.HTTP_404_NOT_FOUND)
+                
+                # Consultar status atual no Asaas
+                resultado = sync_service.sync_payment_status(pagamento)
+                
+                return Response({
+                    'success': True,
+                    'payment_id': payment_id,
+                    'sync_result': resultado
+                })
+                
+            except Exception as e:
+                return Response({
+                    'success': False,
+                    'error': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        elif loja_slug:
+            # Sincronizar loja específica
+            try:
+                from superadmin.models import Loja
+                loja = Loja.objects.get(slug=loja_slug, is_active=True)
+                resultado = sync_service.sync_loja_payments(loja)
+                return Response(resultado)
+            except Loja.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'error': f'Loja "{loja_slug}" não encontrada'
+                }, status=status.HTTP_404_NOT_FOUND)
+        
+        else:
+            return Response({
+                'success': False,
+                'error': 'payment_id ou loja_slug é obrigatório'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+    except Exception as e:
+        logger.error(f"Erro na sincronização em tempo real: {e}")
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['POST'])
 @permission_classes([IsSuperAdmin])
 def asaas_cleanup_orphans(request):

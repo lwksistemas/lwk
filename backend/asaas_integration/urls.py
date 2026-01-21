@@ -30,6 +30,7 @@ urlpatterns = [
     path('stats/', views.asaas_stats, name='asaas-stats'),
     path('sync/', views.asaas_sync, name='asaas-sync'),
     path('sync/stats/', views.asaas_sync_stats, name='asaas-sync-stats'),
+    path('sync/realtime/', views.asaas_sync_realtime, name='asaas-sync-realtime'),
     
     # Webhook para receber notificações
     path('webhook/', views.asaas_webhook, name='asaas-webhook'),

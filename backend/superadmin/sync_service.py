@@ -340,12 +340,23 @@ class AsaasSyncService:
                 
                 logger.info(f"Pagamento {payment_id} atualizado via webhook: {old_status} -> {new_status}")
                 
+                # IMPORTANTE: Atualizar financeiro da loja se o pagamento foi confirmado
+                loja_atualizada = False
+                if new_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
+                    try:
+                        loja_atualizada = self._update_loja_financeiro_from_payment(pagamento)
+                        if loja_atualizada:
+                            logger.info(f"Financeiro da loja atualizado automaticamente via webhook")
+                    except Exception as e:
+                        logger.error(f"Erro ao atualizar financeiro da loja: {e}")
+                
                 return {
                     'success': True,
                     'payment_id': payment_id,
                     'status_updated': True,
                     'old_status': old_status,
-                    'new_status': new_status
+                    'new_status': new_status,
+                    'loja_updated': loja_atualizada
                 }
             
             return {
@@ -408,6 +419,54 @@ class AsaasSyncService:
         except Exception as e:
             logger.error(f"Erro ao criar pagamento automaticamente: {e}")
             return None
+    
+    def _update_loja_financeiro_from_payment(self, pagamento):
+        """Atualiza financeiro da loja baseado no pagamento confirmado"""
+        try:
+            # Identificar a loja pelo pagamento
+            loja = None
+            
+            # Se é AsaasPayment, buscar pela external_reference
+            if hasattr(pagamento, 'external_reference') and pagamento.external_reference:
+                # external_reference formato: "loja_slug_assinatura"
+                if 'loja_' in pagamento.external_reference:
+                    loja_slug = pagamento.external_reference.replace('loja_', '').replace('_assinatura', '')
+                    try:
+                        loja = Loja.objects.get(slug=loja_slug, is_active=True)
+                    except Loja.DoesNotExist:
+                        logger.warning(f"Loja não encontrada pelo slug: {loja_slug}")
+            
+            # Se é PagamentoLoja, buscar diretamente
+            elif hasattr(pagamento, 'loja'):
+                loja = pagamento.loja
+            
+            if not loja:
+                logger.warning(f"Não foi possível identificar a loja do pagamento {pagamento.id}")
+                return False
+            
+            # Atualizar financeiro da loja
+            financeiro = loja.financeiro
+            
+            # Atualizar status para ativo
+            financeiro.status_pagamento = 'ativo'
+            financeiro.ultimo_pagamento = timezone.now()
+            financeiro.save()
+            
+            # Desbloquear loja se estiver bloqueada
+            if loja.is_blocked:
+                loja.is_blocked = False
+                loja.blocked_at = None
+                loja.blocked_reason = ''
+                loja.days_overdue = 0
+                loja.save()
+                logger.info(f"Loja {loja.nome} desbloqueada automaticamente após pagamento")
+            
+            logger.info(f"Financeiro da loja {loja.nome} atualizado: status={financeiro.status_pagamento}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao atualizar financeiro da loja: {e}")
+            return False
     
     def get_sync_stats(self):
         """Retorna estatísticas de sincronização"""

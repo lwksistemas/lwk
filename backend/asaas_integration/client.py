@@ -88,6 +88,22 @@ class AsaasClient:
         endpoint = f'payments/{payment_id}'
         return self._make_request('GET', endpoint)
     
+    def delete_payment(self, payment_id: str) -> Dict[str, Any]:
+        """Cancela/exclui uma cobrança no Asaas"""
+        endpoint = f'payments/{payment_id}'
+        return self._make_request('DELETE', endpoint)
+    
+    def delete_customer(self, customer_id: str) -> Dict[str, Any]:
+        """Exclui um cliente no Asaas"""
+        endpoint = f'customers/{customer_id}'
+        return self._make_request('DELETE', endpoint)
+    
+    def list_customer_payments(self, customer_id: str) -> Dict[str, Any]:
+        """Lista todos os pagamentos de um cliente"""
+        endpoint = f'payments'
+        params = {'customer': customer_id}
+        return self._make_request('GET', endpoint, params)
+    
     def get_payment_pdf(self, payment_id: str) -> bytes:
         """Baixa o PDF do boleto"""
         # Tentar múltiplas URLs para download do PDF

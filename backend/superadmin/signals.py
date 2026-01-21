@@ -97,7 +97,32 @@ def cleanup_after_loja_deletion(sender, instance, **kwargs):
         except Exception as e:
             logger.warning(f"⚠️ Erro ao remover chamados de suporte: {e}")
         
-        # 2. Remover assinaturas Asaas se existirem
+        # 2. Excluir dados do Asaas ANTES de remover dados locais
+        asaas_exclusao_resultado = {}
+        try:
+            # Verificar se o app asaas_integration está instalado
+            from django.apps import apps
+            
+            if apps.is_installed('asaas_integration'):
+                from asaas_integration.deletion_service import AsaasDeletionService
+                
+                deletion_service = AsaasDeletionService()
+                if deletion_service.available:
+                    asaas_exclusao_resultado = deletion_service.delete_loja_from_asaas(loja_slug)
+                    
+                    if asaas_exclusao_resultado.get('success'):
+                        logger.info(f"✅ Dados Asaas excluídos: {asaas_exclusao_resultado.get('message', 'Sucesso')}")
+                    else:
+                        logger.warning(f"⚠️ Erro na exclusão Asaas: {asaas_exclusao_resultado.get('error', 'Erro desconhecido')}")
+                else:
+                    logger.info("ℹ️ Serviço de exclusão Asaas não disponível")
+            else:
+                logger.info("ℹ️ App asaas_integration não instalado")
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao excluir dados do Asaas: {e}")
+        
+        # 3. Remover assinaturas Asaas locais se existirem
         assinaturas_removidas = 0
         try:
             # Verificar se o app asaas_integration está instalado
@@ -143,7 +168,7 @@ def cleanup_after_loja_deletion(sender, instance, **kwargs):
         except Exception as e:
             logger.warning(f"⚠️ Erro ao remover assinaturas Asaas: {e}")
         
-        # 3. Remover banco de dados físico se existir
+        # 4. Remover banco de dados físico se existir
         banco_removido = False
         if database_created and database_name:
             try:
@@ -167,7 +192,7 @@ def cleanup_after_loja_deletion(sender, instance, **kwargs):
             except Exception as e:
                 logger.warning(f"⚠️ Erro ao remover banco de dados: {e}")
         
-        # 4. Remover usuário proprietário se não for usado por outras lojas
+        # 5. Remover usuário proprietário se não for usado por outras lojas
         usuario_removido = False
         if deve_remover_owner:
             try:
@@ -211,13 +236,24 @@ def cleanup_after_loja_deletion(sender, instance, **kwargs):
                 import traceback
                 logger.error(traceback.format_exc())
         
-        # 5. Log final da limpeza
+        # 6. Log final da limpeza
         logger.info(f"🎯 Limpeza concluída para loja: {loja_nome}")
         logger.info(f"   ✅ Loja removida: {loja_nome}")
         logger.info(f"   ✅ Chamados removidos: {chamados_removidos}")
         logger.info(f"   ✅ Respostas removidas: {respostas_removidas}")
         logger.info(f"   ✅ Banco removido: {banco_removido}")
         logger.info(f"   ✅ Usuário removido: {usuario_removido}")
+        
+        # Log da exclusão Asaas
+        if asaas_exclusao_resultado.get('success'):
+            pagamentos_asaas = asaas_exclusao_resultado.get('deleted_payments', 0)
+            cliente_asaas = asaas_exclusao_resultado.get('deleted_customer', False)
+            logger.info(f"   ✅ Pagamentos Asaas cancelados: {pagamentos_asaas}")
+            logger.info(f"   ✅ Cliente Asaas removido: {cliente_asaas}")
+        elif asaas_exclusao_resultado:
+            logger.info(f"   ⚠️ Exclusão Asaas: {asaas_exclusao_resultado.get('error', 'Erro')}")
+        else:
+            logger.info(f"   ℹ️ Exclusão Asaas: Não aplicável")
         
     except Exception as e:
         logger.error(f"❌ Erro na limpeza pós-exclusão: {e}")

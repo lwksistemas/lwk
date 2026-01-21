@@ -33,4 +33,8 @@ urlpatterns = [
     
     # Webhook para receber notificações
     path('webhook/', views.asaas_webhook, name='asaas-webhook'),
+    
+    # URLs de exclusão/limpeza
+    path('cleanup/orphans/', views.asaas_cleanup_orphans, name='asaas-cleanup-orphans'),
+    path('delete/loja/', views.asaas_delete_loja, name='asaas-delete-loja'),
 ]

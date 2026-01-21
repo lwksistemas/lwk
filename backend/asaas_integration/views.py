@@ -544,10 +544,12 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
-                except Exception as e:
-                    logger.error(f"Erro ao gerar nova cobrança: {e}")
-                    return Response(
-                        {'error': f'Erro interno: {str(e)}'},
+        except Exception as e:
+            logger.error(f"Erro ao gerar nova cobrança: {e}")
+            return Response(
+                {'error': f'Erro interno: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR
                     )
 

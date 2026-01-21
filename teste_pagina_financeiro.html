@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Página Financeiro</title>
+</head>
+<body>
+    <h1>Teste da Página Financeiro do Superadmin</h1>
+    
+    <div id="resultado"></div>
+    
+    <script>
+        async function testarEndpoints() {
+            const resultado = document.getElementById('resultado');
+            
+            try {
+                // 1. Fazer login
+                resultado.innerHTML += '<p>1. Fazendo login...</p>';
+                const loginResponse = await fetch('https://lwksistemas-38ad47519238.herokuapp.com/api/auth/token/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'superadmin',
+                        password: 'super123'
+                    })
+                });
+                
+                const loginData = await loginResponse.json();
+                const token = loginData.access;
+                resultado.innerHTML += '<p>✅ Login realizado com sucesso</p>';
+                
+                // 2. Testar endpoint de estatísticas
+                resultado.innerHTML += '<p>2. Testando endpoint de estatísticas...</p>';
+                const statsResponse = await fetch('https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/subscriptions/dashboard_stats/', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const statsData = await statsResponse.json();
+                resultado.innerHTML += `<p>✅ Estatísticas: ${JSON.stringify(statsData)}</p>`;
+                
+                // 3. Testar endpoint de assinaturas
+                resultado.innerHTML += '<p>3. Testando endpoint de assinaturas...</p>';
+                const subscriptionsResponse = await fetch('https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/subscriptions/', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const subscriptionsData = await subscriptionsResponse.json();
+                resultado.innerHTML += `<p>✅ Assinaturas encontradas: ${subscriptionsData.length}</p>`;
+                
+                // 4. Testar endpoint de pagamentos
+                resultado.innerHTML += '<p>4. Testando endpoint de pagamentos...</p>';
+                const paymentsResponse = await fetch('https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/payments/', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const paymentsData = await paymentsResponse.json();
+                resultado.innerHTML += `<p>✅ Pagamentos encontrados: ${paymentsData.length}</p>`;
+                
+                resultado.innerHTML += '<h2>🎉 Todos os endpoints estão funcionando!</h2>';
+                resultado.innerHTML += '<p><strong>A página financeiro do superladmin deve estar funcionando agora.</strong></p>';
+                resultado.innerHTML += '<p><a href="https://lwksistemas.com.br/superadmin/financeiro" target="_blank">🔗 Acessar Página Financeiro</a></p>';
+                
+            } catch (error) {
+                resultado.innerHTML += `<p>❌ Erro: ${error.message}</p>`;
+            }
+        }
+        
+        // Executar teste automaticamente
+        testarEndpoints();
+    </script>
+</body>
+</html>

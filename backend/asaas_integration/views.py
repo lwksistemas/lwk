@@ -510,7 +510,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             service = AsaasPaymentService()
             
             # Dados da loja
-            loja = Loja.objects.get(slug=assinatura.loja_slug)
+            loja = Loja.objects.select_related('owner').get(slug=assinatura.loja_slug)
             
             loja_data = {
                 'nome': loja.nome,
@@ -544,12 +544,12 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
-        except Exception as e:
-            logger.error(f"Erro ao gerar nova cobrança: {e}")
-            return Response(
-                {'error': f'Erro interno: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+                except Exception as e:
+                    logger.error(f"Erro ao gerar nova cobrança: {e}")
+                    return Response(
+                        {'error': f'Erro interno: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
 
 
 class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
@@ -581,13 +581,6 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Verificar se o pagamento tem URL de boleto
-            if not payment.bank_slip_url:
-                return Response(
-                    {'error': 'Boleto não disponível para este pagamento'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
             if not AsaasClient:
                 return Response(
                     {'error': 'Serviço Asaas não disponível'},
@@ -599,6 +592,13 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
             if not config or not config.api_key:
                 return Response(
                     {'error': 'Asaas não configurado'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Verificar se o pagamento é do tipo boleto
+            if payment.billing_type != 'BOLETO':
+                return Response(
+                    {'error': 'PDF disponível apenas para pagamentos do tipo boleto'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             

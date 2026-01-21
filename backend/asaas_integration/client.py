@@ -90,27 +90,41 @@ class AsaasClient:
     
     def get_payment_pdf(self, payment_id: str) -> bytes:
         """Baixa o PDF do boleto"""
-        # URL correta para download do PDF do boleto
-        url = f"{self.base_url}/payments/{payment_id}/identificationField"
+        # Tentar múltiplas URLs para download do PDF
+        urls_to_try = [
+            f"{self.base_url}/payments/{payment_id}/identificationField",
+            f"{self.base_url}/payments/{payment_id}/bankSlipPdf",
+            f"https://sandbox.asaas.com/b/pdf/{payment_id}" if self.sandbox else f"https://asaas.com/b/pdf/{payment_id}"
+        ]
         
-        try:
-            response = requests.get(url, headers=self.headers)
-            response.raise_for_status()
-            
-            # Verificar se o conteúdo é realmente um PDF
-            content_type = response.headers.get('content-type', '')
-            if 'application/pdf' not in content_type.lower():
-                logger.warning(f"Conteúdo retornado não é PDF: {content_type}")
-                # Tentar URL alternativa
-                url_alt = f"{self.base_url}/payments/{payment_id}/bankSlipPdf"
-                response_alt = requests.get(url_alt, headers=self.headers)
-                response_alt.raise_for_status()
-                return response_alt.content
-            
-            return response.content
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Erro ao baixar PDF do boleto: {e}")
-            raise
+        for url in urls_to_try:
+            try:
+                logger.info(f"Tentando baixar PDF de: {url}")
+                response = requests.get(url, headers=self.headers)
+                
+                if response.status_code == 200:
+                    # Verificar se o conteúdo é realmente um PDF
+                    content_type = response.headers.get('content-type', '')
+                    content = response.content
+                    
+                    # Verificar se é PDF pelo content-type ou pelos primeiros bytes
+                    if ('application/pdf' in content_type.lower() or 
+                        (content and content[:4] == b'%PDF')):
+                        logger.info(f"PDF baixado com sucesso de: {url}")
+                        return content
+                    else:
+                        logger.warning(f"Conteúdo retornado não é PDF: {content_type}")
+                        continue
+                else:
+                    logger.warning(f"Erro HTTP {response.status_code} ao baixar de: {url}")
+                    continue
+                    
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Erro ao baixar PDF de {url}: {e}")
+                continue
+        
+        # Se chegou aqui, nenhuma URL funcionou
+        raise Exception("Não foi possível baixar o PDF do boleto de nenhuma URL")
     
     def get_pix_qr_code(self, payment_id: str) -> Dict[str, Any]:
         """Busca dados do QR Code PIX"""

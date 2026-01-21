@@ -5,6 +5,9 @@ from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.conf import settings
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja,
     PagamentoLoja, UsuarioSistema
@@ -276,23 +279,41 @@ class LojaViewSet(viewsets.ModelViewSet):
                 # Verificar se o usuário não é superuser (usuários de loja não devem ser staff)
                 if not owner.is_superuser:
                     try:
-                        # Remover grupos e permissões primeiro
-                        owner.groups.clear()
-                        owner.user_permissions.clear()
-                        
-                        # Remover o usuário
-                        owner.delete()
-                        usuario_removido = True
-                        print(f"✅ Usuário proprietário removido: {owner_username}")
-                    except Exception as e:
-                        print(f"❌ Erro ao remover usuário: {e}")
-                        # Tentar remoção direta
-                        try:
+                        # Verificar se o usuário ainda existe (pode ter sido removido pelos signals)
+                        if owner.pk is None:
+                            logger.info(f"ℹ️ Usuário {owner_username} já foi removido pelos signals")
+                            usuario_removido = True
+                        else:
+                            # Remover grupos e permissões primeiro
+                            owner.groups.clear()
+                            owner.user_permissions.clear()
+                            
+                            # Remover o usuário
                             owner.delete()
                             usuario_removido = True
-                            print(f"✅ Usuário proprietário removido (método direto): {owner_username}")
-                        except Exception as e2:
-                            print(f"❌ Erro na remoção direta: {e2}")
+                            print(f"✅ Usuário proprietário removido: {owner_username}")
+                    except Exception as e:
+                        print(f"❌ Erro ao remover usuário: {e}")
+                        # Verificar se o erro é porque o usuário já foi removido
+                        if "id attribute is set to None" in str(e) or "can't be deleted because its id attribute is set to None" in str(e):
+                            logger.info(f"ℹ️ Usuário {owner_username} já foi removido pelos signals")
+                            usuario_removido = True
+                        else:
+                            # Tentar remoção direta apenas se não for erro de ID None
+                            try:
+                                if owner.pk is not None:
+                                    owner.delete()
+                                    usuario_removido = True
+                                    print(f"✅ Usuário proprietário removido (método direto): {owner_username}")
+                                else:
+                                    logger.info(f"ℹ️ Usuário {owner_username} já foi removido")
+                                    usuario_removido = True
+                            except Exception as e2:
+                                if "id attribute is set to None" in str(e2):
+                                    logger.info(f"ℹ️ Usuário {owner_username} já foi removido")
+                                    usuario_removido = True
+                                else:
+                                    print(f"❌ Erro na remoção direta: {e2}")
                 else:
                     print(f"⚠️ Usuário {owner_username} mantido (é superuser do sistema)")
             

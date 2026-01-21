@@ -111,7 +111,11 @@ class AsaasDeletionService:
                             deleted_count += 1
                             logger.info(f"✅ Pagamento cancelado: {payment_id}")
                         except Exception as e:
-                            logger.warning(f"⚠️ Erro ao cancelar pagamento {payment_id}: {e}")
+                            # Verificar se é erro de status inválido
+                            if "não pode ser removida" in str(e) or "invalid_action" in str(e):
+                                logger.info(f"ℹ️ Pagamento {payment_id} não pode ser cancelado (já processado)")
+                            else:
+                                logger.warning(f"⚠️ Erro ao cancelar pagamento {payment_id}: {e}")
                     else:
                         logger.info(f"ℹ️ Pagamento {payment_id} não cancelado (status: {payment_status})")
                 
@@ -129,8 +133,13 @@ class AsaasDeletionService:
                             deleted_count += 1
                             logger.info(f"✅ Pagamento local cancelado: {payment.asaas_id}")
                         except Exception as e:
-                            logger.warning(f"⚠️ Erro ao cancelar pagamento local {payment.asaas_id}: {e}")
-                            
+                            # Verificar se é erro de status inválido
+                            if "não pode ser removida" in str(e) or "invalid_action" in str(e):
+                                logger.info(f"ℹ️ Pagamento local {payment.asaas_id} não pode ser cancelado (já processado)")
+                            else:
+                                logger.warning(f"⚠️ Erro ao cancelar pagamento local {payment.asaas_id}: {e}")
+                    else:
+                        logger.info(f"ℹ️ Pagamento local {payment.asaas_id} não cancelado (status: {payment.status})")
             except Exception as e:
                 logger.warning(f"⚠️ Erro ao processar pagamentos locais: {e}")
             

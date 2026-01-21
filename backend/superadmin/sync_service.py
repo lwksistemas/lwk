@@ -287,39 +287,51 @@ class AsaasSyncService:
             
             # Buscar pagamento no sistema
             try:
-                pagamento = PagamentoLoja.objects.get(asaas_payment_id=payment_id)
-            except PagamentoLoja.DoesNotExist:
-                logger.warning(f"Pagamento {payment_id} não encontrado no sistema")
-                return {
-                    'success': False,
-                    'error': 'Pagamento não encontrado'
-                }
+                from asaas_integration.models import AsaasPayment
+                pagamento = AsaasPayment.objects.get(asaas_id=payment_id)
+                logger.info(f"Pagamento encontrado no AsaasPayment: {payment_id}")
+            except AsaasPayment.DoesNotExist:
+                # Se não encontrar no AsaasPayment, tentar no PagamentoLoja
+                try:
+                    pagamento = PagamentoLoja.objects.get(asaas_payment_id=payment_id)
+                    logger.info(f"Pagamento encontrado no PagamentoLoja: {payment_id}")
+                except PagamentoLoja.DoesNotExist:
+                    logger.warning(f"Pagamento {payment_id} não encontrado em nenhum modelo")
+                    return {
+                        'success': False,
+                        'error': 'Pagamento não encontrado'
+                    }
             
             logger.info(f"Processando webhook para pagamento {payment_id}, evento: {event}")
             
-            # Sincronizar este pagamento específico
-            resultado_sync = self.sync_payment_status(pagamento)
+            # Atualizar status do pagamento baseado nos dados do webhook
+            old_status = pagamento.status
+            new_status = payment_data.get('status', 'PENDING')
             
-            if resultado_sync['updated']:
-                # Atualizar status da loja
-                resultado_loja = self.update_loja_status(pagamento.loja, 
-                                                       resultado_sync.get('status') == 'pago')
+            if new_status != old_status:
+                pagamento.status = new_status
+                
+                # Se foi pago, atualizar data de pagamento
+                if new_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
+                    pagamento.payment_date = timezone.now()
+                
+                pagamento.save()
+                
+                logger.info(f"Pagamento {payment_id} atualizado via webhook: {old_status} -> {new_status}")
                 
                 return {
                     'success': True,
                     'payment_id': payment_id,
                     'status_updated': True,
-                    'new_status': resultado_sync.get('status'),
-                    'loja_status': resultado_loja.get('status'),
-                    'blocked': resultado_loja.get('blocked', False),
-                    'unblocked': resultado_loja.get('unblocked', False)
+                    'old_status': old_status,
+                    'new_status': new_status
                 }
             
             return {
                 'success': True,
                 'payment_id': payment_id,
                 'status_updated': False,
-                'message': 'Status não alterado'
+                'message': 'Status já atualizado'
             }
             
         except Exception as e:

@@ -27,7 +27,8 @@ class ClienteViewSet(BaseModelViewSet):
     @action(detail=False, methods=['get'])
     def buscar(self, request):
         """Busca clientes por nome, telefone ou email"""
-        query = request.query_params.get('q', '')
+        params = getattr(request, 'query_params', request.GET)
+        query = params.get('q', '')
         if len(query) < 2:
             return Response([])
         
@@ -54,7 +55,8 @@ class ProcedimentoViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        categoria = self.request.query_params.get('categoria')
+        params = getattr(self.request, 'query_params', self.request.GET)
+        categoria = params.get('categoria')
         if categoria:
             queryset = queryset.filter(categoria=categoria)
         return queryset
@@ -67,7 +69,8 @@ class ProtocoloProcedimentoViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        procedimento_id = self.request.query_params.get('procedimento_id')
+        params = getattr(self.request, 'query_params', self.request.GET)
+        procedimento_id = params.get('procedimento_id')
         if procedimento_id:
             queryset = queryset.filter(procedimento_id=procedimento_id)
         return queryset
@@ -80,21 +83,22 @@ class AgendamentoViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        params = getattr(self.request, 'query_params', self.request.GET)
         
         # Filtros
-        data = self.request.query_params.get('data')
+        data = params.get('data')
         if data:
             queryset = queryset.filter(data=data)
         
-        status_param = self.request.query_params.get('status')
+        status_param = params.get('status')
         if status_param:
             queryset = queryset.filter(status=status_param)
         
-        cliente_id = self.request.query_params.get('cliente_id')
+        cliente_id = params.get('cliente_id')
         if cliente_id:
             queryset = queryset.filter(cliente_id=cliente_id)
         
-        profissional_id = self.request.query_params.get('profissional_id')
+        profissional_id = params.get('profissional_id')
         if profissional_id:
             queryset = queryset.filter(profissional_id=profissional_id)
         
@@ -103,8 +107,9 @@ class AgendamentoViewSet(BaseModelViewSet):
     @action(detail=False, methods=['get'])
     def calendario(self, request):
         """Retorna agendamentos para visualização em calendário"""
-        data_inicio = request.query_params.get('data_inicio')
-        data_fim = request.query_params.get('data_fim')
+        params = getattr(request, 'query_params', request.GET)
+        data_inicio = params.get('data_inicio')
+        data_fim = params.get('data_fim')
         
         if not data_inicio or not data_fim:
             return Response({'error': 'data_inicio e data_fim são obrigatórios'}, 
@@ -163,7 +168,7 @@ class EvolucaoPacienteViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        cliente_id = self.request.query_params.get('cliente_id')
+        cliente_id = getattr(self.request, "query_params", self.request.GET).get('cliente_id')
         if cliente_id:
             queryset = queryset.filter(cliente_id=cliente_id)
         return queryset
@@ -176,7 +181,7 @@ class AnamnesesTemplateViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        procedimento_id = self.request.query_params.get('procedimento_id')
+        procedimento_id = getattr(self.request, "query_params", self.request.GET).get('procedimento_id')
         if procedimento_id:
             queryset = queryset.filter(procedimento_id=procedimento_id)
         return queryset
@@ -189,7 +194,7 @@ class AnamneseViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        cliente_id = self.request.query_params.get('cliente_id')
+        cliente_id = getattr(self.request, "query_params", self.request.GET).get('cliente_id')
         if cliente_id:
             queryset = queryset.filter(cliente_id=cliente_id)
         return queryset
@@ -211,8 +216,8 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        data_inicio = self.request.query_params.get('data_inicio')
-        data_fim = self.request.query_params.get('data_fim')
+        data_inicio = getattr(self.request, "query_params", self.request.GET).get('data_inicio')
+        data_fim = getattr(self.request, "query_params", self.request.GET).get('data_fim')
         
         if data_inicio and data_fim:
             queryset = queryset.filter(
@@ -237,16 +242,19 @@ class ConsultaViewSet(BaseModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         
+        # Verificar se request tem query_params (DRF) ou GET (Django padrão)
+        params = getattr(self.request, 'query_params', self.request.GET)
+        
         # Filtros
-        cliente_id = self.request.query_params.get('cliente_id')
+        cliente_id = params.get('cliente_id')
         if cliente_id:
             queryset = queryset.filter(cliente_id=cliente_id)
         
-        profissional_id = self.request.query_params.get('profissional_id')
+        profissional_id = params.get('profissional_id')
         if profissional_id:
             queryset = queryset.filter(profissional_id=profissional_id)
         
-        status = self.request.query_params.get('status')
+        status = params.get('status')
         if status:
             queryset = queryset.filter(status=status)
         

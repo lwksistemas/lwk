@@ -35,6 +35,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.gzip.GZipMiddleware',  # ✅ OTIMIZAÇÃO: Compressão de resposta
+    'config.security_middleware.SecurityIsolationMiddleware',  # 🔐 SEGURANÇA: Isolamento dos 3 grupos
     'tenants.middleware.TenantMiddleware',  # Middleware customizado
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',

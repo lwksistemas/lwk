@@ -1,0 +1,300 @@
+"""
+Middleware de Segurança - Isolamento Total dos 3 Grupos de Usuários
+
+GRUPO 1: Super Admin - Acesso exclusivo ao /superadmin/
+GRUPO 2: Suporte - Acesso exclusivo ao /suporte/
+GRUPO 3: Lojas - Acesso exclusivo à própria loja
+
+Cada grupo tem banco de dados isolado e não pode acessar dados de outros grupos.
+"""
+from django.http import JsonResponse
+from django.contrib.auth.models import AnonymousUser
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class SecurityIsolationMiddleware:
+    """
+    Middleware que garante isolamento total entre os 3 grupos de usuários:
+    1. Super Admin (banco: db_superadmin.sqlite3)
+    2. Suporte (banco: db_suporte.sqlite3)
+    3. Lojas (banco: db_loja_{slug}.sqlite3)
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.jwt_authenticator = JWTAuthentication()
+    
+    def __call__(self, request):
+        # 1. Processar autenticação JWT
+        self._authenticate_jwt(request)
+        
+        # 2. Verificar isolamento de rotas
+        violation = self._check_route_isolation(request)
+        if violation:
+            return violation
+        
+        # 3. Verificar isolamento de dados de loja
+        violation = self._check_store_isolation(request)
+        if violation:
+            return violation
+        
+        response = self.get_response(request)
+        return response
+    
+    def _authenticate_jwt(self, request):
+        """Processa autenticação JWT"""
+        if not hasattr(request, 'user') or request.user.is_anonymous:
+            try:
+                auth_result = self.jwt_authenticator.authenticate(request)
+                if auth_result is not None:
+                    user, token = auth_result
+                    request.user = user
+                    request.auth = token
+                else:
+                    if not hasattr(request, 'user'):
+                        request.user = AnonymousUser()
+            except (InvalidToken, TokenError):
+                request.user = AnonymousUser()
+            except Exception as e:
+                logger.warning(f"Erro na autenticação JWT: {e}")
+                request.user = AnonymousUser()
+    
+    def _check_route_isolation(self, request):
+        """
+        Verifica isolamento de rotas entre os 3 grupos
+        
+        REGRAS:
+        - Super Admin: APENAS /api/superadmin/ (exceto endpoints públicos específicos)
+        - Suporte: APENAS /api/suporte/
+        - Lojas: APENAS /api/{tipo_loja}/ da própria loja
+        """
+        path = request.path
+        
+        # ========================================
+        # GRUPO 1: SUPER ADMIN
+        # ========================================
+        if path.startswith('/api/superadmin/'):
+            # Endpoints públicos (sem autenticação)
+            public_endpoints = [
+                '/api/superadmin/lojas/info_publica/',
+                '/api/superadmin/lojas/verificar_senha_provisoria/',
+            ]
+            
+            if any(path.startswith(endpoint) for endpoint in public_endpoints):
+                return None  # Permitir acesso público
+            
+            # Verificar autenticação
+            if not request.user or not request.user.is_authenticated:
+                logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado ao superadmin: {path}")
+                return JsonResponse({
+                    'error': 'Autenticação necessária',
+                    'code': 'AUTHENTICATION_REQUIRED',
+                    'grupo_requerido': 'superadmin'
+                }, status=401)
+            
+            # Endpoints permitidos para proprietários de lojas
+            owner_allowed_patterns = [
+                '/alterar_senha_primeiro_acesso/',
+                '/reenviar_senha/',
+                '/financeiro/',
+            ]
+            
+            is_owner_allowed = any(pattern in path for pattern in owner_allowed_patterns)
+            
+            if is_owner_allowed:
+                # Proprietário de loja pode acessar seus próprios dados
+                # A view fará a verificação específica
+                logger.info(f"✅ Acesso de proprietário permitido: {request.user.username} -> {path}")
+                return None
+            
+            # Para outras rotas, APENAS superuser
+            if not request.user.is_superuser:
+                logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {self._get_user_group(request.user)}) tentou acessar superadmin: {path}")
+                return JsonResponse({
+                    'error': 'Acesso negado - Apenas Super Administradores',
+                    'code': 'SUPERADMIN_REQUIRED',
+                    'seu_grupo': self._get_user_group(request.user),
+                    'grupo_requerido': 'superadmin'
+                }, status=403)
+        
+        # ========================================
+        # GRUPO 2: SUPORTE
+        # ========================================
+        elif path.startswith('/api/suporte/'):
+            # Verificar autenticação
+            if not request.user or not request.user.is_authenticated:
+                logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado ao suporte: {path}")
+                return JsonResponse({
+                    'error': 'Autenticação necessária',
+                    'code': 'AUTHENTICATION_REQUIRED',
+                    'grupo_requerido': 'suporte'
+                }, status=401)
+            
+            # Verificar se é usuário de suporte ou superadmin
+            user_group = self._get_user_group(request.user)
+            
+            if user_group not in ['suporte', 'superadmin']:
+                logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar suporte: {path}")
+                return JsonResponse({
+                    'error': 'Acesso negado - Apenas usuários de Suporte',
+                    'code': 'SUPORTE_REQUIRED',
+                    'seu_grupo': user_group,
+                    'grupo_requerido': 'suporte'
+                }, status=403)
+        
+        # ========================================
+        # GRUPO 3: LOJAS
+        # ========================================
+        elif self._is_store_route(path):
+            # Verificar autenticação
+            if not request.user or not request.user.is_authenticated:
+                logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado à loja: {path}")
+                return JsonResponse({
+                    'error': 'Autenticação necessária',
+                    'code': 'AUTHENTICATION_REQUIRED',
+                    'grupo_requerido': 'loja'
+                }, status=401)
+            
+            # Verificar se é proprietário de loja ou superadmin
+            user_group = self._get_user_group(request.user)
+            
+            if user_group not in ['loja', 'superadmin']:
+                logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar loja: {path}")
+                return JsonResponse({
+                    'error': 'Acesso negado - Apenas proprietários de lojas',
+                    'code': 'STORE_OWNER_REQUIRED',
+                    'seu_grupo': user_group,
+                    'grupo_requerido': 'loja'
+                }, status=403)
+        
+        return None  # Sem violação
+    
+    def _check_store_isolation(self, request):
+        """
+        Verifica se proprietário de loja está tentando acessar dados de outra loja
+        
+        REGRA CRÍTICA: Uma loja NUNCA pode acessar dados de outra loja
+        """
+        if not request.user or not request.user.is_authenticated:
+            return None
+        
+        # Apenas verificar para proprietários de lojas (não superadmin)
+        if request.user.is_superuser:
+            return None
+        
+        user_group = self._get_user_group(request.user)
+        if user_group != 'loja':
+            return None
+        
+        # Verificar se está tentando acessar dados de loja
+        if self._is_store_route(request.path):
+            # Extrair slug da loja da URL ou header
+            requested_store_slug = self._extract_store_slug(request)
+            
+            if requested_store_slug:
+                # Verificar se o usuário é proprietário desta loja
+                try:
+                    from superadmin.models import Loja
+                    
+                    # Buscar loja do usuário
+                    user_store = Loja.objects.filter(owner=request.user, is_active=True).first()
+                    
+                    if not user_store:
+                        logger.error(f"❌ Usuário {request.user.username} não possui loja ativa")
+                        return JsonResponse({
+                            'error': 'Você não possui uma loja ativa',
+                            'code': 'NO_ACTIVE_STORE'
+                        }, status=403)
+                    
+                    # Verificar se está tentando acessar outra loja
+                    if user_store.slug != requested_store_slug:
+                        logger.critical(f"🚨 VIOLAÇÃO CRÍTICA: Usuário {request.user.username} (loja: {user_store.slug}) tentou acessar loja: {requested_store_slug}")
+                        return JsonResponse({
+                            'error': 'Acesso negado - Você só pode acessar sua própria loja',
+                            'code': 'CROSS_STORE_ACCESS_DENIED',
+                            'sua_loja': user_store.slug,
+                            'loja_solicitada': requested_store_slug
+                        }, status=403)
+                    
+                except Exception as e:
+                    logger.error(f"Erro ao verificar isolamento de loja: {e}")
+                    return JsonResponse({
+                        'error': 'Erro ao verificar permissões',
+                        'code': 'PERMISSION_CHECK_ERROR'
+                    }, status=500)
+        
+        return None  # Sem violação
+    
+    def _get_user_group(self, user):
+        """
+        Identifica o grupo do usuário
+        
+        Retorna: 'superadmin', 'suporte', 'loja', ou 'unknown'
+        """
+        if not user or not user.is_authenticated:
+            return 'unknown'
+        
+        # Super Admin
+        if user.is_superuser:
+            return 'superadmin'
+        
+        # Verificar se é usuário de suporte
+        try:
+            from superadmin.models import UsuarioSistema
+            usuario_sistema = UsuarioSistema.objects.filter(user=user, is_active=True).first()
+            if usuario_sistema:
+                if usuario_sistema.tipo == 'suporte':
+                    return 'suporte'
+                elif usuario_sistema.tipo == 'superadmin':
+                    return 'superadmin'
+        except:
+            pass
+        
+        # Verificar se é proprietário de loja
+        try:
+            from superadmin.models import Loja
+            if Loja.objects.filter(owner=user, is_active=True).exists():
+                return 'loja'
+        except:
+            pass
+        
+        return 'unknown'
+    
+    def _is_store_route(self, path):
+        """Verifica se a rota é de uma loja"""
+        store_routes = [
+            '/api/clinica/',
+            '/api/crm/',
+            '/api/ecommerce/',
+            '/api/restaurante/',
+            '/api/servicos/',
+            '/api/stores/',
+            '/api/products/',
+        ]
+        return any(path.startswith(route) for route in store_routes)
+    
+    def _extract_store_slug(self, request):
+        """Extrai o slug da loja da requisição"""
+        # 1. Tentar do header
+        store_slug = request.headers.get('X-Store-Slug')
+        if store_slug:
+            return store_slug
+        
+        # 2. Tentar do parâmetro de query
+        store_slug = request.GET.get('store')
+        if store_slug:
+            return store_slug
+        
+        # 3. Tentar extrair da URL
+        # Exemplo: /api/clinica/loja/felix/consultas/
+        path_parts = request.path.split('/')
+        if 'loja' in path_parts:
+            loja_index = path_parts.index('loja')
+            if loja_index + 1 < len(path_parts):
+                return path_parts[loja_index + 1]
+        
+        return None

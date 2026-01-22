@@ -92,8 +92,8 @@ class SuperAdminSecurityMiddleware:
                             try:
                                 from stores.models import Store
                                 loja = Store.objects.get(slug=loja_slug)
-                                if request.user == loja.admin_user:
-                                    # Usuário é admin da loja, permitir acesso aos dados financeiros
+                                if request.user == loja.owner:
+                                    # Usuário é owner da loja, permitir acesso aos dados financeiros
                                     pass
                                 elif not request.user.is_superuser:
                                     logger.warning(f"Usuário {request.user.username} tentou acessar dados financeiros de loja não autorizada: {loja_slug}")

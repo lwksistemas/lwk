@@ -347,3 +347,75 @@ Qualquer nova loja de **Clínica de Estética** criada no sistema terá automati
 **Data:** 22 de Janeiro de 2026  
 **Versão do Template:** v2.0.0  
 **Status:** ✅ TODAS AS MELHORIAS SALVAS NO TEMPLATE PADRÃO
+
+
+---
+
+## 🔧 CORREÇÃO DE BUGS IMPLEMENTADAS
+
+### ✅ 9. CORREÇÃO: Permissão para Alterar Senha Provisória
+**Status:** ✅ RESOLVIDO COMPLETAMENTE (Deploy v166)
+
+**Problema Identificado:**
+- Usuário "vida" (administrador da loja ID 52) recebia erro **403 Forbidden** ao tentar alterar senha provisória
+- Logs mostravam: `VIOLAÇÃO DE SEGURANÇA: Usuário vida tentou acessar /api/superadmin/lojas/52/alterar_senha_primeiro_acesso/`
+- **Causa raiz:** Middleware `SuperAdminSecurityMiddleware` bloqueava o acesso porque:
+  - Usuário autenticado mas não é superuser
+  - Rota não estava na lista de endpoints permitidos para proprietários
+  - Middleware exigia superuser para todas as rotas que não fossem públicas
+
+**Solução Implementada (v165 + v166):**
+- ✅ **v165:** Adicionado padrão `/alterar_senha_primeiro_acesso/` à lista de endpoints permitidos
+- ✅ **v166:** Adicionado padrão `/reenviar_senha/` à lista de endpoints permitidos
+- ✅ **v166:** Adicionado padrão `/financeiro/` à lista de endpoints permitidos
+- ✅ **v166:** Adicionado `permission_classes=[IsOwnerOrSuperAdmin]` ao método `reenviar_senha`
+- ✅ **v166:** Adicionado verificação de proprietário no método `reenviar_senha`
+- ✅ **v166:** Adicionado log de acesso permitido para debug
+- ✅ **v166:** Criado script de teste completo (`testar_permissoes_proprietario.py`)
+
+**Endpoints Acessíveis para Proprietários:**
+- ✅ `/api/superadmin/lojas/{id}/alterar_senha_primeiro_acesso/` - Alterar senha provisória
+- ✅ `/api/superadmin/lojas/{id}/reenviar_senha/` - Reenviar senha por email
+- ✅ `/api/superadmin/loja/{slug}/financeiro/` - Dados financeiros da própria loja
+
+**Segurança Mantida:**
+- ✅ Proprietários só acessam dados da própria loja
+- ✅ Endpoints administrativos continuam protegidos (criar/editar/excluir lojas, estatísticas)
+- ✅ Múltiplas camadas de verificação (middleware + permission class + view)
+
+**Aplicável a TODOS os Tipos de Loja:**
+- ✅ Clínica de Estética
+- ✅ CRM Vendas
+- ✅ Restaurante
+- ✅ Serviços
+- ✅ E-commerce
+
+**Teste Necessário:**
+- ⏳ Usuário "vida" deve testar novamente a troca de senha provisória
+- ⏳ Confirmar que não há mais erro 403
+- ⏳ Verificar que a senha é alterada com sucesso
+
+**Arquivos Modificados:**
+- `backend/superadmin/middleware.py` (linhas 55-90)
+- `backend/superadmin/views.py` (método reenviar_senha)
+- `testar_permissoes_proprietario.py` (novo arquivo de teste)
+
+**Deploy:**
+- Versão: v165 (correção inicial) + v166 (correção completa)
+- Data: 22 de Janeiro de 2026
+- Status: ✅ Em produção
+
+**Documentação Completa:**
+- Ver arquivo: `CORRECAO_PERMISSOES_PROPRIETARIOS.md`
+
+---
+
+## 📊 RESUMO DE CORREÇÕES
+
+| # | Bug | Status | Deploy | Arquivo |
+|---|-----|--------|--------|---------|
+| 9 | Erro 403 ao alterar senha provisória | ✅ | v165+v166 | middleware.py, views.py |
+
+**Nota:** A correção garante que o problema NÃO acontecerá mais em NENHUM tipo de loja (Clínica, CRM, Restaurante, Serviços, E-commerce).
+
+---

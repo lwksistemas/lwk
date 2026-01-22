@@ -36,6 +36,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.gzip.GZipMiddleware',  # ✅ OTIMIZAÇÃO: Compressão de resposta
     'config.security_middleware.SecurityIsolationMiddleware',  # 🔐 SEGURANÇA: Isolamento dos 3 grupos
+    'config.session_middleware.SessionControlMiddleware',  # 🔐 SEGURANÇA: Controle de sessão única
     'tenants.middleware.TenantMiddleware',  # Middleware customizado
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',

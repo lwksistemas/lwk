@@ -36,7 +36,7 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor - refresh token automático
+// Response interceptor - refresh token automático e controle de sessão
 apiClient.interceptors.response.use(
   (response) => {
     console.log('API Response:', response.status, response.config.url, response.data);
@@ -46,26 +46,58 @@ apiClient.interceptors.response.use(
     console.error('API Response Error:', error.response?.status, error.response?.data, error.message);
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        const response = await axios.post(`${API_URL}/api/auth/token/refresh/`, {
-          refresh: refreshToken,
-        });
-
-        const { access } = response.data;
-        localStorage.setItem('access_token', access);
-
-        originalRequest.headers.Authorization = `Bearer ${access}`;
-        return apiClient(originalRequest);
-      } catch (refreshError) {
-        console.error('Refresh token error:', refreshError);
+    // Verificar erros de sessão
+    if (error.response?.status === 401) {
+      const errorCode = error.response?.data?.code;
+      
+      // Erros de sessão que requerem logout forçado
+      if (errorCode === 'SESSION_CONFLICT' || 
+          errorCode === 'SESSION_TIMEOUT' || 
+          errorCode === 'NO_SESSION') {
+        
+        console.log('🚨 Erro de sessão detectado:', errorCode);
+        
+        // Limpar tudo
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
+        localStorage.removeItem('user_type');
+        localStorage.removeItem('loja_slug');
+        localStorage.removeItem('session_id');
+        
+        document.cookie = 'user_type=; path=/; max-age=0';
+        document.cookie = 'loja_slug=; path=/; max-age=0';
+        
+        // Mostrar mensagem ao usuário
+        const message = error.response?.data?.message || 'Sua sessão expirou';
+        alert(message);
+        
+        // Redirecionar para home
+        window.location.href = '/';
+        return Promise.reject(error);
+      }
+      
+      // Tentar refresh token se não for erro de sessão
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+
+        try {
+          const refreshToken = localStorage.getItem('refresh_token');
+          const response = await axios.post(`${API_URL}/api/auth/token/refresh/`, {
+            refresh: refreshToken,
+          });
+
+          const { access } = response.data;
+          localStorage.setItem('access_token', access);
+
+          originalRequest.headers.Authorization = `Bearer ${access}`;
+          return apiClient(originalRequest);
+        } catch (refreshError) {
+          console.error('Refresh token error:', refreshError);
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          window.location.href = '/';
+          return Promise.reject(refreshError);
+        }
       }
     }
 

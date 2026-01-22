@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
+from superadmin.auth_views import CustomTokenObtainPairView, LogoutView
 
 def api_root(request):
     """API Root - Informações do sistema"""
@@ -14,6 +15,7 @@ def api_root(request):
             'auth': {
                 'token': '/api/auth/token/',
                 'refresh': '/api/auth/token/refresh/',
+                'logout': '/api/auth/logout/',
             },
             'superadmin': '/api/superadmin/',
             'suporte': '/api/suporte/',
@@ -34,9 +36,10 @@ urlpatterns = [
     path('api/', api_root, name='api_info'),  # Informações da API
     path('admin/', admin.site.urls),
     
-    # Autenticação JWT
-    path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # Autenticação JWT com controle de sessão
+    path('api/auth/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/logout/', LogoutView.as_view(), name='logout'),
     
     # APIs
     path('api/stores/', include('stores.urls')),

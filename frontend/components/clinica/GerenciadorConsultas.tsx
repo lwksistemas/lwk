@@ -49,6 +49,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'consultas' | 'evolucao'>('consultas');
   const [showFormEvolucao, setShowFormEvolucao] = useState(false);
+  const [modoFullscreen, setModoFullscreen] = useState(false);
 
   // Estados do formulário de evolução
   const [formEvolucao, setFormEvolucao] = useState({
@@ -100,6 +101,9 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       await clinicaApiClient.post(`/clinica/consultas/${consulta.id}/iniciar_consulta/`);
       alert('✅ Consulta iniciada com sucesso!');
       loadConsultas();
+      // Ativar modo fullscreen quando iniciar consulta
+      setModoFullscreen(true);
+      setActiveTab('consultas');
     } catch (error) {
       console.error('Erro ao iniciar consulta:', error);
       alert('❌ Erro ao iniciar consulta');
@@ -111,6 +115,8 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       await clinicaApiClient.post(`/clinica/consultas/${consulta.id}/finalizar_consulta/`, dadosPagamento);
       alert('✅ Consulta finalizada com sucesso!');
       loadConsultas();
+      // Sair do modo fullscreen quando finalizar consulta
+      setModoFullscreen(false);
     } catch (error) {
       console.error('Erro ao finalizar consulta:', error);
       alert('❌ Erro ao finalizar consulta');
@@ -121,6 +127,10 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
     setConsultaSelecionada(consulta);
     loadEvolucoes(consulta.id);
     setActiveTab('consultas');
+    // Ativar modo fullscreen se a consulta estiver em andamento
+    if (consulta.status === 'em_andamento') {
+      setModoFullscreen(true);
+    }
   };
 
   const handleSubmitEvolucao = async (e: React.FormEvent) => {
@@ -218,6 +228,98 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-8">
           <div className="text-center">Carregando consultas...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Modo Fullscreen - Apenas consulta e evolução
+  if (modoFullscreen && consultaSelecionada) {
+    return (
+      <div className="fixed inset-0 bg-white z-50 flex flex-col">
+        {/* Header fixo */}
+        <div className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm">
+          <div>
+            <h2 className="text-xl font-bold" style={{ color: loja.cor_primaria }}>
+              🏥 Consulta em Andamento - {consultaSelecionada.cliente_nome}
+            </h2>
+            <p className="text-sm text-gray-600">
+              {consultaSelecionada.procedimento_nome} • {consultaSelecionada.profissional_nome}
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setModoFullscreen(false)}
+              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              📋 Ver Lista
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+            >
+              ✕ Sair
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white border-b px-6">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('consultas')}
+              className={`px-6 py-3 font-medium border-b-2 ${
+                activeTab === 'consultas'
+                  ? 'border-current text-current'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              style={{
+                borderBottomColor: activeTab === 'consultas' ? loja.cor_primaria : 'transparent',
+                color: activeTab === 'consultas' ? loja.cor_primaria : undefined
+              }}
+            >
+              🏥 Detalhes da Consulta
+            </button>
+            <button
+              onClick={() => setActiveTab('evolucao')}
+              className={`px-6 py-3 font-medium border-b-2 ${
+                activeTab === 'evolucao'
+                  ? 'border-current text-current'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              style={{
+                borderBottomColor: activeTab === 'evolucao' ? loja.cor_primaria : 'transparent',
+                color: activeTab === 'evolucao' ? loja.cor_primaria : undefined
+              }}
+            >
+              📊 Evolução do Paciente
+            </button>
+          </div>
+        </div>
+
+        {/* Conteúdo principal */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'consultas' && (
+            <ConsultaDetalhes 
+              consulta={consultaSelecionada}
+              loja={loja}
+              onIniciar={iniciarConsulta}
+              onFinalizar={finalizarConsulta}
+            />
+          )}
+
+          {activeTab === 'evolucao' && (
+            <EvolucaoDetalhes
+              consulta={consultaSelecionada}
+              evolucoes={evolucoes}
+              loja={loja}
+              showForm={showFormEvolucao}
+              onShowForm={setShowFormEvolucao}
+              formData={formEvolucao}
+              onFormChange={handleChangeEvolucao}
+              onSubmit={handleSubmitEvolucao}
+            />
+          )}
         </div>
       </div>
     );

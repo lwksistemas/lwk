@@ -27,6 +27,9 @@ class SessionManager:
     3. Invalidação de sessões antigas ao fazer novo login
     """
     
+    # Constante de classe para acesso externo
+    SESSION_TIMEOUT_MINUTES = SESSION_TIMEOUT_MINUTES
+    
     @staticmethod
     def _get_session_key(user_id: int) -> str:
         """Retorna a chave de sessão do usuário"""

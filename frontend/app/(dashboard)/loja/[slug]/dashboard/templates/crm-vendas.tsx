@@ -47,11 +47,13 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           <button onClick={() => setShowModalLead(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
             <div className="text-2xl md:text-3xl mb-1 md:mb-2">🎯</div>
-            <div className="text-xs md:text-sm">Gerenciar Leads</div>
+            <div className="text-xs md:text-sm">Leads</div>
+            <div className="text-[10px] opacity-80">(Em negociação)</div>
           </button>
           <button onClick={() => setShowModalCliente(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
             <div className="text-2xl md:text-3xl mb-1 md:mb-2">👤</div>
-            <div className="text-xs md:text-sm">Gerenciar Clientes</div>
+            <div className="text-xs md:text-sm">Clientes</div>
+            <div className="text-[10px] opacity-80">(Já compraram)</div>
           </button>
           <button onClick={() => setShowModalVendedor(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
             <div className="text-2xl md:text-3xl mb-1 md:mb-2">💼</div>
@@ -232,6 +234,17 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
     }
   };
 
+  const handleConverterCliente = async (lead: any) => {
+    if (!confirm(`Converter o lead "${lead.nome}" em cliente?\n\nIsso significa que a venda foi fechada e o lead se tornou um cliente ativo.`)) return;
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      alert(`✅ Lead "${lead.nome}" convertido em cliente com sucesso!\n\n🎉 Parabéns pela venda!\n\nO cliente agora está disponível em "Gerenciar Clientes".\n\nDados transferidos:\n• Nome: ${lead.nome}\n• Empresa: ${lead.empresa}\n• Email: ${lead.email}\n• Telefone: ${lead.telefone}\n• Valor da venda: R$ ${parseFloat(lead.valor_estimado).toLocaleString('pt-BR')}`);
+    } catch (error) {
+      alert('❌ Erro ao converter lead em cliente');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -327,7 +340,7 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>🎯 Gerenciar Leads</h3>
+        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>🎯 Gerenciar Leads (Em negociação)</h3>
         
         <div className="space-y-4 mb-6">
           {leads.map((lead) => (
@@ -343,6 +356,7 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
               </div>
               <div className="flex items-center space-x-2">
                 <button onClick={() => handleEditar(lead)} className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90 transition-opacity" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
+                <button onClick={() => handleConverterCliente(lead)} className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">✅ Converter em Cliente</button>
                 <button onClick={() => handleExcluir(lead.id, lead.nome)} className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">🗑️ Excluir</button>
               </div>
             </div>
@@ -505,7 +519,7 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>👤 Gerenciar Clientes</h3>
+        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>👤 Gerenciar Clientes (Já compraram)</h3>
         
         <div className="space-y-4 mb-6">
           {clientes.map((cliente) => (

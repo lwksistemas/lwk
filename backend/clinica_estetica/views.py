@@ -8,13 +8,14 @@ from core.views import BaseModelViewSet
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento, Funcionario,
     ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
-    HorarioFuncionamento, BloqueioAgenda
+    HorarioFuncionamento, BloqueioAgenda, Consulta
 )
 from .serializers import (
     ClienteSerializer, ProfissionalSerializer, ProcedimentoSerializer,
     AgendamentoSerializer, FuncionarioSerializer, ProtocoloProcedimentoSerializer,
     EvolucaoPacienteSerializer, AnamnesesTemplateSerializer, AnamneseSerializer,
-    HorarioFuncionamentoSerializer, BloqueioAgendaSerializer, ClienteBuscaSerializer
+    HorarioFuncionamentoSerializer, BloqueioAgendaSerializer, ClienteBuscaSerializer,
+    ConsultaSerializer
 )
 
 
@@ -226,3 +227,95 @@ class FuncionarioViewSet(BaseModelViewSet):
     queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
     permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
+
+
+class ConsultaViewSet(BaseModelViewSet):
+    queryset = Consulta.objects.select_related('cliente', 'profissional', 'procedimento', 'agendamento')
+    serializer_class = ConsultaSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filtros
+        cliente_id = self.request.query_params.get('cliente_id')
+        if cliente_id:
+            queryset = queryset.filter(cliente_id=cliente_id)
+        
+        profissional_id = self.request.query_params.get('profissional_id')
+        if profissional_id:
+            queryset = queryset.filter(profissional_id=profissional_id)
+        
+        status = self.request.query_params.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        return queryset
+
+    @action(detail=True, methods=['post'])
+    def iniciar_consulta(self, request, pk=None):
+        """Inicia uma consulta (muda status para em_andamento)"""
+        consulta = self.get_object()
+        
+        if consulta.status != 'agendada':
+            return Response(
+                {'error': 'Consulta deve estar agendada para ser iniciada'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        consulta.status = 'em_andamento'
+        consulta.data_inicio = timezone.now()
+        consulta.save()
+        
+        serializer = self.get_serializer(consulta)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def finalizar_consulta(self, request, pk=None):
+        """Finaliza uma consulta (muda status para concluida)"""
+        consulta = self.get_object()
+        
+        if consulta.status != 'em_andamento':
+            return Response(
+                {'error': 'Consulta deve estar em andamento para ser finalizada'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        consulta.status = 'concluida'
+        consulta.data_fim = timezone.now()
+        
+        # Atualizar dados do pagamento se fornecidos
+        valor_pago = request.data.get('valor_pago')
+        forma_pagamento = request.data.get('forma_pagamento')
+        observacoes = request.data.get('observacoes_gerais')
+        
+        if valor_pago is not None:
+            consulta.valor_pago = valor_pago
+        if forma_pagamento:
+            consulta.forma_pagamento = forma_pagamento
+        if observacoes:
+            consulta.observacoes_gerais = observacoes
+        
+        consulta.save()
+        
+        # Atualizar status do agendamento
+        consulta.agendamento.status = 'concluido'
+        consulta.agendamento.save()
+        
+        serializer = self.get_serializer(consulta)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def em_andamento(self, request):
+        """Retorna consultas em andamento"""
+        consultas = self.queryset.filter(status='em_andamento')
+        serializer = self.get_serializer(consultas, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def hoje(self, request):
+        """Retorna consultas de hoje"""
+        hoje = date.today()
+        consultas = self.queryset.filter(agendamento__data=hoje)
+        serializer = self.get_serializer(consultas, many=True)
+        return Response(serializer.data)

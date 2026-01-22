@@ -154,8 +154,56 @@ class ProtocoloProcedimento(models.Model):
         return f"{self.procedimento.nome} - {self.nome}"
 
 
+class Consulta(models.Model):
+    """Consulta realizada - vincula agendamento com evolução"""
+    agendamento = models.OneToOneField(Agendamento, on_delete=models.CASCADE, related_name='consulta')
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='consultas')
+    profissional = models.ForeignKey(Profissional, on_delete=models.CASCADE, related_name='consultas')
+    procedimento = models.ForeignKey(Procedimento, on_delete=models.CASCADE, related_name='consultas')
+    
+    # Status da consulta
+    STATUS_CHOICES = [
+        ('agendada', 'Agendada'),
+        ('em_andamento', 'Em Andamento'),
+        ('concluida', 'Concluída'),
+        ('cancelada', 'Cancelada'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='agendada')
+    
+    # Dados da consulta
+    data_inicio = models.DateTimeField(null=True, blank=True)
+    data_fim = models.DateTimeField(null=True, blank=True)
+    observacoes_gerais = models.TextField(blank=True, help_text='Observações gerais da consulta')
+    
+    # Valores
+    valor_consulta = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor_pago = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    forma_pagamento = models.CharField(max_length=50, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'clinica_consultas'
+        ordering = ['-created_at']
+        verbose_name = 'Consulta'
+        verbose_name_plural = 'Consultas'
+
+    def __str__(self):
+        return f"Consulta {self.cliente.nome} - {self.agendamento.data} {self.agendamento.horario}"
+
+    @property
+    def duracao_minutos(self):
+        """Calcula duração da consulta em minutos"""
+        if self.data_inicio and self.data_fim:
+            delta = self.data_fim - self.data_inicio
+            return int(delta.total_seconds() / 60)
+        return None
+
+
 class EvolucaoPaciente(models.Model):
     """Evolução e histórico do paciente"""
+    consulta = models.ForeignKey('Consulta', on_delete=models.CASCADE, related_name='evolucoes', null=True, blank=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='evolucoes')
     agendamento = models.ForeignKey(Agendamento, on_delete=models.CASCADE, related_name='evolucoes', null=True, blank=True)
     profissional = models.ForeignKey(Profissional, on_delete=models.SET_NULL, null=True)

@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento, Funcionario,
     ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
-    HorarioFuncionamento, BloqueioAgenda
+    HorarioFuncionamento, BloqueioAgenda, Consulta
 )
 
 
@@ -154,3 +154,22 @@ class ClienteBuscaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = ['id', 'nome', 'telefone', 'email']
+
+
+class ConsultaSerializer(serializers.ModelSerializer):
+    """Serializer para consultas"""
+    cliente_nome = serializers.CharField(source='cliente.nome', read_only=True)
+    profissional_nome = serializers.CharField(source='profissional.nome', read_only=True)
+    procedimento_nome = serializers.CharField(source='procedimento.nome', read_only=True)
+    agendamento_data = serializers.DateField(source='agendamento.data', read_only=True)
+    agendamento_horario = serializers.TimeField(source='agendamento.horario', read_only=True)
+    duracao_minutos = serializers.ReadOnlyField()
+    total_evolucoes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Consulta
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_total_evolucoes(self, obj):
+        return obj.evolucoes.count()

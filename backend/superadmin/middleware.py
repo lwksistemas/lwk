@@ -61,17 +61,17 @@ class SuperAdminSecurityMiddleware:
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
             ]
             
+            # Endpoints que proprietários de lojas podem acessar (verificação adicional será feita na view)
+            owner_allowed_patterns = [
+                '/alterar_senha_primeiro_acesso/',
+                '/reenviar_senha/',
+            ]
+            
             is_public = any(request.path.startswith(endpoint) for endpoint in public_endpoints)
+            is_owner_allowed = any(pattern in request.path for pattern in owner_allowed_patterns)
             
             if not is_public:
-                # Debug: Verificar se o usuário existe e está autenticado
-                logger.info(f"DEBUG - Path: {request.path}")
-                logger.info(f"DEBUG - Has user attr: {hasattr(request, 'user')}")
-                if hasattr(request, 'user'):
-                    logger.info(f"DEBUG - User: {request.user}")
-                    logger.info(f"DEBUG - Is authenticated: {request.user.is_authenticated}")
-                    logger.info(f"DEBUG - Is anonymous: {request.user.is_anonymous}")
-                
+                # Verificar autenticação
                 if not hasattr(request, 'user') or not request.user.is_authenticated:
                     logger.warning(f"Tentativa de acesso não autenticado ao superadmin: {request.path}")
                     return JsonResponse({
@@ -79,8 +79,13 @@ class SuperAdminSecurityMiddleware:
                         'code': 'AUTHENTICATION_REQUIRED'
                     }, status=401)
                 
+                # Se é um endpoint permitido para owners, deixar a view fazer a verificação específica
+                if is_owner_allowed:
+                    # A view IsOwnerOrSuperAdmin fará a verificação de permissão
+                    pass
+                
                 # Permitir acesso a dados financeiros da própria loja para administradores
-                if '/loja/' in request.path and '/financeiro/' in request.path:
+                elif '/loja/' in request.path and '/financeiro/' in request.path:
                     # Extrair slug da loja da URL
                     path_parts = request.path.split('/')
                     if 'loja' in path_parts:

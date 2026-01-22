@@ -69,7 +69,7 @@ def listar_consultas():
         print(f"   💆 {consulta.procedimento.nome}")
         print(f"   👨‍⚕️ {consulta.profissional.nome}")
         print(f"   💰 R$ {consulta.valor_consulta}")
-        print(f"   📊 {consulta.total_evolucoes} evolução(ões)")
+        print(f"   📊 {consulta.evolucoes.count()} evolução(ões)")
         print()
 
 def main():

@@ -3,9 +3,46 @@ Middleware de segurança para proteger rotas do superadmin
 """
 from django.http import JsonResponse
 from django.urls import resolve
+from django.contrib.auth.models import AnonymousUser
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 import logging
 
 logger = logging.getLogger(__name__)
+
+class JWTAuthenticationMiddleware:
+    """
+    Middleware que processa autenticação JWT para todas as requisições
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.jwt_authenticator = JWTAuthentication()
+    
+    def __call__(self, request):
+        # Processar autenticação JWT se não houver usuário autenticado
+        if not hasattr(request, 'user') or request.user.is_anonymous:
+            try:
+                # Tentar autenticar via JWT
+                auth_result = self.jwt_authenticator.authenticate(request)
+                if auth_result is not None:
+                    user, token = auth_result
+                    request.user = user
+                    request.auth = token
+                else:
+                    # Se não há token JWT, manter usuário anônimo
+                    if not hasattr(request, 'user'):
+                        request.user = AnonymousUser()
+            except (InvalidToken, TokenError) as e:
+                # Token inválido, manter usuário anônimo
+                request.user = AnonymousUser()
+            except Exception as e:
+                # Qualquer outro erro, manter usuário anônimo
+                logger.warning(f"Erro na autenticação JWT: {e}")
+                request.user = AnonymousUser()
+        
+        response = self.get_response(request)
+        return response
 
 class SuperAdminSecurityMiddleware:
     """

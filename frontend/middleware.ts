@@ -45,7 +45,12 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
     
-    // Para outras rotas de superadmin, verificar autenticação no cliente
+    // Para outras rotas de superadmin, BLOQUEAR se não for superadmin
+    if (userType && userType !== 'superadmin') {
+      console.log(`🚨 BLOQUEIO CRÍTICO: Usuário tipo "${userType}" tentou acessar ${pathname}`);
+      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
+    }
+    
     return NextResponse.next();
   }
 
@@ -63,7 +68,12 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
     
-    // Para outras rotas de suporte, verificar autenticação no cliente
+    // Para outras rotas de suporte, BLOQUEAR se não for suporte
+    if (userType && userType !== 'suporte') {
+      console.log(`🚨 BLOQUEIO CRÍTICO: Usuário tipo "${userType}" tentou acessar ${pathname}`);
+      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
+    }
+    
     return NextResponse.next();
   }
 
@@ -85,7 +95,18 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
     
-    // Para outras rotas de loja, verificar autenticação no cliente
+    // Para outras rotas de loja, BLOQUEAR se não for loja
+    if (userType && userType !== 'loja') {
+      console.log(`🚨 BLOQUEIO CRÍTICO: Usuário tipo "${userType}" tentou acessar ${pathname}`);
+      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
+    }
+    
+    // Se for loja, verificar se está tentando acessar OUTRA loja
+    if (userType === 'loja' && lojaSlug && requestedSlug && requestedSlug !== lojaSlug) {
+      console.log(`🚨 BLOQUEIO CRÍTICO: Loja "${lojaSlug}" tentou acessar loja "${requestedSlug}"`);
+      return NextResponse.redirect(new URL(`/loja/${lojaSlug}/dashboard`, request.url));
+    }
+    
     return NextResponse.next();
   }
 

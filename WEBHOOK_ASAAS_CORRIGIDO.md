@@ -1,136 +1,141 @@
-# 🔧 Webhook Asaas - Problema Corrigido
+# Webhook Asaas - Correção de Erro 400
 
-## Problema Identificado
-O webhook do Asaas em `https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/webhook/` estava retornando erro 400 "Pagamento não encontrado" ao receber notificações.
+## 🚨 PROBLEMA IDENTIFICADO
 
-## Análise do Erro
-```json
-{
-  "event": "PAYMENT_CREATED",
-  "payment": {
-    "id": "pay_cgi67bfre2gdiuby",
-    "status": "PENDING",
-    "value": 49.9,
-    "description": "Assinatura Básico (Mensal) - Loja Loja Final Teste"
-  }
-}
+O webhook do Asaas estava retornando erro 400 com a mensagem:
+```
+"Pagamento não encontrado e não foi possível criar automaticamente"
 ```
 
-**Resposta do sistema**: `{"status": "error", "error": "Pagamento não encontrado"}`
+### 📊 Análise do Erro
 
-## Causa Raiz
-O webhook estava tentando buscar o pagamento apenas no modelo `PagamentoLoja` do app `superadmin`, mas os pagamentos criados via API estão sendo salvos no modelo `AsaasPayment` do app `asaas_integration`.
+**Webhook recebido**:
+- Event: `PAYMENT_CREATED`
+- Payment ID: `pay_cgi67bfre2gdiuby`
+- Customer ID: `cus_000007469087`
+- External Reference: `loja_loja-final-teste_assinatura`
 
-## Solução Implementada
+**Problemas encontrados**:
+1. ❌ Cliente `cus_000007469087` não existe no sistema
+2. ❌ Loja `loja-final-teste` não existe no sistema
+3. ❌ Webhook retornava erro 400, causando reenvios desnecessários
 
-### 1. Correção no Método `process_webhook_payment`
-Arquivo: `backend/superadmin/sync_service.py`
+## ✅ CORREÇÕES IMPLEMENTADAS
 
-**Antes**:
+### 1. Melhor Validação de Loja
 ```python
-# Buscar apenas no PagamentoLoja
-pagamento = PagamentoLoja.objects.get(asaas_payment_id=payment_id)
-```
-
-**Depois**:
-```python
-# Buscar primeiro no AsaasPayment, depois no PagamentoLoja
-try:
-    from asaas_integration.models import AsaasPayment
-    pagamento = AsaasPayment.objects.get(asaas_id=payment_id)
-except AsaasPayment.DoesNotExist:
+# Verificar se a loja existe pelo external_reference
+if external_reference and 'loja_' in external_reference:
+    loja_slug = external_reference.replace('loja_', '').replace('_assinatura', '')
     try:
-        pagamento = PagamentoLoja.objects.get(asaas_payment_id=payment_id)
-    except PagamentoLoja.DoesNotExist:
-        return {'success': False, 'error': 'Pagamento não encontrado'}
+        loja = Loja.objects.get(slug=loja_slug, is_active=True)
+        logger.info(f"Loja encontrada para webhook: {loja.nome} ({loja_slug})")
+    except Loja.DoesNotExist:
+        logger.warning(f"Loja {loja_slug} não encontrada - webhook ignorado")
+        return None
 ```
 
-### 2. Simplificação do Processamento
-- Removeu dependência de métodos complexos de sincronização
-- Atualização direta do status baseado nos dados do webhook
-- Processamento mais rápido e confiável
+### 2. Tratamento de Cliente Inexistente
+```python
+try:
+    customer = AsaasCustomer.objects.get(asaas_id=customer_id)
+    logger.info(f"Cliente encontrado: {customer.name}")
+except AsaasCustomer.DoesNotExist:
+    logger.warning(f"Cliente {customer_id} não encontrado - tentando criar automaticamente")
+    # Por enquanto, ignorar webhook se cliente não existe
+    logger.warning(f"Não é possível criar cliente automaticamente - dados insuficientes")
+    return None
+```
 
-### 3. Melhor Logging
-- Logs detalhados para debug
-- Identificação clara de qual modelo foi usado
-- Rastreamento completo do processamento
-
-## Funcionalidades do Webhook Corrigido
-
-### ✅ Eventos Suportados
-- `PAYMENT_CREATED` - Pagamento criado
-- `PAYMENT_UPDATED` - Pagamento atualizado  
-- `PAYMENT_CONFIRMED` - Pagamento confirmado
-- `PAYMENT_RECEIVED` - Pagamento recebido
-
-### ✅ Processamento Automático
-- Busca pagamento em ambos os modelos
-- Atualiza status automaticamente
-- Registra data de pagamento quando pago
-- Logs detalhados para auditoria
-
-### ✅ Respostas Padronizadas
-```json
-// Sucesso
-{
-  "status": "processed",
-  "payment_id": "pay_xxx",
-  "status_updated": true,
-  "old_status": "PENDING",
-  "new_status": "RECEIVED"
-}
-
-// Erro
-{
-  "status": "error", 
-  "error": "Descrição do erro"
+### 3. Retorno 200 para Webhooks Ignorados
+```python
+# Retornar sucesso para evitar reenvio do webhook
+return {
+    'success': True,
+    'payment_id': payment_id,
+    'status': 'ignored',
+    'reason': 'Pagamento não encontrado e não foi possível criar automaticamente (loja ou cliente inexistente)'
 }
 ```
 
-## Deploy Realizado
-- **Versão**: v120 no Heroku
-- **Status**: Webhook corrigido e funcional
-- **URL**: `https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/webhook/`
-
-## Como Testar
-
-### 1. Via Asaas Dashboard
-1. Acesse o painel do Asaas
-2. Configure o webhook para: `https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/webhook/`
-3. Crie um pagamento de teste
-4. Verifique se o webhook recebe status 200
-
-### 2. Via Curl (Simulação)
-```bash
-curl -X POST https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/webhook/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "event": "PAYMENT_UPDATED",
-    "payment": {
-      "id": "pay_qiw2p2l3gireeg6a",
-      "status": "RECEIVED"
-    }
-  }'
+### 4. Melhor Logging e Resposta
+```python
+# Se foi ignorado, adicionar razão
+if resultado.get('status') == 'ignored':
+    response_data['reason'] = resultado.get('reason')
+    logger.info(f"Webhook ignorado: {resultado.get('reason')}")
 ```
 
-## Benefícios da Correção
+## 🔍 DIAGNÓSTICO REALIZADO
 
-### 🔄 Sincronização Automática
-- Status de pagamentos atualizados em tempo real
-- Sem necessidade de sincronização manual
-- Dados sempre consistentes com o Asaas
+### Lojas Ativas no Sistema
+```
+• harmonis - Harmonis
+• felix - felix
+```
 
-### 📊 Melhor Monitoramento  
-- Logs detalhados para debug
-- Rastreamento completo de eventos
-- Identificação rápida de problemas
+### Clientes Asaas Cadastrados
+```
+• cus_000007472690 - felix (financeiroluiz@hotmail.com)
+• cus_000007473535 - Harmonis (nayarass03@hotmail.com)
+```
 
-### 🚀 Performance Melhorada
-- Processamento mais rápido
-- Menos consultas ao banco
-- Código mais simples e confiável
+### Webhook Problemático
+- **Loja**: `loja-final-teste` ❌ (não existe)
+- **Cliente**: `cus_000007469087` ❌ (não existe)
+- **Conclusão**: Webhook de loja excluída ou teste
 
-## Status Final
-✅ **WEBHOOK COMPLETAMENTE FUNCIONAL**
+## 🎯 BENEFÍCIOS DA CORREÇÃO
 
-O webhook agora processa corretamente todas as notificações do Asaas, atualizando automaticamente o status dos pagamentos no sistema e mantendo os dados sincronizados em tempo real.
+1. **✅ Sem Mais Erros 400**: Webhooks de lojas inexistentes são ignorados graciosamente
+2. **✅ Logs Informativos**: Melhor rastreabilidade de webhooks ignorados
+3. **✅ Sem Reenvios**: Asaas não reenvia webhooks que retornam 200
+4. **✅ Sistema Estável**: Não há mais penalizações por webhooks mal formados
+
+## 🚀 DEPLOY
+
+- **Backend**: ✅ v149 - Correções implementadas
+- **Status**: ✅ Webhook funcionando corretamente
+- **Teste**: ✅ Webhooks válidos processados, inválidos ignorados
+
+## 🧪 TESTE
+
+Para testar o webhook corrigido:
+
+1. **Webhook Válido** (loja felix):
+   - Customer: `cus_000007472690`
+   - External Reference: `loja_felix_assinatura`
+   - ✅ Deve processar normalmente
+
+2. **Webhook Inválido** (loja inexistente):
+   - Customer: `cus_000007469087`
+   - External Reference: `loja_loja-final-teste_assinatura`
+   - ✅ Deve retornar 200 com status "ignored"
+
+## 📋 LOGS DE EXEMPLO
+
+### Webhook Válido
+```
+INFO: Webhook processado com sucesso: {'success': True, 'payment_id': 'pay_123', 'status_updated': True}
+```
+
+### Webhook Ignorado
+```
+WARNING: Loja loja-final-teste não encontrada - webhook ignorado
+INFO: Webhook ignorado: Pagamento não encontrado e não foi possível criar automaticamente (loja ou cliente inexistente)
+```
+
+## 🔧 MONITORAMENTO
+
+O sistema agora monitora:
+- ✅ Webhooks processados com sucesso
+- ✅ Webhooks ignorados (com razão)
+- ✅ Erros reais de processamento
+- ✅ Status de sincronização
+
+---
+
+**Data**: 22/01/2026  
+**Status**: ✅ Corrigido  
+**Deploy**: v149 - Produção  
+**Webhook URL**: https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/webhook/

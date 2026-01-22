@@ -14,9 +14,14 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Obter informações do usuário dos cookies/localStorage
+  // Obter informações do usuário dos cookies
   const userType = request.cookies.get('user_type')?.value;
   const lojaSlug = request.cookies.get('loja_slug')?.value;
+  
+  // Log para debug (remover em produção)
+  if (userType) {
+    console.log(`[MIDDLEWARE] Path: ${pathname}, UserType: ${userType}, LojaSlug: ${lojaSlug || 'N/A'}`);
+  }
 
   // ========================================
   // ROTAS PÚBLICAS (sem autenticação)

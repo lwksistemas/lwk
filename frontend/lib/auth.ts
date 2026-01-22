@@ -59,12 +59,23 @@ export const authService = {
       }
       
       // Salvar também nos cookies para o middleware do Next.js
-      document.cookie = `user_type=${userType}; path=/; max-age=86400; SameSite=Lax`;
+      // Usar Secure apenas em produção (HTTPS)
+      const isProduction = window.location.protocol === 'https:';
+      const secureFlag = isProduction ? '; Secure' : '';
+      const cookieOptions = `path=/; max-age=86400; SameSite=Lax${secureFlag}`;
+      
+      document.cookie = `user_type=${userType}; ${cookieOptions}`;
+      
       if (lojaSlug) {
-        document.cookie = `loja_slug=${lojaSlug}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `loja_slug=${lojaSlug}; ${cookieOptions}`;
       }
       
-      console.log('Tokens salvos no localStorage e cookies');
+      console.log('✅ Tokens e cookies salvos:', {
+        userType,
+        lojaSlug: lojaSlug || 'N/A',
+        isProduction,
+        cookies: document.cookie
+      });
       console.log(`Sessão criada: ${session_id}, timeout: ${session_timeout_minutes} minutos`);
       
       // Iniciar monitoramento de inatividade

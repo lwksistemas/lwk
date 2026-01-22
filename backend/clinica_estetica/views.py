@@ -1,4 +1,4 @@
-from rest_framework import status
+from rest_framework import status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Count, Sum, Q
@@ -21,6 +21,7 @@ from .serializers import (
 class ClienteViewSet(BaseModelViewSet):
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     @action(detail=False, methods=['get'])
     def buscar(self, request):
@@ -42,11 +43,13 @@ class ClienteViewSet(BaseModelViewSet):
 class ProfissionalViewSet(BaseModelViewSet):
     queryset = Profissional.objects.all()
     serializer_class = ProfissionalSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
 
 class ProcedimentoViewSet(BaseModelViewSet):
     queryset = Procedimento.objects.all()
     serializer_class = ProcedimentoSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -59,6 +62,7 @@ class ProcedimentoViewSet(BaseModelViewSet):
 class ProtocoloProcedimentoViewSet(BaseModelViewSet):
     queryset = ProtocoloProcedimento.objects.all()
     serializer_class = ProtocoloProcedimentoSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -71,6 +75,7 @@ class ProtocoloProcedimentoViewSet(BaseModelViewSet):
 class AgendamentoViewSet(BaseModelViewSet):
     queryset = Agendamento.objects.select_related('cliente', 'profissional', 'procedimento')
     serializer_class = AgendamentoSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -153,6 +158,7 @@ class AgendamentoViewSet(BaseModelViewSet):
 class EvolucaoPacienteViewSet(BaseModelViewSet):
     queryset = EvolucaoPaciente.objects.select_related('cliente', 'profissional', 'agendamento')
     serializer_class = EvolucaoPacienteSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -165,6 +171,7 @@ class EvolucaoPacienteViewSet(BaseModelViewSet):
 class AnamnesesTemplateViewSet(BaseModelViewSet):
     queryset = AnamnesesTemplate.objects.select_related('procedimento')
     serializer_class = AnamnesesTemplateSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -177,6 +184,7 @@ class AnamnesesTemplateViewSet(BaseModelViewSet):
 class AnamneseViewSet(BaseModelViewSet):
     queryset = Anamnese.objects.select_related('cliente', 'template', 'agendamento')
     serializer_class = AnamneseSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -189,6 +197,7 @@ class AnamneseViewSet(BaseModelViewSet):
 class HorarioFuncionamentoViewSet(BaseModelViewSet):
     queryset = HorarioFuncionamento.objects.all()
     serializer_class = HorarioFuncionamentoSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     def get_queryset(self):
         return self.queryset.filter(is_active=True).order_by('dia_semana')
@@ -197,6 +206,7 @@ class HorarioFuncionamentoViewSet(BaseModelViewSet):
 class BloqueioAgendaViewSet(BaseModelViewSet):
     queryset = BloqueioAgenda.objects.select_related('profissional')
     serializer_class = BloqueioAgendaSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -215,3 +225,4 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
 class FuncionarioViewSet(BaseModelViewSet):
     queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
+    permission_classes = [permissions.AllowAny]  # Permitir acesso sem autenticação

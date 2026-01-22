@@ -41,12 +41,38 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-        Dashboard - CRM Vendas
-      </h2>
+      {/* Ações Rápidas - MOVIDO PARA O TOPO */}
+      <div className="bg-white p-6 rounded-lg shadow mb-6">
+        <h3 className="text-lg font-semibold mb-4">🚀 Ações Rápidas</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+          <button onClick={() => setShowModalLead(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
+            <div className="text-2xl md:text-3xl mb-1 md:mb-2">🎯</div>
+            <div className="text-xs md:text-sm">Gerenciar Leads</div>
+          </button>
+          <button onClick={() => setShowModalCliente(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
+            <div className="text-2xl md:text-3xl mb-1 md:mb-2">👤</div>
+            <div className="text-xs md:text-sm">Gerenciar Clientes</div>
+          </button>
+          <button onClick={() => setShowModalVendedor(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
+            <div className="text-2xl md:text-3xl mb-1 md:mb-2">💼</div>
+            <div className="text-xs md:text-sm">Novo Vendedor</div>
+          </button>
+          <button onClick={() => setShowModalProduto(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
+            <div className="text-2xl md:text-3xl mb-1 md:mb-2">📦</div>
+            <div className="text-xs md:text-sm">Novo Produto</div>
+          </button>
+          <button onClick={() => setShowModalPipeline(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
+            <div className="text-2xl md:text-3xl mb-1 md:mb-2">🔄</div>
+            <div className="text-xs md:text-sm">Pipeline</div>
+          </button>
+          <button onClick={() => router.push(`/loja/${loja.slug}/relatorios`)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
+            <div className="text-2xl md:text-3xl mb-1 md:mb-2">📊</div>
+            <div className="text-xs md:text-sm">Relatórios</div>
+          </button>
+        </div>
+      </div>
 
-      
-      {/* Estatísticas */}
+      {/* Estatísticas - ABAIXO DAS AÇÕES RÁPIDAS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
@@ -94,37 +120,6 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
               <span className="text-2xl">💰</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Ações Rápidas */}
-      <div className="bg-white p-6 rounded-lg shadow mb-8">
-        <h3 className="text-lg font-semibold mb-4">Ações Rápidas</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-          <button onClick={() => setShowModalLead(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">🎯</div>
-            <div className="text-xs md:text-sm">Gerenciar Leads</div>
-          </button>
-          <button onClick={() => setShowModalCliente(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">👤</div>
-            <div className="text-xs md:text-sm">Gerenciar Clientes</div>
-          </button>
-          <button onClick={() => setShowModalVendedor(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">💼</div>
-            <div className="text-xs md:text-sm">Novo Vendedor</div>
-          </button>
-          <button onClick={() => setShowModalProduto(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">📦</div>
-            <div className="text-xs md:text-sm">Novo Produto</div>
-          </button>
-          <button onClick={() => setShowModalPipeline(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">🔄</div>
-            <div className="text-xs md:text-sm">Pipeline</div>
-          </button>
-          <button onClick={() => router.push(`/loja/${loja.slug}/relatorios`)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">📊</div>
-            <div className="text-xs md:text-sm">Relatórios</div>
-          </button>
         </div>
       </div>
 

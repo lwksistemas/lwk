@@ -382,6 +382,7 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
   const [procedimentos, setProcedimentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingProtocolo, setEditingProtocolo] = useState<any>(null);
   const [formData, setFormData] = useState({
     nome: '',
     procedimento: '',
@@ -421,6 +422,53 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
     }
   };
 
+  const handleEdit = (protocolo: any) => {
+    setEditingProtocolo(protocolo);
+    setFormData({
+      nome: protocolo.nome || '',
+      procedimento: protocolo.procedimento?.toString() || '',
+      descricao: protocolo.descricao || '',
+      tempo_estimado: protocolo.tempo_estimado?.toString() || '',
+      materiais_necessarios: protocolo.materiais_necessarios || '',
+      preparacao: protocolo.preparacao || '',
+      execucao: protocolo.execucao || '',
+      pos_procedimento: protocolo.pos_procedimento || '',
+      contraindicacoes: protocolo.contraindicacoes || '',
+      cuidados_especiais: protocolo.cuidados_especiais || ''
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (protocolo: any) => {
+    if (!confirm(`Tem certeza que deseja excluir o protocolo ${protocolo.nome}?`)) return;
+    
+    try {
+      await apiClient.delete(`/clinica/protocolos/${protocolo.id}/`);
+      alert('✅ Protocolo excluído com sucesso!');
+      loadProtocolos();
+    } catch (error) {
+      console.error('Erro ao excluir protocolo:', error);
+      alert('❌ Erro ao excluir protocolo');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nome: '',
+      procedimento: '',
+      descricao: '',
+      tempo_estimado: '',
+      materiais_necessarios: '',
+      preparacao: '',
+      execucao: '',
+      pos_procedimento: '',
+      contraindicacoes: '',
+      cuidados_especiais: ''
+    });
+    setEditingProtocolo(null);
+    setShowForm(false);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -430,25 +478,18 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
     setSubmitting(true);
     
     try {
-      await apiClient.post('/clinica/protocolos/', formData);
-      alert('✅ Protocolo criado com sucesso!');
+      if (editingProtocolo) {
+        await apiClient.put(`/clinica/protocolos/${editingProtocolo.id}/`, formData);
+        alert('✅ Protocolo atualizado com sucesso!');
+      } else {
+        await apiClient.post('/clinica/protocolos/', formData);
+        alert('✅ Protocolo criado com sucesso!');
+      }
       loadProtocolos();
-      setShowForm(false);
-      setFormData({
-        nome: '',
-        procedimento: '',
-        descricao: '',
-        tempo_estimado: '',
-        materiais_necessarios: '',
-        preparacao: '',
-        execucao: '',
-        pos_procedimento: '',
-        contraindicacoes: '',
-        cuidados_especiais: ''
-      });
+      resetForm();
     } catch (error) {
-      console.error('Erro ao criar protocolo:', error);
-      alert('❌ Erro ao criar protocolo');
+      console.error('Erro ao salvar protocolo:', error);
+      alert('❌ Erro ao salvar protocolo');
     } finally {
       setSubmitting(false);
     }
@@ -459,7 +500,7 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
           <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-            📋 Novo Protocolo de Procedimento
+            📋 {editingProtocolo ? 'Editar Protocolo' : 'Novo Protocolo de Procedimento'}
           </h3>
           
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -621,7 +662,7 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
             <div className="flex justify-end space-x-4 pt-4 border-t">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
                 disabled={submitting}
                 className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
               >
@@ -633,7 +674,7 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
                 className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: loja.cor_primaria }}
               >
-                {submitting ? 'Criando...' : 'Criar Protocolo'}
+                {submitting ? 'Salvando...' : (editingProtocolo ? 'Atualizar' : 'Criar Protocolo')}
               </button>
             </div>
           </form>
@@ -646,7 +687,7 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
         <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>
-          📋 Protocolos de Procedimentos
+          📋 Gerenciar Protocolos de Procedimentos
         </h3>
         
         {loading ? (
@@ -677,12 +718,20 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
                       <span>📅 Criado em {new Date(protocolo.created_at).toLocaleDateString('pt-BR')}</span>
                     </div>
                   </div>
-                  <button
-                    className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90"
-                    style={{ backgroundColor: loja.cor_primaria }}
-                  >
-                    Ver Detalhes
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(protocolo)}
+                      className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(protocolo)}
+                      className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600"
+                    >
+                      🗑️ Excluir
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -807,6 +856,7 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'anamneses' | 'templates'>('templates');
   const [showForm, setShowForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [formData, setFormData] = useState({
     nome: '',
     procedimento: '',
@@ -850,6 +900,42 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
     }
   };
 
+  const handleEditTemplate = (template: any) => {
+    setEditingTemplate(template);
+    const perguntas = template.perguntas ? JSON.parse(template.perguntas) : [{ pergunta: '', tipo: 'texto', obrigatoria: true }];
+    setFormData({
+      nome: template.nome || '',
+      procedimento: template.procedimento?.toString() || '',
+      descricao: template.descricao || '',
+      perguntas: perguntas
+    });
+    setShowForm(true);
+  };
+
+  const handleDeleteTemplate = async (template: any) => {
+    if (!confirm(`Tem certeza que deseja excluir o template ${template.nome}?`)) return;
+    
+    try {
+      await apiClient.delete(`/clinica/anamneses-templates/${template.id}/`);
+      alert('✅ Template excluído com sucesso!');
+      loadTemplates();
+    } catch (error) {
+      console.error('Erro ao excluir template:', error);
+      alert('❌ Erro ao excluir template');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nome: '',
+      procedimento: '',
+      descricao: '',
+      perguntas: [{ pergunta: '', tipo: 'texto', obrigatoria: true }]
+    });
+    setEditingTemplate(null);
+    setShowForm(false);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -891,19 +977,18 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
         perguntas: JSON.stringify(formData.perguntas)
       };
       
-      await apiClient.post('/clinica/anamneses-templates/', templateData);
-      alert('✅ Template de anamnese criado com sucesso!');
+      if (editingTemplate) {
+        await apiClient.put(`/clinica/anamneses-templates/${editingTemplate.id}/`, templateData);
+        alert('✅ Template atualizado com sucesso!');
+      } else {
+        await apiClient.post('/clinica/anamneses-templates/', templateData);
+        alert('✅ Template de anamnese criado com sucesso!');
+      }
       loadTemplates();
-      setShowForm(false);
-      setFormData({
-        nome: '',
-        procedimento: '',
-        descricao: '',
-        perguntas: [{ pergunta: '', tipo: 'texto', obrigatoria: true }]
-      });
+      resetForm();
     } catch (error) {
-      console.error('Erro ao criar template:', error);
-      alert('❌ Erro ao criar template');
+      console.error('Erro ao salvar template:', error);
+      alert('❌ Erro ao salvar template');
     } finally {
       setSubmitting(false);
     }
@@ -914,7 +999,7 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
           <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-            📝 Novo Template de Anamnese
+            📝 {editingTemplate ? 'Editar Template' : 'Novo Template de Anamnese'}
           </h3>
           
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -1050,7 +1135,7 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
             <div className="flex justify-end space-x-4 pt-4 border-t">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
                 disabled={submitting}
                 className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
               >
@@ -1062,7 +1147,7 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
                 className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: loja.cor_primaria }}
               >
-                {submitting ? 'Criando...' : 'Criar Template'}
+                {submitting ? 'Salvando...' : (editingTemplate ? 'Atualizar' : 'Criar Template')}
               </button>
             </div>
           </form>
@@ -1135,12 +1220,20 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
                             <span className="ml-4">📅 {new Date(template.created_at).toLocaleDateString('pt-BR')}</span>
                           </div>
                         </div>
-                        <button
-                          className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90"
-                          style={{ backgroundColor: loja.cor_primaria }}
-                        >
-                          Editar
-                        </button>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEditTemplate(template)}
+                            className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTemplate(template)}
+                            className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600"
+                          >
+                            🗑️ Excluir
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1230,6 +1323,7 @@ function ModalNovoAgendamento({
     procedimento: '',
     data: '',
     horario: '',
+    valor: '',
     observacoes: ''
   });
   const [clientes, setClientes] = useState<any[]>([]);
@@ -1268,10 +1362,22 @@ function ModalNovoAgendamento({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }));
+
+    // Auto-preencher valor quando procedimento for selecionado
+    if (name === 'procedimento' && value) {
+      const procedimento = procedimentos.find(p => p.id.toString() === value);
+      if (procedimento) {
+        setFormData(prev => ({
+          ...prev,
+          valor: procedimento.preco
+        }));
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1401,6 +1507,23 @@ function ModalNovoAgendamento({
                   <option key={hora} value={hora}>{hora}</option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Valor (R$) *
+              </label>
+              <input
+                type="number"
+                name="valor"
+                value={formData.valor}
+                onChange={handleChange}
+                required
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                placeholder="0.00"
+              />
             </div>
 
             <div className="md:col-span-2">
@@ -1796,6 +1919,10 @@ function ModalNovoCliente({
 
 // Modal Novo Profissional
 function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const [profissionais, setProfissionais] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingProfissional, setEditingProfissional] = useState<any>(null);
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -1803,7 +1930,7 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
     especialidade: '',
     registro_profissional: ''
   });
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const especialidades = [
     'Esteticista',
@@ -1815,6 +1942,58 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
     'Outro'
   ];
 
+  useEffect(() => {
+    loadProfissionais();
+  }, []);
+
+  const loadProfissionais = async () => {
+    try {
+      const response = await apiClient.get('/clinica/profissionais/');
+      setProfissionais(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar profissionais:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (profissional: any) => {
+    setEditingProfissional(profissional);
+    setFormData({
+      nome: profissional.nome || '',
+      email: profissional.email || '',
+      telefone: profissional.telefone || '',
+      especialidade: profissional.especialidade || '',
+      registro_profissional: profissional.registro_profissional || ''
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (profissional: any) => {
+    if (!confirm(`Tem certeza que deseja excluir o profissional ${profissional.nome}?`)) return;
+    
+    try {
+      await apiClient.delete(`/clinica/profissionais/${profissional.id}/`);
+      alert('✅ Profissional excluído com sucesso!');
+      loadProfissionais();
+    } catch (error) {
+      console.error('Erro ao excluir profissional:', error);
+      alert('❌ Erro ao excluir profissional');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nome: '',
+      email: '',
+      telefone: '',
+      especialidade: '',
+      registro_profissional: ''
+    });
+    setEditingProfissional(null);
+    setShowForm(false);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({
       ...prev,
@@ -1824,126 +2003,217 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
 
     try {
-      await apiClient.post('/clinica/profissionais/', formData);
-      alert('✅ Profissional cadastrado com sucesso!');
-      onClose();
+      if (editingProfissional) {
+        await apiClient.put(`/clinica/profissionais/${editingProfissional.id}/`, formData);
+        alert('✅ Profissional atualizado com sucesso!');
+      } else {
+        await apiClient.post('/clinica/profissionais/', formData);
+        alert('✅ Profissional cadastrado com sucesso!');
+      }
+      loadProfissionais();
+      resetForm();
     } catch (error) {
-      console.error('Erro ao cadastrar profissional:', error);
-      alert('❌ Erro ao cadastrar profissional');
+      console.error('Erro ao salvar profissional:', error);
+      alert('❌ Erro ao salvar profissional');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  if (showForm) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
+            👨‍⚕️ {editingProfissional ? 'Editar Profissional' : 'Novo Profissional'}
+          </h3>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome Completo *
+                </label>
+                <input
+                  type="text"
+                  name="nome"
+                  value={formData.nome}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="Ex: Dr. João Silva"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Telefone *
+                </label>
+                <input
+                  type="tel"
+                  name="telefone"
+                  value={formData.telefone}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Especialidade *
+                </label>
+                <select
+                  name="especialidade"
+                  value={formData.especialidade}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                >
+                  <option value="">Selecione...</option>
+                  {especialidades.map(esp => (
+                    <option key={esp} value={esp}>{esp}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Registro Profissional
+                </label>
+                <input
+                  type="text"
+                  name="registro_profissional"
+                  value={formData.registro_profissional}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="Ex: CRF 12345"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-4 pt-4 border-t">
+              <button
+                type="button"
+                onClick={resetForm}
+                disabled={submitting}
+                className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: loja.cor_primaria }}
+              >
+                {submitting ? 'Salvando...' : (editingProfissional ? 'Atualizar' : 'Cadastrar')}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-          👨‍⚕️ Novo Profissional
+          👨‍⚕️ Gerenciar Profissionais
         </h3>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome Completo *
-              </label>
-              <input
-                type="text"
-                name="nome"
-                value={formData.nome}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                placeholder="Ex: Dr. João Silva"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                placeholder="email@exemplo.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telefone *
-              </label>
-              <input
-                type="tel"
-                name="telefone"
-                value={formData.telefone}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                placeholder="(00) 00000-0000"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Especialidade *
-              </label>
-              <select
-                name="especialidade"
-                value={formData.especialidade}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-              >
-                <option value="">Selecione...</option>
-                {especialidades.map(esp => (
-                  <option key={esp} value={esp}>{esp}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Registro Profissional
-              </label>
-              <input
-                type="text"
-                name="registro_profissional"
-                value={formData.registro_profissional}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                placeholder="Ex: CRF 12345"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-4 pt-4 border-t">
+        {loading ? (
+          <div className="text-center py-8">Carregando profissionais...</div>
+        ) : profissionais.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-2">Nenhum profissional cadastrado</p>
+            <p className="text-sm mb-4">Comece adicionando seu primeiro profissional</p>
             <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
+              onClick={() => setShowForm(true)}
+              className="px-6 py-3 rounded-md text-white hover:opacity-90"
               style={{ backgroundColor: loja.cor_primaria }}
             >
-              {loading ? 'Cadastrando...' : 'Cadastrar Profissional'}
+              + Cadastrar Primeiro Profissional
             </button>
           </div>
-        </form>
+        ) : (
+          <div className="space-y-4 mb-6">
+            {profissionais.map((profissional) => (
+              <div key={profissional.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3">
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: loja.cor_primaria }}
+                    >
+                      {profissional.nome.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-lg">{profissional.nome}</p>
+                      <p className="text-sm text-gray-600">{profissional.especialidade}</p>
+                      <p className="text-xs text-gray-500">{profissional.email} • {profissional.telefone}</p>
+                      {profissional.registro_profissional && (
+                        <p className="text-xs text-gray-500">Registro: {profissional.registro_profissional}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleEdit(profissional)}
+                    className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(profissional)}
+                    className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600"
+                  >
+                    🗑️ Excluir
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end space-x-4">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Fechar
+          </button>
+          {profissionais.length > 0 && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-6 py-2 text-white rounded-md hover:opacity-90"
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              + Novo Profissional
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1962,6 +2232,7 @@ function ModalProcedimentos({
   const [procedimentos, setProcedimentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingProcedimento, setEditingProcedimento] = useState<any>(null);
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
@@ -1995,6 +2266,44 @@ function ModalProcedimentos({
     }
   };
 
+  const handleEdit = (procedimento: any) => {
+    setEditingProcedimento(procedimento);
+    setFormData({
+      nome: procedimento.nome || '',
+      descricao: procedimento.descricao || '',
+      duracao: procedimento.duracao?.toString() || '',
+      preco: procedimento.preco || '',
+      categoria: procedimento.categoria || ''
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (procedimento: any) => {
+    if (!confirm(`Tem certeza que deseja excluir o procedimento ${procedimento.nome}?`)) return;
+    
+    try {
+      await apiClient.delete(`/clinica/procedimentos/${procedimento.id}/`);
+      alert('✅ Procedimento excluído com sucesso!');
+      loadProcedimentos();
+      onSuccess();
+    } catch (error) {
+      console.error('Erro ao excluir procedimento:', error);
+      alert('❌ Erro ao excluir procedimento');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nome: '',
+      descricao: '',
+      duracao: '',
+      preco: '',
+      categoria: ''
+    });
+    setEditingProcedimento(null);
+    setShowForm(false);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -2004,21 +2313,19 @@ function ModalProcedimentos({
     setSubmitting(true);
     
     try {
-      await apiClient.post('/clinica/procedimentos/', formData);
-      alert('✅ Procedimento cadastrado com sucesso!');
+      if (editingProcedimento) {
+        await apiClient.put(`/clinica/procedimentos/${editingProcedimento.id}/`, formData);
+        alert('✅ Procedimento atualizado com sucesso!');
+      } else {
+        await apiClient.post('/clinica/procedimentos/', formData);
+        alert('✅ Procedimento cadastrado com sucesso!');
+      }
       loadProcedimentos();
       onSuccess();
-      setShowForm(false);
-      setFormData({
-        nome: '',
-        descricao: '',
-        duracao: '',
-        preco: '',
-        categoria: ''
-      });
+      resetForm();
     } catch (error) {
-      console.error('Erro ao cadastrar procedimento:', error);
-      alert('❌ Erro ao cadastrar procedimento');
+      console.error('Erro ao salvar procedimento:', error);
+      alert('❌ Erro ao salvar procedimento');
     } finally {
       setSubmitting(false);
     }
@@ -2029,7 +2336,7 @@ function ModalProcedimentos({
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-            💆 Novo Procedimento
+            💆 {editingProcedimento ? 'Editar Procedimento' : 'Novo Procedimento'}
           </h3>
           
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -2119,7 +2426,7 @@ function ModalProcedimentos({
             <div className="flex justify-end space-x-4 pt-4 border-t">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
                 disabled={submitting}
                 className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
               >
@@ -2131,7 +2438,7 @@ function ModalProcedimentos({
                 className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: loja.cor_primaria }}
               >
-                {submitting ? 'Cadastrando...' : 'Cadastrar Procedimento'}
+                {submitting ? 'Salvando...' : (editingProcedimento ? 'Atualizar' : 'Cadastrar')}
               </button>
             </div>
           </form>
@@ -2142,9 +2449,9 @@ function ModalProcedimentos({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
         <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>
-          💆 Procedimentos Disponíveis
+          💆 Gerenciar Procedimentos
         </h3>
         
         {loading ? (
@@ -2166,12 +2473,28 @@ function ModalProcedimentos({
             {procedimentos.map((proc) => (
               <div key={proc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                 <div className="flex-1">
-                  <p className="font-semibold">{proc.nome}</p>
+                  <p className="font-semibold text-lg">{proc.nome}</p>
                   <p className="text-sm text-gray-600">{proc.duracao} min • {proc.categoria}</p>
                   <p className="text-sm text-gray-700">{proc.descricao}</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold" style={{ color: loja.cor_primaria }}>R$ {proc.preco}</p>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <p className="font-bold text-lg" style={{ color: loja.cor_primaria }}>R$ {proc.preco}</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(proc)}
+                      className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(proc)}
+                      className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600"
+                    >
+                      🗑️ Excluir
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

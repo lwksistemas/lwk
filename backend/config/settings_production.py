@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 # MIDDLEWARE
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'superadmin.middleware.SuperAdminSecurityMiddleware',  # SEGURANÇA CRÍTICA
     'tenants.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',

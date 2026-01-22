@@ -18,10 +18,28 @@ from .serializers import (
     LojaCreateSerializer
 )
 
-class IsSuperAdmin(permissions.BasePermission):
-    """Permissão apenas para super admins"""
+class IsOwnerOrSuperAdmin(permissions.BasePermission):
+    """Permissão para proprietário da loja ou super admin"""
     def has_permission(self, request, view):
-        return request.user and request.user.is_superuser
+        if request.user and request.user.is_superuser:
+            return True
+        
+        # Para usuários de loja, verificar se é o proprietário
+        if request.user and request.user.is_authenticated:
+            try:
+                usuario_sistema = UsuarioSistema.objects.get(user=request.user)
+                # Permitir apenas se for o proprietário da loja específica
+                return usuario_sistema.is_active
+            except UsuarioSistema.DoesNotExist:
+                return False
+        
+        return False
+
+
+class IsSuperAdmin(permissions.BasePermission):
+    """Permissão APENAS para super admins - SEGURANÇA CRÍTICA"""
+    def has_permission(self, request, view):
+        return request.user and request.user.is_superuser and request.user.is_active
 
 
 class TipoLojaViewSet(viewsets.ModelViewSet):
@@ -85,7 +103,7 @@ class LojaViewSet(viewsets.ModelViewSet):
         
         return queryset
     
-    @action(detail=False, methods=['get'], permission_classes=[], authentication_classes=[])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], authentication_classes=[])
     def info_publica(self, request):
         """Retorna informações públicas da loja para página de login (sem autenticação)"""
         slug = request.query_params.get('slug')
@@ -106,9 +124,9 @@ class LojaViewSet(viewsets.ModelViewSet):
         except Loja.DoesNotExist:
             return Response({'error': 'Loja não encontrada'}, status=404)
     
-    @action(detail=False, methods=['get'], permission_classes=[], authentication_classes=[])
+    @action(detail=False, methods=['get'], permission_classes=[IsSuperAdmin])
     def debug_auth(self, request):
-        """Debug endpoint para verificar autenticação"""
+        """Debug endpoint para verificar autenticação - APENAS SUPERADMIN"""
         return Response({
             'authenticated': request.user.is_authenticated if hasattr(request, 'user') else False,
             'user': str(request.user) if hasattr(request, 'user') and request.user.is_authenticated else 'Anonymous',
@@ -119,9 +137,9 @@ class LojaViewSet(viewsets.ModelViewSet):
             'permissions_checked': True
         })
     
-    @action(detail=False, methods=['get'], permission_classes=[])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def verificar_senha_provisoria(self, request):
-        """Verifica se o usuário logado precisa trocar a senha provisória (sem autenticação necessária)"""
+        """Verifica se o usuário logado precisa trocar a senha provisória (público para login)"""
         # Se não estiver autenticado, retornar False
         if not request.user or not request.user.is_authenticated:
             return Response({
@@ -145,9 +163,9 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'mensagem': 'Usuário não possui loja associada'
             })
     
-    @action(detail=True, methods=['post'], permission_classes=[])
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def alterar_senha_primeiro_acesso(self, request, pk=None):
-        """Permite ao proprietário alterar a senha no primeiro acesso (sem restrição de SuperAdmin)"""
+        """Permite ao proprietário alterar a senha no primeiro acesso (apenas proprietário ou superadmin)"""
         # Verificar se está autenticado
         if not request.user or not request.user.is_authenticated:
             return Response(
@@ -566,9 +584,9 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(suporte, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'], permission_classes=[])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def verificar_senha_provisoria(self, request):
-        """Verifica se o usuário logado precisa trocar a senha provisória"""
+        """Verifica se o usuário logado precisa trocar a senha provisória (público para login)"""
         # Se não estiver autenticado, retornar False
         if not request.user or not request.user.is_authenticated:
             return Response({
@@ -592,9 +610,9 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
                 'mensagem': 'Usuário não possui perfil de sistema'
             })
     
-    @action(detail=False, methods=['post'], permission_classes=[])
+    @action(detail=False, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def alterar_senha_primeiro_acesso(self, request):
-        """Permite ao usuário alterar a senha no primeiro acesso"""
+        """Permite ao usuário alterar a senha no primeiro acesso (apenas proprietário ou superadmin)"""
         # Verificar se está autenticado
         if not request.user or not request.user.is_authenticated:
             return Response(
@@ -653,9 +671,9 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             'tipo': usuario_sistema.get_tipo_display()
         })
     
-    @action(detail=False, methods=['post'], permission_classes=[])
+    @action(detail=False, methods=['post'], permission_classes=[IsSuperAdmin])
     def recuperar_senha(self, request):
-        """Recuperar senha de usuário do sistema (SuperAdmin ou Suporte)"""
+        """Recuperar senha de usuário do sistema (APENAS SuperAdmin)"""
         email = request.data.get('email')
         tipo = request.data.get('tipo')  # 'superadmin' ou 'suporte'
         

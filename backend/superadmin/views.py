@@ -389,10 +389,17 @@ class LojaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def reenviar_senha(self, request, pk=None):
-        """Reenviar senha provisória por email"""
+        """Reenviar senha provisória por email (apenas proprietário ou superadmin)"""
         loja = self.get_object()
+        
+        # Verificar se o usuário é o proprietário (superadmin já passou pela permissão)
+        if not request.user.is_superuser and request.user != loja.owner:
+            return Response(
+                {'error': 'Apenas o proprietário pode reenviar a senha'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         if not loja.senha_provisoria:
             return Response(

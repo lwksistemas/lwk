@@ -55,16 +55,18 @@ class SuperAdminSecurityMiddleware:
     def __call__(self, request):
         # Verificar se é uma rota do superadmin
         if request.path.startswith('/api/superadmin/'):
-            # Permitir apenas endpoints públicos específicos
+            # Permitir apenas endpoints públicos específicos (sem autenticação)
             public_endpoints = [
                 '/api/superadmin/lojas/info_publica/',
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
             ]
             
-            # Endpoints que proprietários de lojas podem acessar (verificação adicional será feita na view)
+            # Endpoints que proprietários de lojas podem acessar (com autenticação)
+            # Esses endpoints têm verificação adicional na view para garantir que o usuário é o proprietário
             owner_allowed_patterns = [
-                '/alterar_senha_primeiro_acesso/',
-                '/reenviar_senha/',
+                '/alterar_senha_primeiro_acesso/',  # Trocar senha provisória
+                '/reenviar_senha/',                  # Reenviar senha por email
+                '/financeiro/',                      # Dados financeiros da própria loja
             ]
             
             is_public = any(request.path.startswith(endpoint) for endpoint in public_endpoints)
@@ -81,7 +83,8 @@ class SuperAdminSecurityMiddleware:
                 
                 # Se é um endpoint permitido para owners, deixar a view fazer a verificação específica
                 if is_owner_allowed:
-                    # A view IsOwnerOrSuperAdmin fará a verificação de permissão
+                    # A view fará a verificação de permissão (IsOwnerOrSuperAdmin ou verificação manual)
+                    logger.info(f"Acesso de proprietário permitido: {request.user.username} -> {request.path}")
                     pass
                 
                 # Permitir acesso a dados financeiros da própria loja para administradores

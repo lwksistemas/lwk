@@ -478,11 +478,19 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
     setSubmitting(true);
     
     try {
+      // Limpar campos vazios (converter strings vazias para null)
+      const cleanedData = Object.fromEntries(
+        Object.entries(formData).map(([key, value]) => [
+          key, 
+          value === '' ? null : value
+        ])
+      );
+
       if (editingProtocolo) {
-        await apiClient.put(`/clinica/protocolos/${editingProtocolo.id}/`, formData);
+        await apiClient.put(`/clinica/protocolos/${editingProtocolo.id}/`, cleanedData);
         alert('✅ Protocolo atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/protocolos/', formData);
+        await apiClient.post('/clinica/protocolos/', cleanedData);
         alert('✅ Protocolo criado com sucesso!');
       }
       loadProtocolos();
@@ -971,9 +979,9 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
     
     try {
       const templateData = {
-        nome: formData.nome,
-        procedimento: formData.procedimento,
-        descricao: formData.descricao,
+        nome: formData.nome || null,
+        procedimento: formData.procedimento || null,
+        descricao: formData.descricao || null,
         perguntas: JSON.stringify(formData.perguntas)
       };
       
@@ -1385,7 +1393,15 @@ function ModalNovoAgendamento({
     setLoading(true);
 
     try {
-      await apiClient.post('/clinica/agendamentos/', formData);
+      // Limpar campos vazios (converter strings vazias para null)
+      const cleanedData = Object.fromEntries(
+        Object.entries(formData).map(([key, value]) => [
+          key, 
+          value === '' ? null : value
+        ])
+      );
+
+      await apiClient.post('/clinica/agendamentos/', cleanedData);
       alert('✅ Agendamento criado com sucesso!');
       onSuccess();
       onClose();
@@ -2016,11 +2032,19 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
     setSubmitting(true);
 
     try {
+      // Limpar campos vazios (converter strings vazias para null)
+      const cleanedData = Object.fromEntries(
+        Object.entries(formData).map(([key, value]) => [
+          key, 
+          value === '' ? null : value
+        ])
+      );
+
       if (editingProfissional) {
-        await apiClient.put(`/clinica/profissionais/${editingProfissional.id}/`, formData);
+        await apiClient.put(`/clinica/profissionais/${editingProfissional.id}/`, cleanedData);
         alert('✅ Profissional atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/profissionais/', formData);
+        await apiClient.post('/clinica/profissionais/', cleanedData);
         alert('✅ Profissional cadastrado com sucesso!');
       }
       loadProfissionais();
@@ -2323,11 +2347,19 @@ function ModalProcedimentos({
     setSubmitting(true);
     
     try {
+      // Limpar campos vazios (converter strings vazias para null)
+      const cleanedData = Object.fromEntries(
+        Object.entries(formData).map(([key, value]) => [
+          key, 
+          value === '' ? null : value
+        ])
+      );
+
       if (editingProcedimento) {
-        await apiClient.put(`/clinica/procedimentos/${editingProcedimento.id}/`, formData);
+        await apiClient.put(`/clinica/procedimentos/${editingProcedimento.id}/`, cleanedData);
         alert('✅ Procedimento atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/procedimentos/', formData);
+        await apiClient.post('/clinica/procedimentos/', cleanedData);
         alert('✅ Procedimento cadastrado com sucesso!');
       }
       loadProcedimentos();

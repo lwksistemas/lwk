@@ -1887,14 +1887,8 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
     nome: '',
     email: '',
     telefone: '',
-    cpf: '',
     especialidade: '',
-    registro_profissional: '',
-    data_admissao: '',
-    horario_inicio: '',
-    horario_fim: '',
-    dias_trabalho: [] as string[],
-    observacoes: ''
+    registro_profissional: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -1908,29 +1902,10 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
     'Outro'
   ];
 
-  const diasSemana = [
-    { value: 'seg', label: 'Segunda' },
-    { value: 'ter', label: 'Terça' },
-    { value: 'qua', label: 'Quarta' },
-    { value: 'qui', label: 'Quinta' },
-    { value: 'sex', label: 'Sexta' },
-    { value: 'sab', label: 'Sábado' },
-    { value: 'dom', label: 'Domingo' }
-  ];
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
-    }));
-  };
-
-  const handleDiaToggle = (dia: string) => {
-    setFormData(prev => ({
-      ...prev,
-      dias_trabalho: prev.dias_trabalho.includes(dia)
-        ? prev.dias_trabalho.filter(d => d !== dia)
-        : [...prev.dias_trabalho, dia]
     }));
   };
 
@@ -1952,194 +1927,89 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
           👨‍⚕️ Novo Profissional
         </h3>
         
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Dados Pessoais */}
-          <div>
-            <h4 className="text-lg font-semibold mb-3 text-gray-700">Dados Pessoais</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome Completo *
-                </label>
-                <input
-                  type="text"
-                  name="nome"
-                  value={formData.nome}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                  placeholder="Ex: Dr. João Silva"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                  placeholder="email@exemplo.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Telefone *
-                </label>
-                <input
-                  type="tel"
-                  name="telefone"
-                  value={formData.telefone}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  CPF *
-                </label>
-                <input
-                  type="text"
-                  name="cpf"
-                  value={formData.cpf}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                  placeholder="000.000.000-00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Especialidade *
-                </label>
-                <select
-                  name="especialidade"
-                  value={formData.especialidade}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                >
-                  <option value="">Selecione...</option>
-                  {especialidades.map(esp => (
-                    <option key={esp} value={esp}>{esp}</option>
-                  ))}
-                </select>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nome Completo *
+              </label>
+              <input
+                type="text"
+                name="nome"
+                value={formData.nome}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                placeholder="Ex: Dr. João Silva"
+              />
             </div>
-          </div>
 
-          {/* Dados Profissionais */}
-          <div>
-            <h4 className="text-lg font-semibold mb-3 text-gray-700">Dados Profissionais</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Registro Profissional
-                </label>
-                <input
-                  type="text"
-                  name="registro_profissional"
-                  value={formData.registro_profissional}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                  placeholder="Ex: CRF 12345"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data de Admissão *
-                </label>
-                <input
-                  type="date"
-                  name="data_admissao"
-                  value={formData.data_admissao}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Horário Início *
-                </label>
-                <input
-                  type="time"
-                  name="horario_inicio"
-                  value={formData.horario_inicio}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Horário Fim *
-                </label>
-                <input
-                  type="time"
-                  name="horario_fim"
-                  value={formData.horario_fim}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dias de Trabalho *
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {diasSemana.map(dia => (
-                    <button
-                      key={dia.value}
-                      type="button"
-                      onClick={() => handleDiaToggle(dia.value)}
-                      className={`px-4 py-2 rounded-md border transition-colors ${
-                        formData.dias_trabalho.includes(dia.value)
-                          ? 'text-white border-transparent'
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                      style={formData.dias_trabalho.includes(dia.value) ? { backgroundColor: loja.cor_primaria } : {}}
-                    >
-                      {dia.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email *
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                placeholder="email@exemplo.com"
+              />
             </div>
-          </div>
 
-          {/* Observações */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Observações
-            </label>
-            <textarea
-              name="observacoes"
-              value={formData.observacoes}
-              onChange={handleChange}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-              placeholder="Informações adicionais sobre o profissional..."
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telefone *
+              </label>
+              <input
+                type="tel"
+                name="telefone"
+                value={formData.telefone}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Especialidade *
+              </label>
+              <select
+                name="especialidade"
+                value={formData.especialidade}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+              >
+                <option value="">Selecione...</option>
+                {especialidades.map(esp => (
+                  <option key={esp} value={esp}>{esp}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Registro Profissional
+              </label>
+              <input
+                type="text"
+                name="registro_profissional"
+                value={formData.registro_profissional}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                placeholder="Ex: CRF 12345"
+              />
+            </div>
           </div>
 
           <div className="flex justify-end space-x-4 pt-4 border-t">

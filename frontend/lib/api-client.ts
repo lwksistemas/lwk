@@ -12,9 +12,12 @@ export const apiClient = axios.create({
 // Request interceptor - adiciona token JWT
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Não enviar token para APIs da clínica (elas usam AllowAny)
+    if (!config.url?.includes('/clinica/')) {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     console.log('API Request:', config.method?.toUpperCase(), config.url, config.data);
     return config;

@@ -1694,6 +1694,8 @@ function ModalNovoCliente({
         })
       );
 
+      console.log('Dados sendo enviados:', cleanedData);
+
       if (editingCliente) {
         await apiClient.put(`/clinica/clientes/${editingCliente.id}/`, cleanedData);
         alert('✅ Cliente atualizado com sucesso!');
@@ -1706,6 +1708,7 @@ function ModalNovoCliente({
       resetForm();
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
+      console.error('Dados que causaram erro:', formData);
       alert('❌ Erro ao salvar cliente');
     } finally {
       setSubmitting(false);

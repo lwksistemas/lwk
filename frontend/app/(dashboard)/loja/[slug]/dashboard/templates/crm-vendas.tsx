@@ -712,7 +712,7 @@ function ModalNovoProduto({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
 }
 
 
-// Modal Pipeline de Vendas (Tela Cheia - Independente)
+// Modal Pipeline de Vendas (Modal Normal - Não Tela Cheia)
 function ModalPipeline({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
   const etapas = [
     { nome: 'Novo Lead', quantidade: 0, valor: 0, cor: '#3B82F6' },
@@ -725,153 +725,153 @@ function ModalPipeline({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
   const totalLeads = etapas.reduce((acc, e) => acc + e.quantidade, 0);
   const totalValor = etapas.reduce((acc, e) => acc + e.valor, 0);
-  const taxaConversao = ((etapas[etapas.length - 1].quantidade / etapas[0].quantidade) * 100).toFixed(1);
+  const taxaConversao = totalLeads > 0 ? ((etapas[etapas.length - 1].quantidade / etapas[0].quantidade) * 100).toFixed(1) : '0.0';
 
   return (
-    <div className="fixed inset-0 bg-gray-900 z-50 overflow-y-auto">
-      {/* Header Fixo */}
-      <div className="sticky top-0 z-10 text-white shadow-lg" style={{ backgroundColor: loja.cor_primaria }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold">🔄 Pipeline de Vendas</h3>
-            <button onClick={onClose} className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Conteúdo */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Cards de Resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl shadow-lg text-white">
-            <p className="text-sm font-medium opacity-90">Total de Leads</p>
-            <p className="text-4xl font-bold mt-2">{totalLeads}</p>
-            <p className="text-sm mt-1 opacity-75">no funil de vendas</p>
-          </div>
-          <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-xl shadow-lg text-white">
-            <p className="text-sm font-medium opacity-90">Valor Total</p>
-            <p className="text-4xl font-bold mt-2">R$ {totalValor.toLocaleString('pt-BR')}</p>
-            <p className="text-sm mt-1 opacity-75">em negociações</p>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl shadow-lg text-white">
-            <p className="text-sm font-medium opacity-90">Taxa de Conversão</p>
-            <p className="text-4xl font-bold mt-2">{taxaConversao}%</p>
-            <p className="text-sm mt-1 opacity-75">do início ao fim</p>
-          </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-10 text-white p-4 rounded-t-lg flex items-center justify-between" style={{ backgroundColor: loja.cor_primaria }}>
+          <h3 className="text-xl font-bold">🔄 Pipeline de Vendas</h3>
+          <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        {/* Funil Visual */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <h4 className="text-2xl font-bold mb-6 text-gray-800">Funil de Vendas</h4>
-          <div className="space-y-4">
-            {etapas.map((etapa, index) => {
-              const larguraBase = 100;
-              const reducao = (index * 10);
-              const largura = larguraBase - reducao;
-              
-              return (
-                <div key={etapa.nome} className="flex items-center space-x-6">
-                  <div className="w-40 text-right">
-                    <p className="text-base font-semibold text-gray-700">{etapa.nome}</p>
-                  </div>
-                  <div className="flex-1">
-                    <div 
-                      className="relative rounded-xl p-6 transition-all hover:scale-105 cursor-pointer shadow-lg"
-                      style={{ 
-                        backgroundColor: etapa.cor,
-                        width: `${largura}%`,
-                        marginLeft: `${reducao / 2}%`
-                      }}
-                    >
-                      <div className="flex items-center justify-between text-white">
-                        <div>
-                          <p className="font-bold text-2xl">{etapa.quantidade} leads</p>
-                          <p className="text-base mt-1 opacity-90">R$ {etapa.valor.toLocaleString('pt-BR')}</p>
-                        </div>
-                        <div className="text-4xl">
-                          {index === 0 && '🎯'}
-                          {index === 1 && '📞'}
-                          {index === 2 && '✅'}
-                          {index === 3 && '📄'}
-                          {index === 4 && '🤝'}
-                          {index === 5 && '🎉'}
+        {/* Conteúdo */}
+        <div className="p-6">
+          {/* Cards de Resumo */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-lg shadow text-white">
+              <p className="text-xs font-medium opacity-90">Total de Leads</p>
+              <p className="text-2xl font-bold mt-1">{totalLeads}</p>
+              <p className="text-xs mt-1 opacity-75">no funil de vendas</p>
+            </div>
+            <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 rounded-lg shadow text-white">
+              <p className="text-xs font-medium opacity-90">Valor Total</p>
+              <p className="text-2xl font-bold mt-1">R$ {totalValor.toLocaleString('pt-BR')}</p>
+              <p className="text-xs mt-1 opacity-75">em negociações</p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-lg shadow text-white">
+              <p className="text-xs font-medium opacity-90">Taxa de Conversão</p>
+              <p className="text-2xl font-bold mt-1">{taxaConversao}%</p>
+              <p className="text-xs mt-1 opacity-75">do início ao fim</p>
+            </div>
+          </div>
+
+          {/* Funil Visual Compacto */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <h4 className="text-lg font-bold mb-4 text-gray-800">Funil de Vendas</h4>
+            <div className="space-y-2">
+              {etapas.map((etapa, index) => {
+                const larguraBase = 100;
+                const reducao = (index * 12);
+                const largura = larguraBase - reducao;
+                
+                return (
+                  <div key={etapa.nome} className="flex items-center space-x-3">
+                    <div className="w-32 text-right flex-shrink-0">
+                      <p className="text-sm font-semibold text-gray-700">{etapa.nome}</p>
+                    </div>
+                    <div className="flex-1">
+                      <div 
+                        className="relative rounded-lg p-3 transition-all hover:scale-105 cursor-pointer shadow"
+                        style={{ 
+                          backgroundColor: etapa.cor,
+                          width: `${largura}%`,
+                          marginLeft: `${reducao / 2}%`
+                        }}
+                      >
+                        <div className="flex items-center justify-between text-white">
+                          <div>
+                            <p className="font-bold text-sm">{etapa.quantidade} leads</p>
+                            <p className="text-xs opacity-90">R$ {etapa.valor.toLocaleString('pt-BR')}</p>
+                          </div>
+                          <div className="text-xl">
+                            {index === 0 && '🎯'}
+                            {index === 1 && '📞'}
+                            {index === 2 && '✅'}
+                            {index === 3 && '📄'}
+                            {index === 4 && '🤝'}
+                            {index === 5 && '🎉'}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Tabela Detalhada */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <h4 className="text-2xl font-bold mb-6 text-gray-800">Detalhamento por Etapa</h4>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase">Etapa</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase">Leads</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase">Valor Total</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase">Ticket Médio</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase">Taxa Conversão</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {etapas.map((etapa, index) => {
-                  const ticketMedio = etapa.valor / etapa.quantidade;
-                  const conversao = index > 0 ? ((etapa.quantidade / etapas[index - 1].quantidade) * 100).toFixed(1) : '-';
-                  
-                  return (
-                    <tr key={etapa.nome} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-4 h-4 rounded-full mr-3" style={{ backgroundColor: etapa.cor }}></div>
-                          <span className="font-semibold text-gray-900 text-base">{etapa.nome}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 text-base font-medium">{etapa.quantidade}</td>
-                      <td className="px-6 py-4 whitespace-nowrap font-bold text-base" style={{ color: etapa.cor }}>
-                        R$ {etapa.valor.toLocaleString('pt-BR')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 text-base">
-                        R$ {ticketMedio.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {conversao !== '-' ? (
-                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            parseFloat(conversao) >= 70 ? 'bg-green-100 text-green-800' :
-                            parseFloat(conversao) >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {conversao}%
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 text-base">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Tabela Compacta */}
+          <div className="bg-white rounded-lg border">
+            <h4 className="text-lg font-bold p-4 border-b text-gray-800">Detalhamento por Etapa</h4>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Etapa</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Leads</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Valor Total</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Ticket Médio</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Conversão</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {etapas.map((etapa, index) => {
+                    const ticketMedio = etapa.quantidade > 0 ? etapa.valor / etapa.quantidade : 0;
+                    const conversao = index > 0 && etapas[index - 1].quantidade > 0 
+                      ? ((etapa.quantidade / etapas[index - 1].quantidade) * 100).toFixed(1) 
+                      : '-';
+                    
+                    return (
+                      <tr key={etapa.nome} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: etapa.cor }}></div>
+                            <span className="font-semibold text-gray-900 text-sm">{etapa.nome}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-gray-700 text-sm font-medium">{etapa.quantidade}</td>
+                        <td className="px-4 py-2 whitespace-nowrap font-bold text-sm" style={{ color: etapa.cor }}>
+                          R$ {etapa.valor.toLocaleString('pt-BR')}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-gray-700 text-sm">
+                          R$ {ticketMedio.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          {conversao !== '-' ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              parseFloat(conversao) >= 70 ? 'bg-green-100 text-green-800' :
+                              parseFloat(conversao) >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {conversao}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        {/* Botão Fechar */}
-        <div className="flex justify-center mt-8">
-          <button
-            onClick={onClose}
-            className="px-8 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-lg font-semibold shadow-lg"
-          >
-            Fechar Pipeline
-          </button>
+          {/* Botão Fechar */}
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
         </div>
       </div>
     </div>

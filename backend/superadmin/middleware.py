@@ -27,8 +27,8 @@ class SuperAdminSecurityMiddleware:
             is_public = any(request.path.startswith(endpoint) for endpoint in public_endpoints)
             
             if not is_public:
-                # Verificar se o usuário é superuser
-                if not request.user.is_authenticated:
+                # Verificar se o usuário existe e está autenticado
+                if not hasattr(request, 'user') or not request.user.is_authenticated:
                     logger.warning(f"Tentativa de acesso não autenticado ao superadmin: {request.path}")
                     return JsonResponse({
                         'error': 'Autenticação necessária',

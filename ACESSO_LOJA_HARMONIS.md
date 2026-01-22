@@ -1,83 +1,92 @@
-# 🔐 Dados de Acesso - Loja Harmonis
+# 🔧 PROBLEMA DE ACESSO À LOJA HARMONIS
 
-## ✅ Loja Criada com Sucesso!
+## 🚨 PROBLEMA IDENTIFICADO
+As lojas do tipo "Clínica de Estética" não estão sendo encontradas na produção (Heroku), retornando erro 404.
 
-### 📋 Informações da Loja
-- **Nome**: Harmonis
-- **Tipo**: Clínica de Estética
-- **Plano**: Estética Premium
-- **Assinatura**: Mensal
-- **Status**: Ativa (Trial)
+## 📊 STATUS ATUAL
 
-### 🔐 Dados de Acesso
+### Lojas Locais (Funcionando):
+- ✅ **harmonis** - Clínica de Estética
+- ✅ **clinica-teste** - Clínica de Estética  
+- ✅ **felix** - CRM Vendas
 
-**URL de Login**: http://localhost:3000/loja/harmonis/login
+### Lojas Produção (Heroku):
+- ❌ **harmonis** - Não encontrada (404)
+- ❌ **clinica-teste** - Não encontrada (404)
+- ✅ **felix** - Funcionando (CRM Vendas)
 
-**Usuário**: Luiz Henrique Felix
+## 🔍 DIAGNÓSTICO
 
-**Senha Provisória**: `soXLw#6q`
+### API Local (Funcionando):
+```bash
+curl "http://localhost:8000/api/superadmin/lojas/info_publica/?slug=harmonis"
+# Retorna: 200 OK com dados da loja
+```
 
-**Email**: consultorluizfelix@hotmail.com
+### API Produção (Erro):
+```bash
+curl "https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/lojas/info_publica/?slug=harmonis"
+# Retorna: 404 Not Found
+```
 
-### ✅ Status do Sistema
+## 🎯 CAUSA PROVÁVEL
+As lojas do tipo "Clínica de Estética" foram criadas apenas localmente e não existem no banco de dados de produção no Heroku.
 
-- ✅ Loja criada no banco superadmin
-- ✅ Banco isolado criado (`db_loja_harmonis.sqlite3`)
-- ✅ Usuário admin criado no banco isolado
-- ✅ Email enviado com credenciais
-- ✅ Senha provisória salva no sistema
+## 🔧 SOLUÇÕES
 
-### 🎯 Próximos Passos
+### Opção 1: Usar Loja Felix (Imediata)
+- **Loja**: felix (CRM Vendas)
+- **URL**: https://lwksistemas.com.br/loja/felix/dashboard
+- **Login**: Daniel Souza Felix / e82R!Tkp
+- **Problema**: Não é do tipo "Clínica de Estética"
 
-1. **Acessar a loja**
-   - Abra: http://localhost:3000/loja/harmonis/login
-   - Use o usuário e senha acima
+### Opção 2: Criar Loja via Superadmin (Recomendada)
+1. Acesse: https://lwksistemas.com.br/superadmin/login
+2. Login: superadmin / super123
+3. Vá em "Gerenciar Lojas" → "Nova Loja"
+4. Selecione tipo: "Clínica de Estética"
+5. Preencha dados:
+   - Nome: "Clínica Teste"
+   - Slug: "clinica-teste"
+   - Email: teste@clinica.com
+   - Telefone: (11) 99999-9999
 
-2. **Primeiro Login**
-   - O sistema detectará que é o primeiro acesso
-   - Você será redirecionado para trocar a senha
-   - Defina uma nova senha segura
+### Opção 3: Migrar Loja Felix (Temporária)
+Alterar temporariamente o tipo da loja Felix para "Clínica de Estética" para testar os botões.
 
-3. **Após Trocar a Senha**
-   - Você terá acesso ao dashboard da loja
-   - Poderá configurar produtos, serviços, etc.
-   - A senha provisória não funcionará mais
+## 🧪 TESTE DOS BOTÕES
 
-### ⚠️ Importante
+### Após Criar/Acessar Loja Clínica:
+1. **Acesse**: https://lwksistemas.com.br/loja/[slug]/dashboard
+2. **Abra Console**: F12 → Console
+3. **Teste Botões**:
+   - 📋 Protocolos
+   - 📊 Evolução  
+   - 📝 Anamnese
+4. **Verifique Logs**:
+   ```
+   Clicou em Protocolos - Estado atual: false
+   Estado após setShowModalProtocolos(true)
+   Modal Protocolos renderizado
+   ```
 
-- Esta é uma senha provisória gerada automaticamente
-- Recomendamos alterar no primeiro acesso
-- Mantenha seus dados de acesso em segurança
-- O email foi enviado para: consultorluizfelix@hotmail.com
+## 📝 PRÓXIMOS PASSOS
 
-### 📧 Email Enviado
+### Imediato:
+1. **Criar loja** via superadmin interface
+2. **Testar botões** no dashboard da nova loja
+3. **Verificar logs** no console do navegador
 
-O email com as credenciais foi enviado com sucesso para **consultorluizfelix@hotmail.com**.
+### Após Teste:
+1. Se botões funcionarem → Remover logs e implementar modais completos
+2. Se botões não funcionarem → Investigar problemas de JavaScript/CSS
 
-Verifique sua caixa de entrada (ou spam) para o email com assunto:
-**"Acesso à sua loja Harmonis - Senha Provisória"**
+## 🔗 LINKS ÚTEIS
 
-### 🔧 Informações Técnicas
-
-- **Database Name**: loja_harmonis
-- **Database File**: db_loja_harmonis.sqlite3
-- **Login URL**: /loja/harmonis/login
-- **Slug**: harmonis
-- **Database Created**: ✅ Sim
-- **Senha Foi Alterada**: ❌ Não (primeiro acesso)
-
-### 🧪 Testar Agora
-
-1. Abra uma aba anônima no navegador
-2. Acesse: http://localhost:3000/loja/harmonis/login
-3. Faça login com:
-   - Usuário: `Luiz Henrique Felix`
-   - Senha: `soXLw#6q`
-4. Você será redirecionado para trocar a senha
-5. Defina uma nova senha
-6. Acesse o dashboard da loja
+- **Superadmin**: https://lwksistemas.com.br/superadmin/login
+- **Loja Felix**: https://lwksistemas.com.br/loja/felix/dashboard
+- **API Debug**: https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/lojas/info_publica/?slug=felix
 
 ---
 
-**Data de Criação**: 16 de Janeiro de 2026
-**Status**: ✅ PRONTO PARA USO
+**⚠️ IMPORTANTE**: Crie uma nova loja do tipo "Clínica de Estética" via interface do superadmin para testar os novos recursos!

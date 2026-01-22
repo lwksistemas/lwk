@@ -42,15 +42,16 @@ def atualizar_template_clinica():
 • 👨‍⚕️ Profissional (Vermelho) - Equipe médica
 • 💆 Procedimentos (Ciano) - Tratamentos disponíveis
 • 📋 Protocolos (Marrom) - Protocolos padronizados
-• 📊 Evolução (Vermelho escuro) - Acompanhamento do paciente
 • 📝 Anamnese (Roxo escuro) - Histórico médico
+• ⚙️ Configurações (Cinza) - Boletos e assinatura da loja
 • 📈 Relatórios (Verde escuro) - Análises e estatísticas
 
 ✨ RECURSOS AVANÇADOS:
-• Sistema completo de consultas com evolução do paciente
+• Sistema completo de consultas com evolução integrada
 • Calendário interativo com visualização por dia/semana/mês
 • Protocolos de procedimentos estéticos
 • Anamnese digital personalizada
+• Configurações financeiras com acesso a boletos e PIX
 • Dashboard responsivo e intuitivo
 • Interface otimizada para clínicas de estética
 
@@ -59,7 +60,13 @@ def atualizar_template_clinica():
 • Cores específicas para cada funcionalidade
 • Sombras e animações suaves
 • Layout responsivo para todos os dispositivos
-• Legenda explicativa das cores
+• Legenda explicativa das cores e funcionalidades
+
+💰 GESTÃO FINANCEIRA:
+• Acesso direto aos boletos de pagamento
+• Visualização de dados da assinatura
+• Informações sobre próximos vencimentos
+• Estatísticas de pagamentos realizados
 
 Este template é automaticamente aplicado a todas as novas lojas do tipo 'Clínica de Estética'."""
         
@@ -96,14 +103,18 @@ def criar_documentacao_cores():
         "Profissional": {"cor": "#EF4444", "nome": "Vermelho", "emoji": "👨‍⚕️"},
         "Procedimentos": {"cor": "#06B6D4", "nome": "Ciano", "emoji": "💆"},
         "Protocolos": {"cor": "#8B5A2B", "nome": "Marrom", "emoji": "📋"},
-        "Evolução": {"cor": "#DC2626", "nome": "Vermelho escuro", "emoji": "📊"},
         "Anamnese": {"cor": "#7C3AED", "nome": "Roxo escuro", "emoji": "📝"},
+        "Configurações": {"cor": "#6B7280", "nome": "Cinza", "emoji": "⚙️"},
         "Relatórios": {"cor": "#059669", "nome": "Verde escuro", "emoji": "📈"}
     }
     
     print("Cores padronizadas para o dashboard:")
     for funcao, info in cores_dashboard.items():
         print(f"   {info['emoji']} {funcao}: {info['cor']} ({info['nome']})")
+    
+    print("\n🔄 MUDANÇAS REALIZADAS:")
+    print("❌ Removido: Botão 'Evolução' (funcionalidade integrada nas consultas)")
+    print("✅ Adicionado: Botão 'Configurações' (acesso a boletos e assinatura)")
     
     return cores_dashboard
 
@@ -122,11 +133,14 @@ def main():
         print("✅ Template da Clínica de Estética atualizado")
         print("✅ Cores padronizadas definidas")
         print("✅ Melhorias salvas como padrão")
+        print("✅ Botão 'Evolução' removido (integrado nas consultas)")
+        print("✅ Botão 'Configurações' adicionado (boletos e assinatura)")
         print("\n📱 Todas as novas lojas 'Clínica de Estética' terão:")
         print("• Dashboard com cores específicas")
         print("• Cabeçalho melhorado")
         print("• Layout responsivo")
         print("• Sistema completo de consultas")
+        print("• Acesso direto a boletos e informações financeiras")
         
         print(f"\n🔗 Teste em: https://lwksistemas.com.br/loja/felix/dashboard")
     else:

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { clinicaApiClient } from '@/lib/api-client';
+import { clinicaApiClient, apiClient } from '@/lib/api-client';
 import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
 import GerenciadorConsultas from '@/components/clinica/GerenciadorConsultas';
 
@@ -53,8 +53,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const [showModalProcedimentos, setShowModalProcedimentos] = useState(false);
   const [showModalProfissional, setShowModalProfissional] = useState(false);
   const [showModalProtocolos, setShowModalProtocolos] = useState(false);
-  const [showModalEvolucao, setShowModalEvolucao] = useState(false);
   const [showModalAnamnese, setShowModalAnamnese] = useState(false);
+  const [showModalConfiguracoes, setShowModalConfiguracoes] = useState(false);
   const [showCalendario, setShowCalendario] = useState(false);
   const [showConsultas, setShowConsultas] = useState(false);
 
@@ -89,8 +89,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const handleProcedimentos = () => setShowModalProcedimentos(true);
   const handleNovoProfissional = () => setShowModalProfissional(true);
   const handleProtocolos = () => setShowModalProtocolos(true);
-  const handleEvolucao = () => setShowModalEvolucao(true);
   const handleAnamnese = () => setShowModalAnamnese(true);
+  const handleConfiguracoes = () => setShowModalConfiguracoes(true);
   const handleCalendario = () => setShowCalendario(true);
   const handleConsultas = () => setShowConsultas(true);
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
@@ -305,21 +305,21 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           </button>
 
           <button 
-            onClick={handleEvolucao}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
-            style={{ backgroundColor: '#DC2626' }} // Vermelho escuro - Evolução
-          >
-            <div className="text-3xl mb-2">📊</div>
-            <div className="text-sm">Evolução</div>
-          </button>
-
-          <button 
             onClick={handleAnamnese}
             className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
             style={{ backgroundColor: '#7C3AED' }} // Roxo escuro - Anamnese
           >
             <div className="text-3xl mb-2">📝</div>
             <div className="text-sm">Anamnese</div>
+          </button>
+
+          <button 
+            onClick={handleConfiguracoes}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#6B7280' }} // Cinza - Configurações
+          >
+            <div className="text-3xl mb-2">⚙️</div>
+            <div className="text-sm">Configurações</div>
           </button>
           
           <button 
@@ -336,6 +336,9 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <p className="text-xs text-gray-600 text-center">
             💡 <strong>Dashboard Clínica de Estética</strong> - Cada ação tem sua cor específica para facilitar a identificação
+          </p>
+          <p className="text-xs text-gray-500 text-center mt-1">
+            ⚙️ Configurações: Acesse boletos e informações de assinatura da loja
           </p>
         </div>
       </div>
@@ -444,17 +447,17 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
         />
       )}
 
-      {showModalEvolucao && (
-        <ModalEvolucao 
-          loja={loja}
-          onClose={() => setShowModalEvolucao(false)}
-        />
-      )}
-
       {showModalAnamnese && (
         <ModalAnamnese 
           loja={loja}
           onClose={() => setShowModalAnamnese(false)}
+        />
+      )}
+
+      {showModalConfiguracoes && (
+        <ModalConfiguracoes 
+          loja={loja}
+          onClose={() => setShowModalConfiguracoes(false)}
         />
       )}
     </div>
@@ -853,88 +856,269 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
   );
 }
 
-// Modal Evolução do Paciente
-function ModalEvolucao({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
-  const [evolucoes, setEvolucoes] = useState<any[]>([]);
+// Modal Configurações da Loja
+function ModalConfiguracoes({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const [dadosFinanceiros, setDadosFinanceiros] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    loadEvolucoes();
+    loadDadosFinanceiros();
   }, []);
 
-  const loadEvolucoes = async () => {
+  const loadDadosFinanceiros = async () => {
     try {
-      const response = await clinicaApiClient.get('/clinica/evolucoes/');
-      setEvolucoes(response.data);
-    } catch (error) {
-      console.error('Erro ao carregar evoluções:', error);
+      // Usar apiClient que já tem a lógica de autenticação
+      const response = await apiClient.get(`/superadmin/loja/${loja.slug}/financeiro/`);
+      setDadosFinanceiros(response.data);
+    } catch (error: any) {
+      console.error('Erro ao carregar dados financeiros:', error);
+      if (error.response?.status === 401) {
+        setError('Acesso negado. Faça login novamente.');
+      } else if (error.response?.status === 404) {
+        setError('Dados financeiros não encontrados para esta loja');
+      } else {
+        setError('Erro ao carregar dados financeiros');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const abrirBoleto = () => {
+    if (dadosFinanceiros?.financeiro?.boleto_url) {
+      window.open(dadosFinanceiros.financeiro.boleto_url, '_blank');
+    } else {
+      alert('❌ Boleto não disponível');
+    }
+  };
+
+  const copiarPix = () => {
+    if (dadosFinanceiros?.financeiro?.pix_copy_paste) {
+      navigator.clipboard.writeText(dadosFinanceiros.financeiro.pix_copy_paste);
+      alert('✅ PIX copiado para a área de transferência!');
+    } else {
+      alert('❌ PIX não disponível');
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>
-          📊 Evolução dos Pacientes
+      <div className="bg-white rounded-lg p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
+          ⚙️ Configurações da Loja
         </h3>
         
         {loading ? (
-          <div className="text-center py-8">Carregando evoluções...</div>
-        ) : evolucoes.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg mb-2">Nenhuma evolução registrada</p>
-            <p className="text-sm mb-4">Registre a evolução dos seus pacientes após cada procedimento</p>
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: loja.cor_primaria }}></div>
+            <p>Carregando informações financeiras...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-red-500">
+            <p className="text-lg mb-2">❌ {error}</p>
             <button
-              onClick={() => setShowForm(true)}
-              className="px-6 py-3 rounded-md text-white hover:opacity-90"
-              style={{ backgroundColor: loja.cor_primaria }}
+              onClick={loadDadosFinanceiros}
+              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
             >
-              + Registrar Primeira Evolução
+              🔄 Tentar Novamente
             </button>
           </div>
-        ) : (
-          <div className="space-y-4 mb-6">
-            {evolucoes.map((evolucao) => (
-              <div key={evolucao.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-lg">{evolucao.cliente_nome}</h4>
-                    <p className="text-sm text-gray-600 mb-2">Prof: {evolucao.profissional_nome}</p>
-                    <p className="text-sm text-gray-700 mb-2">{evolucao.queixa_principal}</p>
-                    <div className="text-xs text-gray-500">
-                      {evolucao.imc && <span className="mr-4">📊 IMC: {evolucao.imc}</span>}
-                      <span>📅 {new Date(evolucao.data_evolucao).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                  </div>
-                  <button
-                    className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90"
-                    style={{ backgroundColor: loja.cor_primaria }}
-                  >
-                    Ver Detalhes
-                  </button>
+        ) : dadosFinanceiros ? (
+          <div className="space-y-6">
+            {/* Informações da Loja */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+              <h4 className="text-lg font-semibold mb-3" style={{ color: loja.cor_primaria }}>
+                🏪 Informações da Loja
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Nome da Loja</p>
+                  <p className="font-semibold">{dadosFinanceiros.loja.nome}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Plano Atual</p>
+                  <p className="font-semibold">{dadosFinanceiros.loja.plano}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Tipo de Assinatura</p>
+                  <p className="font-semibold">{dadosFinanceiros.loja.tipo_assinatura}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Status</p>
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                    dadosFinanceiros.financeiro.status_pagamento === 'Ativo' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {dadosFinanceiros.financeiro.status_pagamento}
+                  </span>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Informações Financeiras */}
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h4 className="text-lg font-semibold mb-3" style={{ color: loja.cor_primaria }}>
+                💰 Informações Financeiras
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Valor Mensal</p>
+                  <p className="text-2xl font-bold" style={{ color: loja.cor_primaria }}>
+                    R$ {dadosFinanceiros.financeiro.valor_mensalidade.toFixed(2)}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Próximo Vencimento</p>
+                  <p className="text-lg font-semibold">
+                    {new Date(dadosFinanceiros.financeiro.data_proxima_cobranca).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Dia do Vencimento</p>
+                  <p className="text-lg font-semibold">
+                    Todo dia {dadosFinanceiros.financeiro.dia_vencimento}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Formas de Pagamento */}
+            {dadosFinanceiros.financeiro.tem_asaas && (
+              <div className="bg-green-50 p-6 rounded-lg">
+                <h4 className="text-lg font-semibold mb-4" style={{ color: loja.cor_primaria }}>
+                  💳 Formas de Pagamento Disponíveis
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Boleto */}
+                  {dadosFinanceiros.financeiro.boleto_url && (
+                    <div className="border border-orange-200 bg-orange-50 p-4 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="font-semibold text-orange-800">🧾 Boleto Bancário</h5>
+                          <p className="text-sm text-orange-600">Pague em qualquer banco ou lotérica</p>
+                        </div>
+                        <button
+                          onClick={abrirBoleto}
+                          className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 text-sm"
+                        >
+                          📄 Ver Boleto
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PIX */}
+                  {dadosFinanceiros.financeiro.pix_copy_paste && (
+                    <div className="border border-green-200 bg-green-50 p-4 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="font-semibold text-green-800">🔄 PIX</h5>
+                          <p className="text-sm text-green-600">Pagamento instantâneo</p>
+                        </div>
+                        <button
+                          onClick={copiarPix}
+                          className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+                        >
+                          📋 Copiar PIX
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* QR Code PIX */}
+                {dadosFinanceiros.financeiro.pix_qr_code && (
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-gray-600 mb-2">Ou escaneie o QR Code:</p>
+                    <div className="inline-block p-4 bg-white rounded-lg border">
+                      <img 
+                        src={`data:image/png;base64,${dadosFinanceiros.financeiro.pix_qr_code}`}
+                        alt="QR Code PIX"
+                        className="w-32 h-32 mx-auto"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Estatísticas */}
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <h4 className="text-lg font-semibold mb-4" style={{ color: loja.cor_primaria }}>
+                📊 Estatísticas de Pagamento
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">{dadosFinanceiros.estatisticas.total_pagamentos}</p>
+                  <p className="text-sm text-gray-600">Total de Cobranças</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">{dadosFinanceiros.estatisticas.pagamentos_pagos}</p>
+                  <p className="text-sm text-gray-600">Pagamentos Realizados</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-yellow-600">{dadosFinanceiros.estatisticas.pagamentos_pendentes}</p>
+                  <p className="text-sm text-gray-600">Pendentes</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-red-600">{dadosFinanceiros.estatisticas.pagamentos_atrasados}</p>
+                  <p className="text-sm text-gray-600">Em Atraso</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Próximo Pagamento */}
+            {dadosFinanceiros.proximo_pagamento && (
+              <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-lg">
+                <h4 className="text-lg font-semibold mb-3 text-yellow-800">
+                  ⏰ Próximo Pagamento
+                </h4>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">
+                      R$ {dadosFinanceiros.proximo_pagamento.valor}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Vencimento: {new Date(dadosFinanceiros.proximo_pagamento.data_vencimento).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    dadosFinanceiros.proximo_pagamento.status === 'pago' 
+                      ? 'bg-green-100 text-green-800'
+                      : dadosFinanceiros.proximo_pagamento.status === 'pendente'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {dadosFinanceiros.proximo_pagamento.status}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-2">Nenhum dado financeiro encontrado</p>
+            <p className="text-sm">Entre em contato com o suporte</p>
           </div>
         )}
 
-        <div className="flex justify-end space-x-4">
+        <div className="flex justify-end space-x-4 mt-8 pt-4 border-t">
           <button
             onClick={onClose}
             className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
           >
             Fechar
           </button>
-          {!showForm && (
+          {dadosFinanceiros?.financeiro?.boleto_url && (
             <button
-              onClick={() => setShowForm(true)}
+              onClick={abrirBoleto}
               className="px-6 py-2 text-white rounded-md hover:opacity-90"
               style={{ backgroundColor: loja.cor_primaria }}
             >
-              + Nova Evolução
+              📄 Acessar Boleto
             </button>
           )}
         </div>

@@ -306,15 +306,21 @@ class AsaasSyncService:
                             logger.info(f"Pagamento {payment_id} criado automaticamente via webhook")
                         else:
                             logger.error(f"Não foi possível criar pagamento {payment_id} automaticamente")
+                            # Retornar sucesso para evitar reenvio do webhook
                             return {
-                                'success': False,
-                                'error': 'Pagamento não encontrado e não foi possível criar automaticamente'
+                                'success': True,
+                                'payment_id': payment_id,
+                                'status': 'ignored',
+                                'reason': 'Pagamento não encontrado e não foi possível criar automaticamente (loja ou cliente inexistente)'
                             }
                     except Exception as e:
                         logger.error(f"Erro ao criar pagamento automaticamente: {e}")
+                        # Retornar sucesso para evitar reenvio do webhook
                         return {
-                            'success': False,
-                            'error': f'Pagamento não encontrado e erro ao criar: {str(e)}'
+                            'success': True,
+                            'payment_id': payment_id,
+                            'status': 'ignored',
+                            'reason': f'Erro ao criar pagamento automaticamente: {str(e)}'
                         }
             
             if not pagamento:
@@ -383,25 +389,44 @@ class AsaasSyncService:
             payment_info = payment_data
             payment_id = payment_info.get('id')
             customer_id = payment_info.get('customer')
+            external_reference = payment_info.get('externalReference', '')
             
             if not payment_id or not customer_id:
                 logger.error("Dados insuficientes para criar pagamento automaticamente")
+                return None
+            
+            # Verificar se a loja existe pelo external_reference
+            if external_reference and 'loja_' in external_reference:
+                loja_slug = external_reference.replace('loja_', '').replace('_assinatura', '')
+                try:
+                    loja = Loja.objects.get(slug=loja_slug, is_active=True)
+                    logger.info(f"Loja encontrada para webhook: {loja.nome} ({loja_slug})")
+                except Loja.DoesNotExist:
+                    logger.warning(f"Loja {loja_slug} não encontrada - webhook ignorado")
+                    return None
+            else:
+                logger.warning(f"External reference inválido: {external_reference} - webhook ignorado")
                 return None
             
             # Buscar ou criar cliente
             customer = None
             try:
                 customer = AsaasCustomer.objects.get(asaas_id=customer_id)
+                logger.info(f"Cliente encontrado: {customer.name}")
             except AsaasCustomer.DoesNotExist:
-                # Cliente não existe, não podemos criar o pagamento sem mais informações
-                logger.error(f"Cliente {customer_id} não encontrado, não é possível criar pagamento automaticamente")
+                # Tentar criar cliente automaticamente se temos dados suficientes
+                logger.warning(f"Cliente {customer_id} não encontrado - tentando criar automaticamente")
+                
+                # Para criar o cliente, precisamos de mais dados que não vêm no webhook
+                # Por enquanto, vamos ignorar este webhook
+                logger.warning(f"Não é possível criar cliente automaticamente - dados insuficientes")
                 return None
             
             # Criar pagamento
             pagamento = AsaasPayment.objects.create(
                 asaas_id=payment_id,
                 customer=customer,
-                external_reference=payment_info.get('externalReference', ''),
+                external_reference=external_reference,
                 billing_type=payment_info.get('billingType', 'BOLETO'),
                 status=payment_info.get('status', 'PENDING'),
                 value=payment_info.get('value', 0),

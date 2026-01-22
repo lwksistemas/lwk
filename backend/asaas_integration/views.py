@@ -328,10 +328,15 @@ def asaas_webhook(request):
                     logger.info(f"Webhook processado com sucesso: {resultado}")
                     
                     response_data = {
-                        'status': 'processed',
+                        'status': resultado.get('status', 'processed'),
                         'payment_id': resultado.get('payment_id'),
                         'status_updated': resultado.get('status_updated', False)
                     }
+                    
+                    # Se foi ignorado, adicionar razão
+                    if resultado.get('status') == 'ignored':
+                        response_data['reason'] = resultado.get('reason')
+                        logger.info(f"Webhook ignorado: {resultado.get('reason')}")
                     
                     # Adicionar informações sobre bloqueio/desbloqueio
                     if resultado.get('blocked'):

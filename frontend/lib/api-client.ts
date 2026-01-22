@@ -9,6 +9,14 @@ export const apiClient = axios.create({
   },
 });
 
+// Cliente específico para APIs da clínica (sem autenticação)
+export const clinicaApiClient = axios.create({
+  baseURL: `${API_URL}/api`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Request interceptor - adiciona token JWT
 apiClient.interceptors.request.use(
   (config) => {

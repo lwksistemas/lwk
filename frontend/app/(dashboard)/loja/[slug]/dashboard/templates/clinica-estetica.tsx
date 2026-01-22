@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import apiClient from '@/lib/api-client';
+import { clinicaApiClient } from '@/lib/api-client';
+import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
+import GerenciadorConsultas from '@/components/clinica/GerenciadorConsultas';
 
 interface LojaInfo {
   id: number;
@@ -53,6 +55,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const [showModalProtocolos, setShowModalProtocolos] = useState(false);
   const [showModalEvolucao, setShowModalEvolucao] = useState(false);
   const [showModalAnamnese, setShowModalAnamnese] = useState(false);
+  const [showCalendario, setShowCalendario] = useState(false);
+  const [showConsultas, setShowConsultas] = useState(false);
 
   // Carregar dados reais das APIs
   useEffect(() => {
@@ -62,7 +66,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
   const loadEstatisticas = async () => {
     try {
-      const response = await apiClient.get('/clinica/agendamentos/estatisticas/');
+      const response = await clinicaApiClient.get('/clinica/agendamentos/estatisticas/');
       setEstatisticas(response.data);
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
@@ -71,7 +75,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
   const loadProximosAgendamentos = async () => {
     try {
-      const response = await apiClient.get('/clinica/agendamentos/proximos/');
+      const response = await clinicaApiClient.get('/clinica/agendamentos/proximos/');
       setProximosAgendamentos(response.data);
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error);
@@ -87,6 +91,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const handleProtocolos = () => setShowModalProtocolos(true);
   const handleEvolucao = () => setShowModalEvolucao(true);
   const handleAnamnese = () => setShowModalAnamnese(true);
+  const handleCalendario = () => setShowCalendario(true);
+  const handleConsultas = () => setShowConsultas(true);
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
 
   if (loading) {
@@ -94,6 +100,36 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       <div className="flex items-center justify-center py-12">
         <div className="text-lg text-gray-600">Carregando dashboard...</div>
       </div>
+    );
+  }
+
+  // Se o calendário estiver ativo, mostrar apenas o calendário
+  if (showCalendario) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold" style={{ color: loja.cor_primaria }}>
+            Calendário - Clínica de Estética
+          </h2>
+          <button
+            onClick={() => setShowCalendario(false)}
+            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+          >
+            ← Voltar ao Dashboard
+          </button>
+        </div>
+        <CalendarioAgendamentos loja={loja} />
+      </div>
+    );
+  }
+
+  // Se o sistema de consultas estiver ativo, mostrar apenas as consultas
+  if (showConsultas) {
+    return (
+      <GerenciadorConsultas 
+        loja={loja} 
+        onClose={() => setShowConsultas(false)} 
+      />
     );
   }
 
@@ -177,7 +213,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       {/* Ações Rápidas - ATUALIZADAS COM NOVOS RECURSOS */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <h3 className="text-lg font-semibold mb-4">Ações Rápidas</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-4">
           <button 
             onClick={handleNovoAgendamento}
             className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
@@ -185,6 +221,24 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           >
             <div className="text-3xl mb-2">📅</div>
             <div className="text-sm">Agendamento</div>
+          </button>
+
+          <button 
+            onClick={handleCalendario}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
+            style={{ backgroundColor: '#10B981' }}
+          >
+            <div className="text-3xl mb-2">🗓️</div>
+            <div className="text-sm">Calendário</div>
+          </button>
+
+          <button 
+            onClick={handleConsultas}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
+            style={{ backgroundColor: '#8B5CF6' }}
+          >
+            <div className="text-3xl mb-2">🏥</div>
+            <div className="text-sm">Consultas</div>
           </button>
           
           <button 
@@ -404,7 +458,7 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
 
   const loadProtocolos = async () => {
     try {
-      const response = await apiClient.get('/clinica/protocolos/');
+      const response = await clinicaApiClient.get('/clinica/protocolos/');
       setProtocolos(response.data);
     } catch (error) {
       console.error('Erro ao carregar protocolos:', error);
@@ -413,7 +467,7 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
 
   const loadProcedimentos = async () => {
     try {
-      const response = await apiClient.get('/clinica/procedimentos/');
+      const response = await clinicaApiClient.get('/clinica/procedimentos/');
       setProcedimentos(response.data);
     } catch (error) {
       console.error('Erro ao carregar procedimentos:', error);
@@ -443,7 +497,7 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
     if (!confirm(`Tem certeza que deseja excluir o protocolo ${protocolo.nome}?`)) return;
     
     try {
-      await apiClient.delete(`/clinica/protocolos/${protocolo.id}/`);
+      await clinicaApiClient.delete(`/clinica/protocolos/${protocolo.id}/`);
       alert('✅ Protocolo excluído com sucesso!');
       loadProtocolos();
     } catch (error) {
@@ -487,10 +541,10 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
       );
 
       if (editingProtocolo) {
-        await apiClient.put(`/clinica/protocolos/${editingProtocolo.id}/`, cleanedData);
+        await clinicaApiClient.put(`/clinica/protocolos/${editingProtocolo.id}/`, cleanedData);
         alert('✅ Protocolo atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/protocolos/', cleanedData);
+        await clinicaApiClient.post('/clinica/protocolos/', cleanedData);
         alert('✅ Protocolo criado com sucesso!');
       }
       loadProtocolos();
@@ -778,7 +832,7 @@ function ModalEvolucao({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
   const loadEvolucoes = async () => {
     try {
-      const response = await apiClient.get('/clinica/evolucoes/');
+      const response = await clinicaApiClient.get('/clinica/evolucoes/');
       setEvolucoes(response.data);
     } catch (error) {
       console.error('Erro ao carregar evoluções:', error);
@@ -881,7 +935,7 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
   const loadAnamneses = async () => {
     try {
-      const response = await apiClient.get('/clinica/anamneses/');
+      const response = await clinicaApiClient.get('/clinica/anamneses/');
       setAnamneses(response.data);
     } catch (error) {
       console.error('Erro ao carregar anamneses:', error);
@@ -890,7 +944,7 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
   const loadTemplates = async () => {
     try {
-      const response = await apiClient.get('/clinica/anamneses-templates/');
+      const response = await clinicaApiClient.get('/clinica/anamneses-templates/');
       setTemplates(response.data);
     } catch (error) {
       console.error('Erro ao carregar templates:', error);
@@ -899,7 +953,7 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
   const loadProcedimentos = async () => {
     try {
-      const response = await apiClient.get('/clinica/procedimentos/');
+      const response = await clinicaApiClient.get('/clinica/procedimentos/');
       setProcedimentos(response.data);
     } catch (error) {
       console.error('Erro ao carregar procedimentos:', error);
@@ -924,7 +978,7 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
     if (!confirm(`Tem certeza que deseja excluir o template ${template.nome}?`)) return;
     
     try {
-      await apiClient.delete(`/clinica/anamneses-templates/${template.id}/`);
+      await clinicaApiClient.delete(`/clinica/anamneses-templates/${template.id}/`);
       alert('✅ Template excluído com sucesso!');
       loadTemplates();
     } catch (error) {
@@ -986,10 +1040,10 @@ function ModalAnamnese({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
       };
       
       if (editingTemplate) {
-        await apiClient.put(`/clinica/anamneses-templates/${editingTemplate.id}/`, templateData);
+        await clinicaApiClient.put(`/clinica/anamneses-templates/${editingTemplate.id}/`, templateData);
         alert('✅ Template atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/anamneses-templates/', templateData);
+        await clinicaApiClient.post('/clinica/anamneses-templates/', templateData);
         alert('✅ Template de anamnese criado com sucesso!');
       }
       loadTemplates();
@@ -1354,9 +1408,9 @@ function ModalNovoAgendamento({
   const loadFormData = async () => {
     try {
       const [clientesRes, profissionaisRes, procedimentosRes] = await Promise.all([
-        apiClient.get('/clinica/clientes/'),
-        apiClient.get('/clinica/profissionais/'),
-        apiClient.get('/clinica/procedimentos/')
+        clinicaApiClient.get('/clinica/clientes/'),
+        clinicaApiClient.get('/clinica/profissionais/'),
+        clinicaApiClient.get('/clinica/procedimentos/')
       ]);
       
       setClientes(clientesRes.data);
@@ -1401,7 +1455,7 @@ function ModalNovoAgendamento({
         ])
       );
 
-      await apiClient.post('/clinica/agendamentos/', cleanedData);
+      await clinicaApiClient.post('/clinica/agendamentos/', cleanedData);
       alert('✅ Agendamento criado com sucesso!');
       onSuccess();
       onClose();
@@ -1614,7 +1668,7 @@ function ModalNovoCliente({
 
   const loadClientes = async () => {
     try {
-      const response = await apiClient.get('/clinica/clientes/');
+      const response = await clinicaApiClient.get('/clinica/clientes/');
       setClientes(response.data);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
@@ -1643,7 +1697,7 @@ function ModalNovoCliente({
     if (!confirm(`Tem certeza que deseja excluir o cliente ${cliente.nome}?`)) return;
     
     try {
-      await apiClient.delete(`/clinica/clientes/${cliente.id}/`);
+      await clinicaApiClient.delete(`/clinica/clientes/${cliente.id}/`);
       alert('✅ Cliente excluído com sucesso!');
       loadClientes();
       onSuccess();
@@ -1684,12 +1738,15 @@ function ModalNovoCliente({
     setSubmitting(true);
     
     try {
-      // Limpar campos vazios e tratar data_nascimento especialmente
+      // Limpar campos vazios - converter strings vazias para null
+      // Especial atenção para campos de data que não podem ser strings vazias
       const cleanedData = Object.fromEntries(
         Object.entries(formData).map(([key, value]) => {
-          if (key === 'data_nascimento' && value === '') {
+          // Para campos de data, converter string vazia para null
+          if ((key === 'data_nascimento' || key.includes('data')) && value === '') {
             return [key, null];
           }
+          // Para outros campos, converter string vazia para null
           return [key, value === '' ? null : value];
         })
       );
@@ -1697,19 +1754,32 @@ function ModalNovoCliente({
       console.log('Dados sendo enviados:', cleanedData);
 
       if (editingCliente) {
-        await apiClient.put(`/clinica/clientes/${editingCliente.id}/`, cleanedData);
+        await clinicaApiClient.put(`/clinica/clientes/${editingCliente.id}/`, cleanedData);
         alert('✅ Cliente atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/clientes/', cleanedData);
+        await clinicaApiClient.post('/clinica/clientes/', cleanedData);
         alert('✅ Cliente cadastrado com sucesso!');
       }
       loadClientes();
       onSuccess();
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar cliente:', error);
+      console.error('Response data:', error.response?.data);
       console.error('Dados que causaram erro:', formData);
-      alert('❌ Erro ao salvar cliente');
+      
+      // Mostrar erro mais específico
+      let errorMessage = '❌ Erro ao salvar cliente';
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (typeof errorData === 'object') {
+          const errorFields = Object.keys(errorData);
+          if (errorFields.length > 0) {
+            errorMessage += `\nCampos com erro: ${errorFields.join(', ')}`;
+          }
+        }
+      }
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -1977,7 +2047,7 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
 
   const loadProfissionais = async () => {
     try {
-      const response = await apiClient.get('/clinica/profissionais/');
+      const response = await clinicaApiClient.get('/clinica/profissionais/');
       setProfissionais(response.data);
     } catch (error) {
       console.error('Erro ao carregar profissionais:', error);
@@ -2002,7 +2072,7 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
     if (!confirm(`Tem certeza que deseja excluir o profissional ${profissional.nome}?`)) return;
     
     try {
-      await apiClient.delete(`/clinica/profissionais/${profissional.id}/`);
+      await clinicaApiClient.delete(`/clinica/profissionais/${profissional.id}/`);
       alert('✅ Profissional excluído com sucesso!');
       loadProfissionais();
     } catch (error) {
@@ -2044,10 +2114,10 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
       );
 
       if (editingProfissional) {
-        await apiClient.put(`/clinica/profissionais/${editingProfissional.id}/`, cleanedData);
+        await clinicaApiClient.put(`/clinica/profissionais/${editingProfissional.id}/`, cleanedData);
         alert('✅ Profissional atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/profissionais/', cleanedData);
+        await clinicaApiClient.post('/clinica/profissionais/', cleanedData);
         alert('✅ Profissional cadastrado com sucesso!');
       }
       loadProfissionais();
@@ -2294,7 +2364,7 @@ function ModalProcedimentos({
 
   const loadProcedimentos = async () => {
     try {
-      const response = await apiClient.get('/clinica/procedimentos/');
+      const response = await clinicaApiClient.get('/clinica/procedimentos/');
       setProcedimentos(response.data);
     } catch (error) {
       console.error('Erro ao carregar procedimentos:', error);
@@ -2319,7 +2389,7 @@ function ModalProcedimentos({
     if (!confirm(`Tem certeza que deseja excluir o procedimento ${procedimento.nome}?`)) return;
     
     try {
-      await apiClient.delete(`/clinica/procedimentos/${procedimento.id}/`);
+      await clinicaApiClient.delete(`/clinica/procedimentos/${procedimento.id}/`);
       alert('✅ Procedimento excluído com sucesso!');
       loadProcedimentos();
       onSuccess();
@@ -2359,10 +2429,10 @@ function ModalProcedimentos({
       );
 
       if (editingProcedimento) {
-        await apiClient.put(`/clinica/procedimentos/${editingProcedimento.id}/`, cleanedData);
+        await clinicaApiClient.put(`/clinica/procedimentos/${editingProcedimento.id}/`, cleanedData);
         alert('✅ Procedimento atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/procedimentos/', cleanedData);
+        await clinicaApiClient.post('/clinica/procedimentos/', cleanedData);
         alert('✅ Procedimento cadastrado com sucesso!');
       }
       loadProcedimentos();

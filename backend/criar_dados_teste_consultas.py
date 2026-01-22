@@ -9,8 +9,8 @@ import django
 from datetime import date, time, datetime, timedelta
 
 # Configurar Django
-sys.path.append('/home/luiz/Documents/lwksistemas/backend')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+sys.path.append('/app/backend')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings_production')
 django.setup()
 
 from clinica_estetica.models import Cliente, Profissional, Procedimento, Agendamento, Consulta, EvolucaoPaciente

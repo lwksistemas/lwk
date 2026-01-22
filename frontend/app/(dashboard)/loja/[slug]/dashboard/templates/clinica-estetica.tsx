@@ -1668,11 +1668,21 @@ function ModalNovoCliente({
     setSubmitting(true);
     
     try {
+      // Limpar campos vazios e tratar data_nascimento especialmente
+      const cleanedData = Object.fromEntries(
+        Object.entries(formData).map(([key, value]) => {
+          if (key === 'data_nascimento' && value === '') {
+            return [key, null];
+          }
+          return [key, value === '' ? null : value];
+        })
+      );
+
       if (editingCliente) {
-        await apiClient.put(`/clinica/clientes/${editingCliente.id}/`, formData);
+        await apiClient.put(`/clinica/clientes/${editingCliente.id}/`, cleanedData);
         alert('✅ Cliente atualizado com sucesso!');
       } else {
-        await apiClient.post('/clinica/clientes/', formData);
+        await apiClient.post('/clinica/clientes/', cleanedData);
         alert('✅ Cliente cadastrado com sucesso!');
       }
       loadClientes();

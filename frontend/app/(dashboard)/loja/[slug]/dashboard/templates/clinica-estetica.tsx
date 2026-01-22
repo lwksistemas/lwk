@@ -135,104 +135,6 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
   return (
     <div>
-      {/* Cabeçalho Melhorado */}
-      <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-6 rounded-lg shadow-sm mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold mb-2" style={{ color: loja.cor_primaria }}>
-              🌸 Dashboard - Clínica de Estética
-            </h2>
-            <p className="text-gray-600">
-              Bem-vindo(a) ao painel de controle da <strong>{loja.nome}</strong>
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">
-              {new Date().toLocaleDateString('pt-BR', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              Sistema completo com consultas e evolução
-            </p>
-          </div>
-        </div>
-      </div>
-      
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-gray-500 text-sm font-medium">Agendamentos Hoje</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>
-                {estatisticas.agendamentos_hoje}
-              </p>
-            </div>
-            <div 
-              className="w-12 h-12 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${loja.cor_primaria}20` }}
-            >
-              <span className="text-2xl">📅</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-gray-500 text-sm font-medium">Clientes Ativos</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>
-                {estatisticas.clientes_ativos}
-              </p>
-            </div>
-            <div 
-              className="w-12 h-12 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${loja.cor_primaria}20` }}
-            >
-              <span className="text-2xl">👥</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-gray-500 text-sm font-medium">Procedimentos</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>
-                {estatisticas.procedimentos_ativos}
-              </p>
-            </div>
-            <div 
-              className="w-12 h-12 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${loja.cor_primaria}20` }}
-            >
-              <span className="text-2xl">💆</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-gray-500 text-sm font-medium">Receita Mensal</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>
-                R$ {estatisticas.receita_mensal.toLocaleString('pt-BR')}
-              </p>
-            </div>
-            <div 
-              className="w-12 h-12 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${loja.cor_primaria}20` }}
-            >
-              <span className="text-2xl">💰</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Ações Rápidas - MELHORADAS COM CORES DIFERENTES */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <h3 className="text-lg font-semibold mb-4" style={{ color: loja.cor_primaria }}>
@@ -340,6 +242,77 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           <p className="text-xs text-gray-500 text-center mt-1">
             ⚙️ Configurações: Acesse boletos e informações de assinatura da loja
           </p>
+        </div>
+      </div>
+
+      {/* Estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-gray-500 text-sm font-medium">Agendamentos Hoje</h3>
+              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>
+                {estatisticas.agendamentos_hoje}
+              </p>
+            </div>
+            <div 
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${loja.cor_primaria}20` }}
+            >
+              <span className="text-2xl">📅</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-gray-500 text-sm font-medium">Clientes Ativos</h3>
+              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>
+                {estatisticas.clientes_ativos}
+              </p>
+            </div>
+            <div 
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${loja.cor_primaria}20` }}
+            >
+              <span className="text-2xl">👥</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-gray-500 text-sm font-medium">Procedimentos</h3>
+              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>
+                {estatisticas.procedimentos_ativos}
+              </p>
+            </div>
+            <div 
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${loja.cor_primaria}20` }}
+            >
+              <span className="text-2xl">💆</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-gray-500 text-sm font-medium">Receita Mensal</h3>
+              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>
+                R$ {estatisticas.receita_mensal.toLocaleString('pt-BR')}
+              </p>
+            </div>
+            <div 
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${loja.cor_primaria}20` }}
+            >
+              <span className="text-2xl">💰</span>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -42,5 +42,6 @@ class SuperAdminSecurityMiddleware:
                         'code': 'SUPERADMIN_REQUIRED'
                     }, status=403)
         
+        # IMPORTANTE: Não interferir com outras rotas (auth, clinica, etc.)
         response = self.get_response(request)
         return response

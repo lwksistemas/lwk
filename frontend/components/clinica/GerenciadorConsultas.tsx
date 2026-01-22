@@ -130,10 +130,19 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
 
     try {
       const cleanedData = Object.fromEntries(
-        Object.entries(formEvolucao).map(([key, value]) => [
-          key, 
-          value === '' ? null : value
-        ])
+        Object.entries(formEvolucao).map(([key, value]) => {
+          // Para campos de texto, manter string vazia em vez de null
+          const textFields = ['historico_medico', 'medicamentos_uso', 'alergias', 'pressao_arterial', 
+                             'tipo_pele', 'condicoes_pele', 'produtos_utilizados', 'parametros_equipamento',
+                             'reacao_imediata', 'orientacoes_dadas'];
+          
+          if (textFields.includes(key)) {
+            return [key, value || ''];  // String vazia para campos de texto
+          }
+          
+          // Para outros campos, null se vazio
+          return [key, value === '' ? null : value];
+        })
       );
 
       const evolucaoData = {

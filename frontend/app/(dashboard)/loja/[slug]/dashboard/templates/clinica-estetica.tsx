@@ -135,9 +135,32 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-        Dashboard - Clínica de Estética
-      </h2>
+      {/* Cabeçalho Melhorado */}
+      <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-6 rounded-lg shadow-sm mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold mb-2" style={{ color: loja.cor_primaria }}>
+              🌸 Dashboard - Clínica de Estética
+            </h2>
+            <p className="text-gray-600">
+              Bem-vindo(a) ao painel de controle da <strong>{loja.nome}</strong>
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-500">
+              {new Date().toLocaleDateString('pt-BR', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Sistema completo com consultas e evolução
+            </p>
+          </div>
+        </div>
+      </div>
       
       {/* Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -210,14 +233,17 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
         </div>
       </div>
 
-      {/* Ações Rápidas - ATUALIZADAS COM NOVOS RECURSOS */}
+      {/* Ações Rápidas - MELHORADAS COM CORES DIFERENTES */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
-        <h3 className="text-lg font-semibold mb-4">Ações Rápidas</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-4">
+        <h3 className="text-lg font-semibold mb-4" style={{ color: loja.cor_primaria }}>
+          🚀 Ações Rápidas
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {/* Linha 1 - Agendamento e Calendário */}
           <button 
             onClick={handleNovoAgendamento}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: loja.cor_primaria }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#3B82F6' }} // Azul - Agendamento
           >
             <div className="text-3xl mb-2">📅</div>
             <div className="text-sm">Agendamento</div>
@@ -225,8 +251,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
           <button 
             onClick={handleCalendario}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: '#10B981' }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#10B981' }} // Verde - Calendário
           >
             <div className="text-3xl mb-2">🗓️</div>
             <div className="text-sm">Calendário</div>
@@ -234,8 +260,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
           <button 
             onClick={handleConsultas}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: '#8B5CF6' }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#8B5CF6' }} // Roxo - Consultas
           >
             <div className="text-3xl mb-2">🏥</div>
             <div className="text-sm">Consultas</div>
@@ -243,8 +269,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           
           <button 
             onClick={handleNovoCliente}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: loja.cor_primaria }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#F59E0B' }} // Amarelo - Cliente
           >
             <div className="text-3xl mb-2">👤</div>
             <div className="text-sm">Cliente</div>
@@ -252,27 +278,27 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           
           <button 
             onClick={handleNovoProfissional}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: loja.cor_primaria }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#EF4444' }} // Vermelho - Profissional
           >
             <div className="text-3xl mb-2">👨‍⚕️</div>
             <div className="text-sm">Profissional</div>
           </button>
 
+          {/* Linha 2 - Procedimentos e Recursos Avançados */}
           <button 
             onClick={handleProcedimentos}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: loja.cor_primaria }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#06B6D4' }} // Ciano - Procedimentos
           >
             <div className="text-3xl mb-2">💆</div>
             <div className="text-sm">Procedimentos</div>
           </button>
 
-          {/* NOVOS RECURSOS */}
           <button 
             onClick={handleProtocolos}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: loja.cor_secundaria || loja.cor_primaria }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#8B5A2B' }} // Marrom - Protocolos
           >
             <div className="text-3xl mb-2">📋</div>
             <div className="text-sm">Protocolos</div>
@@ -280,8 +306,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
           <button 
             onClick={handleEvolucao}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: loja.cor_secundaria || loja.cor_primaria }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#DC2626' }} // Vermelho escuro - Evolução
           >
             <div className="text-3xl mb-2">📊</div>
             <div className="text-sm">Evolução</div>
@@ -289,8 +315,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
           <button 
             onClick={handleAnamnese}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: loja.cor_secundaria || loja.cor_primaria }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#7C3AED' }} // Roxo escuro - Anamnese
           >
             <div className="text-3xl mb-2">📝</div>
             <div className="text-sm">Anamnese</div>
@@ -298,12 +324,19 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           
           <button 
             onClick={handleRelatorios}
-            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md"
-            style={{ backgroundColor: loja.cor_primaria }}
+            className="p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+            style={{ backgroundColor: '#059669' }} // Verde escuro - Relatórios
           >
             <div className="text-3xl mb-2">📈</div>
             <div className="text-sm">Relatórios</div>
           </button>
+        </div>
+        
+        {/* Legenda de Cores */}
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+          <p className="text-xs text-gray-600 text-center">
+            💡 <strong>Dashboard Clínica de Estética</strong> - Cada ação tem sua cor específica para facilitar a identificação
+          </p>
         </div>
       </div>
 

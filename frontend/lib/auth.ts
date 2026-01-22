@@ -33,6 +33,7 @@ export const authService = {
         throw new Error('Tokens inválidos recebidos do servidor');
       }
       
+      // Salvar no localStorage
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       localStorage.setItem('user_type', userType);
@@ -41,7 +42,13 @@ export const authService = {
         localStorage.setItem('loja_slug', lojaSlug);
       }
       
-      console.log('Tokens salvos no localStorage');
+      // Salvar também nos cookies para o middleware do Next.js
+      document.cookie = `user_type=${userType}; path=/; max-age=86400; SameSite=Lax`;
+      if (lojaSlug) {
+        document.cookie = `loja_slug=${lojaSlug}; path=/; max-age=86400; SameSite=Lax`;
+      }
+      
+      console.log('Tokens salvos no localStorage e cookies');
       
       // Verificar se os tokens foram realmente salvos
       const savedAccess = localStorage.getItem('access_token');
@@ -59,10 +66,15 @@ export const authService = {
   },
 
   logout() {
+    // Limpar localStorage
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_type');
     localStorage.removeItem('loja_slug');
+    
+    // Limpar cookies
+    document.cookie = 'user_type=; path=/; max-age=0';
+    document.cookie = 'loja_slug=; path=/; max-age=0';
   },
 
   isAuthenticated(): boolean {

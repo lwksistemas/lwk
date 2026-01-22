@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 
@@ -13,6 +13,23 @@ export default function SuperAdminLoginPage() {
   const [emailRecuperacao, setEmailRecuperacao] = useState('');
   const [loadingRecuperacao, setLoadingRecuperacao] = useState(false);
   const [mensagemRecuperacao, setMensagemRecuperacao] = useState('');
+
+  // Verificar se usuário já está logado como outro tipo
+  useEffect(() => {
+    const userType = authService.getUserType();
+    const lojaSlug = authService.getLojaSlug();
+    
+    if (userType && userType !== 'superadmin') {
+      console.log(`🚨 BLOQUEIO: Usuário tipo "${userType}" tentou acessar login de Super Admin`);
+      
+      // Redirecionar para o dashboard correto
+      if (userType === 'suporte') {
+        router.push('/suporte/dashboard');
+      } else if (userType === 'loja' && lojaSlug) {
+        router.push(`/loja/${lojaSlug}/dashboard`);
+      }
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -112,6 +112,7 @@ class BaseFuncionario(BaseModel):
     Modelo base abstrato para funcionários
     Usado em: servicos, restaurante
     """
+    user = models.OneToOneField('auth.User', on_delete=models.CASCADE, null=True, blank=True, related_name='%(app_label)s_%(class)s', help_text='Usuário do sistema vinculado ao funcionário')
     nome = models.CharField(max_length=200, verbose_name="Nome")
     email = models.EmailField(blank=True, null=True, verbose_name="E-mail")
     telefone = models.CharField(max_length=20, verbose_name="Telefone")

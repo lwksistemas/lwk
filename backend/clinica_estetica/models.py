@@ -104,6 +104,7 @@ class Agendamento(models.Model):
 
 class Funcionario(models.Model):
     """Funcionários da clínica (recepção, administração, etc)"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='clinica_funcionario', help_text='Usuário do sistema vinculado ao funcionário')
     nome = models.CharField(max_length=200)
     email = models.EmailField()
     telefone = models.CharField(max_length=20)

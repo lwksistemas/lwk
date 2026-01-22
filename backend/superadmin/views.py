@@ -21,17 +21,24 @@ from .serializers import (
 class IsOwnerOrSuperAdmin(permissions.BasePermission):
     """Permissão para proprietário da loja ou super admin"""
     def has_permission(self, request, view):
+        # Superadmin sempre tem permissão
         if request.user and request.user.is_superuser:
             return True
         
-        # Para usuários de loja, verificar se é o proprietário
+        # Usuário autenticado tem permissão (verificação específica será feita no método)
         if request.user and request.user.is_authenticated:
-            try:
-                usuario_sistema = UsuarioSistema.objects.get(user=request.user)
-                # Permitir apenas se for o proprietário da loja específica
-                return usuario_sistema.is_active
-            except UsuarioSistema.DoesNotExist:
-                return False
+            return True
+        
+        return False
+    
+    def has_object_permission(self, request, view, obj):
+        # Superadmin sempre tem permissão
+        if request.user and request.user.is_superuser:
+            return True
+        
+        # Verificar se é o proprietário da loja
+        if hasattr(obj, 'owner'):
+            return request.user == obj.owner
         
         return False
 

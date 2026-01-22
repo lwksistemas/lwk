@@ -340,10 +340,10 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Lista de Consultas */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Lista de Consultas - Expandida */}
           <div className="lg:col-span-1">
-            <h4 className="text-lg font-semibold mb-4">📋 Consultas</h4>
+            <h4 className="text-lg font-semibold mb-4">📋 Lista de Consultas</h4>
             
             {consultas.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -351,44 +351,99 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
                 <p className="text-sm">As consultas são criadas automaticamente a partir dos agendamentos</p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="space-y-3">
                 {consultas.map((consulta) => (
                   <div
                     key={consulta.id}
-                    className={`p-4 border rounded-lg cursor-pointer hover:bg-gray-50 ${
+                    className={`p-4 border rounded-lg hover:bg-gray-50 ${
                       consultaSelecionada?.id === consulta.id ? 'ring-2 ring-offset-1' : ''
                     }`}
                     style={{
                       '--tw-ring-color': consultaSelecionada?.id === consulta.id ? loja.cor_primaria : 'transparent'
                     } as React.CSSProperties}
-                    onClick={() => selecionarConsulta(consulta)}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h5 className="font-semibold text-sm">{consulta.cliente_nome}</h5>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(consulta.status)}`}>
-                        {getStatusText(consulta.status)}
-                      </span>
+                      <div className="flex-1">
+                        <h5 className="font-semibold text-sm">{consulta.cliente_nome}</h5>
+                        <p className="text-xs text-gray-600 mb-1">{consulta.procedimento_nome}</p>
+                        <p className="text-xs text-gray-500">
+                          📅 {consulta.agendamento_data} {consulta.agendamento_horario}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          👨‍⚕️ {consulta.profissional_nome}
+                        </p>
+                        {consulta.total_evolucoes > 0 && (
+                          <p className="text-xs text-green-600 mt-1">
+                            📊 {consulta.total_evolucoes} evolução(ões)
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end space-y-2">
+                        <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(consulta.status)}`}>
+                          {getStatusText(consulta.status)}
+                        </span>
+                        
+                        {/* Ações da Consulta */}
+                        <div className="flex flex-col space-y-1">
+                          {consulta.status === 'agendada' && (
+                            <button
+                              onClick={() => iniciarConsulta(consulta)}
+                              className="px-3 py-1 text-xs text-white rounded-md hover:opacity-90"
+                              style={{ backgroundColor: loja.cor_primaria }}
+                            >
+                              ▶️ Iniciar Exame
+                            </button>
+                          )}
+                          
+                          {consulta.status === 'em_andamento' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setConsultaSelecionada(consulta);
+                                  loadEvolucoes(consulta.id);
+                                  setModoFullscreen(true);
+                                  setActiveTab('consultas');
+                                }}
+                                className="px-3 py-1 text-xs bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                              >
+                                ⏳ Continuar Exame
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setConsultaSelecionada(consulta);
+                                  loadEvolucoes(consulta.id);
+                                  // Simular finalização rápida
+                                  const dadosPagamento = {
+                                    valor_pago: consulta.valor_consulta.toString(),
+                                    forma_pagamento: 'dinheiro',
+                                    observacoes_gerais: 'Exame finalizado via lista'
+                                  };
+                                  finalizarConsulta(consulta, dadosPagamento);
+                                }}
+                                className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
+                              >
+                                ✅ Finalizar Exame
+                              </button>
+                            </>
+                          )}
+                          
+                          <button
+                            onClick={() => selecionarConsulta(consulta)}
+                            className="px-3 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-50"
+                          >
+                            👁️ Ver Detalhes
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-600 mb-1">{consulta.procedimento_nome}</p>
-                    <p className="text-xs text-gray-500">
-                      📅 {consulta.agendamento_data} {consulta.agendamento_horario}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      👨‍⚕️ {consulta.profissional_nome}
-                    </p>
-                    {consulta.total_evolucoes > 0 && (
-                      <p className="text-xs text-green-600 mt-1">
-                        📊 {consulta.total_evolucoes} evolução(ões)
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Detalhes da Consulta */}
-          <div className="lg:col-span-2">
+          {/* Detalhes da Consulta - Quando Selecionada */}
+          <div className="lg:col-span-1">
             {consultaSelecionada ? (
               <div>
                 {/* Tabs */}

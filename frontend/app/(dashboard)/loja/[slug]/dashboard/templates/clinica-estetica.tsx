@@ -2035,3 +2035,253 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
     </div>
   );
 }
+}
+
+// Modal Procedimentos
+function ModalProcedimentos({ 
+  loja, 
+  onClose, 
+  onSuccess 
+}: { 
+  loja: LojaInfo; 
+  onClose: () => void; 
+  onSuccess: () => void;
+}) {
+  const [procedimentos, setProcedimentos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    nome: '',
+    descricao: '',
+    duracao: '',
+    preco: '',
+    categoria: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const categorias = [
+    'Facial',
+    'Corporal',
+    'Capilar',
+    'Massagem',
+    'Depilação',
+    'Outro'
+  ];
+
+  useEffect(() => {
+    loadProcedimentos();
+  }, []);
+
+  const loadProcedimentos = async () => {
+    try {
+      const response = await apiClient.get('/clinica/procedimentos/');
+      setProcedimentos(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar procedimentos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    
+    try {
+      await apiClient.post('/clinica/procedimentos/', formData);
+      alert('✅ Procedimento cadastrado com sucesso!');
+      loadProcedimentos();
+      onSuccess();
+      setShowForm(false);
+      setFormData({
+        nome: '',
+        descricao: '',
+        duracao: '',
+        preco: '',
+        categoria: ''
+      });
+    } catch (error) {
+      console.error('Erro ao cadastrar procedimento:', error);
+      alert('❌ Erro ao cadastrar procedimento');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (showForm) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
+            💆 Novo Procedimento
+          </h3>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome do Procedimento *
+                </label>
+                <input
+                  type="text"
+                  name="nome"
+                  value={formData.nome}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="Ex: Limpeza de Pele Profunda"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Categoria *
+                </label>
+                <select
+                  name="categoria"
+                  value={formData.categoria}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                >
+                  <option value="">Selecione...</option>
+                  {categorias.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Duração (minutos) *
+                </label>
+                <input
+                  type="number"
+                  name="duracao"
+                  value={formData.duracao}
+                  onChange={handleChange}
+                  required
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Preço (R$) *
+                </label>
+                <input
+                  type="number"
+                  name="preco"
+                  value={formData.preco}
+                  onChange={handleChange}
+                  required
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="80.00"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descrição *
+                </label>
+                <textarea
+                  name="descricao"
+                  value={formData.descricao}
+                  onChange={handleChange}
+                  required
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="Descreva o procedimento e seus benefícios..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-4 pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                disabled={submitting}
+                className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: loja.cor_primaria }}
+              >
+                {submitting ? 'Cadastrando...' : 'Cadastrar Procedimento'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>
+          💆 Procedimentos Disponíveis
+        </h3>
+        
+        {loading ? (
+          <div className="text-center py-8">Carregando procedimentos...</div>
+        ) : procedimentos.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-2">Nenhum procedimento cadastrado</p>
+            <p className="text-sm mb-4">Cadastre os procedimentos oferecidos pela sua clínica</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-6 py-3 rounded-md text-white hover:opacity-90"
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              + Cadastrar Primeiro Procedimento
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4 mb-6">
+            {procedimentos.map((proc) => (
+              <div key={proc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                <div className="flex-1">
+                  <p className="font-semibold">{proc.nome}</p>
+                  <p className="text-sm text-gray-600">{proc.duracao} min • {proc.categoria}</p>
+                  <p className="text-sm text-gray-700">{proc.descricao}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold" style={{ color: loja.cor_primaria }}>R$ {proc.preco}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end space-x-4">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Fechar
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-6 py-2 text-white rounded-md hover:opacity-90"
+            style={{ backgroundColor: loja.cor_primaria }}
+          >
+            + Novo Procedimento
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

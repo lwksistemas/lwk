@@ -636,9 +636,10 @@ function ModalNovoVendedor({ loja, onClose }: { loja: LojaInfo; onClose: () => v
   );
 }
 
-// Modal Novo Produto
+// Modal Novo Produto/Serviço
 function ModalNovoProduto({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
   const [formData, setFormData] = useState({
+    tipo: '',
     nome: '',
     descricao: '',
     categoria: '',
@@ -646,14 +647,22 @@ function ModalNovoProduto({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     custo: '',
     estoque: '',
     codigo: '',
+    duracao: '',
     observacoes: ''
   });
   const [loading, setLoading] = useState(false);
 
-  const categorias = ['Software', 'Hardware', 'Serviço', 'Consultoria', 'Treinamento', 'Licença', 'Outro'];
+  const categoriasProduto = ['Software', 'Hardware', 'Licença', 'Material', 'Equipamento', 'Outro'];
+  const categoriasServico = ['Consultoria', 'Treinamento', 'Suporte', 'Implementação', 'Manutenção', 'Desenvolvimento', 'Outro'];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: value,
+      // Limpar categoria ao mudar tipo
+      ...(name === 'tipo' ? { categoria: '' } : {})
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -661,10 +670,11 @@ function ModalNovoProduto({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     setLoading(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      alert(`✅ Produto cadastrado com sucesso!\n\nNome: ${formData.nome}\nPreço: R$ ${formData.preco}\nCategoria: ${formData.categoria}`);
+      const tipoTexto = formData.tipo === 'produto' ? 'Produto' : 'Serviço';
+      alert(`✅ ${tipoTexto} cadastrado com sucesso!\n\nNome: ${formData.nome}\nPreço: R$ ${formData.preco}\nCategoria: ${formData.categoria}${formData.tipo === 'servico' && formData.duracao ? `\nDuração: ${formData.duracao}` : ''}`);
       onClose();
     } catch (error) {
-      alert('❌ Erro ao cadastrar produto');
+      alert('❌ Erro ao cadastrar');
     } finally {
       setLoading(false);
     }
@@ -673,41 +683,180 @@ function ModalNovoProduto({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>📦 Novo Produto</h3>
+        <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>📦 Novo Produto/Serviço</h3>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <h4 className="text-lg font-semibold mb-3 text-gray-700">Informações do Produto</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto *</label>
-                <input type="text" name="nome" value={formData.nome} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="Ex: Sistema CRM Premium" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                <textarea name="descricao" value={formData.descricao} onChange={handleChange} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="Descreva o produto..." />
+            <h4 className="text-lg font-semibold mb-3 text-gray-700">Tipo</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, tipo: 'produto', categoria: '' }))}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  formData.tipo === 'produto'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="text-3xl mb-2">📦</div>
+                <div className="font-semibold">Produto</div>
+                <div className="text-xs text-gray-600">Item físico ou digital</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, tipo: 'servico', categoria: '', estoque: '' }))}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  formData.tipo === 'servico'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="text-3xl mb-2">🛠️</div>
+                <div className="font-semibold">Serviço</div>
+                <div className="text-xs text-gray-600">Consultoria, suporte, etc.</div>
+              </button>
+            </div>
+          </div>
+
+          {formData.tipo && (
+            <>
+              <div>
+                <h4 className="text-lg font-semibold mb-3 text-gray-700">
+                  Informações do {formData.tipo === 'produto' ? 'Produto' : 'Serviço'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nome do {formData.tipo === 'produto' ? 'Produto' : 'Serviço'} *
+                    </label>
+                    <input 
+                      type="text" 
+                      name="nome" 
+                      value={formData.nome} 
+                      onChange={handleChange} 
+                      required 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" 
+                      placeholder={formData.tipo === 'produto' ? 'Ex: Sistema CRM Premium' : 'Ex: Consultoria em Vendas'} 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <textarea 
+                      name="descricao" 
+                      value={formData.descricao} 
+                      onChange={handleChange} 
+                      rows={3} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" 
+                      placeholder={formData.tipo === 'produto' ? 'Descreva o produto...' : 'Descreva o serviço...'} 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
+                    <select name="categoria" value={formData.categoria} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0">
+                      <option value="">Selecione...</option>
+                      {(formData.tipo === 'produto' ? categoriasProduto : categoriasServico).map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Código/SKU</label>
+                    <input 
+                      type="text" 
+                      name="codigo" 
+                      value={formData.codigo} 
+                      onChange={handleChange} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" 
+                      placeholder="Ex: PROD-001" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$) *</label>
+                    <input 
+                      type="number" 
+                      name="preco" 
+                      value={formData.preco} 
+                      onChange={handleChange} 
+                      required 
+                      min="0" 
+                      step="0.01" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" 
+                      placeholder="1000.00" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Custo (R$)</label>
+                    <input 
+                      type="number" 
+                      name="custo" 
+                      value={formData.custo} 
+                      onChange={handleChange} 
+                      min="0" 
+                      step="0.01" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" 
+                      placeholder="500.00" 
+                    />
+                  </div>
+                  
+                  {formData.tipo === 'produto' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Estoque Inicial</label>
+                      <input 
+                        type="number" 
+                        name="estoque" 
+                        value={formData.estoque} 
+                        onChange={handleChange} 
+                        min="0" 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" 
+                        placeholder="0" 
+                      />
+                    </div>
+                  )}
+                  
+                  {formData.tipo === 'servico' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Duração Estimada</label>
+                      <input 
+                        type="text" 
+                        name="duracao" 
+                        value={formData.duracao} 
+                        onChange={handleChange} 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" 
+                        placeholder="Ex: 2 horas, 1 dia, 1 semana" 
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
-                <select name="categoria" value={formData.categoria} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0">
-                  <option value="">Selecione...</option>
-                  {categorias.map(cat => (<option key={cat} value={cat}>{cat}</option>))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea 
+                  name="observacoes" 
+                  value={formData.observacoes} 
+                  onChange={handleChange} 
+                  rows={3} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" 
+                  placeholder="Informações adicionais..." 
+                />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Código/SKU</label>
-                <input type="text" name="codigo" value={formData.codigo} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="Ex: PROD-001" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$) *</label>
-                <input type="number" name="preco" value={formData.preco} onChange={handleChange} required min="0" step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="1000.00" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Custo (R$)</label>
-                <input type="number" name="custo" value={formData.custo} onChange={handleChange} min="0" step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="500.00" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estoque Inicial</label>
-                <input type="number" name="estoque" value={formData.estoque} onChange={handleChange} min="0" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="0" />
+            </>
+          )}
+          
+          <div className="flex justify-end space-x-4 pt-4 border-t">
+            <button type="button" onClick={onClose} disabled={loading} className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
+            <button 
+              type="submit" 
+              disabled={loading || !formData.tipo} 
+              className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50" 
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              {loading ? 'Cadastrando...' : `Cadastrar ${formData.tipo === 'produto' ? 'Produto' : formData.tipo === 'servico' ? 'Serviço' : ''}`}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
               </div>
             </div>
           </div>

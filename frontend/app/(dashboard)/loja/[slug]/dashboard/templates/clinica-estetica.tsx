@@ -388,8 +388,11 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
     descricao: '',
     tempo_estimado: '',
     materiais_necessarios: '',
-    passos: '',
-    observacoes: ''
+    preparacao: '',
+    execucao: '',
+    pos_procedimento: '',
+    contraindicacoes: '',
+    cuidados_especiais: ''
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -437,8 +440,11 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
         descricao: '',
         tempo_estimado: '',
         materiais_necessarios: '',
-        passos: '',
-        observacoes: ''
+        preparacao: '',
+        execucao: '',
+        pos_procedimento: '',
+        contraindicacoes: '',
+        cuidados_especiais: ''
       });
     } catch (error) {
       console.error('Erro ao criar protocolo:', error);
@@ -540,11 +546,26 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Passos do Procedimento *
+                  Preparação *
                 </label>
                 <textarea
-                  name="passos"
-                  value={formData.passos}
+                  name="preparacao"
+                  value={formData.preparacao}
+                  onChange={handleChange}
+                  required
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="Descreva a preparação do cliente e ambiente..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Execução *
+                </label>
+                <textarea
+                  name="execucao"
+                  value={formData.execucao}
                   onChange={handleChange}
                   required
                   rows={5}
@@ -555,15 +576,44 @@ function ModalProtocolos({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Observações
+                  Pós-Procedimento *
                 </label>
                 <textarea
-                  name="observacoes"
-                  value={formData.observacoes}
+                  name="pos_procedimento"
+                  value={formData.pos_procedimento}
+                  onChange={handleChange}
+                  required
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="Cuidados após o procedimento..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Contraindicações
+                </label>
+                <textarea
+                  name="contraindicacoes"
+                  value={formData.contraindicacoes}
                   onChange={handleChange}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                  placeholder="Cuidados especiais, contraindicações, etc..."
+                  placeholder="Situações em que o procedimento não deve ser realizado..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cuidados Especiais
+                </label>
+                <textarea
+                  name="cuidados_especiais"
+                  value={formData.cuidados_especiais}
+                  onChange={handleChange}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  placeholder="Cuidados especiais durante o procedimento..."
                 />
               </div>
             </div>

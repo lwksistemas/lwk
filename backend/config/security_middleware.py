@@ -159,16 +159,17 @@ class SecurityIsolationMiddleware:
                     'grupo_requerido': 'loja'
                 }, status=401)
             
-            # Verificar se é proprietário de loja ou superadmin
+            # Verificar se é proprietário de loja (SUPERADMIN NÃO PODE ACESSAR)
             user_group = self._get_user_group(request.user)
             
-            if user_group not in ['loja', 'superadmin']:
+            if user_group != 'loja':
                 logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar loja: {path}")
                 return JsonResponse({
-                    'error': 'Acesso negado - Apenas proprietários de lojas',
+                    'error': 'Acesso negado - Apenas proprietários de lojas podem acessar',
                     'code': 'STORE_OWNER_REQUIRED',
                     'seu_grupo': user_group,
-                    'grupo_requerido': 'loja'
+                    'grupo_requerido': 'loja',
+                    'mensagem': 'Super Admin e Suporte não podem acessar áreas de lojas'
                 }, status=403)
         
         return None  # Sem violação
@@ -182,9 +183,14 @@ class SecurityIsolationMiddleware:
         if not request.user or not request.user.is_authenticated:
             return None
         
-        # Apenas verificar para proprietários de lojas (não superadmin)
-        if request.user.is_superuser:
-            return None
+        # SUPERADMIN NÃO DEVE ACESSAR ROTAS DE LOJAS
+        if request.user.is_superuser and self._is_store_route(request.path):
+            logger.critical(f"🚨 VIOLAÇÃO CRÍTICA: Super Admin {request.user.username} tentou acessar rota de loja: {request.path}")
+            return JsonResponse({
+                'error': 'Super Admin não pode acessar áreas de lojas',
+                'code': 'SUPERADMIN_CANNOT_ACCESS_STORES',
+                'mensagem': 'Use o painel de Super Admin para gerenciar lojas'
+            }, status=403)
         
         user_group = self._get_user_group(request.user)
         if user_group != 'loja':

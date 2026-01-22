@@ -1794,93 +1794,6 @@ function ModalNovoCliente({
   );
 }
 
-// Modal Procedimentos
-function ModalProcedimentos({ 
-  loja, 
-  onClose, 
-  onSuccess 
-}: { 
-  loja: LojaInfo; 
-  onClose: () => void; 
-  onSuccess: () => void;
-}) {
-  const [procedimentos, setProcedimentos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-
-  useEffect(() => {
-    loadProcedimentos();
-  }, []);
-
-  const loadProcedimentos = async () => {
-    try {
-      const response = await apiClient.get('/clinica/procedimentos/');
-      setProcedimentos(response.data);
-    } catch (error) {
-      console.error('Erro ao carregar procedimentos:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>
-          💆 Procedimentos Disponíveis
-        </h3>
-        
-        {loading ? (
-          <div className="text-center py-8">Carregando procedimentos...</div>
-        ) : procedimentos.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg mb-2">Nenhum procedimento cadastrado</p>
-            <p className="text-sm mb-4">Cadastre os procedimentos oferecidos pela sua clínica</p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="px-6 py-3 rounded-md text-white hover:opacity-90"
-              style={{ backgroundColor: loja.cor_primaria }}
-            >
-              + Cadastrar Primeiro Procedimento
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4 mb-6">
-            {procedimentos.map((proc) => (
-              <div key={proc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                <div className="flex-1">
-                  <p className="font-semibold">{proc.nome}</p>
-                  <p className="text-sm text-gray-600">{proc.duracao} min • {proc.categoria}</p>
-                  <p className="text-sm text-gray-700">{proc.descricao}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold" style={{ color: loja.cor_primaria }}>R$ {proc.preco}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex justify-end space-x-4">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Fechar
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-6 py-2 text-white rounded-md hover:opacity-90"
-            style={{ backgroundColor: loja.cor_primaria }}
-          >
-            + Novo Procedimento
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Modal Novo Profissional
 function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
   const [formData, setFormData] = useState({
@@ -2034,7 +1947,6 @@ function ModalNovoProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () 
       </div>
     </div>
   );
-}
 }
 
 // Modal Procedimentos

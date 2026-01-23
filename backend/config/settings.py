@@ -157,13 +157,16 @@ WHITENOISE_MAX_AGE = 31536000  # 1 ano de cache
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ✅ OTIMIZAÇÃO: Cache em memória (grátis!)
+# ✅ CACHE: Usando banco de dados para compartilhar entre workers (Heroku)
+# LocMemCache não funciona em produção com múltiplos workers
+# DatabaseCache é compartilhado e gratuito
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_table',  # Nome da tabela de cache
         'OPTIONS': {
-            'MAX_ENTRIES': 1000
+            'MAX_ENTRIES': 1000,
+            'CULL_FREQUENCY': 3,  # Remove 1/3 das entradas quando atingir MAX_ENTRIES
         }
     }
 }

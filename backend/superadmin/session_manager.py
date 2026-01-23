@@ -56,6 +56,8 @@ class SessionManager:
             session_key = SessionManager._get_session_key(user_id)
             existing_session = cache.get(session_key)
             
+            logger.info(f"🔍 Verificando sessão anterior para usuário {user_id}: {existing_session is not None}")
+            
             if existing_session:
                 old_token = existing_session.get('token')
                 
@@ -66,10 +68,14 @@ class SessionManager:
                     
                     # Adicionar à blacklist com TTL de 1 hora
                     cache.set(blacklist_key, True, timeout=3600)
-                    logger.info(f"Token anterior adicionado à blacklist para usuário {user_id}")
+                    logger.warning(f"🗑️ Token anterior adicionado à BLACKLIST para usuário {user_id}")
+                else:
+                    logger.warning(f"⚠️ Sessão anterior existe mas sem token para usuário {user_id}")
+            else:
+                logger.info(f"ℹ️ Nenhuma sessão anterior encontrada para usuário {user_id} (primeiro login)")
             
         except Exception as e:
-            logger.error(f"Erro ao adicionar token à blacklist: {e}")
+            logger.error(f"❌ ERRO ao adicionar token à blacklist: {e}")
     
     @staticmethod
     def create_session(user_id: int, token: str) -> str:
@@ -90,6 +96,8 @@ class SessionManager:
         session_key = SessionManager._get_session_key(user_id)
         activity_key = SessionManager._get_activity_key(user_id)
         
+        logger.info(f"🔐 Criando nova sessão para usuário {user_id}")
+        
         # Blacklist todos os tokens anteriores
         SessionManager._blacklist_previous_tokens(user_id)
         
@@ -105,6 +113,8 @@ class SessionManager:
         # Salvar no cache (sem expiração automática, controlamos manualmente)
         cache.set(session_key, session_data, timeout=None)
         cache.set(activity_key, timestamp, timeout=None)
+        
+        logger.info(f"✅ Nova sessão criada: {session_id} para usuário {user_id}")
         
         return session_id
     
@@ -132,6 +142,7 @@ class SessionManager:
         is_blacklisted = cache.get(blacklist_key)
         
         if is_blacklisted:
+            logger.warning(f"🚫 Token na BLACKLIST detectado para usuário {user_id}")
             return {
                 'valid': False,
                 'reason': 'BLACKLISTED',
@@ -141,6 +152,7 @@ class SessionManager:
         # Verificar se existe sessão
         session_data = cache.get(session_key)
         if not session_data:
+            logger.warning(f"⚠️ Nenhuma sessão ativa encontrada para usuário {user_id}")
             return {
                 'valid': False,
                 'reason': 'NO_SESSION',
@@ -150,6 +162,7 @@ class SessionManager:
         # Verificar se o token corresponde
         saved_token = session_data.get('token')
         if saved_token != token:
+            logger.warning(f"🔄 Token diferente detectado para usuário {user_id} - Outra sessão ativa")
             return {
                 'valid': False,
                 'reason': 'DIFFERENT_SESSION',
@@ -165,6 +178,7 @@ class SessionManager:
             
             if inactive_time > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
                 SessionManager.destroy_session(user_id)
+                logger.warning(f"⏱️ Sessão expirou por inatividade para usuário {user_id}")
                 return {
                     'valid': False,
                     'reason': 'TIMEOUT',

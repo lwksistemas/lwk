@@ -40,13 +40,17 @@ class SessionValidationMiddleware(MiddlewareMixin):
         
         # Validar sessão
         user_id = request.user.id
+        username = request.user.username
+        
+        logger.info(f"🔍 Validando sessão: {username} (ID: {user_id}) - Path: {request.path}")
+        
         validation = SessionManager.validate_session(user_id, token)
         
         if not validation['valid']:
             reason = validation['reason']
             message = validation['message']
             
-            logger.warning(f"🚨 Sessão inválida para {request.user.username}: {reason}")
+            logger.warning(f"🚨 SESSÃO INVÁLIDA: {username} - Motivo: {reason} - {message}")
             
             # Retornar erro 401 como JSON
             return JsonResponse({

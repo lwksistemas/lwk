@@ -15,6 +15,13 @@ export interface AuthTokens {
     username: string;
     email: string;
     is_superuser: boolean;
+    user_type?: string;
+  };
+  loja?: {
+    id: number;
+    slug: string;
+    nome: string;
+    tipo_loja?: string;
   };
 }
 
@@ -34,15 +41,46 @@ export const authService = {
       throw new Error('localStorage não está disponível');
     }
     
+    // Determinar endpoint correto baseado no tipo de usuário
+    let endpoint = '/auth/token/'; // Fallback
+    
+    switch (userType) {
+      case 'superadmin':
+        endpoint = '/auth/superadmin/login/';
+        break;
+      case 'suporte':
+        endpoint = '/auth/suporte/login/';
+        break;
+      case 'loja':
+        endpoint = '/auth/loja/login/';
+        break;
+    }
+    
+    console.log(`🔐 Usando endpoint: ${endpoint}`);
+    
     try {
-      const response = await apiClient.post<AuthTokens>('/auth/token/', credentials);
+      // Preparar dados de login
+      const loginData: any = { ...credentials };
+      
+      // Se for loja, adicionar slug
+      if (userType === 'loja' && lojaSlug) {
+        loginData.loja_slug = lojaSlug;
+      }
+      
+      const response = await apiClient.post<AuthTokens>(endpoint, loginData);
       console.log('Login response recebida:', response.status, response.data);
       
-      const { access, refresh, session_id, session_timeout_minutes, user } = response.data;
+      const { access, refresh, session_id, session_timeout_minutes, user, loja } = response.data;
       
       if (!access || !refresh) {
         console.error('Tokens inválidos recebidos:', { access: !!access, refresh: !!refresh });
         throw new Error('Tokens inválidos recebidos do servidor');
+      }
+      
+      // Validar que o user_type retornado corresponde ao esperado
+      if (user && user.user_type && user.user_type !== userType) {
+        console.error(`❌ ERRO: Tipo de usuário não corresponde! Esperado: ${userType}, Recebido: ${user.user_type}`);
+        throw new Error(`Este usuário não pode fazer login aqui. Use o login de ${user.user_type}.`);
       }
       
       // Salvar no localStorage
@@ -54,8 +92,12 @@ export const authService = {
         localStorage.setItem('session_id', session_id);
       }
       
-      if (lojaSlug) {
-        localStorage.setItem('loja_slug', lojaSlug);
+      // Se for loja, salvar slug
+      if (userType === 'loja') {
+        const slugToSave = loja?.slug || lojaSlug;
+        if (slugToSave) {
+          localStorage.setItem('loja_slug', slugToSave);
+        }
       }
       
       // Salvar também nos cookies para o middleware do Next.js
@@ -66,16 +108,20 @@ export const authService = {
       
       document.cookie = `user_type=${userType}; ${cookieOptions}`;
       
-      if (lojaSlug) {
-        document.cookie = `loja_slug=${lojaSlug}; ${cookieOptions}`;
+      if (userType === 'loja') {
+        const slugToSave = loja?.slug || lojaSlug;
+        if (slugToSave) {
+          document.cookie = `loja_slug=${slugToSave}; ${cookieOptions}`;
+        }
       }
       
       console.log('✅ Tokens e cookies salvos:', {
         userType,
-        lojaSlug: lojaSlug || 'N/A',
+        lojaSlug: userType === 'loja' ? (loja?.slug || lojaSlug || 'N/A') : 'N/A',
         isProduction,
         cookies: document.cookie
       });
+      
       console.log(`Sessão criada: ${session_id}, timeout: ${session_timeout_minutes} minutos`);
       
       // Iniciar monitoramento de inatividade
@@ -96,6 +142,19 @@ export const authService = {
       // Verificar se é erro de sessão conflitante
       if (error.response?.data?.code === 'SESSION_CONFLICT') {
         throw new Error('Você já está logado em outro dispositivo. Faça logout lá primeiro.');
+      }
+      
+      // Verificar se é erro de endpoint errado
+      if (error.response?.data?.code === 'WRONG_LOGIN_ENDPOINT') {
+        const correctEndpoint = error.response.data.endpoint_correto;
+        const seuTipo = error.response.data.seu_tipo;
+        throw new Error(`Este usuário é do tipo "${seuTipo}". Use o login correto.`);
+      }
+      
+      // Verificar se é erro de loja errada
+      if (error.response?.data?.code === 'WRONG_STORE') {
+        const suaLoja = error.response.data.sua_loja;
+        throw new Error(`Você não pode fazer login nesta loja. Sua loja é: ${suaLoja}`);
       }
       
       throw error;

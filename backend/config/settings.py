@@ -43,7 +43,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'config.security_middleware.SecurityIsolationMiddleware',  # 🔐 SEGURANÇA: Isolamento dos 3 grupos
-    'superadmin.session_validation_middleware.SessionValidationMiddleware',  # 🔐 SESSÃO ÚNICA
+    # 'superadmin.session_validation_middleware.SessionValidationMiddleware',  # 🔐 DESABILITADO: Validação agora é no authenticator
     'core.mixins.LojaContextMiddleware',  # 🔐 SEGURANÇA: Contexto de loja para isolamento de dados
     'tenants.middleware.TenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

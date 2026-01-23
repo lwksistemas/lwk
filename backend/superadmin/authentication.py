@@ -26,8 +26,19 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         
         user, token = result
         
-        # Obter token string do access token
-        token_str = str(token.token) if hasattr(token, 'token') else str(token)
+        # Ignorar validação para endpoints de login/logout
+        if request.path.startswith('/api/auth/'):
+            return user, token
+        
+        # Extrair token string do header (mais confiável)
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Bearer '):
+            token_str = auth_header.split(' ')[1]
+        else:
+            # Fallback: tentar extrair do objeto token
+            token_str = str(token.token) if hasattr(token, 'token') else str(token)
+        
+        logger.info(f"🔐 Authenticator validando sessão: {user.username} (ID: {user.id}) - Path: {request.path}")
         
         # Validar sessão
         validation = SessionManager.validate_session(user.id, token_str)
@@ -35,6 +46,8 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         if not validation['valid']:
             reason = validation['reason']
             message = validation['message']
+            
+            logger.warning(f"🚨 SESSÃO INVÁLIDA no Authenticator: {user.username} - Motivo: {reason}")
             
             # Lançar exceção para invalidar o token
             raise InvalidToken({

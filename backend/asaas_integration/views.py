@@ -25,6 +25,8 @@ except ImportError:
 from .models import AsaasCustomer, AsaasPayment, LojaAssinatura, AsaasConfig
 from .serializers import AsaasCustomerSerializer, AsaasPaymentSerializer, LojaAssinaturaSerializer
 from superadmin.models import Loja
+# 🔥 IMPORTAR NOSSO AUTHENTICATOR CUSTOMIZADO
+from superadmin.authentication import SessionAwareJWTAuthentication
 
 logger = logging.getLogger(__name__)
 
@@ -613,6 +615,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para assinaturas Asaas (somente leitura para superadmin)"""
     serializer_class = LojaAssinaturaSerializer
     permission_classes = [IsSuperAdmin]
+    authentication_classes = [SessionAwareJWTAuthentication]  # 🔥 FORÇAR USO DO NOSSO AUTHENTICATOR
     queryset = LojaAssinatura.objects.all().select_related('asaas_customer', 'current_payment')
     
     def get_queryset(self):
@@ -725,6 +728,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para pagamentos Asaas (somente leitura para superadmin)"""
     serializer_class = AsaasPaymentSerializer
     permission_classes = [IsSuperAdmin]
+    authentication_classes = [SessionAwareJWTAuthentication]  # 🔥 FORÇAR USO DO NOSSO AUTHENTICATOR
     queryset = AsaasPayment.objects.all().select_related('customer')
     
     def get_queryset(self):

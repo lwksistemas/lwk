@@ -8,6 +8,10 @@ from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
+
+# 🔥 IMPORTAR NOSSO AUTHENTICATOR CUSTOMIZADO
+from .authentication import SessionAwareJWTAuthentication
+
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja,
     PagamentoLoja, UsuarioSistema
@@ -52,6 +56,7 @@ class IsSuperAdmin(permissions.BasePermission):
 class TipoLojaViewSet(viewsets.ModelViewSet):
     serializer_class = TipoLojaSerializer
     permission_classes = [IsSuperAdmin]
+    authentication_classes = [SessionAwareJWTAuthentication]  # 🔥 FORÇAR USO DO NOSSO AUTHENTICATOR
     
     def get_queryset(self):
         # ✅ OTIMIZAÇÃO: prefetch lojas relacionadas
@@ -61,6 +66,7 @@ class TipoLojaViewSet(viewsets.ModelViewSet):
 class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
     serializer_class = PlanoAssinaturaSerializer
     permission_classes = [IsSuperAdmin]
+    authentication_classes = [SessionAwareJWTAuthentication]  # 🔥 FORÇAR USO DO NOSSO AUTHENTICATOR
     
     def get_queryset(self):
         # ✅ OTIMIZAÇÃO: prefetch relacionamentos
@@ -79,6 +85,7 @@ class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
 
 class LojaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperAdmin]
+    authentication_classes = [SessionAwareJWTAuthentication]  # 🔥 FORÇAR USO DO NOSSO AUTHENTICATOR
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -542,6 +549,7 @@ Sistema Multi-Loja
 class FinanceiroLojaViewSet(viewsets.ModelViewSet):
     serializer_class = FinanceiroLojaSerializer
     permission_classes = [IsSuperAdmin]
+    authentication_classes = [SessionAwareJWTAuthentication]  # 🔥 FORÇAR USO DO NOSSO AUTHENTICATOR
     
     def get_queryset(self):
         # ✅ OTIMIZAÇÃO: select_related para loja
@@ -558,6 +566,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
 class PagamentoLojaViewSet(viewsets.ModelViewSet):
     serializer_class = PagamentoLojaSerializer
     permission_classes = [IsSuperAdmin]
+    authentication_classes = [SessionAwareJWTAuthentication]  # 🔥 FORÇAR USO DO NOSSO AUTHENTICATOR
     
     def get_queryset(self):
         # ✅ OTIMIZAÇÃO: select_related para loja e financeiro
@@ -586,6 +595,7 @@ class PagamentoLojaViewSet(viewsets.ModelViewSet):
 class UsuarioSistemaViewSet(viewsets.ModelViewSet):
     serializer_class = UsuarioSistemaSerializer
     permission_classes = [IsSuperAdmin]
+    authentication_classes = [SessionAwareJWTAuthentication]  # 🔥 FORÇAR USO DO NOSSO AUTHENTICATOR
     
     def get_queryset(self):
         # ✅ OTIMIZAÇÃO: select_related para user

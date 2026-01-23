@@ -4,7 +4,7 @@ Valida sessões e atualiza atividade do usuário
 """
 from django.http import JsonResponse
 from django.contrib.auth.models import AnonymousUser
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from superadmin.authentication import SessionAwareJWTAuthentication  # USAR O NOSSO!
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from superadmin.session_manager import SessionManager
 import logging
@@ -23,7 +23,7 @@ class SessionControlMiddleware:
     
     def __init__(self, get_response):
         self.get_response = get_response
-        self.jwt_authenticator = JWTAuthentication()
+        self.jwt_authenticator = SessionAwareJWTAuthentication()  # USAR O NOSSO!
     
     def __call__(self, request):
         # Processar autenticação JWT

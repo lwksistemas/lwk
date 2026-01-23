@@ -5,8 +5,19 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 from superadmin.session_manager import SessionManager
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
+
+# Log CRÍTICO no carregamento do módulo
+logger.critical("=" * 80)
+logger.critical("🔥🔥🔥 MÓDULO authentication.py CARREGADO!")
+logger.critical("🔥🔥🔥 SessionAwareJWTAuthentication DISPONÍVEL")
+logger.critical("=" * 80)
+sys.stderr.write("\n" + "=" * 80 + "\n")
+sys.stderr.write("🔥🔥🔥 MÓDULO authentication.py CARREGADO!\n")
+sys.stderr.write("=" * 80 + "\n\n")
+sys.stderr.flush()
 
 
 class SessionAwareJWTAuthentication(JWTAuthentication):
@@ -18,9 +29,20 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         """
         Autentica o usuário e verifica sessão única
         """
+        # Log CRÍTICO no início - SEMPRE executado
+        logger.critical("=" * 80)
         logger.critical("🔥🔥🔥 SessionAwareJWTAuthentication.authenticate() CHAMADO")
         logger.critical(f"   Path: {request.path}")
         logger.critical(f"   Method: {request.method}")
+        logger.critical(f"   User (antes auth): {getattr(request, 'user', 'N/A')}")
+        logger.critical("=" * 80)
+        
+        # Também escrever no stderr para garantir que aparece
+        import sys
+        sys.stderr.write("\n" + "=" * 80 + "\n")
+        sys.stderr.write(f"🔥🔥🔥 AUTHENTICATE CHAMADO: {request.method} {request.path}\n")
+        sys.stderr.write("=" * 80 + "\n\n")
+        sys.stderr.flush()
         
         # Autenticação JWT padrão
         result = super().authenticate(request)

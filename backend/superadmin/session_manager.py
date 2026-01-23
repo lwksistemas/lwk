@@ -59,11 +59,12 @@ class SessionManager:
             if existing_session:
                 old_token = existing_session.get('token')
                 if old_token:
-                    # Adicionar token antigo à blacklist no Redis (usar token COMPLETO)
-                    blacklist_key = f"blacklist_token:{old_token}"
+                    # Usar hash do token como chave (para evitar chaves muito longas)
+                    token_hash = hashlib.sha256(old_token.encode()).hexdigest()
+                    blacklist_key = f"blacklist:{token_hash}"
                     cache.set(blacklist_key, True, timeout=3600)  # 1 hora (tempo de vida do token)
                     logger.info(f"🚫 Token anterior adicionado à blacklist para usuário {user_id}")
-                    logger.info(f"   Blacklist key: blacklist_token:{old_token[:50]}...")
+                    logger.info(f"   Hash: {token_hash}")
             
         except Exception as e:
             logger.error(f"❌ Erro ao adicionar token à blacklist: {e}")
@@ -142,13 +143,14 @@ class SessionManager:
         logger.info(f"🔍 VALIDANDO SESSÃO - Usuário {user_id}")
         logger.info(f"   Token recebido: {token[:50]}...")
         
-        # VERIFICAR BLACKLIST PRIMEIRO (usar token COMPLETO)
-        blacklist_key = f"blacklist_token:{token}"
+        # VERIFICAR BLACKLIST PRIMEIRO (usar hash do token)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        blacklist_key = f"blacklist:{token_hash}"
         is_blacklisted = cache.get(blacklist_key)
         
         if is_blacklisted:
             logger.warning(f"🚫 TOKEN NA BLACKLIST - Usuário {user_id}")
-            logger.warning(f"   Token: {token[:50]}...")
+            logger.warning(f"   Hash: {token_hash}")
             return {
                 'valid': False,
                 'reason': 'BLACKLISTED',

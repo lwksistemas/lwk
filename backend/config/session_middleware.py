@@ -38,22 +38,30 @@ class SessionControlMiddleware:
         return response
     
     def _authenticate_jwt(self, request):
-        """Processa autenticação JWT"""
-        if not hasattr(request, 'user') or request.user.is_anonymous:
-            try:
-                auth_result = self.jwt_authenticator.authenticate(request)
-                if auth_result is not None:
-                    user, token = auth_result
-                    request.user = user
-                    request.auth = token
-                else:
-                    if not hasattr(request, 'user'):
-                        request.user = AnonymousUser()
-            except (InvalidToken, TokenError):
+        """Processa autenticação JWT - SEMPRE executado"""
+        logger.critical(f"🔥 MIDDLEWARE AUTENTICANDO - Path: {request.path}")
+        
+        try:
+            auth_result = self.jwt_authenticator.authenticate(request)
+            if auth_result is not None:
+                user, token = auth_result
+                request.user = user
+                request.auth = token
+                logger.critical(f"✅ Autenticado: {user.username} (ID: {user.id})")
+            else:
                 request.user = AnonymousUser()
-            except Exception as e:
-                logger.warning(f"Erro na autenticação JWT: {e}")
-                request.user = AnonymousUser()
+                logger.critical(f"ℹ️ Nenhum token encontrado - Usuário anônimo")
+        except InvalidToken as e:
+            request.user = AnonymousUser()
+            logger.critical(f"❌ Token inválido: {e}")
+        except TokenError as e:
+            request.user = AnonymousUser()
+            logger.critical(f"❌ Erro no token: {e}")
+        except Exception as e:
+            request.user = AnonymousUser()
+            logger.critical(f"❌ Erro na autenticação JWT: {e}")
+            import traceback
+            logger.critical(f"   Traceback: {traceback.format_exc()}")
     
     def _check_session_control(self, request):
         """

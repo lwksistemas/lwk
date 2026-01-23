@@ -192,7 +192,8 @@ GZIP_COMPRESSIBLE_TYPES = [
 # REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'superadmin.authentication.SessionAwareJWTAuthentication',  # 🔐 SEGURANÇA: JWT com validação de sessão única
+        # ❌ REMOVIDO: Não usar aqui, o middleware vai autenticar
+        # 'superadmin.authentication.SessionAwareJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

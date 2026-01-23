@@ -179,24 +179,24 @@ class SessionManager:
         session_key = SessionManager._get_session_key(user_id)
         activity_key = SessionManager._get_activity_key(user_id)
         
-        logger.info(f"🔍 VALIDANDO SESSÃO - Usuário {user_id}")
-        logger.info(f"   Token recebido (50 chars): {token[:50]}...")
-        logger.info(f"   Token recebido (tamanho): {len(token)} caracteres")
+        logger.critical(f"🔍🔍🔍 VALIDATE_SESSION CHAMADO - Usuário {user_id}")
+        logger.critical(f"   Token recebido (50 chars): {token[:50]}...")
+        logger.critical(f"   Token recebido (tamanho): {len(token)} caracteres")
         
         # VERIFICAR BLACKLIST PRIMEIRO (usar hash do token)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         blacklist_key = f"blacklist:{token_hash}"
         is_blacklisted = cache.get(blacklist_key)
         
-        logger.info(f"   Verificando blacklist...")
-        logger.info(f"   Hash do token: {token_hash}")
-        logger.info(f"   Chave blacklist: {blacklist_key}")
-        logger.info(f"   Está na blacklist? {is_blacklisted}")
+        logger.critical(f"   🔍 Verificando blacklist...")
+        logger.critical(f"   Hash do token: {token_hash}")
+        logger.critical(f"   Chave blacklist: {blacklist_key}")
+        logger.critical(f"   Está na blacklist? {is_blacklisted}")
         
         if is_blacklisted:
-            logger.critical(f"🚫🚫🚫 TOKEN NA BLACKLIST - Usuário {user_id}")
+            logger.critical(f"🚫🚫🚫 TOKEN NA BLACKLIST DETECTADO - Usuário {user_id}")
             logger.critical(f"   Hash: {token_hash}")
-            logger.critical(f"   ACESSO DEVE SER BLOQUEADO!")
+            logger.critical(f"   BLOQUEANDO ACESSO AGORA!")
             return {
                 'valid': False,
                 'reason': 'BLACKLISTED',
@@ -206,24 +206,25 @@ class SessionManager:
         # Verificar se existe sessão
         session_data = cache.get(session_key)
         if not session_data:
-            logger.warning(f"❌ Nenhuma sessão encontrada no cache para usuário {user_id}")
-            logger.warning(f"   Chave procurada: {session_key}")
+            logger.critical(f"❌❌❌ NENHUMA SESSÃO NO CACHE - Usuário {user_id}")
+            logger.critical(f"   Chave procurada: {session_key}")
+            logger.critical(f"   BLOQUEANDO ACESSO!")
             return {
                 'valid': False,
                 'reason': 'NO_SESSION',
                 'message': 'Nenhuma sessão ativa encontrada'
             }
         
-        logger.info(f"   ✓ Sessão encontrada no cache")
-        logger.info(f"   Token salvo (50 chars): {session_data.get('token', '')[:50]}...")
-        logger.info(f"   Token salvo (tamanho): {len(session_data.get('token', ''))} caracteres")
+        logger.critical(f"   ✓ Sessão encontrada no cache")
+        logger.critical(f"   Token salvo (50 chars): {session_data.get('token', '')[:50]}...")
+        logger.critical(f"   Token salvo (tamanho): {len(session_data.get('token', ''))} caracteres")
         
         # Verificar se o token corresponde
         saved_token = session_data.get('token')
         tokens_match = (saved_token == token)
         
-        logger.info(f"   Comparando tokens...")
-        logger.info(f"   Tokens são iguais? {tokens_match}")
+        logger.critical(f"   🔍 Comparando tokens...")
+        logger.critical(f"   Tokens são iguais? {tokens_match}")
         
         if not tokens_match:
             logger.critical(f"🚨🚨🚨 TOKEN DIFERENTE DETECTADO - Usuário {user_id}")
@@ -231,14 +232,14 @@ class SessionManager:
             logger.critical(f"   Token salvo (início):    {saved_token[:80]}...")
             logger.critical(f"   Token recebido (fim): ...{token[-80:]}")
             logger.critical(f"   Token salvo (fim):    ...{saved_token[-80:]}")
-            logger.critical(f"   ACESSO DEVE SER BLOQUEADO!")
+            logger.critical(f"   BLOQUEANDO ACESSO!")
             return {
                 'valid': False,
                 'reason': 'DIFFERENT_SESSION',
                 'message': 'Outra sessão foi iniciada em outro dispositivo'
             }
         
-        logger.info(f"✅ Token corresponde! Sessão válida para usuário {user_id}")
+        logger.critical(f"✅✅✅ Token corresponde! Sessão válida para usuário {user_id}")
         
         # Verificar timeout de inatividade
         last_activity_str = cache.get(activity_key)

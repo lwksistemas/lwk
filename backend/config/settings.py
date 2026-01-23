@@ -41,11 +41,12 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',  # DEVE VIR ANTES dos middlewares de segurança
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
     'config.security_middleware.SecurityIsolationMiddleware',  # 🔐 SEGURANÇA: Isolamento dos 3 grupos
-    'config.session_middleware.SessionControlMiddleware',  # 🔐 SEGURANÇA: Controle de sessão única (DEPOIS de Auth)
+    # ❌ REMOVIDO: Middleware não funciona com REST Framework viewsets
+    # 'config.session_middleware.SessionControlMiddleware',
     'core.mixins.LojaContextMiddleware',  # 🔐 SEGURANÇA: Contexto de loja para isolamento de dados
-    'tenants.middleware.TenantMiddleware',  # Middleware customizado
+    'tenants.middleware.TenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -192,22 +193,21 @@ GZIP_COMPRESSIBLE_TYPES = [
 # REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        # ❌ REMOVIDO: Não usar aqui, o middleware vai autenticar
-        # 'superadmin.authentication.SessionAwareJWTAuthentication',
+        'superadmin.authentication.SessionAwareJWTAuthentication',  # 🔐 USAR NOSSO AUTHENTICATOR
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,  # ✅ OTIMIZAÇÃO: Paginação padrão
+    'PAGE_SIZE': 20,
     # ✅ OTIMIZAÇÃO: Throttling para prevenir abuso
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',  # 100 requisições por hora para não autenticados
-        'user': '1000/hour'  # 1000 requisições por hora para autenticados
+        'anon': '100/hour',
+        'user': '1000/hour'
     }
 }
 

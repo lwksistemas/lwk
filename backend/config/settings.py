@@ -35,16 +35,16 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.gzip.GZipMiddleware',  # ✅ OTIMIZAÇÃO: Compressão de resposta
-    'config.security_middleware.SecurityIsolationMiddleware',  # 🔐 SEGURANÇA: Isolamento dos 3 grupos
-    'config.session_middleware.SessionControlMiddleware',  # 🔐 SEGURANÇA: Controle de sessão única
-    'core.mixins.LojaContextMiddleware',  # 🔐 SEGURANÇA: Contexto de loja para isolamento de dados
-    'tenants.middleware.TenantMiddleware',  # Middleware customizado
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',  # DEVE VIR ANTES dos middlewares de segurança
+    'config.security_middleware.SecurityIsolationMiddleware',  # 🔐 SEGURANÇA: Isolamento dos 3 grupos
+    'config.session_middleware.SessionControlMiddleware',  # 🔐 SEGURANÇA: Controle de sessão única (DEPOIS de Auth)
+    'core.mixins.LojaContextMiddleware',  # 🔐 SEGURANÇA: Contexto de loja para isolamento de dados
+    'tenants.middleware.TenantMiddleware',  # Middleware customizado
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

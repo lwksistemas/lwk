@@ -1,9 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
 from core.models import BaseCliente, BaseFuncionario, BaseProduto
+from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 
-class Lead(models.Model):
+class Lead(LojaIsolationMixin, models.Model):
     """Leads do CRM"""
     STATUS_CHOICES = [
         ('novo', 'Novo Lead'),
@@ -37,6 +38,8 @@ class Lead(models.Model):
     observacoes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_leads'
@@ -48,10 +51,12 @@ class Lead(models.Model):
         return f"{self.nome} - {self.empresa}"
 
 
-class Cliente(BaseCliente):
+class Cliente(LojaIsolationMixin, BaseCliente):
     """Clientes do CRM (leads convertidos)"""
     empresa = models.CharField(max_length=200)
     cnpj = models.CharField(max_length=18, blank=True, null=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_clientes'
@@ -63,9 +68,11 @@ class Cliente(BaseCliente):
         return f"{self.nome} - {self.empresa}"
 
 
-class Vendedor(BaseFuncionario):
+class Vendedor(LojaIsolationMixin, BaseFuncionario):
     """Vendedores da equipe"""
     meta_mensal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_vendedores'
@@ -74,9 +81,11 @@ class Vendedor(BaseFuncionario):
         verbose_name_plural = 'Vendedores'
 
 
-class Produto(BaseProduto):
+class Produto(LojaIsolationMixin, BaseProduto):
     """Produtos/Serviços oferecidos"""
     categoria = models.CharField(max_length=100)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_produtos'
@@ -85,7 +94,7 @@ class Produto(BaseProduto):
         verbose_name_plural = 'Produtos'
 
 
-class Venda(models.Model):
+class Venda(LojaIsolationMixin, models.Model):
     """Vendas realizadas"""
     STATUS_CHOICES = [
         ('em_negociacao', 'Em Negociação'),
@@ -102,6 +111,8 @@ class Venda(models.Model):
     observacoes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_vendas'
@@ -113,7 +124,7 @@ class Venda(models.Model):
         return f"{self.cliente.nome} - {self.produto.nome} - R$ {self.valor}"
 
 
-class Pipeline(models.Model):
+class Pipeline(LojaIsolationMixin, models.Model):
     """Etapas do pipeline de vendas"""
     nome = models.CharField(max_length=100)
     ordem = models.IntegerField()
@@ -121,6 +132,8 @@ class Pipeline(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_pipeline'

@@ -2,9 +2,10 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
+from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 
-class Cliente(models.Model):
+class Cliente(LojaIsolationMixin, models.Model):
     """Cliente da clínica de estética"""
     nome = models.CharField(max_length=200)
     email = models.EmailField()
@@ -18,6 +19,8 @@ class Cliente(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'clinica_clientes'
@@ -29,7 +32,7 @@ class Cliente(models.Model):
         return self.nome
 
 
-class Profissional(models.Model):
+class Profissional(LojaIsolationMixin, models.Model):
     """Profissional que realiza procedimentos"""
     nome = models.CharField(max_length=200)
     email = models.EmailField()
@@ -39,6 +42,8 @@ class Profissional(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'clinica_profissionais'
@@ -50,7 +55,7 @@ class Profissional(models.Model):
         return f"{self.nome} - {self.especialidade}"
 
 
-class Procedimento(models.Model):
+class Procedimento(LojaIsolationMixin, models.Model):
     """Procedimentos oferecidos pela clínica"""
     nome = models.CharField(max_length=200)
     descricao = models.TextField()
@@ -60,6 +65,8 @@ class Procedimento(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'clinica_procedimentos'
@@ -71,7 +78,7 @@ class Procedimento(models.Model):
         return f"{self.nome} - R$ {self.preco}"
 
 
-class Agendamento(models.Model):
+class Agendamento(LojaIsolationMixin, models.Model):
     """Agendamentos de procedimentos"""
     STATUS_CHOICES = [
         ('agendado', 'Agendado'),
@@ -91,6 +98,8 @@ class Agendamento(models.Model):
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'clinica_agendamentos'
@@ -102,7 +111,7 @@ class Agendamento(models.Model):
         return f"{self.cliente.nome} - {self.procedimento.nome} - {self.data} {self.horario}"
 
 
-class Funcionario(models.Model):
+class Funcionario(LojaIsolationMixin, models.Model):
     """Funcionários da clínica (recepção, administração, etc)"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='clinica_funcionario', help_text='Usuário do sistema vinculado ao funcionário')
     nome = models.CharField(max_length=200)
@@ -112,6 +121,8 @@ class Funcionario(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'clinica_funcionarios'
@@ -123,7 +134,7 @@ class Funcionario(models.Model):
         return f"{self.nome} - {self.cargo}"
 
 
-class ProtocoloProcedimento(models.Model):
+class ProtocoloProcedimento(LojaIsolationMixin, models.Model):
     """Protocolos padronizados para procedimentos estéticos"""
     nome = models.CharField(max_length=200)
     procedimento = models.ForeignKey(Procedimento, on_delete=models.CASCADE, related_name='protocolos')
@@ -144,6 +155,8 @@ class ProtocoloProcedimento(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'clinica_protocolos'
@@ -155,7 +168,7 @@ class ProtocoloProcedimento(models.Model):
         return f"{self.procedimento.nome} - {self.nome}"
 
 
-class Consulta(models.Model):
+class Consulta(LojaIsolationMixin, models.Model):
     """Consulta realizada - vincula agendamento com evolução"""
     agendamento = models.OneToOneField(Agendamento, on_delete=models.CASCADE, related_name='consulta')
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='consultas')
@@ -183,6 +196,8 @@ class Consulta(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'clinica_consultas'
@@ -202,7 +217,7 @@ class Consulta(models.Model):
         return None
 
 
-class EvolucaoPaciente(models.Model):
+class EvolucaoPaciente(LojaIsolationMixin, models.Model):
     """Evolução e histórico do paciente"""
     consulta = models.ForeignKey('Consulta', on_delete=models.CASCADE, related_name='evolucoes', null=True, blank=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='evolucoes')
@@ -251,6 +266,8 @@ class EvolucaoPaciente(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'clinica_evolucoes'

@@ -1,5 +1,5 @@
 """
-Gerenciador de Sessões Únicas
+Gerenciador de Sessões Únicas com JWT Blacklist
 Garante que cada usuário tenha apenas uma sessão ativa por vez
 e implementa timeout de inatividade de 30 minutos
 """
@@ -19,12 +19,12 @@ ACTIVITY_PREFIX = 'user_activity:'
 
 class SessionManager:
     """
-    Gerenciador de sessões únicas
+    Gerenciador de sessões únicas com JWT Blacklist
     
     Funcionalidades:
     1. Apenas uma sessão ativa por usuário
     2. Logout automático após 30 minutos de inatividade
-    3. Invalidação de sessões antigas ao fazer novo login
+    3. Invalidação de sessões antigas ao fazer novo login (via blacklist)
     """
     
     # Constante de classe para acesso externo
@@ -47,10 +47,34 @@ class SessionManager:
         return hashlib.sha256(data.encode()).hexdigest()
     
     @staticmethod
+    def _blacklist_previous_tokens(user_id: int):
+        """
+        Adiciona todos os tokens anteriores do usuário à blacklist
+        """
+        try:
+            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+            
+            # Buscar todos os tokens outstanding do usuário
+            outstanding_tokens = OutstandingToken.objects.filter(user_id=user_id)
+            
+            blacklisted_count = 0
+            for outstanding_token in outstanding_tokens:
+                # Adicionar à blacklist se ainda não estiver
+                _, created = BlacklistedToken.objects.get_or_create(token=outstanding_token)
+                if created:
+                    blacklisted_count += 1
+            
+            if blacklisted_count > 0:
+                logger.info(f"🚫 {blacklisted_count} token(s) anterior(es) adicionado(s) à blacklist para usuário {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Erro ao adicionar tokens à blacklist: {e}")
+    
+    @staticmethod
     def create_session(user_id: int, token: str) -> str:
         """
         Cria uma nova sessão para o usuário
-        Invalida qualquer sessão anterior
+        Invalida qualquer sessão anterior via blacklist
         
         Args:
             user_id: ID do usuário
@@ -71,7 +95,10 @@ class SessionManager:
             old_token = existing_session.get('token', '')[:50]
             logger.warning(f"🚨 SESSÃO ANTERIOR DETECTADA - Usuário {user_id}")
             logger.warning(f"   Token antigo: {old_token}...")
-            logger.warning(f"   Será invalidada agora!")
+            logger.warning(f"   Será invalidada via blacklist!")
+        
+        # CRÍTICO: Blacklist todos os tokens anteriores
+        SessionManager._blacklist_previous_tokens(user_id)
         
         # Criar nova sessão
         session_data = {

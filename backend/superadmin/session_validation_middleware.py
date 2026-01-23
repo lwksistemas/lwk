@@ -3,9 +3,7 @@ Middleware para validação de sessão única
 Valida TODAS as requisições autenticadas
 """
 from django.utils.deprecation import MiddlewareMixin
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.response import Response
-from rest_framework import status
+from django.http import JsonResponse
 from superadmin.session_manager import SessionManager
 import logging
 
@@ -17,9 +15,9 @@ class SessionValidationMiddleware(MiddlewareMixin):
     Middleware que valida sessão única em TODAS as requisições autenticadas
     """
     
-    def process_request(self, request):
+    def process_view(self, request, view_func, view_args, view_kwargs):
         """
-        Valida a sessão antes de processar a requisição
+        Valida a sessão DEPOIS da autenticação mas ANTES da view
         """
         # Ignorar requisições não autenticadas
         if not hasattr(request, 'user') or not request.user.is_authenticated:
@@ -50,12 +48,12 @@ class SessionValidationMiddleware(MiddlewareMixin):
             
             logger.warning(f"🚨 Sessão inválida para {request.user.username}: {reason}")
             
-            # Retornar erro 401
-            return Response({
+            # Retornar erro 401 como JSON
+            return JsonResponse({
                 'error': message,
                 'code': reason,
                 'detail': 'Sua sessão foi invalidada. Faça login novamente.'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            }, status=401)
         
         # Atualizar atividade
         SessionManager.update_activity(user_id)

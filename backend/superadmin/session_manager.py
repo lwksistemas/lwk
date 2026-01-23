@@ -51,23 +51,54 @@ class SessionManager:
         """
         Adiciona todos os tokens anteriores do usuário à blacklist (usando Redis)
         """
+        logger.critical(f"🔥🔥🔥 _blacklist_previous_tokens EXECUTANDO - Usuário {user_id}")
+        
         try:
             # Obter sessão anterior
             session_key = SessionManager._get_session_key(user_id)
+            logger.critical(f"   Buscando sessão com chave: {session_key}")
+            
             existing_session = cache.get(session_key)
             
             if existing_session:
+                logger.critical(f"   ✅ Sessão anterior encontrada!")
                 old_token = existing_session.get('token')
+                
                 if old_token:
+                    logger.critical(f"   Token antigo (50 chars): {old_token[:50]}...")
+                    logger.critical(f"   Token antigo (tamanho): {len(old_token)} caracteres")
+                    
                     # Usar hash do token como chave (para evitar chaves muito longas)
                     token_hash = hashlib.sha256(old_token.encode()).hexdigest()
                     blacklist_key = f"blacklist:{token_hash}"
-                    cache.set(blacklist_key, True, timeout=3600)  # 1 hora (tempo de vida do token)
+                    
+                    logger.critical(f"   Calculando hash SHA256...")
+                    logger.critical(f"   Hash: {token_hash}")
+                    logger.critical(f"   Chave blacklist: {blacklist_key}")
+                    
+                    # Adicionar à blacklist com TTL de 1 hora
+                    cache.set(blacklist_key, True, timeout=3600)
+                    
+                    # Verificar se foi salvo
+                    verificacao = cache.get(blacklist_key)
+                    if verificacao:
+                        logger.critical(f"   ✅✅✅ TOKEN ADICIONADO À BLACKLIST COM SUCESSO!")
+                        logger.critical(f"   Verificação: {verificacao}")
+                    else:
+                        logger.critical(f"   ❌❌❌ ERRO: Token NÃO foi adicionado à blacklist!")
+                    
                     logger.info(f"🚫 Token anterior adicionado à blacklist para usuário {user_id}")
                     logger.info(f"   Hash: {token_hash}")
+                else:
+                    logger.critical(f"   ⚠️ Sessão anterior existe mas não tem token!")
+            else:
+                logger.critical(f"   ℹ️ Nenhuma sessão anterior encontrada no cache")
             
         except Exception as e:
-            logger.error(f"❌ Erro ao adicionar token à blacklist: {e}")
+            logger.critical(f"❌❌❌ ERRO CRÍTICO ao adicionar token à blacklist: {e}")
+            logger.critical(f"   Tipo do erro: {type(e)}")
+            import traceback
+            logger.critical(f"   Traceback: {traceback.format_exc()}")
     
     @staticmethod
     def create_session(user_id: int, token: str) -> str:
@@ -82,6 +113,9 @@ class SessionManager:
         Returns:
             session_id: ID único da sessão criada
         """
+        logger.critical(f"🔥🔥🔥 CREATE_SESSION CHAMADO - Usuário {user_id}")
+        logger.critical(f"   Token novo (50 chars): {token[:50]}...")
+        
         timestamp = timezone.now().isoformat()
         session_id = SessionManager._generate_session_id(user_id, timestamp)
         
@@ -89,14 +123,19 @@ class SessionManager:
         activity_key = SessionManager._get_activity_key(user_id)
         
         # Verificar se já existe uma sessão ativa
+        logger.critical(f"🔍 Verificando se existe sessão anterior...")
         existing_session = cache.get(session_key)
+        
         if existing_session:
             old_token = existing_session.get('token', '')[:50]
-            logger.warning(f"🚨 SESSÃO ANTERIOR DETECTADA - Usuário {user_id}")
-            logger.warning(f"   Token antigo: {old_token}...")
-            logger.warning(f"   Será invalidada via blacklist!")
+            logger.critical(f"🚨🚨🚨 SESSÃO ANTERIOR DETECTADA - Usuário {user_id}")
+            logger.critical(f"   Token antigo: {old_token}...")
+            logger.critical(f"   Será invalidada via blacklist!")
+        else:
+            logger.critical(f"✅ Nenhuma sessão anterior encontrada - Primeira sessão do usuário {user_id}")
         
         # CRÍTICO: Blacklist todos os tokens anteriores
+        logger.critical(f"🔥 Chamando _blacklist_previous_tokens para usuário {user_id}...")
         SessionManager._blacklist_previous_tokens(user_id)
         
         # Criar nova sessão

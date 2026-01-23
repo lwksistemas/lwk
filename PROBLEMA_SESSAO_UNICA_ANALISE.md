@@ -2,7 +2,25 @@
 
 ## 🔴 PROBLEMA IDENTIFICADO
 
-Após 188 versões de deploy, o sistema de sessão única **NÃO está funcionando**.
+Após 190 versões de deploy, o sistema de sessão única **NÃO está funcionando**.
+
+## ✅ DEPLOY v191 - LOGS CRÍTICOS ADICIONADOS
+
+Adicionamos logs críticos detalhados para identificar o problema:
+
+1. **SessionAwareJWTAuthentication.authenticate()**
+   - Log quando função é chamada
+   - Log do token extraído (tamanho e conteúdo)
+   - Log do resultado da validação
+   - Log crítico ao bloquear acesso
+
+2. **SessionManager.validate_session()**
+   - Log crítico quando função é chamada
+   - Log da verificação de blacklist
+   - Log crítico ao detectar token na blacklist
+   - Log crítico ao bloquear acesso
+
+**Próximo passo**: Testar e verificar os logs para identificar onde está o problema.
 
 ### Evidências:
 

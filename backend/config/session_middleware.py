@@ -104,7 +104,7 @@ class SessionControlMiddleware:
             logger.warning(f"   Mensagem: {message}")
             
             # Mensagens específicas por motivo
-            if reason == 'DIFFERENT_SESSION':
+            if reason == 'DIFFERENT_SESSION' or reason == 'BLACKLISTED':
                 return JsonResponse({
                     'error': 'Sessão inválida',
                     'code': 'SESSION_CONFLICT',

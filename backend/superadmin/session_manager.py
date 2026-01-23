@@ -49,26 +49,23 @@ class SessionManager:
     @staticmethod
     def _blacklist_previous_tokens(user_id: int):
         """
-        Adiciona todos os tokens anteriores do usuário à blacklist
+        Adiciona todos os tokens anteriores do usuário à blacklist (usando Redis)
         """
         try:
-            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+            # Obter sessão anterior
+            session_key = SessionManager._get_session_key(user_id)
+            existing_session = cache.get(session_key)
             
-            # Buscar todos os tokens outstanding do usuário
-            outstanding_tokens = OutstandingToken.objects.filter(user_id=user_id)
-            
-            blacklisted_count = 0
-            for outstanding_token in outstanding_tokens:
-                # Adicionar à blacklist se ainda não estiver
-                _, created = BlacklistedToken.objects.get_or_create(token=outstanding_token)
-                if created:
-                    blacklisted_count += 1
-            
-            if blacklisted_count > 0:
-                logger.info(f"🚫 {blacklisted_count} token(s) anterior(es) adicionado(s) à blacklist para usuário {user_id}")
+            if existing_session:
+                old_token = existing_session.get('token')
+                if old_token:
+                    # Adicionar token antigo à blacklist no Redis
+                    blacklist_key = f"blacklist_token:{old_token[:50]}"  # Usar parte do token como chave
+                    cache.set(blacklist_key, True, timeout=3600)  # 1 hora (tempo de vida do token)
+                    logger.info(f"🚫 Token anterior adicionado à blacklist para usuário {user_id}")
             
         except Exception as e:
-            logger.error(f"Erro ao adicionar tokens à blacklist: {e}")
+            logger.error(f"❌ Erro ao adicionar token à blacklist: {e}")
     
     @staticmethod
     def create_session(user_id: int, token: str) -> str:
@@ -143,6 +140,16 @@ class SessionManager:
         
         logger.info(f"🔍 VALIDANDO SESSÃO - Usuário {user_id}")
         logger.info(f"   Token recebido: {token[:50]}...")
+        
+        # VERIFICAR BLACKLIST PRIMEIRO
+        blacklist_key = f"blacklist_token:{token[:50]}"
+        if cache.get(blacklist_key):
+            logger.warning(f"🚫 TOKEN NA BLACKLIST - Usuário {user_id}")
+            return {
+                'valid': False,
+                'reason': 'BLACKLISTED',
+                'message': 'Token foi invalidado por nova sessão'
+            }
         
         # Verificar se existe sessão
         session_data = cache.get(session_key)

@@ -165,14 +165,6 @@ import ssl
 
 # Configurar SSL para Redis do Heroku
 redis_url = config('REDIS_URL', default='redis://localhost:6379/1')
-redis_ssl_config = {}
-
-# Se for rediss:// (SSL), configurar para aceitar certificados auto-assinados
-if redis_url.startswith('rediss://'):
-    redis_ssl_config = {
-        'ssl_cert_reqs': ssl.CERT_NONE,  # 🔧 FIX: Aceitar certificados auto-assinados do Heroku
-        'ssl_check_hostname': False,
-    }
 
 CACHES = {
     'default': {
@@ -182,10 +174,13 @@ CACHES = {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'SOCKET_CONNECT_TIMEOUT': 5,
             'SOCKET_TIMEOUT': 5,
+            'REDIS_CLIENT_KWARGS': {
+                'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL
+            },
             'CONNECTION_POOL_KWARGS': {
                 'max_connections': 50,
                 'retry_on_timeout': True,
-                **redis_ssl_config,  # Aplicar configuração SSL se necessário
+                'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL
             },
             'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
         },

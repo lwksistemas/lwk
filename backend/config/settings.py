@@ -166,28 +166,43 @@ import ssl
 # Configurar SSL para Redis do Heroku
 redis_url = config('REDIS_URL', default='redis://localhost:6379/1')
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': redis_url,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'REDIS_CLIENT_KWARGS': {
-                'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL
+# 🔧 SOLUÇÃO TEMPORÁRIA: Usar cache local se Redis falhar
+USE_REDIS = config('USE_REDIS', default='true', cast=str).lower() == 'true'
+
+if USE_REDIS:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': redis_url,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+                'REDIS_CLIENT_KWARGS': {
+                    'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL
+                },
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                    'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL
+                },
+                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
             },
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 50,
-                'retry_on_timeout': True,
-                'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL
-            },
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-        },
-        'KEY_PREFIX': 'lwk',
-        'TIMEOUT': None,  # Sem expiração automática (controlamos manualmente)
+            'KEY_PREFIX': 'lwk',
+            'TIMEOUT': None,  # Sem expiração automática (controlamos manualmente)
+        }
     }
-}
+else:
+    # Fallback: Cache em memória local (funciona mas não compartilha entre workers)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'lwk-cache',
+            'OPTIONS': {
+                'MAX_ENTRIES': 10000,
+            }
+        }
+    }
 
 # ✅ OTIMIZAÇÃO: GZip compression
 GZIP_COMPRESSIBLE_TYPES = [

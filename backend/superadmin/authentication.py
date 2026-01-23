@@ -29,20 +29,26 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         """
         Autentica o usuário e verifica sessão única
         """
-        # Log CRÍTICO no início - SEMPRE executado
-        logger.critical("=" * 80)
-        logger.critical("🔥🔥🔥 SessionAwareJWTAuthentication.authenticate() CHAMADO")
-        logger.critical(f"   Path: {request.path}")
-        logger.critical(f"   Method: {request.method}")
-        logger.critical(f"   User (antes auth): {getattr(request, 'user', 'N/A')}")
-        logger.critical("=" * 80)
+        try:
+            # Log CRÍTICO no início - SEMPRE executado
+            logger.critical("=" * 80)
+            logger.critical("🔥🔥🔥 SessionAwareJWTAuthentication.authenticate() CHAMADO")
+            logger.critical(f"   Path: {request.path}")
+            logger.critical(f"   Method: {request.method}")
+            logger.critical(f"   User (antes auth): {getattr(request, 'user', 'N/A')}")
+            logger.critical("=" * 80)
+            
+            # Também escrever no stderr para garantir que aparece
+            import sys
+            sys.stderr.write("\n" + "=" * 80 + "\n")
+            sys.stderr.write(f"🔥🔥🔥 AUTHENTICATE CHAMADO: {request.method} {request.path}\n")
+            sys.stderr.write("=" * 80 + "\n\n")
+            sys.stderr.flush()
+        except Exception as e:
+            logger.critical(f"❌ ERRO ao logar início do authenticate: {e}")
         
-        # Também escrever no stderr para garantir que aparece
-        import sys
-        sys.stderr.write("\n" + "=" * 80 + "\n")
-        sys.stderr.write(f"🔥🔥🔥 AUTHENTICATE CHAMADO: {request.method} {request.path}\n")
-        sys.stderr.write("=" * 80 + "\n\n")
-        sys.stderr.flush()
+        try:
+        try:
         
         # Autenticação JWT padrão
         result = super().authenticate(request)
@@ -86,3 +92,11 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         SessionManager.update_activity(user.id)
         
         return user, token
+        
+        except Exception as e:
+            logger.critical(f"❌❌❌ ERRO CRÍTICO no authenticate(): {e}")
+            logger.critical(f"   Tipo: {type(e)}")
+            import traceback
+            logger.critical(f"   Traceback: {traceback.format_exc()}")
+            # Re-lançar a exceção para que o REST Framework trate
+            raise

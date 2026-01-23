@@ -4,7 +4,7 @@ Valida sessões e atualiza atividade do usuário
 """
 from django.http import JsonResponse
 from django.contrib.auth.models import AnonymousUser
-from superadmin.authentication import SessionAwareJWTAuthentication  # USAR O NOSSO!
+from superadmin.authentication import SessionAwareJWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from superadmin.session_manager import SessionManager
 import logging
@@ -19,27 +19,45 @@ class SessionControlMiddleware:
     2. Verifica se não há outra sessão em outro dispositivo
     3. Atualiza timestamp de atividade
     4. Faz logout automático após 30 minutos de inatividade
+    
+    USA process_view para garantir execução APÓS autenticação
     """
     
     def __init__(self, get_response):
         self.get_response = get_response
-        self.jwt_authenticator = SessionAwareJWTAuthentication()  # USAR O NOSSO!
+        self.jwt_authenticator = SessionAwareJWTAuthentication()
     
     def __call__(self, request):
+        response = self.get_response(request)
+        return response
+    
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        """
+        Chamado DEPOIS da autenticação, ANTES da view executar.
+        Este é o lugar certo para validar sessão única!
+        """
+        logger.critical(f"🔥🔥🔥 PROCESS_VIEW EXECUTANDO - Path: {request.path}")
+        
         # Processar autenticação JWT
         self._authenticate_jwt(request)
         
         # Verificar controle de sessão
         violation = self._check_session_control(request)
         if violation:
+            logger.critical(f"🚨 BLOQUEANDO REQUISIÇÃO: {request.path}")
             return violation
         
-        response = self.get_response(request)
-        return response
+        # Permitir que a view execute
+        return None
     
     def _authenticate_jwt(self, request):
-        """Processa autenticação JWT - SEMPRE executado"""
-        logger.critical(f"🔥 MIDDLEWARE AUTENTICANDO - Path: {request.path}")
+        """Processa autenticação JWT"""
+        logger.critical(f"🔥 AUTENTICANDO JWT - Path: {request.path}")
+        
+        # Se já está autenticado, não fazer nada
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            logger.critical(f"✅ Já autenticado: {request.user.username} (ID: {request.user.id})")
+            return
         
         try:
             auth_result = self.jwt_authenticator.authenticate(request)
@@ -47,9 +65,10 @@ class SessionControlMiddleware:
                 user, token = auth_result
                 request.user = user
                 request.auth = token
-                logger.critical(f"✅ Autenticado: {user.username} (ID: {user.id})")
+                logger.critical(f"✅ Autenticado via JWT: {user.username} (ID: {user.id})")
             else:
-                request.user = AnonymousUser()
+                if not hasattr(request, 'user'):
+                    request.user = AnonymousUser()
                 logger.critical(f"ℹ️ Nenhum token encontrado - Usuário anônimo")
         except InvalidToken as e:
             request.user = AnonymousUser()

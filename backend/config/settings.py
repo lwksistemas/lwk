@@ -161,6 +161,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ✅ CACHE: Redis para sessões únicas (RÁPIDO e compartilhado entre workers)
 # Redis é MUITO MAIS RÁPIDO que banco de dados para cache
 # Tempo de resposta: ~1ms (Redis) vs ~10-50ms (PostgreSQL)
+import ssl
+
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
@@ -172,6 +174,7 @@ CACHES = {
             'CONNECTION_POOL_KWARGS': {
                 'max_connections': 50,
                 'retry_on_timeout': True,
+                'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL para Heroku Redis
             },
             'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
         },

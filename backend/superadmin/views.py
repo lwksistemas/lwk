@@ -8,10 +8,6 @@ from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
-
-# 🔥 IMPORTAR NOSSO AUTHENTICATOR CUSTOMIZADO
-from .authentication import SessionAwareJWTAuthentication
-
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja,
     PagamentoLoja, UsuarioSistema

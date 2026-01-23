@@ -13,9 +13,9 @@ init(autoreset=True)
 API_URL = "https://lwksistemas-38ad47519238.herokuapp.com"
 # API_URL = "http://localhost:8000"  # Para teste local
 
-# Credenciais do usuário Luiz (Super Admin)
-USERNAME = "luiz"
-PASSWORD = "Lwk@2025"
+# Credenciais do Super Admin
+USERNAME = "superadmin"
+PASSWORD = "super123"
 
 def print_header(text):
     print(f"\n{Fore.CYAN}{'='*80}")

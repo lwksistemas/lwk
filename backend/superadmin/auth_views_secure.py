@@ -199,9 +199,8 @@ class SecureLoginView(APIView):
         # Gerar tokens
         from rest_framework_simplejwt.tokens import RefreshToken
         refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
         
-        # Adicionar claims customizados
+        # Adicionar claims customizados ao refresh token
         refresh['user_type'] = real_user_type
         refresh['username'] = user.username
         refresh['email'] = user.email
@@ -211,6 +210,20 @@ class SecureLoginView(APIView):
             if loja:
                 refresh['loja_id'] = loja.id
                 refresh['loja_slug'] = loja.slug
+        
+        # Gerar access token DEPOIS de adicionar claims
+        access_token = refresh.access_token
+        access_token['user_type'] = real_user_type
+        access_token['username'] = user.username
+        access_token['email'] = user.email
+        
+        if real_user_type == 'loja':
+            loja = Loja.objects.filter(owner=user, is_active=True).first()
+            if loja:
+                access_token['loja_id'] = loja.id
+                access_token['loja_slug'] = loja.slug
+        
+        access = str(access_token)
         
         # Criar sessão única
         session_id = SessionManager.create_session(user.id, access)

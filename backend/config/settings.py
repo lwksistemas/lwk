@@ -43,8 +43,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'config.security_middleware.SecurityIsolationMiddleware',  # 🔐 SEGURANÇA: Isolamento dos 3 grupos
-    # ❌ REMOVIDO: Middleware não funciona com REST Framework viewsets
-    # 'config.session_middleware.SessionControlMiddleware',
+    'superadmin.session_validation_middleware.SessionValidationMiddleware',  # 🔐 SESSÃO ÚNICA
     'core.mixins.LojaContextMiddleware',  # 🔐 SEGURANÇA: Contexto de loja para isolamento de dados
     'tenants.middleware.TenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

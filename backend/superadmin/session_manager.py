@@ -141,16 +141,23 @@ class SessionManager:
         activity_key = SessionManager._get_activity_key(user_id)
         
         logger.info(f"🔍 VALIDANDO SESSÃO - Usuário {user_id}")
-        logger.info(f"   Token recebido: {token[:50]}...")
+        logger.info(f"   Token recebido (50 chars): {token[:50]}...")
+        logger.info(f"   Token recebido (tamanho): {len(token)} caracteres")
         
         # VERIFICAR BLACKLIST PRIMEIRO (usar hash do token)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         blacklist_key = f"blacklist:{token_hash}"
         is_blacklisted = cache.get(blacklist_key)
         
+        logger.info(f"   Verificando blacklist...")
+        logger.info(f"   Hash do token: {token_hash}")
+        logger.info(f"   Chave blacklist: {blacklist_key}")
+        logger.info(f"   Está na blacklist? {is_blacklisted}")
+        
         if is_blacklisted:
-            logger.warning(f"🚫 TOKEN NA BLACKLIST - Usuário {user_id}")
-            logger.warning(f"   Hash: {token_hash}")
+            logger.critical(f"🚫🚫🚫 TOKEN NA BLACKLIST - Usuário {user_id}")
+            logger.critical(f"   Hash: {token_hash}")
+            logger.critical(f"   ACESSO DEVE SER BLOQUEADO!")
             return {
                 'valid': False,
                 'reason': 'BLACKLISTED',
@@ -161,22 +168,31 @@ class SessionManager:
         session_data = cache.get(session_key)
         if not session_data:
             logger.warning(f"❌ Nenhuma sessão encontrada no cache para usuário {user_id}")
+            logger.warning(f"   Chave procurada: {session_key}")
             return {
                 'valid': False,
                 'reason': 'NO_SESSION',
                 'message': 'Nenhuma sessão ativa encontrada'
             }
         
-        logger.info(f"   Sessão encontrada no cache")
-        logger.info(f"   Token salvo: {session_data.get('token', '')[:50]}...")
+        logger.info(f"   ✓ Sessão encontrada no cache")
+        logger.info(f"   Token salvo (50 chars): {session_data.get('token', '')[:50]}...")
+        logger.info(f"   Token salvo (tamanho): {len(session_data.get('token', ''))} caracteres")
         
         # Verificar se o token corresponde
         saved_token = session_data.get('token')
-        if saved_token != token:
-            logger.warning(f"🚨 TOKEN DIFERENTE DETECTADO - Usuário {user_id}")
-            logger.warning(f"   Token recebido: {token[:50]}...")
-            logger.warning(f"   Token salvo:    {saved_token[:50]}...")
-            logger.warning(f"   Tokens são iguais? {saved_token == token}")
+        tokens_match = (saved_token == token)
+        
+        logger.info(f"   Comparando tokens...")
+        logger.info(f"   Tokens são iguais? {tokens_match}")
+        
+        if not tokens_match:
+            logger.critical(f"🚨🚨🚨 TOKEN DIFERENTE DETECTADO - Usuário {user_id}")
+            logger.critical(f"   Token recebido (início): {token[:80]}...")
+            logger.critical(f"   Token salvo (início):    {saved_token[:80]}...")
+            logger.critical(f"   Token recebido (fim): ...{token[-80:]}")
+            logger.critical(f"   Token salvo (fim):    ...{saved_token[-80:]}")
+            logger.critical(f"   ACESSO DEVE SER BLOQUEADO!")
             return {
                 'valid': False,
                 'reason': 'DIFFERENT_SESSION',

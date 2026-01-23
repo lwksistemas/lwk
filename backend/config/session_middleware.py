@@ -68,8 +68,10 @@ class SessionControlMiddleware:
             '/api/auth/superadmin/login/',  # Login superadmin
             '/api/auth/suporte/login/',  # Login suporte
             '/api/auth/loja/login/',  # Login loja
+            '/api/auth/logout/',  # Logout
             '/api/superadmin/lojas/info_publica/',  # Info pública de lojas
             '/admin/',  # Django admin
+            '/static/',  # Arquivos estáticos
         ]
         
         # Verificar se é rota pública
@@ -92,6 +94,7 @@ class SessionControlMiddleware:
         
         logger.info(f"🔒 MIDDLEWARE - Validando sessão para {username} (ID: {user_id})")
         logger.info(f"   Path: {path}")
+        logger.info(f"   Token: {token[:50]}...")
         
         validation = SessionManager.validate_session(user_id, token)
         
@@ -99,11 +102,12 @@ class SessionControlMiddleware:
             reason = validation['reason']
             message = validation['message']
             
-            logger.warning(f"🚨 SESSÃO INVÁLIDA - Usuário {username} (ID: {user_id})")
-            logger.warning(f"   Motivo: {reason}")
-            logger.warning(f"   Mensagem: {message}")
+            logger.critical(f"🚨🚨🚨 BLOQUEANDO ACESSO - Usuário {username} (ID: {user_id})")
+            logger.critical(f"   Motivo: {reason}")
+            logger.critical(f"   Mensagem: {message}")
+            logger.critical(f"   Path bloqueado: {path}")
             
-            # Mensagens específicas por motivo
+            # BLOQUEAR ACESSO IMEDIATAMENTE
             if reason == 'DIFFERENT_SESSION' or reason == 'BLACKLISTED':
                 return JsonResponse({
                     'error': 'Sessão inválida',
@@ -127,6 +131,14 @@ class SessionControlMiddleware:
                     'message': 'Nenhuma sessão ativa encontrada. Faça login novamente.',
                     'action': 'FORCE_LOGOUT'
                 }, status=401)
+            
+            # Qualquer outro motivo - bloquear por segurança
+            return JsonResponse({
+                'error': 'Sessão inválida',
+                'code': reason,
+                'message': message,
+                'action': 'FORCE_LOGOUT'
+            }, status=401)
         
         # Sessão válida - atualizar atividade
         logger.info(f"✅ SESSÃO VÁLIDA - Atualizando atividade de {username}")

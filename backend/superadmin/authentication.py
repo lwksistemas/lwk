@@ -18,16 +18,23 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         """
         Autentica o usuário e verifica sessão única
         """
+        # DEBUG: Confirmar que este authenticator está sendo usado
+        logger.info(f"🔑 SessionAwareJWTAuthentication.authenticate() chamado - Path: {request.path}")
+        
         # Autenticação JWT padrão
         result = super().authenticate(request)
         
         if result is None:
+            logger.info(f"⚠️ Autenticação JWT retornou None - Path: {request.path}")
             return None
         
         user, token = result
         
+        logger.info(f"✅ JWT autenticado: {user.username} (ID: {user.id})")
+        
         # Ignorar validação para endpoints de login/logout
         if request.path.startswith('/api/auth/'):
+            logger.info(f"⏭️ Ignorando validação para endpoint de auth: {request.path}")
             return user, token
         
         # Extrair token string do header (mais confiável)
@@ -54,6 +61,8 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
                 'detail': message,
                 'code': reason
             })
+        
+        logger.info(f"✅ Sessão válida para {user.username}")
         
         # Atualizar atividade
         SessionManager.update_activity(user.id)

@@ -68,7 +68,10 @@ class SessionManager:
         # Verificar se já existe uma sessão ativa
         existing_session = cache.get(session_key)
         if existing_session:
-            logger.warning(f"🚨 Sessão anterior do usuário {user_id} será invalidada")
+            old_token = existing_session.get('token', '')[:50]
+            logger.warning(f"🚨 SESSÃO ANTERIOR DETECTADA - Usuário {user_id}")
+            logger.warning(f"   Token antigo: {old_token}...")
+            logger.warning(f"   Será invalidada agora!")
         
         # Criar nova sessão
         session_data = {
@@ -83,7 +86,14 @@ class SessionManager:
         cache.set(session_key, session_data, timeout=None)
         cache.set(activity_key, timestamp, timeout=None)
         
-        logger.info(f"✅ Nova sessão criada para usuário {user_id}: {session_id}")
+        # Verificar se salvou corretamente
+        saved_session = cache.get(session_key)
+        if saved_session:
+            logger.info(f"✅ Nova sessão criada e SALVA para usuário {user_id}: {session_id}")
+            logger.info(f"   Token salvo: {token[:50]}...")
+        else:
+            logger.critical(f"🚨 ERRO: Sessão NÃO foi salva no cache para usuário {user_id}")
+        
         return session_id
     
     @staticmethod
@@ -104,23 +114,36 @@ class SessionManager:
         session_key = SessionManager._get_session_key(user_id)
         activity_key = SessionManager._get_activity_key(user_id)
         
+        logger.info(f"🔍 VALIDANDO SESSÃO - Usuário {user_id}")
+        logger.info(f"   Token recebido: {token[:50]}...")
+        
         # Verificar se existe sessão
         session_data = cache.get(session_key)
         if not session_data:
+            logger.warning(f"❌ Nenhuma sessão encontrada no cache para usuário {user_id}")
             return {
                 'valid': False,
                 'reason': 'NO_SESSION',
                 'message': 'Nenhuma sessão ativa encontrada'
             }
         
+        logger.info(f"   Sessão encontrada no cache")
+        logger.info(f"   Token salvo: {session_data.get('token', '')[:50]}...")
+        
         # Verificar se o token corresponde
-        if session_data.get('token') != token:
-            logger.warning(f"🚨 Token diferente detectado para usuário {user_id}")
+        saved_token = session_data.get('token')
+        if saved_token != token:
+            logger.warning(f"🚨 TOKEN DIFERENTE DETECTADO - Usuário {user_id}")
+            logger.warning(f"   Token recebido: {token[:50]}...")
+            logger.warning(f"   Token salvo:    {saved_token[:50]}...")
+            logger.warning(f"   Tokens são iguais? {saved_token == token}")
             return {
                 'valid': False,
                 'reason': 'DIFFERENT_SESSION',
                 'message': 'Outra sessão foi iniciada em outro dispositivo'
             }
+        
+        logger.info(f"✅ Token corresponde! Sessão válida para usuário {user_id}")
         
         # Verificar timeout de inatividade
         last_activity_str = cache.get(activity_key)

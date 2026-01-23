@@ -65,6 +65,9 @@ class SessionControlMiddleware:
         public_routes = [
             '/api/auth/token/',  # Login
             '/api/auth/token/refresh/',  # Refresh token
+            '/api/auth/superadmin/login/',  # Login superadmin
+            '/api/auth/suporte/login/',  # Login suporte
+            '/api/auth/loja/login/',  # Login loja
             '/api/superadmin/lojas/info_publica/',  # Info pública de lojas
             '/admin/',  # Django admin
         ]
@@ -80,17 +83,25 @@ class SessionControlMiddleware:
         # Obter token da requisição
         token = self._get_token_from_request(request)
         if not token:
+            logger.warning(f"⚠️ Requisição sem token para {path}")
             return None
         
         # Validar sessão
         user_id = request.user.id
+        username = request.user.username
+        
+        logger.info(f"🔒 MIDDLEWARE - Validando sessão para {username} (ID: {user_id})")
+        logger.info(f"   Path: {path}")
+        
         validation = SessionManager.validate_session(user_id, token)
         
         if not validation['valid']:
             reason = validation['reason']
             message = validation['message']
             
-            logger.warning(f"🚨 Sessão inválida para usuário {user_id}: {reason}")
+            logger.warning(f"🚨 SESSÃO INVÁLIDA - Usuário {username} (ID: {user_id})")
+            logger.warning(f"   Motivo: {reason}")
+            logger.warning(f"   Mensagem: {message}")
             
             # Mensagens específicas por motivo
             if reason == 'DIFFERENT_SESSION':
@@ -118,6 +129,7 @@ class SessionControlMiddleware:
                 }, status=401)
         
         # Sessão válida - atualizar atividade
+        logger.info(f"✅ SESSÃO VÁLIDA - Atualizando atividade de {username}")
         SessionManager.update_activity(user_id)
         
         return None  # Sem violação

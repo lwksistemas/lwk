@@ -51,54 +51,25 @@ class SessionManager:
         """
         Adiciona todos os tokens anteriores do usuário à blacklist (usando Redis)
         """
-        logger.critical(f"🔥🔥🔥 _blacklist_previous_tokens EXECUTANDO - Usuário {user_id}")
-        
         try:
             # Obter sessão anterior
             session_key = SessionManager._get_session_key(user_id)
-            logger.critical(f"   Buscando sessão com chave: {session_key}")
-            
             existing_session = cache.get(session_key)
             
             if existing_session:
-                logger.critical(f"   ✅ Sessão anterior encontrada!")
                 old_token = existing_session.get('token')
                 
                 if old_token:
-                    logger.critical(f"   Token antigo (50 chars): {old_token[:50]}...")
-                    logger.critical(f"   Token antigo (tamanho): {len(old_token)} caracteres")
-                    
                     # Usar hash do token como chave (para evitar chaves muito longas)
                     token_hash = hashlib.sha256(old_token.encode()).hexdigest()
                     blacklist_key = f"blacklist:{token_hash}"
                     
-                    logger.critical(f"   Calculando hash SHA256...")
-                    logger.critical(f"   Hash: {token_hash}")
-                    logger.critical(f"   Chave blacklist: {blacklist_key}")
-                    
                     # Adicionar à blacklist com TTL de 1 hora
                     cache.set(blacklist_key, True, timeout=3600)
-                    
-                    # Verificar se foi salvo
-                    verificacao = cache.get(blacklist_key)
-                    if verificacao:
-                        logger.critical(f"   ✅✅✅ TOKEN ADICIONADO À BLACKLIST COM SUCESSO!")
-                        logger.critical(f"   Verificação: {verificacao}")
-                    else:
-                        logger.critical(f"   ❌❌❌ ERRO: Token NÃO foi adicionado à blacklist!")
-                    
-                    logger.info(f"🚫 Token anterior adicionado à blacklist para usuário {user_id}")
-                    logger.info(f"   Hash: {token_hash}")
-                else:
-                    logger.critical(f"   ⚠️ Sessão anterior existe mas não tem token!")
-            else:
-                logger.critical(f"   ℹ️ Nenhuma sessão anterior encontrada no cache")
+                    logger.info(f"Token anterior adicionado à blacklist para usuário {user_id}")
             
         except Exception as e:
-            logger.critical(f"❌❌❌ ERRO CRÍTICO ao adicionar token à blacklist: {e}")
-            logger.critical(f"   Tipo do erro: {type(e)}")
-            import traceback
-            logger.critical(f"   Traceback: {traceback.format_exc()}")
+            logger.error(f"Erro ao adicionar token à blacklist: {e}")
     
     @staticmethod
     def create_session(user_id: int, token: str) -> str:
@@ -113,29 +84,13 @@ class SessionManager:
         Returns:
             session_id: ID único da sessão criada
         """
-        logger.critical(f"🔥🔥🔥 CREATE_SESSION CHAMADO - Usuário {user_id}")
-        logger.critical(f"   Token novo (50 chars): {token[:50]}...")
-        
         timestamp = timezone.now().isoformat()
         session_id = SessionManager._generate_session_id(user_id, timestamp)
         
         session_key = SessionManager._get_session_key(user_id)
         activity_key = SessionManager._get_activity_key(user_id)
         
-        # Verificar se já existe uma sessão ativa
-        logger.critical(f"🔍 Verificando se existe sessão anterior...")
-        existing_session = cache.get(session_key)
-        
-        if existing_session:
-            old_token = existing_session.get('token', '')[:50]
-            logger.critical(f"🚨🚨🚨 SESSÃO ANTERIOR DETECTADA - Usuário {user_id}")
-            logger.critical(f"   Token antigo: {old_token}...")
-            logger.critical(f"   Será invalidada via blacklist!")
-        else:
-            logger.critical(f"✅ Nenhuma sessão anterior encontrada - Primeira sessão do usuário {user_id}")
-        
-        # CRÍTICO: Blacklist todos os tokens anteriores
-        logger.critical(f"🔥 Chamando _blacklist_previous_tokens para usuário {user_id}...")
+        # Blacklist todos os tokens anteriores
         SessionManager._blacklist_previous_tokens(user_id)
         
         # Criar nova sessão
@@ -150,14 +105,6 @@ class SessionManager:
         # Salvar no cache (sem expiração automática, controlamos manualmente)
         cache.set(session_key, session_data, timeout=None)
         cache.set(activity_key, timestamp, timeout=None)
-        
-        # Verificar se salvou corretamente
-        saved_session = cache.get(session_key)
-        if saved_session:
-            logger.info(f"✅ Nova sessão criada e SALVA para usuário {user_id}: {session_id}")
-            logger.info(f"   Token salvo: {token[:50]}...")
-        else:
-            logger.critical(f"🚨 ERRO: Sessão NÃO foi salva no cache para usuário {user_id}")
         
         return session_id
     
@@ -179,24 +126,12 @@ class SessionManager:
         session_key = SessionManager._get_session_key(user_id)
         activity_key = SessionManager._get_activity_key(user_id)
         
-        logger.critical(f"🔍🔍🔍 VALIDATE_SESSION CHAMADO - Usuário {user_id}")
-        logger.critical(f"   Token recebido (50 chars): {token[:50]}...")
-        logger.critical(f"   Token recebido (tamanho): {len(token)} caracteres")
-        
         # VERIFICAR BLACKLIST PRIMEIRO (usar hash do token)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         blacklist_key = f"blacklist:{token_hash}"
         is_blacklisted = cache.get(blacklist_key)
         
-        logger.critical(f"   🔍 Verificando blacklist...")
-        logger.critical(f"   Hash do token: {token_hash}")
-        logger.critical(f"   Chave blacklist: {blacklist_key}")
-        logger.critical(f"   Está na blacklist? {is_blacklisted}")
-        
         if is_blacklisted:
-            logger.critical(f"🚫🚫🚫 TOKEN NA BLACKLIST DETECTADO - Usuário {user_id}")
-            logger.critical(f"   Hash: {token_hash}")
-            logger.critical(f"   BLOQUEANDO ACESSO AGORA!")
             return {
                 'valid': False,
                 'reason': 'BLACKLISTED',
@@ -206,40 +141,20 @@ class SessionManager:
         # Verificar se existe sessão
         session_data = cache.get(session_key)
         if not session_data:
-            logger.critical(f"❌❌❌ NENHUMA SESSÃO NO CACHE - Usuário {user_id}")
-            logger.critical(f"   Chave procurada: {session_key}")
-            logger.critical(f"   BLOQUEANDO ACESSO!")
             return {
                 'valid': False,
                 'reason': 'NO_SESSION',
                 'message': 'Nenhuma sessão ativa encontrada'
             }
         
-        logger.critical(f"   ✓ Sessão encontrada no cache")
-        logger.critical(f"   Token salvo (50 chars): {session_data.get('token', '')[:50]}...")
-        logger.critical(f"   Token salvo (tamanho): {len(session_data.get('token', ''))} caracteres")
-        
         # Verificar se o token corresponde
         saved_token = session_data.get('token')
-        tokens_match = (saved_token == token)
-        
-        logger.critical(f"   🔍 Comparando tokens...")
-        logger.critical(f"   Tokens são iguais? {tokens_match}")
-        
-        if not tokens_match:
-            logger.critical(f"🚨🚨🚨 TOKEN DIFERENTE DETECTADO - Usuário {user_id}")
-            logger.critical(f"   Token recebido (início): {token[:80]}...")
-            logger.critical(f"   Token salvo (início):    {saved_token[:80]}...")
-            logger.critical(f"   Token recebido (fim): ...{token[-80:]}")
-            logger.critical(f"   Token salvo (fim):    ...{saved_token[-80:]}")
-            logger.critical(f"   BLOQUEANDO ACESSO!")
+        if saved_token != token:
             return {
                 'valid': False,
                 'reason': 'DIFFERENT_SESSION',
                 'message': 'Outra sessão foi iniciada em outro dispositivo'
             }
-        
-        logger.critical(f"✅✅✅ Token corresponde! Sessão válida para usuário {user_id}")
         
         # Verificar timeout de inatividade
         last_activity_str = cache.get(activity_key)
@@ -249,7 +164,6 @@ class SessionManager:
             inactive_time = now - last_activity
             
             if inactive_time > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
-                logger.info(f"⏰ Sessão do usuário {user_id} expirou por inatividade ({inactive_time.seconds // 60} minutos)")
                 SessionManager.destroy_session(user_id)
                 return {
                     'valid': False,
@@ -295,7 +209,7 @@ class SessionManager:
         cache.delete(session_key)
         cache.delete(activity_key)
         
-        logger.info(f"🗑️ Sessão do usuário {user_id} destruída")
+        logger.info(f"Sessão do usuário {user_id} destruída")
     
     @staticmethod
     def get_session_info(user_id: int) -> dict:
@@ -330,17 +244,3 @@ class SessionManager:
             }
         
         return session_data
-    
-    @staticmethod
-    def force_logout_all_users():
-        """
-        Força logout de todos os usuários (usar com cuidado!)
-        Útil para manutenção do sistema
-        """
-        # Limpar todas as chaves de sessão e atividade
-        # Nota: Isso requer acesso direto ao cache
-        logger.critical("🚨 LOGOUT FORÇADO DE TODOS OS USUÁRIOS")
-        # Implementação depende do backend de cache usado
-        # Para Redis: cache.delete_pattern(f"{SESSION_PREFIX}*")
-        # Para Memcached: não suporta pattern matching
-        pass

@@ -157,17 +157,25 @@ WHITENOISE_MAX_AGE = 31536000  # 1 ano de cache
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ✅ CACHE: Usando banco de dados para compartilhar entre workers (Heroku)
-# LocMemCache não funciona em produção com múltiplos workers
-# DatabaseCache é compartilhado e gratuito
+# ✅ CACHE: Redis para sessões únicas (RÁPIDO e compartilhado entre workers)
+# Redis é MUITO MAIS RÁPIDO que banco de dados para cache
+# Tempo de resposta: ~1ms (Redis) vs ~10-50ms (PostgreSQL)
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'cache_table',  # Nome da tabela de cache
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
         'OPTIONS': {
-            'MAX_ENTRIES': 1000,
-            'CULL_FREQUENCY': 3,  # Remove 1/3 das entradas quando atingir MAX_ENTRIES
-        }
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+        },
+        'KEY_PREFIX': 'lwk',
+        'TIMEOUT': None,  # Sem expiração automática (controlamos manualmente)
     }
 }
 

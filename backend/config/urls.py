@@ -38,8 +38,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # Autenticação JWT SEGURA com isolamento por grupo
-    path('api/auth/superadmin/', include('superadmin.urls')),  # Login superadmin
-    path('api/auth/suporte/', include('suporte.urls')),  # Login suporte
+    path('api/auth/', include('config.urls_auth')),  # Rotas de autenticação
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # APIs

@@ -23,14 +23,6 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
       const userType = authService.getUserType();
       const lojaSlug = authService.getLojaSlug();
       
-      console.log('[RouteGuard] Verificando acesso:', {
-        pathname,
-        userType,
-        allowedUserType,
-        lojaSlug,
-        requiredSlug
-      });
-      
       // Se não está autenticado, permitir (será tratado por outro guard)
       if (!userType) {
         return;
@@ -38,8 +30,6 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
       
       // Verificar se o tipo de usuário está correto
       if (userType !== allowedUserType) {
-        console.log(`🚨 [RouteGuard] BLOQUEIO: Usuário tipo "${userType}" tentou acessar rota de "${allowedUserType}"`);
-        
         // Redirecionar para o dashboard correto
         switch (userType) {
           case 'superadmin':
@@ -63,12 +53,9 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
       
       // Se é loja, verificar se está tentando acessar outra loja
       if (allowedUserType === 'loja' && requiredSlug && lojaSlug && requiredSlug !== lojaSlug) {
-        console.log(`🚨 [RouteGuard] BLOQUEIO: Loja "${lojaSlug}" tentou acessar loja "${requiredSlug}"`);
         router.replace(`/loja/${lojaSlug}/dashboard`);
         return;
       }
-      
-      console.log('✅ [RouteGuard] Acesso permitido');
     };
     
     checkAccess();

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logger } from './logger';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -27,11 +28,11 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
-    console.log('API Request:', config.method?.toUpperCase(), config.url, config.data);
+    logger.log('API Request:', config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => {
-    console.error('API Request Error:', error);
+    logger.error('API Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -39,11 +40,11 @@ apiClient.interceptors.request.use(
 // Response interceptor - refresh token automático e controle de sessão
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('API Response:', response.status, response.config.url, response.data);
+    logger.log('API Response:', response.status, response.config.url);
     return response;
   },
   async (error) => {
-    console.error('API Response Error:', error.response?.status, error.response?.data, error.message);
+    logger.error('API Error:', error.response?.status, error.response?.data?.code);
     const originalRequest = error.config;
 
     // Verificar erros de sessão PRIMEIRO (antes de tentar refresh)
@@ -52,17 +53,16 @@ apiClient.interceptors.response.use(
       const errorCode = errorData?.code || errorData?.detail?.code;
       const errorMessage = errorData?.message || errorData?.detail?.message || errorData?.detail;
       
-      console.log('🔍 Erro 401 detectado:', { errorCode, errorMessage });
+      logger.log('🔍 Erro 401:', errorCode);
       
       // Erros de sessão que requerem logout forçado IMEDIATO
-      // NÃO TENTAR REFRESH NESTES CASOS!
       if (errorCode === 'DIFFERENT_SESSION' || 
           errorCode === 'SESSION_CONFLICT' || 
           errorCode === 'TIMEOUT' ||
           errorCode === 'SESSION_TIMEOUT' || 
           errorCode === 'NO_SESSION') {
         
-        console.log('🚨 SESSÃO INVÁLIDA - Fazendo logout forçado:', errorCode);
+        logger.critical('SESSÃO INVÁLIDA - Logout forçado:', errorCode);
         
         // Limpar tudo IMEDIATAMENTE
         localStorage.removeItem('access_token');
@@ -80,8 +80,6 @@ apiClient.interceptors.response.use(
           : 'Outra sessão foi iniciada em outro dispositivo. Você foi desconectado.';
         
         alert(message);
-        
-        // Redirecionar para home
         window.location.href = '/';
         return Promise.reject(error);
       }
@@ -91,11 +89,11 @@ apiClient.interceptors.response.use(
         originalRequest._retry = true;
 
         try {
-          console.log('🔄 Tentando refresh token...');
+          logger.log('🔄 Tentando refresh token...');
           const refreshToken = localStorage.getItem('refresh_token');
           
           if (!refreshToken) {
-            console.log('❌ Sem refresh token - redirecionando para login');
+            logger.log('❌ Sem refresh token');
             localStorage.clear();
             window.location.href = '/';
             return Promise.reject(error);
@@ -108,11 +106,11 @@ apiClient.interceptors.response.use(
           const { access } = response.data;
           localStorage.setItem('access_token', access);
 
-          console.log('✅ Refresh token bem-sucedido');
+          logger.log('✅ Refresh token bem-sucedido');
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return apiClient(originalRequest);
         } catch (refreshError) {
-          console.error('❌ Refresh token falhou:', refreshError);
+          logger.error('❌ Refresh token falhou:', refreshError);
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           window.location.href = '/';

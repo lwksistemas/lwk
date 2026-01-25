@@ -1,4 +1,5 @@
 import apiClient from './api-client';
+import { logger } from './logger';
 
 export interface LoginCredentials {
   username: string;
@@ -28,21 +29,37 @@ export interface AuthTokens {
 export type UserType = 'superadmin' | 'suporte' | 'loja';
 
 // Configuração de timeout de inatividade (30 minutos)
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutos em milissegundos
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000;
 let inactivityTimer: NodeJS.Timeout | null = null;
+let resetTimerFn: (() => void) | null = null;
+
+/**
+ * Limpa toda a sessão do usuário
+ * Centraliza a lógica de limpeza para evitar duplicação
+ */
+function clearSession() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('user_type');
+  localStorage.removeItem('loja_slug');
+  localStorage.removeItem('session_id');
+  
+  document.cookie = 'user_type=; path=/; max-age=0';
+  document.cookie = 'loja_slug=; path=/; max-age=0';
+}
 
 export const authService = {
   async login(credentials: LoginCredentials, userType: UserType = 'superadmin', lojaSlug?: string): Promise<AuthTokens> {
-    console.log('AuthService.login chamado:', { credentials: { username: credentials.username, password: '***' }, userType, lojaSlug });
+    logger.log('AuthService.login:', { username: credentials.username, userType, lojaSlug });
     
     // Verificar se localStorage está disponível
     if (typeof window === 'undefined' || !window.localStorage) {
-      console.error('localStorage não está disponível');
+      logger.error('localStorage não está disponível');
       throw new Error('localStorage não está disponível');
     }
     
     // Determinar endpoint correto baseado no tipo de usuário
-    let endpoint = '/auth/token/'; // Fallback
+    let endpoint = '/auth/token/';
     
     switch (userType) {
       case 'superadmin':
@@ -56,7 +73,7 @@ export const authService = {
         break;
     }
     
-    console.log(`🔐 Usando endpoint: ${endpoint}`);
+    logger.log(`🔐 Endpoint: ${endpoint}`);
     
     try {
       // Preparar dados de login
@@ -68,18 +85,18 @@ export const authService = {
       }
       
       const response = await apiClient.post<AuthTokens>(endpoint, loginData);
-      console.log('Login response recebida:', response.status, response.data);
+      logger.log('Login response:', response.status);
       
       const { access, refresh, session_id, session_timeout_minutes, user, loja } = response.data;
       
       if (!access || !refresh) {
-        console.error('Tokens inválidos recebidos:', { access: !!access, refresh: !!refresh });
+        logger.error('Tokens inválidos:', { access: !!access, refresh: !!refresh });
         throw new Error('Tokens inválidos recebidos do servidor');
       }
       
       // Validar que o user_type retornado corresponde ao esperado
       if (user && user.user_type && user.user_type !== userType) {
-        console.error(`❌ ERRO: Tipo de usuário não corresponde! Esperado: ${userType}, Recebido: ${user.user_type}`);
+        logger.critical(`Tipo de usuário não corresponde! Esperado: ${userType}, Recebido: ${user.user_type}`);
         throw new Error(`Este usuário não pode fazer login aqui. Use o login de ${user.user_type}.`);
       }
       
@@ -101,7 +118,6 @@ export const authService = {
       }
       
       // Salvar também nos cookies para o middleware do Next.js
-      // Usar Secure apenas em produção (HTTPS)
       const isProduction = window.location.protocol === 'https:';
       const secureFlag = isProduction ? '; Secure' : '';
       const cookieOptions = `path=/; max-age=86400; SameSite=Lax${secureFlag}`;
@@ -115,29 +131,14 @@ export const authService = {
         }
       }
       
-      console.log('✅ Tokens e cookies salvos:', {
-        userType,
-        lojaSlug: userType === 'loja' ? (loja?.slug || lojaSlug || 'N/A') : 'N/A',
-        isProduction,
-        cookies: document.cookie
-      });
-      
-      console.log(`Sessão criada: ${session_id}, timeout: ${session_timeout_minutes} minutos`);
+      logger.log('✅ Sessão criada:', { userType, session_id, timeout: session_timeout_minutes });
       
       // Iniciar monitoramento de inatividade
       authService.startInactivityMonitor();
       
-      // Verificar se os tokens foram realmente salvos
-      const savedAccess = localStorage.getItem('access_token');
-      const savedRefresh = localStorage.getItem('refresh_token');
-      console.log('Verificação tokens salvos:', { 
-        access: savedAccess ? 'OK' : 'FALHOU', 
-        refresh: savedRefresh ? 'OK' : 'FALHOU' 
-      });
-      
       return response.data;
     } catch (error: any) {
-      console.error('Erro no AuthService.login:', error);
+      logger.error('Erro no login:', error);
       
       // Verificar se é erro de sessão conflitante
       if (error.response?.data?.code === 'SESSION_CONFLICT') {
@@ -163,75 +164,46 @@ export const authService = {
 
   async logout() {
     try {
-      // Chamar endpoint de logout no backend
       await apiClient.post('/auth/logout/');
     } catch (error) {
-      console.error('Erro ao fazer logout no backend:', error);
+      logger.error('Erro ao fazer logout:', error);
     }
     
-    // Limpar localStorage
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_type');
-    localStorage.removeItem('loja_slug');
-    localStorage.removeItem('session_id');
-    
-    // Limpar cookies
-    document.cookie = 'user_type=; path=/; max-age=0';
-    document.cookie = 'loja_slug=; path=/; max-age=0';
-    
-    // Parar monitoramento de inatividade
+    clearSession();
     authService.stopInactivityMonitor();
   },
 
   forceLogout(reason?: string) {
-    console.log('🚨 FORCE LOGOUT:', reason);
-    
-    // Limpar tudo
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_type');
-    localStorage.removeItem('loja_slug');
-    localStorage.removeItem('session_id');
-    
-    document.cookie = 'user_type=; path=/; max-age=0';
-    document.cookie = 'loja_slug=; path=/; max-age=0';
-    
+    logger.critical('FORCE LOGOUT:', reason);
+    clearSession();
     authService.stopInactivityMonitor();
     
-    // Redirecionar para home
     if (typeof window !== 'undefined') {
       window.location.href = '/';
     }
   },
 
   startInactivityMonitor() {
-    // Limpar timer anterior se existir
     authService.stopInactivityMonitor();
     
-    // Função para resetar o timer
-    const resetTimer = () => {
+    resetTimerFn = () => {
       if (inactivityTimer) {
         clearTimeout(inactivityTimer);
       }
       
       inactivityTimer = setTimeout(() => {
-        console.log('⏰ Timeout de inatividade atingido (30 minutos)');
+        logger.log('⏰ Timeout de inatividade (30 minutos)');
         authService.forceLogout('Sessão expirou por inatividade');
       }, INACTIVITY_TIMEOUT);
     };
     
-    // Eventos que indicam atividade do usuário
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    
     events.forEach(event => {
-      document.addEventListener(event, resetTimer, true);
+      document.addEventListener(event, resetTimerFn!, true);
     });
     
-    // Iniciar o timer
-    resetTimer();
-    
-    console.log('✅ Monitoramento de inatividade iniciado (30 minutos)');
+    resetTimerFn();
+    logger.log('✅ Monitoramento de inatividade iniciado');
   },
 
   stopInactivityMonitor() {
@@ -240,13 +212,13 @@ export const authService = {
       inactivityTimer = null;
     }
     
-    // Remover event listeners
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    const resetTimer = () => {}; // Função vazia para remover
-    
-    events.forEach(event => {
-      document.removeEventListener(event, resetTimer, true);
-    });
+    if (resetTimerFn) {
+      const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+      events.forEach(event => {
+        document.removeEventListener(event, resetTimerFn!, true);
+      });
+      resetTimerFn = null;
+    }
   },
 
   isAuthenticated(): boolean {

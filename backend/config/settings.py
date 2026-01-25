@@ -162,12 +162,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Redis é MUITO MAIS RÁPIDO que banco de dados para cache
 # Tempo de resposta: ~1ms (Redis) vs ~10-50ms (PostgreSQL)
 import ssl
+import os
 
 # Configurar SSL para Redis do Heroku
 redis_url = config('REDIS_URL', default='redis://localhost:6379/1')
 
 # 🔧 SOLUÇÃO TEMPORÁRIA: Usar cache local se Redis falhar
-USE_REDIS = config('USE_REDIS', default='true', cast=str).lower() == 'true'
+USE_REDIS_ENV = os.environ.get('USE_REDIS', 'true')
+USE_REDIS = USE_REDIS_ENV.lower() == 'true'
+print(f"🔧 USE_REDIS env: {USE_REDIS_ENV}, parsed: {USE_REDIS}")
 
 if USE_REDIS:
     CACHES = {

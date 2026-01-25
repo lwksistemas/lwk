@@ -46,21 +46,25 @@ apiClient.interceptors.response.use(
     console.error('API Response Error:', error.response?.status, error.response?.data, error.message);
     const originalRequest = error.config;
 
-    // Verificar erros de sessão
+    // Verificar erros de sessão PRIMEIRO (antes de tentar refresh)
     if (error.response?.status === 401) {
       const errorData = error.response?.data;
       const errorCode = errorData?.code || errorData?.detail?.code;
+      const errorMessage = errorData?.message || errorData?.detail?.message || errorData?.detail;
       
-      // Erros de sessão que requerem logout forçado
+      console.log('🔍 Erro 401 detectado:', { errorCode, errorMessage });
+      
+      // Erros de sessão que requerem logout forçado IMEDIATO
+      // NÃO TENTAR REFRESH NESTES CASOS!
       if (errorCode === 'DIFFERENT_SESSION' || 
           errorCode === 'SESSION_CONFLICT' || 
           errorCode === 'TIMEOUT' ||
           errorCode === 'SESSION_TIMEOUT' || 
           errorCode === 'NO_SESSION') {
         
-        console.log('🚨 Erro de sessão detectado:', errorCode);
+        console.log('🚨 SESSÃO INVÁLIDA - Fazendo logout forçado:', errorCode);
         
-        // Limpar tudo
+        // Limpar tudo IMEDIATAMENTE
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_type');
@@ -71,7 +75,10 @@ apiClient.interceptors.response.use(
         document.cookie = 'loja_slug=; path=/; max-age=0';
         
         // Mostrar mensagem ao usuário
-        const message = errorData?.message || errorData?.detail || 'Sua sessão expirou';
+        const message = typeof errorMessage === 'string' 
+          ? errorMessage 
+          : 'Outra sessão foi iniciada em outro dispositivo. Você foi desconectado.';
+        
         alert(message);
         
         // Redirecionar para home
@@ -79,12 +86,21 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
       
-      // Tentar refresh token se não for erro de sessão
+      // APENAS tentar refresh token se NÃO for erro de sessão
       if (!originalRequest._retry) {
         originalRequest._retry = true;
 
         try {
+          console.log('🔄 Tentando refresh token...');
           const refreshToken = localStorage.getItem('refresh_token');
+          
+          if (!refreshToken) {
+            console.log('❌ Sem refresh token - redirecionando para login');
+            localStorage.clear();
+            window.location.href = '/';
+            return Promise.reject(error);
+          }
+          
           const response = await axios.post(`${API_URL}/api/auth/token/refresh/`, {
             refresh: refreshToken,
           });
@@ -92,10 +108,11 @@ apiClient.interceptors.response.use(
           const { access } = response.data;
           localStorage.setItem('access_token', access);
 
+          console.log('✅ Refresh token bem-sucedido');
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return apiClient(originalRequest);
         } catch (refreshError) {
-          console.error('Refresh token error:', refreshError);
+          console.error('❌ Refresh token falhou:', refreshError);
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           window.location.href = '/';

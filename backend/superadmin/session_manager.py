@@ -60,14 +60,27 @@ class SessionManager:
         session_id = SessionManager._generate_session_id(user_id, timestamp)
         token_hash = SessionManager._hash_token(token)
         
-        logger.info(f"🔐 Criando nova sessão para usuário {user_id}")
+        logger.warning(f"🔐 CRIANDO NOVA SESSÃO para usuário {user_id} - Token hash: {token_hash[:16]}...")
         
         try:
             user = User.objects.get(id=user_id)
             
+            # Verificar se já existe sessão
+            existing_session = UserSession.objects.filter(user=user).first()
+            if existing_session:
+                logger.warning(
+                    f"⚠️ SESSÃO ANTERIOR DETECTADA para usuário {user_id}:\n"
+                    f"   - Session ID: {existing_session.session_id[:16]}...\n"
+                    f"   - Token hash: {existing_session.token_hash[:16]}...\n"
+                    f"   - Criada em: {existing_session.created_at}\n"
+                    f"   - Última atividade: {existing_session.last_activity}\n"
+                    f"   🗑️ DELETANDO sessão anterior..."
+                )
+            
             # Deletar sessão anterior se existir (OneToOne garante apenas uma)
-            UserSession.objects.filter(user=user).delete()
-            logger.info(f"🗑️ Sessão anterior removida para usuário {user_id}")
+            deleted_count = UserSession.objects.filter(user=user).delete()[0]
+            if deleted_count > 0:
+                logger.warning(f"🗑️ {deleted_count} sessão(ões) anterior(es) DELETADA(S) para usuário {user_id}")
             
             # Criar nova sessão
             session = UserSession.objects.create(
@@ -77,7 +90,12 @@ class SessionManager:
                 last_activity=timezone.now()
             )
             
-            logger.info(f"✅ Nova sessão criada no banco: {session_id[:16]}... para usuário {user_id}")
+            logger.warning(
+                f"✅ NOVA SESSÃO CRIADA no banco para usuário {user_id}:\n"
+                f"   - Session ID: {session_id[:16]}...\n"
+                f"   - Token hash: {token_hash[:16]}...\n"
+                f"   - Criada em: {session.created_at}"
+            )
             return session_id
             
         except User.DoesNotExist:

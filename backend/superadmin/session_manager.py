@@ -1,19 +1,15 @@
 """
-Gerenciador de Sessões Únicas com JWT Blacklist
+Gerenciador de Sessões Únicas com JWT
 Garante que cada usuário tenha apenas uma sessão ativa por vez
 e implementa timeout de inatividade de 30 minutos
-
-VERSÃO 2.0: Usa banco de dados PostgreSQL ao invés de cache
 """
 from django.utils import timezone
 from django.contrib.auth.models import User
-from datetime import timedelta
 import hashlib
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Configurações
 SESSION_TIMEOUT_MINUTES = 30
 
 
@@ -22,12 +18,11 @@ class SessionManager:
     Gerenciador de sessões únicas usando banco de dados PostgreSQL
     
     Funcionalidades:
-    1. Apenas uma sessão ativa por usuário
-    2. Logout automático após 30 minutos de inatividade
-    3. Invalidação automática de sessões antigas
+    - Apenas uma sessão ativa por usuário
+    - Logout automático após 30 minutos de inatividade
+    - Invalidação automática de sessões antigas
     """
     
-    # Constante de classe para acesso externo
     SESSION_TIMEOUT_MINUTES = SESSION_TIMEOUT_MINUTES
     
     @staticmethod
@@ -46,13 +41,6 @@ class SessionManager:
         """
         Cria uma nova sessão para o usuário no banco de dados
         Invalida qualquer sessão anterior automaticamente
-        
-        Args:
-            user_id: ID do usuário
-            token: Token JWT do usuário
-            
-        Returns:
-            session_id: ID único da sessão criada
         """
         from superadmin.models import UserSession
         
@@ -60,27 +48,15 @@ class SessionManager:
         session_id = SessionManager._generate_session_id(user_id, timestamp)
         token_hash = SessionManager._hash_token(token)
         
-        logger.warning(f"🔐 CRIANDO NOVA SESSÃO para usuário {user_id} - Token hash: {token_hash[:16]}...")
+        logger.warning(f"🔐 CRIANDO NOVA SESSÃO para usuário {user_id}")
         
         try:
             user = User.objects.get(id=user_id)
             
-            # Verificar se já existe sessão
-            existing_session = UserSession.objects.filter(user=user).first()
-            if existing_session:
-                logger.warning(
-                    f"⚠️ SESSÃO ANTERIOR DETECTADA para usuário {user_id}:\n"
-                    f"   - Session ID: {existing_session.session_id[:16]}...\n"
-                    f"   - Token hash: {existing_session.token_hash[:16]}...\n"
-                    f"   - Criada em: {existing_session.created_at}\n"
-                    f"   - Última atividade: {existing_session.last_activity}\n"
-                    f"   🗑️ DELETANDO sessão anterior..."
-                )
-            
-            # Deletar sessão anterior se existir (OneToOne garante apenas uma)
+            # Deletar sessão anterior se existir
             deleted_count = UserSession.objects.filter(user=user).delete()[0]
             if deleted_count > 0:
-                logger.warning(f"🗑️ {deleted_count} sessão(ões) anterior(es) DELETADA(S) para usuário {user_id}")
+                logger.warning(f"🗑️ {deleted_count} sessão(ões) anterior(es) deletada(s)")
             
             # Criar nova sessão
             session = UserSession.objects.create(
@@ -90,12 +66,7 @@ class SessionManager:
                 last_activity=timezone.now()
             )
             
-            logger.warning(
-                f"✅ NOVA SESSÃO CRIADA no banco para usuário {user_id}:\n"
-                f"   - Session ID: {session_id[:16]}...\n"
-                f"   - Token hash: {token_hash[:16]}...\n"
-                f"   - Criada em: {session.created_at}"
-            )
+            logger.warning(f"✅ NOVA SESSÃO CRIADA - ID: {session_id[:16]}...")
             return session_id
             
         except User.DoesNotExist:
@@ -110,33 +81,24 @@ class SessionManager:
         """
         Valida se a sessão do usuário é válida usando banco de dados
         
-        Args:
-            user_id: ID do usuário
-            token: Token JWT atual
-            
         Returns:
-            dict com:
-                - valid: bool (sessão válida?)
-                - reason: str (motivo se inválida)
-                - message: str (mensagem de erro)
+            dict com: valid (bool), reason (str), message (str)
         """
         from superadmin.models import UserSession
         
         token_hash = SessionManager._hash_token(token)
         
         try:
-            # Buscar sessão do usuário
             session = UserSession.objects.filter(user_id=user_id).first()
             
             if not session:
-                logger.warning(f"⚠️ Nenhuma sessão ativa encontrada para usuário {user_id}")
+                logger.warning(f"⚠️ Nenhuma sessão ativa para usuário {user_id}")
                 return {
                     'valid': False,
                     'reason': 'NO_SESSION',
                     'message': 'Nenhuma sessão ativa encontrada'
                 }
             
-            # Verificar se o token corresponde
             if session.token_hash != token_hash:
                 logger.warning(f"🔄 Token diferente detectado para usuário {user_id} - Outra sessão ativa")
                 return {
@@ -145,7 +107,6 @@ class SessionManager:
                     'message': 'Outra sessão foi iniciada em outro dispositivo'
                 }
             
-            # Verificar timeout de inatividade
             if session.is_expired(SESSION_TIMEOUT_MINUTES):
                 session.delete()
                 logger.warning(f"⏱️ Sessão expirou por inatividade para usuário {user_id}")
@@ -167,12 +128,7 @@ class SessionManager:
     
     @staticmethod
     def update_activity(user_id: int):
-        """
-        Atualiza o timestamp da última atividade do usuário
-        
-        Args:
-            user_id: ID do usuário
-        """
+        """Atualiza o timestamp da última atividade do usuário"""
         from superadmin.models import UserSession
         
         try:
@@ -184,12 +140,7 @@ class SessionManager:
     
     @staticmethod
     def destroy_session(user_id: int):
-        """
-        Destrói a sessão do usuário
-        
-        Args:
-            user_id: ID do usuário
-        """
+        """Destrói a sessão do usuário"""
         from superadmin.models import UserSession
         
         try:
@@ -200,15 +151,7 @@ class SessionManager:
     
     @staticmethod
     def get_session_info(user_id: int) -> dict:
-        """
-        Retorna informações sobre a sessão do usuário
-        
-        Args:
-            user_id: ID do usuário
-            
-        Returns:
-            dict com informações da sessão ou None
-        """
+        """Retorna informações sobre a sessão do usuário"""
         from superadmin.models import UserSession
         
         try:

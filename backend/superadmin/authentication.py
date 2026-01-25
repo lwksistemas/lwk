@@ -2,7 +2,7 @@
 Authenticator customizado que verifica sessão única usando banco de dados
 """
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework.exceptions import AuthenticationFailed
 from superadmin.session_manager import SessionManager
 import logging
 
@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 class SessionAwareJWTAuthentication(JWTAuthentication):
     """
     Authenticator JWT que verifica sessão única usando PostgreSQL
+    Garante que cada usuário tenha apenas uma sessão ativa por vez
     """
     
     def authenticate(self, request):
@@ -24,24 +25,18 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         result = super().authenticate(request)
         
         if result is None:
-            logger.info(f"⚠️ Autenticação JWT retornou None - Path: {request.path}")
             return None
         
         user, token = result
-        
         logger.info(f"✅ JWT autenticado: {user.username} (ID: {user.id})")
         
         # Ignorar validação para endpoints de login/logout
         if request.path.startswith('/api/auth/'):
-            logger.info(f"⏭️ Ignorando validação para endpoint de auth: {request.path}")
             return user, token
         
         # Extrair token string do header
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-        if auth_header.startswith('Bearer '):
-            token_str = auth_header.split(' ')[1]
-        else:
-            token_str = str(token.token) if hasattr(token, 'token') else str(token)
+        token_str = auth_header.split(' ')[1] if auth_header.startswith('Bearer ') else str(token.token) if hasattr(token, 'token') else str(token)
         
         logger.info(f"🔐 Validando sessão única: {user.username} (ID: {user.id})")
         
@@ -49,17 +44,11 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         validation = SessionManager.validate_session(user.id, token_str)
         
         if not validation['valid']:
-            reason = validation['reason']
-            message = validation['message']
-            
-            logger.warning(f"🚨 SESSÃO INVÁLIDA: {user.username} - Motivo: {reason}")
-            
-            # Lançar exceção com código correto para o frontend detectar
-            from rest_framework.exceptions import AuthenticationFailed
+            logger.warning(f"🚨 SESSÃO INVÁLIDA: {user.username} - Motivo: {validation['reason']}")
             raise AuthenticationFailed({
-                'detail': message,
-                'code': reason,
-                'message': message
+                'detail': validation['message'],
+                'code': validation['reason'],
+                'message': validation['message']
             })
         
         logger.info(f"✅ Sessão válida para {user.username}")

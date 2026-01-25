@@ -43,41 +43,66 @@ class Command(BaseCommand):
                 'nome': 'Clínica de Estética',
                 'slug': 'clinica-estetica',
                 'descricao': 'Sistema completo para clínicas de estética com agendamentos, prontuários e controle financeiro',
-                'icone': '💆',
-                'cor': '#FF6B9D',
-                'is_active': True
+                'dashboard_template': 'clinica',
+                'cor_primaria': '#FF6B9D',
+                'cor_secundaria': '#FF4081',
+                'tem_produtos': False,
+                'tem_servicos': True,
+                'tem_agendamento': True,
+                'tem_delivery': False,
+                'tem_estoque': False
             },
             {
                 'nome': 'CRM Vendas',
                 'slug': 'crm-vendas',
                 'descricao': 'Sistema de CRM para gestão de vendas, leads e pipeline comercial',
-                'icone': '📊',
-                'cor': '#4CAF50',
-                'is_active': True
+                'dashboard_template': 'crm',
+                'cor_primaria': '#4CAF50',
+                'cor_secundaria': '#388E3C',
+                'tem_produtos': True,
+                'tem_servicos': True,
+                'tem_agendamento': False,
+                'tem_delivery': False,
+                'tem_estoque': True
             },
             {
                 'nome': 'E-commerce',
                 'slug': 'ecommerce',
                 'descricao': 'Loja virtual completa com catálogo de produtos, carrinho e pagamentos',
-                'icone': '🛒',
-                'cor': '#2196F3',
-                'is_active': True
+                'dashboard_template': 'ecommerce',
+                'cor_primaria': '#2196F3',
+                'cor_secundaria': '#1976D2',
+                'tem_produtos': True,
+                'tem_servicos': False,
+                'tem_agendamento': False,
+                'tem_delivery': True,
+                'tem_estoque': True
             },
             {
                 'nome': 'Restaurante',
                 'slug': 'restaurante',
                 'descricao': 'Sistema para restaurantes com cardápio digital, pedidos e delivery',
-                'icone': '🍽️',
-                'cor': '#FF9800',
-                'is_active': True
+                'dashboard_template': 'restaurante',
+                'cor_primaria': '#FF9800',
+                'cor_secundaria': '#F57C00',
+                'tem_produtos': True,
+                'tem_servicos': False,
+                'tem_agendamento': False,
+                'tem_delivery': True,
+                'tem_estoque': True
             },
             {
                 'nome': 'Serviços',
                 'slug': 'servicos',
                 'descricao': 'Sistema para prestadores de serviços com agendamentos e orçamentos',
-                'icone': '🔧',
-                'cor': '#9C27B0',
-                'is_active': True
+                'dashboard_template': 'servicos',
+                'cor_primaria': '#9C27B0',
+                'cor_secundaria': '#7B1FA2',
+                'tem_produtos': False,
+                'tem_servicos': True,
+                'tem_agendamento': True,
+                'tem_delivery': False,
+                'tem_estoque': False
             }
         ]
         
@@ -106,38 +131,38 @@ class Command(BaseCommand):
             {
                 'nome': 'Básico Clínica',
                 'slug': 'basico-clinica',
-                'tipo_loja': tipos.get('clinica-estetica'),
+                'tipo_slug': 'clinica-estetica',
                 'descricao': 'Plano básico para clínicas pequenas',
                 'preco_mensal': Decimal('99.90'),
                 'preco_anual': Decimal('999.00'),
                 'max_usuarios': 3,
                 'max_produtos': 50,
-                'recursos': {
-                    'agendamentos': True,
-                    'prontuarios': True,
-                    'financeiro': True,
-                    'relatorios': False,
-                    'api': False
-                },
+                'max_pedidos_mes': 500,
+                'espaco_storage_gb': 5,
+                'tem_relatorios_avancados': False,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': False,
+                'tem_dominio_customizado': False,
+                'tem_whatsapp_integration': False,
                 'is_active': True,
                 'ordem': 1
             },
             {
                 'nome': 'Profissional Clínica',
                 'slug': 'profissional-clinica',
-                'tipo_loja': tipos.get('clinica-estetica'),
+                'tipo_slug': 'clinica-estetica',
                 'descricao': 'Plano completo para clínicas médias',
                 'preco_mensal': Decimal('199.90'),
                 'preco_anual': Decimal('1999.00'),
                 'max_usuarios': 10,
                 'max_produtos': 200,
-                'recursos': {
-                    'agendamentos': True,
-                    'prontuarios': True,
-                    'financeiro': True,
-                    'relatorios': True,
-                    'api': False
-                },
+                'max_pedidos_mes': 2000,
+                'espaco_storage_gb': 20,
+                'tem_relatorios_avancados': True,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': True,
+                'tem_dominio_customizado': True,
+                'tem_whatsapp_integration': True,
                 'is_active': True,
                 'ordem': 2
             },
@@ -145,36 +170,38 @@ class Command(BaseCommand):
             {
                 'nome': 'Básico CRM',
                 'slug': 'basico-crm',
-                'tipo_loja': tipos.get('crm-vendas'),
+                'tipo_slug': 'crm-vendas',
                 'descricao': 'Plano básico para pequenas equipes',
                 'preco_mensal': Decimal('79.90'),
                 'preco_anual': Decimal('799.00'),
                 'max_usuarios': 5,
                 'max_produtos': 100,
-                'recursos': {
-                    'leads': True,
-                    'pipeline': True,
-                    'relatorios': False,
-                    'api': False
-                },
+                'max_pedidos_mes': 1000,
+                'espaco_storage_gb': 5,
+                'tem_relatorios_avancados': False,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': False,
+                'tem_dominio_customizado': False,
+                'tem_whatsapp_integration': False,
                 'is_active': True,
                 'ordem': 1
             },
             {
                 'nome': 'Profissional CRM',
                 'slug': 'profissional-crm',
-                'tipo_loja': tipos.get('crm-vendas'),
+                'tipo_slug': 'crm-vendas',
                 'descricao': 'Plano completo para equipes de vendas',
                 'preco_mensal': Decimal('149.90'),
                 'preco_anual': Decimal('1499.00'),
                 'max_usuarios': 20,
                 'max_produtos': 500,
-                'recursos': {
-                    'leads': True,
-                    'pipeline': True,
-                    'relatorios': True,
-                    'api': True
-                },
+                'max_pedidos_mes': 5000,
+                'espaco_storage_gb': 50,
+                'tem_relatorios_avancados': True,
+                'tem_api_acesso': True,
+                'tem_suporte_prioritario': True,
+                'tem_dominio_customizado': True,
+                'tem_whatsapp_integration': True,
                 'is_active': True,
                 'ordem': 2
             },
@@ -182,37 +209,38 @@ class Command(BaseCommand):
             {
                 'nome': 'Básico E-commerce',
                 'slug': 'basico-ecommerce',
-                'tipo_loja': tipos.get('ecommerce'),
+                'tipo_slug': 'ecommerce',
                 'descricao': 'Plano básico para lojas pequenas',
                 'preco_mensal': Decimal('89.90'),
                 'preco_anual': Decimal('899.00'),
                 'max_usuarios': 3,
                 'max_produtos': 100,
-                'recursos': {
-                    'catalogo': True,
-                    'carrinho': True,
-                    'pagamentos': True,
-                    'relatorios': False
-                },
+                'max_pedidos_mes': 500,
+                'espaco_storage_gb': 10,
+                'tem_relatorios_avancados': False,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': False,
+                'tem_dominio_customizado': False,
+                'tem_whatsapp_integration': False,
                 'is_active': True,
                 'ordem': 1
             },
             {
                 'nome': 'Profissional E-commerce',
                 'slug': 'profissional-ecommerce',
-                'tipo_loja': tipos.get('ecommerce'),
+                'tipo_slug': 'ecommerce',
                 'descricao': 'Plano completo para lojas médias',
                 'preco_mensal': Decimal('179.90'),
                 'preco_anual': Decimal('1799.00'),
                 'max_usuarios': 10,
                 'max_produtos': 1000,
-                'recursos': {
-                    'catalogo': True,
-                    'carrinho': True,
-                    'pagamentos': True,
-                    'relatorios': True,
-                    'api': True
-                },
+                'max_pedidos_mes': 5000,
+                'espaco_storage_gb': 50,
+                'tem_relatorios_avancados': True,
+                'tem_api_acesso': True,
+                'tem_suporte_prioritario': True,
+                'tem_dominio_customizado': True,
+                'tem_whatsapp_integration': True,
                 'is_active': True,
                 'ordem': 2
             },
@@ -220,17 +248,19 @@ class Command(BaseCommand):
             {
                 'nome': 'Básico Restaurante',
                 'slug': 'basico-restaurante',
-                'tipo_loja': tipos.get('restaurante'),
+                'tipo_slug': 'restaurante',
                 'descricao': 'Plano básico para restaurantes pequenos',
                 'preco_mensal': Decimal('69.90'),
                 'preco_anual': Decimal('699.00'),
                 'max_usuarios': 5,
                 'max_produtos': 50,
-                'recursos': {
-                    'cardapio': True,
-                    'pedidos': True,
-                    'delivery': False
-                },
+                'max_pedidos_mes': 1000,
+                'espaco_storage_gb': 5,
+                'tem_relatorios_avancados': False,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': False,
+                'tem_dominio_customizado': False,
+                'tem_whatsapp_integration': True,
                 'is_active': True,
                 'ordem': 1
             },
@@ -238,17 +268,19 @@ class Command(BaseCommand):
             {
                 'nome': 'Básico Serviços',
                 'slug': 'basico-servicos',
-                'tipo_loja': tipos.get('servicos'),
+                'tipo_slug': 'servicos',
                 'descricao': 'Plano básico para prestadores de serviços',
                 'preco_mensal': Decimal('59.90'),
                 'preco_anual': Decimal('599.00'),
                 'max_usuarios': 3,
                 'max_produtos': 30,
-                'recursos': {
-                    'agendamentos': True,
-                    'orcamentos': True,
-                    'financeiro': True
-                },
+                'max_pedidos_mes': 500,
+                'espaco_storage_gb': 5,
+                'tem_relatorios_avancados': False,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': False,
+                'tem_dominio_customizado': False,
+                'tem_whatsapp_integration': False,
                 'is_active': True,
                 'ordem': 1
             }
@@ -256,12 +288,17 @@ class Command(BaseCommand):
         
         created_count = 0
         for plano_data in planos:
-            if plano_data['tipo_loja']:  # Só criar se o tipo de loja existir
+            tipo_slug = plano_data.pop('tipo_slug')
+            tipo_loja = tipos.get(tipo_slug)
+            
+            if tipo_loja:
                 plano, created = PlanoAssinatura.objects.get_or_create(
                     slug=plano_data['slug'],
                     defaults=plano_data
                 )
                 if created:
+                    # Adicionar tipo de loja ao ManyToMany
+                    plano.tipos_loja.add(tipo_loja)
                     created_count += 1
                     self.stdout.write(f'  ✅ Plano criado: {plano.nome}')
         

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
-from rest_framework_simplejwt.views import TokenRefreshView
+from superadmin.token_refresh_view import SessionAwareTokenRefreshView
 
 def api_root(request):
     """API Root - Informações do sistema"""
@@ -39,7 +39,7 @@ urlpatterns = [
     
     # Autenticação JWT SEGURA com isolamento por grupo
     path('api/auth/', include('config.urls_auth')),  # Rotas de autenticação
-    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/token/refresh/', SessionAwareTokenRefreshView.as_view(), name='token_refresh'),
     
     # APIs
     path('api/stores/', include('stores.urls')),

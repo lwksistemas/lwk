@@ -2,9 +2,11 @@
 Gerenciador de Sessões Únicas com JWT Blacklist
 Garante que cada usuário tenha apenas uma sessão ativa por vez
 e implementa timeout de inatividade de 30 minutos
+
+VERSÃO 2.0: Usa banco de dados PostgreSQL ao invés de cache
 """
-from django.core.cache import cache
 from django.utils import timezone
+from django.contrib.auth.models import User
 from datetime import timedelta
 import hashlib
 import logging
@@ -13,32 +15,20 @@ logger = logging.getLogger(__name__)
 
 # Configurações
 SESSION_TIMEOUT_MINUTES = 30
-SESSION_PREFIX = 'user_session:'
-ACTIVITY_PREFIX = 'user_activity:'
 
 
 class SessionManager:
     """
-    Gerenciador de sessões únicas com JWT Blacklist
+    Gerenciador de sessões únicas usando banco de dados PostgreSQL
     
     Funcionalidades:
     1. Apenas uma sessão ativa por usuário
     2. Logout automático após 30 minutos de inatividade
-    3. Invalidação de sessões antigas ao fazer novo login (via blacklist)
+    3. Invalidação automática de sessões antigas
     """
     
     # Constante de classe para acesso externo
     SESSION_TIMEOUT_MINUTES = SESSION_TIMEOUT_MINUTES
-    
-    @staticmethod
-    def _get_session_key(user_id: int) -> str:
-        """Retorna a chave de sessão do usuário"""
-        return f"{SESSION_PREFIX}{user_id}"
-    
-    @staticmethod
-    def _get_activity_key(user_id: int) -> str:
-        """Retorna a chave de atividade do usuário"""
-        return f"{ACTIVITY_PREFIX}{user_id}"
     
     @staticmethod
     def _generate_session_id(user_id: int, timestamp: str) -> str:
@@ -47,41 +37,15 @@ class SessionManager:
         return hashlib.sha256(data.encode()).hexdigest()
     
     @staticmethod
-    def _blacklist_previous_tokens(user_id: int):
-        """
-        Adiciona todos os tokens anteriores do usuário à blacklist (usando Redis)
-        """
-        try:
-            # Obter sessão anterior
-            session_key = SessionManager._get_session_key(user_id)
-            existing_session = cache.get(session_key)
-            
-            logger.info(f"🔍 Verificando sessão anterior para usuário {user_id}: {existing_session is not None}")
-            
-            if existing_session:
-                old_token = existing_session.get('token')
-                
-                if old_token:
-                    # Usar hash do token como chave (para evitar chaves muito longas)
-                    token_hash = hashlib.sha256(old_token.encode()).hexdigest()
-                    blacklist_key = f"blacklist:{token_hash}"
-                    
-                    # Adicionar à blacklist com TTL de 1 hora
-                    cache.set(blacklist_key, True, timeout=3600)
-                    logger.warning(f"🗑️ Token anterior adicionado à BLACKLIST para usuário {user_id}")
-                else:
-                    logger.warning(f"⚠️ Sessão anterior existe mas sem token para usuário {user_id}")
-            else:
-                logger.info(f"ℹ️ Nenhuma sessão anterior encontrada para usuário {user_id} (primeiro login)")
-            
-        except Exception as e:
-            logger.error(f"❌ ERRO ao adicionar token à blacklist: {e}")
+    def _hash_token(token: str) -> str:
+        """Gera hash do token para armazenamento seguro"""
+        return hashlib.sha256(token.encode()).hexdigest()
     
     @staticmethod
     def create_session(user_id: int, token: str) -> str:
         """
-        Cria uma nova sessão para o usuário
-        Invalida qualquer sessão anterior via blacklist
+        Cria uma nova sessão para o usuário no banco de dados
+        Invalida qualquer sessão anterior automaticamente
         
         Args:
             user_id: ID do usuário
@@ -90,38 +54,43 @@ class SessionManager:
         Returns:
             session_id: ID único da sessão criada
         """
+        from superadmin.models import UserSession
+        
         timestamp = timezone.now().isoformat()
         session_id = SessionManager._generate_session_id(user_id, timestamp)
-        
-        session_key = SessionManager._get_session_key(user_id)
-        activity_key = SessionManager._get_activity_key(user_id)
+        token_hash = SessionManager._hash_token(token)
         
         logger.info(f"🔐 Criando nova sessão para usuário {user_id}")
         
-        # Blacklist todos os tokens anteriores
-        SessionManager._blacklist_previous_tokens(user_id)
-        
-        # Criar nova sessão
-        session_data = {
-            'session_id': session_id,
-            'user_id': user_id,
-            'token': token,
-            'created_at': timestamp,
-            'last_activity': timestamp,
-        }
-        
-        # Salvar no cache (sem expiração automática, controlamos manualmente)
-        cache.set(session_key, session_data, timeout=None)
-        cache.set(activity_key, timestamp, timeout=None)
-        
-        logger.info(f"✅ Nova sessão criada: {session_id} para usuário {user_id}")
-        
-        return session_id
+        try:
+            user = User.objects.get(id=user_id)
+            
+            # Deletar sessão anterior se existir (OneToOne garante apenas uma)
+            UserSession.objects.filter(user=user).delete()
+            logger.info(f"🗑️ Sessão anterior removida para usuário {user_id}")
+            
+            # Criar nova sessão
+            session = UserSession.objects.create(
+                user=user,
+                session_id=session_id,
+                token_hash=token_hash,
+                last_activity=timezone.now()
+            )
+            
+            logger.info(f"✅ Nova sessão criada no banco: {session_id[:16]}... para usuário {user_id}")
+            return session_id
+            
+        except User.DoesNotExist:
+            logger.error(f"❌ Usuário {user_id} não encontrado")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Erro ao criar sessão: {e}")
+            raise
     
     @staticmethod
     def validate_session(user_id: int, token: str) -> dict:
         """
-        Valida se a sessão do usuário é válida
+        Valida se a sessão do usuário é válida usando banco de dados
         
         Args:
             user_id: ID do usuário
@@ -131,64 +100,52 @@ class SessionManager:
             dict com:
                 - valid: bool (sessão válida?)
                 - reason: str (motivo se inválida)
-                - session_data: dict (dados da sessão se válida)
+                - message: str (mensagem de erro)
         """
-        session_key = SessionManager._get_session_key(user_id)
-        activity_key = SessionManager._get_activity_key(user_id)
+        from superadmin.models import UserSession
         
-        # VERIFICAR BLACKLIST PRIMEIRO (usar hash do token)
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
-        blacklist_key = f"blacklist:{token_hash}"
-        is_blacklisted = cache.get(blacklist_key)
+        token_hash = SessionManager._hash_token(token)
         
-        if is_blacklisted:
-            logger.warning(f"🚫 Token na BLACKLIST detectado para usuário {user_id}")
-            return {
-                'valid': False,
-                'reason': 'BLACKLISTED',
-                'message': 'Token foi invalidado por nova sessão'
-            }
-        
-        # Verificar se existe sessão
-        session_data = cache.get(session_key)
-        if not session_data:
-            logger.warning(f"⚠️ Nenhuma sessão ativa encontrada para usuário {user_id}")
-            return {
-                'valid': False,
-                'reason': 'NO_SESSION',
-                'message': 'Nenhuma sessão ativa encontrada'
-            }
-        
-        # Verificar se o token corresponde
-        saved_token = session_data.get('token')
-        if saved_token != token:
-            logger.warning(f"🔄 Token diferente detectado para usuário {user_id} - Outra sessão ativa")
-            return {
-                'valid': False,
-                'reason': 'DIFFERENT_SESSION',
-                'message': 'Outra sessão foi iniciada em outro dispositivo'
-            }
-        
-        # Verificar timeout de inatividade
-        last_activity_str = cache.get(activity_key)
-        if last_activity_str:
-            last_activity = timezone.datetime.fromisoformat(last_activity_str)
-            now = timezone.now()
-            inactive_time = now - last_activity
+        try:
+            # Buscar sessão do usuário
+            session = UserSession.objects.filter(user_id=user_id).first()
             
-            if inactive_time > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
-                SessionManager.destroy_session(user_id)
+            if not session:
+                logger.warning(f"⚠️ Nenhuma sessão ativa encontrada para usuário {user_id}")
+                return {
+                    'valid': False,
+                    'reason': 'NO_SESSION',
+                    'message': 'Nenhuma sessão ativa encontrada'
+                }
+            
+            # Verificar se o token corresponde
+            if session.token_hash != token_hash:
+                logger.warning(f"🔄 Token diferente detectado para usuário {user_id} - Outra sessão ativa")
+                return {
+                    'valid': False,
+                    'reason': 'DIFFERENT_SESSION',
+                    'message': 'Outra sessão foi iniciada em outro dispositivo'
+                }
+            
+            # Verificar timeout de inatividade
+            if session.is_expired(SESSION_TIMEOUT_MINUTES):
+                session.delete()
                 logger.warning(f"⏱️ Sessão expirou por inatividade para usuário {user_id}")
                 return {
                     'valid': False,
                     'reason': 'TIMEOUT',
                     'message': f'Sessão expirou por inatividade ({SESSION_TIMEOUT_MINUTES} minutos)'
                 }
-        
-        return {
-            'valid': True,
-            'session_data': session_data
-        }
+            
+            return {'valid': True}
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao validar sessão: {e}")
+            return {
+                'valid': False,
+                'reason': 'ERROR',
+                'message': 'Erro ao validar sessão'
+            }
     
     @staticmethod
     def update_activity(user_id: int):
@@ -198,16 +155,14 @@ class SessionManager:
         Args:
             user_id: ID do usuário
         """
-        activity_key = SessionManager._get_activity_key(user_id)
-        timestamp = timezone.now().isoformat()
-        cache.set(activity_key, timestamp, timeout=None)
+        from superadmin.models import UserSession
         
-        # Atualizar também na sessão
-        session_key = SessionManager._get_session_key(user_id)
-        session_data = cache.get(session_key)
-        if session_data:
-            session_data['last_activity'] = timestamp
-            cache.set(session_key, session_data, timeout=None)
+        try:
+            session = UserSession.objects.filter(user_id=user_id).first()
+            if session:
+                session.update_activity()
+        except Exception as e:
+            logger.error(f"❌ Erro ao atualizar atividade: {e}")
     
     @staticmethod
     def destroy_session(user_id: int):
@@ -217,13 +172,13 @@ class SessionManager:
         Args:
             user_id: ID do usuário
         """
-        session_key = SessionManager._get_session_key(user_id)
-        activity_key = SessionManager._get_activity_key(user_id)
+        from superadmin.models import UserSession
         
-        cache.delete(session_key)
-        cache.delete(activity_key)
-        
-        logger.info(f"Sessão do usuário {user_id} destruída")
+        try:
+            UserSession.objects.filter(user_id=user_id).delete()
+            logger.info(f"🗑️ Sessão do usuário {user_id} destruída")
+        except Exception as e:
+            logger.error(f"❌ Erro ao destruir sessão: {e}")
     
     @staticmethod
     def get_session_info(user_id: int) -> dict:
@@ -236,25 +191,24 @@ class SessionManager:
         Returns:
             dict com informações da sessão ou None
         """
-        session_key = SessionManager._get_session_key(user_id)
-        activity_key = SessionManager._get_activity_key(user_id)
+        from superadmin.models import UserSession
         
-        session_data = cache.get(session_key)
-        if not session_data:
-            return None
-        
-        last_activity_str = cache.get(activity_key)
-        if last_activity_str:
-            last_activity = timezone.datetime.fromisoformat(last_activity_str)
+        try:
+            session = UserSession.objects.filter(user_id=user_id).first()
+            if not session:
+                return None
+            
             now = timezone.now()
-            inactive_minutes = (now - last_activity).seconds // 60
+            inactive_time = now - session.last_activity
+            inactive_minutes = int(inactive_time.total_seconds() // 60)
             
             return {
-                'session_id': session_data.get('session_id'),
-                'created_at': session_data.get('created_at'),
-                'last_activity': last_activity_str,
+                'session_id': session.session_id,
+                'created_at': session.created_at.isoformat(),
+                'last_activity': session.last_activity.isoformat(),
                 'inactive_minutes': inactive_minutes,
                 'will_expire_in_minutes': SESSION_TIMEOUT_MINUTES - inactive_minutes,
             }
-        
-        return session_data
+        except Exception as e:
+            logger.error(f"❌ Erro ao obter info da sessão: {e}")
+            return None

@@ -1,5 +1,21 @@
 from django.contrib import admin
-from .models import TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, PagamentoLoja, UsuarioSistema
+from .models import TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, PagamentoLoja, UsuarioSistema, UserSession
+
+@admin.register(UserSession)
+class UserSessionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'session_id_short', 'created_at', 'last_activity', 'is_active']
+    list_filter = ['created_at', 'last_activity']
+    search_fields = ['user__username', 'session_id']
+    readonly_fields = ['session_id', 'token_hash', 'created_at']
+    
+    def session_id_short(self, obj):
+        return f"{obj.session_id[:16]}..."
+    session_id_short.short_description = 'Session ID'
+    
+    def is_active(self, obj):
+        return not obj.is_expired()
+    is_active.boolean = True
+    is_active.short_description = 'Ativa'
 
 @admin.register(TipoLoja)
 class TipoLojaAdmin(admin.ModelAdmin):

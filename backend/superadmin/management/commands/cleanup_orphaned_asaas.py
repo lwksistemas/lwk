@@ -61,7 +61,7 @@ class Command(BaseCommand):
         for subscription in orphaned_subscriptions:
             self.stdout.write(f'    - Loja: {subscription.loja_slug}')
             self.stdout.write(f'      Cliente Asaas: {subscription.asaas_customer.asaas_id if subscription.asaas_customer else "N/A"}')
-            self.stdout.write(f'      Plano: {subscription.plano.nome if subscription.plano else "N/A"}')
+            self.stdout.write(f'      Plano: {subscription.plano_nome}')
         
         if dry_run:
             self.stdout.write(self.style.WARNING(f'\n  🔍 DRY-RUN: {len(orphaned_subscriptions)} assinaturas seriam removidas'))

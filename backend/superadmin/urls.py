@@ -10,6 +10,7 @@ from .financeiro_views import (
     PagamentoLojaViewSet as PagamentoViewSet,
     dashboard_financeiro_loja
 )
+from .auth_views_secure import SecureLoginView, SecureLogoutView
 
 router = DefaultRouter()
 router.register(r'tipos-loja', TipoLojaViewSet, basename='tipo-loja')
@@ -25,6 +26,11 @@ router.register(r'loja-pagamentos', PagamentoViewSet, basename='loja-pagamentos'
 
 # IMPORTANTE: Rotas públicas devem vir ANTES do include do router
 urlpatterns = [
+    # Autenticação
+    path('login/', SecureLoginView.as_view(), name='superadmin-login'),
+    path('logout/', SecureLogoutView.as_view(), name='superadmin-logout'),
+    
+    # Outras rotas públicas
     path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),
     path('loja/<str:loja_slug>/financeiro/', dashboard_financeiro_loja, name='dashboard-financeiro-loja'),
     path('', include(router.urls)),

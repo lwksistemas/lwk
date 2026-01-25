@@ -54,10 +54,12 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
             
             logger.warning(f"🚨 SESSÃO INVÁLIDA: {user.username} - Motivo: {reason}")
             
-            # Lançar exceção para invalidar o token
-            raise InvalidToken({
+            # Lançar exceção com código correto para o frontend detectar
+            from rest_framework.exceptions import AuthenticationFailed
+            raise AuthenticationFailed({
                 'detail': message,
-                'code': reason
+                'code': reason,
+                'message': message
             })
         
         logger.info(f"✅ Sessão válida para {user.username}")

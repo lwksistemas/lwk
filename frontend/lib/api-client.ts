@@ -48,10 +48,13 @@ apiClient.interceptors.response.use(
 
     // Verificar erros de sessão
     if (error.response?.status === 401) {
-      const errorCode = error.response?.data?.code;
+      const errorData = error.response?.data;
+      const errorCode = errorData?.code || errorData?.detail?.code;
       
       // Erros de sessão que requerem logout forçado
-      if (errorCode === 'SESSION_CONFLICT' || 
+      if (errorCode === 'DIFFERENT_SESSION' || 
+          errorCode === 'SESSION_CONFLICT' || 
+          errorCode === 'TIMEOUT' ||
           errorCode === 'SESSION_TIMEOUT' || 
           errorCode === 'NO_SESSION') {
         
@@ -68,7 +71,7 @@ apiClient.interceptors.response.use(
         document.cookie = 'loja_slug=; path=/; max-age=0';
         
         // Mostrar mensagem ao usuário
-        const message = error.response?.data?.message || 'Sua sessão expirou';
+        const message = errorData?.message || errorData?.detail || 'Sua sessão expirou';
         alert(message);
         
         // Redirecionar para home

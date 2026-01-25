@@ -158,54 +158,16 @@ WHITENOISE_MAX_AGE = 31536000  # 1 ano de cache
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ✅ CACHE: Redis para sessões únicas (RÁPIDO e compartilhado entre workers)
-# Redis é MUITO MAIS RÁPIDO que banco de dados para cache
-# Tempo de resposta: ~1ms (Redis) vs ~10-50ms (PostgreSQL)
-import ssl
-import os
-
-# Configurar SSL para Redis do Heroku
-redis_url = config('REDIS_URL', default='redis://localhost:6379/1')
-
-# 🔧 SOLUÇÃO TEMPORÁRIA: Usar cache local se Redis falhar
-USE_REDIS_ENV = os.environ.get('USE_REDIS', 'true')
-USE_REDIS = USE_REDIS_ENV.lower() == 'true'
-print(f"🔧 USE_REDIS env: {USE_REDIS_ENV}, parsed: {USE_REDIS}")
-
-if USE_REDIS:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': redis_url,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'SOCKET_CONNECT_TIMEOUT': 5,
-                'SOCKET_TIMEOUT': 5,
-                'REDIS_CLIENT_KWARGS': {
-                    'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL
-                },
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': 50,
-                    'retry_on_timeout': True,
-                    'ssl_cert_reqs': None,  # 🔧 FIX: Desabilitar verificação SSL
-                },
-                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            },
-            'KEY_PREFIX': 'lwk',
-            'TIMEOUT': None,  # Sem expiração automática (controlamos manualmente)
+# ✅ CACHE: Usando cache local em memória (temporário até resolver SSL do Redis)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'lwk-cache',
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
         }
     }
-else:
-    # Fallback: Cache em memória local (funciona mas não compartilha entre workers)
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'lwk-cache',
-            'OPTIONS': {
-                'MAX_ENTRIES': 10000,
-            }
-        }
-    }
+}
 
 # ✅ OTIMIZAÇÃO: GZip compression
 GZIP_COMPRESSIBLE_TYPES = [

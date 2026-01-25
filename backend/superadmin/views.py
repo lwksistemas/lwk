@@ -287,18 +287,39 @@ class LojaViewSet(viewsets.ModelViewSet):
                     banco_removido = True
                     print(f"✅ Arquivo do banco removido: {db_path}")
             
-            # 3. Coletar dados do proprietário antes da possível exclusão
+            # 3. Remover dados do Asaas (pagamentos e cliente)
+            asaas_deleted_payments = 0
+            asaas_deleted_customer = False
+            try:
+                from asaas_integration.deletion_service import AsaasDeletionService
+                
+                deletion_service = AsaasDeletionService()
+                if deletion_service.available:
+                    result = deletion_service.delete_loja_from_asaas(loja_slug)
+                    if result.get('success'):
+                        asaas_deleted_payments = result.get('deleted_payments', 0)
+                        asaas_deleted_customer = result.get('deleted_customer', False)
+                        print(f"✅ Dados Asaas removidos: {asaas_deleted_payments} pagamentos, cliente: {asaas_deleted_customer}")
+                    else:
+                        print(f"⚠️ Erro ao remover dados Asaas: {result.get('error', 'Erro desconhecido')}")
+                else:
+                    print(f"ℹ️ Serviço Asaas não disponível - dados locais serão removidos")
+            except Exception as e:
+                print(f"⚠️ Erro ao remover dados Asaas: {e}")
+            
+            # 4. Coletar dados do proprietário antes da possível exclusão
             owner = loja.owner
             usuario_sera_removido = outras_lojas_owner == 0
             
-            # 4. Remover a loja (isso remove automaticamente em cascade):
+            # 5. Remover a loja (isso remove automaticamente em cascade):
             # - FinanceiroLoja (OneToOneField com CASCADE)
             # - PagamentoLoja (ForeignKey com CASCADE) 
             # - Relacionamentos ManyToMany
+            # - AsaasCustomer, AsaasPayment, LojaAssinatura (via signals)
             loja.delete()
             print(f"✅ Loja removida: {loja_nome}")
             
-            # 5. Remover usuário proprietário se não for usado por outras lojas
+            # 6. Remover usuário proprietário se não for usado por outras lojas
             usuario_removido = False
             if usuario_sera_removido:
                 # Verificar se o usuário não é superuser (usuários de loja não devem ser staff)
@@ -342,7 +363,7 @@ class LojaViewSet(viewsets.ModelViewSet):
                 else:
                     print(f"⚠️ Usuário {owner_username} mantido (é superuser do sistema)")
             
-            # 6. Limpeza adicional de arquivos relacionados (se houver)
+            # 7. Limpeza adicional de arquivos relacionados (se houver)
             # TODO: Remover uploads, logos, etc. se implementado no futuro
             
             return Response({
@@ -361,6 +382,10 @@ class LojaViewSet(viewsets.ModelViewSet):
                         'nome': database_name,
                         'arquivo_removido': banco_removido,
                         'config_removida': database_created
+                    },
+                    'asaas': {
+                        'pagamentos_cancelados': asaas_deleted_payments,
+                        'cliente_removido': asaas_deleted_customer
                     },
                     'dados_financeiros': {
                         'financeiro_removido': financeiro_exists,

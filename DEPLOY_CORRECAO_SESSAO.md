@@ -1,153 +1,113 @@
-# 🚀 DEPLOY - CORREÇÃO SESSÃO ÚNICA
+# 🚀 Deploy v234 - Correção Senha Provisória
 
-## ✅ Backend Deployado (Heroku)
+## 📋 Resumo
 
-**Commit:** `938f2b7`
-**Mensagem:** "fix: Corrigir sessão única - impedir refresh quando DIFFERENT_SESSION + logs detalhados"
+Deploy realizado com sucesso para corrigir o problema de senha provisória que não solicitava troca no login.
 
-### Mudanças no Backend:
+## ✅ O que foi corrigido
 
-1. **session_manager.py** - Logs detalhados ao criar sessão
-   - Mostra quando sessão anterior é deletada
-   - Mostra hash do token para debug
-   - Logs em WARNING para aparecer no Heroku
+### Problema Original
+- Login com senha provisória não retornava flag `precisa_trocar_senha`
+- Frontend não sabia que precisava redirecionar para troca de senha
+- Usuário recebia erro ao tentar acessar dashboard
 
-## 🔧 Frontend - PRECISA DEPLOY NO VERCEL
+### Solução Implementada
+- Atualizado `SecureLoginView` em `backend/superadmin/auth_views_secure.py`
+- Login agora retorna `precisa_trocar_senha: true/false` na resposta
+- Lógica verifica `senha_provisoria` e `senha_foi_alterada` para lojas e suporte
 
-### Mudanças no Frontend:
+## 🧪 Teste Realizado
 
-**Arquivo:** `frontend/lib/api-client.ts`
+### Loja "Linda" - Teste Completo
 
-**Correção Crítica:**
-- Antes: Tentava refresh token ANTES de verificar erro de sessão
-- Depois: Verifica erro de sessão PRIMEIRO, só tenta refresh se não for erro de sessão
+**Dados:**
+- Username: `felipe`
+- Email: `financeiroluiz@hotmail.com`
+- Senha provisória: `a@N5TA*i`
+- Loja: `linda`
 
-**Comportamento Corrigido:**
+**Resultado do Login:**
+```json
+{
+  "access": "token...",
+  "refresh": "token...",
+  "user": {...},
+  "loja": {
+    "id": 67,
+    "slug": "linda",
+    "nome": "Linda",
+    "tipo_loja": "Clínica de Estética"
+  },
+  "precisa_trocar_senha": true  // ✅ FLAG PRESENTE!
+}
+```
+
+**Status:** ✅ **FUNCIONANDO PERFEITAMENTE!**
+
+## 📝 Código NÃO Duplicado
+
+Verificado que os endpoints de troca de senha são **diferentes** e **não duplicados**:
+
+1. **`/api/superadmin/lojas/{id}/alterar_senha_primeiro_acesso/`**
+   - Para proprietários de loja
+   - Implementado em `LojaViewSet`
+
+2. **`/api/superadmin/usuarios-sistema/alterar_senha_primeiro_acesso/`**
+   - Para usuários de suporte
+   - Implementado em `UsuarioSistemaViewSet`
+
+São endpoints separados para tipos de usuários diferentes. ✅ Correto!
+
+## 🔄 Próximos Passos para o Frontend
+
+O frontend precisa:
+
+1. **Detectar a flag no login:**
 ```typescript
-// ANTES (BUGADO):
-1. Recebe 401 DIFFERENT_SESSION
-2. Tenta refresh token (cria nova sessão, invalida a outra)
-3. Loop infinito de refresh entre dispositivos
-
-// DEPOIS (CORRETO):
-1. Recebe 401 DIFFERENT_SESSION
-2. Faz logout IMEDIATO (sem tentar refresh)
-3. Mostra mensagem: "Outra sessão foi iniciada em outro dispositivo"
-4. Redireciona para home
+const response = await login(username, password, loja_slug);
+if (response.precisa_trocar_senha) {
+  // Redirecionar para tela de troca de senha
+  router.push(`/loja/${loja_slug}/trocar-senha`);
+}
 ```
 
-## 📋 Como Fazer Deploy do Frontend
-
-### Opção 1: Deploy Automático (Vercel + GitHub)
-
-Se o frontend está conectado ao GitHub:
-```bash
-# Fazer push para o repositório
-git push origin master
+2. **Criar tela de troca de senha** (se não existir)
+3. **Chamar endpoint de troca:**
+```typescript
+POST /api/superadmin/lojas/{id}/alterar_senha_primeiro_acesso/
+{
+  "nova_senha": "novaSenha123",
+  "confirmar_senha": "novaSenha123"
+}
 ```
 
-Vercel vai detectar e fazer deploy automático.
+4. **Após troca bem-sucedida:**
+   - Fazer novo login com nova senha
+   - Redirecionar para dashboard
 
-### Opção 2: Deploy Manual (Vercel CLI)
+## 📊 Informações do Deploy
 
-```bash
-cd frontend
-vercel --prod
-```
+- **Versão:** v234
+- **Data:** 25/01/2026
+- **Heroku App:** lwksistemas
+- **Status:** ✅ Deploy bem-sucedido
+- **Migrations:** Nenhuma nova migration necessária
 
-### Opção 3: Deploy via Dashboard Vercel
+## 🎯 Resultado Final
 
-1. Acesse https://vercel.com/dashboard
-2. Encontre o projeto `lwksistemas`
-3. Clique em "Deployments"
-4. Clique em "Redeploy" no último deployment
+**Antes:**
+- ❌ Login não informava sobre senha provisória
+- ❌ Frontend não sabia que precisava trocar senha
+- ❌ Erro ao acessar dashboard
 
-## 🧪 Como Testar Após Deploy
-
-### Teste 1: Login Único Funciona
-
-1. **Dispositivo A (Desktop):**
-   - Fazer login com usuário `luiz`
-   - Acessar dashboard
-   - ✅ Deve funcionar normalmente
-
-2. **Dispositivo B (Mobile):**
-   - Fazer login com MESMO usuário `luiz`
-   - ✅ Deve fazer login com sucesso
-
-3. **Dispositivo A (Desktop):**
-   - Tentar acessar qualquer página
-   - ❌ Deve receber erro: "Outra sessão foi iniciada em outro dispositivo"
-   - ✅ Deve ser deslogado automaticamente
-   - ✅ Deve redirecionar para home
-
-### Teste 2: Não Permite Uso Simultâneo
-
-1. **Desktop:** Login com `luiz`
-2. **Mobile:** Login com `luiz` (invalida desktop)
-3. **Desktop:** Tenta acessar → Deslogado ✅
-4. **Mobile:** Continua funcionando ✅
-
-### Teste 3: Logs Detalhados
-
-Verificar logs do Heroku:
-```bash
-heroku logs --tail --app lwksistemas
-```
-
-Deve mostrar:
-```
-🔐 CRIANDO NOVA SESSÃO para usuário 1
-⚠️ SESSÃO ANTERIOR DETECTADA para usuário 1
-🗑️ 1 sessão(ões) anterior(es) DELETADA(S)
-✅ NOVA SESSÃO CRIADA no banco
-```
-
-## 🔍 Verificar se Funcionou
-
-### No Console do Browser (F12):
-
-Quando receber erro de sessão, deve aparecer:
-```
-🔍 Erro 401 detectado: { errorCode: 'DIFFERENT_SESSION', errorMessage: '...' }
-🚨 SESSÃO INVÁLIDA - Fazendo logout forçado: DIFFERENT_SESSION
-```
-
-### No Heroku Logs:
-
-Quando criar nova sessão:
-```
-🔐 CRIANDO NOVA SESSÃO para usuário X
-⚠️ SESSÃO ANTERIOR DETECTADA
-🗑️ DELETANDO sessão anterior
-✅ NOVA SESSÃO CRIADA
-```
-
-## ⚠️ IMPORTANTE
-
-**Após o deploy do frontend, o sistema vai:**
-
-1. ✅ Permitir apenas 1 sessão por usuário
-2. ✅ Invalidar sessão anterior ao fazer novo login
-3. ✅ Deslogar automaticamente quando detectar outra sessão
-4. ✅ Mostrar mensagem clara ao usuário
-5. ✅ Não permitir uso simultâneo em múltiplos dispositivos
-
-## 🎯 Resultado Esperado
-
-**ANTES (Bugado):**
-- Usuário conseguia usar 2 dispositivos simultaneamente
-- Refresh token criava loop infinito
-- Sessões ficavam alternando
-
-**DEPOIS (Correto):**
-- Usuário só pode usar 1 dispositivo por vez
-- Login em novo dispositivo = logout automático no anterior
-- Mensagem clara: "Outra sessão foi iniciada em outro dispositivo"
+**Depois:**
+- ✅ Login retorna flag `precisa_trocar_senha`
+- ✅ Backend funcionando corretamente
+- ✅ Pronto para frontend implementar redirecionamento
+- ✅ Endpoints de troca de senha já existentes e funcionando
 
 ---
 
-**Data:** 25/01/2026 23:15
-**Status Backend:** ✅ DEPLOYADO
-**Status Frontend:** ⏳ AGUARDANDO DEPLOY
-**Versão:** v224
+**Deploy:** ✅ Concluído
+**Backend:** ✅ Funcionando
+**Frontend:** ⏳ Aguardando implementação do redirecionamento

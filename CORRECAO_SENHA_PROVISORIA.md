@@ -245,8 +245,53 @@ heroku run "python backend/manage.py shell -c \"from superadmin.models import Lo
 - ✅ Fluxo de troca de senha funciona
 - ✅ Acesso ao dashboard após troca
 
+## 🧪 Teste Realizado
+
+### Login com Senha Provisória - Loja "Linda"
+
+**Dados de teste:**
+```bash
+Username: felipe
+Email: financeiroluiz@hotmail.com
+Senha provisória: a@N5TA*i
+Loja: linda
+```
+
+**Comando:**
+```bash
+curl -X POST https://lwksistemas-38ad47519238.herokuapp.com/api/auth/loja/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "felipe", "password": "a@N5TA*i", "loja_slug": "linda"}'
+```
+
+**Resposta:**
+```json
+{
+  "access": "token...",
+  "refresh": "token...",
+  "session_id": "573bcd863de69eeeaa6d0c8b4dbe19a3e6c485532902e08eda78dd05f461bc14",
+  "session_timeout_minutes": 30,
+  "user": {
+    "id": 68,
+    "username": "felipe",
+    "email": "financeiroluiz@hotmail.com",
+    "is_superuser": false,
+    "user_type": "loja"
+  },
+  "loja": {
+    "id": 67,
+    "slug": "linda",
+    "nome": "Linda",
+    "tipo_loja": "Clínica de Estética"
+  },
+  "precisa_trocar_senha": true  // ✅ FLAG PRESENTE!
+}
+```
+
+**Resultado:** ✅ **SUCESSO!** A flag `precisa_trocar_senha: true` está sendo retornada corretamente!
+
 ---
 
-**Status:** ✅ Correção implementada
-**Versão:** v234 (próximo deploy)
+**Status:** ✅ Correção implementada e testada
+**Versão:** v234 (deploy realizado)
 **Data:** 25/01/2026

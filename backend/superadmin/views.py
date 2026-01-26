@@ -120,6 +120,7 @@ class LojaViewSet(viewsets.ModelViewSet):
         try:
             loja = Loja.objects.get(slug=slug, is_active=True)
             return Response({
+                'id': loja.id,  # ✅ IMPORTANTE: ID único da loja para X-Loja-ID
                 'nome': loja.nome,
                 'slug': loja.slug,
                 'tipo_loja_nome': loja.tipo_loja.nome,

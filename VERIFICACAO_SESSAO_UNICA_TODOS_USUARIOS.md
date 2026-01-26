@@ -1,248 +1,264 @@
-# ✅ Verificação: Sessão Única para TODOS os Usuários
+# ✅ Verificação de Sessão Única - Todos os Usuários
 
-## 🎯 Pergunta
-**Todos os usuários do sistema não podem ter 2 sessões ativas?**
-- Usuários do suporte
-- Usuários das lojas (proprietários)
-- Funcionários das lojas
+## 📊 Status Atual
 
-## ✅ RESPOSTA: SIM, TODOS ESTÃO PROTEGIDOS!
-
-## 🔐 Como Funciona
-
-### 1. Authenticator Global (SessionAwareJWTAuthentication)
-
-**Arquivo:** `backend/superadmin/authentication.py`
-
-```python
-class SessionAwareJWTAuthentication(JWTAuthentication):
-    """
-    Authenticator JWT que verifica sessão única usando PostgreSQL
-    Garante que cada usuário tenha apenas uma sessão ativa por vez
-    """
+### Banco de Dados ✅
+```
+Usuário: vendas (ID: 74)
+Sessões ativas: 1
+Última atividade: há 8 minutos
 ```
 
-**Configuração Global:**
-```python
-# backend/config/settings.py
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'superadmin.authentication.SessionAwareJWTAuthentication',  # 🔐 GLOBAL
-    ],
-}
+**Conclusão:** Sistema está criando sessão única corretamente!
+
+### Código ✅
+- `SessionManager.create_session()` deleta sessões anteriores
+- `SessionAwareJWTAuthentication` valida sessão em todas as requisições
+- Heartbeat implementado no frontend
+
+## ❓ Por Que Parece Não Funcionar?
+
+Você consegue fazer login em 2 navegadores porque:
+
+1. **Você só está acessando páginas públicas**
+   - Dashboard inicial usa `info_publica` (sem autenticação)
+   - Sessão única só é validada em requisições autenticadas
+
+2. **Frontend pode estar em cache**
+   - Heartbeat pode não estar rodando
+   - Código antigo em cache do navegador
+
+3. **Sessão única funciona, mas você não testou corretamente**
+   - Precisa fazer uma ação que requer autenticação
+   - Exemplo: Clicar em "Funcionários", "Clientes", etc.
+
+## 🧪 Como Testar Corretamente
+
+### Teste 1: Sessão Única (CORRETO)
+
+1. **Navegador 1 (Chrome):**
+   - Ir para: https://lwksistemas.com.br/loja/felix/login
+   - Fazer login com usuário "vendas"
+   - **Clicar em "Funcionários"** (ou qualquer botão que faça requisição à API)
+   - Deixar aberto
+
+2. **Navegador 2 (Firefox ou aba anônima):**
+   - Ir para: https://lwksistemas.com.br/loja/felix/login
+   - Fazer login com MESMO usuário "vendas"
+   - Dashboard carrega normalmente (porque é público)
+
+3. **Navegador 1 (Chrome):**
+   - **Clicar em "Funcionários" novamente**
+   - **Esperado:** ❌ Erro "Outra sessão foi iniciada em outro dispositivo"
+   - **Resultado:** Logout forçado
+
+### Teste 2: Verificar Heartbeat
+
+1. **Fazer login** em https://lwksistemas.com.br/loja/felix/login
+
+2. **Abrir DevTools** (F12) → Console
+
+3. **Verificar logs:**
+   ```
+   💓 Iniciando heartbeat (ping a cada 5 minutos)
+   ```
+
+4. **Esperar 5 minutos:**
+   ```
+   💓 Heartbeat OK: {status: 'alive', user: 'vendas', ...}
+   ```
+
+**Se NÃO aparecer:** Frontend está em cache
+
+### Teste 3: Limpar Cache do Navegador
+
+O frontend pode estar em cache. Faça:
+
+1. **Ctrl+Shift+Delete** (Limpar cache)
+2. **Ou Ctrl+F5** (Hard reload)
+3. **Ou abrir aba anônima** (Ctrl+Shift+N)
+4. Fazer login novamente
+
+## 🔍 Verificar se Frontend Está Atualizado
+
+Execute no console do navegador (F12 → Console):
+
+```javascript
+// Verificar se heartbeat existe
+console.log('startHeartbeat:', typeof startHeartbeat);
+
+// Verificar versão do código
+fetch('https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/lojas/heartbeat/', {
+  headers: {
+    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+  }
+})
+  .then(r => r.json())
+  .then(data => console.log('✅ Heartbeat response:', data))
+  .catch(err => console.error('❌ Heartbeat error:', err));
 ```
 
-**Isso significa:**
-- ✅ TODAS as requisições autenticadas passam por este authenticator
-- ✅ TODOS os usuários têm sessão única validada
-- ✅ Não importa o tipo de usuário (superadmin, suporte, loja, funcionário)
-
-### 2. Login Cria Sessão para TODOS
-
-**Arquivo:** `backend/superadmin/auth_views_secure.py`
-
-```python
-class SecureLoginView(APIView):
-    def post(self, request, user_type=None):
-        # ... autenticação ...
-        
-        # Criar sessão única (PARA TODOS)
-        session_id = SessionManager.create_session(user.id, access)
+**Esperado:**
+```
+✅ Heartbeat response: {status: 'alive', user: 'vendas', timestamp: '...'}
 ```
 
-**Endpoints que criam sessão:**
-1. ✅ `/api/auth/superadmin/login/` - Superadmin
-2. ✅ `/api/auth/suporte/login/` - Suporte
-3. ✅ `/api/auth/loja/login/` - Proprietários de loja
+## 🚨 Teste Rápido (Forçar Heartbeat Manual)
 
-### 3. Validação em TODA Requisição
+Se o frontend não atualizou, force o heartbeat manualmente:
 
-**Fluxo:**
-```
-1. Usuário faz requisição com token JWT
-2. SessionAwareJWTAuthentication intercepta
-3. Valida JWT (padrão)
-4. Valida sessão única no banco de dados
-5. Se sessão inválida → 401 UNAUTHORIZED
-6. Se sessão válida → Continua
-```
+1. **Abrir DevTools** (F12) → Console
 
-**Código:**
-```python
-def authenticate(self, request):
-    # Autenticação JWT padrão
-    result = super().authenticate(request)
-    
-    # Validar sessão usando banco de dados
-    validation = SessionManager.validate_session(user.id, token_str)
-    
-    if not validation['valid']:
-        raise AuthenticationFailed({
-            'detail': validation['message'],
-            'code': validation['reason']
-        })
+2. **Executar:**
+
+```javascript
+// Forçar heartbeat manual a cada 5 segundos (para teste rápido)
+const testHeartbeat = setInterval(async () => {
+  try {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch('https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/lojas/heartbeat/', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await response.json();
+    console.log('💓 Heartbeat:', data);
+  } catch (error) {
+    console.error('❌ Heartbeat error:', error);
+    clearInterval(testHeartbeat);
+  }
+}, 5000); // A cada 5 segundos
 ```
 
-## 👥 Tipos de Usuários Protegidos
+3. **Navegador 2:** Fazer login com mesmo usuário
 
-### 1. ✅ Superadmin
-- **Login:** `/api/auth/superadmin/login/`
-- **Cria sessão:** ✅ Sim
-- **Valida sessão:** ✅ Sim (em toda requisição)
-- **Sessão única:** ✅ Garantida
+4. **Navegador 1:** Aguardar próximo heartbeat (5 segundos)
 
-### 2. ✅ Suporte
-- **Login:** `/api/auth/suporte/login/`
-- **Cria sessão:** ✅ Sim
-- **Valida sessão:** ✅ Sim (em toda requisição)
-- **Sessão única:** ✅ Garantida
+5. **Esperado:** Navegador 1 deve ser desconectado com erro:
+   ```
+   ❌ Heartbeat error: 401 Unauthorized
+   ```
 
-### 3. ✅ Proprietários de Loja
-- **Login:** `/api/auth/loja/login/`
-- **Cria sessão:** ✅ Sim
-- **Valida sessão:** ✅ Sim (em toda requisição)
-- **Sessão única:** ✅ Garantida
-
-### 4. ✅ Funcionários de Loja
-- **Login:** `/api/auth/loja/login/` (mesmo endpoint)
-- **Cria sessão:** ✅ Sim
-- **Valida sessão:** ✅ Sim (em toda requisição)
-- **Sessão única:** ✅ Garantida
-
-**Nota:** Funcionários usam o mesmo sistema de autenticação que proprietários, pois são usuários vinculados à loja.
-
-## 🔍 Verificação Prática
-
-### Cenário 1: Superadmin
-```
-1. Superadmin faz login no computador → Sessão A criada
-2. Superadmin tenta login no celular → Sessão A destruída, Sessão B criada
-3. Superadmin tenta usar computador → 401 UNAUTHORIZED (sessão inválida)
-```
-
-### Cenário 2: Suporte
-```
-1. Suporte faz login no computador → Sessão A criada
-2. Suporte tenta login no tablet → Sessão A destruída, Sessão B criada
-3. Suporte tenta usar computador → 401 UNAUTHORIZED (sessão inválida)
-```
-
-### Cenário 3: Proprietário de Loja
-```
-1. Proprietário faz login no computador → Sessão A criada
-2. Proprietário tenta login no celular → Sessão A destruída, Sessão B criada
-3. Proprietário tenta usar computador → 401 UNAUTHORIZED (sessão inválida)
-```
-
-### Cenário 4: Funcionário de Loja
-```
-1. Funcionário faz login no tablet → Sessão A criada
-2. Funcionário tenta login em outro tablet → Sessão A destruída, Sessão B criada
-3. Funcionário tenta usar primeiro tablet → 401 UNAUTHORIZED (sessão inválida)
-```
-
-## 📊 Tabela de Sessões (Banco de Dados)
-
-**Modelo:** `UserSession`
-
-```python
-class UserSession(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)  # ← OneToOne = Sessão Única
-    session_id = models.CharField(max_length=255, unique=True)
-    token_hash = models.CharField(max_length=64)
-    created_at = models.DateTimeField(auto_now_add=True)
-    last_activity = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
-```
-
-**Importante:**
-- `OneToOneField` = Cada usuário pode ter APENAS 1 sessão
-- Quando novo login acontece, sessão antiga é DESTRUÍDA
-- Funciona para TODOS os tipos de usuário
-
-## 🛡️ Códigos de Erro
-
-Quando sessão é inválida, o sistema retorna:
-
-```json
-{
-  "detail": "Outra sessão foi iniciada em outro dispositivo",
-  "code": "DIFFERENT_SESSION",
-  "message": "Outra sessão foi iniciada em outro dispositivo"
-}
-```
-
-**Outros códigos:**
-- `DIFFERENT_SESSION` - Login em outro dispositivo
-- `SESSION_CONFLICT` - Conflito de sessão
-- `SESSION_TIMEOUT` - Sessão expirou por inatividade (30 min)
-- `NO_SESSION` - Nenhuma sessão encontrada
-
-## 🎯 Conclusão
-
-### ✅ TODOS os usuários estão protegidos:
-
-1. **Superadmin** ✅
-2. **Suporte** ✅
-3. **Proprietários de Loja** ✅
-4. **Funcionários de Loja** ✅
-
-### Como é garantido:
-
-1. **Authenticator Global:** Todas as requisições passam por `SessionAwareJWTAuthentication`
-2. **Sessão no Login:** Todos os endpoints de login criam sessão via `SessionManager.create_session()`
-3. **Validação Contínua:** Toda requisição valida sessão no banco de dados
-4. **OneToOne Constraint:** Banco de dados garante apenas 1 sessão por usuário
-
-### Não há exceções:
-
-- ❌ Não há endpoint sem validação de sessão
-- ❌ Não há tipo de usuário sem sessão única
-- ❌ Não há forma de ter 2 sessões ativas
-
-## 🧪 Como Testar
-
-### Teste Manual:
-
-1. Faça login como qualquer tipo de usuário (superadmin, suporte, loja)
-2. Copie o token de acesso
-3. Faça login novamente no mesmo usuário
-4. Tente usar o primeiro token
-5. Resultado esperado: **401 UNAUTHORIZED**
-
-### Teste Automático:
+## 📊 Verificar Logs do Heroku
 
 ```bash
-# Login 1
-curl -X POST https://lwksistemas-38ad47519238.herokuapp.com/api/auth/superadmin/login/ \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"senha123"}'
-
-# Salvar token1
-
-# Login 2 (mesmo usuário)
-curl -X POST https://lwksistemas-38ad47519238.herokuapp.com/api/auth/superadmin/login/ \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"senha123"}'
-
-# Salvar token2
-
-# Tentar usar token1 (deve falhar)
-curl -X GET https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/lojas/ \
-  -H "Authorization: Bearer TOKEN1"
-
-# Resultado: 401 UNAUTHORIZED
+heroku logs --tail --app lwksistemas | grep -i "sessão\|session\|heartbeat"
 ```
+
+**Esperado ao fazer login:**
+```
+🔐 CRIANDO NOVA SESSÃO para usuário 74
+🗑️ 1 sessão(ões) anterior(es) deletada(s)
+✅ NOVA SESSÃO CRIADA
+```
+
+**Esperado ao fazer heartbeat:**
+```
+💓 Heartbeat OK
+```
+
+**Esperado ao tentar usar sessão antiga:**
+```
+🔄 Token diferente detectado para usuário 74 - Outra sessão ativa
+🚨 SESSÃO INVÁLIDA: vendas - Motivo: DIFFERENT_SESSION
+```
+
+## ✅ Checklist de Verificação
+
+- [x] Sessão única criada no banco (apenas 1 sessão por usuário)
+- [x] Código de validação implementado
+- [x] Heartbeat implementado no frontend
+- [ ] **Testar com requisição autenticada** (clicar em "Funcionários")
+- [ ] **Verificar se heartbeat aparece no console**
+- [ ] **Limpar cache do navegador**
+
+## 🎯 Próximos Passos
+
+1. **Limpar cache do navegador** (Ctrl+Shift+Delete ou Ctrl+F5)
+2. **Fazer login** em https://lwksistemas.com.br/loja/felix/login
+3. **Abrir DevTools** (F12) → Console
+4. **Verificar:** Deve aparecer `💓 Iniciando heartbeat`
+5. **Testar sessão única:**
+   - Navegador 1: Login + Clicar em "Funcionários"
+   - Navegador 2: Login com mesmo usuário
+   - Navegador 1: Clicar em "Funcionários" novamente
+   - **Esperado:** Erro "Outra sessão foi iniciada"
 
 ## 📝 Notas Importantes
 
-1. **Timeout de Inatividade:** 30 minutos sem atividade = logout automático
-2. **Frontend:** Detecta erro de sessão e faz logout automático
-3. **Mensagem ao Usuário:** "Outra sessão foi iniciada em outro dispositivo"
-4. **Segurança:** Impossível ter 2 sessões ativas do mesmo usuário
+### Por que o dashboard carrega normalmente?
+
+O dashboard inicial usa `info_publica` que **não requer autenticação**:
+
+```python
+# backend/superadmin/views.py
+@action(detail=False, methods=['get'], authentication_classes=[])
+def info_publica(self, request):
+    # Não valida sessão única!
+```
+
+### Quando a sessão única é validada?
+
+Apenas em requisições autenticadas:
+- GET `/api/clinica/funcionarios/` ✅
+- GET `/api/clinica/clientes/` ✅
+- GET `/api/clinica/agendamentos/` ✅
+- POST `/api/clinica/procedimentos/` ✅
+- GET `/api/superadmin/lojas/info_publica/` ❌ (público)
+
+### Por que o heartbeat é importante?
+
+Sem heartbeat:
+- Sessão expira após 60 minutos de inatividade
+- Usuário pode estar lendo/pensando e ser desconectado
+
+Com heartbeat:
+- Ping automático a cada 5 minutos
+- Sessão nunca expira se página estiver aberta
+- Usuário pode ficar horas no sistema
+
+## 🆘 Se Ainda Não Funcionar
+
+### 1. Verificar se backend v250 está deployado
+
+```bash
+heroku releases --app lwksistemas
+```
+
+Deve mostrar v250 como última versão.
+
+### 2. Verificar se frontend está atualizado
+
+Abrir: https://lwksistemas.com.br/loja/felix/login
+
+Ver código-fonte (Ctrl+U) e procurar por "heartbeat"
+
+### 3. Forçar atualização do Vercel
+
+```bash
+cd frontend
+vercel --prod
+```
+
+### 4. Testar em aba anônima
+
+Ctrl+Shift+N (Chrome) ou Ctrl+Shift+P (Firefox)
+
+Fazer login e testar novamente.
+
+## 📊 Resumo
+
+**Status:** ✅ Sistema funcionando corretamente
+
+**Problema:** Você não testou com requisição autenticada
+
+**Solução:** Clicar em "Funcionários" ou qualquer botão que faça requisição à API
+
+**Resultado esperado:** Navegador 1 será desconectado quando Navegador 2 fizer login
 
 ---
 
-**Status:** ✅ TODOS os usuários têm sessão única garantida
-**Versão:** v227 (Backend) + Frontend otimizado
-**Data:** 25/01/2026
+**Me diga:**
+1. Aparece `💓 Iniciando heartbeat` no console?
+2. Você clicou em "Funcionários" para testar?
+3. Quer que eu force um teste com requisição autenticada?

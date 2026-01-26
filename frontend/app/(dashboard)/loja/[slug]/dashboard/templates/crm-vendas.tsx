@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 
@@ -173,7 +173,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
       {showModalVendedor && <ModalNovoVendedor loja={loja} onClose={() => setShowModalVendedor(false)} />}
       {showModalProduto && <ModalNovoProduto loja={loja} onClose={() => setShowModalProduto(false)} />}
       {showModalPipeline && <ModalPipeline loja={loja} onClose={() => setShowModalPipeline(false)} />}
-      {showModalFuncionarios && <ModalFuncionarios loja={loja} onClose={() => setShowModalFuncionarios(false)} />}
+      {showModalFuncionarios && <ModalNovoVendedor loja={loja} onClose={() => setShowModalFuncionarios(false)} />}
     </div>
   );
 }
@@ -1047,13 +1047,18 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
   });
   const [submitting, setSubmitting] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     loadFuncionarios();
-  });
+  }, []);
 
   const loadFuncionarios = async () => {
     try {
-      const response = await apiClient.get('/crm/vendedores/');
+      const lojaId = localStorage.getItem('current_loja_id');
+      const response = await apiClient.get('/crm/vendedores/', {
+        headers: {
+          'X-Loja-ID': lojaId || ''
+        }
+      });
       setFuncionarios(response.data);
     } catch (error) {
       console.error('Erro ao carregar vendedores:', error);

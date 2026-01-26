@@ -232,34 +232,7 @@ function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
   );
 }
 
-// Dashboard para CRM Vendas
-function DashboardCRM({ loja }: { loja: LojaInfo }) {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-        Dashboard - CRM Vendas
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Leads Ativos</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Negociações</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Vendas Mês</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Receita</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 0</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Removido - usando DashboardCRMVendas do arquivo separado
 
 // Dashboard para Serviços
 function DashboardServicos({ loja }: { loja: LojaInfo }) {

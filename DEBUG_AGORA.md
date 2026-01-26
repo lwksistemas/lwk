@@ -1,63 +1,73 @@
-# 🔍 DEBUG AGORA - Passo a Passo
+# 🔥 DEBUG SESSÃO ÚNICA - TESTE FORÇADO
 
-## Execute EXATAMENTE isso:
+## ❌ Problema Confirmado
 
-### 1. Abrir DevTools
-- Pressione **F12** no navegador
-- Vá na aba **Console**
+Você está fazendo login em 2 dispositivos, mas **não está fazendo requisições autenticadas**.
 
-### 2. Executar estes comandos (um por vez):
-
-```javascript
-// Comando 1: Ver se tem loja_id
-console.log('loja_id:', localStorage.getItem('current_loja_id'));
+Logs mostram apenas:
+```
+GET /api/superadmin/lojas/info_publica/?slug=felix
 ```
 
-**Me diga o que apareceu:** ___________
+Essa rota é **PÚBLICA** (não valida sessão única).
+
+## 🧪 Teste Forçado
+
+### No CELULAR (após fazer login):
+
+Abra o console (F12) e execute:
 
 ```javascript
-// Comando 2: Forçar o ID correto
-localStorage.setItem('current_loja_id', '72');
-console.log('✅ Setado para 72');
+// Forçar requisição autenticada
+const token = localStorage.getItem('access_token');
+const lojaId = localStorage.getItem('current_loja_id');
+
+fetch('https://lwksistemas-38ad47519238.herokuapp.com/api/clinica/funcionarios/', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'X-Loja-ID': lojaId || '73'
+  }
+})
+  .then(r => r.json())
+  .then(data => console.log('✅ Funcionários:', data))
+  .catch(err => console.error('❌ Erro:', err));
 ```
 
-```javascript
-// Comando 3: Recarregar
-location.reload();
-```
+### No COMPUTADOR (após fazer login):
 
-### 3. Após recarregar, abrir DevTools novamente (F12)
+Execute o mesmo código acima.
 
-### 4. Ir na aba **Network** (não Console)
+### Voltar ao CELULAR:
 
-### 5. Clicar em "Funcionários" no dashboard
+Execute o código novamente.
 
-### 6. Procurar a requisição `/funcionarios/`
-
-### 7. Clicar nela e ir em **Headers**
-
-### 8. Procurar por `X-Loja-ID` nos Request Headers
-
-**Me diga:**
-- [ ] Aparece `X-Loja-ID: 72`?
-- [ ] Qual é a Response (resposta)?
+**Esperado:** ❌ Erro 401 "Outra sessão foi iniciada"
 
 ---
 
-## Se ainda não aparecer, execute isso:
+## 🎯 Ou Teste Clicando em Botões
 
-```javascript
-// Testar API diretamente do console
-fetch('https://lwksistemas-38ad47519238.herokuapp.com/api/clinica/funcionarios/', {
-  method: 'GET',
-  headers: {
-    'X-Loja-ID': '72',
-    'Content-Type': 'application/json'
-  }
-})
-.then(r => r.json())
-.then(data => console.log('Funcionários:', data))
-.catch(err => console.error('Erro:', err));
-```
+### Alternativa Mais Fácil:
 
-**Me diga o que apareceu:** ___________
+1. **CELULAR:** Fazer login → **Clicar em "Funcionários"**
+2. **COMPUTADOR:** Fazer login → **Clicar em "Funcionários"**
+3. **CELULAR:** **Clicar em "Funcionários" novamente**
+4. **Esperado:** Erro e logout
+
+---
+
+## 🔍 Por Que Não Funcionou Antes?
+
+Você só estava acessando o dashboard, que usa `info_publica` (sem autenticação).
+
+**Sessão única só é validada em requisições autenticadas:**
+- ✅ GET `/api/clinica/funcionarios/`
+- ✅ GET `/api/clinica/clientes/`
+- ✅ GET `/api/crm/vendedores/`
+- ❌ GET `/api/superadmin/lojas/info_publica/` (público)
+
+---
+
+## 📊 Verificar Sessões Agora
+
+Vou verificar quantas sessões existem no banco:

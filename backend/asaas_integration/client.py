@@ -104,6 +104,18 @@ class AsaasClient:
         params = {'customer': customer_id}
         return self._make_request('GET', endpoint, params)
     
+    def list_payments(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+        """Lista todos os pagamentos"""
+        endpoint = 'payments'
+        params = {'limit': limit, 'offset': offset}
+        return self._make_request('GET', endpoint, params)
+    
+    def list_customers(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+        """Lista todos os clientes"""
+        endpoint = 'customers'
+        params = {'limit': limit, 'offset': offset}
+        return self._make_request('GET', endpoint, params)
+    
     def get_payment_pdf(self, payment_id: str) -> bytes:
         """Baixa o PDF do boleto"""
         # Tentar múltiplas URLs para download do PDF

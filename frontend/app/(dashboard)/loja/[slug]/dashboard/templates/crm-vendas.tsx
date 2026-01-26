@@ -1054,14 +1054,20 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
   const loadFuncionarios = async () => {
     try {
       const lojaId = localStorage.getItem('current_loja_id');
+      console.log('🔍 [loadFuncionarios] Loja ID:', lojaId);
+      
       const response = await apiClient.get('/crm/vendedores/', {
         headers: {
           'X-Loja-ID': lojaId || ''
         }
       });
+      
+      console.log('✅ [loadFuncionarios] Resposta:', response.data);
+      console.log('📊 [loadFuncionarios] Total de vendedores:', response.data.length);
+      
       setFuncionarios(response.data);
     } catch (error) {
-      console.error('Erro ao carregar vendedores:', error);
+      console.error('❌ [loadFuncionarios] Erro ao carregar vendedores:', error);
     } finally {
       setLoading(false);
     }

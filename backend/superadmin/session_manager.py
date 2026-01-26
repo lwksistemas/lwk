@@ -10,7 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-SESSION_TIMEOUT_MINUTES = 30
+SESSION_TIMEOUT_MINUTES = 60  # Timeout de inatividade: 60 minutos
 
 
 class SessionManager:

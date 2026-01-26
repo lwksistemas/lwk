@@ -1,168 +1,275 @@
-# ✅ Deploy Completo - Cadastro de Funcionários v247
+# 🚀 Deploy e Teste de Funcionários - v247
 
-## 🚀 Deploy Realizado com Sucesso!
+## 📦 Deploy Atual
 
-### ✅ Backend (Heroku)
-**Status:** ✅ DEPLOYADO  
-**Versão:** v238  
-**URL:** https://lwksistemas-38ad47519238.herokuapp.com/
+**Backend**: v247 (Heroku)
+**Frontend**: v245 (Vercel)
 
-**Commit:**
-```
-feat: Adicionar cadastro de funcionários nos dashboards Clínica e CRM
-- Adicionar botão Funcionários nas Ações Rápidas
-- Modal completo CRUD funcionários/vendedores
-- Badge administrador e proteção contra exclusão
-```
+## 🔧 Comandos para Heroku
 
-**Arquivos alterados:**
-- ✅ Nenhuma alteração no backend (já estava implementado)
-- ✅ Signals de vínculo automático já funcionando
+### 1. Verificar Loja "vida"
+```bash
+heroku run python manage.py shell -c "
+from superadmin.models import Loja, User
 
----
-
-### ✅ Frontend (Vercel)
-**Status:** ✅ DEPLOYADO  
-**URL Principal:** https://lwksistemas.com.br  
-**URL Vercel:** https://frontend-cbshf9xow-lwks-projects-48afd555.vercel.app
-
-**Arquivos alterados:**
-- ✅ `frontend/app/(dashboard)/loja/[slug]/dashboard/templates/clinica-estetica.tsx`
-- ✅ `frontend/app/(dashboard)/loja/[slug]/dashboard/templates/crm-vendas.tsx`
-
-**Mudanças:**
-1. Botão "Funcionários" nas Ações Rápidas
-2. Modal completo de gerenciamento
-3. CRUD de funcionários/vendedores
-4. Badge especial para administrador
-5. Proteção contra exclusão do administrador
-
----
-
-## 🧪 Como Testar
-
-### 1. Acesse o Dashboard
-```
-https://lwksistemas.com.br/loja/linda/dashboard
+# Verificar loja vida
+try:
+    loja = Loja.objects.get(slug='vida')
+    print(f'✅ Loja: {loja.nome} (ID: {loja.id})')
+    print(f'   Owner: {loja.owner.username} (ID: {loja.owner.id})')
+    print(f'   Email: {loja.owner.email}')
+    print(f'   Tipo: {loja.tipo_loja.nome}')
+except Loja.DoesNotExist:
+    print('❌ Loja vida não encontrada')
+" --app lwksistemas
 ```
 
-### 2. Clique em "Funcionários" nas Ações Rápidas
+### 2. Redefinir Senha do Owner
+```bash
+heroku run python manage.py shell -c "
+from superadmin.models import Loja
 
-### 3. Verifique:
-- ✅ Administrador aparece automaticamente na lista
-- ✅ Badge "👤 Administrador" está visível
-- ✅ Botão "Excluir" NÃO aparece para o administrador
-- ✅ Pode criar novo funcionário
-- ✅ Pode editar funcionário
-- ✅ Pode excluir funcionário (exceto administrador)
+loja = Loja.objects.get(slug='vida')
+user = loja.owner
 
----
-
-## 📋 Funcionalidades Disponíveis
-
-### Dashboard Clínica de Estética
-**URL:** `https://lwksistemas.com.br/loja/[slug]/dashboard`
-
-**Ações Rápidas:**
-- 📅 Agendamento (Azul)
-- 🗓️ Calendário (Verde)
-- 🏥 Consultas (Roxo)
-- 👤 Cliente (Amarelo)
-- 👨‍⚕️ Profissional (Vermelho)
-- 💆 Procedimentos (Ciano)
-- **👥 Funcionários (Rosa)** ← NOVO!
-- 📋 Protocolos (Marrom)
-- 📝 Anamnese (Roxo escuro)
-- ⚙️ Configurações (Cinza)
-- 📈 Relatórios (Verde escuro)
-
-### Dashboard CRM Vendas
-**URL:** `https://lwksistemas.com.br/loja/[slug]/dashboard`
-
-**Ações Rápidas:**
-- 🎯 Leads
-- 👤 Clientes
-- 💼 Novo Vendedor
-- 📦 Novo Produto
-- 🔄 Pipeline
-- **👥 Funcionários** ← NOVO!
-- 📊 Relatórios
-
----
-
-## 🔌 APIs Disponíveis
-
-### Clínica de Estética
-```
-GET    /api/clinica/funcionarios/          - Listar funcionários
-POST   /api/clinica/funcionarios/          - Criar funcionário
-PUT    /api/clinica/funcionarios/{id}/     - Editar funcionário
-DELETE /api/clinica/funcionarios/{id}/     - Excluir funcionário
+print(f'🔑 Redefinindo senha para: {user.username}')
+user.set_password('123456')
+user.senha_foi_alterada = False
+user.save()
+print('✅ Senha: 123456 (trocar obrigatória)')
+" --app lwksistemas
 ```
 
-### CRM Vendas
-```
-GET    /api/crm/vendedores/                - Listar vendedores
-POST   /api/crm/vendedores/                - Criar vendedor
-PUT    /api/crm/vendedores/{id}/           - Editar vendedor
-DELETE /api/crm/vendedores/{id}/           - Excluir vendedor
-```
+### 3. Verificar Funcionários da Loja
+```bash
+heroku run python manage.py shell -c "
+from superadmin.models import Loja
+from clinica_estetica.models import Funcionario
 
----
+loja = Loja.objects.get(slug='vida')
+funcionarios = Funcionario.objects.all_without_filter().filter(loja_id=loja.id)
 
-## 🎯 Vínculo Automático
-
-### Como funciona:
-1. Ao criar uma nova loja, o signal `create_funcionario_for_loja_owner` é acionado
-2. O administrador (owner) é automaticamente cadastrado como funcionário
-3. Dados vinculados:
-   - Nome do administrador
-   - Email do administrador
-   - Cargo: "Administrador" (ou "Gerente de Vendas" no CRM)
-   - Vínculo com usuário do sistema
-
-### Proteções:
-- ✅ Administrador não pode ser excluído
-- ✅ Badge especial identifica o administrador
-- ✅ Isolamento de dados por loja (loja_id)
-
----
-
-## 📊 Logs do Deploy
-
-### Backend (Heroku)
-```
-remote: -----> Building on the Heroku-24 stack
-remote: -----> Using Python 3.12.12
-remote: -----> Installing dependencies using 'pip install -r requirements.txt'
-remote: -----> $ python backend/manage.py collectstatic --noinput
-remote:        ✅ Superadmin: Signals de limpeza carregados
-remote:        ✅ Asaas Integration: Signals carregados
-remote:        0 static files copied, 160 unmodified, 420 post-processed
-remote: -----> Launching...
-remote:        Released v238
-remote:        https://lwksistemas-38ad47519238.herokuapp.com/ deployed to Heroku
+print(f'👥 Funcionários da loja {loja.nome}:')
+print(f'   Total: {funcionarios.count()}')
+for func in funcionarios:
+    admin = '👤 ADMIN' if func.is_admin else ''
+    print(f'   - {func.nome} ({func.email}) {admin}')
+" --app lwksistemas
 ```
 
-### Frontend (Vercel)
+### 4. Criar Funcionário Admin (se não existir)
+```bash
+heroku run python manage.py shell -c "
+from superadmin.models import Loja
+from clinica_estetica.models import Funcionario
+
+loja = Loja.objects.get(slug='vida')
+owner = loja.owner
+
+# Verificar se já existe
+if Funcionario.objects.all_without_filter().filter(loja_id=loja.id, email=owner.email).exists():
+    print('ℹ️ Funcionário já existe')
+    func = Funcionario.objects.all_without_filter().get(loja_id=loja.id, email=owner.email)
+    func.is_admin = True
+    func.save()
+    print('✅ Atualizado para admin')
+else:
+    func = Funcionario.objects.create(
+        nome=owner.get_full_name() or owner.username,
+        email=owner.email,
+        telefone='',
+        cargo='Administrador',
+        is_admin=True,
+        loja_id=loja.id
+    )
+    print(f'✅ Funcionário criado: {func.nome}')
+" --app lwksistemas
 ```
-Vercel CLI 50.5.0
-🔍  Inspect: https://vercel.com/lwks-projects-48afd555/frontend/G5pegT9a7xVEd9BMwhavXUawUAVh
-✅  Production: https://frontend-cbshf9xow-lwks-projects-48afd555.vercel.app
-🔗  Aliased: https://lwksistemas.com.br
+
+### 5. Limpar Sessões Antigas
+```bash
+heroku run python manage.py shell -c "
+from superadmin.models import UserSession, Loja
+
+loja = Loja.objects.get(slug='vida')
+user = loja.owner
+
+sessoes = UserSession.objects.filter(user=user)
+count = sessoes.count()
+sessoes.delete()
+print(f'🗑️ {count} sessões deletadas')
+" --app lwksistemas
 ```
 
----
-
-## ✅ Status Final
-
-**Backend:** ✅ ONLINE  
-**Frontend:** ✅ ONLINE  
-**Funcionalidade:** ✅ FUNCIONANDO  
-
-**Teste agora em:**
-```
-https://lwksistemas.com.br/loja/linda/dashboard
+### 6. Ver Logs em Tempo Real
+```bash
+heroku logs --tail --app lwksistemas
 ```
 
-Clique em "👥 Funcionários" nas Ações Rápidas! 🎉
+## 🧪 Passo a Passo para Testar
+
+### Preparação (Executar UMA VEZ)
+```bash
+# 1. Verificar loja
+heroku run python manage.py shell -c "
+from superadmin.models import Loja
+loja = Loja.objects.get(slug='vida')
+print(f'Loja: {loja.nome} (ID: {loja.id})')
+print(f'Owner: {loja.owner.username}')
+print(f'Email: {loja.owner.email}')
+" --app lwksistemas
+
+# 2. Redefinir senha
+heroku run python manage.py shell -c "
+from superadmin.models import Loja
+loja = Loja.objects.get(slug='vida')
+loja.owner.set_password('123456')
+loja.owner.senha_foi_alterada = False
+loja.owner.save()
+print('Senha: 123456')
+" --app lwksistemas
+
+# 3. Verificar/criar funcionário
+heroku run python manage.py shell -c "
+from superadmin.models import Loja
+from clinica_estetica.models import Funcionario
+
+loja = Loja.objects.get(slug='vida')
+funcionarios = Funcionario.objects.all_without_filter().filter(loja_id=loja.id)
+print(f'Funcionários: {funcionarios.count()}')
+for f in funcionarios:
+    print(f'  {f.nome} - Admin: {f.is_admin}')
+" --app lwksistemas
+
+# 4. Limpar sessões
+heroku run python manage.py shell -c "
+from superadmin.models import UserSession, Loja
+loja = Loja.objects.get(slug='vida')
+UserSession.objects.filter(user=loja.owner).delete()
+print('Sessões limpas')
+" --app lwksistemas
+```
+
+### Teste no Navegador
+
+1. **Limpar cache do navegador:**
+   - Pressionar `Ctrl+Shift+Delete`
+   - Selecionar "Cookies e dados de sites"
+   - Limpar
+
+2. **Limpar localStorage:**
+   - Abrir DevTools (F12)
+   - Console: `localStorage.clear()`
+   - Recarregar página
+
+3. **Fazer login:**
+   - URL: https://lwksistemas.com.br/loja/vida/login
+   - Email: (verificar no comando 1)
+   - Senha: 123456
+
+4. **Trocar senha:**
+   - Sistema vai pedir para trocar senha
+   - Definir nova senha
+
+5. **Acessar dashboard:**
+   - Clicar em "Funcionários" nas Ações Rápidas
+   - Verificar se aparece o funcionário admin
+
+6. **Verificar Network:**
+   - Abrir DevTools (F12)
+   - Aba Network
+   - Clicar em "Funcionários"
+   - Ver request para `/api/clinica/funcionarios/`
+   - Verificar Headers: `X-Loja-ID: 72`
+
+## 🔍 Troubleshooting
+
+### Erro: "Usuário não encontrado"
+**Causa**: Token antigo de usuário deletado
+**Solução**:
+```bash
+# Limpar localStorage
+localStorage.clear()
+
+# Limpar sessões no Heroku
+heroku run python manage.py shell -c "
+from superadmin.models import UserSession
+UserSession.objects.all().delete()
+print('Todas as sessões limpas')
+" --app lwksistemas
+```
+
+### Erro: "Nenhum funcionário cadastrado"
+**Causa**: X-Loja-ID não está sendo enviado ou funcionário não foi criado
+**Solução**:
+```bash
+# Verificar funcionários
+heroku run python manage.py shell -c "
+from clinica_estetica.models import Funcionario
+funcionarios = Funcionario.objects.all_without_filter().filter(loja_id=72)
+print(f'Total: {funcionarios.count()}')
+for f in funcionarios:
+    print(f'{f.nome} - {f.email} - Admin: {f.is_admin}')
+" --app lwksistemas
+
+# Se não houver funcionários, criar:
+heroku run python manage.py shell -c "
+from superadmin.models import Loja
+from clinica_estetica.models import Funcionario
+
+loja = Loja.objects.get(id=72)
+owner = loja.owner
+
+Funcionario.objects.create(
+    nome=owner.get_full_name() or owner.username,
+    email=owner.email,
+    telefone='',
+    cargo='Administrador',
+    is_admin=True,
+    loja_id=loja.id
+)
+print('Funcionário criado')
+" --app lwksistemas
+```
+
+### Erro: "Loja não encontrada"
+**Causa**: Slug incorreto ou loja não existe
+**Solução**:
+```bash
+# Listar todas as lojas
+heroku run python manage.py shell -c "
+from superadmin.models import Loja
+lojas = Loja.objects.all()
+print('Lojas no sistema:')
+for loja in lojas:
+    print(f'  {loja.nome} - Slug: {loja.slug} - ID: {loja.id}')
+" --app lwksistemas
+```
+
+## 📊 Verificação Final
+
+Após executar os comandos e fazer login, você deve ver:
+
+1. ✅ Login bem-sucedido
+2. ✅ Redirecionamento para trocar senha
+3. ✅ Dashboard carregado
+4. ✅ Botão "Funcionários" visível
+5. ✅ Modal com lista de funcionários
+6. ✅ Funcionário admin com badge "👤 Administrador"
+7. ✅ Logs do Heroku mostrando `X-Loja-ID: 72`
+
+## 🎯 Comandos Rápidos
+
+```bash
+# Ver informações da loja
+heroku run python manage.py shell -c "from superadmin.models import Loja; l=Loja.objects.get(slug='vida'); print(f'{l.nome} - ID:{l.id} - Owner:{l.owner.username}')" --app lwksistemas
+
+# Redefinir senha
+heroku run python manage.py shell -c "from superadmin.models import Loja; l=Loja.objects.get(slug='vida'); l.owner.set_password('123456'); l.owner.save(); print('OK')" --app lwksistemas
+
+# Ver funcionários
+heroku run python manage.py shell -c "from clinica_estetica.models import Funcionario; [print(f'{f.nome} - Admin:{f.is_admin}') for f in Funcionario.objects.all_without_filter().filter(loja_id=72)]" --app lwksistemas
+
+# Limpar sessões
+heroku run python manage.py shell -c "from superadmin.models import UserSession; UserSession.objects.all().delete(); print('OK')" --app lwksistemas
+```

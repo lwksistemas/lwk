@@ -131,6 +131,35 @@ class LojaViewSet(viewsets.ModelViewSet):
         except Loja.DoesNotExist:
             return Response({'error': 'Loja não encontrada'}, status=404)
     
+    @action(detail=False, methods=['get'])
+    def heartbeat(self, request):
+        """
+        Endpoint para manter sessão ativa (heartbeat)
+        Frontend deve chamar este endpoint a cada 5 minutos para evitar timeout
+        """
+        from django.utils import timezone
+        from .session_manager import SessionManager
+        
+        if not request.user or not request.user.is_authenticated:
+            return Response({
+                'error': 'Não autenticado',
+                'code': 'NOT_AUTHENTICATED'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Atualizar atividade da sessão
+        SessionManager.update_activity(request.user.id)
+        
+        # Obter informações da sessão
+        session_info = SessionManager.get_session_info(request.user.id)
+        
+        return Response({
+            'status': 'alive',
+            'user': request.user.username,
+            'user_id': request.user.id,
+            'timestamp': timezone.now().isoformat(),
+            'session': session_info
+        }, status=status.HTTP_200_OK)
+    
     @action(detail=False, methods=['get'], permission_classes=[IsSuperAdmin])
     def debug_auth(self, request):
         """Debug endpoint para verificar autenticação - APENAS SUPERADMIN"""

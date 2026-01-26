@@ -144,3 +144,56 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+// ===== HEARTBEAT PARA MANTER SESSÃO ATIVA =====
+
+let heartbeatInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Inicia heartbeat automático para manter sessão ativa
+ * Envia ping a cada 5 minutos para evitar timeout de inatividade
+ */
+export function startHeartbeat() {
+  // Não iniciar se já estiver rodando
+  if (heartbeatInterval) {
+    logger.log('⚠️ Heartbeat já está rodando');
+    return;
+  }
+  
+  logger.log('💓 Iniciando heartbeat (ping a cada 5 minutos)');
+  
+  heartbeatInterval = setInterval(async () => {
+    try {
+      const response = await apiClient.get('/superadmin/lojas/heartbeat/');
+      logger.log('💓 Heartbeat OK:', response.data);
+    } catch (error: any) {
+      logger.error('❌ Heartbeat falhou:', error);
+      
+      // Se falhar com 401, sessão expirou
+      if (error.response?.status === 401) {
+        logger.critical('🚨 Sessão expirou - Fazendo logout');
+        stopHeartbeat();
+        
+        // Limpar tudo
+        localStorage.clear();
+        document.cookie.split(";").forEach((c) => {
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+        
+        // Redirecionar para login
+        window.location.href = '/';
+      }
+    }
+  }, 5 * 60 * 1000); // 5 minutos
+}
+
+/**
+ * Para o heartbeat
+ */
+export function stopHeartbeat() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+    logger.log('💔 Heartbeat parado');
+  }
+}

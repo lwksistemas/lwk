@@ -1,4 +1,4 @@
-import apiClient from './api-client';
+import apiClient, { startHeartbeat, stopHeartbeat } from './api-client';
 import { logger } from './logger';
 
 export interface LoginCredentials {
@@ -137,6 +137,9 @@ export const authService = {
       // Iniciar monitoramento de inatividade
       authService.startInactivityMonitor();
       
+      // Iniciar heartbeat para manter sessão ativa
+      startHeartbeat();
+      
       return response.data;
     } catch (error: any) {
       logger.error('Erro no login:', error);
@@ -172,12 +175,14 @@ export const authService = {
     
     clearSession();
     authService.stopInactivityMonitor();
+    stopHeartbeat(); // Parar heartbeat
   },
 
   forceLogout(reason?: string) {
     logger.critical('FORCE LOGOUT:', reason);
     clearSession();
     authService.stopInactivityMonitor();
+    stopHeartbeat(); // Parar heartbeat
     
     if (typeof window !== 'undefined') {
       window.location.href = '/';

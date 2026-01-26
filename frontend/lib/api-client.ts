@@ -18,6 +18,27 @@ export const clinicaApiClient = axios.create({
   },
 });
 
+// Interceptor para adicionar X-Tenant-Slug baseado na URL atual
+clinicaApiClient.interceptors.request.use(
+  (config) => {
+    // Extrair slug da URL atual (ex: /loja/linda/dashboard)
+    if (typeof window !== 'undefined') {
+      const pathParts = window.location.pathname.split('/');
+      if (pathParts[1] === 'loja' && pathParts[2]) {
+        const slug = pathParts[2];
+        config.headers['X-Tenant-Slug'] = slug;
+        logger.log('🏪 [clinicaApiClient] Adicionando X-Tenant-Slug:', slug);
+      }
+    }
+    logger.log('API Request:', config.method?.toUpperCase(), config.url);
+    return config;
+  },
+  (error) => {
+    logger.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
 // Request interceptor - adiciona token JWT
 apiClient.interceptors.request.use(
   (config) => {

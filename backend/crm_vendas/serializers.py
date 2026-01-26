@@ -20,7 +20,15 @@ class VendedorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendedor
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+    
+    def create(self, validated_data):
+        """Adiciona loja_id automaticamente do contexto"""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        if loja_id:
+            validated_data['loja_id'] = loja_id
+        return super().create(validated_data)
 
 
 class ProdutoSerializer(serializers.ModelSerializer):

@@ -122,17 +122,31 @@ class SecureLoginView(APIView):
             }
         }
         
+        # Verificar se precisa trocar senha provisória
+        precisa_trocar_senha = False
         if real_user_type == 'loja':
             loja = Loja.objects.filter(owner=user, is_active=True).first()
             if loja:
+                # Verificar se tem senha provisória e não foi alterada
+                precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
+                
                 response_data['loja'] = {
                     'id': loja.id,
                     'slug': loja.slug,
                     'nome': loja.nome,
                     'tipo_loja': loja.tipo_loja.nome if loja.tipo_loja else None
                 }
+                response_data['precisa_trocar_senha'] = precisa_trocar_senha
+        elif real_user_type == 'suporte':
+            # Verificar senha provisória do suporte
+            try:
+                usuario_sistema = UsuarioSistema.objects.get(user=user, tipo='suporte', is_active=True)
+                precisa_trocar_senha = not usuario_sistema.senha_foi_alterada and bool(usuario_sistema.senha_provisoria)
+                response_data['precisa_trocar_senha'] = precisa_trocar_senha
+            except UsuarioSistema.DoesNotExist:
+                pass
         
-        logger.info(f"✅ Login bem-sucedido: {username} (tipo: {real_user_type})")
+        logger.info(f"✅ Login bem-sucedido: {username} (tipo: {real_user_type}, trocar senha: {precisa_trocar_senha})")
         
         return Response(response_data, status=status.HTTP_200_OK)
     

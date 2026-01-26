@@ -22,11 +22,10 @@ class LojaIsolationManager(models.Manager):
     
     def get_queryset(self):
         """Retorna queryset filtrado pela loja do contexto"""
-        from threading import local
-        _thread_locals = local()
+        from tenants.middleware import get_current_loja_id
         
         # Obter loja_id do contexto da thread
-        loja_id = getattr(_thread_locals, 'current_loja_id', None)
+        loja_id = get_current_loja_id()
         
         if loja_id:
             logger.debug(f"🔒 [LojaIsolationManager] Filtrando por loja_id={loja_id}")

@@ -32,8 +32,12 @@ class TenantMiddleware:
         self.get_response = get_response
     
     def __call__(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Detectar tenant por subdomain, header ou parâmetro
         tenant_slug = self._get_tenant_slug(request)
+        logger.info(f"🔍 [TenantMiddleware] URL: {request.path} | Slug detectado: {tenant_slug}")
         
         if tenant_slug:
             # Buscar a loja pelo slug
@@ -54,11 +58,14 @@ class TenantMiddleware:
                 
                 # ✅ IMPORTANTE: Setar o loja_id no contexto para o LojaIsolationManager
                 set_current_loja_id(loja_id)
+                logger.info(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={db_name}")
                 
             except Loja.DoesNotExist:
+                logger.warning(f"⚠️ [TenantMiddleware] Loja não encontrada: slug={tenant_slug}")
                 set_current_tenant_db('default')
                 set_current_loja_id(None)
         else:
+            logger.debug(f"ℹ️ [TenantMiddleware] Nenhum slug detectado - usando default")
             set_current_tenant_db('default')
             set_current_loja_id(None)
         

@@ -1269,7 +1269,7 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <p className="font-semibold text-lg">{func.nome}</p>
-                    {func.user && (
+                    {func.is_admin && (
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
                         👤 Administrador
                       </span>
@@ -1288,7 +1288,7 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                   >
                     ✏️ Editar
                   </button>
-                  {!func.user && (
+                  {!func.is_admin && (
                     <button
                       onClick={() => handleDelete(func)}
                       className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600"

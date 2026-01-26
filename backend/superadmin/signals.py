@@ -22,11 +22,11 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
         
         # Dados básicos do funcionário (incluindo loja_id para o LojaIsolationMixin)
         funcionario_data = {
-            'user': owner,
             'nome': owner.get_full_name() or owner.username,
             'email': owner.email,
             'telefone': '',  # Será preenchido posteriormente
             'cargo': 'Administrador',
+            'is_admin': True,  # Marcar como administrador
             'loja_id': instance.id  # ✅ Adicionar loja_id para o LojaIsolationMixin
         }
         
@@ -37,21 +37,21 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
             from clinica_estetica.models import Funcionario
             
             # Verificar se já existe
-            if not Funcionario.objects.filter(user=owner, loja_id=instance.id).exists():
+            if not Funcionario.objects.filter(email=owner.email, loja_id=instance.id).exists():
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
                 
         elif tipo_loja_nome == 'Serviços':
             from servicos.models import Funcionario
             
             # Verificar se já existe
-            if not Funcionario.objects.filter(user=owner, loja_id=instance.id).exists():
+            if not Funcionario.objects.filter(email=owner.email, loja_id=instance.id).exists():
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
                 
         elif tipo_loja_nome == 'Restaurante':
             from restaurante.models import Funcionario
             
             # Verificar se já existe
-            if not Funcionario.objects.filter(user=owner, loja_id=instance.id).exists():
+            if not Funcionario.objects.filter(email=owner.email, loja_id=instance.id).exists():
                 funcionario_data['cargo'] = 'Gerente'  # Cargo específico para restaurante
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
                 
@@ -59,7 +59,7 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
             from crm_vendas.models import Vendedor
             
             # Verificar se já existe
-            if not Vendedor.objects.filter(user=owner, loja_id=instance.id).exists():
+            if not Vendedor.objects.filter(email=owner.email, loja_id=instance.id).exists():
                 funcionario_data['cargo'] = 'Gerente de Vendas'
                 funcionario_data['meta_mensal'] = 10000.00  # Meta padrão
                 funcionario_criado = Vendedor.objects.create(**funcionario_data)

@@ -113,11 +113,11 @@ class Agendamento(LojaIsolationMixin, models.Model):
 
 class Funcionario(LojaIsolationMixin, models.Model):
     """Funcionários da clínica (recepção, administração, etc)"""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='clinica_funcionario', help_text='Usuário do sistema vinculado ao funcionário')
     nome = models.CharField(max_length=200)
     email = models.EmailField()
     telefone = models.CharField(max_length=20)
     cargo = models.CharField(max_length=100)
+    is_admin = models.BooleanField(default=False, help_text='Indica se é o administrador da loja')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

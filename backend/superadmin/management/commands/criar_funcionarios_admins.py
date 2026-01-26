@@ -28,11 +28,11 @@ class Command(BaseCommand):
                 
                 # Dados básicos do funcionário
                 funcionario_data = {
-                    'user': owner,
                     'nome': owner.get_full_name() or owner.username,
                     'email': owner.email,
                     'telefone': '',
                     'cargo': 'Administrador',
+                    'is_admin': True,
                     'loja_id': loja.id
                 }
                 
@@ -45,7 +45,7 @@ class Command(BaseCommand):
                     
                     # Verificar diretamente no banco (bypass do manager)
                     with connection.cursor() as cursor:
-                        cursor.execute("SELECT COUNT(*) FROM clinica_funcionarios WHERE user_id = %s", [owner.id])
+                        cursor.execute("SELECT COUNT(*) FROM clinica_funcionarios WHERE email = %s AND loja_id = %s", [owner.email, loja.id])
                         count = cursor.fetchone()[0]
                     
                     if count > 0:
@@ -62,7 +62,7 @@ class Command(BaseCommand):
                     from django.db import connection
                     
                     with connection.cursor() as cursor:
-                        cursor.execute("SELECT COUNT(*) FROM servicos_funcionarios WHERE user_id = %s", [owner.id])
+                        cursor.execute("SELECT COUNT(*) FROM servicos_funcionarios WHERE email = %s AND loja_id = %s", [owner.email, loja.id])
                         count = cursor.fetchone()[0]
                     
                     if count > 0:
@@ -78,7 +78,7 @@ class Command(BaseCommand):
                     from django.db import connection
                     
                     with connection.cursor() as cursor:
-                        cursor.execute("SELECT COUNT(*) FROM restaurante_funcionarios WHERE user_id = %s", [owner.id])
+                        cursor.execute("SELECT COUNT(*) FROM restaurante_funcionarios WHERE email = %s AND loja_id = %s", [owner.email, loja.id])
                         count = cursor.fetchone()[0]
                     
                     if count > 0:
@@ -95,7 +95,7 @@ class Command(BaseCommand):
                     from django.db import connection
                     
                     with connection.cursor() as cursor:
-                        cursor.execute("SELECT COUNT(*) FROM crm_vendedores WHERE user_id = %s", [owner.id])
+                        cursor.execute("SELECT COUNT(*) FROM crm_vendedores WHERE email = %s AND loja_id = %s", [owner.email, loja.id])
                         count = cursor.fetchone()[0]
                     
                     if count > 0:

@@ -457,7 +457,7 @@ class LojaViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def reenviar_senha(self, request, pk=None):
-        """Reenviar senha provisória por email (apenas proprietário ou superadmin)"""
+        """Gera nova senha provisória e envia por email (recuperação de senha)"""
         loja = self.get_object()
         
         # Verificar se o usuário é o proprietário (superadmin já passou pela permissão)
@@ -467,30 +467,40 @@ class LojaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if not loja.senha_provisoria:
-            return Response(
-                {'error': 'Esta loja não possui senha provisória cadastrada'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
         try:
             from django.core.mail import send_mail
             from django.conf import settings
+            import random
+            import string
             
-            assunto = f"Reenvio - Acesso à sua loja {loja.nome}"
+            # Gerar nova senha provisória
+            nova_senha_provisoria = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
+            
+            # Atualizar senha do usuário
+            user = loja.owner
+            user.set_password(nova_senha_provisoria)
+            user.save()
+            
+            # Atualizar loja com nova senha provisória e resetar status
+            loja.senha_provisoria = nova_senha_provisoria
+            loja.senha_foi_alterada = False  # ✅ Forçar troca de senha no próximo login
+            loja.save()
+            
+            assunto = f"Nova Senha Provisória - {loja.nome}"
             mensagem = f"""
 Olá!
 
-Conforme solicitado, seguem novamente os dados de acesso à sua loja "{loja.nome}":
+Você solicitou a recuperação de senha para sua loja "{loja.nome}".
 
-🔐 DADOS DE ACESSO:
+🔐 NOVA SENHA PROVISÓRIA:
 • URL de Login: https://lwksistemas.com.br{loja.login_page_url}
 • Usuário: {loja.owner.username}
-• Senha Provisória: {loja.senha_provisoria}
+• Senha Provisória: {nova_senha_provisoria}
 
 ⚠️ IMPORTANTE:
 • Esta é uma senha provisória gerada automaticamente
-• Recomendamos alterar a senha no primeiro acesso
+• Você será solicitado a alterar esta senha no primeiro acesso
+• Por segurança, altere a senha assim que fizer login
 • Mantenha seus dados de acesso em segurança
 
 📋 INFORMAÇÕES DA LOJA:
@@ -498,8 +508,6 @@ Conforme solicitado, seguem novamente os dados de acesso à sua loja "{loja.nome
 • Tipo: {loja.tipo_loja.nome}
 • Plano: {loja.plano.nome}
 • Assinatura: {loja.get_tipo_assinatura_display()}
-
-Se você já alterou sua senha, pode ignorar este email.
 
 ---
 Equipe de Suporte
@@ -515,9 +523,10 @@ Sistema Multi-Loja
             )
             
             return Response({
-                'message': f'Senha provisória reenviada para {loja.owner.email}',
+                'message': f'Nova senha provisória gerada e enviada para {loja.owner.email}',
                 'email_enviado': loja.owner.email,
-                'loja': loja.nome
+                'loja': loja.nome,
+                'precisa_trocar_senha': True
             })
             
         except Exception as e:

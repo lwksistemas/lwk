@@ -6,44 +6,48 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios.
 
 - **Frontend**: https://lwksistemas.com.br
 - **Backend API**: https://lwksistemas-38ad47519238.herokuapp.com
-- **Versão Atual**: v239
+- **Versão Atual**: v245
 
-## 📋 Tipos de Loja Suportados
+## 📋 Funcionalidades Principais
 
-1. **Clínica de Estética** - Agendamentos, consultas, evolução de pacientes
-2. **Serviços** - Gestão de serviços e clientes
-3. **Restaurante** - Pedidos, cardápio, mesas
-4. **CRM Vendas** - Pipeline de vendas, leads, clientes
-5. **E-commerce** - Produtos, pedidos, estoque
+### ✅ Implementado e Funcionando
 
-## 🏗️ Arquitetura
+1. **Multi-Tenant com 3 Grupos de Bancos**
+   - Superadmin (gerenciamento global)
+   - Suporte (sistema de tickets)
+   - Lojas (dados isolados por loja)
 
-### Multi-Tenant com 3 Grupos de Bancos
+2. **Tipos de Loja Suportados**
+   - Clínica de Estética
+   - Serviços
+   - Restaurante
+   - CRM Vendas
+   - E-commerce
 
-```
-┌─────────────────┐
-│  Superadmin DB  │ → Gerenciamento de lojas e planos
-└─────────────────┘
+3. **Segurança**
+   - ✅ Sessão única obrigatória (superadmin e suporte)
+   - ✅ Isolamento total de dados entre lojas
+   - ✅ Validação de grupo em cada requisição
+   - ✅ Senha provisória com troca obrigatória
+   - ✅ JWT Authentication
 
-┌─────────────────┐
-│   Suporte DB    │ → Sistema de tickets e chamados
-└─────────────────┘
+4. **Integração de Pagamentos**
+   - ✅ Asaas (assinaturas, cobranças, PIX, boleto)
+   - ✅ Sincronização automática
+   - ✅ Webhooks em tempo real
 
-┌─────────────────┐
-│  Loja 1 DB      │ → Dados isolados da loja 1
-├─────────────────┤
-│  Loja 2 DB      │ → Dados isolados da loja 2
-├─────────────────┤
-│  Loja N DB      │ → Dados isolados da loja N
-└─────────────────┘
-```
+5. **Gestão de Lojas**
+   - ✅ Criar/editar/excluir lojas
+   - ✅ Exclusão completa (API Asaas + dados locais)
+   - ✅ Dashboard limpo (sem dados de exemplo)
+   - ✅ Administrador cadastrado automaticamente como funcionário
 
-### Tecnologias
+## 🔧 Tecnologias
 
 **Backend:**
 - Django 4.2 + Django REST Framework
 - SQLite (desenvolvimento) / PostgreSQL (produção)
-- JWT Authentication com sessão única
+- JWT Authentication
 - Heroku
 
 **Frontend:**
@@ -52,40 +56,26 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios.
 - Tailwind CSS
 - Vercel
 
-## 🔐 Segurança
-
-- ✅ Sessão única obrigatória para todos os usuários
-- ✅ Isolamento total de dados entre lojas
-- ✅ Validação de grupo em cada requisição
-- ✅ Senha provisória com troca obrigatória
-- ✅ Middleware de segurança
-
-## 💳 Integração de Pagamentos
-
-- **Asaas** - Assinaturas, cobranças, PIX, boleto
-- Sincronização automática de pagamentos
-- Webhooks para atualização em tempo real
-
-## 📦 Estrutura do Projeto
+## 📦 Estrutura
 
 ```
 lwksistemas/
 ├── backend/
-│   ├── superadmin/      # Gestão de lojas e usuários
-│   ├── suporte/         # Sistema de tickets
-│   ├── clinica_estetica/
-│   ├── servicos/
-│   ├── restaurante/
-│   ├── crm_vendas/
-│   ├── ecommerce/
-│   └── asaas_integration/
+│   ├── superadmin/          # Gestão de lojas e usuários
+│   ├── suporte/             # Sistema de tickets
+│   ├── clinica_estetica/    # App de clínica
+│   ├── crm_vendas/          # App de CRM
+│   ├── ecommerce/           # App de e-commerce
+│   ├── restaurante/         # App de restaurante
+│   ├── servicos/            # App de serviços
+│   └── asaas_integration/   # Integração Asaas
 ├── frontend/
 │   ├── app/
-│   │   ├── (auth)/      # Páginas de login
-│   │   └── (dashboard)/ # Dashboards por tipo
+│   │   ├── (auth)/          # Páginas de login
+│   │   └── (dashboard)/     # Dashboards por tipo
 │   ├── components/
 │   └── lib/
-└── docs_backup/         # Documentação histórica
+└── docs_backup/             # Documentação histórica
 ```
 
 ## 🚀 Deploy
@@ -107,16 +97,9 @@ vercel --prod
 - `INICIO_RAPIDO.md` - Guia de início rápido
 - `SETUP.md` - Configuração do ambiente
 - `CONTEXT_TRANSFER_ATUALIZADO.md` - Histórico de desenvolvimento
-- `EXCLUSAO_LOJA_COMPLETA_FINAL.md` - Processo de exclusão de lojas
-- `VERIFICACAO_DASHBOARD_LIMPO.md` - Validação de dados limpos
-- `VERIFICACAO_SESSAO_UNICA_TODOS_USUARIOS.md` - Segurança de sessão
-
-### Últimas Correções
-
-- `CORRECAO_LOGIN_SENHA_PROVISORIA.md` - Correção de login (v238)
-- `DEPLOY_v239_CACHE_DESABILITADO.md` - Cache desabilitado (v239)
-- `RESUMO_CORRECAO_v238.md` - Resumo técnico
-- `TESTE_FINAL_v239.md` - Instruções de teste
+- `EXCLUSAO_LOJA_COMPLETA_FINAL.md` - Processo de exclusão
+- `VERIFICACAO_DASHBOARD_LIMPO.md` - Validação de dados
+- `VERIFICACAO_SESSAO_UNICA_TODOS_USUARIOS.md` - Segurança
 
 ## 🧪 Teste Rápido
 
@@ -124,50 +107,30 @@ vercel --prod
 ```
 URL: https://lwksistemas.com.br/loja/linda/login
 Usuário: felipe
-Senha: oe8v2MDqud (senha provisória)
+Senha: gV@rf2ZJJ3 (senha provisória)
 ```
 
-Ao fazer login, o sistema deve:
-1. Redirecionar para trocar senha
-2. Após trocar, acessar o dashboard
+## ⚠️ Problemas Conhecidos
 
-## 🎯 Funcionalidades Principais
+### 1. Cache do Navegador Persistente
+**Problema:** Navegadores mantêm cache agressivo do JavaScript compilado.
 
-### Superadmin
-- ✅ Criar/editar/excluir lojas
-- ✅ Gerenciar planos e assinaturas
-- ✅ Visualizar financeiro (Asaas)
-- ✅ Gerenciar usuários de suporte
+**Solução:**
+1. Acesse: https://lwksistemas.com.br/forcar-atualizacao
+2. Aguarde a limpeza automática
+3. Ou use outro navegador (Firefox, Edge)
 
-### Suporte
-- ✅ Visualizar tickets de todas as lojas
-- ✅ Responder chamados
-- ✅ Histórico de atendimentos
-
-### Lojas
-- ✅ Dashboard personalizado por tipo
-- ✅ Gestão de clientes
-- ✅ Gestão de funcionários
-- ✅ Relatórios e exportações
-- ✅ Configurações da loja
-
-## 📊 Status do Sistema
-
-- **Backend**: ✅ Funcionando
-- **Frontend**: ✅ Funcionando
-- **Integração Asaas**: ✅ Funcionando
-- **Sessão Única**: ✅ Implementada
-- **Dashboard Limpo**: ✅ Validado
-- **Exclusão Completa**: ✅ Implementada
+### 2. Sessão Única - Lojas
+**Status:** Em investigação
+- ✅ Funciona para superadmin
+- ❌ Não funciona para usuários de loja
 
 ## 🔧 Comandos Úteis
 
 ### Backend
 ```bash
-# Criar loja
-python manage.py shell
-from superadmin.models import Loja, TipoLoja
-# ...
+# Invalidar todas as sessões
+python manage.py invalidar_todas_sessoes
 
 # Limpar assinaturas órfãs
 python manage.py cleanup_orphaned_asaas
@@ -188,6 +151,34 @@ npm run build
 vercel --prod
 ```
 
+## 📊 Status do Sistema
+
+- **Backend**: ✅ Funcionando
+- **Frontend**: ✅ Funcionando
+- **Integração Asaas**: ✅ Funcionando
+- **Sessão Única (Superadmin)**: ✅ Funcionando
+- **Sessão Única (Lojas)**: ⚠️ Em correção
+- **Dashboard Limpo**: ✅ Validado
+- **Exclusão Completa**: ✅ Implementada
+
+## 📝 Histórico de Versões
+
+- **v245** (26/01/2026) - Forçar invalidação completa de cache
+- **v244** (26/01/2026) - Página de forçar atualização
+- **v243** (26/01/2026) - Logs de debug e window.location.href
+- **v242** (26/01/2026) - Página de limpeza automática de cache
+- **v241** (26/01/2026) - Meta tags de no-cache
+- **v240** (26/01/2026) - Remoção de código duplicado
+- **v239** (26/01/2026) - Cache desabilitado no Vercel
+- **v238** (26/01/2026) - Correção de login com senha provisória
+
+## 🎯 Próximos Passos
+
+1. ⏳ Corrigir sessão única para usuários de loja
+2. ⏳ Resolver cache persistente do CDN
+3. ⏳ Implementar testes automatizados
+4. ⏳ Adicionar monitoramento de erros
+
 ## 📞 Suporte
 
 Para dúvidas ou problemas:
@@ -195,16 +186,6 @@ Para dúvidas ou problemas:
 2. Consulte os arquivos de correção mais recentes
 3. Teste em modo anônimo para evitar cache
 
-## 📝 Histórico de Versões
+---
 
-- **v239** (26/01/2026) - Cache desabilitado no Vercel
-- **v238** (26/01/2026) - Correção de login com senha provisória
-- **v237** (26/01/2026) - Mensagens de erro melhoradas
-- **v236** (26/01/2026) - Reenviar senha gera nova senha provisória
-- **v235** (26/01/2026) - Administrador como funcionário automático
-- **v234** (26/01/2026) - Senha provisória com troca obrigatória
-- **v233** (26/01/2026) - Exclusão completa de lojas (Asaas + local)
-
-## 🎉 Sistema Pronto para Produção
-
-Todas as funcionalidades implementadas, testadas e em produção!
+**Sistema em produção e funcionando!** ✨

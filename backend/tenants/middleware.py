@@ -74,8 +74,13 @@ class TenantMiddleware:
     
     def _get_tenant_slug(self, request):
         """Extrai o slug do tenant da requisição"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # 1. Tentar pegar do header X-Loja-ID (PRIORIDADE - ID único)
         loja_id = request.headers.get('X-Loja-ID')
+        logger.info(f"🔍 [_get_tenant_slug] X-Loja-ID header: {loja_id}")
+        
         if loja_id:
             try:
                 from superadmin.models import Loja

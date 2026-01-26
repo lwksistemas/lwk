@@ -82,7 +82,17 @@ class VendedorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         queryset = super().get_queryset()
+        
+        # Log para debug
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        logger.info(f"🔍 [VendedorViewSet] Loja ID do contexto: {loja_id}")
+        logger.info(f"📊 [VendedorViewSet] Queryset count: {queryset.count()}")
+        
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')

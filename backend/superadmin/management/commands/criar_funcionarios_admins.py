@@ -1,5 +1,17 @@
 """
 Comando para criar funcionários para administradores de lojas existentes
+
+⚠️ ATENÇÃO: Este comando é apenas para CORREÇÃO de dados antigos!
+
+Lojas novas já têm funcionários criados automaticamente pelo signal em:
+backend/superadmin/signals.py -> create_funcionario_for_loja_owner()
+
+Use este comando apenas se:
+1. Você tem lojas antigas criadas antes do signal ser implementado
+2. Houve algum erro na criação automática e precisa recriar
+
+Uso:
+    python manage.py criar_funcionarios_admins
 """
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User

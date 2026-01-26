@@ -1,209 +1,210 @@
-# Sistema Multi-Loja - Django + Next.js 15
+# 🏪 LWK Sistemas - Multi-Tenant SaaS
 
-Sistema completo de multi-loja com isolamento total de tenants, autenticação JWT e arquitetura moderna.
+Sistema multi-tenant completo para gestão de diferentes tipos de negócios.
+
+## 🚀 Links de Produção
+
+- **Frontend**: https://lwksistemas.com.br
+- **Backend API**: https://lwksistemas-38ad47519238.herokuapp.com
+- **Versão Atual**: v239
+
+## 📋 Tipos de Loja Suportados
+
+1. **Clínica de Estética** - Agendamentos, consultas, evolução de pacientes
+2. **Serviços** - Gestão de serviços e clientes
+3. **Restaurante** - Pedidos, cardápio, mesas
+4. **CRM Vendas** - Pipeline de vendas, leads, clientes
+5. **E-commerce** - Produtos, pedidos, estoque
 
 ## 🏗️ Arquitetura
 
-### Backend (Django)
-- **Multi-tenancy**: Isolamento completo por loja usando django-tenant-schemas
-- **API REST**: Django REST Framework com autenticação JWT
-- **Segurança**: Query-level filtering e permissões por usuário
-- **Deploy**: Otimizado para Heroku/Render com Gunicorn + WhiteNoise
-
-### Frontend (Next.js 15)
-- **App Router**: Rotas modernas com Server/Client Components
-- **Isolamento**: Middleware para tenant isolation
-- **State**: Zustand para gerenciamento de estado global
-- **UI**: Tailwind CSS + Shadcn/ui components
-- **Type-safe**: TypeScript end-to-end
-
-## 🚀 Setup Rápido
-
-### Backend
-
-```bash
-cd backend
-
-# Criar ambiente virtual
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate  # Windows
-
-# Instalar dependências
-pip install -r requirements.txt
-
-# Configurar variáveis de ambiente
-cp .env.example .env
-# Edite .env com suas configurações
-
-# Criar banco de dados PostgreSQL
-createdb multistore_db
-
-# Migrations
-python manage.py migrate_schemas --shared
-python manage.py migrate
-
-# Criar superusuário
-python manage.py createsuperuser
-
-# Rodar servidor
-python manage.py runserver
-```
-
-### Frontend
-
-```bash
-cd frontend
-
-# Instalar dependências
-npm install
-
-# Configurar variáveis de ambiente
-cp .env.local.example .env.local
-
-# Rodar em desenvolvimento
-npm run dev
-```
-
-Acesse:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- Admin Django: http://localhost:8000/admin
-
-## 📁 Estrutura do Projeto
+### Multi-Tenant com 3 Grupos de Bancos
 
 ```
-multi-store-system/
-├── backend/
-│   ├── config/              # Configurações Django
-│   ├── tenants/             # App de multi-tenancy
-│   ├── stores/              # App de lojas
-│   ├── products/            # App de produtos
-│   ├── requirements.txt
-│   └── manage.py
-│
-└── frontend/
-    ├── app/
-    │   ├── (auth)/          # Rotas de autenticação
-    │   ├── (dashboard)/     # Rotas protegidas
-    │   ├── layout.tsx
-    │   └── page.tsx
-    ├── components/
-    │   └── tenant/          # Componentes de tenant
-    ├── lib/
-    │   ├── api-client.ts    # Axios com interceptors
-    │   ├── auth.ts          # JWT handling
-    │   └── tenant.ts        # Tenant context
-    ├── hooks/
-    │   └── use-tenant.ts    # Hook de isolamento
-    └── middleware.ts        # Proteção de rotas
+┌─────────────────┐
+│  Superadmin DB  │ → Gerenciamento de lojas e planos
+└─────────────────┘
+
+┌─────────────────┐
+│   Suporte DB    │ → Sistema de tickets e chamados
+└─────────────────┘
+
+┌─────────────────┐
+│  Loja 1 DB      │ → Dados isolados da loja 1
+├─────────────────┤
+│  Loja 2 DB      │ → Dados isolados da loja 2
+├─────────────────┤
+│  Loja N DB      │ → Dados isolados da loja N
+└─────────────────┘
 ```
+
+### Tecnologias
+
+**Backend:**
+- Django 4.2 + Django REST Framework
+- SQLite (desenvolvimento) / PostgreSQL (produção)
+- JWT Authentication com sessão única
+- Heroku
+
+**Frontend:**
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- Vercel
 
 ## 🔐 Segurança
 
-### Backend
-- ✅ JWT com refresh token automático
-- ✅ Query-level filtering por usuário
-- ✅ Permissões granulares no ViewSet
-- ✅ CORS configurado
-- ✅ Isolamento de schema por tenant
+- ✅ Sessão única obrigatória para todos os usuários
+- ✅ Isolamento total de dados entre lojas
+- ✅ Validação de grupo em cada requisição
+- ✅ Senha provisória com troca obrigatória
+- ✅ Middleware de segurança
 
-### Frontend
-- ✅ Middleware de autenticação
-- ✅ Interceptors para refresh token
-- ✅ Context de tenant isolado
-- ✅ Type-safe com TypeScript
-- ✅ Proteção de rotas sensíveis
+## 💳 Integração de Pagamentos
 
-## 🌐 Deploy
+- **Asaas** - Assinaturas, cobranças, PIX, boleto
+- Sincronização automática de pagamentos
+- Webhooks para atualização em tempo real
 
-### Heroku (Backend)
+## 📦 Estrutura do Projeto
 
-```bash
-# Login
-heroku login
-
-# Criar app
-heroku create seu-app-backend
-
-# Adicionar PostgreSQL
-heroku addons:create heroku-postgresql:mini
-
-# Configurar variáveis
-heroku config:set SECRET_KEY=sua-chave-secreta
-heroku config:set DEBUG=False
-heroku config:set ALLOWED_HOSTS=seu-app-backend.herokuapp.com
-
-# Deploy
-git push heroku main
+```
+lwksistemas/
+├── backend/
+│   ├── superadmin/      # Gestão de lojas e usuários
+│   ├── suporte/         # Sistema de tickets
+│   ├── clinica_estetica/
+│   ├── servicos/
+│   ├── restaurante/
+│   ├── crm_vendas/
+│   ├── ecommerce/
+│   └── asaas_integration/
+├── frontend/
+│   ├── app/
+│   │   ├── (auth)/      # Páginas de login
+│   │   └── (dashboard)/ # Dashboards por tipo
+│   ├── components/
+│   └── lib/
+└── docs_backup/         # Documentação histórica
 ```
 
-### Render (Frontend)
+## 🚀 Deploy
 
-1. Conecte seu repositório no Render
-2. Configure:
-   - Build Command: `cd frontend && npm install && npm run build`
-   - Start Command: `cd frontend && npm start`
-   - Environment: `NEXT_PUBLIC_API_URL=https://seu-backend.herokuapp.com`
+### Backend (Heroku)
+```bash
+cd backend
+git push heroku master
+```
 
-## 📊 Modelos de Dados
+### Frontend (Vercel)
+```bash
+cd frontend
+vercel --prod
+```
 
-### Tenant
-- Schema isolado por loja
-- Domínios customizados
+## 📚 Documentação Essencial
 
-### Store
-- Pertence a um usuário (owner)
-- Slug único
-- Logo e descrição
+- `INICIO_RAPIDO.md` - Guia de início rápido
+- `SETUP.md` - Configuração do ambiente
+- `CONTEXT_TRANSFER_ATUALIZADO.md` - Histórico de desenvolvimento
+- `EXCLUSAO_LOJA_COMPLETA_FINAL.md` - Processo de exclusão de lojas
+- `VERIFICACAO_DASHBOARD_LIMPO.md` - Validação de dados limpos
+- `VERIFICACAO_SESSAO_UNICA_TODOS_USUARIOS.md` - Segurança de sessão
 
-### Product
-- Pertence a uma Store
-- Preço, estoque, imagem
-- Slug único por loja
+### Últimas Correções
 
-## 🔧 Funcionalidades
+- `CORRECAO_LOGIN_SENHA_PROVISORIA.md` - Correção de login (v238)
+- `DEPLOY_v239_CACHE_DESABILITADO.md` - Cache desabilitado (v239)
+- `RESUMO_CORRECAO_v238.md` - Resumo técnico
+- `TESTE_FINAL_v239.md` - Instruções de teste
 
-- ✅ Autenticação JWT com refresh automático
-- ✅ Multi-tenancy com isolamento total
-- ✅ CRUD de lojas e produtos
-- ✅ Dashboard com métricas
-- ✅ Seletor de loja no frontend
-- ✅ Filtros por tenant
-- ✅ API RESTful completa
-- ✅ TypeScript end-to-end
-- ✅ Responsivo (mobile-first)
+## 🧪 Teste Rápido
 
-## 🛠️ Tecnologias
+### Loja de Teste - Linda
+```
+URL: https://lwksistemas.com.br/loja/linda/login
+Usuário: felipe
+Senha: oe8v2MDqud (senha provisória)
+```
 
-**Backend:**
-- Django 5.0
-- Django REST Framework
-- SimpleJWT
-- django-tenant-schemas
-- PostgreSQL
-- Gunicorn + WhiteNoise
+Ao fazer login, o sistema deve:
+1. Redirecionar para trocar senha
+2. Após trocar, acessar o dashboard
 
-**Frontend:**
-- Next.js 15
-- React 19
-- TypeScript
-- Tailwind CSS
-- Zustand
-- Axios
+## 🎯 Funcionalidades Principais
 
-## 📝 Próximos Passos
+### Superadmin
+- ✅ Criar/editar/excluir lojas
+- ✅ Gerenciar planos e assinaturas
+- ✅ Visualizar financeiro (Asaas)
+- ✅ Gerenciar usuários de suporte
 
-- [ ] Adicionar testes unitários
-- [ ] Implementar upload de imagens
-- [ ] Sistema de pedidos
-- [ ] Relatórios e analytics
-- [ ] Webhooks para integrações
-- [ ] Multi-idioma (i18n)
-- [ ] Dark mode
-- [ ] PWA support
+### Suporte
+- ✅ Visualizar tickets de todas as lojas
+- ✅ Responder chamados
+- ✅ Histórico de atendimentos
 
-## 📄 Licença
+### Lojas
+- ✅ Dashboard personalizado por tipo
+- ✅ Gestão de clientes
+- ✅ Gestão de funcionários
+- ✅ Relatórios e exportações
+- ✅ Configurações da loja
 
-MIT
+## 📊 Status do Sistema
+
+- **Backend**: ✅ Funcionando
+- **Frontend**: ✅ Funcionando
+- **Integração Asaas**: ✅ Funcionando
+- **Sessão Única**: ✅ Implementada
+- **Dashboard Limpo**: ✅ Validado
+- **Exclusão Completa**: ✅ Implementada
+
+## 🔧 Comandos Úteis
+
+### Backend
+```bash
+# Criar loja
+python manage.py shell
+from superadmin.models import Loja, TipoLoja
+# ...
+
+# Limpar assinaturas órfãs
+python manage.py cleanup_orphaned_asaas
+
+# Limpar dados financeiros órfãos
+python manage.py cleanup_local_financeiro
+```
+
+### Frontend
+```bash
+# Desenvolvimento
+npm run dev
+
+# Build
+npm run build
+
+# Deploy
+vercel --prod
+```
+
+## 📞 Suporte
+
+Para dúvidas ou problemas:
+1. Verifique a documentação em `docs_backup/`
+2. Consulte os arquivos de correção mais recentes
+3. Teste em modo anônimo para evitar cache
+
+## 📝 Histórico de Versões
+
+- **v239** (26/01/2026) - Cache desabilitado no Vercel
+- **v238** (26/01/2026) - Correção de login com senha provisória
+- **v237** (26/01/2026) - Mensagens de erro melhoradas
+- **v236** (26/01/2026) - Reenviar senha gera nova senha provisória
+- **v235** (26/01/2026) - Administrador como funcionário automático
+- **v234** (26/01/2026) - Senha provisória com troca obrigatória
+- **v233** (26/01/2026) - Exclusão completa de lojas (Asaas + local)
+
+## 🎉 Sistema Pronto para Produção
+
+Todas as funcionalidades implementadas, testadas e em produção!

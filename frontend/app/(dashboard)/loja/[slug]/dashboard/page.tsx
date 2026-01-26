@@ -47,6 +47,11 @@ export default function LojaDashboardDinamicoPage() {
       const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       setLojaInfo(lojaResponse.data);
       
+      // ✅ Salvar loja_id no localStorage para uso nas APIs
+      if (lojaResponse.data.id) {
+        localStorage.setItem('current_loja_id', lojaResponse.data.id.toString());
+      }
+      
     } catch (error: any) {
       console.error('Erro ao carregar loja:', error);
       if (error.response?.status === 401) {
@@ -59,6 +64,7 @@ export default function LojaDashboardDinamicoPage() {
 
   const handleLogout = () => {
     authService.logout();
+    localStorage.removeItem('current_loja_id'); // Limpar loja_id
     router.push(`/loja/${slug}/login`);
   };
 

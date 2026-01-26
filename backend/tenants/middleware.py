@@ -74,22 +74,32 @@ class TenantMiddleware:
     
     def _get_tenant_slug(self, request):
         """Extrai o slug do tenant da requisição"""
-        # 1. Tentar pegar do header X-Tenant-Slug
+        # 1. Tentar pegar do header X-Loja-ID (PRIORIDADE - ID único)
+        loja_id = request.headers.get('X-Loja-ID')
+        if loja_id:
+            try:
+                from superadmin.models import Loja
+                loja = Loja.objects.get(id=int(loja_id))
+                return loja.slug
+            except (Loja.DoesNotExist, ValueError):
+                pass
+        
+        # 2. Tentar pegar do header X-Tenant-Slug (fallback)
         tenant_slug = request.headers.get('X-Tenant-Slug')
         if tenant_slug:
             return tenant_slug
         
-        # 2. Tentar pegar do parâmetro de query
+        # 3. Tentar pegar do parâmetro de query
         tenant_slug = request.GET.get('tenant')
         if tenant_slug:
             return tenant_slug
         
-        # 3. Tentar pegar da URL (ex: /loja/linda/...)
+        # 4. Tentar pegar da URL (ex: /loja/linda/...)
         path_parts = request.path.split('/')
         if len(path_parts) >= 3 and path_parts[1] == 'loja':
             return path_parts[2]
         
-        # 4. Tentar pegar do subdomain
+        # 5. Tentar pegar do subdomain
         host = request.get_host().split(':')[0]
         parts = host.split('.')
         if len(parts) > 2:  # ex: loja1.localhost

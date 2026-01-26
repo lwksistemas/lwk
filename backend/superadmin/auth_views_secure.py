@@ -42,8 +42,9 @@ class SecureLoginView(APIView):
         if not user:
             logger.warning(f"❌ Tentativa de login falhou: {username}")
             return Response({
-                'error': 'Credenciais inválidas',
-                'code': 'INVALID_CREDENTIALS'
+                'error': 'Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.',
+                'code': 'INVALID_CREDENTIALS',
+                'detalhes': 'Se você esqueceu sua senha, clique em "Esqueci minha senha" para receber uma nova senha provisória por email.'
             }, status=status.HTTP_401_UNAUTHORIZED)
         
         # Identificar tipo real do usuário

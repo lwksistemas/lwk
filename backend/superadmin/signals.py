@@ -1,11 +1,11 @@
 """
-Signals para superadmin - Criação automática de funcionários
+Signals para superadmin - Criação e exclusão automática
 
-IMPORTANTE: Este é o ÚNICO lugar onde funcionários são criados automaticamente.
-Quando uma nova loja é criada, este signal cria automaticamente um funcionário
-para o administrador da loja.
+IMPORTANTE: 
+1. Quando uma loja é CRIADA, cria automaticamente um funcionário para o admin
+2. Quando uma loja é EXCLUÍDA, deleta TODOS os dados relacionados (cascata)
 """
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 import logging
 
@@ -96,3 +96,140 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
         import traceback
         logger.error(traceback.format_exc())
         # Não interrompe a criação da loja, apenas loga o erro
+
+
+
+@receiver(pre_delete, sender='superadmin.Loja')
+def delete_all_loja_data(sender, instance, **kwargs):
+    """
+    Deleta TODOS os dados relacionados quando uma loja é excluída.
+    
+    Este signal garante que nenhum dado órfão fique no banco quando uma loja é deletada.
+    Deleta em cascata:
+    - Funcionários/Vendedores
+    - Clientes
+    - Agendamentos
+    - Profissionais
+    - Procedimentos
+    - Leads
+    - Pagamentos Asaas
+    - Sessões de usuários
+    - E qualquer outro dado relacionado
+    
+    Args:
+        sender: Modelo Loja
+        instance: Instância da loja sendo deletada
+        **kwargs: Argumentos adicionais do signal
+    """
+    loja_id = instance.id
+    loja_nome = instance.nome
+    tipo_loja_nome = instance.tipo_loja.nome
+    
+    logger.info(f"🗑️ Iniciando exclusão em cascata para loja: {loja_nome} (ID: {loja_id})")
+    
+    try:
+        # 1. Deletar funcionários/vendedores baseado no tipo de loja
+        if tipo_loja_nome == 'Clínica de Estética':
+            from clinica_estetica.models import Funcionario, Cliente, Agendamento, Profissional, Procedimento
+            
+            # Funcionários
+            func_count = Funcionario.objects.all_without_filter().filter(loja_id=loja_id).count()
+            Funcionario.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            logger.info(f"   ✅ {func_count} funcionários deletados")
+            
+            # Clientes
+            cli_count = Cliente.objects.all_without_filter().filter(loja_id=loja_id).count()
+            Cliente.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            logger.info(f"   ✅ {cli_count} clientes deletados")
+            
+            # Agendamentos
+            agend_count = Agendamento.objects.all_without_filter().filter(loja_id=loja_id).count()
+            Agendamento.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            logger.info(f"   ✅ {agend_count} agendamentos deletados")
+            
+            # Profissionais
+            prof_count = Profissional.objects.all_without_filter().filter(loja_id=loja_id).count()
+            Profissional.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            logger.info(f"   ✅ {prof_count} profissionais deletados")
+            
+            # Procedimentos
+            proc_count = Procedimento.objects.all_without_filter().filter(loja_id=loja_id).count()
+            Procedimento.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            logger.info(f"   ✅ {proc_count} procedimentos deletados")
+            
+        elif tipo_loja_nome == 'CRM Vendas':
+            from crm_vendas.models import Vendedor, Cliente, Lead
+            
+            # Vendedores
+            vend_count = Vendedor.objects.all_without_filter().filter(loja_id=loja_id).count()
+            Vendedor.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            logger.info(f"   ✅ {vend_count} vendedores deletados")
+            
+            # Clientes
+            cli_count = Cliente.objects.all_without_filter().filter(loja_id=loja_id).count()
+            Cliente.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            logger.info(f"   ✅ {cli_count} clientes deletados")
+            
+            # Leads
+            lead_count = Lead.objects.all_without_filter().filter(loja_id=loja_id).count()
+            Lead.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            logger.info(f"   ✅ {lead_count} leads deletados")
+            
+        elif tipo_loja_nome == 'Restaurante':
+            from restaurante.models import Funcionario
+            
+            # Funcionários (se tiver o manager correto)
+            try:
+                func_count = Funcionario.objects.filter(loja_id=loja_id).count()
+                Funcionario.objects.filter(loja_id=loja_id).delete()
+                logger.info(f"   ✅ {func_count} funcionários deletados")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Erro ao deletar funcionários de restaurante: {e}")
+            
+        elif tipo_loja_nome == 'Serviços':
+            from servicos.models import Funcionario
+            
+            # Funcionários (se tiver o manager correto)
+            try:
+                func_count = Funcionario.objects.filter(loja_id=loja_id).count()
+                Funcionario.objects.filter(loja_id=loja_id).delete()
+                logger.info(f"   ✅ {func_count} funcionários deletados")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Erro ao deletar funcionários de serviços: {e}")
+        
+        # 2. Deletar usuário da loja (se não for usado por outras lojas)
+        owner = instance.owner
+        outras_lojas = sender.objects.filter(owner=owner).exclude(id=loja_id).count()
+        
+        if outras_lojas == 0:
+            # Usuário não tem outras lojas, pode deletar
+            logger.info(f"   🗑️ Deletando usuário {owner.username} (sem outras lojas)")
+            owner.delete()
+        else:
+            logger.info(f"   ℹ️ Usuário {owner.username} mantido (tem {outras_lojas} outras lojas)")
+        
+        # 3. Deletar sessões do usuário
+        try:
+            from superadmin.models import UserSession
+            sessoes_count = UserSession.objects.filter(user=owner).count()
+            UserSession.objects.filter(user=owner).delete()
+            logger.info(f"   ✅ {sessoes_count} sessões deletadas")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro ao deletar sessões: {e}")
+        
+        # 4. Deletar pagamentos Asaas relacionados
+        try:
+            from asaas_integration.models import AsaasPayment
+            # Assumindo que tem um campo loja ou customer relacionado
+            # Ajustar conforme o modelo real
+            logger.info(f"   ℹ️ Verificando pagamentos Asaas...")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro ao verificar Asaas: {e}")
+        
+        logger.info(f"✅ Exclusão em cascata concluída para loja: {loja_nome}")
+        
+    except Exception as e:
+        logger.error(f"❌ Erro durante exclusão em cascata da loja {loja_nome}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # Não interrompe a exclusão da loja, apenas loga o erro

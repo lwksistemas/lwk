@@ -43,15 +43,6 @@ export default function LojaDashboardDinamicoPage() {
     try {
       setLoading(true);
       
-      // Verificar se precisa trocar senha
-      const checkResponse = await apiClient.get('/superadmin/lojas/verificar_senha_provisoria/');
-      
-      if (checkResponse.data.precisa_trocar_senha) {
-        // Redirecionar para página de troca de senha
-        router.push('/loja/trocar-senha');
-        return;
-      }
-      
       // Carregar informações da loja
       const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       setLojaInfo(lojaResponse.data);

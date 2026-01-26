@@ -40,10 +40,18 @@ export default function TrocarSenhaPage() {
     setLoading(true);
 
     try {
-      // Buscar informações da loja do usuário
-      const lojaResponse = await apiClient.get('/superadmin/lojas/verificar_senha_provisoria/');
-      const lojaId = lojaResponse.data.loja_id;
-      const lojaSlug = lojaResponse.data.loja_slug;
+      // Buscar informações da loja do localStorage (salvas no login)
+      const lojaSlug = authService.getLojaSlug();
+      
+      if (!lojaSlug) {
+        setErro('Informações da loja não encontradas. Faça login novamente.');
+        router.push('/');
+        return;
+      }
+
+      // Buscar ID da loja
+      const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${lojaSlug}`);
+      const lojaId = lojaResponse.data.id;
 
       // Alterar senha
       await apiClient.post(`/superadmin/lojas/${lojaId}/alterar_senha_primeiro_acesso/`, {

@@ -29,9 +29,6 @@ function LojaDashboardContent() {
         return;
       }
 
-      // Verificar se precisa trocar senha provisória
-      verificarSenhaProvisoria();
-
       const slug = searchParams.get('slug') || authService.getLojaSlug() || '';
       setLojaSlug(slug);
       
@@ -40,18 +37,6 @@ function LojaDashboardContent() {
       }
     }
   }, [router, searchParams]);
-
-  const verificarSenhaProvisoria = async () => {
-    try {
-      const response = await apiClient.get('/superadmin/lojas/verificar_senha_provisoria/');
-      if (response.data.precisa_trocar_senha) {
-        // Redirecionar para página de troca de senha
-        router.push('/loja/trocar-senha');
-      }
-    } catch (error) {
-      console.error('Erro ao verificar senha provisória:', error);
-    }
-  };
 
   const loadProducts = async (slug: string) => {
     try {

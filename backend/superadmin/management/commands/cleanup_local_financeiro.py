@@ -14,17 +14,22 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write('🧹 Limpando dados financeiros órfãos...\n')
         
-        # Limpar financeiros órfãos
+        # Buscar todas as lojas ativas
+        lojas_ativas_ids = list(Loja.objects.filter(is_active=True).values_list('id', flat=True))
+        self.stdout.write(f'📋 Lojas ativas: {len(lojas_ativas_ids)}\n')
+        
+        # Limpar financeiros órfãos ou de lojas inativas
         financeiros_removidos = 0
         for financeiro in FinanceiroLoja.objects.all():
             try:
-                # Verificar se a loja existe
+                # Verificar se a loja existe e está ativa
                 if not hasattr(financeiro, 'loja') or not financeiro.loja:
                     self.stdout.write(f'  🗑️  Removendo financeiro órfão ID: {financeiro.id}')
                     financeiro.delete()
                     financeiros_removidos += 1
-                elif not Loja.objects.filter(id=financeiro.loja.id, is_active=True).exists():
-                    self.stdout.write(f'  🗑️  Removendo financeiro de loja inativa: {financeiro.loja.nome}')
+                elif financeiro.loja.id not in lojas_ativas_ids:
+                    loja_nome = financeiro.loja.nome if financeiro.loja else 'Desconhecida'
+                    self.stdout.write(f'  🗑️  Removendo financeiro de loja inativa: {loja_nome}')
                     financeiro.delete()
                     financeiros_removidos += 1
             except Exception as e:
@@ -36,17 +41,18 @@ class Command(BaseCommand):
                 except:
                     pass
         
-        # Limpar pagamentos órfãos
+        # Limpar pagamentos órfãos ou de lojas inativas
         pagamentos_removidos = 0
         for pagamento in PagamentoLoja.objects.all():
             try:
-                # Verificar se a loja existe
+                # Verificar se a loja existe e está ativa
                 if not hasattr(pagamento, 'loja') or not pagamento.loja:
                     self.stdout.write(f'  🗑️  Removendo pagamento órfão ID: {pagamento.id}')
                     pagamento.delete()
                     pagamentos_removidos += 1
-                elif not Loja.objects.filter(id=pagamento.loja.id, is_active=True).exists():
-                    self.stdout.write(f'  🗑️  Removendo pagamento de loja inativa: {pagamento.loja.nome}')
+                elif pagamento.loja.id not in lojas_ativas_ids:
+                    loja_nome = pagamento.loja.nome if pagamento.loja else 'Desconhecida'
+                    self.stdout.write(f'  🗑️  Removendo pagamento de loja inativa: {loja_nome} (R$ {pagamento.valor})')
                     pagamento.delete()
                     pagamentos_removidos += 1
             except Exception as e:

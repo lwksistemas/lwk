@@ -69,12 +69,14 @@ const nextConfig = {
   
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    NEXT_PUBLIC_BUILD_ID: 'v239-' + Date.now(),
+    NEXT_PUBLIC_BUILD_ID: 'v245-force-cache-clear',
+    NEXT_PUBLIC_VERSION: '245',
   },
   
-  // Gerar build ID único para invalidar cache
+  // Gerar build ID único para invalidar cache COMPLETAMENTE
   generateBuildId: async () => {
-    return 'v239-' + Date.now();
+    // Usar timestamp + versão para garantir unicidade
+    return 'v245-' + Date.now() + '-force-clear';
   },
   
   // Proxy para API

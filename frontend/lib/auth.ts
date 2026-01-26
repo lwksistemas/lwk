@@ -11,6 +11,7 @@ export interface AuthTokens {
   refresh: string;
   session_id?: string;
   session_timeout_minutes?: number;
+  precisa_trocar_senha?: boolean;
   user?: {
     id: number;
     username: string;

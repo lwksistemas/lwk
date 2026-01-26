@@ -57,28 +57,19 @@ export default function LojaLoginDinamicoPage() {
     setLoading(true);
 
     try {
-      await authService.login(credentials, 'loja', slug);
+      // Login retorna precisa_trocar_senha diretamente
+      const loginResponse = await authService.login(credentials, 'loja', slug);
       
-      // Aguardar um momento para garantir que o token foi salvo
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Verificar se precisa trocar senha
-      try {
-        const checkResponse = await apiClient.get('/superadmin/lojas/verificar_senha_provisoria/');
-        console.log('Verificação senha:', checkResponse.data);
-        
-        if (checkResponse.data.precisa_trocar_senha) {
-          router.push('/loja/trocar-senha');
-          return;
-        }
-      } catch (checkErr) {
-        console.error('Erro ao verificar senha:', checkErr);
+      // Verificar se precisa trocar senha (vem na resposta do login)
+      if (loginResponse.precisa_trocar_senha) {
+        router.push('/loja/trocar-senha');
+        return;
       }
       
       // Redirecionar para dashboard da loja específica
       router.push(`/loja/${slug}/dashboard`);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Usuário ou senha incorretos');
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Usuário ou senha incorretos');
     } finally {
       setLoading(false);
     }

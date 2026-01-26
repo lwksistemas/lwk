@@ -40,14 +40,20 @@ export default function SuperAdminLoginPage() {
       // Login retorna precisa_trocar_senha diretamente
       const loginResponse = await authService.login(credentials, 'superadmin');
       
+      console.log('🔍 Login Response:', loginResponse);
+      console.log('🔍 precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
+      
       // Verificar se precisa trocar senha (vem na resposta do login)
-      if (loginResponse.precisa_trocar_senha) {
-        router.push('/superadmin/trocar-senha');
+      if (loginResponse.precisa_trocar_senha === true) {
+        console.log('✅ Redirecionando para trocar senha...');
+        window.location.href = '/superadmin/trocar-senha';
         return;
       }
       
-      router.push('/superadmin/dashboard');
+      console.log('✅ Redirecionando para dashboard...');
+      window.location.href = '/superadmin/dashboard';
     } catch (err: any) {
+      console.error('❌ Erro no login:', err);
       let errorMessage = 'Erro ao fazer login';
       
       if (err.response?.data?.error) {

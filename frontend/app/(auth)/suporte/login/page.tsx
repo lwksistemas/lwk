@@ -40,14 +40,20 @@ export default function SuporteLoginPage() {
       // Login retorna precisa_trocar_senha diretamente
       const loginResponse = await authService.login(credentials, 'suporte');
       
+      console.log('🔍 Login Response:', loginResponse);
+      console.log('🔍 precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
+      
       // Verificar se precisa trocar senha (vem na resposta do login)
-      if (loginResponse.precisa_trocar_senha) {
-        router.push('/suporte/trocar-senha');
+      if (loginResponse.precisa_trocar_senha === true) {
+        console.log('✅ Redirecionando para trocar senha...');
+        window.location.href = '/suporte/trocar-senha';
         return;
       }
       
-      router.push('/suporte/dashboard');
+      console.log('✅ Redirecionando para dashboard...');
+      window.location.href = '/suporte/dashboard';
     } catch (err: any) {
+      console.error('❌ Erro no login:', err);
       setError(err.response?.data?.error || err.response?.data?.detail || 'Erro ao fazer login');
     } finally {
       setLoading(false);

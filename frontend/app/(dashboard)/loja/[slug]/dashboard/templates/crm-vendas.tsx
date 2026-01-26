@@ -173,7 +173,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
       {showModalVendedor && <ModalNovoVendedor loja={loja} onClose={() => setShowModalVendedor(false)} />}
       {showModalProduto && <ModalNovoProduto loja={loja} onClose={() => setShowModalProduto(false)} />}
       {showModalPipeline && <ModalPipeline loja={loja} onClose={() => setShowModalPipeline(false)} />}
-      {showModalFuncionarios && <ModalNovoVendedor loja={loja} onClose={() => setShowModalFuncionarios(false)} />}
+      {showModalFuncionarios && <ModalFuncionarios loja={loja} onClose={() => setShowModalFuncionarios(false)} />}
     </div>
   );
 }

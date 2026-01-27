@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.conf import settings
+from django.db import transaction, connection
 from pathlib import Path
 import logging
 
@@ -265,167 +266,115 @@ class LojaViewSet(viewsets.ModelViewSet):
         """Exclusão completa da loja com limpeza de todos os dados"""
         loja = self.get_object()
         
+        # Coletar informações antes da exclusão
+        loja_nome = loja.nome
+        loja_slug = loja.slug
+        loja_id = loja.id
+        database_name = loja.database_name
+        database_created = loja.database_created
+        owner_username = loja.owner.username
+        owner = loja.owner
+        owner_id = owner.id
+        
+        # Contar dados relacionados
+        outras_lojas_owner = Loja.objects.filter(owner=loja.owner).exclude(id=loja.id).count()
+        
+        # Variáveis de controle
+        chamados_removidos = 0
+        respostas_removidas = 0
+        banco_removido = False
+        asaas_deleted_payments = 0
+        asaas_deleted_customer = False
+        asaas_local_payments_removed = 0
+        asaas_local_customers_removed = 0
+        asaas_local_subscriptions_removed = 0
+        usuario_removido = False
+        usuario_sera_removido = outras_lojas_owner == 0
+        
+        # 1. Remover chamados de suporte da loja (operação independente)
         try:
-            # Coletar informações antes da exclusão
-            loja_nome = loja.nome
-            loja_slug = loja.slug
-            loja_id = loja.id
-            database_name = loja.database_name
-            database_created = loja.database_created
-            owner_username = loja.owner.username
-            
-            # Contar dados relacionados
-            financeiro_exists = hasattr(loja, 'financeiro')
-            pagamentos_count = loja.pagamentos.count() if hasattr(loja, 'pagamentos') else 0
-            outras_lojas_owner = Loja.objects.filter(owner=loja.owner).exclude(id=loja.id).count()
-            
-            # 1. Remover chamados de suporte da loja
-            chamados_removidos = 0
-            respostas_removidas = 0
-            try:
-                from suporte.models import Chamado, RespostaChamado
-                
-                # Buscar chamados da loja
+            from suporte.models import Chamado
+            with transaction.atomic():
                 chamados = Chamado.objects.filter(loja_slug=loja_slug)
                 chamados_removidos = chamados.count()
-                
-                # Contar respostas antes de deletar
                 for chamado in chamados:
                     respostas_removidas += chamado.respostas.count()
-                
-                # Deletar chamados (respostas são deletadas em cascade)
                 chamados.delete()
                 print(f"✅ Chamados de suporte removidos: {chamados_removidos}")
-                print(f"✅ Respostas de suporte removidas: {respostas_removidas}")
-            except Exception as e:
-                print(f"⚠️ Erro ao remover chamados de suporte: {e}")
-            
-            # 2. Remover banco de dados físico se existir
-            banco_removido = False
-            if database_created:
+        except Exception as e:
+            print(f"⚠️ Erro ao remover chamados de suporte: {e}")
+        
+        # 2. Remover banco de dados físico se existir
+        if database_created:
+            try:
                 db_path = settings.BASE_DIR / f'db_{database_name}.sqlite3'
-                
-                # Remover das configurações do Django
                 if database_name in settings.DATABASES:
                     del settings.DATABASES[database_name]
                     print(f"✅ Configuração do banco removida: {database_name}")
-                
-                # Remover arquivo físico do banco
                 if db_path.exists():
                     import os
                     os.remove(db_path)
                     banco_removido = True
                     print(f"✅ Arquivo do banco removido: {db_path}")
+            except Exception as e:
+                print(f"⚠️ Erro ao remover banco: {e}")
+        
+        # 3. Remover dados do Asaas (operação independente)
+        try:
+            from asaas_integration.deletion_service import AsaasDeletionService
+            from asaas_integration.models import AsaasPayment, AsaasCustomer, LojaAssinatura
             
-            # 3. Remover dados do Asaas (API e dados locais)
-            asaas_deleted_payments = 0
-            asaas_deleted_customer = False
-            asaas_local_payments_removed = 0
-            asaas_local_customers_removed = 0
-            asaas_local_subscriptions_removed = 0
+            deletion_service = AsaasDeletionService()
+            if deletion_service.available:
+                result = deletion_service.delete_loja_from_asaas(loja_slug)
+                if result.get('success'):
+                    asaas_deleted_payments = result.get('deleted_payments', 0)
+                    asaas_deleted_customer = result.get('deleted_customer', False)
+                    print(f"✅ Dados Asaas API removidos")
             
-            try:
-                from asaas_integration.deletion_service import AsaasDeletionService
-                from asaas_integration.models import AsaasPayment, AsaasCustomer, LojaAssinatura
-                
-                # Remover da API do Asaas
-                deletion_service = AsaasDeletionService()
-                if deletion_service.available:
-                    result = deletion_service.delete_loja_from_asaas(loja_slug)
-                    if result.get('success'):
-                        asaas_deleted_payments = result.get('deleted_payments', 0)
-                        asaas_deleted_customer = result.get('deleted_customer', False)
-                        print(f"✅ Dados Asaas API removidos: {asaas_deleted_payments} pagamentos, cliente: {asaas_deleted_customer}")
-                    else:
-                        print(f"⚠️ Erro ao remover dados Asaas API: {result.get('error', 'Erro desconhecido')}")
-                else:
-                    print(f"ℹ️ Serviço Asaas não disponível - removendo apenas dados locais")
-                
-                # Remover dados locais do asaas_integration (garantir limpeza completa)
-                # Buscar assinatura da loja
+            # Remover dados locais do Asaas
+            with transaction.atomic():
                 try:
                     assinatura = LojaAssinatura.objects.get(loja_slug=loja_slug)
                     customer = assinatura.asaas_customer
-                    
-                    # Remover todos os pagamentos deste cliente
                     payments = AsaasPayment.objects.filter(customer=customer)
                     asaas_local_payments_removed = payments.count()
                     payments.delete()
-                    print(f"✅ AsaasPayments locais removidos: {asaas_local_payments_removed}")
-                    
-                    # Remover assinatura
                     assinatura.delete()
                     asaas_local_subscriptions_removed = 1
-                    print(f"✅ LojaAssinatura removida")
-                    
-                    # Remover cliente
                     customer.delete()
                     asaas_local_customers_removed = 1
-                    print(f"✅ AsaasCustomer local removido")
-                    
+                    print(f"✅ Dados Asaas locais removidos")
                 except LojaAssinatura.DoesNotExist:
-                    print(f"ℹ️ Nenhuma assinatura Asaas encontrada para loja: {loja_slug}")
-                except Exception as e:
-                    print(f"⚠️ Erro ao remover dados locais Asaas: {e}")
-                    
+                    print(f"ℹ️ Nenhuma assinatura Asaas encontrada")
+        except Exception as e:
+            print(f"⚠️ Erro ao remover dados Asaas: {e}")
+        
+        # 4. Remover a loja (operação principal)
+        try:
+            with transaction.atomic():
+                loja.delete()
+                print(f"✅ Loja removida: {loja_nome}")
+        except Exception as e:
+            print(f"❌ Erro ao remover loja: {e}")
+            return Response(
+                {'error': f'Erro ao remover loja: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # 5. Remover usuário proprietário se não for usado por outras lojas
+        if usuario_sera_removido:
+            try:
+                user_to_delete = User.objects.filter(id=owner_id).first()
+                if user_to_delete and not user_to_delete.is_superuser:
+                    with transaction.atomic():
+                        user_to_delete.groups.clear()
+                        user_to_delete.user_permissions.clear()
+                        user_to_delete.delete()
+                        usuario_removido = True
+                        print(f"✅ Usuário proprietário removido: {owner_username}")
             except Exception as e:
-                print(f"⚠️ Erro ao remover dados Asaas: {e}")
-            
-            # 4. Coletar dados do proprietário antes da possível exclusão
-            owner = loja.owner
-            usuario_sera_removido = outras_lojas_owner == 0
-            
-            # 5. Remover a loja (isso remove automaticamente em cascade):
-            # - FinanceiroLoja (OneToOneField com CASCADE)
-            # - PagamentoLoja (ForeignKey com CASCADE) 
-            # - Relacionamentos ManyToMany
-            # - AsaasCustomer, AsaasPayment, LojaAssinatura (via signals)
-            loja.delete()
-            print(f"✅ Loja removida: {loja_nome}")
-            
-            # 6. Remover usuário proprietário se não for usado por outras lojas
-            usuario_removido = False
-            if usuario_sera_removido:
-                # Verificar se o usuário não é superuser (usuários de loja não devem ser staff)
-                if not owner.is_superuser:
-                    try:
-                        # Verificar se o usuário ainda existe (pode ter sido removido pelos signals)
-                        if owner.pk is None:
-                            logger.info(f"ℹ️ Usuário {owner_username} já foi removido pelos signals")
-                            usuario_removido = True
-                        else:
-                            # Remover grupos e permissões primeiro
-                            owner.groups.clear()
-                            owner.user_permissions.clear()
-                            
-                            # Remover o usuário
-                            owner.delete()
-                            usuario_removido = True
-                            print(f"✅ Usuário proprietário removido: {owner_username}")
-                    except Exception as e:
-                        print(f"❌ Erro ao remover usuário: {e}")
-                        # Verificar se o erro é porque o usuário já foi removido
-                        if "id attribute is set to None" in str(e) or "can't be deleted because its id attribute is set to None" in str(e):
-                            logger.info(f"ℹ️ Usuário {owner_username} já foi removido pelos signals")
-                            usuario_removido = True
-                        else:
-                            # Tentar remoção direta apenas se não for erro de ID None
-                            try:
-                                if owner.pk is not None:
-                                    owner.delete()
-                                    usuario_removido = True
-                                    print(f"✅ Usuário proprietário removido (método direto): {owner_username}")
-                                else:
-                                    logger.info(f"ℹ️ Usuário {owner_username} já foi removido")
-                                    usuario_removido = True
-                            except Exception as e2:
-                                if "id attribute is set to None" in str(e2):
-                                    logger.info(f"ℹ️ Usuário {owner_username} já foi removido")
-                                    usuario_removido = True
-                                else:
-                                    print(f"❌ Erro na remoção direta: {e2}")
-                else:
-                    print(f"⚠️ Usuário {owner_username} mantido (é superuser do sistema)")
+                print(f"⚠️ Erro ao remover usuário (pode já ter sido removido): {e}")
             
             # 7. Limpeza adicional de arquivos relacionados (se houver)
             # TODO: Remover uploads, logos, etc. se implementado no futuro

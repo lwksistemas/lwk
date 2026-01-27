@@ -1,8 +1,7 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Sum
+from django.db.models import Sum
 from datetime import date
 from core.views import BaseModelViewSet
 from .models import Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario
@@ -14,12 +13,14 @@ from .serializers import (
 
 
 class CategoriaViewSet(BaseModelViewSet):
-    queryset = Categoria.objects.all()
+    # Otimização: prefetch_related para itens
+    queryset = Categoria.objects.prefetch_related('itens').all()
     serializer_class = CategoriaSerializer
 
 
 class ItemCardapioViewSet(BaseModelViewSet):
-    queryset = ItemCardapio.objects.all()
+    # Otimização: select_related para categoria
+    queryset = ItemCardapio.objects.select_related('categoria').all()
     serializer_class = ItemCardapioSerializer
 
     def get_queryset(self):
@@ -33,6 +34,13 @@ class ItemCardapioViewSet(BaseModelViewSet):
 class MesaViewSet(BaseModelViewSet):
     queryset = Mesa.objects.all()
     serializer_class = MesaSerializer
+
+    @action(detail=False, methods=['get'])
+    def disponiveis(self, request):
+        """Mesas disponíveis"""
+        mesas = self.queryset.filter(status='livre', is_active=True)
+        serializer = self.get_serializer(mesas, many=True)
+        return Response(serializer.data)
 
 
 class ClienteViewSet(BaseModelViewSet):
@@ -52,29 +60,10 @@ class FuncionarioViewSet(BaseModelViewSet):
         return queryset
 
 
-class MesaViewSet(viewsets.ModelViewSet):
-    queryset = Mesa.objects.all()
-    serializer_class = MesaSerializer
-    permission_classes = [IsAuthenticated]
-
-    @action(detail=False, methods=['get'])
-    def disponiveis(self, request):
-        """Mesas disponíveis"""
-        mesas = self.queryset.filter(status='livre', is_active=True)
-        serializer = self.get_serializer(mesas, many=True)
-        return Response(serializer.data)
-
-
-class ClienteViewSet(viewsets.ModelViewSet):
-    queryset = Cliente.objects.all()
-    serializer_class = ClienteSerializer
-    permission_classes = [IsAuthenticated]
-
-
-class ReservaViewSet(viewsets.ModelViewSet):
-    queryset = Reserva.objects.all()
+class ReservaViewSet(BaseModelViewSet):
+    # Otimização: select_related
+    queryset = Reserva.objects.select_related('cliente', 'mesa').all()
     serializer_class = ReservaSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -95,10 +84,10 @@ class ReservaViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class PedidoViewSet(viewsets.ModelViewSet):
-    queryset = Pedido.objects.all()
+class PedidoViewSet(BaseModelViewSet):
+    # Otimização: select_related e prefetch_related
+    queryset = Pedido.objects.select_related('cliente', 'mesa').prefetch_related('itens', 'itens__item_cardapio').all()
     serializer_class = PedidoSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -139,13 +128,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
         })
 
 
-class ItemPedidoViewSet(viewsets.ModelViewSet):
-    queryset = ItemPedido.objects.all()
+class ItemPedidoViewSet(BaseModelViewSet):
+    # Otimização: select_related
+    queryset = ItemPedido.objects.select_related('pedido', 'item_cardapio').all()
     serializer_class = ItemPedidoSerializer
-    permission_classes = [IsAuthenticated]
-
-
-class FuncionarioViewSet(viewsets.ModelViewSet):
-    queryset = Funcionario.objects.all()
-    serializer_class = FuncionarioSerializer
-    permission_classes = [IsAuthenticated]

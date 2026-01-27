@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-production-12345')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,*').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -180,21 +180,22 @@ GZIP_COMPRESSIBLE_TYPES = [
 # REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'superadmin.authentication.SessionAwareJWTAuthentication',  # 🔐 USAR NOSSO AUTHENTICATOR
+        'superadmin.authentication.SessionAwareJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # Paginação otimizada para 40 lojas
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
-    # ✅ OTIMIZAÇÃO: Throttling para prevenir abuso
+    'PAGE_SIZE': 50,
+    # Throttling para prevenir abuso
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
-        'user': '1000/hour'
+        'user': '2000/hour'  # Aumentado para suportar mais usuários
     }
 }
 
@@ -212,7 +213,7 @@ CORS_ALLOWED_ORIGINS = config(
     default='http://localhost:3000,http://127.0.0.1:3000'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Apenas em desenvolvimento
+CORS_ALLOW_ALL_ORIGINS = False  # Nunca permitir todas as origens
 
 # Permitir header customizado X-Loja-ID
 CORS_ALLOW_HEADERS = [

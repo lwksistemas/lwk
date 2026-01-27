@@ -175,8 +175,14 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 schema_name = loja.database_name.replace('-', '_')  # Remover hífens
                 
                 with connection.cursor() as cursor:
-                    # Criar schema
-                    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+                    # Criar schema - usando identificador seguro para evitar SQL injection
+                    from django.db import connection as db_connection
+                    from psycopg2 import sql
+                    cursor.execute(
+                        sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(
+                            sql.Identifier(schema_name)
+                        )
+                    )
                     print(f"✅ Schema '{schema_name}' criado no PostgreSQL")
                 
                 # Marcar como criado

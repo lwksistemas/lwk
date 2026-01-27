@@ -1,9 +1,6 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Sum
-from datetime import date
 from core.views import BaseModelViewSet
 from .models import Categoria, Servico, Cliente, Profissional, Agendamento, OrdemServico, Orcamento, Funcionario
 from .serializers import (
@@ -14,12 +11,14 @@ from .serializers import (
 
 
 class CategoriaViewSet(BaseModelViewSet):
-    queryset = Categoria.objects.all()
+    # Otimização: prefetch_related para servicos
+    queryset = Categoria.objects.prefetch_related('servicos').all()
     serializer_class = CategoriaSerializer
 
 
 class ServicoViewSet(BaseModelViewSet):
-    queryset = Servico.objects.all()
+    # Otimização: select_related para categoria
+    queryset = Servico.objects.select_related('categoria').all()
     serializer_class = ServicoSerializer
 
     def get_queryset(self):
@@ -46,15 +45,18 @@ class FuncionarioViewSet(BaseModelViewSet):
 
 
 class AgendamentoViewSet(BaseModelViewSet):
-    queryset = Agendamento.objects.all()
+    # Otimização: select_related
+    queryset = Agendamento.objects.select_related('cliente', 'servico', 'profissional').all()
     serializer_class = AgendamentoSerializer
 
 
 class OrdemServicoViewSet(BaseModelViewSet):
-    queryset = OrdemServico.objects.all()
+    # Otimização: select_related
+    queryset = OrdemServico.objects.select_related('cliente', 'servico', 'profissional').all()
     serializer_class = OrdemServicoSerializer
 
 
 class OrcamentoViewSet(BaseModelViewSet):
-    queryset = Orcamento.objects.all()
+    # Otimização: select_related
+    queryset = Orcamento.objects.select_related('cliente', 'servico').all()
     serializer_class = OrcamentoSerializer

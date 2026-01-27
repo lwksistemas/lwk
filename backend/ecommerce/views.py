@@ -1,8 +1,8 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Sum, Q
+from django.db.models import Sum
 from datetime import date
 from core.views import BaseModelViewSet
 from .models import Categoria, Produto, Cliente, Pedido, ItemPedido, Cupom
@@ -13,12 +13,14 @@ from .serializers import (
 
 
 class CategoriaViewSet(BaseModelViewSet):
-    queryset = Categoria.objects.all()
+    # Otimização: prefetch_related para produtos
+    queryset = Categoria.objects.prefetch_related('produtos').all()
     serializer_class = CategoriaSerializer
 
 
 class ProdutoViewSet(BaseModelViewSet):
-    queryset = Produto.objects.all()
+    # Otimização: select_related para categoria
+    queryset = Produto.objects.select_related('categoria').all()
     serializer_class = ProdutoSerializer
 
     def get_queryset(self):
@@ -26,15 +28,6 @@ class ProdutoViewSet(BaseModelViewSet):
         categoria_id = self.request.query_params.get('categoria_id')
         if categoria_id:
             queryset = queryset.filter(categoria_id=categoria_id)
-        return queryset
-
-
-class ClienteViewSet(BaseModelViewSet):
-    queryset = Cliente.objects.all()
-    serializer_class = ClienteSerializer
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
@@ -48,16 +41,22 @@ class ClienteViewSet(BaseModelViewSet):
         return Response(serializer.data)
 
 
-class ClienteViewSet(viewsets.ModelViewSet):
+class ClienteViewSet(BaseModelViewSet):
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        return queryset
 
 
-class PedidoViewSet(viewsets.ModelViewSet):
-    queryset = Pedido.objects.all()
+class PedidoViewSet(BaseModelViewSet):
+    # Otimização: select_related e prefetch_related
+    queryset = Pedido.objects.select_related('cliente').prefetch_related('itens', 'itens__produto').all()
     serializer_class = PedidoSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -96,16 +95,15 @@ class PedidoViewSet(viewsets.ModelViewSet):
         })
 
 
-class ItemPedidoViewSet(viewsets.ModelViewSet):
-    queryset = ItemPedido.objects.all()
+class ItemPedidoViewSet(BaseModelViewSet):
+    # Otimização: select_related
+    queryset = ItemPedido.objects.select_related('pedido', 'produto').all()
     serializer_class = ItemPedidoSerializer
-    permission_classes = [IsAuthenticated]
 
 
-class CupomViewSet(viewsets.ModelViewSet):
+class CupomViewSet(BaseModelViewSet):
     queryset = Cupom.objects.all()
     serializer_class = CupomSerializer
-    permission_classes = [IsAuthenticated]
 
     @action(detail=False, methods=['post'])
     def validar(self, request):

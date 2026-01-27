@@ -1,5 +1,4 @@
 from django.db import models
-from django.contrib.auth.models import User
 from core.models import BaseCliente, BaseFuncionario, BaseProduto
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
 

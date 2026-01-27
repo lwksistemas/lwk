@@ -19,8 +19,7 @@ export function middleware(request: NextRequest) {
   // ========================================
   const publicRoutes = [
     '/',
-    '/diagnostico',
-    '/debug-mobile',
+    '/forcar-atualizacao',
   ];
   
   if (publicRoutes.includes(pathname)) {

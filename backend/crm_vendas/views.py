@@ -1,9 +1,8 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Sum
-from django.utils import timezone
+from django.db.models import Sum
 from datetime import date
 from core.views import BaseModelViewSet
 from .models import Lead, Cliente, Vendedor, Produto, Venda, Pipeline
@@ -32,29 +31,6 @@ class LeadViewSet(BaseModelViewSet):
         
         return queryset
 
-
-class ClienteViewSet(BaseModelViewSet):
-    queryset = Cliente.objects.all()
-    serializer_class = ClienteSerializer
-
-
-class VendedorViewSet(BaseModelViewSet):
-    queryset = Vendedor.objects.all()
-    serializer_class = VendedorSerializer
-
-
-class ProdutoViewSet(BaseModelViewSet):
-    queryset = Produto.objects.all()
-    serializer_class = ProdutoSerializer
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        origem = self.request.query_params.get('origem')
-        if origem:
-            queryset = queryset.filter(origem=origem)
-        
-        return queryset
-
     @action(detail=False, methods=['get'])
     def recentes(self, request):
         """Retorna leads mais recentes"""
@@ -63,10 +39,9 @@ class ProdutoViewSet(BaseModelViewSet):
         return Response(serializer.data)
 
 
-class ClienteViewSet(viewsets.ModelViewSet):
+class ClienteViewSet(BaseModelViewSet):
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -76,33 +51,21 @@ class ClienteViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class VendedorViewSet(viewsets.ModelViewSet):
+class VendedorViewSet(BaseModelViewSet):
     queryset = Vendedor.objects.all()
     serializer_class = VendedorSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        import logging
-        logger = logging.getLogger(__name__)
-        
         queryset = super().get_queryset()
-        
-        # Log para debug
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
-        logger.info(f"🔍 [VendedorViewSet] Loja ID do contexto: {loja_id}")
-        logger.info(f"📊 [VendedorViewSet] Queryset count: {queryset.count()}")
-        
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         return queryset
 
 
-class ProdutoViewSet(viewsets.ModelViewSet):
+class ProdutoViewSet(BaseModelViewSet):
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -115,10 +78,10 @@ class ProdutoViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class VendaViewSet(viewsets.ModelViewSet):
-    queryset = Venda.objects.all()
+class VendaViewSet(BaseModelViewSet):
+    # Otimização: select_related para evitar N+1
+    queryset = Venda.objects.select_related('cliente', 'vendedor', 'produto').all()
     serializer_class = VendaSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -174,10 +137,9 @@ class VendaViewSet(viewsets.ModelViewSet):
         })
 
 
-class PipelineViewSet(viewsets.ModelViewSet):
+class PipelineViewSet(BaseModelViewSet):
     queryset = Pipeline.objects.all()
     serializer_class = PipelineSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()

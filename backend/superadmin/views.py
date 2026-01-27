@@ -375,64 +375,44 @@ class LojaViewSet(viewsets.ModelViewSet):
                         print(f"✅ Usuário proprietário removido: {owner_username}")
             except Exception as e:
                 print(f"⚠️ Erro ao remover usuário (pode já ter sido removido): {e}")
-            
-            # 7. Limpeza adicional de arquivos relacionados (se houver)
-            # TODO: Remover uploads, logos, etc. se implementado no futuro
-            
-            return Response({
-                'message': f'Loja "{loja_nome}" foi completamente removida do sistema',
-                'detalhes': {
-                    'loja_id': loja_id,
-                    'loja_nome': loja_nome,
-                    'loja_slug': loja_slug,
-                    'loja_removida': True,
-                    'suporte': {
-                        'chamados_removidos': chamados_removidos,
-                        'respostas_removidas': respostas_removidas
-                    },
-                    'banco_dados': {
-                        'existia': database_created,
-                        'nome': database_name,
-                        'arquivo_removido': banco_removido,
-                        'config_removida': database_created
-                    },
-                    'asaas': {
-                        'api': {
-                            'pagamentos_cancelados': asaas_deleted_payments,
-                            'cliente_removido': asaas_deleted_customer
-                        },
-                        'local': {
-                            'payments_removidos': asaas_local_payments_removed,
-                            'customers_removidos': asaas_local_customers_removed,
-                            'subscriptions_removidas': asaas_local_subscriptions_removed
-                        }
-                    },
-                    'dados_financeiros': {
-                        'financeiro_removido': financeiro_exists,
-                        'pagamentos_removidos': pagamentos_count
-                    },
-                    'usuario_proprietario': {
-                        'username': owner_username,
-                        'removido': usuario_removido,
-                        'motivo_nao_removido': 'Possui outras lojas' if not usuario_sera_removido else ('Superuser/Staff' if not usuario_removido and usuario_sera_removido else None)
-                    },
-                    'limpeza_completa': True
-                }
-            }, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"❌ Erro ao excluir loja: {error_details}")
-            
-            return Response(
-                {
-                    'error': f'Erro ao excluir loja: {str(e)}',
-                    'detalhes': 'Alguns dados podem não ter sido removidos completamente',
-                    'error_completo': error_details if settings.DEBUG else None
+        
+        # Retornar resposta de sucesso
+        return Response({
+            'message': f'Loja "{loja_nome}" foi completamente removida do sistema',
+            'detalhes': {
+                'loja_id': loja_id,
+                'loja_nome': loja_nome,
+                'loja_slug': loja_slug,
+                'loja_removida': True,
+                'suporte': {
+                    'chamados_removidos': chamados_removidos,
+                    'respostas_removidas': respostas_removidas
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+                'banco_dados': {
+                    'existia': database_created,
+                    'nome': database_name,
+                    'arquivo_removido': banco_removido,
+                    'config_removida': database_created
+                },
+                'asaas': {
+                    'api': {
+                        'pagamentos_cancelados': asaas_deleted_payments,
+                        'cliente_removido': asaas_deleted_customer
+                    },
+                    'local': {
+                        'payments_removidos': asaas_local_payments_removed,
+                        'customers_removidos': asaas_local_customers_removed,
+                        'subscriptions_removidas': asaas_local_subscriptions_removed
+                    }
+                },
+                'usuario_proprietario': {
+                    'username': owner_username,
+                    'removido': usuario_removido,
+                    'motivo_nao_removido': 'Possui outras lojas' if not usuario_sera_removido else ('Superuser/Staff' if not usuario_removido and usuario_sera_removido else None)
+                },
+                'limpeza_completa': True
+            }
+        }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def reenviar_senha(self, request, pk=None):

@@ -290,6 +290,84 @@ class LojaViewSet(viewsets.ModelViewSet):
             'loja': loja.nome
         })
     
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
+    def resetar_senha_provisoria(self, request, pk=None):
+        """
+        Reseta a senha provisória de uma loja (apenas superadmin)
+        Usado para corrigir lojas criadas antes da implementação do fluxo de senha provisória
+        """
+        import secrets
+        import string
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        loja = self.get_object()
+        
+        # Gerar nova senha provisória
+        alphabet = string.ascii_letters + string.digits + "!@#$%&*"
+        nova_senha = ''.join(secrets.choice(alphabet) for _ in range(8))
+        
+        # Atualizar senha do usuário
+        user = loja.owner
+        user.set_password(nova_senha)
+        user.save()
+        
+        # Atualizar campos da loja
+        loja.senha_provisoria = nova_senha
+        loja.senha_foi_alterada = False
+        loja.save()
+        
+        logger.info(f"✅ Senha provisória resetada para loja {loja.slug}")
+        logger.info(f"   - senha_provisoria: {nova_senha[:3]}***")
+        logger.info(f"   - senha_foi_alterada: False")
+        
+        # Tentar enviar email
+        email_enviado = False
+        try:
+            if hasattr(settings, 'DEFAULT_FROM_EMAIL') and settings.DEFAULT_FROM_EMAIL:
+                assunto = f"Nova Senha Provisória - {loja.nome}"
+                mensagem = f"""
+Olá!
+
+Sua senha foi resetada para a loja "{loja.nome}".
+
+🔐 NOVOS DADOS DE ACESSO:
+• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
+• Usuário: {user.username}
+• Senha Provisória: {nova_senha}
+
+⚠️ IMPORTANTE:
+• Esta é uma senha provisória
+• Você será solicitado a trocar a senha no primeiro acesso
+
+---
+Equipe de Suporte
+"""
+                send_mail(
+                    subject=assunto,
+                    message=mensagem,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=True
+                )
+                email_enviado = True
+                logger.info(f"✅ Email enviado para {user.email}")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao enviar email: {e}")
+        
+        return Response({
+            'message': 'Senha provisória resetada com sucesso!',
+            'loja_id': loja.id,
+            'loja_slug': loja.slug,
+            'loja_nome': loja.nome,
+            'owner_username': user.username,
+            'owner_email': user.email,
+            'senha_provisoria': nova_senha,
+            'senha_foi_alterada': False,
+            'email_enviado': email_enviado,
+            'precisa_trocar_senha': True
+        })
+    
     def destroy(self, request, *args, **kwargs):
         """Exclusão completa da loja com limpeza de todos os dados"""
         loja = self.get_object()

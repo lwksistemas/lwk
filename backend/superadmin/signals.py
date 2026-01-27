@@ -112,9 +112,11 @@ def delete_all_loja_data(sender, instance, **kwargs):
     - Profissionais
     - Procedimentos
     - Leads
-    - Pagamentos Asaas
     - Sessões de usuários
-    - E qualquer outro dado relacionado
+    
+    IMPORTANTE: 
+    - NÃO deleta o owner aqui (feito na views.py após a exclusão da loja)
+    - Usa getattr para acessar tipo_loja de forma segura
     
     Args:
         sender: Modelo Loja
@@ -123,9 +125,14 @@ def delete_all_loja_data(sender, instance, **kwargs):
     """
     loja_id = instance.id
     loja_nome = instance.nome
-    tipo_loja_nome = instance.tipo_loja.nome
+    # Acesso seguro ao tipo_loja para evitar KeyError
+    tipo_loja_nome = getattr(instance.tipo_loja, 'nome', None) if instance.tipo_loja else None
     
     logger.info(f"🗑️ Iniciando exclusão em cascata para loja: {loja_nome} (ID: {loja_id})")
+    
+    if not tipo_loja_nome:
+        logger.warning(f"⚠️ Tipo de loja não disponível para {loja_nome}, pulando exclusão de dados relacionados")
+        return
     
     try:
         # 1. Deletar funcionários/vendedores baseado no tipo de loja
@@ -197,32 +204,23 @@ def delete_all_loja_data(sender, instance, **kwargs):
             except Exception as e:
                 logger.warning(f"   ⚠️ Erro ao deletar funcionários de serviços: {e}")
         
-        # 2. Deletar usuário da loja (se não for usado por outras lojas)
-        owner = instance.owner
-        outras_lojas = sender.objects.filter(owner=owner).exclude(id=loja_id).count()
+        # NOTA: A exclusão do owner é feita na views.py após a exclusão da loja
+        # para evitar TransactionManagementError
         
-        if outras_lojas == 0:
-            # Usuário não tem outras lojas, pode deletar
-            logger.info(f"   🗑️ Deletando usuário {owner.username} (sem outras lojas)")
-            owner.delete()
-        else:
-            logger.info(f"   ℹ️ Usuário {owner.username} mantido (tem {outras_lojas} outras lojas)")
-        
-        # 3. Deletar sessões do usuário
+        # 2. Deletar sessões do usuário (usando owner_id para evitar problemas de transação)
         try:
             from superadmin.models import UserSession
-            sessoes_count = UserSession.objects.filter(user=owner).count()
-            UserSession.objects.filter(user=owner).delete()
-            logger.info(f"   ✅ {sessoes_count} sessões deletadas")
+            owner_id = instance.owner_id
+            if owner_id:
+                sessoes_count = UserSession.objects.filter(user_id=owner_id).count()
+                UserSession.objects.filter(user_id=owner_id).delete()
+                logger.info(f"   ✅ {sessoes_count} sessões deletadas")
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao deletar sessões: {e}")
         
-        # 4. Deletar pagamentos Asaas relacionados
+        # 3. Verificar pagamentos Asaas relacionados (remoção feita na views.py)
         try:
-            from asaas_integration.models import AsaasPayment
-            # Assumindo que tem um campo loja ou customer relacionado
-            # Ajustar conforme o modelo real
-            logger.info(f"   ℹ️ Verificando pagamentos Asaas...")
+            logger.info(f"   ℹ️ Pagamentos Asaas serão removidos pela views.py")
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao verificar Asaas: {e}")
         

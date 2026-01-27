@@ -59,6 +59,7 @@ class SuperAdminSecurityMiddleware:
             public_endpoints = [
                 '/api/superadmin/lojas/info_publica/',
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
+                '/api/superadmin/lojas/debug_senha_status/',
             ]
             
             # Endpoints que proprietários de lojas podem acessar (com autenticação)

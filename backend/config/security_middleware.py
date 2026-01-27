@@ -82,6 +82,7 @@ class SecurityIsolationMiddleware:
             public_endpoints = [
                 '/api/superadmin/lojas/info_publica/',
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
+                '/api/superadmin/lojas/debug_senha_status/',
             ]
             
             if any(path.startswith(endpoint) for endpoint in public_endpoints):

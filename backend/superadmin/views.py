@@ -189,8 +189,11 @@ class LojaViewSet(viewsets.ModelViewSet):
             # Buscar loja do usuário logado
             loja = Loja.objects.get(owner=request.user)
             
+            precisa_trocar = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
+            logger.info(f"🔍 Verificar senha provisória - Loja: {loja.slug}, senha_foi_alterada: {loja.senha_foi_alterada}, tem_senha_provisoria: {bool(loja.senha_provisoria)}, precisa_trocar: {precisa_trocar}")
+            
             return Response({
-                'precisa_trocar_senha': not loja.senha_foi_alterada and bool(loja.senha_provisoria),
+                'precisa_trocar_senha': precisa_trocar,
                 'loja_id': loja.id,
                 'loja_nome': loja.nome,
                 'loja_slug': loja.slug,
@@ -200,6 +203,31 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'precisa_trocar_senha': False,
                 'mensagem': 'Usuário não possui loja associada'
             })
+    
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def debug_senha_status(self, request):
+        """DEBUG: Verifica o estado dos campos de senha de uma loja por slug"""
+        slug = request.query_params.get('slug')
+        if not slug:
+            return Response({'error': 'Parâmetro slug é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            loja = Loja.objects.get(slug=slug)
+            precisa_trocar = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
+            
+            return Response({
+                'loja_id': loja.id,
+                'loja_slug': loja.slug,
+                'loja_nome': loja.nome,
+                'senha_provisoria_existe': bool(loja.senha_provisoria),
+                'senha_provisoria_valor': loja.senha_provisoria[:3] + '***' if loja.senha_provisoria else None,
+                'senha_foi_alterada': loja.senha_foi_alterada,
+                'precisa_trocar_senha': precisa_trocar,
+                'owner_username': loja.owner.username,
+                'is_active': loja.is_active,
+            })
+        except Loja.DoesNotExist:
+            return Response({'error': f'Loja com slug "{slug}" não encontrada'}, status=status.HTTP_404_NOT_FOUND)
     
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def alterar_senha_primeiro_acesso(self, request, pk=None):

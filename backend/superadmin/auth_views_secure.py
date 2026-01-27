@@ -131,6 +131,13 @@ class SecureLoginView(APIView):
                 # Verificar se tem senha provisória e não foi alterada
                 precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
                 
+                # LOG DETALHADO para debug
+                logger.info(f"🔍 DEBUG SENHA - Loja: {loja.slug}")
+                logger.info(f"   - senha_provisoria existe: {bool(loja.senha_provisoria)}")
+                logger.info(f"   - senha_provisoria valor: {loja.senha_provisoria[:3] + '***' if loja.senha_provisoria else 'VAZIO'}")
+                logger.info(f"   - senha_foi_alterada: {loja.senha_foi_alterada}")
+                logger.info(f"   - precisa_trocar_senha: {precisa_trocar_senha}")
+                
                 response_data['loja'] = {
                     'id': loja.id,
                     'slug': loja.slug,
@@ -143,6 +150,13 @@ class SecureLoginView(APIView):
             try:
                 usuario_sistema = UsuarioSistema.objects.get(user=user, tipo='suporte', is_active=True)
                 precisa_trocar_senha = not usuario_sistema.senha_foi_alterada and bool(usuario_sistema.senha_provisoria)
+                
+                # LOG DETALHADO para debug
+                logger.info(f"🔍 DEBUG SENHA SUPORTE - User: {usuario_sistema.user.username}")
+                logger.info(f"   - senha_provisoria existe: {bool(usuario_sistema.senha_provisoria)}")
+                logger.info(f"   - senha_foi_alterada: {usuario_sistema.senha_foi_alterada}")
+                logger.info(f"   - precisa_trocar_senha: {precisa_trocar_senha}")
+                
                 response_data['precisa_trocar_senha'] = precisa_trocar_senha
             except UsuarioSistema.DoesNotExist:
                 pass

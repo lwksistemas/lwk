@@ -167,7 +167,13 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             # Criar loja
             validated_data['owner'] = owner
             validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
+            validated_data['senha_foi_alterada'] = False  # Garantir que precisa trocar no primeiro login
             loja = Loja.objects.create(**validated_data)
+            
+            # LOG para confirmar criação
+            print(f"✅ Loja criada: {loja.slug}")
+            print(f"   - senha_provisoria: {owner_password[:3]}***")
+            print(f"   - senha_foi_alterada: {loja.senha_foi_alterada}")
             
             # Criar schema no PostgreSQL automaticamente
             try:

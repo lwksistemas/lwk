@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { logger } from './logger';
+import { getLoginUrl } from './auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -58,18 +59,22 @@ clinicaApiClient.interceptors.response.use(
         
         logger.critical('🚨 Sessão inválida na API clínica:', errorCode);
         
-        // Limpar sessão e redirecionar
+        // Obter URL de login ANTES de limpar
+        const loginUrl = getLoginUrl();
+        
+        // Limpar sessão
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_type');
         localStorage.removeItem('loja_slug');
         localStorage.removeItem('session_id');
+        localStorage.removeItem('current_loja_id');
         
         document.cookie = 'user_type=; path=/; max-age=0';
         document.cookie = 'loja_slug=; path=/; max-age=0';
         
         alert(error.response?.data?.message || 'Sua sessão expirou. Faça login novamente.');
-        window.location.href = '/';
+        window.location.href = loginUrl;
       }
     }
     return Promise.reject(error);
@@ -119,12 +124,16 @@ apiClient.interceptors.response.use(
         
         logger.critical('SESSÃO INVÁLIDA - Logout forçado:', errorCode);
         
+        // Obter URL de login ANTES de limpar
+        const loginUrl = getLoginUrl();
+        
         // Limpar tudo IMEDIATAMENTE
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_type');
         localStorage.removeItem('loja_slug');
         localStorage.removeItem('session_id');
+        localStorage.removeItem('current_loja_id');
         
         document.cookie = 'user_type=; path=/; max-age=0';
         document.cookie = 'loja_slug=; path=/; max-age=0';
@@ -135,7 +144,7 @@ apiClient.interceptors.response.use(
           : 'Outra sessão foi iniciada em outro dispositivo. Você foi desconectado.';
         
         alert(message);
-        window.location.href = '/';
+        window.location.href = loginUrl;
         return Promise.reject(error);
       }
       
@@ -150,8 +159,9 @@ apiClient.interceptors.response.use(
           
           if (!refreshToken) {
             logger.log('❌ Sem refresh token');
+            const loginUrl = getLoginUrl();
             localStorage.clear();
-            window.location.href = '/';
+            window.location.href = loginUrl;
             return Promise.reject(error);
           }
           
@@ -173,6 +183,9 @@ apiClient.interceptors.response.use(
         } catch (refreshError: any) {
           logger.error('❌ Refresh token falhou:', refreshError);
           
+          // Obter URL de login ANTES de limpar
+          const loginUrl = getLoginUrl();
+          
           // Verificar se é erro de sessão (outro login detectado)
           const errCode = refreshError.response?.data?.code;
           const errMessage = refreshError.response?.data?.message || refreshError.response?.data?.detail;
@@ -187,11 +200,12 @@ apiClient.interceptors.response.use(
           localStorage.removeItem('user_type');
           localStorage.removeItem('loja_slug');
           localStorage.removeItem('session_id');
+          localStorage.removeItem('current_loja_id');
           
           document.cookie = 'user_type=; path=/; max-age=0';
           document.cookie = 'loja_slug=; path=/; max-age=0';
           
-          window.location.href = '/';
+          window.location.href = loginUrl;
           return Promise.reject(refreshError);
         }
       }
@@ -230,6 +244,10 @@ export function startHeartbeat() {
       // Se falhar com 401, sessão expirou
       if (error.response?.status === 401) {
         logger.critical('🚨 Sessão expirou - Fazendo logout');
+        
+        // Obter URL de login ANTES de limpar
+        const loginUrl = getLoginUrl();
+        
         stopHeartbeat();
         
         // Limpar tudo
@@ -238,8 +256,8 @@ export function startHeartbeat() {
           document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
         });
         
-        // Redirecionar para login
-        window.location.href = '/';
+        // Redirecionar para login específico do usuário
+        window.location.href = loginUrl;
       }
     }
   }, 5 * 60 * 1000); // 5 minutos

@@ -45,6 +45,26 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 let navigationInProgress = false;
 
 /**
+ * Retorna a URL de login correta baseada no tipo de usuário
+ * Deve ser chamada ANTES de limpar a sessão
+ */
+export function getLoginUrl(): string {
+  const userType = localStorage.getItem('user_type');
+  const lojaSlug = localStorage.getItem('loja_slug');
+  
+  switch (userType) {
+    case 'superadmin':
+      return '/superadmin/login';
+    case 'suporte':
+      return '/suporte/login';
+    case 'loja':
+      return lojaSlug ? `/loja/${lojaSlug}/login` : '/';
+    default:
+      return '/';
+  }
+}
+
+/**
  * Limpa toda a sessão do usuário
  * Centraliza a lógica de limpeza para evitar duplicação
  */
@@ -54,6 +74,7 @@ function clearSession() {
   localStorage.removeItem('user_type');
   localStorage.removeItem('loja_slug');
   localStorage.removeItem('session_id');
+  localStorage.removeItem('current_loja_id');
   
   document.cookie = 'user_type=; path=/; max-age=0';
   document.cookie = 'loja_slug=; path=/; max-age=0';
@@ -290,6 +311,9 @@ export const authService = {
   forceLogout(reason?: string) {
     logger.critical('FORCE LOGOUT:', reason);
     
+    // Obter URL de login ANTES de limpar a sessão
+    const loginUrl = getLoginUrl();
+    
     // Remover handlers e marcar navegação
     unregisterCloseHandlers();
     markInternalNavigation();
@@ -299,7 +323,7 @@ export const authService = {
     stopHeartbeat();
     
     if (typeof window !== 'undefined') {
-      window.location.href = '/';
+      window.location.href = loginUrl;
     }
   },
 

@@ -127,9 +127,16 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
     }
   }, [toast]);
 
+  // Garantir que o backend receba X-Loja-ID antes de qualquer requisição da clínica
   useEffect(() => {
+    if (typeof window !== 'undefined' && loja?.id) {
+      const current = localStorage.getItem('current_loja_id');
+      if (current !== String(loja.id)) {
+        localStorage.setItem('current_loja_id', String(loja.id));
+      }
+    }
     loadDashboard();
-  }, [loadDashboard]);
+  }, [loadDashboard, loja?.id]);
 
   // Handlers
   const handleNovoAgendamento = () => setShowModalAgendamento(true);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { useToast } from '@/components/ui/Toast';
 import { CrudModal } from '../shared/CrudModal';
 import { FormField } from '../shared/FormField';
 import { ESTADOS_BRASIL } from '../constants/estados-brasil';
@@ -39,8 +40,10 @@ const initialFormData = {
 };
 
 export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) {
+  const toast = useToast();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [formData, setFormData] = useState(initialFormData);
@@ -48,14 +51,18 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
 
   const loadClientes = useCallback(async () => {
     try {
+      setLoading(true);
+      setLoadError(false);
       const response = await clinicaApiClient.get('/clinica/clientes/');
-      setClientes(response.data);
+      setClientes(response.data ?? []);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
+      setLoadError(true);
+      toast.error('Erro ao carregar clientes. Tente novamente.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     loadClientes();
@@ -193,7 +200,17 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
   return (
     <CrudModal loja={loja} onClose={onClose} title="Gerenciar Clientes" icon="👥" maxWidth="4xl">
       {loading ? (
-        <div className="text-center py-8">Carregando clientes...</div>
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: loja.cor_primaria }} />
+          <p className="text-gray-600 dark:text-gray-400">Carregando clientes...</p>
+        </div>
+      ) : loadError ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg mb-2">Não foi possível carregar os clientes</p>
+          <button onClick={() => loadClientes()} className="px-6 py-3 rounded-md text-white hover:opacity-90 mt-2" style={{ backgroundColor: loja.cor_primaria }}>
+            Tentar novamente
+          </button>
+        </div>
       ) : clientes.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg mb-2">Nenhum cliente cadastrado</p>

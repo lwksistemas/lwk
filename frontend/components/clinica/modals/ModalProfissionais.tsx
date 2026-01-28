@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { useToast } from '@/components/ui/Toast';
 import { CrudModal } from '../shared/CrudModal';
 import { FormField } from '../shared/FormField';
 import type { LojaInfo } from '../shared/CrudModal';
@@ -39,8 +40,10 @@ const initialFormData = {
 };
 
 export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
+  const toast = useToast();
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProfissional, setEditingProfissional] = useState<Profissional | null>(null);
   const [formData, setFormData] = useState(initialFormData);
@@ -48,14 +51,18 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
 
   const loadProfissionais = useCallback(async () => {
     try {
+      setLoading(true);
+      setLoadError(false);
       const response = await clinicaApiClient.get('/clinica/profissionais/');
-      setProfissionais(response.data);
+      setProfissionais(response.data ?? []);
     } catch (error) {
       console.error('Erro ao carregar profissionais:', error);
+      setLoadError(true);
+      toast.error('Erro ao carregar profissionais. Tente novamente.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     loadProfissionais();
@@ -150,7 +157,17 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
   return (
     <CrudModal loja={loja} onClose={onClose} title="Gerenciar Profissionais" icon="👨‍⚕️" maxWidth="4xl">
       {loading ? (
-        <div className="text-center py-8">Carregando profissionais...</div>
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: loja.cor_primaria }} />
+          <p className="text-gray-600 dark:text-gray-400">Carregando profissionais...</p>
+        </div>
+      ) : loadError ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg mb-2">Não foi possível carregar os profissionais</p>
+          <button onClick={() => loadProfissionais()} className="px-6 py-3 rounded-md text-white hover:opacity-90 mt-2" style={{ backgroundColor: loja.cor_primaria }}>
+            Tentar novamente
+          </button>
+        </div>
       ) : profissionais.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg mb-2">Nenhum profissional cadastrado</p>

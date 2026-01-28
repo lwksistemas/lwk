@@ -17,6 +17,7 @@ export const clinicaApiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 20000, // 20s - evita espera infinita em rede/Heroku lentos
 });
 
 // Interceptor para adicionar X-Loja-ID e token JWT

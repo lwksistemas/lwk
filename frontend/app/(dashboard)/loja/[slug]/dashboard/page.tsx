@@ -45,12 +45,12 @@ export default function LojaDashboardDinamicoPage() {
       
       // Carregar informações da loja
       const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      setLojaInfo(lojaResponse.data);
-      
-      // ✅ Salvar loja_id no localStorage para uso nas APIs
-      if (lojaResponse.data.id) {
-        localStorage.setItem('current_loja_id', lojaResponse.data.id.toString());
+      const data = lojaResponse.data;
+      // ✅ Definir current_loja_id ANTES de renderizar o dashboard (APIs da clínica usam X-Loja-ID)
+      if (data?.id && typeof window !== 'undefined') {
+        localStorage.setItem('current_loja_id', String(data.id));
       }
+      setLojaInfo(data);
       
     } catch (error: any) {
       console.error('Erro ao carregar loja:', error);

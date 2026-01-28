@@ -29,6 +29,14 @@ clinicaApiClient.interceptors.request.use(
       if (lojaId) {
         config.headers['X-Loja-ID'] = lojaId;
         logger.log('🏪 [clinicaApiClient] Adicionando X-Loja-ID:', lojaId);
+      } else {
+        // Fallback: algumas telas podem chamar a API antes de setar current_loja_id.
+        // O backend aceita X-Tenant-Slug, então usamos o slug salvo na sessão.
+        const lojaSlug = localStorage.getItem('loja_slug');
+        if (lojaSlug) {
+          config.headers['X-Tenant-Slug'] = lojaSlug;
+          logger.log('🏷️ [clinicaApiClient] Fallback X-Tenant-Slug:', lojaSlug);
+        }
       }
       
       // Adicionar token JWT para validação de sessão

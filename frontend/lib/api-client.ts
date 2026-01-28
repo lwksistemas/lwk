@@ -46,38 +46,83 @@ clinicaApiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor para clinicaApiClient - trata erros de sessão
+// Response interceptor para clinicaApiClient - sessão + refresh token (evita 401 no dashboard)
 clinicaApiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Verificar erros de sessão
+    const originalRequest = error.config;
+
     if (error.response?.status === 401) {
-      const errorCode = error.response?.data?.code;
-      
-      if (errorCode === 'DIFFERENT_SESSION' || 
-          errorCode === 'NO_SESSION' || 
-          errorCode === 'TIMEOUT') {
-        
+      const errorData = error.response?.data;
+      const errorCode = errorData?.code || errorData?.detail?.code;
+      const errorMessage = errorData?.message || errorData?.detail?.message || errorData?.detail;
+
+      // Erros de sessão → logout imediato
+      if (errorCode === 'DIFFERENT_SESSION' ||
+          errorCode === 'NO_SESSION' ||
+          errorCode === 'TIMEOUT' ||
+          errorCode === 'SESSION_CONFLICT' ||
+          errorCode === 'SESSION_TIMEOUT') {
         logger.critical('🚨 Sessão inválida na API clínica:', errorCode);
-        
-        // Obter URL de login ANTES de limpar
         const loginUrl = getLoginUrl();
-        
-        // Limpar sessão
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user_type');
         localStorage.removeItem('loja_slug');
         localStorage.removeItem('session_id');
         localStorage.removeItem('current_loja_id');
-        
         document.cookie = 'user_type=; path=/; max-age=0';
         document.cookie = 'loja_slug=; path=/; max-age=0';
-        
-        alert(error.response?.data?.message || 'Sua sessão expirou. Faça login novamente.');
+        alert(typeof errorMessage === 'string' ? errorMessage : 'Sua sessão expirou. Faça login novamente.');
         window.location.href = loginUrl;
+        return Promise.reject(error);
+      }
+
+      // Token expirado/inválido → tentar refresh e repetir a requisição
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+        try {
+          logger.log('🔄 [clinicaApiClient] Tentando refresh token...');
+          const refreshToken = localStorage.getItem('refresh_token');
+          const accessToken = localStorage.getItem('access_token');
+          if (!refreshToken) {
+            const loginUrl = getLoginUrl();
+            localStorage.clear();
+            window.location.href = loginUrl;
+            return Promise.reject(error);
+          }
+          const response = await axios.post(
+            `${API_URL}/api/auth/token/refresh/`,
+            { refresh: refreshToken },
+            { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }
+          );
+          const { access } = response.data;
+          localStorage.setItem('access_token', access);
+          logger.log('✅ [clinicaApiClient] Refresh OK, repetindo requisição');
+          originalRequest.headers.Authorization = `Bearer ${access}`;
+          return clinicaApiClient(originalRequest);
+        } catch (refreshError: any) {
+          logger.error('❌ [clinicaApiClient] Refresh falhou:', refreshError);
+          const errCode = refreshError.response?.data?.code;
+          const errMessage = refreshError.response?.data?.message || refreshError.response?.data?.detail;
+          if (errCode === 'DIFFERENT_SESSION' || errCode === 'NO_SESSION') {
+            alert(errMessage || 'Sua sessão foi encerrada. Faça login novamente.');
+          }
+          const loginUrl = getLoginUrl();
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user_type');
+          localStorage.removeItem('loja_slug');
+          localStorage.removeItem('session_id');
+          localStorage.removeItem('current_loja_id');
+          document.cookie = 'user_type=; path=/; max-age=0';
+          document.cookie = 'loja_slug=; path=/; max-age=0';
+          window.location.href = loginUrl;
+          return Promise.reject(refreshError);
+        }
       }
     }
+
     return Promise.reject(error);
   }
 );

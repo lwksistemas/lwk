@@ -7,13 +7,36 @@ from .models import (
 
 
 class ClienteSerializer(serializers.ModelSerializer):
+    """
+    Serializer de Cliente.
+
+    IMPORTANTE:
+    - O modelo usa LojaIsolationMixin, então existe o campo `loja_id`.
+    - No frontend nós **não** enviamos `loja_id` (ele vem do contexto da requisição,
+      via middleware e header X-Loja-ID).
+    - Se `loja_id` não for preenchido aqui, o DRF retorna 400:
+        {"loja_id": ["Este campo é obrigatório."]}
+    """
+
     total_agendamentos = serializers.SerializerMethodField()
     ultima_visita = serializers.SerializerMethodField()
 
     class Meta:
         model = Cliente
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        # loja_id é preenchido automaticamente a partir do contexto da loja
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+    def create(self, validated_data):
+        """
+        Garante que `loja_id` seja sempre associado a partir do contexto atual.
+        """
+        from tenants.middleware import get_current_loja_id
+
+        loja_id = get_current_loja_id()
+        if loja_id:
+            validated_data['loja_id'] = loja_id
+        return super().create(validated_data)
 
     def get_total_agendamentos(self, obj):
         return obj.agendamentos.count()
@@ -24,24 +47,54 @@ class ClienteSerializer(serializers.ModelSerializer):
 
 
 class ProfissionalSerializer(serializers.ModelSerializer):
+    """
+    Serializer de Profissional.
+
+    Também usa LojaIsolationMixin, logo precisa preencher `loja_id`
+    automaticamente para evitar erro 400 no cadastro.
+    """
+
     total_agendamentos = serializers.SerializerMethodField()
 
     class Meta:
         model = Profissional
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+    def create(self, validated_data):
+        from tenants.middleware import get_current_loja_id
+
+        loja_id = get_current_loja_id()
+        if loja_id:
+            validated_data['loja_id'] = loja_id
+        return super().create(validated_data)
 
     def get_total_agendamentos(self, obj):
         return obj.agendamentos.count()
 
 
 class ProcedimentoSerializer(serializers.ModelSerializer):
+    """
+    Serializer de Procedimento.
+
+    Também precisa receber `loja_id` automaticamente, pois o frontend
+    não deve enviar esse campo manualmente.
+    """
+
     total_protocolos = serializers.SerializerMethodField()
 
     class Meta:
         model = Procedimento
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+    def create(self, validated_data):
+        from tenants.middleware import get_current_loja_id
+
+        loja_id = get_current_loja_id()
+        if loja_id:
+            validated_data['loja_id'] = loja_id
+        return super().create(validated_data)
 
     def get_total_protocolos(self, obj):
         return obj.protocolos.filter(is_active=True).count()

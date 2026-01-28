@@ -69,11 +69,22 @@ export function middleware(request: NextRequest) {
     const slugMatch = pathname.match(/^\/loja\/([^\/]+)/);
     const requestedSlug = slugMatch ? slugMatch[1] : null;
     
+    // Rota de login da loja
     if (pathname.match(/^\/loja\/[^\/]+\/login$/)) {
       if (userType && userType !== 'loja') {
         return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
       }
       return NextResponse.next();
+    }
+    
+    // Rota de troca de senha (não tem slug no path, mas precisa de autenticação de loja)
+    if (pathname === '/loja/trocar-senha') {
+      // Permitir acesso se for usuário de loja autenticado
+      if (userType === 'loja') {
+        return NextResponse.next();
+      }
+      // Se não for loja, redirecionar para a home
+      return NextResponse.redirect(new URL('/', request.url));
     }
     
     if (userType && userType !== 'loja') {

@@ -10,7 +10,7 @@ export const apiClient = axios.create({
   },
 });
 
-// Cliente específico para APIs da clínica (sem autenticação)
+// Cliente específico para APIs da clínica (COM autenticação e X-Loja-ID)
 export const clinicaApiClient = axios.create({
   baseURL: `${API_URL}/api`,
   headers: {
@@ -18,15 +18,21 @@ export const clinicaApiClient = axios.create({
   },
 });
 
-// Interceptor para adicionar X-Loja-ID baseado no localStorage
+// Interceptor para adicionar X-Loja-ID e token JWT
 clinicaApiClient.interceptors.request.use(
   (config) => {
-    // Obter loja_id do localStorage (setado quando carrega as informações da loja)
     if (typeof window !== 'undefined') {
+      // Adicionar X-Loja-ID
       const lojaId = localStorage.getItem('current_loja_id');
       if (lojaId) {
         config.headers['X-Loja-ID'] = lojaId;
         logger.log('🏪 [clinicaApiClient] Adicionando X-Loja-ID:', lojaId);
+      }
+      
+      // Adicionar token JWT para validação de sessão
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
     }
     logger.log('API Request:', config.method?.toUpperCase(), config.url);
@@ -38,15 +44,44 @@ clinicaApiClient.interceptors.request.use(
   }
 );
 
+// Response interceptor para clinicaApiClient - trata erros de sessão
+clinicaApiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    // Verificar erros de sessão
+    if (error.response?.status === 401) {
+      const errorCode = error.response?.data?.code;
+      
+      if (errorCode === 'DIFFERENT_SESSION' || 
+          errorCode === 'NO_SESSION' || 
+          errorCode === 'TIMEOUT') {
+        
+        logger.critical('🚨 Sessão inválida na API clínica:', errorCode);
+        
+        // Limpar sessão e redirecionar
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user_type');
+        localStorage.removeItem('loja_slug');
+        localStorage.removeItem('session_id');
+        
+        document.cookie = 'user_type=; path=/; max-age=0';
+        document.cookie = 'loja_slug=; path=/; max-age=0';
+        
+        alert(error.response?.data?.message || 'Sua sessão expirou. Faça login novamente.');
+        window.location.href = '/';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Request interceptor - adiciona token JWT
 apiClient.interceptors.request.use(
   (config) => {
-    // Não enviar token para APIs da clínica (elas usam AllowAny)
-    if (!config.url?.includes('/clinica/')) {
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     logger.log('API Request:', config.method?.toUpperCase(), config.url);
     return config;

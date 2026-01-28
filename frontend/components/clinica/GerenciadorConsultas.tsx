@@ -55,6 +55,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   const [modoFullscreen, setModoFullscreen] = useState(false);
   const [showAgendaProfissional, setShowAgendaProfissional] = useState(false);
   const [startingConsultaId, setStartingConsultaId] = useState<number | null>(null);
+  const [finishingConsultaId, setFinishingConsultaId] = useState<number | null>(null);
 
   // Estados do formulário de evolução
   const [formEvolucao, setFormEvolucao] = useState({
@@ -187,15 +188,47 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   };
 
   const finalizarConsulta = async (consulta: Consulta, dadosPagamento: any) => {
+    if (finishingConsultaId === consulta.id) return;
     try {
-      await clinicaApiClient.post(`/clinica/consultas/${consulta.id}/finalizar_consulta/`, dadosPagamento);
+      setFinishingConsultaId(consulta.id);
+      const response = await clinicaApiClient.post(
+        `/clinica/consultas/${consulta.id}/finalizar_consulta/`,
+        dadosPagamento
+      );
+      const consultaAtualizada: Consulta = response.data;
       alert('✅ Consulta finalizada com sucesso!');
+      // Atualizar estado local imediatamente (evita re-clique com status antigo)
+      setConsultas((prev) => prev.map((c) => (c.id === consulta.id ? { ...c, ...consultaAtualizada } : c)));
       loadConsultas();
       // Sair do modo fullscreen quando finalizar consulta
       setModoFullscreen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao finalizar consulta:', error);
-      alert('❌ Erro ao finalizar consulta');
+      const status = error?.response?.status;
+      const serverMsg =
+        error?.response?.data?.error || error?.response?.data?.detail || error?.message;
+
+      // Caso comum: tentou finalizar uma consulta que não está mais "em_andamento"
+      if (status === 400 && typeof serverMsg === 'string' && serverMsg.toLowerCase().includes('andamento')) {
+        try {
+          const res = await clinicaApiClient.get(`/clinica/consultas/${consulta.id}/`);
+          const atual: Consulta = res.data;
+          setConsultas((prev) => prev.map((c) => (c.id === consulta.id ? { ...c, ...atual } : c)));
+          // Se já estiver concluída, apenas informar e fechar o fullscreen
+          if (atual?.status === 'concluida') {
+            alert('ℹ️ Esta consulta já foi finalizada.');
+            setModoFullscreen(false);
+            loadConsultas();
+            return;
+          }
+        } catch (_) {
+          // ignora
+        }
+      }
+
+      alert(`❌ Erro ao finalizar consulta${serverMsg ? `: ${serverMsg}` : ''}`);
+    } finally {
+      setFinishingConsultaId(null);
     }
   };
 
@@ -568,9 +601,10 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
                               };
                               finalizarConsulta(consulta, dadosPagamento);
                             }}
-                            className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+                            disabled={finishingConsultaId === consulta.id}
+                            className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            ✅ Finalizar Consulta
+                            {finishingConsultaId === consulta.id ? 'Finalizando...' : '✅ Finalizar Consulta'}
                           </button>
                         </>
                       )}

@@ -34,16 +34,15 @@ const INACTIVITY_TIMEOUT = 60 * 60 * 1000;
 let inactivityTimer: NodeJS.Timeout | null = null;
 let resetTimerFn: (() => void) | null = null;
 
-// Handler para logout ao fechar aba
-let visibilityChangeHandler: (() => void) | null = null;
-let logoutTimer: NodeJS.Timeout | null = null;
+// Handlers para logout ao fechar aba
+let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
+let pageHideHandler: ((e: PageTransitionEvent) => void) | null = null;
 
 // URL da API para logout via beacon
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Tempo de espera antes de fazer logout (ms)
-// Se a página voltar a ficar visível antes desse tempo, cancela o logout
-const LOGOUT_DELAY_MS = 1500;
+// Flag para saber se está no meio de navegação interna
+let navigationInProgress = false;
 
 /**
  * Limpa toda a sessão do usuário
@@ -65,17 +64,21 @@ function clearSession() {
  * sendBeacon é a única forma confiável de enviar dados ao fechar a página
  */
 function logoutViaBeacon() {
+  // Não fazer logout se navegação interna está em progresso
+  if (navigationInProgress) {
+    logger.log('🔄 Navegação interna em progresso - NÃO fazer logout');
+    return;
+  }
+  
   const accessToken = localStorage.getItem('access_token');
   
   if (accessToken) {
     logger.log('🚪 Logout via beacon (aba sendo fechada)');
     
     // Usar sendBeacon para garantir que a requisição seja enviada
-    // mesmo quando a página está sendo fechada
     const logoutUrl = `${API_URL}/api/auth/logout/beacon/`;
     const data = JSON.stringify({ token: accessToken });
     
-    // sendBeacon retorna true se a requisição foi aceita para envio
     const sent = navigator.sendBeacon(logoutUrl, new Blob([data], { type: 'application/json' }));
     
     if (sent) {
@@ -84,80 +87,57 @@ function logoutViaBeacon() {
       logger.error('❌ Falha ao enviar beacon de logout');
     }
     
-    // Limpar sessão localmente
     clearSession();
   }
 }
 
 /**
- * Cancela o timer de logout pendente
+ * Marca o início de uma navegação interna
+ * Deve ser chamado ANTES de qualquer window.location ou router.push
  */
-function cancelLogoutTimer() {
-  if (logoutTimer) {
-    clearTimeout(logoutTimer);
-    logoutTimer = null;
-    logger.log('🔄 Timer de logout cancelado (página voltou a ficar visível)');
-  }
+export function markInternalNavigation() {
+  navigationInProgress = true;
+  logger.log('🔄 Navegação interna marcada');
+  
+  // Auto-reset após 5 segundos (caso a navegação falhe)
+  setTimeout(() => {
+    navigationInProgress = false;
+  }, 5000);
 }
 
 /**
- * Inicia timer para logout
- * Se a página voltar a ficar visível, o timer é cancelado
+ * Registra os handlers para logout ao fechar aba
+ * Usa 'pagehide' que é o evento mais confiável para detectar fechamento
  */
-function startLogoutTimer() {
-  // Cancelar timer anterior se existir
-  cancelLogoutTimer();
+function registerCloseHandlers() {
+  unregisterCloseHandlers();
   
-  logger.log('⏱️ Iniciando timer de logout...');
-  
-  logoutTimer = setTimeout(() => {
-    logger.log('⏱️ Timer de logout expirou - fazendo logout');
-    logoutViaBeacon();
-  }, LOGOUT_DELAY_MS);
-}
-
-/**
- * Registra o handler para logout ao fechar aba
- * Usa 'visibilitychange' com timer para diferenciar fechamento de navegação
- */
-function registerVisibilityHandler() {
-  // Remover handler anterior se existir
-  unregisterVisibilityHandler();
-  
-  visibilityChangeHandler = () => {
-    if (document.visibilityState === 'hidden') {
-      // Página ficou invisível (minimizou, trocou de aba, ou fechou)
-      // Iniciar timer - se a página voltar antes, cancela
-      startLogoutTimer();
-    } else if (document.visibilityState === 'visible') {
-      // Página voltou a ficar visível - cancelar logout
-      cancelLogoutTimer();
+  // pagehide é mais confiável que beforeunload
+  pageHideHandler = (e: PageTransitionEvent) => {
+    // persisted === true significa que a página pode ser restaurada (back/forward cache)
+    // persisted === false significa que a página está sendo descarregada definitivamente
+    if (!e.persisted) {
+      logoutViaBeacon();
     }
   };
   
-  document.addEventListener('visibilitychange', visibilityChangeHandler);
-  logger.log('✅ Handler de logout ao fechar aba registrado (visibilitychange)');
+  window.addEventListener('pagehide', pageHideHandler);
+  logger.log('✅ Handler de logout ao fechar aba registrado');
 }
 
 /**
- * Remove o handler de logout ao fechar aba
+ * Remove os handlers de logout
  */
-function unregisterVisibilityHandler() {
-  cancelLogoutTimer();
-  
-  if (visibilityChangeHandler) {
-    document.removeEventListener('visibilitychange', visibilityChangeHandler);
-    visibilityChangeHandler = null;
-    logger.log('🗑️ Handler de logout ao fechar aba removido');
+function unregisterCloseHandlers() {
+  if (pageHideHandler) {
+    window.removeEventListener('pagehide', pageHideHandler);
+    pageHideHandler = null;
   }
-}
-
-/**
- * Função exportada para compatibilidade (não mais necessária)
- */
-export function markInternalNavigation() {
-  // Não mais necessário com a nova abordagem de timer
-  // Mantido para compatibilidade
+  if (beforeUnloadHandler) {
+    window.removeEventListener('beforeunload', beforeUnloadHandler);
+    beforeUnloadHandler = null;
+  }
+  logger.log('🗑️ Handlers de logout removidos');
 }
 
 export const authService = {
@@ -257,11 +237,14 @@ export const authService = {
         // Iniciar heartbeat para manter sessão ativa
         startHeartbeat();
         
-        // Registrar logout ao fechar aba (após um delay para evitar conflito com redirect)
+        // Registrar logout ao fechar aba (após delay para permitir redirect)
         setTimeout(() => {
-          registerVisibilityHandler();
-        }, 3000); // Aguarda 3 segundos após login para registrar
+          registerCloseHandlers();
+        }, 3000);
       }
+      
+      // Marcar navegação interna para o redirect que virá
+      markInternalNavigation();
       
       return response.data;
     } catch (error: any) {
@@ -291,8 +274,7 @@ export const authService = {
 
   async logout() {
     // Remover handler de fechar aba ANTES do logout
-    // para evitar duplo logout
-    unregisterVisibilityHandler();
+    unregisterCloseHandlers();
     
     try {
       await apiClient.post('/auth/logout/');
@@ -308,8 +290,9 @@ export const authService = {
   forceLogout(reason?: string) {
     logger.critical('FORCE LOGOUT:', reason);
     
-    // Remover handler de fechar aba
-    unregisterVisibilityHandler();
+    // Remover handlers e marcar navegação
+    unregisterCloseHandlers();
+    markInternalNavigation();
     
     clearSession();
     authService.stopInactivityMonitor();

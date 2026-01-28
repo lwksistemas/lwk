@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { authService } from '@/lib/auth';
+import { authService, markInternalNavigation } from '@/lib/auth';
 import apiClient from '@/lib/api-client';
 
 interface LojaInfo {
@@ -71,13 +71,13 @@ export default function LojaLoginDinamicoPage() {
       
       if (precisaTrocar) {
         console.log('✅ Redirecionando para trocar senha...');
-        // Redirecionar para trocar senha
+        markInternalNavigation();
         window.location.replace('/loja/trocar-senha');
         return;
       }
       
       console.log('✅ Redirecionando para dashboard...');
-      // Redirecionar para dashboard da loja específica
+      markInternalNavigation();
       window.location.replace(`/loja/${slug}/dashboard`);
     } catch (err: any) {
       console.error('❌ Erro no login:', err);

@@ -134,11 +134,18 @@ export const authService = {
       
       logger.log('✅ Sessão criada:', { userType, session_id, timeout: session_timeout_minutes });
       
-      // Iniciar monitoramento de inatividade
-      authService.startInactivityMonitor();
+      // Verificar se precisa trocar senha ANTES de iniciar heartbeat
+      const precisaTrocarSenha = response.data.precisa_trocar_senha === true;
+      logger.log('🔑 precisa_trocar_senha:', precisaTrocarSenha);
       
-      // Iniciar heartbeat para manter sessão ativa
-      startHeartbeat();
+      // Só iniciar heartbeat se NÃO precisar trocar senha
+      if (!precisaTrocarSenha) {
+        // Iniciar monitoramento de inatividade
+        authService.startInactivityMonitor();
+        
+        // Iniciar heartbeat para manter sessão ativa
+        startHeartbeat();
+      }
       
       return response.data;
     } catch (error: any) {

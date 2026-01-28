@@ -64,21 +64,21 @@ export default function LojaLoginDinamicoPage() {
       console.log('🔍 precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
       
       // Verificar se precisa trocar senha (vem na resposta do login)
+      const precisaTrocar = loginResponse.precisa_trocar_senha === true;
+      console.log('🔍 DEBUG - loginResponse completo:', JSON.stringify(loginResponse));
       console.log('🔍 DEBUG - precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
-      console.log('🔍 DEBUG - tipo:', typeof loginResponse.precisa_trocar_senha);
+      console.log('🔍 DEBUG - precisaTrocar (boolean):', precisaTrocar);
       
-      if (loginResponse.precisa_trocar_senha === true) {
+      if (precisaTrocar) {
         console.log('✅ Redirecionando para trocar senha...');
-        // Pequeno delay para garantir que cookies foram salvos
-        await new Promise(resolve => setTimeout(resolve, 100));
-        // Usar window.location.href para forçar redirecionamento completo
-        window.location.href = '/loja/trocar-senha';
+        // Redirecionar para trocar senha
+        window.location.replace('/loja/trocar-senha');
         return;
       }
       
       console.log('✅ Redirecionando para dashboard...');
       // Redirecionar para dashboard da loja específica
-      window.location.href = `/loja/${slug}/dashboard`;
+      window.location.replace(`/loja/${slug}/dashboard`);
     } catch (err: any) {
       console.error('❌ Erro no login:', err);
       setError(err.response?.data?.error || err.response?.data?.detail || 'Usuário ou senha incorretos');

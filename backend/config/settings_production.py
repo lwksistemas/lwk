@@ -144,6 +144,7 @@ CORS_ALLOWED_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-loja-id',  # Header customizado com ID único da loja
 ]
 
 # REST FRAMEWORK

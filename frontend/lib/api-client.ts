@@ -9,6 +9,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 20000, // 20s - evita espera infinita em rede/Heroku lentos
 });
 
 // Cliente específico para APIs da clínica (COM autenticação e X-Loja-ID)
@@ -138,9 +139,22 @@ clinicaApiClient.interceptors.response.use(
 // Request interceptor - adiciona token JWT
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      // ✅ Padronizar tenant headers para TODAS as APIs (todas as lojas/tipos)
+      const lojaId = localStorage.getItem('current_loja_id');
+      if (lojaId) {
+        config.headers['X-Loja-ID'] = lojaId;
+      } else {
+        const lojaSlug = localStorage.getItem('loja_slug');
+        if (lojaSlug) {
+          config.headers['X-Tenant-Slug'] = lojaSlug;
+        }
+      }
+
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     logger.log('API Request:', config.method?.toUpperCase(), config.url);
     return config;

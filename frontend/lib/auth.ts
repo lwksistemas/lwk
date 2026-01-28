@@ -29,10 +29,16 @@ export interface AuthTokens {
 
 export type UserType = 'superadmin' | 'suporte' | 'loja';
 
-// Configuração de timeout de inatividade (30 minutos)
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000;
+// Configuração de timeout de inatividade (60 minutos = 1 hora)
+const INACTIVITY_TIMEOUT = 60 * 60 * 1000;
 let inactivityTimer: NodeJS.Timeout | null = null;
 let resetTimerFn: (() => void) | null = null;
+
+// Handler para logout ao fechar aba
+let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
+
+// URL da API para logout via beacon
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 /**
  * Limpa toda a sessão do usuário
@@ -47,6 +53,61 @@ function clearSession() {
   
   document.cookie = 'user_type=; path=/; max-age=0';
   document.cookie = 'loja_slug=; path=/; max-age=0';
+}
+
+/**
+ * Faz logout via sendBeacon (funciona ao fechar aba)
+ * sendBeacon é a única forma confiável de enviar dados ao fechar a página
+ */
+function logoutViaBeacon() {
+  const accessToken = localStorage.getItem('access_token');
+  
+  if (accessToken) {
+    logger.log('🚪 Logout via beacon (aba sendo fechada)');
+    
+    // Usar sendBeacon para garantir que a requisição seja enviada
+    // mesmo quando a página está sendo fechada
+    const logoutUrl = `${API_URL}/api/auth/logout/beacon/`;
+    const data = JSON.stringify({ token: accessToken });
+    
+    // sendBeacon retorna true se a requisição foi aceita para envio
+    const sent = navigator.sendBeacon(logoutUrl, new Blob([data], { type: 'application/json' }));
+    
+    if (sent) {
+      logger.log('✅ Beacon de logout enviado');
+    } else {
+      logger.error('❌ Falha ao enviar beacon de logout');
+    }
+    
+    // Limpar sessão localmente
+    clearSession();
+  }
+}
+
+/**
+ * Registra o handler para logout ao fechar aba
+ */
+function registerBeforeUnloadHandler() {
+  // Remover handler anterior se existir
+  unregisterBeforeUnloadHandler();
+  
+  beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+    logoutViaBeacon();
+  };
+  
+  window.addEventListener('beforeunload', beforeUnloadHandler);
+  logger.log('✅ Handler de logout ao fechar aba registrado');
+}
+
+/**
+ * Remove o handler de logout ao fechar aba
+ */
+function unregisterBeforeUnloadHandler() {
+  if (beforeUnloadHandler) {
+    window.removeEventListener('beforeunload', beforeUnloadHandler);
+    beforeUnloadHandler = null;
+    logger.log('🗑️ Handler de logout ao fechar aba removido');
+  }
 }
 
 export const authService = {
@@ -140,11 +201,14 @@ export const authService = {
       
       // Só iniciar heartbeat se NÃO precisar trocar senha
       if (!precisaTrocarSenha) {
-        // Iniciar monitoramento de inatividade
+        // Iniciar monitoramento de inatividade (1 hora)
         authService.startInactivityMonitor();
         
         // Iniciar heartbeat para manter sessão ativa
         startHeartbeat();
+        
+        // Registrar logout ao fechar aba
+        registerBeforeUnloadHandler();
       }
       
       return response.data;
@@ -174,6 +238,10 @@ export const authService = {
   },
 
   async logout() {
+    // Remover handler de fechar aba ANTES do logout
+    // para evitar duplo logout
+    unregisterBeforeUnloadHandler();
+    
     try {
       await apiClient.post('/auth/logout/');
     } catch (error) {
@@ -182,14 +250,18 @@ export const authService = {
     
     clearSession();
     authService.stopInactivityMonitor();
-    stopHeartbeat(); // Parar heartbeat
+    stopHeartbeat();
   },
 
   forceLogout(reason?: string) {
     logger.critical('FORCE LOGOUT:', reason);
+    
+    // Remover handler de fechar aba
+    unregisterBeforeUnloadHandler();
+    
     clearSession();
     authService.stopInactivityMonitor();
-    stopHeartbeat(); // Parar heartbeat
+    stopHeartbeat();
     
     if (typeof window !== 'undefined') {
       window.location.href = '/';
@@ -205,8 +277,8 @@ export const authService = {
       }
       
       inactivityTimer = setTimeout(() => {
-        logger.log('⏰ Timeout de inatividade (30 minutos)');
-        authService.forceLogout('Sessão expirou por inatividade');
+        logger.log('⏰ Timeout de inatividade (1 hora)');
+        authService.forceLogout('Sessão expirou por inatividade (1 hora sem usar)');
       }, INACTIVITY_TIMEOUT);
     };
     

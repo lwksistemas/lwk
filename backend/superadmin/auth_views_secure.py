@@ -217,3 +217,59 @@ class SecureLogoutView(APIView):
             'error': 'Usuário não autenticado',
             'code': 'NOT_AUTHENTICATED'
         }, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class BeaconLogoutView(APIView):
+    """
+    View de logout via sendBeacon (ao fechar aba do navegador)
+    
+    Esta view é especial porque:
+    - Aceita requisições sem header de autenticação
+    - Recebe o token no body da requisição
+    - Usa navigator.sendBeacon() que não permite headers customizados
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        """
+        Logout via beacon - aceita token no body
+        """
+        from rest_framework_simplejwt.tokens import AccessToken
+        from rest_framework_simplejwt.exceptions import TokenError
+        
+        token_str = request.data.get('token')
+        
+        if not token_str:
+            logger.warning("🚪 Beacon logout: token não fornecido")
+            return Response({
+                'error': 'Token não fornecido',
+                'code': 'NO_TOKEN'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Decodificar token para obter user_id
+            token = AccessToken(token_str)
+            user_id = token['user_id']
+            
+            # Destruir sessão
+            SessionManager.destroy_session(user_id)
+            
+            logger.info(f"🚪 Beacon logout: Usuário {user_id} deslogado (aba fechada)")
+            
+            return Response({
+                'message': 'Logout via beacon realizado',
+                'code': 'BEACON_LOGOUT_SUCCESS'
+            }, status=status.HTTP_200_OK)
+            
+        except TokenError as e:
+            logger.warning(f"🚪 Beacon logout: token inválido - {e}")
+            return Response({
+                'error': 'Token inválido',
+                'code': 'INVALID_TOKEN'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"🚪 Beacon logout: erro - {e}")
+            return Response({
+                'error': 'Erro ao processar logout',
+                'code': 'LOGOUT_ERROR'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

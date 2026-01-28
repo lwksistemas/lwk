@@ -2,7 +2,7 @@
 URLs de autenticação para todos os tipos de usuário
 """
 from django.urls import path
-from superadmin.auth_views_secure import SecureLoginView, SecureLogoutView
+from superadmin.auth_views_secure import SecureLoginView, SecureLogoutView, BeaconLogoutView
 
 urlpatterns = [
     # Login por tipo de usuário
@@ -12,4 +12,7 @@ urlpatterns = [
     
     # Logout (comum para todos)
     path('logout/', SecureLogoutView.as_view(), name='logout'),
+    
+    # Logout via beacon (ao fechar aba do navegador)
+    path('logout/beacon/', BeaconLogoutView.as_view(), name='logout-beacon'),
 ]

@@ -108,20 +108,17 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     return (hh || 0) * 60 + (mm || 0);
   };
 
-  const bloqueioBloqueiaSlot = (bloqueio: BloqueioAgenda) => {
-    // Se não tem profissional, é global (bloqueia sempre).
-    // Se tem profissional, só bloqueia quando o calendário está filtrado por aquele profissional.
+  const bloqueioImpedeCriacaoNoContextoAtual = (bloqueio: BloqueioAgenda) => {
+    // Se não tem profissional, é global (impede sempre).
+    // Se tem profissional, só impede quando o calendário está filtrado por aquele profissional.
     if (!bloqueio.profissional) return true;
-    if (!profissionalSelecionado) return false; // "Todos": não bloquear criação (pois pode agendar com outro profissional)
+    if (!profissionalSelecionado) return false; // "Todos": não impedir criação (pois pode agendar com outro profissional)
     return profissionalSelecionado === String(bloqueio.profissional);
   };
 
   const getBloqueioAt = (dataStr: string, horario: string) => {
     const slotMin = timeToMinutes(horario) ?? 0;
     return bloqueios.find((b) => {
-      if (!bloqueioBloqueiaSlot(b) && !b.profissional) {
-        // redundante, mas mantém legível
-      }
       // Data dentro do intervalo (inclusive)
       if (dataStr < b.data_inicio || dataStr > b.data_fim) return false;
 
@@ -129,8 +126,9 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
       if (!b.horario_inicio) return true;
 
       const ini = timeToMinutes(b.horario_inicio);
-      const fim = timeToMinutes(b.horario_fim) ?? ini;
       if (ini === null) return true;
+      const fimRaw = timeToMinutes(b.horario_fim);
+      const fim = fimRaw === null ? ini : fimRaw;
       return slotMin >= ini && slotMin <= fim;
     });
   };
@@ -265,6 +263,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               const agendamento = agendamentosDoDia.find(ag => ag.horario.startsWith(horario.split(':')[0]));
               const dataStr = formatarData(dataAtual);
               const bloqueio = getBloqueioAt(dataStr, horario);
+              const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
               
               return (
                 <div key={horario} className="flex items-center border-b pb-2">
@@ -306,16 +305,30 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                           </div>
                         </div>
                       </div>
-                    ) : bloqueio && bloqueioBloqueiaSlot(bloqueio) ? (
+                    ) : bloqueio ? (
                       <div
-                        className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800"
+                        className={`p-3 rounded-lg border text-red-800 ${
+                          bloqueiaNoContexto ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
+                        }`}
                         title={bloqueio.observacoes || bloqueio.titulo}
                       >
-                        <div className="font-semibold">⛔ Bloqueado</div>
+                        <div className="font-semibold">
+                          {bloqueiaNoContexto ? '⛔ Bloqueado' : '⚠️ Bloqueio (profissional)'}
+                        </div>
                         <div className="text-xs">
                           {bloqueio.titulo}{' '}
                           {bloqueio.profissional_nome ? `(Prof: ${bloqueio.profissional_nome})` : ''}
                         </div>
+                        {!bloqueiaNoContexto && (
+                          <div className="mt-2">
+                            <button
+                              onClick={() => handleNovoAgendamento(formatarData(dataAtual), horario)}
+                              className="w-full p-2 text-left text-gray-500 hover:bg-white/60 rounded border border-dashed border-amber-300"
+                            >
+                              + Agendar com outro profissional
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <button
@@ -380,6 +393,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                   ag.data === dataStr && ag.horario.startsWith(horario.split(':')[0])
                 );
                 const bloqueio = getBloqueioAt(dataStr, horario);
+                const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
 
                 return (
                   <div key={i} className="p-2 border-l min-h-[60px]">
@@ -392,12 +406,16 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                         <div className="font-semibold truncate">{agendamento.cliente_nome}</div>
                         <div className="truncate">{agendamento.procedimento_nome}</div>
                       </div>
-                    ) : bloqueio && bloqueioBloqueiaSlot(bloqueio) ? (
+                    ) : bloqueio ? (
                       <div
-                        className="p-2 rounded text-xs border border-red-200 bg-red-50 text-red-800"
+                        className={`p-2 rounded text-xs border text-red-800 ${
+                          bloqueiaNoContexto ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
+                        }`}
                         title={bloqueio.observacoes || bloqueio.titulo}
                       >
-                        <div className="font-semibold truncate">⛔ Bloqueado</div>
+                        <div className="font-semibold truncate">
+                          {bloqueiaNoContexto ? '⛔ Bloqueado' : '⚠️ Bloqueio'}
+                        </div>
                         <div className="truncate">{bloqueio.titulo}</div>
                       </div>
                     ) : (
@@ -460,8 +478,9 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
 
               const dataStr = formatarData(new Date(ano, mes, dia));
               const agendamentosDoDia = agendamentos.filter(ag => ag.data === dataStr);
-              const bloqueiosDoDia = getBloqueiosDoDia(dataStr).filter(bloqueioBloqueiaSlot);
-              const diaBloqueadoTotal = bloqueiosDoDia.some((b) => !b.horario_inicio);
+              const bloqueiosDoDia = getBloqueiosDoDia(dataStr);
+              const bloqueiosQueImpedem = bloqueiosDoDia.filter(bloqueioImpedeCriacaoNoContextoAtual);
+              const diaBloqueadoTotal = bloqueiosQueImpedem.some((b) => !b.horario_inicio);
 
               return (
                 <div

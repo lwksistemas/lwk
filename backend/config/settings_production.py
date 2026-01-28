@@ -138,7 +138,8 @@ CORS_ALLOW_ALL_ORIGINS = False  # Manter segurança
 # Nota: O nome correto é CORS_ALLOW_HEADERS (não CORS_ALLOWED_HEADERS)
 from corsheaders.defaults import default_headers
 CORS_ALLOW_HEADERS = list(default_headers) + [
-    'x-loja-id',  # Header customizado com ID único da loja
+    'x-loja-id',  # ✅ Header customizado com ID único da loja
+    'x-tenant-slug',  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
 ]
 
 # REST FRAMEWORK

@@ -215,7 +215,7 @@ CORS_ALLOWED_ORIGINS = config(
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Nunca permitir todas as origens
 
-# Permitir header customizado X-Loja-ID
+# Permitir headers customizados X-Loja-ID e X-Tenant-Slug
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -227,6 +227,7 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
     'x-loja-id',  # ✅ Header customizado com ID único da loja
+    'x-tenant-slug',  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
 ]
 # Email Settings
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')

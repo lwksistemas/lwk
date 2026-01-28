@@ -106,7 +106,22 @@ class ProtocoloProcedimentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProtocoloProcedimento
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        # loja_id vem do contexto (middleware + LojaIsolationMixin)
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+    def create(self, validated_data):
+        """
+        Garante que `loja_id` seja preenchido automaticamente.
+
+        Sem isso o DRF retorna:
+        {"loja_id": ["Este campo é obrigatório."]}
+        """
+        from tenants.middleware import get_current_loja_id
+
+        loja_id = get_current_loja_id()
+        if loja_id:
+            validated_data['loja_id'] = loja_id
+        return super().create(validated_data)
 
 
 class AgendamentoSerializer(serializers.ModelSerializer):
@@ -119,7 +134,22 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agendamento
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        # loja_id é preenchido automaticamente pelo contexto da requisição
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+    def create(self, validated_data):
+        """
+        Preenche `loja_id` automaticamente a partir do contexto.
+
+        O modelo usa LojaIsolationMixin, então se `loja_id` não for
+        definido aqui o DRF gera erro 400 no cadastro.
+        """
+        from tenants.middleware import get_current_loja_id
+
+        loja_id = get_current_loja_id()
+        if loja_id:
+            validated_data['loja_id'] = loja_id
+        return super().create(validated_data)
 
 
 class EvolucaoPacienteSerializer(serializers.ModelSerializer):

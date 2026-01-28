@@ -16,6 +16,26 @@ interface Agendamento {
   observacoes?: string;
 }
 
+interface BloqueioAgenda {
+  id: number;
+  titulo: string;
+  tipo: string;
+  tipo_nome?: string;
+  data_inicio: string;
+  data_fim: string;
+  horario_inicio?: string | null;
+  horario_fim?: string | null;
+  profissional?: number | null;
+  profissional_nome?: string | null;
+  observacoes?: string;
+  is_active?: boolean;
+}
+
+interface Profissional {
+  id: number;
+  nome: string;
+}
+
 interface LojaInfo {
   id: number;
   nome: string;
@@ -28,6 +48,9 @@ type VisualizacaoTipo = 'dia' | 'semana' | 'mes';
 
 export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [bloqueios, setBloqueios] = useState<BloqueioAgenda[]>([]);
+  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [profissionalSelecionado, setProfissionalSelecionado] = useState<string>(''); // '' = todos
   const [visualizacao, setVisualizacao] = useState<VisualizacaoTipo>('semana');
   const [dataAtual, setDataAtual] = useState(new Date());
   const [loading, setLoading] = useState(true);
@@ -36,27 +59,84 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   const [dataHoraSelecionada, setDataHoraSelecionada] = useState<{data: string, horario: string} | null>(null);
 
   useEffect(() => {
+    carregarProfissionais();
+  }, []);
+
+  useEffect(() => {
     carregarAgendamentos();
-  }, [dataAtual, visualizacao]);
+  }, [dataAtual, visualizacao, profissionalSelecionado]);
+
+  const carregarProfissionais = async () => {
+    try {
+      const response = await clinicaApiClient.get('/clinica/profissionais/');
+      setProfissionais(response.data ?? []);
+    } catch (error) {
+      console.error('Erro ao carregar profissionais:', error);
+    }
+  };
 
   const carregarAgendamentos = async () => {
     setLoading(true);
     try {
       const { dataInicio, dataFim } = calcularPeriodo();
-      
-      const response = await clinicaApiClient.get('/clinica/agendamentos/calendario/', {
-        params: {
-          data_inicio: dataInicio,
-          data_fim: dataFim
-        }
-      });
-      
-      setAgendamentos(response.data);
+
+      const params: Record<string, string> = {
+        data_inicio: dataInicio,
+        data_fim: dataFim,
+      };
+      if (profissionalSelecionado) {
+        params.profissional_id = profissionalSelecionado;
+      }
+
+      const [agRes, blRes] = await Promise.all([
+        clinicaApiClient.get('/clinica/agendamentos/calendario/', { params }),
+        clinicaApiClient.get('/clinica/bloqueios/', { params }),
+      ]);
+
+      setAgendamentos(agRes.data ?? []);
+      setBloqueios(blRes.data ?? []);
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const timeToMinutes = (t?: string | null) => {
+    if (!t) return null;
+    const [hh, mm] = t.split(':').map((v) => parseInt(v, 10));
+    return (hh || 0) * 60 + (mm || 0);
+  };
+
+  const bloqueioBloqueiaSlot = (bloqueio: BloqueioAgenda) => {
+    // Se não tem profissional, é global (bloqueia sempre).
+    // Se tem profissional, só bloqueia quando o calendário está filtrado por aquele profissional.
+    if (!bloqueio.profissional) return true;
+    if (!profissionalSelecionado) return false; // "Todos": não bloquear criação (pois pode agendar com outro profissional)
+    return profissionalSelecionado === String(bloqueio.profissional);
+  };
+
+  const getBloqueioAt = (dataStr: string, horario: string) => {
+    const slotMin = timeToMinutes(horario) ?? 0;
+    return bloqueios.find((b) => {
+      if (!bloqueioBloqueiaSlot(b) && !b.profissional) {
+        // redundante, mas mantém legível
+      }
+      // Data dentro do intervalo (inclusive)
+      if (dataStr < b.data_inicio || dataStr > b.data_fim) return false;
+
+      // Se não informou horário, bloqueia o dia todo
+      if (!b.horario_inicio) return true;
+
+      const ini = timeToMinutes(b.horario_inicio);
+      const fim = timeToMinutes(b.horario_fim) ?? ini;
+      if (ini === null) return true;
+      return slotMin >= ini && slotMin <= fim;
+    });
+  };
+
+  const getBloqueiosDoDia = (dataStr: string) => {
+    return bloqueios.filter((b) => dataStr >= b.data_inicio && dataStr <= b.data_fim);
   };
 
   const calcularPeriodo = () => {
@@ -183,6 +263,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
           <div className="space-y-2">
             {horarios.map(horario => {
               const agendamento = agendamentosDoDia.find(ag => ag.horario.startsWith(horario.split(':')[0]));
+              const dataStr = formatarData(dataAtual);
+              const bloqueio = getBloqueioAt(dataStr, horario);
               
               return (
                 <div key={horario} className="flex items-center border-b pb-2">
@@ -222,6 +304,17 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                               🗑️
                             </button>
                           </div>
+                        </div>
+                      </div>
+                    ) : bloqueio && bloqueioBloqueiaSlot(bloqueio) ? (
+                      <div
+                        className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800"
+                        title={bloqueio.observacoes || bloqueio.titulo}
+                      >
+                        <div className="font-semibold">⛔ Bloqueado</div>
+                        <div className="text-xs">
+                          {bloqueio.titulo}{' '}
+                          {bloqueio.profissional_nome ? `(Prof: ${bloqueio.profissional_nome})` : ''}
                         </div>
                       </div>
                     ) : (
@@ -286,6 +379,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                 const agendamento = agendamentos.find(ag => 
                   ag.data === dataStr && ag.horario.startsWith(horario.split(':')[0])
                 );
+                const bloqueio = getBloqueioAt(dataStr, horario);
 
                 return (
                   <div key={i} className="p-2 border-l min-h-[60px]">
@@ -297,6 +391,14 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                       >
                         <div className="font-semibold truncate">{agendamento.cliente_nome}</div>
                         <div className="truncate">{agendamento.procedimento_nome}</div>
+                      </div>
+                    ) : bloqueio && bloqueioBloqueiaSlot(bloqueio) ? (
+                      <div
+                        className="p-2 rounded text-xs border border-red-200 bg-red-50 text-red-800"
+                        title={bloqueio.observacoes || bloqueio.titulo}
+                      >
+                        <div className="font-semibold truncate">⛔ Bloqueado</div>
+                        <div className="truncate">{bloqueio.titulo}</div>
                       </div>
                     ) : (
                       <button
@@ -358,17 +460,29 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
 
               const dataStr = formatarData(new Date(ano, mes, dia));
               const agendamentosDoDia = agendamentos.filter(ag => ag.data === dataStr);
+              const bloqueiosDoDia = getBloqueiosDoDia(dataStr).filter(bloqueioBloqueiaSlot);
+              const diaBloqueadoTotal = bloqueiosDoDia.some((b) => !b.horario_inicio);
 
               return (
                 <div
                   key={dia}
-                  className="h-24 border rounded-lg p-1 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleNovoAgendamento(dataStr, '09:00')}
+                  className={`h-24 border rounded-lg p-1 cursor-pointer ${
+                    diaBloqueadoTotal ? 'bg-red-50 border-red-200' : 'hover:bg-gray-50'
+                  }`}
+                  onClick={() => {
+                    if (diaBloqueadoTotal) return;
+                    handleNovoAgendamento(dataStr, '09:00');
+                  }}
                 >
                   <div className="text-sm font-semibold text-gray-900 mb-1">
                     {dia}
                   </div>
                   <div className="space-y-1">
+                    {bloqueiosDoDia.length > 0 && (
+                      <div className="text-[10px] px-1 py-0.5 rounded bg-red-100 text-red-800">
+                        ⛔ {bloqueiosDoDia.length} bloqueio(s)
+                      </div>
+                    )}
                     {agendamentosDoDia.slice(0, 2).map(agendamento => (
                       <div
                         key={agendamento.id}
@@ -410,6 +524,21 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
           </div>
 
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+            {/* Filtro de Profissional (para bloquear corretamente) */}
+            <select
+              value={profissionalSelecionado}
+              onChange={(e) => setProfissionalSelecionado(e.target.value)}
+              className="px-3 py-2 border rounded-lg text-sm bg-white"
+              title="Filtrar por profissional"
+            >
+              <option value="">Todos os profissionais</option>
+              {profissionais.map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {p.nome}
+                </option>
+              ))}
+            </select>
+
             {/* Botões de Visualização */}
             <div className="flex rounded-lg border">
               {(['dia', 'semana', 'mes'] as VisualizacaoTipo[]).map((tipo) => (

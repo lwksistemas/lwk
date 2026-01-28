@@ -115,8 +115,10 @@ class AgendamentoViewSet(BaseModelViewSet):
         if not data_inicio or not data_fim:
             return Response({'error': 'data_inicio e data_fim são obrigatórios'}, 
                           status=status.HTTP_400_BAD_REQUEST)
-        
-        agendamentos = self.queryset.filter(
+
+        # Usar get_queryset() para respeitar filtros (ex.: profissional_id) e isolamento por loja
+        qs = self.get_queryset()
+        agendamentos = qs.filter(
             data__gte=data_inicio,
             data__lte=data_fim
         ).order_by('data', 'horario')
@@ -249,14 +251,23 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        data_inicio = getattr(self.request, "query_params", self.request.GET).get('data_inicio')
-        data_fim = getattr(self.request, "query_params", self.request.GET).get('data_fim')
+        params = getattr(self.request, "query_params", self.request.GET)
+        data_inicio = params.get('data_inicio')
+        data_fim = params.get('data_fim')
+        profissional_id = params.get('profissional_id')
+
+        # Apenas bloqueios ativos
+        queryset = queryset.filter(is_active=True)
         
         if data_inicio and data_fim:
             queryset = queryset.filter(
                 data_inicio__lte=data_fim,
                 data_fim__gte=data_inicio
             )
+
+        # Se filtrar por profissional, incluir bloqueios do profissional E bloqueios globais (profissional null)
+        if profissional_id:
+            queryset = queryset.filter(Q(profissional_id=profissional_id) | Q(profissional__isnull=True))
         
         return queryset
 

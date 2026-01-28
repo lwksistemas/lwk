@@ -70,20 +70,20 @@ export default function LojaDashboardDinamicoPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-xl text-gray-600">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="text-lg sm:text-xl text-gray-600 dark:text-gray-400">Carregando...</div>
       </div>
     );
   }
 
   if (!lojaInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Erro ao carregar loja</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">Erro ao carregar loja</h2>
           <button
             onClick={() => router.push(`/loja/${slug}/login`)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-6 py-3 min-h-[44px] bg-blue-600 text-white rounded-md hover:bg-blue-700 active:scale-95 transition-transform"
           >
             Voltar para Login
           </button>
@@ -92,34 +92,38 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
+  // Descobrir se é clínica de estética para ajustar o layout (full width)
+  const tipoSlug = lojaInfo.tipo_loja_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const isClinicaEstetica = tipoSlug.includes('clinica') || tipoSlug.includes('estetica');
+
   // Renderizar dashboard específico por tipo de loja
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Header */}
       <nav 
         className="text-white shadow-lg"
         style={{ backgroundColor: lojaInfo.cor_primaria }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div>
-              <h1 className="text-2xl font-bold">{lojaInfo.nome}</h1>
-              <p className="text-sm opacity-90">{lojaInfo.tipo_loja_nome}</p>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row justify-between min-h-[56px] sm:h-16 py-2 sm:py-0 items-start sm:items-center gap-2 sm:gap-0">
+            <div className="w-full sm:w-auto">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{lojaInfo.nome}</h1>
+              <p className="text-xs sm:text-sm opacity-90">{lojaInfo.tipo_loja_nome}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 onClick={() => router.push(`/loja/${slug}/suporte`)}
-                className="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center gap-2"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
                 title="Ver meus chamados de suporte"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
-                Suporte
+                <span className="hidden xs:inline">Suporte</span>
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-red-600 hover:bg-red-700 rounded-md transition-colors text-sm active:scale-95"
               >
                 Sair
               </button>
@@ -129,8 +133,12 @@ export default function LojaDashboardDinamicoPage() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main
+        className={`${
+          isClinicaEstetica ? 'max-w-full' : 'max-w-7xl'
+        } mx-auto py-4 sm:py-6 px-2 sm:px-4 md:px-6 lg:px-8`}
+      >
+        <div className="py-2 sm:py-4">
           {/* Dashboard específico por tipo */}
           {renderDashboardPorTipo(lojaInfo)}
         </div>

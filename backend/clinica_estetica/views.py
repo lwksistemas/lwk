@@ -161,6 +161,38 @@ class AgendamentoViewSet(BaseModelViewSet):
         
         return Response(stats)
 
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        """Retorna estatísticas + próximos agendamentos em uma única resposta (menos round-trips)."""
+        hoje = date.today()
+        primeiro_dia_mes = hoje.replace(day=1)
+        qs = self.queryset
+
+        stats = {
+            'agendamentos_hoje': qs.filter(data=hoje).count(),
+            'agendamentos_mes': qs.filter(data__gte=primeiro_dia_mes, data__lte=hoje).count(),
+            'receita_mensal': float(
+                qs.filter(
+                    data__gte=primeiro_dia_mes,
+                    data__lte=hoje,
+                    status='concluido'
+                ).aggregate(total=Sum('valor'))['total'] or 0
+            ),
+            'clientes_ativos': Cliente.objects.filter(is_active=True).count(),
+            'procedimentos_ativos': Procedimento.objects.filter(is_active=True).count(),
+        }
+
+        agendamentos = qs.filter(
+            data__gte=hoje,
+            status__in=['agendado', 'confirmado']
+        ).order_by('data', 'horario')[:10]
+        serializer = self.get_serializer(agendamentos, many=True)
+
+        return Response({
+            'estatisticas': stats,
+            'proximos': serializer.data,
+        })
+
 
 class EvolucaoPacienteViewSet(BaseModelViewSet):
     queryset = EvolucaoPaciente.objects.select_related('cliente', 'profissional', 'agendamento')

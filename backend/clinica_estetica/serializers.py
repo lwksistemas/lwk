@@ -139,17 +139,32 @@ class AgendamentoSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """
-        Preenche `loja_id` automaticamente a partir do contexto.
+        Preenche `loja_id` e cria uma Consulta agendada para o agendamento.
 
-        O modelo usa LojaIsolationMixin, então se `loja_id` não for
-        definido aqui o DRF gera erro 400 no cadastro.
+        - LojaIsolationMixin exige loja_id.
+        - A "Lista de Consultas" exibe registros de Consulta; sem criar Consulta
+          aqui, os agendamentos não aparecem no Sistema de Consultas.
         """
         from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()
         if loja_id:
             validated_data['loja_id'] = loja_id
-        return super().create(validated_data)
+        agendamento = super().create(validated_data)
+
+        # Criar Consulta com status 'agendada' para aparecer no Sistema de Consultas
+        Consulta.objects.get_or_create(
+            agendamento=agendamento,
+            defaults={
+                'cliente_id': agendamento.cliente_id,
+                'profissional_id': agendamento.profissional_id,
+                'procedimento_id': agendamento.procedimento_id,
+                'status': 'agendada',
+                'valor_consulta': agendamento.valor,
+                'loja_id': loja_id or agendamento.loja_id,
+            }
+        )
+        return agendamento
 
 
 class EvolucaoPacienteSerializer(serializers.ModelSerializer):

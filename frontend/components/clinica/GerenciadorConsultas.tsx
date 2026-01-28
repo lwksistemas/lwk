@@ -96,8 +96,21 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   const loadConsultas = async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/consultas/');
-      setConsultas(response.data);
-      setConsultasFiltered(response.data);
+      let data = response.data ?? [];
+
+      // Se não houver consultas, sincronizar com agendamentos (cria Consulta para cada Agendamento)
+      if (Array.isArray(data) && data.length === 0) {
+        try {
+          await clinicaApiClient.post('/clinica/consultas/sync_from_agendamentos/');
+          const res = await clinicaApiClient.get('/clinica/consultas/');
+          data = res.data ?? [];
+        } catch (_) {
+          // ignora erro do sync (ex.: contexto sem loja)
+        }
+      }
+
+      setConsultas(data);
+      setConsultasFiltered(data);
     } catch (error) {
       console.error('Erro ao carregar consultas:', error);
     } finally {

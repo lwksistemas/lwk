@@ -346,6 +346,45 @@ class ConsultaViewSet(BaseModelViewSet):
         serializer = self.get_serializer(consulta)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['post'])
+    def sync_from_agendamentos(self, request):
+        """
+        Cria Consulta para Agendamentos que ainda não têm.
+        Assim agendamentos já cadastrados passam a aparecer na Lista de Consultas.
+        """
+        from tenants.middleware import get_current_loja_id
+
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'error': 'Contexto de loja não definido (X-Loja-ID)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Agendamentos da loja que ainda não têm Consulta
+        agendamentos_sem_consulta = Agendamento.objects.filter(
+            loja_id=loja_id
+        ).exclude(
+            id__in=Consulta.objects.values_list('agendamento_id', flat=True)
+        )
+
+        criadas = 0
+        for ag in agendamentos_sem_consulta:
+            Consulta.objects.get_or_create(
+                agendamento=ag,
+                defaults={
+                    'cliente_id': ag.cliente_id,
+                    'profissional_id': ag.profissional_id,
+                    'procedimento_id': ag.procedimento_id,
+                    'status': 'agendada',
+                    'valor_consulta': ag.valor,
+                    'loja_id': loja_id,
+                }
+            )
+            criadas += 1
+
+        return Response({'criadas': criadas, 'message': f'{criadas} consulta(s) criada(s) a partir de agendamentos.'})
+
     @action(detail=False, methods=['get'])
     def em_andamento(self, request):
         """Retorna consultas em andamento"""

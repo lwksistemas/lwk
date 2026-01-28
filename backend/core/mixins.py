@@ -2,12 +2,18 @@
 Mixins para Isolamento Automático de Dados por Loja
 
 Garante que cada loja só acesse seus próprios dados
+
+IMPORTANTE: Usa thread-local storage para isolamento entre requisições
 """
 from django.db import models
 from django.core.exceptions import ValidationError
+from threading import local
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Thread-local storage compartilhado (instância única no módulo)
+_thread_locals = local()
 
 
 class LojaIsolationManager(models.Manager):
@@ -72,24 +78,25 @@ class LojaIsolationMixin(models.Model):
     def save(self, *args, **kwargs):
         """
         Salva o objeto garantindo que loja_id está definido
+        
+        SEGURANÇA: Usa thread-local storage para obter loja_id do contexto
         """
-        from threading import local
-        _thread_locals = local()
+        # Importar do módulo correto que gerencia o contexto
+        from tenants.middleware import get_current_loja_id
+        
+        current_loja_id = get_current_loja_id()
         
         # Se loja_id não está definido, tentar obter do contexto
         if not self.loja_id:
-            loja_id = getattr(_thread_locals, 'current_loja_id', None)
-            
-            if loja_id:
-                self.loja_id = loja_id
-                logger.info(f"✅ [LojaIsolationMixin] loja_id={loja_id} adicionado automaticamente")
+            if current_loja_id:
+                self.loja_id = current_loja_id
+                logger.info(f"✅ [LojaIsolationMixin] loja_id={current_loja_id} adicionado automaticamente")
             else:
                 raise ValidationError({
                     'loja_id': 'loja_id é obrigatório e não foi encontrado no contexto'
                 })
         
         # Validar que não está tentando salvar em outra loja
-        current_loja_id = getattr(_thread_locals, 'current_loja_id', None)
         if current_loja_id and self.loja_id != current_loja_id:
             logger.critical(
                 f"🚨 VIOLAÇÃO DE SEGURANÇA: Tentativa de salvar objeto com loja_id={self.loja_id} "
@@ -104,11 +111,13 @@ class LojaIsolationMixin(models.Model):
     def delete(self, *args, **kwargs):
         """
         Deleta o objeto validando que pertence à loja do contexto
-        """
-        from threading import local
-        _thread_locals = local()
         
-        current_loja_id = getattr(_thread_locals, 'current_loja_id', None)
+        SEGURANÇA: Impede exclusão de dados de outras lojas
+        """
+        # Importar do módulo correto que gerencia o contexto
+        from tenants.middleware import get_current_loja_id
+        
+        current_loja_id = get_current_loja_id()
         
         if current_loja_id and self.loja_id != current_loja_id:
             logger.critical(
@@ -126,6 +135,9 @@ class LojaContextMiddleware:
     """
     Middleware que injeta loja_id no contexto da thread
     
+    NOTA: Este middleware é um fallback. O TenantMiddleware em tenants/middleware.py
+    é o principal responsável por definir o contexto.
+    
     Adicionar em settings.py:
         MIDDLEWARE = [
             ...
@@ -137,27 +149,17 @@ class LojaContextMiddleware:
         self.get_response = get_response
     
     def __call__(self, request):
-        from threading import local
-        _thread_locals = local()
+        from tenants.middleware import set_current_loja_id, get_current_loja_id
         
-        # Limpar contexto anterior
-        if hasattr(_thread_locals, 'current_loja_id'):
-            delattr(_thread_locals, 'current_loja_id')
-        
-        # Se usuário está autenticado, tentar obter loja_id
-        if request.user and request.user.is_authenticated:
+        # Se ainda não há contexto definido e usuário está autenticado
+        if not get_current_loja_id() and request.user and request.user.is_authenticated:
             loja_id = self._get_loja_id_from_user(request.user)
             
             if loja_id:
-                _thread_locals.current_loja_id = loja_id
-                logger.debug(f"🔒 [LojaContextMiddleware] Contexto definido: loja_id={loja_id}")
+                set_current_loja_id(loja_id)
+                logger.debug(f"🔒 [LojaContextMiddleware] Contexto definido via usuário: loja_id={loja_id}")
         
         response = self.get_response(request)
-        
-        # Limpar contexto após requisição
-        if hasattr(_thread_locals, 'current_loja_id'):
-            delattr(_thread_locals, 'current_loja_id')
-        
         return response
     
     def _get_loja_id_from_user(self, user):
@@ -185,9 +187,8 @@ def set_loja_context(loja_id):
         set_loja_context(loja_id=1)
         # Agora todas as queries serão filtradas por loja_id=1
     """
-    from threading import local
-    _thread_locals = local()
-    _thread_locals.current_loja_id = loja_id
+    from tenants.middleware import set_current_loja_id
+    set_current_loja_id(loja_id)
     logger.info(f"🔒 Contexto de loja definido manualmente: loja_id={loja_id}")
 
 
@@ -195,17 +196,16 @@ def clear_loja_context():
     """
     Limpa o contexto de loja
     """
-    from threading import local
-    _thread_locals = local()
-    if hasattr(_thread_locals, 'current_loja_id'):
-        delattr(_thread_locals, 'current_loja_id')
+    from tenants.middleware import set_current_loja_id
+    set_current_loja_id(None)
     logger.info("🔓 Contexto de loja limpo")
 
 
 def get_current_loja_id():
     """
     Retorna o loja_id do contexto atual
+    
+    NOTA: Delega para tenants.middleware para garantir consistência
     """
-    from threading import local
-    _thread_locals = local()
-    return getattr(_thread_locals, 'current_loja_id', None)
+    from tenants.middleware import get_current_loja_id as tenant_get_loja_id
+    return tenant_get_loja_id()

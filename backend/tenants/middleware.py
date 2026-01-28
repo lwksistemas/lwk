@@ -73,7 +73,11 @@ class TenantMiddleware:
         return response
     
     def _get_tenant_slug(self, request):
-        """Extrai o slug do tenant da requisição"""
+        """
+        Extrai o slug do tenant da requisição
+        
+        SEGURANÇA: Valida que o usuário autenticado pertence à loja solicitada
+        """
         import logging
         logger = logging.getLogger(__name__)
         
@@ -85,6 +89,19 @@ class TenantMiddleware:
             try:
                 from superadmin.models import Loja
                 loja = Loja.objects.get(id=int(loja_id))
+                
+                # SEGURANÇA: Validar que o usuário pertence a esta loja
+                if hasattr(request, 'user') and request.user.is_authenticated:
+                    # SuperAdmin pode acessar qualquer loja (apenas para endpoints específicos)
+                    if not request.user.is_superuser:
+                        # Verificar se é o owner da loja
+                        if loja.owner_id != request.user.id:
+                            logger.critical(
+                                f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.id} tentou "
+                                f"acessar loja {loja_id} que pertence ao usuário {loja.owner_id}"
+                            )
+                            return None  # Bloqueia acesso
+                
                 return loja.slug
             except (Loja.DoesNotExist, ValueError):
                 pass
@@ -92,6 +109,19 @@ class TenantMiddleware:
         # 2. Tentar pegar do header X-Tenant-Slug (fallback)
         tenant_slug = request.headers.get('X-Tenant-Slug')
         if tenant_slug:
+            # Validar que usuário pertence a esta loja
+            if hasattr(request, 'user') and request.user.is_authenticated and not request.user.is_superuser:
+                try:
+                    from superadmin.models import Loja
+                    loja = Loja.objects.get(slug=tenant_slug)
+                    if loja.owner_id != request.user.id:
+                        logger.critical(
+                            f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.id} tentou "
+                            f"acessar loja {tenant_slug} via X-Tenant-Slug"
+                        )
+                        return None
+                except Loja.DoesNotExist:
+                    pass
             return tenant_slug
         
         # 3. Tentar pegar do parâmetro de query

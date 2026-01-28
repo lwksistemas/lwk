@@ -35,10 +35,15 @@ let inactivityTimer: NodeJS.Timeout | null = null;
 let resetTimerFn: (() => void) | null = null;
 
 // Handler para logout ao fechar aba
-let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
+let visibilityChangeHandler: (() => void) | null = null;
+let logoutTimer: NodeJS.Timeout | null = null;
 
 // URL da API para logout via beacon
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Tempo de espera antes de fazer logout (ms)
+// Se a página voltar a ficar visível antes desse tempo, cancela o logout
+const LOGOUT_DELAY_MS = 1500;
 
 /**
  * Limpa toda a sessão do usuário
@@ -85,29 +90,74 @@ function logoutViaBeacon() {
 }
 
 /**
- * Registra o handler para logout ao fechar aba
+ * Cancela o timer de logout pendente
  */
-function registerBeforeUnloadHandler() {
-  // Remover handler anterior se existir
-  unregisterBeforeUnloadHandler();
+function cancelLogoutTimer() {
+  if (logoutTimer) {
+    clearTimeout(logoutTimer);
+    logoutTimer = null;
+    logger.log('🔄 Timer de logout cancelado (página voltou a ficar visível)');
+  }
+}
+
+/**
+ * Inicia timer para logout
+ * Se a página voltar a ficar visível, o timer é cancelado
+ */
+function startLogoutTimer() {
+  // Cancelar timer anterior se existir
+  cancelLogoutTimer();
   
-  beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+  logger.log('⏱️ Iniciando timer de logout...');
+  
+  logoutTimer = setTimeout(() => {
+    logger.log('⏱️ Timer de logout expirou - fazendo logout');
     logoutViaBeacon();
+  }, LOGOUT_DELAY_MS);
+}
+
+/**
+ * Registra o handler para logout ao fechar aba
+ * Usa 'visibilitychange' com timer para diferenciar fechamento de navegação
+ */
+function registerVisibilityHandler() {
+  // Remover handler anterior se existir
+  unregisterVisibilityHandler();
+  
+  visibilityChangeHandler = () => {
+    if (document.visibilityState === 'hidden') {
+      // Página ficou invisível (minimizou, trocou de aba, ou fechou)
+      // Iniciar timer - se a página voltar antes, cancela
+      startLogoutTimer();
+    } else if (document.visibilityState === 'visible') {
+      // Página voltou a ficar visível - cancelar logout
+      cancelLogoutTimer();
+    }
   };
   
-  window.addEventListener('beforeunload', beforeUnloadHandler);
-  logger.log('✅ Handler de logout ao fechar aba registrado');
+  document.addEventListener('visibilitychange', visibilityChangeHandler);
+  logger.log('✅ Handler de logout ao fechar aba registrado (visibilitychange)');
 }
 
 /**
  * Remove o handler de logout ao fechar aba
  */
-function unregisterBeforeUnloadHandler() {
-  if (beforeUnloadHandler) {
-    window.removeEventListener('beforeunload', beforeUnloadHandler);
-    beforeUnloadHandler = null;
+function unregisterVisibilityHandler() {
+  cancelLogoutTimer();
+  
+  if (visibilityChangeHandler) {
+    document.removeEventListener('visibilitychange', visibilityChangeHandler);
+    visibilityChangeHandler = null;
     logger.log('🗑️ Handler de logout ao fechar aba removido');
   }
+}
+
+/**
+ * Função exportada para compatibilidade (não mais necessária)
+ */
+export function markInternalNavigation() {
+  // Não mais necessário com a nova abordagem de timer
+  // Mantido para compatibilidade
 }
 
 export const authService = {
@@ -207,8 +257,10 @@ export const authService = {
         // Iniciar heartbeat para manter sessão ativa
         startHeartbeat();
         
-        // Registrar logout ao fechar aba
-        registerBeforeUnloadHandler();
+        // Registrar logout ao fechar aba (após um delay para evitar conflito com redirect)
+        setTimeout(() => {
+          registerVisibilityHandler();
+        }, 3000); // Aguarda 3 segundos após login para registrar
       }
       
       return response.data;
@@ -240,7 +292,7 @@ export const authService = {
   async logout() {
     // Remover handler de fechar aba ANTES do logout
     // para evitar duplo logout
-    unregisterBeforeUnloadHandler();
+    unregisterVisibilityHandler();
     
     try {
       await apiClient.post('/auth/logout/');
@@ -257,7 +309,7 @@ export const authService = {
     logger.critical('FORCE LOGOUT:', reason);
     
     // Remover handler de fechar aba
-    unregisterBeforeUnloadHandler();
+    unregisterVisibilityHandler();
     
     clearSession();
     authService.stopInactivityMonitor();

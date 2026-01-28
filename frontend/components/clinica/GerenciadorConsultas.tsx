@@ -54,6 +54,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   const [showFormEvolucao, setShowFormEvolucao] = useState(false);
   const [modoFullscreen, setModoFullscreen] = useState(false);
   const [showAgendaProfissional, setShowAgendaProfissional] = useState(false);
+  const [startingConsultaId, setStartingConsultaId] = useState<number | null>(null);
 
   // Estados do formulário de evolução
   const [formEvolucao, setFormEvolucao] = useState({
@@ -137,16 +138,51 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   };
 
   const iniciarConsulta = async (consulta: Consulta) => {
+    if (startingConsultaId === consulta.id) return;
     try {
-      await clinicaApiClient.post(`/clinica/consultas/${consulta.id}/iniciar_consulta/`);
+      setStartingConsultaId(consulta.id);
+      const response = await clinicaApiClient.post(`/clinica/consultas/${consulta.id}/iniciar_consulta/`);
+      const consultaAtualizada: Consulta = response.data;
       alert('✅ Consulta iniciada com sucesso!');
-      loadConsultas();
-      // Ativar modo fullscreen quando iniciar consulta
+      // Atualizar estado local imediatamente (evita clique duplo em "Iniciar")
+      setConsultas((prev) => prev.map((c) => (c.id === consulta.id ? { ...c, ...consultaAtualizada } : c)));
+
+      // Abrir a "página" do profissional: modo fullscreen + evolução
+      setConsultaSelecionada(consultaAtualizada);
       setModoFullscreen(true);
-      setActiveTab('consultas');
-    } catch (error) {
+      setActiveTab('evolucao');
+      setShowFormEvolucao(true);
+      loadEvolucoes(consultaAtualizada.id);
+
+      // Recarregar em background para garantir consistência
+      loadConsultas();
+    } catch (error: any) {
       console.error('Erro ao iniciar consulta:', error);
-      alert('❌ Erro ao iniciar consulta');
+
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.error || error?.response?.data?.detail || error?.message;
+
+      // Caso comum: usuário clicou em "Iniciar" numa consulta que já não está mais agendada
+      if (status === 400 && typeof serverMsg === 'string' && serverMsg.toLowerCase().includes('agendada')) {
+        try {
+          const res = await clinicaApiClient.get(`/clinica/consultas/${consulta.id}/`);
+          const atual: Consulta = res.data;
+          // Se já está em andamento, apenas abrir a tela correta
+          if (atual?.status === 'em_andamento') {
+            setConsultaSelecionada(atual);
+            setModoFullscreen(true);
+            setActiveTab('evolucao');
+            loadEvolucoes(atual.id);
+            return;
+          }
+        } catch (_) {
+          // ignora
+        }
+      }
+
+      alert(`❌ Erro ao iniciar consulta${serverMsg ? `: ${serverMsg}` : ''}`);
+    } finally {
+      setStartingConsultaId(null);
     }
   };
 
@@ -500,10 +536,11 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
                       {consulta.status === 'agendada' && (
                         <button
                           onClick={() => iniciarConsulta(consulta)}
-                          className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90 font-medium"
+                          disabled={startingConsultaId === consulta.id}
+                          className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                           style={{ backgroundColor: loja.cor_primaria }}
                         >
-                          ▶️ Iniciar Consulta
+                          {startingConsultaId === consulta.id ? 'Iniciando...' : '▶️ Iniciar Consulta'}
                         </button>
                       )}
                       
@@ -514,7 +551,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
                               setConsultaSelecionada(consulta);
                               loadEvolucoes(consulta.id);
                               setModoFullscreen(true);
-                              setActiveTab('consultas');
+                              setActiveTab('evolucao');
                             }}
                             className="px-4 py-2 text-sm bg-yellow-600 text-white rounded-md hover:bg-yellow-700 font-medium"
                           >

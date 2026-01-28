@@ -111,6 +111,7 @@ apiClient.interceptors.response.use(
         try {
           logger.log('🔄 Tentando refresh token...');
           const refreshToken = localStorage.getItem('refresh_token');
+          const accessToken = localStorage.getItem('access_token');
           
           if (!refreshToken) {
             logger.log('❌ Sem refresh token');
@@ -119,9 +120,14 @@ apiClient.interceptors.response.use(
             return Promise.reject(error);
           }
           
-          const response = await axios.post(`${API_URL}/api/auth/token/refresh/`, {
-            refresh: refreshToken,
-          });
+          // Enviar access token atual para validação de sessão única
+          const response = await axios.post(
+            `${API_URL}/api/auth/token/refresh/`, 
+            { refresh: refreshToken },
+            { 
+              headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}
+            }
+          );
 
           const { access } = response.data;
           localStorage.setItem('access_token', access);
@@ -129,10 +135,27 @@ apiClient.interceptors.response.use(
           logger.log('✅ Refresh token bem-sucedido');
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return apiClient(originalRequest);
-        } catch (refreshError) {
+        } catch (refreshError: any) {
           logger.error('❌ Refresh token falhou:', refreshError);
+          
+          // Verificar se é erro de sessão (outro login detectado)
+          const errCode = refreshError.response?.data?.code;
+          const errMessage = refreshError.response?.data?.message || refreshError.response?.data?.detail;
+          
+          if (errCode === 'DIFFERENT_SESSION' || errCode === 'NO_SESSION') {
+            logger.critical('🚫 Sessão invalidada - outro login detectado');
+            alert(errMessage || 'Sua sessão foi encerrada porque outro login foi detectado.');
+          }
+          
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user_type');
+          localStorage.removeItem('loja_slug');
+          localStorage.removeItem('session_id');
+          
+          document.cookie = 'user_type=; path=/; max-age=0';
+          document.cookie = 'loja_slug=; path=/; max-age=0';
+          
           window.location.href = '/';
           return Promise.reject(refreshError);
         }

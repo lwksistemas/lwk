@@ -1,18 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 
-export default function TrocarSenhaPage() {
+export default function TrocarSenhaLojaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingInfo, setLoadingInfo] = useState(true);
+  const [lojaId, setLojaId] = useState<number | null>(null);
+  const [lojaSlug, setLojaSlug] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nova_senha: '',
     confirmar_senha: '',
   });
   const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    loadLojaInfo();
+  }, []);
+
+  const loadLojaInfo = async () => {
+    try {
+      const slug = authService.getLojaSlug();
+      if (!slug) {
+        setErro('Informações da loja não encontradas. Faça login novamente.');
+        setTimeout(() => router.push('/'), 2000);
+        return;
+      }
+      setLojaSlug(slug);
+
+      const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
+      setLojaId(response.data.id);
+    } catch (error) {
+      console.error('Erro ao carregar informações da loja:', error);
+      setErro('Erro ao carregar informações. Faça login novamente.');
+      setTimeout(() => router.push('/'), 2000);
+    } finally {
+      setLoadingInfo(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -26,7 +54,6 @@ export default function TrocarSenhaPage() {
     e.preventDefault();
     setErro('');
 
-    // Validações
     if (formData.nova_senha.length < 6) {
       setErro('A senha deve ter no mínimo 6 caracteres');
       return;
@@ -37,31 +64,20 @@ export default function TrocarSenhaPage() {
       return;
     }
 
+    if (!lojaId) {
+      setErro('ID da loja não encontrado');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Buscar informações da loja do localStorage (salvas no login)
-      const lojaSlug = authService.getLojaSlug();
-      
-      if (!lojaSlug) {
-        setErro('Informações da loja não encontradas. Faça login novamente.');
-        router.push('/');
-        return;
-      }
-
-      // Buscar ID da loja
-      const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${lojaSlug}`);
-      const lojaId = lojaResponse.data.id;
-
-      // Alterar senha
       await apiClient.post(`/superadmin/lojas/${lojaId}/alterar_senha_primeiro_acesso/`, {
         nova_senha: formData.nova_senha,
         confirmar_senha: formData.confirmar_senha,
       });
 
-      alert('✅ Senha alterada com sucesso! Você será redirecionado para o dashboard.');
-      
-      // Redirecionar para o dashboard da loja específica
+      alert('✅ Senha alterada com sucesso!');
       router.push(`/loja/${lojaSlug}/dashboard`);
     } catch (error: any) {
       console.error('Erro ao alterar senha:', error);
@@ -70,6 +86,14 @@ export default function TrocarSenhaPage() {
       setLoading(false);
     }
   };
+
+  if (loadingInfo) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
+        <div className="text-gray-600">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
@@ -98,70 +122,66 @@ export default function TrocarSenhaPage() {
               </svg>
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
-                Primeiro Acesso
-              </h3>
-              <div className="mt-2 text-sm text-yellow-700">
-                <p>
-                  Esta é sua senha provisória. Por favor, escolha uma senha forte e única para proteger sua conta.
-                </p>
-              </div>
+              <h3 className="text-sm font-medium text-yellow-800">Primeiro Acesso</h3>
+              <p className="mt-1 text-sm text-yellow-700">
+                Esta é sua senha provisória. Escolha uma senha forte e única.
+              </p>
             </div>
           </div>
         </div>
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nova Senha *
-            </label>
-            <input
-              type="password"
-              name="nova_senha"
-              value={formData.nova_senha}
-              onChange={handleChange}
-              required
-              minLength={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              placeholder="Mínimo 6 caracteres"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirmar Nova Senha *
-            </label>
-            <input
-              type="password"
-              name="confirmar_senha"
-              value={formData.confirmar_senha}
-              onChange={handleChange}
-              required
-              minLength={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              placeholder="Digite a senha novamente"
-            />
-          </div>
-
-          {/* Erro */}
           {erro && (
             <div className="bg-red-50 border border-red-200 rounded-md p-3">
               <p className="text-sm text-red-800">{erro}</p>
             </div>
           )}
 
+          <div>
+            <label htmlFor="nova_senha" className="block text-sm font-medium text-gray-700 mb-2">
+              Nova Senha *
+            </label>
+            <input
+              id="nova_senha"
+              name="nova_senha"
+              type="password"
+              required
+              minLength={6}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              value={formData.nova_senha}
+              onChange={handleChange}
+              placeholder="Mínimo 6 caracteres"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="confirmar_senha" className="block text-sm font-medium text-gray-700 mb-2">
+              Confirmar Nova Senha *
+            </label>
+            <input
+              id="confirmar_senha"
+              name="confirmar_senha"
+              type="password"
+              required
+              minLength={6}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              value={formData.confirmar_senha}
+              onChange={handleChange}
+              placeholder="Digite a senha novamente"
+            />
+          </div>
+
           {/* Dicas de senha */}
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
             <h4 className="text-sm font-medium text-blue-800 mb-2">
-              💡 Dicas para uma senha forte:
+              Dicas para uma senha forte:
             </h4>
             <ul className="text-xs text-blue-700 space-y-1">
               <li>• Use no mínimo 6 caracteres (recomendado: 8+)</li>
               <li>• Combine letras maiúsculas e minúsculas</li>
               <li>• Inclua números e símbolos</li>
-              <li>• Não use informações pessoais óbvias</li>
-              <li>• Não reutilize senhas de outros sites</li>
+              <li>• Não use informações pessoais</li>
             </ul>
           </div>
 
@@ -169,7 +189,7 @@ export default function TrocarSenhaPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
           >
             {loading ? 'Alterando...' : 'Alterar Senha e Continuar'}
           </button>
@@ -178,7 +198,7 @@ export default function TrocarSenhaPage() {
         {/* Footer */}
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500">
-            Após alterar a senha, você será redirecionado para o dashboard da sua loja.
+            Após alterar a senha, você será redirecionado para o dashboard.
           </p>
         </div>
       </div>

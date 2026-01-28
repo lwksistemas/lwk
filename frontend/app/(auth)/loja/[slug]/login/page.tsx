@@ -64,8 +64,13 @@ export default function LojaLoginDinamicoPage() {
       console.log('🔍 precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
       
       // Verificar se precisa trocar senha (vem na resposta do login)
+      console.log('🔍 DEBUG - precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
+      console.log('🔍 DEBUG - tipo:', typeof loginResponse.precisa_trocar_senha);
+      
       if (loginResponse.precisa_trocar_senha === true) {
         console.log('✅ Redirecionando para trocar senha...');
+        // Pequeno delay para garantir que cookies foram salvos
+        await new Promise(resolve => setTimeout(resolve, 100));
         // Usar window.location.href para forçar redirecionamento completo
         window.location.href = '/loja/trocar-senha';
         return;

@@ -19,6 +19,8 @@ interface CrudModalProps {
   icon?: string;
   children: React.ReactNode;
   maxWidth?: 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+  /** Modal em tela cheia, sem espaço em branco lateral */
+  fullScreen?: boolean;
 }
 
 const maxWidthClasses = {
@@ -37,6 +39,7 @@ export function CrudModal({
   icon = '📋',
   children,
   maxWidth = '3xl',
+  fullScreen = false,
 }: CrudModalProps) {
   // Fechar com ESC e bloquear scroll
   useEffect(() => {
@@ -52,10 +55,34 @@ export function CrudModal({
     };
   }, [onClose]);
 
-  // Fechar clicando no backdrop
+  // Fechar clicando no backdrop (apenas quando não for fullScreen)
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+    if (!fullScreen && e.target === e.currentTarget) onClose();
   };
+
+  if (fullScreen) {
+    return (
+      <div className="fixed inset-0 bg-white dark:bg-gray-900 z-50 flex flex-col animate-fade-in">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm">
+          <h3 className="text-lg sm:text-xl md:text-2xl font-bold dark:text-white truncate" style={{ color: loja.cor_primaria }}>
+            {icon} {title}
+          </h3>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0
+                       text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200
+                       hover:bg-gray-100 dark:hover:bg-gray-700
+                       transition-colors text-xl font-bold active:scale-90"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-white dark:bg-gray-800">
+          {children}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

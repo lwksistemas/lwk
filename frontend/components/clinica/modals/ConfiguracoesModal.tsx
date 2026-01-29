@@ -91,7 +91,7 @@ export function ConfiguracoesModal({ loja, onClose }: ConfiguracoesModalProps) {
   };
 
   return (
-    <CrudModal loja={loja} onClose={onClose} title="Configurações da Loja" icon="⚙️">
+    <CrudModal loja={loja} onClose={onClose} title="Configurações da Loja" icon="⚙️" fullScreen>
       {loading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: loja.cor_primaria }}></div>

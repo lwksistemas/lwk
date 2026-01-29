@@ -178,7 +178,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
   }
 
   return (
-    <CrudModal loja={loja} onClose={onClose} title="Gerenciar Protocolos de Procedimentos" icon="📋" maxWidth="4xl">
+    <CrudModal loja={loja} onClose={onClose} title="Gerenciar Protocolos de Procedimentos" icon="📋" maxWidth="4xl" fullScreen>
       {loading ? (
         <div className="text-center py-8">Carregando protocolos...</div>
       ) : protocolos.length === 0 ? (

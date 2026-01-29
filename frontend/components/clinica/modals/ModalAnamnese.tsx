@@ -275,7 +275,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
 
   // Lista principal com tabs
   return (
-    <CrudModal loja={loja} onClose={onClose} title="Sistema de Anamnese" icon="📝" maxWidth="4xl">
+    <CrudModal loja={loja} onClose={onClose} title="Sistema de Anamnese" icon="📝" maxWidth="4xl" fullScreen>
       {/* Tabs */}
       <div className="flex border-b mb-6">
         <button

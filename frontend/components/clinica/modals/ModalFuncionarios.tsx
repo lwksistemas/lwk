@@ -131,7 +131,7 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
   }
 
   return (
-    <CrudModal loja={loja} onClose={onClose} title="Gerenciar Funcionários" icon="👥" maxWidth="4xl">
+    <CrudModal loja={loja} onClose={onClose} title="Gerenciar Funcionários" icon="👥" maxWidth="4xl" fullScreen>
       {loading ? (
         <div className="text-center py-8">Carregando funcionários...</div>
       ) : funcionarios.length === 0 ? (

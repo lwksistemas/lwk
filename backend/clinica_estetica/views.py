@@ -283,32 +283,34 @@ class ConsultaViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Construir queryset no request para o LojaIsolationManager usar o contexto correto
-        # (queryset em nível de classe é avaliado na importação, sem loja_id)
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id() or self.request.headers.get('X-Loja-ID')
-        if loja_id:
-            try:
-                from tenants.middleware import set_current_loja_id
-                set_current_loja_id(int(loja_id))
-            except (ValueError, TypeError):
-                pass
-        queryset = Consulta.objects.select_related(
+        # Usar loja_id do header da requisição (não depender de thread-local em produção)
+        loja_id = self.request.headers.get('X-Loja-ID') or getattr(
+            self.request, 'META', {}
+        ).get('HTTP_X_LOJA_ID')
+        if not loja_id:
+            from tenants.middleware import get_current_loja_id
+            loja_id = get_current_loja_id()
+        if not loja_id:
+            return Consulta.objects.none()
+        try:
+            loja_id = int(loja_id)
+        except (ValueError, TypeError):
+            return Consulta.objects.none()
+
+        # Filtrar explicitamente por loja_id (all_without_filter + filter evita 404 em DELETE)
+        base = Consulta.objects.all_without_filter().filter(loja_id=loja_id).select_related(
             'cliente', 'profissional', 'procedimento', 'agendamento'
-        ).all()
+        )
 
         params = getattr(self.request, 'query_params', self.request.GET)
-        cliente_id = params.get('cliente_id')
-        if cliente_id:
-            queryset = queryset.filter(cliente_id=cliente_id)
-        profissional_id = params.get('profissional_id')
-        if profissional_id:
-            queryset = queryset.filter(profissional_id=profissional_id)
-        status = params.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
+        if params.get('cliente_id'):
+            base = base.filter(cliente_id=params.get('cliente_id'))
+        if params.get('profissional_id'):
+            base = base.filter(profissional_id=params.get('profissional_id'))
+        if params.get('status'):
+            base = base.filter(status=params.get('status'))
 
-        return queryset
+        return base
 
     @action(detail=True, methods=['post'])
     def iniciar_consulta(self, request, pk=None):

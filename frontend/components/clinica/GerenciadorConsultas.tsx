@@ -95,13 +95,14 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
     }
   }, [consultas, profissionalSelecionado]);
 
-  const loadConsultas = async () => {
+  const loadConsultas = async (skipSyncIfEmpty = false) => {
     try {
       const response = await clinicaApiClient.get('/clinica/consultas/');
       let data = response.data ?? [];
 
-      // Se não houver consultas, sincronizar com agendamentos (cria Consulta para cada Agendamento)
-      if (Array.isArray(data) && data.length === 0) {
+      // Só sincronizar com agendamentos quando lista vazia na carga inicial (não após excluir)
+      // Após excluir, skipSyncIfEmpty=true evita recriar a consulta via sync
+      if (Array.isArray(data) && data.length === 0 && !skipSyncIfEmpty) {
         try {
           await clinicaApiClient.post('/clinica/consultas/sync_from_agendamentos/');
           const res = await clinicaApiClient.get('/clinica/consultas/');
@@ -240,8 +241,8 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
     try {
       await clinicaApiClient.delete(`/clinica/consultas/${consulta.id}/`);
       
-      // Recarregar consultas
-      loadConsultas();
+      // Recarregar lista sem rodar sync (evita consulta voltar ao excluir)
+      loadConsultas(true);
       
       alert('✅ Consulta excluída com sucesso!');
     } catch (error) {

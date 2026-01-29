@@ -155,7 +155,7 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
   // Formulário de cadastro/edição
   if (showForm) {
     return (
-      <CrudModal loja={loja} onClose={resetForm} title={editingCliente ? 'Editar Cliente' : 'Novo Cliente'} icon="👤">
+      <CrudModal loja={loja} onClose={resetForm} title={editingCliente ? 'Editar Cliente' : 'Novo Cliente'} icon="👤" fullScreen>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <h4 className="text-lg font-semibold mb-3 text-gray-700">Dados Pessoais</h4>

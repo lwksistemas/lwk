@@ -279,29 +279,35 @@ class FuncionarioViewSet(BaseModelViewSet):
 
 
 class ConsultaViewSet(BaseModelViewSet):
-    queryset = Consulta.objects.select_related('cliente', 'profissional', 'procedimento', 'agendamento')
     serializer_class = ConsultaSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        # Verificar se request tem query_params (DRF) ou GET (Django padrão)
+        # Construir queryset no request para o LojaIsolationManager usar o contexto correto
+        # (queryset em nível de classe é avaliado na importação, sem loja_id)
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id() or self.request.headers.get('X-Loja-ID')
+        if loja_id:
+            try:
+                from tenants.middleware import set_current_loja_id
+                set_current_loja_id(int(loja_id))
+            except (ValueError, TypeError):
+                pass
+        queryset = Consulta.objects.select_related(
+            'cliente', 'profissional', 'procedimento', 'agendamento'
+        ).all()
+
         params = getattr(self.request, 'query_params', self.request.GET)
-        
-        # Filtros
         cliente_id = params.get('cliente_id')
         if cliente_id:
             queryset = queryset.filter(cliente_id=cliente_id)
-        
         profissional_id = params.get('profissional_id')
         if profissional_id:
             queryset = queryset.filter(profissional_id=profissional_id)
-        
         status = params.get('status')
         if status:
             queryset = queryset.filter(status=status)
-        
+
         return queryset
 
     @action(detail=True, methods=['post'])

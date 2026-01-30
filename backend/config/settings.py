@@ -16,6 +16,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',  # 🔐 SEGURANÇA: Blacklist para invalidar tokens
     'corsheaders',
@@ -185,6 +186,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     # Paginação otimizada para 40 lojas
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
@@ -197,6 +199,14 @@ REST_FRAMEWORK = {
         'anon': '100/hour',
         'user': '2000/hour'  # Aumentado para suportar mais usuários
     }
+}
+
+# drf-spectacular (OpenAPI / Swagger)
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'LWK Sistemas API',
+    'DESCRIPTION': 'API Multi-Tenant para gestão de lojas (superadmin, suporte, clinica, crm, restaurante, etc.)',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 # JWT Settings
@@ -241,3 +251,9 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Sistema Multi-Loja <n
 # Para desenvolvimento, usar console backend (mostra emails no terminal)
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Nota Fiscal Asaas (emissão ao confirmar pagamento da assinatura)
+# Serviço municipal conforme configuração da prefeitura da conta LWK no Asaas
+ASAAS_INVOICE_SERVICE_CODE = config('ASAAS_INVOICE_SERVICE_CODE', default='')
+ASAAS_INVOICE_SERVICE_NAME = config('ASAAS_INVOICE_SERVICE_NAME', default='Software sob demanda / Assinatura de sistema')
+ASAAS_INVOICE_SERVICE_ID = config('ASAAS_INVOICE_SERVICE_ID', default='')

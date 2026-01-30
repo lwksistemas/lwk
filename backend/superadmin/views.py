@@ -113,13 +113,13 @@ class LojaViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], authentication_classes=[])
     def info_publica(self, request):
-        """Retorna informações públicas da loja para página de login (sem autenticação)"""
+        """Retorna informações públicas da loja para página de login (sem autenticação). Otimizado com select_related."""
         slug = request.query_params.get('slug')
         if not slug:
             return Response({'error': 'slug é obrigatório'}, status=400)
         
         try:
-            loja = Loja.objects.get(slug=slug, is_active=True)
+            loja = Loja.objects.select_related('tipo_loja').get(slug=slug, is_active=True)
             return Response({
                 'id': loja.id,  # ✅ IMPORTANTE: ID único da loja para X-Loja-ID
                 'nome': loja.nome,
@@ -129,6 +129,7 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'cor_secundaria': loja.cor_secundaria,
                 'logo': loja.logo,
                 'login_page_url': loja.login_page_url,
+                'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
             })
         except Loja.DoesNotExist:
             return Response({'error': 'Loja não encontrada'}, status=404)

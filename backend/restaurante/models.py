@@ -3,9 +3,11 @@ from core.models import BaseCategoria, BaseCliente, BasePedido, BaseItemPedido, 
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 
-class Categoria(BaseCategoria):
-    """Categorias do cardápio"""
+class Categoria(LojaIsolationMixin, BaseCategoria):
+    """Categorias do cardápio (isoladas por loja)."""
     ordem = models.IntegerField(default=0)
+
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'restaurante_categorias'
@@ -14,8 +16,8 @@ class Categoria(BaseCategoria):
         verbose_name_plural = 'Categorias'
 
 
-class ItemCardapio(models.Model):
-    """Itens do cardápio"""
+class ItemCardapio(LojaIsolationMixin, models.Model):
+    """Itens do cardápio (isolados por loja)."""
     nome = models.CharField(max_length=200)
     descricao = models.TextField()
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, related_name='itens')
@@ -29,6 +31,8 @@ class ItemCardapio(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = LojaIsolationManager()
+
     class Meta:
         db_table = 'restaurante_cardapio'
         ordering = ['categoria', 'nome']
@@ -39,8 +43,8 @@ class ItemCardapio(models.Model):
         return f"{self.nome} - R$ {self.preco}"
 
 
-class Mesa(models.Model):
-    """Mesas do restaurante"""
+class Mesa(LojaIsolationMixin, models.Model):
+    """Mesas do restaurante (isoladas por loja)."""
     STATUS_CHOICES = [
         ('livre', 'Livre'),
         ('ocupada', 'Ocupada'),
@@ -48,7 +52,7 @@ class Mesa(models.Model):
         ('manutencao', 'Manutenção'),
     ]
 
-    numero = models.CharField(max_length=10, unique=True)
+    numero = models.CharField(max_length=10)
     capacidade = models.IntegerField()
     localizacao = models.CharField(max_length=100, blank=True, null=True, help_text='Ex: Salão, Varanda, etc')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='livre')
@@ -56,20 +60,27 @@ class Mesa(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = LojaIsolationManager()
+
     class Meta:
         db_table = 'restaurante_mesas'
         ordering = ['numero']
         verbose_name = 'Mesa'
         verbose_name_plural = 'Mesas'
+        constraints = [
+            models.UniqueConstraint(fields=['loja_id', 'numero'], name='restaurante_mesa_numero_loja_uniq'),
+        ]
 
     def __str__(self):
         return f"Mesa {self.numero} ({self.capacidade} pessoas)"
 
 
-class Cliente(BaseCliente):
-    """Clientes do restaurante"""
+class Cliente(LojaIsolationMixin, BaseCliente):
+    """Clientes do restaurante (isolados por loja)."""
     data_nascimento = models.DateField(blank=True, null=True)
     observacoes = models.TextField(blank=True, null=True, help_text='Preferências, restrições alimentares, etc')
+
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'restaurante_clientes'
@@ -78,8 +89,8 @@ class Cliente(BaseCliente):
         verbose_name_plural = 'Clientes'
 
 
-class Reserva(models.Model):
-    """Reservas de mesas"""
+class Reserva(LojaIsolationMixin, models.Model):
+    """Reservas de mesas (isoladas por loja)."""
     STATUS_CHOICES = [
         ('pendente', 'Pendente'),
         ('confirmada', 'Confirmada'),
@@ -98,6 +109,8 @@ class Reserva(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = LojaIsolationManager()
+
     class Meta:
         db_table = 'restaurante_reservas'
         ordering = ['data', 'horario']
@@ -108,8 +121,8 @@ class Reserva(models.Model):
         return f"Reserva {self.cliente.nome} - Mesa {self.mesa.numero} - {self.data} {self.horario}"
 
 
-class Pedido(BasePedido):
-    """Pedidos do restaurante"""
+class Pedido(LojaIsolationMixin, BasePedido):
+    """Pedidos do restaurante (isolados por loja)."""
     TIPO_CHOICES = [
         ('local', 'Local'),
         ('delivery', 'Delivery'),
@@ -123,6 +136,8 @@ class Pedido(BasePedido):
     taxa_servico = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     taxa_entrega = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     endereco_entrega = models.TextField(blank=True, null=True)
+
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'restaurante_pedidos'

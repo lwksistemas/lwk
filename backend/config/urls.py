@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from superadmin.token_refresh_view import SessionAwareTokenRefreshView
 
 def api_root(request):
@@ -29,12 +30,16 @@ def api_root(request):
             'restaurante': '/api/restaurante/',
             'servicos': '/api/servicos/',
         },
-        'documentacao': 'Sistema Multi-Tenant para gestão de lojas'
+        'documentacao': 'Sistema Multi-Tenant para gestão de lojas',
+        'schema': '/api/schema/',
+        'swagger_ui': '/api/schema/swagger-ui/',
     })
 
 urlpatterns = [
     path('', api_root, name='api_root'),  # Rota raiz
     path('api/', api_root, name='api_info'),  # Informações da API
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('admin/', admin.site.urls),
     
     # Autenticação JWT SEGURA com isolamento por grupo

@@ -1,357 +1,179 @@
-import axios from 'axios';
+import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { logger } from './logger';
 import { getLoginUrl } from './auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export const apiClient = axios.create({
-  baseURL: `${API_URL}/api`,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 20000, // 20s - evita espera infinita em rede/Heroku lentos
-});
+const SESSION_CODES = [
+  'DIFFERENT_SESSION', 'NO_SESSION', 'TIMEOUT',
+  'SESSION_CONFLICT', 'SESSION_TIMEOUT',
+] as const;
 
-// Cliente específico para APIs da clínica (COM autenticação e X-Loja-ID)
-export const clinicaApiClient = axios.create({
-  baseURL: `${API_URL}/api`,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 20000, // 20s - evita espera infinita em rede/Heroku lentos
-});
+function clearSessionAndRedirect(loginUrl: string, message?: string) {
+  sessionStorage.removeItem('access_token');
+  sessionStorage.removeItem('refresh_token');
+  sessionStorage.removeItem('user_type');
+  sessionStorage.removeItem('loja_slug');
+  sessionStorage.removeItem('session_id');
+  sessionStorage.removeItem('current_loja_id');
+  document.cookie = 'user_type=; path=/; max-age=0';
+  document.cookie = 'loja_slug=; path=/; max-age=0';
+  if (message && typeof window !== 'undefined') alert(message);
+  if (typeof window !== 'undefined') window.location.href = loginUrl;
+}
 
-// Interceptor para adicionar X-Loja-ID e token JWT
-clinicaApiClient.interceptors.request.use(
-  (config) => {
-    if (typeof window !== 'undefined') {
-      // Adicionar X-Loja-ID
-      const lojaId = sessionStorage.getItem('current_loja_id');
-      if (lojaId) {
-        config.headers['X-Loja-ID'] = lojaId;
-        logger.log('🏪 [clinicaApiClient] Adicionando X-Loja-ID:', lojaId);
-      } else {
-        // Fallback: algumas telas podem chamar a API antes de setar current_loja_id.
-        // O backend aceita X-Tenant-Slug, então usamos o slug salvo na sessão.
-        const lojaSlug = sessionStorage.getItem('loja_slug');
-        if (lojaSlug) {
-          config.headers['X-Tenant-Slug'] = lojaSlug;
-          logger.log('🏷️ [clinicaApiClient] Fallback X-Tenant-Slug:', lojaSlug);
-        }
-      }
-      
-      // Adicionar token JWT para validação de sessão
-      const token = sessionStorage.getItem('access_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    logger.log('API Request:', config.method?.toUpperCase(), config.url);
-    return config;
-  },
-  (error) => {
-    logger.error('API Request Error:', error);
+/** Adiciona X-Loja-ID / X-Tenant-Slug e Authorization em todas as requisições de loja. */
+function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+  if (typeof window === 'undefined') return config;
+  const lojaId = sessionStorage.getItem('current_loja_id');
+  if (lojaId) {
+    config.headers.set('X-Loja-ID', lojaId);
+  } else {
+    const lojaSlug = sessionStorage.getItem('loja_slug');
+    if (lojaSlug) config.headers.set('X-Tenant-Slug', lojaSlug);
+  }
+  const token = sessionStorage.getItem('access_token');
+  if (token) config.headers.set('Authorization', `Bearer ${token}`);
+  logger.log('API Request:', config.method?.toUpperCase(), config.url);
+  return config;
+}
+
+/** Trata 507 (limite de armazenamento). */
+function handle507(error: { response?: { status?: number; data?: { error?: string } } }): boolean {
+  if (error.response?.status === 507) {
+    const msg = error.response?.data?.error || 'Limite de armazenamento da loja atingido. Entre em contato com o suporte.';
+    if (typeof window !== 'undefined') alert(msg);
+    return true;
+  }
+  return false;
+}
+
+/** Trata 401: sessão inválida (logout) ou refresh token e repete a requisição. */
+async function handle401(
+  error: { response?: { data?: { code?: string; message?: string; detail?: unknown } }; config?: { _retry?: boolean; headers?: { Authorization?: string } } },
+  apiInstance: AxiosInstance
+): Promise<unknown> {
+  const originalRequest = error.config;
+  const errorData = error.response?.data;
+  const errorCode = errorData?.code || (errorData?.detail as { code?: string })?.code;
+  const errorMessage = errorData?.message || (errorData?.detail as { message?: string })?.message || errorData?.detail;
+
+  if (errorCode && SESSION_CODES.includes(errorCode as (typeof SESSION_CODES)[number])) {
+    logger.critical('Sessão inválida:', errorCode);
+    const loginUrl = getLoginUrl();
+    clearSessionAndRedirect(
+      loginUrl,
+      typeof errorMessage === 'string' ? errorMessage : 'Sua sessão expirou. Faça login novamente.'
+    );
     return Promise.reject(error);
   }
-);
 
-// Response interceptor para clinicaApiClient - sessão + refresh token (evita 401 no dashboard)
-clinicaApiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    // Limite de armazenamento da loja (512 MB) atingido
-    if (error.response?.status === 507) {
-      const msg = error.response?.data?.error || 'Limite de armazenamento da loja atingido. Entre em contato com o suporte.';
-      if (typeof window !== 'undefined') alert(msg);
-      return Promise.reject(error);
-    }
-
-    if (error.response?.status === 401) {
-      const errorData = error.response?.data;
-      const errorCode = errorData?.code || errorData?.detail?.code;
-      const errorMessage = errorData?.message || errorData?.detail?.message || errorData?.detail;
-
-      // Erros de sessão → logout imediato
-      if (errorCode === 'DIFFERENT_SESSION' ||
-          errorCode === 'NO_SESSION' ||
-          errorCode === 'TIMEOUT' ||
-          errorCode === 'SESSION_CONFLICT' ||
-          errorCode === 'SESSION_TIMEOUT') {
-        logger.critical('🚨 Sessão inválida na API clínica:', errorCode);
-        const loginUrl = getLoginUrl();
-        sessionStorage.removeItem('access_token');
-        sessionStorage.removeItem('refresh_token');
-        sessionStorage.removeItem('user_type');
-        sessionStorage.removeItem('loja_slug');
-        sessionStorage.removeItem('session_id');
-        sessionStorage.removeItem('current_loja_id');
-        document.cookie = 'user_type=; path=/; max-age=0';
-        document.cookie = 'loja_slug=; path=/; max-age=0';
-        alert(typeof errorMessage === 'string' ? errorMessage : 'Sua sessão expirou. Faça login novamente.');
-        window.location.href = loginUrl;
+  if (originalRequest && !originalRequest._retry) {
+    originalRequest._retry = true;
+    try {
+      logger.log('Tentando refresh token...');
+      const refreshToken = sessionStorage.getItem('refresh_token');
+      const accessToken = sessionStorage.getItem('access_token');
+      if (!refreshToken) {
+        clearSessionAndRedirect(getLoginUrl());
         return Promise.reject(error);
       }
-
-      // Token expirado/inválido → tentar refresh e repetir a requisição
-      if (!originalRequest._retry) {
-        originalRequest._retry = true;
-        try {
-          logger.log('🔄 [clinicaApiClient] Tentando refresh token...');
-          const refreshToken = sessionStorage.getItem('refresh_token');
-          const accessToken = sessionStorage.getItem('access_token');
-          if (!refreshToken) {
-            const loginUrl = getLoginUrl();
-            sessionStorage.clear();
-            window.location.href = loginUrl;
-            return Promise.reject(error);
-          }
-          const response = await axios.post(
-            `${API_URL}/api/auth/token/refresh/`,
-            { refresh: refreshToken },
-            { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }
-          );
-          const { access } = response.data;
-          sessionStorage.setItem('access_token', access);
-          logger.log('✅ [clinicaApiClient] Refresh OK, repetindo requisição');
-          originalRequest.headers.Authorization = `Bearer ${access}`;
-          return clinicaApiClient(originalRequest);
-        } catch (refreshError: any) {
-          logger.error('❌ [clinicaApiClient] Refresh falhou:', refreshError);
-          const errCode = refreshError.response?.data?.code;
-          const errMessage = refreshError.response?.data?.message || refreshError.response?.data?.detail;
-          if (errCode === 'DIFFERENT_SESSION' || errCode === 'NO_SESSION') {
-            alert(errMessage || 'Sua sessão foi encerrada. Faça login novamente.');
-          }
-          const loginUrl = getLoginUrl();
-          sessionStorage.removeItem('access_token');
-          sessionStorage.removeItem('refresh_token');
-          sessionStorage.removeItem('user_type');
-          sessionStorage.removeItem('loja_slug');
-          sessionStorage.removeItem('session_id');
-          sessionStorage.removeItem('current_loja_id');
-          document.cookie = 'user_type=; path=/; max-age=0';
-          document.cookie = 'loja_slug=; path=/; max-age=0';
-          window.location.href = loginUrl;
-          return Promise.reject(refreshError);
-        }
+      const response = await axios.post(
+        `${API_URL}/api/auth/token/refresh/`,
+        { refresh: refreshToken },
+        { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }
+      );
+      const { access } = response.data;
+      sessionStorage.setItem('access_token', access);
+      originalRequest.headers = originalRequest.headers || {};
+      originalRequest.headers.Authorization = `Bearer ${access}`;
+      logger.log('Refresh OK, repetindo requisição');
+      return apiInstance(originalRequest);
+    } catch (refreshError: unknown) {
+      logger.error('Refresh token falhou:', refreshError);
+      const re = refreshError as { response?: { data?: { code?: string; message?: string; detail?: string } } };
+      const errCode = re.response?.data?.code;
+      const errMessage = re.response?.data?.message || re.response?.data?.detail;
+      if (errCode === 'DIFFERENT_SESSION' || errCode === 'NO_SESSION') {
+        alert(errMessage || 'Sua sessão foi encerrada. Faça login novamente.');
       }
+      clearSessionAndRedirect(getLoginUrl());
+      return Promise.reject(refreshError);
     }
-
-    return Promise.reject(error);
   }
-);
+  return Promise.reject(error);
+}
 
-// Request interceptor - adiciona token JWT
-apiClient.interceptors.request.use(
-  (config) => {
-    if (typeof window !== 'undefined') {
-      // ✅ Padronizar tenant headers para TODAS as APIs (todas as lojas/tipos)
-      const lojaId = sessionStorage.getItem('current_loja_id');
-      if (lojaId) {
-        config.headers['X-Loja-ID'] = lojaId;
-      } else {
-        const lojaSlug = sessionStorage.getItem('loja_slug');
-        if (lojaSlug) {
-          config.headers['X-Tenant-Slug'] = lojaSlug;
-        }
-      }
+/** Cria instância base (baseURL, timeout, JSON). */
+function createApiInstance(): AxiosInstance {
+  return axios.create({
+    baseURL: `${API_URL}/api`,
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 20000,
+  });
+}
 
-      const token = sessionStorage.getItem('access_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+/** Aplica interceptors de loja (request: headers; response: 507 e 401+refresh). */
+function applyLojaInterceptors(instance: AxiosInstance) {
+  instance.interceptors.request.use(
+    (config) => addLojaAuthHeaders(config),
+    (err) => {
+      logger.error('API Request Error:', err);
+      return Promise.reject(err);
     }
-    logger.log('API Request:', config.method?.toUpperCase(), config.url);
-    return config;
-  },
-  (error) => {
-    logger.error('API Request Error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor - refresh token automático e controle de sessão
-apiClient.interceptors.response.use(
-  (response) => {
-    logger.log('API Response:', response.status, response.config.url);
-    return response;
-  },
-  async (error) => {
-    logger.error('API Error:', error.response?.status, error.response?.data?.code);
-    const originalRequest = error.config;
-
-    // Limite de armazenamento da loja (512 MB) atingido
-    if (error.response?.status === 507) {
-      const msg = error.response?.data?.error || 'Limite de armazenamento da loja atingido. Entre em contato com o suporte.';
-      if (typeof window !== 'undefined') alert(msg);
+  );
+  instance.interceptors.response.use(
+    (response) => {
+      logger.log('API Response:', response.status, response.config.url);
+      return response;
+    },
+    async (error) => {
+      logger.error('API Error:', error.response?.status, error.response?.data?.code);
+      if (handle507(error)) return Promise.reject(error);
+      if (error.response?.status === 401) {
+        return handle401(error, instance);
+      }
       return Promise.reject(error);
     }
+  );
+}
 
-    // Verificar erros de sessão PRIMEIRO (antes de tentar refresh)
-    if (error.response?.status === 401) {
-      const errorData = error.response?.data;
-      const errorCode = errorData?.code || errorData?.detail?.code;
-      const errorMessage = errorData?.message || errorData?.detail?.message || errorData?.detail;
-      
-      logger.log('🔍 Erro 401:', errorCode);
-      
-      // Erros de sessão que requerem logout forçado IMEDIATO
-      if (errorCode === 'DIFFERENT_SESSION' || 
-          errorCode === 'SESSION_CONFLICT' || 
-          errorCode === 'TIMEOUT' ||
-          errorCode === 'SESSION_TIMEOUT' || 
-          errorCode === 'NO_SESSION') {
-        
-        logger.critical('SESSÃO INVÁLIDA - Logout forçado:', errorCode);
-        
-        // Obter URL de login ANTES de limpar
-        const loginUrl = getLoginUrl();
-        
-        // Limpar tudo IMEDIATAMENTE
-        sessionStorage.removeItem('access_token');
-        sessionStorage.removeItem('refresh_token');
-        sessionStorage.removeItem('user_type');
-        sessionStorage.removeItem('loja_slug');
-        sessionStorage.removeItem('session_id');
-        sessionStorage.removeItem('current_loja_id');
-        
-        document.cookie = 'user_type=; path=/; max-age=0';
-        document.cookie = 'loja_slug=; path=/; max-age=0';
-        
-        // Mostrar mensagem ao usuário
-        const message = typeof errorMessage === 'string' 
-          ? errorMessage 
-          : 'Outra sessão foi iniciada em outro dispositivo. Você foi desconectado.';
-        
-        alert(message);
-        window.location.href = loginUrl;
-        return Promise.reject(error);
-      }
-      
-      // APENAS tentar refresh token se NÃO for erro de sessão
-      if (!originalRequest._retry) {
-        originalRequest._retry = true;
+export const apiClient = createApiInstance();
+applyLojaInterceptors(apiClient);
 
-        try {
-          logger.log('🔄 Tentando refresh token...');
-          const refreshToken = sessionStorage.getItem('refresh_token');
-          const accessToken = sessionStorage.getItem('access_token');
-          
-          if (!refreshToken) {
-            logger.log('❌ Sem refresh token');
-            const loginUrl = getLoginUrl();
-            sessionStorage.clear();
-            window.location.href = loginUrl;
-            return Promise.reject(error);
-          }
-          
-          // Enviar access token atual para validação de sessão única
-          const response = await axios.post(
-            `${API_URL}/api/auth/token/refresh/`, 
-            { refresh: refreshToken },
-            { 
-              headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}
-            }
-          );
-
-          const { access } = response.data;
-          sessionStorage.setItem('access_token', access);
-
-          logger.log('✅ Refresh token bem-sucedido');
-          originalRequest.headers.Authorization = `Bearer ${access}`;
-          return apiClient(originalRequest);
-        } catch (refreshError: any) {
-          logger.error('❌ Refresh token falhou:', refreshError);
-          
-          // Obter URL de login ANTES de limpar
-          const loginUrl = getLoginUrl();
-          
-          // Verificar se é erro de sessão (outro login detectado)
-          const errCode = refreshError.response?.data?.code;
-          const errMessage = refreshError.response?.data?.message || refreshError.response?.data?.detail;
-          
-          if (errCode === 'DIFFERENT_SESSION' || errCode === 'NO_SESSION') {
-            logger.critical('🚫 Sessão invalidada - outro login detectado');
-            alert(errMessage || 'Sua sessão foi encerrada porque outro login foi detectado.');
-          }
-          
-          sessionStorage.removeItem('access_token');
-          sessionStorage.removeItem('refresh_token');
-          sessionStorage.removeItem('user_type');
-          sessionStorage.removeItem('loja_slug');
-          sessionStorage.removeItem('session_id');
-          sessionStorage.removeItem('current_loja_id');
-          
-          document.cookie = 'user_type=; path=/; max-age=0';
-          document.cookie = 'loja_slug=; path=/; max-age=0';
-          
-          window.location.href = loginUrl;
-          return Promise.reject(refreshError);
-        }
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
+export const clinicaApiClient = createApiInstance();
+applyLojaInterceptors(clinicaApiClient);
 
 export default apiClient;
 
-// ===== HEARTBEAT PARA MANTER SESSÃO ATIVA =====
+// ===== HEARTBEAT =====
 
-let heartbeatInterval: NodeJS.Timeout | null = null;
+let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
-/**
- * Inicia heartbeat automático para manter sessão ativa
- * Envia ping a cada 5 minutos para evitar timeout de inatividade
- */
 export function startHeartbeat() {
-  // Não iniciar se já estiver rodando
   if (heartbeatInterval) {
-    logger.log('⚠️ Heartbeat já está rodando');
+    logger.log('Heartbeat já está rodando');
     return;
   }
-  
-  logger.log('💓 Iniciando heartbeat (ping a cada 5 minutos)');
-  
+  logger.log('Iniciando heartbeat (5 min)');
   heartbeatInterval = setInterval(async () => {
     try {
-      const response = await apiClient.get('/superadmin/lojas/heartbeat/');
-      logger.log('💓 Heartbeat OK:', response.data);
-    } catch (error: any) {
-      logger.error('❌ Heartbeat falhou:', error);
-      
-      // Se falhar com 401, sessão expirou
-      if (error.response?.status === 401) {
-        logger.critical('🚨 Sessão expirou - Fazendo logout');
-        
-        // Obter URL de login ANTES de limpar
-        const loginUrl = getLoginUrl();
-        
+      await apiClient.get('/superadmin/lojas/heartbeat/');
+    } catch (err: unknown) {
+      logger.error('Heartbeat falhou:', err);
+      const e = err as { response?: { status?: number } };
+      if (e.response?.status === 401) {
         stopHeartbeat();
-        
-        // Limpar tudo
-        sessionStorage.clear();
-        document.cookie.split(";").forEach((c) => {
-          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-        });
-        
-        // Redirecionar para login específico do usuário
-        window.location.href = loginUrl;
+        clearSessionAndRedirect(getLoginUrl());
       }
     }
-  }, 5 * 60 * 1000); // 5 minutos
+  }, 5 * 60 * 1000);
 }
 
-/**
- * Para o heartbeat
- */
 export function stopHeartbeat() {
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
     heartbeatInterval = null;
-    logger.log('💔 Heartbeat parado');
+    logger.log('Heartbeat parado');
   }
 }

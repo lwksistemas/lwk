@@ -348,6 +348,7 @@ class AsaasSyncService:
                 
                 # IMPORTANTE: Atualizar financeiro da loja se o pagamento foi confirmado
                 loja_atualizada = False
+                loja = self._get_loja_from_payment(pagamento) if new_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'] else None
                 if new_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
                     try:
                         loja_atualizada = self._update_loja_financeiro_from_payment(pagamento)
@@ -355,6 +356,25 @@ class AsaasSyncService:
                             logger.info(f"Financeiro da loja atualizado automaticamente via webhook")
                     except Exception as e:
                         logger.error(f"Erro ao atualizar financeiro da loja: {e}")
+                    # Emissão de Nota Fiscal e envio por e-mail ao admin da loja
+                    if loja:
+                        try:
+                            from asaas_integration.invoice_service import emitir_nf_para_pagamento
+                            nf_value = float(payment_data.get('value', 0))
+                            nf_description = payment_data.get('description') or f"Assinatura - {loja.nome}"
+                            nf_result = emitir_nf_para_pagamento(
+                                asaas_payment_id=payment_id,
+                                loja=loja,
+                                value=nf_value,
+                                description=nf_description,
+                                send_email=True,
+                            )
+                            if nf_result.get('success'):
+                                logger.info(f"NF emitida para pagamento {payment_id}, e-mail enviado: {nf_result.get('email_sent')}")
+                            else:
+                                logger.warning(f"Falha ao emitir NF para {payment_id}: {nf_result.get('error')}")
+                        except Exception as nf_err:
+                            logger.exception(f"Erro ao emitir NF no webhook: {nf_err}")
                 
                 return {
                     'success': True,
@@ -445,26 +465,25 @@ class AsaasSyncService:
             logger.error(f"Erro ao criar pagamento automaticamente: {e}")
             return None
     
+    def _get_loja_from_payment(self, pagamento):
+        """Retorna a Loja associada ao pagamento, ou None se não encontrar."""
+        try:
+            if hasattr(pagamento, 'loja'):
+                return pagamento.loja
+            if hasattr(pagamento, 'external_reference') and pagamento.external_reference:
+                if 'loja_' in pagamento.external_reference:
+                    loja_slug = pagamento.external_reference.replace('loja_', '').replace('_assinatura', '')
+                    return Loja.objects.get(slug=loja_slug, is_active=True)
+        except Loja.DoesNotExist:
+            pass
+        except Exception as e:
+            logger.debug("_get_loja_from_payment: %s", e)
+        return None
+
     def _update_loja_financeiro_from_payment(self, pagamento):
         """Atualiza financeiro da loja baseado no pagamento confirmado"""
         try:
-            # Identificar a loja pelo pagamento
-            loja = None
-            
-            # Se é AsaasPayment, buscar pela external_reference
-            if hasattr(pagamento, 'external_reference') and pagamento.external_reference:
-                # external_reference formato: "loja_slug_assinatura"
-                if 'loja_' in pagamento.external_reference:
-                    loja_slug = pagamento.external_reference.replace('loja_', '').replace('_assinatura', '')
-                    try:
-                        loja = Loja.objects.get(slug=loja_slug, is_active=True)
-                    except Loja.DoesNotExist:
-                        logger.warning(f"Loja não encontrada pelo slug: {loja_slug}")
-            
-            # Se é PagamentoLoja, buscar diretamente
-            elif hasattr(pagamento, 'loja'):
-                loja = pagamento.loja
-            
+            loja = self._get_loja_from_payment(pagamento)
             if not loja:
                 logger.warning(f"Não foi possível identificar a loja do pagamento {pagamento.id}")
                 return False

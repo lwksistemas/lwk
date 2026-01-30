@@ -159,6 +159,51 @@ class AsaasClient:
         endpoint = f'payments/{payment_id}/pixQrCode'
         return self._make_request('GET', endpoint)
 
+    # ---------- Notas Fiscais (INVOICE) ----------
+    # Requer permissão INVOICE:WRITE na chave da API Asaas
+
+    def create_invoice(
+        self,
+        payment_id: str,
+        service_description: str,
+        value: float,
+        effective_date: str,
+        municipal_service_code: Optional[str] = None,
+        municipal_service_name: Optional[str] = None,
+        municipal_service_id: Optional[str] = None,
+        observations: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Agenda uma nota fiscal vinculada a uma cobrança (payment).
+        Campos municipais dependem da prefeitura da conta Asaas (LWK).
+        """
+        endpoint = 'invoices'
+        data = {
+            'payment': payment_id,
+            'serviceDescription': service_description,
+            'value': value,
+            'effectiveDate': effective_date,
+        }
+        if municipal_service_id:
+            data['municipalServiceId'] = municipal_service_id
+        if municipal_service_code:
+            data['municipalServiceCode'] = municipal_service_code
+        if municipal_service_name:
+            data['municipalServiceName'] = municipal_service_name
+        if observations:
+            data['observations'] = observations
+        return self._make_request('POST', endpoint, data)
+
+    def authorize_invoice(self, invoice_id: str) -> Dict[str, Any]:
+        """Emitir (autorizar) uma nota fiscal já agendada."""
+        endpoint = f'invoices/{invoice_id}/authorize'
+        return self._make_request('POST', endpoint, {})
+
+    def get_invoice(self, invoice_id: str) -> Dict[str, Any]:
+        """Busca uma nota fiscal (para obter link do PDF se disponível)."""
+        endpoint = f'invoices/{invoice_id}'
+        return self._make_request('GET', endpoint)
+
 class AsaasPaymentService:
     """Serviço para gerenciar pagamentos via Asaas"""
     

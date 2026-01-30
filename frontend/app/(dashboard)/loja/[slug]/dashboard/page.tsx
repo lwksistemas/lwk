@@ -27,6 +27,7 @@ export default function LojaDashboardDinamicoPage() {
   
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingLento, setLoadingLento] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -39,6 +40,13 @@ export default function LojaDashboardDinamicoPage() {
       verificarECarregarLoja();
     }
   }, [router, slug]);
+
+  // Mostrar dica se o carregamento passar de 8s (ex.: cold start Heroku)
+  useEffect(() => {
+    if (!loading) return;
+    const t = setTimeout(() => setLoadingLento(true), 8000);
+    return () => clearTimeout(t);
+  }, [loading]);
 
   const verificarECarregarLoja = async () => {
     try {
@@ -72,8 +80,16 @@ export default function LojaDashboardDinamicoPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="text-lg sm:text-xl text-gray-600 dark:text-gray-400">Carregando...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 gap-4">
+        <div className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 text-center">
+          Carregando o dashboard...
+        </div>
+        <div className="h-8 w-8 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" aria-hidden />
+        {loadingLento && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-xs mt-2">
+            Está demorando? O servidor pode estar acordando. Aguarde ou atualize a página.
+          </p>
+        )}
       </div>
     );
   }

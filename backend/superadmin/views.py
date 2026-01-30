@@ -677,10 +677,7 @@ Sistema Multi-Loja
                 except OSError:
                     tamanho_banco_motivo = 'Não foi possível ler o tamanho do arquivo.'
             else:
-                tamanho_banco_motivo = (
-                    'Arquivo do banco não encontrado no servidor. '
-                    'Em hospedagem com disco efêmero (ex.: Heroku), o arquivo não persiste após reinício.'
-                )
+                tamanho_banco_motivo = 'Tamanho exato indisponível (disco efêmero no servidor).'
         # Quando não há tamanho real, usar estimativa padrão (512 MB) para exibição e cálculo de espaço livre
         tamanho_banco_estimativa_mb = self.TAMANHO_BANCO_ESTIMATIVA_MB
         espaco_plano_gb = loja.plano.espaco_storage_gb if loja.plano else None

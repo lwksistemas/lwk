@@ -1,10 +1,17 @@
 """
-Middleware para detectar o tenant (loja) e configurar o banco correto
+Middleware para detectar o tenant (loja) e configurar o banco correto.
+Aplica limite de tamanho (512 MB) no banco isolado por loja quando o arquivo existe.
 """
+from pathlib import Path
 from threading import local
 from django.conf import settings
+from django.http import JsonResponse
 
 _thread_locals = local()
+
+# Limite do banco isolado por loja (512 MB - recomendado para CRM, clínica, e-commerce leve)
+LIMITE_BANCO_LOJA_MB = 512
+LIMITE_BANCO_LOJA_BYTES = LIMITE_BANCO_LOJA_MB * 1024 * 1024
 
 def get_current_tenant_db():
     """Retorna o banco do tenant atual"""
@@ -51,6 +58,33 @@ class TenantMiddleware:
                 
                 # Verificar se o banco existe nas configurações
                 if db_name in settings.DATABASES:
+                    # Limite de tamanho: bloquear escritas se o arquivo SQLite da loja >= 512 MB
+                    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+                        db_path = getattr(settings, 'BASE_DIR', None)
+                        if db_path is not None and loja.database_created and loja.database_name:
+                            path = Path(db_path) / f'db_{loja.database_name}.sqlite3'
+                            if path.exists():
+                                try:
+                                    size = path.stat().st_size
+                                    if size >= LIMITE_BANCO_LOJA_BYTES:
+                                        logger.warning(
+                                            f"⚠️ [TenantMiddleware] Loja {loja.slug} atingiu limite "
+                                            f"de banco ({size / (1024*1024):.1f} MB >= {LIMITE_BANCO_LOJA_MB} MB)"
+                                        )
+                                        return JsonResponse(
+                                            {
+                                                'error': (
+                                                    f'Limite de armazenamento da loja atingido '
+                                                    f'({LIMITE_BANCO_LOJA_MB} MB). '
+                                                    'Entre em contato com o suporte para ampliar o plano.'
+                                                ),
+                                                'code': 'STORAGE_LIMIT_REACHED',
+                                                'limite_mb': LIMITE_BANCO_LOJA_MB,
+                                            },
+                                            status=507,
+                                        )
+                                except OSError:
+                                    pass
                     set_current_tenant_db(db_name)
                 else:
                     # Banco não existe, usar default

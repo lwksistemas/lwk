@@ -26,14 +26,14 @@ clinicaApiClient.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
       // Adicionar X-Loja-ID
-      const lojaId = localStorage.getItem('current_loja_id');
+      const lojaId = sessionStorage.getItem('current_loja_id');
       if (lojaId) {
         config.headers['X-Loja-ID'] = lojaId;
         logger.log('🏪 [clinicaApiClient] Adicionando X-Loja-ID:', lojaId);
       } else {
         // Fallback: algumas telas podem chamar a API antes de setar current_loja_id.
         // O backend aceita X-Tenant-Slug, então usamos o slug salvo na sessão.
-        const lojaSlug = localStorage.getItem('loja_slug');
+        const lojaSlug = sessionStorage.getItem('loja_slug');
         if (lojaSlug) {
           config.headers['X-Tenant-Slug'] = lojaSlug;
           logger.log('🏷️ [clinicaApiClient] Fallback X-Tenant-Slug:', lojaSlug);
@@ -41,7 +41,7 @@ clinicaApiClient.interceptors.request.use(
       }
       
       // Adicionar token JWT para validação de sessão
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -61,6 +61,13 @@ clinicaApiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Limite de armazenamento da loja (512 MB) atingido
+    if (error.response?.status === 507) {
+      const msg = error.response?.data?.error || 'Limite de armazenamento da loja atingido. Entre em contato com o suporte.';
+      if (typeof window !== 'undefined') alert(msg);
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401) {
       const errorData = error.response?.data;
       const errorCode = errorData?.code || errorData?.detail?.code;
@@ -74,12 +81,12 @@ clinicaApiClient.interceptors.response.use(
           errorCode === 'SESSION_TIMEOUT') {
         logger.critical('🚨 Sessão inválida na API clínica:', errorCode);
         const loginUrl = getLoginUrl();
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user_type');
-        localStorage.removeItem('loja_slug');
-        localStorage.removeItem('session_id');
-        localStorage.removeItem('current_loja_id');
+        sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('user_type');
+        sessionStorage.removeItem('loja_slug');
+        sessionStorage.removeItem('session_id');
+        sessionStorage.removeItem('current_loja_id');
         document.cookie = 'user_type=; path=/; max-age=0';
         document.cookie = 'loja_slug=; path=/; max-age=0';
         alert(typeof errorMessage === 'string' ? errorMessage : 'Sua sessão expirou. Faça login novamente.');
@@ -92,11 +99,11 @@ clinicaApiClient.interceptors.response.use(
         originalRequest._retry = true;
         try {
           logger.log('🔄 [clinicaApiClient] Tentando refresh token...');
-          const refreshToken = localStorage.getItem('refresh_token');
-          const accessToken = localStorage.getItem('access_token');
+          const refreshToken = sessionStorage.getItem('refresh_token');
+          const accessToken = sessionStorage.getItem('access_token');
           if (!refreshToken) {
             const loginUrl = getLoginUrl();
-            localStorage.clear();
+            sessionStorage.clear();
             window.location.href = loginUrl;
             return Promise.reject(error);
           }
@@ -106,7 +113,7 @@ clinicaApiClient.interceptors.response.use(
             { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }
           );
           const { access } = response.data;
-          localStorage.setItem('access_token', access);
+          sessionStorage.setItem('access_token', access);
           logger.log('✅ [clinicaApiClient] Refresh OK, repetindo requisição');
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return clinicaApiClient(originalRequest);
@@ -118,12 +125,12 @@ clinicaApiClient.interceptors.response.use(
             alert(errMessage || 'Sua sessão foi encerrada. Faça login novamente.');
           }
           const loginUrl = getLoginUrl();
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user_type');
-          localStorage.removeItem('loja_slug');
-          localStorage.removeItem('session_id');
-          localStorage.removeItem('current_loja_id');
+          sessionStorage.removeItem('access_token');
+          sessionStorage.removeItem('refresh_token');
+          sessionStorage.removeItem('user_type');
+          sessionStorage.removeItem('loja_slug');
+          sessionStorage.removeItem('session_id');
+          sessionStorage.removeItem('current_loja_id');
           document.cookie = 'user_type=; path=/; max-age=0';
           document.cookie = 'loja_slug=; path=/; max-age=0';
           window.location.href = loginUrl;
@@ -141,17 +148,17 @@ apiClient.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
       // ✅ Padronizar tenant headers para TODAS as APIs (todas as lojas/tipos)
-      const lojaId = localStorage.getItem('current_loja_id');
+      const lojaId = sessionStorage.getItem('current_loja_id');
       if (lojaId) {
         config.headers['X-Loja-ID'] = lojaId;
       } else {
-        const lojaSlug = localStorage.getItem('loja_slug');
+        const lojaSlug = sessionStorage.getItem('loja_slug');
         if (lojaSlug) {
           config.headers['X-Tenant-Slug'] = lojaSlug;
         }
       }
 
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -175,6 +182,13 @@ apiClient.interceptors.response.use(
     logger.error('API Error:', error.response?.status, error.response?.data?.code);
     const originalRequest = error.config;
 
+    // Limite de armazenamento da loja (512 MB) atingido
+    if (error.response?.status === 507) {
+      const msg = error.response?.data?.error || 'Limite de armazenamento da loja atingido. Entre em contato com o suporte.';
+      if (typeof window !== 'undefined') alert(msg);
+      return Promise.reject(error);
+    }
+
     // Verificar erros de sessão PRIMEIRO (antes de tentar refresh)
     if (error.response?.status === 401) {
       const errorData = error.response?.data;
@@ -196,12 +210,12 @@ apiClient.interceptors.response.use(
         const loginUrl = getLoginUrl();
         
         // Limpar tudo IMEDIATAMENTE
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user_type');
-        localStorage.removeItem('loja_slug');
-        localStorage.removeItem('session_id');
-        localStorage.removeItem('current_loja_id');
+        sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('user_type');
+        sessionStorage.removeItem('loja_slug');
+        sessionStorage.removeItem('session_id');
+        sessionStorage.removeItem('current_loja_id');
         
         document.cookie = 'user_type=; path=/; max-age=0';
         document.cookie = 'loja_slug=; path=/; max-age=0';
@@ -222,13 +236,13 @@ apiClient.interceptors.response.use(
 
         try {
           logger.log('🔄 Tentando refresh token...');
-          const refreshToken = localStorage.getItem('refresh_token');
-          const accessToken = localStorage.getItem('access_token');
+          const refreshToken = sessionStorage.getItem('refresh_token');
+          const accessToken = sessionStorage.getItem('access_token');
           
           if (!refreshToken) {
             logger.log('❌ Sem refresh token');
             const loginUrl = getLoginUrl();
-            localStorage.clear();
+            sessionStorage.clear();
             window.location.href = loginUrl;
             return Promise.reject(error);
           }
@@ -243,7 +257,7 @@ apiClient.interceptors.response.use(
           );
 
           const { access } = response.data;
-          localStorage.setItem('access_token', access);
+          sessionStorage.setItem('access_token', access);
 
           logger.log('✅ Refresh token bem-sucedido');
           originalRequest.headers.Authorization = `Bearer ${access}`;
@@ -263,12 +277,12 @@ apiClient.interceptors.response.use(
             alert(errMessage || 'Sua sessão foi encerrada porque outro login foi detectado.');
           }
           
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user_type');
-          localStorage.removeItem('loja_slug');
-          localStorage.removeItem('session_id');
-          localStorage.removeItem('current_loja_id');
+          sessionStorage.removeItem('access_token');
+          sessionStorage.removeItem('refresh_token');
+          sessionStorage.removeItem('user_type');
+          sessionStorage.removeItem('loja_slug');
+          sessionStorage.removeItem('session_id');
+          sessionStorage.removeItem('current_loja_id');
           
           document.cookie = 'user_type=; path=/; max-age=0';
           document.cookie = 'loja_slug=; path=/; max-age=0';
@@ -319,7 +333,7 @@ export function startHeartbeat() {
         stopHeartbeat();
         
         // Limpar tudo
-        localStorage.clear();
+        sessionStorage.clear();
         document.cookie.split(";").forEach((c) => {
           document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
         });

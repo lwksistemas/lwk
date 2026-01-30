@@ -425,7 +425,7 @@ export default function GerenciarLojasPage() {
                           : `~${lojaInfo.tamanho_banco_estimativa_mb} MB (estimativa do plano)`}
                       </p>
                       {lojaInfo.tamanho_banco_motivo && (
-                        <p className="text-xs text-amber-700 mt-1 bg-amber-50 px-2 py-1 rounded">
+                        <p className="text-xs text-gray-500 mt-1">
                           {lojaInfo.tamanho_banco_motivo}
                         </p>
                       )}

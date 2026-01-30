@@ -1247,6 +1247,16 @@ function ModalNotaFiscal({ loja, onClose }: { loja: LojaInfo; onClose: () => voi
   );
 }
 
+// Formata CNPJ para exibição (14 dígitos → 00.000.000/0000-00)
+function formatCnpjDisplay(value: string): string {
+  const n = (value || '').replace(/\D/g, '');
+  if (n.length <= 2) return n;
+  if (n.length <= 5) return n.slice(0, 2) + '.' + n.slice(2);
+  if (n.length <= 8) return n.slice(0, 2) + '.' + n.slice(2, 5) + '.' + n.slice(5);
+  if (n.length <= 12) return n.slice(0, 2) + '.' + n.slice(2, 5) + '.' + n.slice(5, 8) + '/' + n.slice(8);
+  return n.slice(0, 2) + '.' + n.slice(2, 5) + '.' + n.slice(5, 8) + '/' + n.slice(8, 12) + '-' + n.slice(12, 14);
+}
+
 // ——— Modal Fornecedores (dentro do contexto NF) ———
 function ModalFornecedoresRestaurante({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
   const toast = useToast();
@@ -1255,6 +1265,7 @@ function ModalFornecedoresRestaurante({ loja, onClose }: { loja: LojaInfo; onClo
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nome: '', cnpj: '', email: '', telefone: '', endereco: '' });
   const [saving, setSaving] = useState(false);
+  const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -1268,6 +1279,48 @@ function ModalFornecedoresRestaurante({ loja, onClose }: { loja: LojaInfo; onClo
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  /** Consulta CNPJ na BrasilAPI e preenche nome e endereço automaticamente */
+  const buscarCnpj = async () => {
+    const cnpj = form.cnpj.replace(/\D/g, '');
+    if (cnpj.length !== 14) {
+      toast.error('Informe um CNPJ válido com 14 dígitos para buscar.');
+      return;
+    }
+    setBuscarCnpjLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!res.ok) {
+        toast.error('CNPJ não encontrado ou serviço indisponível.');
+        return;
+      }
+      const data = await res.json();
+      const partes: string[] = [];
+      if (data.logradouro) partes.push(data.logradouro);
+      if (data.numero) partes.push(data.numero);
+      if (data.complemento) partes.push(data.complemento);
+      if (data.bairro) partes.push(data.bairro);
+      if (data.municipio) partes.push(data.municipio);
+      if (data.uf) partes.push(data.uf);
+      if (data.cep) partes.push(`CEP ${(data.cep || '').replace(/\D/g, '').slice(0, 5)}-${(data.cep || '').replace(/\D/g, '').slice(5, 8)}`);
+      const endereco = partes.join(', ');
+      setForm(prev => ({
+        ...prev,
+        nome: data.razao_social || data.nome_fantasia || prev.nome,
+        endereco: endereco || prev.endereco,
+      }));
+      toast.success('Dados do CNPJ preenchidos.');
+    } catch {
+      toast.error('Erro ao consultar CNPJ. Tente novamente.');
+    } finally {
+      setBuscarCnpjLoading(false);
+    }
+  };
+
+  const handleCnpjChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 14);
+    setForm(f => ({ ...f, cnpj: formatCnpjDisplay(digits) }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1296,10 +1349,17 @@ function ModalFornecedoresRestaurante({ loja, onClose }: { loja: LojaInfo; onClo
         {loading ? <div className="text-center py-6 text-gray-500">Carregando...</div> : showForm ? (
           <form onSubmit={handleSubmit} className="space-y-3">
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome/Razão Social *</label><input type="text" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" placeholder="Nome do fornecedor" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CNPJ</label><input type="text" value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" placeholder="00.000.000/0000-00" /></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CNPJ</label>
+              <div className="flex gap-2">
+                <input type="text" value={form.cnpj} onChange={e => handleCnpjChange(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" placeholder="00.000.000/0000-00" maxLength={18} />
+                <button type="button" onClick={buscarCnpj} disabled={buscarCnpjLoading || form.cnpj.replace(/\D/g, '').length !== 14} className="px-3 py-2 rounded-lg text-white text-sm whitespace-nowrap disabled:opacity-50" style={{ backgroundColor: loja.cor_primaria }} title="Buscar dados na Receita Federal">{buscarCnpjLoading ? 'Buscando...' : 'Buscar CNPJ'}</button>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Digite o CNPJ e clique em Buscar para preencher nome e endereço automaticamente.</p>
+            </div>
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" /></div>
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label><input type="tel" value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Endereço</label><input type="text" value={form.endereco} onChange={e => setForm(f => ({ ...f, endereco: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Endereço</label><input type="text" value={form.endereco} onChange={e => setForm(f => ({ ...f, endereco: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" placeholder="Preenchido automaticamente ao buscar CNPJ" /></div>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setShowForm(false)} disabled={saving} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">Voltar</button>
               <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: loja.cor_primaria }}>{saving ? 'Salvando...' : 'Cadastrar'}</button>

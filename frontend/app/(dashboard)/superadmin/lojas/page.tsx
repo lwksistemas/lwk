@@ -71,6 +71,7 @@ export default function GerenciarLojasPage() {
     nome: string;
     slug: string;
     tamanho_banco_mb: number | null;
+    tamanho_banco_estimativa_mb: number;
     tamanho_banco_motivo: string | null;
     database_created: boolean;
     espaco_plano_gb: number | null;

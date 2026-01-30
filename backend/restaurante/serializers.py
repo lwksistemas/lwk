@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import (
     Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario,
-    Fornecedor, NotaFiscalEntrada, ItemNotaFiscalEntrada, EstoqueItem, MovimentoEstoque
+    Fornecedor, NotaFiscalEntrada, ItemNotaFiscalEntrada, EstoqueItem, MovimentoEstoque,
+    RegistroPesoBalança
 )
 
 
@@ -108,5 +109,14 @@ class MovimentoEstoqueSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MovimentoEstoque
+        fields = '__all__'
+        read_only_fields = ['created_at']
+
+
+class RegistroPesoBalançaSerializer(serializers.ModelSerializer):
+    estoque_item_nome = serializers.CharField(source='estoque_item.nome', read_only=True)
+
+    class Meta:
+        model = RegistroPesoBalança
         fields = '__all__'
         read_only_fields = ['created_at']

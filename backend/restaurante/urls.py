@@ -4,7 +4,8 @@ from .views import (
     CategoriaViewSet, ItemCardapioViewSet, MesaViewSet,
     ClienteViewSet, ReservaViewSet, PedidoViewSet,
     ItemPedidoViewSet, FuncionarioViewSet,
-    FornecedorViewSet, NotaFiscalEntradaViewSet, EstoqueItemViewSet
+    FornecedorViewSet, NotaFiscalEntradaViewSet, EstoqueItemViewSet,
+    MovimentoEstoqueViewSet, RegistroPesoBalançaViewSet
 )
 
 router = DefaultRouter()
@@ -19,6 +20,8 @@ router.register(r'funcionarios', FuncionarioViewSet, basename='restaurante-funci
 router.register(r'fornecedores', FornecedorViewSet, basename='restaurante-fornecedores')
 router.register(r'notas-fiscais', NotaFiscalEntradaViewSet, basename='restaurante-notas-fiscais')
 router.register(r'estoque-itens', EstoqueItemViewSet, basename='restaurante-estoque-itens')
+router.register(r'movimentos-estoque', MovimentoEstoqueViewSet, basename='restaurante-movimentos-estoque')
+router.register(r'registros-peso-balanca', RegistroPesoBalançaViewSet, basename='restaurante-registros-peso-balanca')
 
 urlpatterns = [
     path('', include(router.urls)),

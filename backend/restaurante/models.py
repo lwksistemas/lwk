@@ -313,3 +313,26 @@ class MovimentoEstoque(models.Model):
 
     def __str__(self):
         return f"{self.tipo} {self.quantidade} - {self.estoque_item.nome}"
+
+
+class RegistroPesoBalança(models.Model):
+    """Registro de peso (balança) por item de estoque — integração com balança para pesar por kg."""
+    estoque_item = models.ForeignKey(
+        EstoqueItem, on_delete=models.PROTECT, related_name='registros_peso'
+    )
+    peso_kg = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Peso (kg)')
+    adicionar_ao_estoque = models.BooleanField(
+        default=True,
+        help_text='Se True, gera entrada no estoque com essa quantidade (kg)'
+    )
+    observacao = models.CharField(max_length=200, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'restaurante_registros_peso_balanca'
+        ordering = ['-created_at']
+        verbose_name = 'Registro de Peso (Balança)'
+        verbose_name_plural = 'Registros de Peso (Balança)'
+
+    def __str__(self):
+        return f"{self.estoque_item.nome}: {self.peso_kg} kg"

@@ -153,6 +153,15 @@ export default function GerenciarLojasPage() {
       loadLojas();
     } catch (error: any) {
       console.error('Erro ao excluir loja:', error);
+
+      // 404 = loja já foi excluída ou não existe (ex.: lista desatualizada)
+      if (error.response?.status === 404) {
+        setShowModalExcluir(false);
+        setLojaParaExcluir(null);
+        loadLojas();
+        alert('ℹ️ Esta loja já foi excluída ou não existe. A lista foi atualizada.');
+        return;
+      }
       
       let mensagemErro = '❌ Erro ao excluir loja:\n\n';
       

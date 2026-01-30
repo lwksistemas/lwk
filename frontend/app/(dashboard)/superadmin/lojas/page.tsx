@@ -66,6 +66,19 @@ export default function GerenciarLojasPage() {
   const [showModalExcluir, setShowModalExcluir] = useState(false);
   const [lojaParaEditar, setLojaParaEditar] = useState<Loja | null>(null);
   const [showModalEditar, setShowModalEditar] = useState(false);
+  const [showModalInfo, setShowModalInfo] = useState(false);
+  const [lojaInfo, setLojaInfo] = useState<{
+    nome: string;
+    slug: string;
+    tamanho_banco_mb: number | null;
+    espaco_plano_gb: number | null;
+    espaco_livre_gb: number | null;
+    senha_provisoria: string;
+    login_page_url: string;
+    owner_username: string;
+    owner_email: string;
+  } | null>(null);
+  const [loadingInfo, setLoadingInfo] = useState(false);
 
   const excluirLoja = async (loja: Loja) => {
     setLojaParaExcluir(loja);
@@ -108,6 +121,22 @@ export default function GerenciarLojasPage() {
       `⚠️ Esta senha foi enviada por email para o proprietário.`;
     
     alert(mensagem);
+  };
+
+  const abrirInformacoesLoja = async (loja: Loja) => {
+    setShowModalInfo(true);
+    setLojaInfo(null);
+    setLoadingInfo(true);
+    try {
+      const response = await apiClient.get(`/superadmin/lojas/${loja.id}/info_loja/`);
+      setLojaInfo(response.data);
+    } catch (error: any) {
+      console.error('Erro ao carregar informações da loja:', error);
+      alert(`Erro ao carregar informações: ${error.response?.data?.error || 'Erro desconhecido'}`);
+      setShowModalInfo(false);
+    } finally {
+      setLoadingInfo(false);
+    }
   };
 
   const confirmarExclusao = async () => {
@@ -307,13 +336,13 @@ export default function GerenciarLojasPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm space-x-2">
-                        <a
-                          href={loja.login_page_url}
-                          target="_blank"
-                          className="text-purple-600 hover:text-purple-800"
+                        <button
+                          onClick={() => abrirInformacoesLoja(loja)}
+                          className="text-purple-600 hover:text-purple-800 font-medium"
+                          title="Ver informações da loja"
                         >
-                          Acessar
-                        </a>
+                          Informações da Loja
+                        </button>
                         <button 
                           onClick={() => editarLoja(loja)}
                           className="text-blue-600 hover:text-blue-800"
@@ -366,6 +395,76 @@ export default function GerenciarLojasPage() {
           }}
           onConfirm={confirmarExclusao}
         />
+      )}
+
+      {/* Modal Informações da Loja */}
+      {showModalInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowModalInfo(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-purple-900 text-white px-6 py-4">
+              <h2 className="text-xl font-bold">Informações da Loja</h2>
+            </div>
+            <div className="p-6">
+              {loadingInfo ? (
+                <div className="text-center py-8 text-gray-500">Carregando...</div>
+              ) : lojaInfo ? (
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <span className="font-semibold text-gray-500 block mb-1">Loja</span>
+                    <p className="font-medium text-gray-900">{lojaInfo.nome}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="font-semibold text-gray-500 block mb-1">Tamanho do banco</span>
+                      <p className="text-gray-900">
+                        {lojaInfo.tamanho_banco_mb != null ? `${lojaInfo.tamanho_banco_mb} MB` : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-500 block mb-1">Espaço livre</span>
+                      <p className="text-gray-900">
+                        {lojaInfo.espaco_livre_gb != null ? `${lojaInfo.espaco_livre_gb} GB` : lojaInfo.espaco_plano_gb != null ? `${lojaInfo.espaco_plano_gb} GB (plano)` : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-500 block mb-1">Senha de acesso</span>
+                    <p className="text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded break-all">
+                      {lojaInfo.senha_provisoria || '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-500 block mb-1">Página de login da loja</span>
+                    <p className="text-gray-900 break-all">
+                      {lojaInfo.login_page_url ? (
+                        <a
+                          href={typeof window !== 'undefined' ? `${window.location.origin}${lojaInfo.login_page_url}` : lojaInfo.login_page_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-600 hover:text-purple-800 underline"
+                        >
+                          {typeof window !== 'undefined' ? `${window.location.origin}${lojaInfo.login_page_url}` : lojaInfo.login_page_url}
+                        </a>
+                      ) : '—'}
+                    </p>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200">
+                    <span className="font-semibold text-gray-500 block mb-1">Usuário / E-mail</span>
+                    <p className="text-gray-900">{lojaInfo.owner_username} — {lojaInfo.owner_email}</p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end">
+              <button
+                onClick={() => setShowModalInfo(false)}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -714,17 +813,17 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Slug (URL) – gerado automaticamente
+                    Slug (URL) – editável
                   </label>
                   <input
                     type="text"
                     name="slug"
                     value={formData.slug}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-600"
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="minha-loja-123456"
                   />
-                  <p className="text-xs text-gray-500 mt-1">URL: /loja/{formData.slug || '…'}/login — gerado com nome + CPF/CNPJ para evitar duplicidade</p>
+                  <p className="text-xs text-gray-500 mt-1">URL: /loja/{formData.slug || '…'}/login — sugestão automática; você pode editar</p>
                 </div>
 
                 <div className="flex gap-2 items-end">

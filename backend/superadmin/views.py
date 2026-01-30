@@ -657,6 +657,38 @@ Sistema Multi-Loja
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=True, methods=['get'])
+    def info_loja(self, request, pk=None):
+        """Retorna informações da loja para o superadmin: tamanho do banco, espaço livre, senha, página de login."""
+        import os
+        loja = self.get_object()
+        tamanho_banco_mb = None
+        if loja.database_created and loja.database_name:
+            db_path = settings.BASE_DIR / f'db_{loja.database_name}.sqlite3'
+            if db_path.exists():
+                try:
+                    tamanho_banco_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
+                except OSError:
+                    pass
+        espaco_plano_gb = loja.plano.espaco_storage_gb if loja.plano else None
+        espaco_livre_gb = None
+        if espaco_plano_gb is not None and tamanho_banco_mb is not None:
+            espaco_livre_gb = round(espaco_plano_gb - (tamanho_banco_mb / 1024), 2)
+        elif espaco_plano_gb is not None:
+            espaco_livre_gb = espaco_plano_gb
+        return Response({
+            'id': loja.id,
+            'nome': loja.nome,
+            'slug': loja.slug,
+            'tamanho_banco_mb': tamanho_banco_mb,
+            'espaco_plano_gb': espaco_plano_gb,
+            'espaco_livre_gb': espaco_livre_gb,
+            'senha_provisoria': loja.senha_provisoria or '',
+            'login_page_url': loja.login_page_url or '',
+            'owner_username': loja.owner.username,
+            'owner_email': loja.owner.email,
+        })
+    
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
         """Estatísticas gerais do sistema"""

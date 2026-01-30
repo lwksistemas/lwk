@@ -163,14 +163,14 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    # Throttle em produção: limitar abuso (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
+    # Throttle em produção: limitar abuso; ajustável via env (ex.: heroku config:set DRF_THROTTLE_USER_RATE=3000/hour)
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '2000/hour',  # por usuário; 5 usuários/loja × N lojas
+        'anon': os.environ.get('DRF_THROTTLE_ANON_RATE', '100/hour'),
+        'user': os.environ.get('DRF_THROTTLE_USER_RATE', '2000/hour'),  # por usuário; 5 usuários/loja × N lojas
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,

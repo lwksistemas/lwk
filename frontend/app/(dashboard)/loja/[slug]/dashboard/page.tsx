@@ -7,6 +7,7 @@ import { authService } from '@/lib/auth';
 import BotaoSuporte from '@/components/suporte/BotaoSuporte';
 import DashboardClinicaEstetica from './templates/clinica-estetica';
 import DashboardCRMVendas from './templates/crm-vendas';
+import DashboardRestaurante from './templates/restaurante';
 
 interface LojaInfo {
   id: number;
@@ -212,36 +213,7 @@ function DashboardEcommerce({ loja }: { loja: LojaInfo }) {
   );
 }
 
-// Dashboard para Restaurante
-function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-        Dashboard - Restaurante
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Pedidos Hoje</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Mesas Ocupadas</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0/0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Cardápio</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Faturamento</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 0</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Removido - usando DashboardCRMVendas do arquivo separado
+// Restaurante: usando DashboardRestaurante do template restaurante.tsx
 
 // Dashboard para Serviços
 function DashboardServicos({ loja }: { loja: LojaInfo }) {

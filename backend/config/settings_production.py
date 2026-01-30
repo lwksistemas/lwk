@@ -90,16 +90,29 @@ DATABASES = {
     )
 }
 
-# CACHE - Local em memória (temporário até resolver SSL do Redis)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'lwk-cache',
-        'OPTIONS': {
-            'MAX_ENTRIES': 10000,
+# CACHE - Redis se REDIS_URL existir (Heroku Redis), senão LocMem (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
+_redis_url = os.environ.get('REDIS_URL')
+if _redis_url:
+    _redis_options = {'CLIENT_CLASS': 'django_redis.client.DefaultClient'}
+    if _redis_url.startswith('rediss://'):
+        _redis_options['CONNECTION_POOL_KWARGS'] = {'ssl_cert_reqs': None}
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': _redis_url,
+            'OPTIONS': _redis_options,
         }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'lwk-cache',
+            'OPTIONS': {
+                'MAX_ENTRIES': 10000,
+            }
+        }
+    }
 
 # PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
@@ -150,6 +163,17 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Throttle em produção: limitar abuso (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '2000/hour',  # por usuário; 5 usuários/loja × N lojas
+    },
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
 }
 
 # JWT - Token de acesso curto para maior segurança

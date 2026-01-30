@@ -85,7 +85,7 @@ export default function TiposLojaPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <nav className="bg-purple-900 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">
               <a href="/superadmin/dashboard" className="text-purple-200 hover:text-white">
@@ -104,7 +104,7 @@ export default function TiposLojaPage() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="w-full max-w-full py-6 px-4 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {loading ? (
             <div className="text-center py-12">Carregando...</div>

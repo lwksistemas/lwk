@@ -141,6 +141,15 @@ class Loja(models.Model):
     # Documentos
     cpf_cnpj = models.CharField(max_length=18, blank=True, help_text='CPF ou CNPJ da loja')
     
+    # Endereço
+    cep = models.CharField(max_length=9, blank=True)
+    logradouro = models.CharField(max_length=200, blank=True)
+    numero = models.CharField(max_length=20, blank=True)
+    complemento = models.CharField(max_length=100, blank=True)
+    bairro = models.CharField(max_length=100, blank=True)
+    cidade = models.CharField(max_length=100, blank=True)
+    uf = models.CharField(max_length=2, blank=True)
+    
     # Tipo e Plano
     tipo_loja = models.ForeignKey(TipoLoja, on_delete=models.PROTECT, related_name='lojas')
     plano = models.ForeignKey(PlanoAssinatura, on_delete=models.PROTECT, related_name='lojas')

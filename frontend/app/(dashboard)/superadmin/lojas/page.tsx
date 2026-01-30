@@ -372,6 +372,13 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     slug: '',
     descricao: '',
     cpf_cnpj: '',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    uf: '',
     tipo_loja: '',
     plano: '',
     tipo_assinatura: 'mensal',
@@ -384,6 +391,8 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdLoja, setCreatedLoja] = useState<any>(null);
   const [urlCopied, setUrlCopied] = useState(false);
+  const [buscarCepLoading, setBuscarCepLoading] = useState(false);
+  const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false);
 
   useEffect(() => {
     loadTiposEPlanos();
@@ -461,6 +470,13 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    // Formatar CEP (00000-000) ao digitar
+    if (name === 'cep') {
+      const digits = value.replace(/\D/g, '').slice(0, 8);
+      const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+      setFormData(prev => ({ ...prev, cep: formatted }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
     
     // Sugestão de slug (nome + CPF/CNPJ) para evitar duplicidade entre lojas com mesmo nome
@@ -490,6 +506,74 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCpfCnpj(e.target.value);
     setFormData(prev => ({ ...prev, cpf_cnpj: formatted, slug: getSuggestedSlug(prev.nome, formatted) }));
+  };
+
+  /** Consulta CEP via ViaCEP e preenche endereço */
+  const buscarCep = async () => {
+    const cep = formData.cep.replace(/\D/g, '');
+    if (cep.length !== 8) {
+      alert('Informe um CEP válido com 8 dígitos.');
+      return;
+    }
+    setBuscarCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        alert('CEP não encontrado.');
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        logradouro: data.logradouro || prev.logradouro,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.localidade || prev.cidade,
+        uf: data.uf || prev.uf,
+      }));
+    } catch {
+      alert('Erro ao consultar CEP. Tente novamente.');
+    } finally {
+      setBuscarCepLoading(false);
+    }
+  };
+
+  /** Consulta CNPJ via BrasilAPI e preenche nome e endereço */
+  const buscarCnpj = async () => {
+    const cnpj = formData.cpf_cnpj.replace(/\D/g, '');
+    if (cnpj.length !== 14) {
+      alert('Informe um CNPJ válido com 14 dígitos para buscar.');
+      return;
+    }
+    setBuscarCnpjLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!res.ok) {
+        alert('CNPJ não encontrado ou serviço indisponível.');
+        return;
+      }
+      const data = await res.json();
+      const formatCep = (v: string) => {
+        const n = (v || '').replace(/\D/g, '');
+        if (n.length >= 8) return n.slice(0, 5) + '-' + n.slice(5, 8);
+        return n;
+      };
+      setFormData(prev => ({
+        ...prev,
+        nome: data.razao_social || data.nome_fantasia || prev.nome,
+        cep: formatCep(data.cep) || prev.cep,
+        logradouro: data.logradouro || prev.logradouro,
+        numero: data.numero || prev.numero,
+        complemento: data.complemento || prev.complemento,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.municipio || prev.cidade,
+        uf: data.uf || prev.uf,
+        slug: getSuggestedSlug(data.razao_social || data.nome_fantasia || prev.nome, prev.cpf_cnpj),
+      }));
+    } catch {
+      alert('Erro ao consultar CNPJ. Tente novamente.');
+    } finally {
+      setBuscarCnpjLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -557,8 +641,8 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
           </button>
         </div>
         
-        {/* Conteúdo: formulário ou tela de sucesso */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 relative">
+        {/* Conteúdo: formulário ou tela de sucesso (tela cheia, sem faixa lateral) */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 relative w-full">
           {showSuccess && createdLoja ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 p-8 animate-fade-in">
               <div className="flex flex-col items-center max-w-md text-center">
@@ -599,7 +683,7 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
               </div>
             </div>
           ) : null}
-          <form id="form-nova-loja" onSubmit={handleSubmit} className="space-y-6 max-w-5xl mx-auto">
+          <form id="form-nova-loja" onSubmit={handleSubmit} className="space-y-6 w-full">
             {/* Seção 1: Informações Básicas */}
             <div className="border-b pb-6">
               <h3 className="text-lg font-semibold mb-4 text-gray-700">1. Informações Básicas</h3>
@@ -634,20 +718,31 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                   <p className="text-xs text-gray-500 mt-1">URL: /loja/{formData.slug || '…'}/login — gerado com nome + CPF/CNPJ para evitar duplicidade</p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    CPF ou CNPJ *
-                  </label>
-                  <input
-                    type="text"
-                    name="cpf_cnpj"
-                    value={formData.cpf_cnpj}
-                    onChange={handleCpfCnpjChange}
-                    required
-                    maxLength={18}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                  />
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      CPF ou CNPJ *
+                    </label>
+                    <input
+                      type="text"
+                      name="cpf_cnpj"
+                      value={formData.cpf_cnpj}
+                      onChange={handleCpfCnpjChange}
+                      required
+                      maxLength={18}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={buscarCnpj}
+                    disabled={buscarCnpjLoading || formData.cpf_cnpj.replace(/\D/g, '').length !== 14}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    title="Buscar dados do CNPJ na Receita Federal"
+                  >
+                    {buscarCnpjLoading ? 'Buscando...' : 'Buscar CNPJ'}
+                  </button>
                 </div>
 
                 <div className="md:col-span-3">
@@ -666,9 +761,123 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
               </div>
             </div>
 
-            {/* Seção 2: Tipo de Loja */}
+            {/* Seção 2: Endereço (CEP primeiro para consulta automática) */}
             <div className="border-b pb-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-700">2. Tipo de Loja</h3>
+              <h3 className="text-lg font-semibold mb-4 text-gray-700">2. Endereço</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      CEP (busca automática)
+                    </label>
+                    <input
+                      type="text"
+                      name="cep"
+                      value={formData.cep}
+                      onChange={handleChange}
+                      onBlur={() => formData.cep.replace(/\D/g, '').length === 8 && buscarCep()}
+                      maxLength={9}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                      placeholder="00000-000"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={buscarCep}
+                    disabled={buscarCepLoading || formData.cep.replace(/\D/g, '').length !== 8}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    title="Buscar endereço pelo CEP"
+                  >
+                    {buscarCepLoading ? '...' : 'Buscar'}
+                  </button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Logradouro
+                  </label>
+                  <input
+                    type="text"
+                    name="logradouro"
+                    value={formData.logradouro}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="Rua, avenida..."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Número
+                    </label>
+                    <input
+                      type="text"
+                      name="numero"
+                      value={formData.numero}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                      placeholder="Nº"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Complemento
+                    </label>
+                    <input
+                      type="text"
+                      name="complemento"
+                      value={formData.complemento}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                      placeholder="Sala, apto..."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bairro
+                  </label>
+                  <input
+                    type="text"
+                    name="bairro"
+                    value={formData.bairro}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="Bairro"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cidade
+                  </label>
+                  <input
+                    type="text"
+                    name="cidade"
+                    value={formData.cidade}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="Cidade"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    UF
+                  </label>
+                  <input
+                    type="text"
+                    name="uf"
+                    value={formData.uf}
+                    onChange={handleChange}
+                    maxLength={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 uppercase"
+                    placeholder="UF"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 3: Tipo de Loja */}
+            <div className="border-b pb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-700">3. Tipo de Loja</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Selecione o tipo *
@@ -705,9 +914,9 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             </div>
           </div>
 
-          {/* Seção 3: Plano e Assinatura */}
+          {/* Seção 4: Plano e Assinatura */}
           <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">3. Plano e Assinatura</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700">4. Plano e Assinatura</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -808,9 +1017,9 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             </div>
           </div>
 
-          {/* Seção 4: Usuário Administrador */}
+          {/* Seção 5: Usuário Administrador */}
           <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">4. Usuário Administrador da Loja</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700">5. Usuário Administrador da Loja</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

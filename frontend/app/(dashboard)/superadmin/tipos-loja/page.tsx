@@ -135,7 +135,7 @@ export default function TiposLojaPage() {
 
                   {/* Conteúdo do Card */}
                   <div className="p-6">
-                    <p className="text-gray-600 mb-4">{tipo.descricao}</p>
+                    {/* Descrição oculta na listagem para manter a página limpa */}
                     
                     {/* Estatísticas */}
                     <div className="mb-4">

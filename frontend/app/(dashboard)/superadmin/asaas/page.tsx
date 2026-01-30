@@ -88,7 +88,7 @@ export default function AsaasConfigPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/asaas/config/`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
       
@@ -105,7 +105,7 @@ export default function AsaasConfigPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/asaas/stats/`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
       
@@ -122,7 +122,7 @@ export default function AsaasConfigPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/asaas/status/`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
       
@@ -142,7 +142,7 @@ export default function AsaasConfigPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         },
         body: JSON.stringify(config)
       })
@@ -169,7 +169,7 @@ export default function AsaasConfigPage() {
       const response = await fetch(`${API_BASE_URL}/api/asaas/test/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
       
@@ -196,7 +196,7 @@ export default function AsaasConfigPage() {
       const response = await fetch(`${API_BASE_URL}/api/asaas/sync/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
       

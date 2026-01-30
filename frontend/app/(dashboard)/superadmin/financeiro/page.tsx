@@ -91,24 +91,31 @@ export default function FinanceiroPage() {
     }
   };
 
-  const downloadBoleto = async (paymentId: number) => {
+  const downloadBoleto = async (payment: AsaasPayment) => {
+    // Preferir abrir URL do boleto diretamente (evita erro de blob/CORS)
+    if (payment.bank_slip_url) {
+      window.open(payment.bank_slip_url, '_blank', 'noopener,noreferrer');
+      return;
+    }
     try {
-      const response = await apiClient.get(`/asaas/payments/${paymentId}/download_pdf/`, {
+      const response = await apiClient.get(`/asaas/payments/${payment.id}/download_pdf/`, {
         responseType: 'blob'
       });
-      
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `boleto_${paymentId}.pdf`;
+      link.download = `boleto_${payment.id}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao baixar boleto:', error);
-      alert('Erro ao baixar boleto');
+      const msg = error.response?.data instanceof Blob
+        ? 'Erro ao baixar boleto. Tente abrir o link do boleto em nova aba.'
+        : (error.response?.data?.error || 'Erro ao baixar boleto');
+      alert(msg);
     }
   };
 
@@ -123,16 +130,25 @@ export default function FinanceiroPage() {
     }
   };
 
+  const [gerandoCobranca, setGerandoCobranca] = useState<number | null>(null);
+  const [showModalNovaCobranca, setShowModalNovaCobranca] = useState(false);
+
   const generateNewPayment = async (assinaturaId: number) => {
+    setGerandoCobranca(assinaturaId);
     try {
       const response = await apiClient.post(`/asaas/subscriptions/${assinaturaId}/generate_new_payment/`);
       if (response.data.success) {
-        loadData(); // Recarregar dados
+        await loadData();
         alert('Nova cobrança gerada com sucesso!');
+      } else {
+        alert(response.data.error || 'Erro ao gerar cobrança');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao gerar nova cobrança:', error);
-      alert('Erro ao gerar nova cobrança');
+      const msg = error.response?.data?.error || error.message || 'Erro ao gerar nova cobrança';
+      alert(`Erro: ${msg}`);
+    } finally {
+      setGerandoCobranca(null);
     }
   };
 
@@ -182,6 +198,23 @@ export default function FinanceiroPage() {
               <h1 className="text-2xl font-bold">Financeiro - Asaas</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => {
+                  if (assinaturas.length === 0) {
+                    alert('Não há assinaturas no momento. Crie uma loja em "Gerenciar Lojas" e ative a cobrança para ver assinaturas aqui.');
+                    return;
+                  }
+                  if (assinaturas.length === 1) {
+                    generateNewPayment(assinaturas[0].id);
+                  } else {
+                    setShowModalNovaCobranca(true);
+                  }
+                }}
+                disabled={gerandoCobranca !== null}
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-md transition-colors disabled:opacity-50"
+              >
+                {gerandoCobranca !== null ? 'Gerando...' : '➕ Nova Cobrança'}
+              </button>
               <button
                 onClick={loadData}
                 className="px-4 py-2 bg-purple-700 hover:bg-purple-800 rounded-md transition-colors"
@@ -349,9 +382,9 @@ export default function FinanceiroPage() {
                               
                               {/* Ações do Pagamento */}
                               <div className="mt-3 flex flex-wrap gap-2">
-                                {assinatura.current_payment_data.bank_slip_url && (
+                                {(assinatura.current_payment_data.bank_slip_url || true) && (
                                   <button
-                                    onClick={() => downloadBoleto(assinatura.current_payment_data!.id)}
+                                    onClick={() => downloadBoleto(assinatura.current_payment_data!)}
                                     className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                                   >
                                     📄 Baixar Boleto
@@ -376,9 +409,10 @@ export default function FinanceiroPage() {
                                 
                                 <button
                                   onClick={() => generateNewPayment(assinatura.id)}
-                                  className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                                  disabled={gerandoCobranca === assinatura.id}
+                                  className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 disabled:opacity-50"
                                 >
-                                  ➕ Nova Cobrança
+                                  {gerandoCobranca === assinatura.id ? 'Gerando...' : '➕ Nova Cobrança'}
                                 </button>
                               </div>
                             </div>
@@ -456,9 +490,9 @@ export default function FinanceiroPage() {
                                 {formatDate(pagamento.due_date)}
                               </td>
                               <td className="px-6 py-4 text-sm space-x-2">
-                                {pagamento.bank_slip_url && (
+                                {(pagamento.bank_slip_url || true) && (
                                   <button
-                                    onClick={() => downloadBoleto(pagamento.id)}
+                                    onClick={() => downloadBoleto(pagamento)}
                                     className="text-blue-600 hover:text-blue-800"
                                   >
                                     📄 PDF
@@ -491,6 +525,40 @@ export default function FinanceiroPage() {
           </div>
         </div>
       </main>
+
+      {/* Modal: escolher assinatura para nova cobrança */}
+      {showModalNovaCobranca && assinaturas.length > 1 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Nova Cobrança - Escolha a loja</h3>
+            <ul className="space-y-2 mb-4">
+              {assinaturas.map((a) => (
+                <li key={a.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModalNovaCobranca(false);
+                      generateNewPayment(a.id);
+                    }}
+                    disabled={gerandoCobranca !== null}
+                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-purple-50 hover:border-purple-300 disabled:opacity-50"
+                  >
+                    <span className="font-medium text-gray-900">{a.loja_nome}</span>
+                    <span className="text-gray-500 text-sm block">{a.loja_slug} · {a.plano_nome}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setShowModalNovaCobranca(false)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

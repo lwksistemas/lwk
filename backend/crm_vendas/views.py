@@ -33,9 +33,9 @@ class LeadViewSet(BaseModelViewSet):
 
     @action(detail=False, methods=['get'])
     def recentes(self, request):
-        """Retorna leads mais recentes"""
-        leads = self.queryset.order_by('-created_at')[:10]
-        serializer = self.get_serializer(leads, many=True)
+        """Retorna leads mais recentes (respeitando loja do contexto)"""
+        queryset = self.get_queryset().order_by('-created_at')[:10]
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 
@@ -54,6 +54,38 @@ class ClienteViewSet(BaseModelViewSet):
 class VendedorViewSet(BaseModelViewSet):
     queryset = Vendedor.objects.all()
     serializer_class = VendedorSerializer
+
+    def _ensure_owner_vendedor(self):
+        """Garante que o administrador da loja exista como vendedor (aparece em Funcionários)."""
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import Loja
+        from decimal import Decimal
+
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return
+        try:
+            loja = Loja.objects.get(id=loja_id)
+            owner = loja.owner
+            exists = Vendedor.objects.all_without_filter().filter(
+                loja_id=loja_id, email=owner.email
+            ).exists()
+            if not exists:
+                Vendedor.objects.all_without_filter().create(
+                    nome=owner.get_full_name() or owner.username,
+                    email=owner.email,
+                    telefone='',
+                    cargo='Gerente de Vendas',
+                    is_admin=True,
+                    loja_id=loja_id,
+                    meta_mensal=Decimal('10000.00'),
+                )
+        except Loja.DoesNotExist:
+            pass
+
+    def list(self, request, *args, **kwargs):
+        self._ensure_owner_vendedor()
+        return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = super().get_queryset()

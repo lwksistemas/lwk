@@ -75,7 +75,7 @@ export default function FinanceiroLojaPage() {
       setLoading(true)
       const response = await fetch(`${API_BASE_URL}/api/superadmin/loja/${slug}/financeiro/`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
       
@@ -97,7 +97,7 @@ export default function FinanceiroLojaPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
       
@@ -128,7 +128,7 @@ export default function FinanceiroLojaPage() {
       const response = await fetch(`${API_BASE_URL}/api/superadmin/loja-financeiro/${data.loja.id}/atualizar_status_asaas/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
       

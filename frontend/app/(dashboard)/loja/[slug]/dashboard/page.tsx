@@ -46,9 +46,10 @@ export default function LojaDashboardDinamicoPage() {
       // Carregar informações da loja
       const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       const data = lojaResponse.data;
-      // ✅ Definir current_loja_id ANTES de renderizar o dashboard (APIs da clínica usam X-Loja-ID)
+      // ✅ Definir current_loja_id e loja_slug ANTES de renderizar (APIs da clínica usam X-Loja-ID; loja_slug é fallback no mobile)
       if (data?.id && typeof window !== 'undefined') {
-        localStorage.setItem('current_loja_id', String(data.id));
+        sessionStorage.setItem('current_loja_id', String(data.id));
+        if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
       }
       setLojaInfo(data);
       
@@ -64,7 +65,7 @@ export default function LojaDashboardDinamicoPage() {
 
   const handleLogout = () => {
     authService.logout();
-    localStorage.removeItem('current_loja_id'); // Limpar loja_id
+    sessionStorage.removeItem('current_loja_id'); // Limpar loja_id
     router.push(`/loja/${slug}/login`);
   };
 

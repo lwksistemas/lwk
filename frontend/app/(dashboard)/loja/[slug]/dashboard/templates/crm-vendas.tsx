@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient } from '@/lib/api-client';
+import { clinicaApiClient } from '@/lib/api-client';
+import { useToast } from '@/components/ui/Toast';
+import { ThemeToggle } from '@/components/ui/ThemeProvider';
+import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
 
 interface LojaInfo {
   id: number;
@@ -14,17 +17,46 @@ interface LojaInfo {
   logo?: string;
 }
 
+interface EstatisticasCRM {
+  leads_ativos: number;
+  negociacoes: number;
+  vendas_mes: number;
+  receita: number;
+}
+
 interface Lead {
   id: number;
   nome: string;
   empresa: string;
   status: string;
-  valor: number;
-  data: string;
+  valor_estimado: number | string;
+  created_at?: string;
 }
+
+// Valores do backend (Lead model) - usados no dashboard e modais
+const ORIGENS_CRM = [
+  { value: 'site', label: 'Site' },
+  { value: 'indicacao', label: 'Indicação' },
+  { value: 'redes_sociais', label: 'Redes Sociais' },
+  { value: 'email_marketing', label: 'Email Marketing' },
+  { value: 'evento', label: 'Evento' },
+  { value: 'telefone', label: 'Telefone' },
+  { value: 'outro', label: 'Outro' }
+];
+const STATUS_LEAD = [
+  { value: 'novo', label: 'Novo Lead' },
+  { value: 'contato_inicial', label: 'Contato Inicial' },
+  { value: 'qualificado', label: 'Qualificado' },
+  { value: 'proposta_enviada', label: 'Proposta Enviada' },
+  { value: 'negociacao', label: 'Negociação' },
+  { value: 'fechado', label: 'Fechado' },
+  { value: 'perdido', label: 'Perdido' }
+];
+const INTERESSES_CRM = ['Produto A', 'Produto B', 'Serviço Premium', 'Consultoria', 'Outro'];
 
 export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
   const router = useRouter();
+  const toast = useToast();
   const [showModalPipeline, setShowModalPipeline] = useState(false);
   const [showModalLead, setShowModalLead] = useState(false);
   const [showModalCliente, setShowModalCliente] = useState(false);
@@ -32,143 +64,127 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
   const [showModalProduto, setShowModalProduto] = useState(false);
   const [showModalFuncionarios, setShowModalFuncionarios] = useState(false);
 
-  const estatisticas = {
+  const [estatisticas, setEstatisticas] = useState<EstatisticasCRM>({
     leads_ativos: 0,
     negociacoes: 0,
     vendas_mes: 0,
     receita: 0
-  };
+  });
+  const [leadsRecentes, setLeadsRecentes] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingLeads, setLoadingLeads] = useState(false);
 
-  const leadsRecentes: Lead[] = [];
+  const loadDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadingLeads(true);
+      const [statsRes, leadsRes] = await Promise.all([
+        clinicaApiClient.get<EstatisticasCRM>('/crm/vendas/estatisticas/'),
+        clinicaApiClient.get<Lead[]>('/crm/leads/recentes/')
+      ]);
+      setEstatisticas(statsRes.data);
+      setLeadsRecentes(Array.isArray(leadsRes.data) ? leadsRes.data : []);
+    } catch (error) {
+      console.error('Erro ao carregar dashboard CRM:', error);
+      toast.error('Erro ao carregar dashboard');
+    } finally {
+      setLoading(false);
+      setLoadingLeads(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && loja?.id) {
+      const current = sessionStorage.getItem('current_loja_id');
+      if (current !== String(loja.id)) sessionStorage.setItem('current_loja_id', String(loja.id));
+      if (loja.slug) sessionStorage.setItem('loja_slug', loja.slug);
+    }
+    loadDashboard();
+  }, [loadDashboard, loja?.id, loja?.slug]);
+
+  const handleNovoLead = () => setShowModalLead(true);
+  const handleClientes = () => setShowModalCliente(true);
+  const handleVendedores = () => setShowModalFuncionarios(true);
+  const handleNovoProduto = () => setShowModalProduto(true);
+  const handlePipeline = () => setShowModalPipeline(true);
+  const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
-    <div>
-      {/* Ações Rápidas - MOVIDO PARA O TOPO */}
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h3 className="text-lg font-semibold mb-4">🚀 Ações Rápidas</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-          <button onClick={() => setShowModalLead(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">🎯</div>
-            <div className="text-xs md:text-sm">Leads</div>
-            <div className="text-[10px] opacity-80">(Em negociação)</div>
-          </button>
-          <button onClick={() => setShowModalCliente(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">👤</div>
-            <div className="text-xs md:text-sm">Clientes</div>
-            <div className="text-[10px] opacity-80">(Já compraram)</div>
-          </button>
-          <button onClick={() => setShowModalVendedor(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">💼</div>
-            <div className="text-xs md:text-sm">Novo Vendedor</div>
-          </button>
-          <button onClick={() => setShowModalProduto(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">📦</div>
-            <div className="text-xs md:text-sm">Novo Produto</div>
-          </button>
-          <button onClick={() => setShowModalPipeline(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">🔄</div>
-            <div className="text-xs md:text-sm">Pipeline</div>
-          </button>
-          <button onClick={() => setShowModalFuncionarios(true)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">👥</div>
-            <div className="text-xs md:text-sm">Funcionários</div>
-          </button>
-          <button onClick={() => router.push(`/loja/${loja.slug}/relatorios`)} className="p-3 md:p-4 rounded-lg text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-md" style={{ backgroundColor: loja.cor_primaria }}>
-            <div className="text-2xl md:text-3xl mb-1 md:mb-2">📊</div>
-            <div className="text-xs md:text-sm">Relatórios</div>
-          </button>
+    <div className="space-y-6 sm:space-y-8 px-2 sm:px-4 lg:px-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+          Dashboard - {loja.nome}
+        </h1>
+        <ThemeToggle />
+      </div>
+
+      {/* Ações Rápidas */}
+      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg card-hover">
+        <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
+          🚀 Ações Rápidas
+        </h3>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
+          <ActionButton onClick={handleNovoLead} color="#3B82F6" icon="🎯" label="Leads" />
+          <ActionButton onClick={handleClientes} color="#F59E0B" icon="👤" label="Clientes" />
+          <ActionButton onClick={handleVendedores} color="#EC4899" icon="👥" label="Vendedores" />
+          <ActionButton onClick={handleNovoProduto} color="#06B6D4" icon="📦" label="Produto" />
+          <ActionButton onClick={handlePipeline} color="#8B5CF6" icon="🔄" label="Pipeline" />
+          <ActionButton onClick={handleRelatorios} color="#059669" icon="📊" label="Relatórios" />
+        </div>
+        <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 text-center">
+            💡 <strong>Dashboard CRM Vendas</strong> - Clique nas ações para gerenciar sua equipe e pipeline
+          </p>
         </div>
       </div>
 
-      {/* Estatísticas - ABAIXO DAS AÇÕES RÁPIDAS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-gray-500 text-sm font-medium">Leads Ativos</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>{estatisticas.leads_ativos}</p>
-            </div>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${loja.cor_primaria}20` }}>
-              <span className="text-2xl">👥</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-gray-500 text-sm font-medium">Negociações</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>{estatisticas.negociacoes}</p>
-            </div>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${loja.cor_primaria}20` }}>
-              <span className="text-2xl">🤝</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-gray-500 text-sm font-medium">Vendas Mês</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>{estatisticas.vendas_mes}</p>
-            </div>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${loja.cor_primaria}20` }}>
-              <span className="text-2xl">📈</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-gray-500 text-sm font-medium">Receita</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ {estatisticas.receita.toLocaleString('pt-BR')}</p>
-            </div>
-            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${loja.cor_primaria}20` }}>
-              <span className="text-2xl">💰</span>
-            </div>
-          </div>
-        </div>
+      {/* Estatísticas */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+        <StatCard title="Leads Ativos" value={estatisticas.leads_ativos} icon="👥" cor={loja.cor_primaria} />
+        <StatCard title="Negociações" value={estatisticas.negociacoes} icon="🤝" cor={loja.cor_primaria} />
+        <StatCard title="Vendas Mês" value={estatisticas.vendas_mes} icon="📈" cor={loja.cor_primaria} />
+        <StatCard title="Receita" value={`R$ ${Number(estatisticas.receita).toLocaleString('pt-BR')}`} icon="💰" cor={loja.cor_primaria} />
       </div>
 
       {/* Leads Recentes */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Leads Recentes</h3>
-          <button onClick={() => setShowModalLead(true)} className="text-sm px-4 py-2 rounded-md text-white hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>+ Novo</button>
+      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Leads Recentes</h3>
+          <button
+            onClick={handleNovoLead}
+            className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg text-white hover:opacity-90 transition-all btn-press shadow-md"
+            style={{ backgroundColor: loja.cor_primaria }}
+          >
+            + Novo
+          </button>
         </div>
-        
-        {leadsRecentes.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg mb-2">Nenhum lead cadastrado</p>
-            <p className="text-sm mb-4">Comece adicionando seu primeiro lead</p>
-            <button onClick={() => setShowModalLead(true)} className="px-6 py-3 rounded-md text-white hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>
-              + Adicionar Primeiro Lead
-            </button>
-          </div>
+
+        {loadingLeads ? (
+          <AgendamentosListSkeleton count={3} />
+        ) : leadsRecentes.length === 0 ? (
+          <EmptyState
+            message="Nenhum lead cadastrado"
+            subMessage="Comece adicionando seu primeiro lead"
+            actionLabel="+ Adicionar Primeiro Lead"
+            onAction={handleNovoLead}
+            cor={loja.cor_primaria}
+            icon="🎯"
+          />
         ) : (
           <div className="space-y-4">
             {leadsRecentes.map((lead) => (
-              <div key={lead.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: loja.cor_primaria }}>{lead.nome.charAt(0)}</div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{lead.nome}</p>
-                    <p className="text-sm text-gray-600">{lead.empresa}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold" style={{ color: loja.cor_primaria }}>R$ {lead.valor.toLocaleString('pt-BR')}</p>
-                  <p className="text-sm text-gray-600">{lead.status}</p>
-                </div>
-              </div>
+              <LeadCard key={lead.id} lead={lead} cor={loja.cor_primaria} />
             ))}
           </div>
         )}
       </div>
 
       {/* Modais */}
-      {showModalLead && <ModalNovoLead loja={loja} onClose={() => setShowModalLead(false)} />}
+      {showModalLead && <ModalNovoLead loja={loja} onClose={() => setShowModalLead(false)} onSuccess={loadDashboard} />}
       {showModalCliente && <ModalNovoCliente loja={loja} onClose={() => setShowModalCliente(false)} />}
       {showModalVendedor && <ModalNovoVendedor loja={loja} onClose={() => setShowModalVendedor(false)} />}
       {showModalProduto && <ModalNovoProduto loja={loja} onClose={() => setShowModalProduto(false)} />}
@@ -178,30 +194,128 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
   );
 }
 
+function ActionButton({ onClick, color, icon, label }: { onClick: () => void; color: string; icon: string; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl text-white font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-md sm:shadow-lg hover:shadow-xl btn-press relative overflow-hidden min-h-[70px] sm:min-h-[80px] md:min-h-[100px]"
+      style={{ backgroundColor: color }}
+    >
+      <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
+      <div className="relative flex flex-col items-center justify-center h-full">
+        <div className="text-xl sm:text-2xl md:text-3xl mb-1 sm:mb-2">{icon}</div>
+        <div className="text-[10px] sm:text-xs md:text-sm leading-tight text-center">{label}</div>
+      </div>
+    </button>
+  );
+}
+
+function StatCard({ title, value, icon, cor }: { title: string; value: string | number; icon: string; cor: string }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 md:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 card-hover group">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium truncate">{title}</h3>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 text-gray-900 dark:text-white truncate" style={{ color: cor }}>
+            {value}
+          </p>
+        </div>
+        <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${cor}20` }}>
+          <span className="text-xl sm:text-2xl md:text-3xl">{icon}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LeadCard({ lead, cor }: { lead: Lead; cor: string }) {
+  const valor = typeof lead.valor_estimado === 'string' ? parseFloat(lead.valor_estimado) : Number(lead.valor_estimado);
+  const statusLabel = STATUS_LEAD.find(s => s.value === lead.status)?.label ?? lead.status;
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all gap-3 sm:gap-4 card-hover">
+      <div className="flex items-center space-x-3 sm:space-x-4">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 shadow-md" style={{ backgroundColor: cor }}>
+          {lead.nome.charAt(0)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">{lead.nome}</p>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{lead.empresa}</p>
+        </div>
+      </div>
+      <div className="flex sm:flex-col items-center sm:items-end gap-2">
+        <p className="font-bold text-base sm:text-lg" style={{ color: cor }}>
+          R$ {valor.toLocaleString('pt-BR')}
+        </p>
+        <span className="text-xs text-gray-600 dark:text-gray-400">{statusLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ message, subMessage, actionLabel, onAction, cor, icon = '📋' }: {
+  message: string;
+  subMessage: string;
+  actionLabel: string;
+  onAction: () => void;
+  cor: string;
+  icon?: string;
+}) {
+  return (
+    <div className="text-center py-8 sm:py-12 px-4">
+      <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+        <span className="text-2xl sm:text-3xl">{icon}</span>
+      </div>
+      <p className="text-base sm:text-lg mb-1 sm:mb-2 text-gray-700 dark:text-gray-300">{message}</p>
+      <p className="text-xs sm:text-sm mb-4 text-gray-500 dark:text-gray-500">{subMessage}</p>
+      <button
+        onClick={onAction}
+        className="px-4 sm:px-6 py-2.5 sm:py-3 min-h-[44px] rounded-xl text-white hover:opacity-90 transition-all btn-press shadow-lg text-sm sm:text-base active:scale-95"
+        style={{ backgroundColor: cor }}
+      >
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
 // Modal Gerenciar Leads (Listar, Criar, Editar, Excluir)
-function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+function ModalNovoLead({ loja, onClose, onSuccess }: { loja: LojaInfo; onClose: () => void; onSuccess?: () => void }) {
+  const toast = useToast();
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [leadEditando, setLeadEditando] = useState<number | null>(null);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [loadingLista, setLoadingLista] = useState(true);
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
     telefone: '',
     empresa: '',
     cargo: '',
-    origem: '',
-    interesse: '',
+    origem: 'site',
+    interesse: 'Produto A',
     valor_estimado: '',
-    status: '',
+    status: 'novo',
     observacoes: ''
   });
   const [loading, setLoading] = useState(false);
 
-  // Lista de leads vazia inicialmente (será carregada do backend futuramente)
-  const leads: any[] = [];
+  const loadLeads = async () => {
+    try {
+      setLoadingLista(true);
+      const res = await clinicaApiClient.get('/crm/leads/');
+      setLeads(Array.isArray(res.data) ? res.data : res.data?.results ?? []);
+    } catch (error) {
+      console.error('Erro ao carregar leads:', error);
+      toast.error('Erro ao carregar leads');
+      setLeads([]);
+    } finally {
+      setLoadingLista(false);
+    }
+  };
 
-  const origens = ['Site', 'Indicação', 'Redes Sociais', 'Email Marketing', 'Evento', 'Telefone', 'Outro'];
-  const interesses = ['Produto A', 'Produto B', 'Serviço Premium', 'Consultoria', 'Outro'];
-  const statusOptions = ['Novo Lead', 'Contato Inicial', 'Qualificado', 'Proposta Enviada', 'Negociação', 'Fechado', 'Perdido'];
+  useEffect(() => {
+    loadLeads();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -209,7 +323,7 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
   const handleNovo = () => {
     setLeadEditando(null);
-    setFormData({ nome: '', email: '', telefone: '', empresa: '', cargo: '', origem: '', interesse: '', valor_estimado: '', status: 'Novo Lead', observacoes: '' });
+    setFormData({ nome: '', email: '', telefone: '', empresa: '', cargo: '', origem: 'site', interesse: 'Produto A', valor_estimado: '', status: 'novo', observacoes: '' });
     setMostrarFormulario(true);
   };
 
@@ -221,10 +335,10 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
       telefone: lead.telefone,
       empresa: lead.empresa,
       cargo: lead.cargo || '',
-      origem: lead.origem,
-      interesse: lead.interesse || '',
-      valor_estimado: lead.valor_estimado,
-      status: lead.status,
+      origem: lead.origem || 'site',
+      interesse: lead.interesse || 'Produto A',
+      valor_estimado: String(lead.valor_estimado ?? ''),
+      status: lead.status || 'novo',
       observacoes: lead.observacoes || ''
     });
     setMostrarFormulario(true);
@@ -232,23 +346,36 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
   const handleExcluir = async (leadId: number, leadNome: string) => {
     if (!confirm(`Tem certeza que deseja excluir o lead "${leadNome}"?`)) return;
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      alert(`✅ Lead "${leadNome}" excluído com sucesso!`);
-    } catch (error) {
-      alert('❌ Erro ao excluir lead');
+      await clinicaApiClient.delete(`/crm/leads/${leadId}/`);
+      toast.success(`Lead "${leadNome}" excluído`);
+      loadLeads();
+      onSuccess?.();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Erro ao excluir lead');
     }
   };
 
   const handleConverterCliente = async (lead: any) => {
     if (!confirm(`Converter o lead "${lead.nome}" em cliente?\n\nIsso significa que a venda foi fechada e o lead se tornou um cliente ativo.`)) return;
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      alert(`✅ Lead "${lead.nome}" convertido em cliente com sucesso!\n\n🎉 Parabéns pela venda!\n\nO cliente agora está disponível em "Gerenciar Clientes".\n\nDados transferidos:\n• Nome: ${lead.nome}\n• Empresa: ${lead.empresa}\n• Email: ${lead.email}\n• Telefone: ${lead.telefone}\n• Valor da venda: R$ ${parseFloat(lead.valor_estimado).toLocaleString('pt-BR')}`);
-    } catch (error) {
-      alert('❌ Erro ao converter lead em cliente');
+      await clinicaApiClient.post('/crm/clientes/', {
+        nome: lead.nome,
+        email: lead.email,
+        telefone: lead.telefone,
+        empresa: lead.empresa,
+        cnpj: '',
+        endereco: '',
+        cidade: '',
+        estado: '',
+        observacoes: ''
+      });
+      await clinicaApiClient.delete(`/crm/leads/${lead.id}/`);
+      toast.success(`Lead "${lead.nome}" convertido em cliente!`);
+      loadLeads();
+      onSuccess?.();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || error.response?.data?.nome?.[0] || 'Erro ao converter lead');
     }
   };
 
@@ -256,17 +383,33 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
     e.preventDefault();
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const payload = {
+        nome: formData.nome,
+        email: formData.email,
+        telefone: formData.telefone,
+        empresa: formData.empresa,
+        cargo: formData.cargo || null,
+        origem: formData.origem,
+        interesse: formData.interesse,
+        valor_estimado: formData.valor_estimado ? parseFloat(formData.valor_estimado) : 0,
+        status: formData.status,
+        observacoes: formData.observacoes || null
+      };
       if (leadEditando) {
-        alert(`✅ Lead atualizado com sucesso!\n\nNome: ${formData.nome}\nEmpresa: ${formData.empresa}\nStatus: ${formData.status}`);
+        await clinicaApiClient.put(`/crm/leads/${leadEditando}/`, payload);
+        toast.success('Lead atualizado com sucesso');
       } else {
-        alert(`✅ Lead cadastrado com sucesso!\n\nNome: ${formData.nome}\nEmpresa: ${formData.empresa}\nValor Estimado: R$ ${formData.valor_estimado}`);
+        await clinicaApiClient.post('/crm/leads/', payload);
+        toast.success('Lead cadastrado com sucesso');
       }
       setMostrarFormulario(false);
       setLeadEditando(null);
-      setFormData({ nome: '', email: '', telefone: '', empresa: '', cargo: '', origem: '', interesse: '', valor_estimado: '', status: 'Novo Lead', observacoes: '' });
-    } catch (error) {
-      alert('❌ Erro ao salvar lead');
+      setFormData({ nome: '', email: '', telefone: '', empresa: '', cargo: '', origem: 'site', interesse: 'Produto A', valor_estimado: '', status: 'novo', observacoes: '' });
+      loadLeads();
+      onSuccess?.();
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || error.response?.data?.nome?.[0] || 'Erro ao salvar lead';
+      toast.error(typeof msg === 'string' ? msg : 'Erro ao salvar lead');
     } finally {
       setLoading(false);
     }
@@ -306,22 +449,19 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Origem *</label>
                   <select name="origem" value={formData.origem} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0">
-                    <option value="">Selecione...</option>
-                    {origens.map(orig => (<option key={orig} value={orig}>{orig}</option>))}
+                    {ORIGENS_CRM.map(o => (<option key={o.value} value={o.value}>{o.label}</option>))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Interesse *</label>
                   <select name="interesse" value={formData.interesse} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0">
-                    <option value="">Selecione...</option>
-                    {interesses.map(int => (<option key={int} value={int}>{int}</option>))}
+                    {INTERESSES_CRM.map(int => (<option key={int} value={int}>{int}</option>))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
                   <select name="status" value={formData.status} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0">
-                    <option value="">Selecione...</option>
-                    {statusOptions.map(st => (<option key={st} value={st}>{st}</option>))}
+                    {STATUS_LEAD.map(st => (<option key={st.value} value={st.value}>{st.label}</option>))}
                   </select>
                 </div>
                 <div>
@@ -344,35 +484,46 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
     );
   }
 
+  const getStatusLabel = (value: string) => STATUS_LEAD.find(s => s.value === value)?.label ?? value;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>🎯 Gerenciar Leads (Em negociação)</h3>
-        
-        <div className="space-y-4 mb-6">
-          {leads.map((lead) => (
-            <div key={lead.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-              <div className="flex-1">
-                <p className="font-semibold text-lg">{lead.nome}</p>
-                <p className="text-sm text-gray-600">{lead.empresa} • {lead.email}</p>
-                <p className="text-sm text-gray-600">{lead.telefone} • Origem: {lead.origem}</p>
-                <div className="mt-2 flex items-center space-x-4">
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">{lead.status}</span>
-                  <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>R$ {parseFloat(lead.valor_estimado).toLocaleString('pt-BR')}</span>
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-xl">
+        <h3 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>🎯 Gerenciar Leads</h3>
+
+        {loadingLista ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando leads...</div>
+        ) : leads.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p className="mb-4">Nenhum lead cadastrado.</p>
+            <button onClick={handleNovo} className="px-6 py-2 rounded-lg text-white hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>+ Novo Lead</button>
+          </div>
+        ) : (
+          <div className="space-y-4 mb-6">
+            {leads.map((lead) => (
+              <div key={lead.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-lg text-gray-900 dark:text-white">{lead.nome}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{lead.empresa} • {lead.email}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{lead.telefone} • {ORIGENS_CRM.find(o => o.value === lead.origem)?.label ?? lead.origem}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">{getStatusLabel(lead.status)}</span>
+                    <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>R$ {Number(lead.valor_estimado).toLocaleString('pt-BR')}</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                  <button onClick={() => handleEditar(lead)} className="px-3 py-2 text-sm text-white rounded-lg hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
+                  <button onClick={() => handleConverterCliente(lead)} className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 min-h-[40px]">✅ Converter</button>
+                  <button onClick={() => handleExcluir(lead.id, lead.nome)} className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 min-h-[40px]">🗑️ Excluir</button>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <button onClick={() => handleEditar(lead)} className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90 transition-opacity" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
-                <button onClick={() => handleConverterCliente(lead)} className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">✅ Converter em Cliente</button>
-                <button onClick={() => handleExcluir(lead.id, lead.nome)} className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">🗑️ Excluir</button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        <div className="flex justify-end space-x-4">
-          <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Fechar</button>
-          <button onClick={handleNovo} className="px-6 py-2 text-white rounded-md hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>+ Novo Lead</button>
+        <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-600">
+          <button onClick={onClose} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white min-h-[40px]">Fechar</button>
+          <button onClick={handleNovo} className="px-6 py-2 text-white rounded-lg hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>+ Novo Lead</button>
         </div>
       </div>
     </div>
@@ -381,8 +532,11 @@ function ModalNovoLead({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
 // Modal Gerenciar Clientes (Listar, Criar, Editar, Excluir)
 function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const toast = useToast();
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<number | null>(null);
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [loadingLista, setLoadingLista] = useState(true);
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -396,10 +550,25 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
   });
   const [loading, setLoading] = useState(false);
 
-  // Lista de clientes vazia inicialmente (será carregada do backend futuramente)
-  const clientes: any[] = [];
-
   const estados = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+
+  const loadClientes = async () => {
+    try {
+      setLoadingLista(true);
+      const res = await clinicaApiClient.get('/crm/clientes/');
+      setClientes(Array.isArray(res.data) ? res.data : res.data?.results ?? []);
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+      toast.error('Erro ao carregar clientes');
+      setClientes([]);
+    } finally {
+      setLoadingLista(false);
+    }
+  };
+
+  useEffect(() => {
+    loadClientes();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -415,13 +584,13 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     setClienteEditando(cliente.id);
     setFormData({
       nome: cliente.nome,
-      email: cliente.email,
-      telefone: cliente.telefone,
-      empresa: cliente.empresa,
-      cnpj: cliente.cnpj,
+      email: cliente.email ?? '',
+      telefone: cliente.telefone ?? '',
+      empresa: cliente.empresa ?? '',
+      cnpj: cliente.cnpj ?? cliente.cpf_cnpj ?? '',
       endereco: cliente.endereco || '',
-      cidade: cliente.cidade,
-      estado: cliente.estado,
+      cidade: cliente.cidade || '',
+      estado: cliente.estado || '',
       observacoes: cliente.observacoes || ''
     });
     setMostrarFormulario(true);
@@ -429,12 +598,12 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
 
   const handleExcluir = async (clienteId: number, clienteNome: string) => {
     if (!confirm(`Tem certeza que deseja excluir o cliente "${clienteNome}"?`)) return;
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      alert(`✅ Cliente "${clienteNome}" excluído com sucesso!`);
-    } catch (error) {
-      alert('❌ Erro ao excluir cliente');
+      await clinicaApiClient.delete(`/crm/clientes/${clienteId}/`);
+      toast.success(`Cliente "${clienteNome}" excluído com sucesso`);
+      loadClientes();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Erro ao excluir cliente');
     }
   };
 
@@ -442,17 +611,31 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     e.preventDefault();
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const payload = {
+        nome: formData.nome,
+        email: formData.email || null,
+        telefone: formData.telefone,
+        empresa: formData.empresa,
+        cnpj: formData.cnpj || null,
+        cpf_cnpj: formData.cnpj || null,
+        endereco: formData.endereco || null,
+        cidade: formData.cidade || null,
+        estado: formData.estado || null
+      };
       if (clienteEditando) {
-        alert(`✅ Cliente atualizado com sucesso!\n\nNome: ${formData.nome}\nEmail: ${formData.email}`);
+        await clinicaApiClient.put(`/crm/clientes/${clienteEditando}/`, payload);
+        toast.success('Cliente atualizado com sucesso');
       } else {
-        alert(`✅ Cliente cadastrado com sucesso!\n\nNome: ${formData.nome}\nEmpresa: ${formData.empresa}\nEmail: ${formData.email}`);
+        await clinicaApiClient.post('/crm/clientes/', payload);
+        toast.success('Cliente cadastrado com sucesso');
       }
       setMostrarFormulario(false);
       setClienteEditando(null);
       setFormData({ nome: '', email: '', telefone: '', empresa: '', cnpj: '', endereco: '', cidade: '', estado: '', observacoes: '' });
-    } catch (error) {
-      alert('❌ Erro ao salvar cliente');
+      loadClientes();
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || error.response?.data?.nome?.[0] || 'Erro ao salvar cliente';
+      toast.error(typeof msg === 'string' ? msg : 'Erro ao salvar cliente');
     } finally {
       setLoading(false);
     }
@@ -460,62 +643,62 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
 
   if (mostrarFormulario) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-          <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>👤 {clienteEditando ? 'Editar' : 'Novo'} Cliente</h3>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+          <h3 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>👤 {clienteEditando ? 'Editar' : 'Novo'} Cliente</h3>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <h4 className="text-lg font-semibold mb-3 text-gray-700">Dados do Cliente</h4>
+              <h4 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Dados do Cliente</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome/Razão Social *</label>
-                  <input type="text" name="nome" value={formData.nome} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="Nome completo ou razão social" />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome/Razão Social *</label>
+                  <input type="text" name="nome" value={formData.nome} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white" placeholder="Nome completo ou razão social" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                  <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="email@exemplo.com" />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white" placeholder="email@exemplo.com" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone *</label>
-                  <input type="tel" name="telefone" value={formData.telefone} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="(00) 00000-0000" />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone *</label>
+                  <input type="tel" name="telefone" value={formData.telefone} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white" placeholder="(00) 00000-0000" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
-                  <input type="text" name="empresa" value={formData.empresa} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="Nome da empresa" />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa</label>
+                  <input type="text" name="empresa" value={formData.empresa} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white" placeholder="Nome da empresa" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ</label>
-                  <input type="text" name="cnpj" value={formData.cnpj} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="00.000.000/0000-00" />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CNPJ</label>
+                  <input type="text" name="cnpj" value={formData.cnpj} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white" placeholder="00.000.000/0000-00" />
                 </div>
               </div>
             </div>
             <div>
-              <h4 className="text-lg font-semibold mb-3 text-gray-700">Endereço</h4>
+              <h4 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Endereço</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Endereço Completo</label>
-                  <input type="text" name="endereco" value={formData.endereco} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="Rua, número, bairro" />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Endereço Completo</label>
+                  <input type="text" name="endereco" value={formData.endereco} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white" placeholder="Rua, número, bairro" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                  <select name="estado" value={formData.estado} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+                  <select name="estado" value={formData.estado} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white">
                     <option value="">Selecione...</option>
                     {estados.map(uf => (<option key={uf} value={uf}>{uf}</option>))}
                   </select>
                 </div>
                 <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
-                  <input type="text" name="cidade" value={formData.cidade} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="Ex: São Paulo" />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cidade</label>
+                  <input type="text" name="cidade" value={formData.cidade} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white" placeholder="Ex: São Paulo" />
                 </div>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-              <textarea name="observacoes" value={formData.observacoes} onChange={handleChange} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0" placeholder="Informações adicionais sobre o cliente..." />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
+              <textarea name="observacoes" value={formData.observacoes} onChange={handleChange} rows={3} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white" placeholder="Informações adicionais sobre o cliente..." />
             </div>
-            <div className="flex justify-end space-x-4 pt-4 border-t">
-              <button type="button" onClick={() => { setMostrarFormulario(false); setClienteEditando(null); }} disabled={loading} className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
-              <button type="submit" disabled={loading} className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: loja.cor_primaria }}>{loading ? 'Salvando...' : (clienteEditando ? 'Atualizar' : 'Cadastrar')}</button>
+            <div className="flex justify-end space-x-4 pt-4 border-t dark:border-gray-600">
+              <button type="button" onClick={() => { setMostrarFormulario(false); setClienteEditando(null); }} disabled={loading} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50">Cancelar</button>
+              <button type="submit" disabled={loading} className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>{loading ? 'Salvando...' : (clienteEditando ? 'Atualizar' : 'Cadastrar')}</button>
             </div>
           </form>
         </div>
@@ -524,30 +707,39 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>👤 Gerenciar Clientes (Já compraram)</h3>
-        
-        <div className="space-y-4 mb-6">
-          {clientes.map((cliente) => (
-            <div key={cliente.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-              <div className="flex-1">
-                <p className="font-semibold text-lg">{cliente.nome}</p>
-                <p className="text-sm text-gray-600">{cliente.empresa} • CNPJ: {cliente.cnpj}</p>
-                <p className="text-sm text-gray-600">{cliente.email} • {cliente.telefone}</p>
-                <p className="text-sm text-gray-600">{cliente.cidade}/{cliente.estado}</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button onClick={() => handleEditar(cliente)} className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90 transition-opacity" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
-                <button onClick={() => handleExcluir(cliente.id, cliente.nome)} className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">🗑️ Excluir</button>
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-xl">
+        <h3 className="text-xl sm:text-2xl font-bold mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>👤 Gerenciar Clientes (Já compraram)</h3>
 
-        <div className="flex justify-end space-x-4">
-          <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Fechar</button>
-          <button onClick={handleNovo} className="px-6 py-2 text-white rounded-md hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>+ Novo Cliente</button>
+        {loadingLista ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando clientes...</div>
+        ) : clientes.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p className="mb-4">Nenhum cliente cadastrado.</p>
+            <button onClick={handleNovo} className="px-6 py-2 rounded-lg text-white hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>+ Novo Cliente</button>
+          </div>
+        ) : (
+          <div className="space-y-4 mb-6">
+            {clientes.map((cliente) => (
+              <div key={cliente.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-lg text-gray-900 dark:text-white">{cliente.nome}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{cliente.empresa || ''} {cliente.cnpj || cliente.cpf_cnpj ? `• CNPJ: ${cliente.cnpj || cliente.cpf_cnpj}` : ''}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{cliente.email} • {cliente.telefone}</p>
+                  {(cliente.cidade || cliente.estado) && <p className="text-sm text-gray-600 dark:text-gray-400">{[cliente.cidade, cliente.estado].filter(Boolean).join('/')}</p>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                  <button onClick={() => handleEditar(cliente)} className="px-4 py-2 text-sm text-white rounded-lg hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
+                  <button onClick={() => handleExcluir(cliente.id, cliente.nome)} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 min-h-[40px]">🗑️ Excluir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-600">
+          <button onClick={onClose} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white min-h-[40px]">Fechar</button>
+          <button onClick={handleNovo} className="px-6 py-2 text-white rounded-lg hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>+ Novo Cliente</button>
         </div>
       </div>
     </div>
@@ -1034,6 +1226,7 @@ function ModalPipeline({ loja, onClose }: { loja: LojaInfo; onClose: () => void 
 
 // Modal Gerenciar Funcionários (Vendedores)
 function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const toast = useToast();
   const [funcionarios, setFuncionarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -1053,10 +1246,10 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
 
   const loadFuncionarios = async () => {
     try {
-      const lojaId = localStorage.getItem('current_loja_id');
+      const lojaId = sessionStorage.getItem('current_loja_id');
       console.log('🔍 [loadFuncionarios] Loja ID:', lojaId);
       
-      const response = await apiClient.get('/crm/vendedores/', {
+      const response = await clinicaApiClient.get('/crm/vendedores/', {
         headers: {
           'X-Loja-ID': lojaId || ''
         }
@@ -1089,12 +1282,12 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
     if (!confirm(`Tem certeza que deseja excluir o vendedor ${funcionario.nome}?`)) return;
     
     try {
-      await apiClient.delete(`/crm/vendedores/${funcionario.id}/`);
-      alert('✅ Vendedor excluído com sucesso!');
+      await clinicaApiClient.delete(`/crm/vendedores/${funcionario.id}/`);
+      toast.success('Vendedor excluído com sucesso!');
       loadFuncionarios();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao excluir vendedor:', error);
-      alert('❌ Erro ao excluir vendedor');
+      toast.error(error.response?.data?.detail || 'Erro ao excluir vendedor');
     }
   };
 
@@ -1120,17 +1313,17 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
     
     try {
       if (editingFuncionario) {
-        await apiClient.put(`/crm/vendedores/${editingFuncionario.id}/`, formData);
-        alert('✅ Vendedor atualizado com sucesso!');
+        await clinicaApiClient.put(`/crm/vendedores/${editingFuncionario.id}/`, formData);
+        toast.success('Vendedor atualizado com sucesso!');
       } else {
-        await apiClient.post('/crm/vendedores/', formData);
-        alert('✅ Vendedor cadastrado com sucesso!');
+        await clinicaApiClient.post('/crm/vendedores/', formData);
+        toast.success('Vendedor cadastrado com sucesso!');
       }
       loadFuncionarios();
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar vendedor:', error);
-      alert('❌ Erro ao salvar vendedor');
+      toast.error(error.response?.data?.detail || 'Erro ao salvar vendedor');
     } finally {
       setSubmitting(false);
     }
@@ -1138,16 +1331,16 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
 
   if (showForm) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+          <h3 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
             👥 {editingFuncionario ? 'Editar Vendedor' : 'Novo Vendedor'}
           </h3>
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Nome Completo *
                 </label>
                 <input
@@ -1156,13 +1349,13 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                   value={formData.nome}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white"
                   placeholder="Ex: João Silva"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Email *
                 </label>
                 <input
@@ -1171,13 +1364,13 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white"
                   placeholder="email@exemplo.com"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Telefone *
                 </label>
                 <input
@@ -1186,13 +1379,13 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                   value={formData.telefone}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white"
                   placeholder="(00) 00000-0000"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Cargo *
                 </label>
                 <input
@@ -1201,13 +1394,13 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                   value={formData.cargo}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white"
                   placeholder="Ex: Vendedor, Gerente de Vendas"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Meta Mensal (R$) *
                 </label>
                 <input
@@ -1218,18 +1411,18 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                   required
                   min="0"
                   step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white"
                   placeholder="10000.00"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end space-x-4 pt-4 border-t">
+            <div className="flex justify-end space-x-4 pt-4 border-t dark:border-gray-600">
               <button
                 type="button"
                 onClick={resetForm}
                 disabled={submitting}
-                className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -1249,25 +1442,25 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-4" style={{ color: loja.cor_primaria }}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-xl">
+        <h3 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
           👥 Gerenciar Vendedores
         </h3>
         
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           💡 O administrador da loja é automaticamente cadastrado como vendedor
         </p>
         
         {loading ? (
-          <div className="text-center py-8">Carregando vendedores...</div>
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando vendedores...</div>
         ) : funcionarios.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             <p className="text-lg mb-2">Nenhum vendedor cadastrado</p>
             <p className="text-sm mb-4">Cadastre sua equipe de vendas</p>
             <button
               onClick={() => setShowForm(true)}
-              className="px-6 py-3 rounded-md text-white hover:opacity-90"
+              className="px-6 py-3 rounded-md text-white hover:opacity-90 min-h-[44px]"
               style={{ backgroundColor: loja.cor_primaria }}
             >
               + Cadastrar Vendedor
@@ -1276,33 +1469,33 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
         ) : (
           <div className="space-y-4 mb-6">
             {funcionarios.map((func) => (
-              <div key={func.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <p className="font-semibold text-lg">{func.nome}</p>
+              <div key={func.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 flex-wrap gap-2">
+                    <p className="font-semibold text-lg text-gray-900 dark:text-white">{func.nome}</p>
                     {func.is_admin && (
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">
                         👤 Administrador
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">{func.cargo}</p>
-                  <p className="text-sm text-gray-600">{func.email} • {func.telefone}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{func.cargo}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{func.email} • {func.telefone}</p>
                   <p className="text-sm font-semibold mt-1" style={{ color: loja.cor_primaria }}>
                     Meta Mensal: R$ {parseFloat(func.meta_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap gap-2 flex-shrink-0">
                   <button
                     onClick={() => handleEdit(func)}
-                    className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 min-h-[40px]"
                   >
                     ✏️ Editar
                   </button>
                   {!func.is_admin && (
                     <button
                       onClick={() => handleDelete(func)}
-                      className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600"
+                      className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 min-h-[40px]"
                     >
                       🗑️ Excluir
                     </button>
@@ -1313,16 +1506,16 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
           </div>
         )}
 
-        <div className="flex justify-end space-x-4">
+        <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-600">
           <button
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white min-h-[40px]"
           >
             Fechar
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="px-6 py-2 text-white rounded-md hover:opacity-90"
+            className="px-6 py-2 text-white rounded-md hover:opacity-90 min-h-[40px]"
             style={{ backgroundColor: loja.cor_primaria }}
           >
             + Novo Vendedor

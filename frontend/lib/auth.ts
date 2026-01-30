@@ -49,8 +49,8 @@ let navigationInProgress = false;
  * Deve ser chamada ANTES de limpar a sessão
  */
 export function getLoginUrl(): string {
-  const userType = localStorage.getItem('user_type');
-  const lojaSlug = localStorage.getItem('loja_slug');
+  const userType = sessionStorage.getItem('user_type');
+  const lojaSlug = sessionStorage.getItem('loja_slug');
   
   switch (userType) {
     case 'superadmin':
@@ -69,12 +69,12 @@ export function getLoginUrl(): string {
  * Centraliza a lógica de limpeza para evitar duplicação
  */
 function clearSession() {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-  localStorage.removeItem('user_type');
-  localStorage.removeItem('loja_slug');
-  localStorage.removeItem('session_id');
-  localStorage.removeItem('current_loja_id');
+  sessionStorage.removeItem('access_token');
+  sessionStorage.removeItem('refresh_token');
+  sessionStorage.removeItem('user_type');
+  sessionStorage.removeItem('loja_slug');
+  sessionStorage.removeItem('session_id');
+  sessionStorage.removeItem('current_loja_id');
   
   document.cookie = 'user_type=; path=/; max-age=0';
   document.cookie = 'loja_slug=; path=/; max-age=0';
@@ -91,7 +91,7 @@ function logoutViaBeacon() {
     return;
   }
   
-  const accessToken = localStorage.getItem('access_token');
+  const accessToken = sessionStorage.getItem('access_token');
   
   if (accessToken) {
     logger.log('🚪 Logout via beacon (aba sendo fechada)');
@@ -165,10 +165,10 @@ export const authService = {
   async login(credentials: LoginCredentials, userType: UserType = 'superadmin', lojaSlug?: string): Promise<AuthTokens> {
     logger.log('AuthService.login:', { username: credentials.username, userType, lojaSlug });
     
-    // Verificar se localStorage está disponível
-    if (typeof window === 'undefined' || !window.localStorage) {
-      logger.error('localStorage não está disponível');
-      throw new Error('localStorage não está disponível');
+    // Verificar se sessionStorage está disponível (sessão encerra ao fechar aba/navegador)
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+      logger.error('sessionStorage não está disponível');
+      throw new Error('sessionStorage não está disponível');
     }
     
     // Determinar endpoint correto baseado no tipo de usuário
@@ -213,20 +213,20 @@ export const authService = {
         throw new Error(`Este usuário não pode fazer login aqui. Use o login de ${user.user_type}.`);
       }
       
-      // Salvar no localStorage
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-      localStorage.setItem('user_type', userType);
+      // Salvar no sessionStorage (sessão encerra ao fechar aba/navegador)
+      sessionStorage.setItem('access_token', access);
+      sessionStorage.setItem('refresh_token', refresh);
+      sessionStorage.setItem('user_type', userType);
       
       if (session_id) {
-        localStorage.setItem('session_id', session_id);
+        sessionStorage.setItem('session_id', session_id);
       }
       
       // Se for loja, salvar slug
       if (userType === 'loja') {
         const slugToSave = loja?.slug || lojaSlug;
         if (slugToSave) {
-          localStorage.setItem('loja_slug', slugToSave);
+          sessionStorage.setItem('loja_slug', slugToSave);
         }
       }
       
@@ -366,22 +366,22 @@ export const authService = {
   },
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('access_token');
+    return !!sessionStorage.getItem('access_token');
   },
 
   getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
+    return sessionStorage.getItem('access_token');
   },
 
   getUserType(): UserType | null {
-    return localStorage.getItem('user_type') as UserType | null;
+    return sessionStorage.getItem('user_type') as UserType | null;
   },
 
   getLojaSlug(): string | null {
-    return localStorage.getItem('loja_slug');
+    return sessionStorage.getItem('loja_slug');
   },
 
   getSessionId(): string | null {
-    return localStorage.getItem('session_id');
+    return sessionStorage.getItem('session_id');
   },
 };

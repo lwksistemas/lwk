@@ -174,8 +174,15 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 is_staff=False  # CORREÇÃO: Usuários de loja NÃO devem ser staff
             )
             
-            # Criar loja: slug é sempre gerado no model (nome + CPF/CNPJ) para evitar duplicidade
-            validated_data.pop('slug', None)
+            # Slug: usar o enviado pelo frontend se for válido e único; senão o model gera automaticamente
+            slug_enviado = (validated_data.pop('slug', None) or '').strip()
+            if slug_enviado:
+                from django.utils.text import slugify
+                slug_sanitizado = slugify(slug_enviado) or None
+                if slug_sanitizado:
+                    if Loja.objects.filter(slug=slug_sanitizado).exists():
+                        raise serializers.ValidationError({'slug': f'Já existe uma loja com o slug "{slug_sanitizado}". Escolha outro.'})
+                    validated_data['slug'] = slug_sanitizado
             validated_data['owner'] = owner
             validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
             validated_data['senha_foi_alterada'] = False  # Garantir que precisa trocar no primeiro login

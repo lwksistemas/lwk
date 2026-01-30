@@ -30,12 +30,16 @@ class ClienteSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Garante que `loja_id` seja sempre associado a partir do contexto atual.
+        Falha explicitamente se o contexto da loja não estiver definido (ex: mobile sem X-Loja-ID).
         """
         from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
+        if not loja_id:
+            raise serializers.ValidationError(
+                {'loja_id': 'Contexto da loja não identificado. Recarregue a página e tente novamente.'}
+            )
+        validated_data['loja_id'] = loja_id
         return super().create(validated_data)
 
     def get_total_agendamentos(self, obj):
@@ -65,8 +69,11 @@ class ProfissionalSerializer(serializers.ModelSerializer):
         from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
+        if not loja_id:
+            raise serializers.ValidationError(
+                {'loja_id': 'Contexto da loja não identificado. Recarregue a página e tente novamente.'}
+            )
+        validated_data['loja_id'] = loja_id
         return super().create(validated_data)
 
     def get_total_agendamentos(self, obj):
@@ -92,8 +99,11 @@ class ProcedimentoSerializer(serializers.ModelSerializer):
         from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
+        if not loja_id:
+            raise serializers.ValidationError(
+                {'loja_id': 'Contexto da loja não identificado. Recarregue a página e tente novamente.'}
+            )
+        validated_data['loja_id'] = loja_id
         return super().create(validated_data)
 
     def get_total_protocolos(self, obj):
@@ -112,15 +122,16 @@ class ProtocoloProcedimentoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Garante que `loja_id` seja preenchido automaticamente.
-
-        Sem isso o DRF retorna:
-        {"loja_id": ["Este campo é obrigatório."]}
+        Falha explicitamente se o contexto da loja não estiver definido.
         """
         from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
+        if not loja_id:
+            raise serializers.ValidationError(
+                {'loja_id': 'Contexto da loja não identificado. Recarregue a página e tente novamente.'}
+            )
+        validated_data['loja_id'] = loja_id
         return super().create(validated_data)
 
 
@@ -148,8 +159,11 @@ class AgendamentoSerializer(serializers.ModelSerializer):
         from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
+        if not loja_id:
+            raise serializers.ValidationError(
+                {'loja_id': 'Contexto da loja não identificado. Recarregue a página e tente novamente.'}
+            )
+        validated_data['loja_id'] = loja_id
         agendamento = super().create(validated_data)
 
         # Criar Consulta com status 'agendada' para aparecer no Sistema de Consultas
@@ -161,7 +175,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
                 'procedimento_id': agendamento.procedimento_id,
                 'status': 'agendada',
                 'valor_consulta': agendamento.valor,
-                'loja_id': loja_id or agendamento.loja_id,
+                'loja_id': agendamento.loja_id,
             }
         )
         return agendamento
@@ -246,11 +260,14 @@ class FuncionarioSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'loja_id']
     
     def create(self, validated_data):
-        """Adiciona loja_id automaticamente do contexto"""
+        """Adiciona loja_id automaticamente do contexto. Falha se contexto da loja ausente."""
         from tenants.middleware import get_current_loja_id
         loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
+        if not loja_id:
+            raise serializers.ValidationError(
+                {'loja_id': 'Contexto da loja não identificado. Recarregue a página e tente novamente.'}
+            )
+        validated_data['loja_id'] = loja_id
         return super().create(validated_data)
 
 

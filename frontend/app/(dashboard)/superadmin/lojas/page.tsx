@@ -71,6 +71,8 @@ export default function GerenciarLojasPage() {
     nome: string;
     slug: string;
     tamanho_banco_mb: number | null;
+    tamanho_banco_motivo: string | null;
+    database_created: boolean;
     espaco_plano_gb: number | null;
     espaco_livre_gb: number | null;
     senha_provisoria: string;
@@ -417,8 +419,15 @@ export default function GerenciarLojasPage() {
                     <div>
                       <span className="font-semibold text-gray-500 block mb-1">Tamanho do banco</span>
                       <p className="text-gray-900">
-                        {lojaInfo.tamanho_banco_mb != null ? `${lojaInfo.tamanho_banco_mb} MB` : '—'}
+                        {lojaInfo.tamanho_banco_mb != null
+                          ? `${lojaInfo.tamanho_banco_mb} MB`
+                          : `~${lojaInfo.tamanho_banco_estimativa_mb} MB (estimativa do plano)`}
                       </p>
+                      {lojaInfo.tamanho_banco_motivo && (
+                        <p className="text-xs text-amber-700 mt-1 bg-amber-50 px-2 py-1 rounded">
+                          {lojaInfo.tamanho_banco_motivo}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <span className="font-semibold text-gray-500 block mb-1">Espaço livre</span>

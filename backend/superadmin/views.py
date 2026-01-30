@@ -657,30 +657,45 @@ Sistema Multi-Loja
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    # Tamanho estimado do banco isolado por loja (512 MB recomendado para CRM, clínica, e-commerce leve)
+    TAMANHO_BANCO_ESTIMATIVA_MB = 512
+
     @action(detail=True, methods=['get'])
     def info_loja(self, request, pk=None):
         """Retorna informações da loja para o superadmin: tamanho do banco, espaço livre, senha, página de login."""
         import os
         loja = self.get_object()
         tamanho_banco_mb = None
-        if loja.database_created and loja.database_name:
+        tamanho_banco_motivo = None
+        if not loja.database_created or not loja.database_name:
+            tamanho_banco_motivo = 'Banco isolado não criado para esta loja (dados no banco principal).'
+        else:
             db_path = settings.BASE_DIR / f'db_{loja.database_name}.sqlite3'
             if db_path.exists():
                 try:
                     tamanho_banco_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
                 except OSError:
-                    pass
+                    tamanho_banco_motivo = 'Não foi possível ler o tamanho do arquivo.'
+            else:
+                tamanho_banco_motivo = (
+                    'Arquivo do banco não encontrado no servidor. '
+                    'Em hospedagem com disco efêmero (ex.: Heroku), o arquivo não persiste após reinício.'
+                )
+        # Quando não há tamanho real, usar estimativa padrão (512 MB) para exibição e cálculo de espaço livre
+        tamanho_banco_estimativa_mb = self.TAMANHO_BANCO_ESTIMATIVA_MB
         espaco_plano_gb = loja.plano.espaco_storage_gb if loja.plano else None
         espaco_livre_gb = None
-        if espaco_plano_gb is not None and tamanho_banco_mb is not None:
-            espaco_livre_gb = round(espaco_plano_gb - (tamanho_banco_mb / 1024), 2)
-        elif espaco_plano_gb is not None:
-            espaco_livre_gb = espaco_plano_gb
+        if espaco_plano_gb is not None:
+            uso_mb = tamanho_banco_mb if tamanho_banco_mb is not None else tamanho_banco_estimativa_mb
+            espaco_livre_gb = round(espaco_plano_gb - (uso_mb / 1024), 2)
         return Response({
             'id': loja.id,
             'nome': loja.nome,
             'slug': loja.slug,
             'tamanho_banco_mb': tamanho_banco_mb,
+            'tamanho_banco_estimativa_mb': tamanho_banco_estimativa_mb,
+            'tamanho_banco_motivo': tamanho_banco_motivo,
+            'database_created': loja.database_created,
             'espaco_plano_gb': espaco_plano_gb,
             'espaco_livre_gb': espaco_livre_gb,
             'senha_provisoria': loja.senha_provisoria or '',

@@ -80,13 +80,27 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
       setLoadingLeads(true);
       const [statsRes, leadsRes] = await Promise.all([
         clinicaApiClient.get<EstatisticasCRM>('/crm/vendas/estatisticas/'),
-        clinicaApiClient.get<Lead[]>('/crm/leads/recentes/')
+        clinicaApiClient.get<Lead[] | { results?: Lead[] }>('/crm/leads/recentes/')
       ]);
-      setEstatisticas(statsRes.data);
-      setLeadsRecentes(Array.isArray(leadsRes.data) ? leadsRes.data : []);
+      // Estatísticas: aceitar objeto direto ou aninhado
+      const stats = statsRes.data;
+      setEstatisticas(
+        stats && typeof stats === 'object' && 'leads_ativos' in stats
+          ? stats as EstatisticasCRM
+          : { leads_ativos: 0, negociacoes: 0, vendas_mes: 0, receita: 0 }
+      );
+      // Leads: aceitar array direto, formato paginado { results: [] } ou fallback []
+      const leadsRaw = leadsRes.data;
+      const leadsArray = Array.isArray(leadsRaw)
+        ? leadsRaw
+        : (leadsRaw && typeof leadsRaw === 'object' && Array.isArray((leadsRaw as { results?: Lead[] }).results))
+          ? (leadsRaw as { results: Lead[] }).results
+          : [];
+      setLeadsRecentes(leadsArray);
     } catch (error) {
       console.error('Erro ao carregar dashboard CRM:', error);
       toast.error('Erro ao carregar dashboard');
+      setLeadsRecentes([]);
     } finally {
       setLoading(false);
       setLoadingLeads(false);
@@ -165,7 +179,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
 
         {loadingLeads ? (
           <AgendamentosListSkeleton count={3} />
-        ) : leadsRecentes.length === 0 ? (
+        ) : !Array.isArray(leadsRecentes) || leadsRecentes.length === 0 ? (
           <EmptyState
             message="Nenhum lead cadastrado"
             subMessage="Comece adicionando seu primeiro lead"
@@ -176,7 +190,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
           />
         ) : (
           <div className="space-y-4">
-            {leadsRecentes.map((lead) => (
+            {(leadsRecentes as Lead[]).map((lead) => (
               <LeadCard key={lead.id} lead={lead} cor={loja.cor_primaria} />
             ))}
           </div>

@@ -190,7 +190,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
           />
         ) : (
           <div className="space-y-4">
-            {(leadsRecentes as Lead[]).map((lead) => (
+            {(Array.isArray(leadsRecentes) ? leadsRecentes : []).map((lead: Lead) => (
               <LeadCard key={lead.id} lead={lead} cor={loja.cor_primaria} />
             ))}
           </div>
@@ -507,14 +507,14 @@ function ModalNovoLead({ loja, onClose, onSuccess }: { loja: LojaInfo; onClose: 
 
         {loadingLista ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando leads...</div>
-        ) : leads.length === 0 ? (
+        ) : !Array.isArray(leads) || leads.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <p className="mb-4">Nenhum lead cadastrado.</p>
             <button onClick={handleNovo} className="px-6 py-2 rounded-lg text-white hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>+ Novo Lead</button>
           </div>
         ) : (
           <div className="space-y-4 mb-6">
-            {leads.map((lead) => (
+            {(Array.isArray(leads) ? leads : []).map((lead: any) => (
               <div key={lead.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-lg text-gray-900 dark:text-white">{lead.nome}</p>
@@ -727,14 +727,14 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
 
         {loadingLista ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando clientes...</div>
-        ) : clientes.length === 0 ? (
+        ) : !Array.isArray(clientes) || clientes.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <p className="mb-4">Nenhum cliente cadastrado.</p>
             <button onClick={handleNovo} className="px-6 py-2 rounded-lg text-white hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>+ Novo Cliente</button>
           </div>
         ) : (
           <div className="space-y-4 mb-6">
-            {clientes.map((cliente) => (
+            {(Array.isArray(clientes) ? clientes : []).map((cliente: any) => (
               <div key={cliente.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-lg text-gray-900 dark:text-white">{cliente.nome}</p>
@@ -1268,13 +1268,12 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
           'X-Loja-ID': lojaId || ''
         }
       });
-      
-      console.log('✅ [loadFuncionarios] Resposta:', response.data);
-      console.log('📊 [loadFuncionarios] Total de vendedores:', response.data.length);
-      
-      setFuncionarios(response.data);
+      const data = response.data;
+      const list = Array.isArray(data) ? data : (data?.results ?? []);
+      setFuncionarios(list);
     } catch (error) {
       console.error('❌ [loadFuncionarios] Erro ao carregar vendedores:', error);
+      setFuncionarios([]);
     } finally {
       setLoading(false);
     }
@@ -1468,7 +1467,7 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
         
         {loading ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando vendedores...</div>
-        ) : funcionarios.length === 0 ? (
+        ) : !Array.isArray(funcionarios) || funcionarios.length === 0 ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             <p className="text-lg mb-2">Nenhum vendedor cadastrado</p>
             <p className="text-sm mb-4">Cadastre sua equipe de vendas</p>
@@ -1482,7 +1481,7 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
           </div>
         ) : (
           <div className="space-y-4 mb-6">
-            {funcionarios.map((func) => (
+            {(Array.isArray(funcionarios) ? funcionarios : []).map((func: any) => (
               <div key={func.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2 flex-wrap gap-2">

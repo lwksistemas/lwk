@@ -900,14 +900,13 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                       onChange={handleChange}
                       className="sr-only"
                     />
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between">
                       <span className="font-semibold">{tipo.nome}</span>
                       <div
                         className="w-6 h-6 rounded-full"
                         style={{ backgroundColor: tipo.cor_primaria }}
                       />
                     </div>
-                    <p className="text-sm text-gray-600">{tipo.descricao}</p>
                   </label>
                 ))}
               </div>

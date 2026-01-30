@@ -52,13 +52,6 @@ class FuncionarioViewSet(BaseModelViewSet):
     queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        is_disponivel = self.request.query_params.get('is_disponivel')
-        if is_disponivel is not None:
-            queryset = queryset.filter(is_disponivel=is_disponivel.lower() == 'true')
-        return queryset
-
 
 class ReservaViewSet(BaseModelViewSet):
     # Otimização: select_related

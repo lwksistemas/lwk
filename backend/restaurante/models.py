@@ -1,5 +1,6 @@
 from django.db import models
 from core.models import BaseCategoria, BaseCliente, BasePedido, BaseItemPedido, BaseFuncionario
+from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 
 class Categoria(BaseCategoria):
@@ -144,8 +145,8 @@ class ItemPedido(BaseItemPedido):
         return f"{self.item_cardapio.nome} x{self.quantidade}"
 
 
-class Funcionario(BaseFuncionario):
-    """Funcionários do restaurante"""
+class Funcionario(LojaIsolationMixin, BaseFuncionario):
+    """Funcionários do restaurante (isolados por loja)."""
     CARGO_CHOICES = [
         ('garcom', 'Garçom'),
         ('cozinheiro', 'Cozinheiro'),
@@ -155,6 +156,8 @@ class Funcionario(BaseFuncionario):
     ]
 
     cargo = models.CharField(max_length=20, choices=CARGO_CHOICES)
+
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'restaurante_funcionarios'

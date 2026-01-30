@@ -94,9 +94,11 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
-  // Descobrir se é clínica de estética para ajustar o layout (full width)
+  // Descobrir se é clínica de estética ou restaurante para layout em tela cheia (sem faixas laterais)
   const tipoSlug = lojaInfo.tipo_loja_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const isClinicaEstetica = tipoSlug.includes('clinica') || tipoSlug.includes('estetica');
+  const isRestaurante = tipoSlug.includes('restaurante');
+  const isFullWidth = isClinicaEstetica || isRestaurante;
 
   // Renderizar dashboard específico por tipo de loja
   return (
@@ -134,10 +136,10 @@ export default function LojaDashboardDinamicoPage() {
         </div>
       </nav>
 
-      {/* Main Content */}
+      {/* Main Content - tela cheia para Clínica e Restaurante (sem faixas laterais) */}
       <main
         className={`${
-          isClinicaEstetica ? 'max-w-full' : 'max-w-7xl'
+          isFullWidth ? 'max-w-full' : 'max-w-7xl'
         } mx-auto py-4 sm:py-6 px-2 sm:px-4 md:px-6 lg:px-8`}
       >
         <div className="py-2 sm:py-4">

@@ -69,14 +69,14 @@ const nextConfig = {
   
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    NEXT_PUBLIC_BUILD_ID: 'v245-force-cache-clear',
-    NEXT_PUBLIC_VERSION: '245',
+    NEXT_PUBLIC_BUILD_ID: 'v258-restaurante-dashboard',
+    NEXT_PUBLIC_VERSION: '258',
   },
   
   // Gerar build ID único para invalidar cache COMPLETAMENTE
   generateBuildId: async () => {
-    // Usar timestamp + versão para garantir unicidade
-    return 'v245-' + Date.now() + '-force-clear';
+    // Usar timestamp + versão para garantir unicidade (dashboard Restaurante v258)
+    return 'v258-restaurante-' + Date.now();
   },
   
   // Proxy para API

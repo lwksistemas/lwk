@@ -121,7 +121,8 @@ class LojaSerializer(serializers.ModelSerializer):
 
 class LojaCreateSerializer(serializers.ModelSerializer):
     """Serializer para criar loja com banco isolado"""
-    owner_username = serializers.CharField(write_only=True)
+    owner_full_name = serializers.CharField(write_only=True, required=True, help_text='Nome completo do administrador')
+    owner_username = serializers.CharField(write_only=True, help_text='Nome de acesso (login) à loja')
     owner_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     owner_email = serializers.EmailField(write_only=True)
     dia_vencimento = serializers.IntegerField(write_only=True, default=10, min_value=1, max_value=28)
@@ -130,7 +131,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
         model = Loja
         fields = [
             'nome', 'slug', 'descricao', 'cpf_cnpj', 'tipo_loja', 'plano', 'tipo_assinatura',
-            'owner_username', 'owner_password', 'owner_email', 'dia_vencimento',
+            'owner_full_name', 'owner_username', 'owner_password', 'owner_email', 'dia_vencimento',
             'logo', 'cor_primaria', 'cor_secundaria', 'dominio_customizado'
         ]
     
@@ -145,10 +146,15 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             from django.conf import settings
             
             # Extrair dados do owner
+            owner_full_name = (validated_data.pop('owner_full_name', '') or '').strip()
             owner_username = validated_data.pop('owner_username')
             owner_password = validated_data.pop('owner_password', None)
             owner_email = validated_data.pop('owner_email')
             dia_vencimento = validated_data.pop('dia_vencimento', 10)
+            # Nome completo -> first_name e last_name (primeira palavra = first_name, resto = last_name)
+            parts = owner_full_name.split(None, 1) if owner_full_name else []
+            owner_first_name = parts[0] if parts else ''
+            owner_last_name = parts[1] if len(parts) > 1 else ''
             
             # Gerar senha provisória se não fornecida
             if not owner_password:
@@ -161,10 +167,13 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 username=owner_username,
                 email=owner_email,
                 password=owner_password,
+                first_name=owner_first_name,
+                last_name=owner_last_name,
                 is_staff=False  # CORREÇÃO: Usuários de loja NÃO devem ser staff
             )
             
-            # Criar loja
+            # Criar loja: slug é sempre gerado no model (nome + CPF/CNPJ) para evitar duplicidade
+            validated_data.pop('slug', None)
             validated_data['owner'] = owner
             validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
             validated_data['senha_foi_alterada'] = False  # Garantir que precisa trocar no primeiro login

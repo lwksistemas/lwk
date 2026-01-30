@@ -376,10 +376,14 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     plano: '',
     tipo_assinatura: 'mensal',
     dia_vencimento: 10,
+    owner_full_name: '',
     owner_username: '',
     owner_password: '',
     owner_email: '',
   });
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [createdLoja, setCreatedLoja] = useState<any>(null);
+  const [urlCopied, setUrlCopied] = useState(false);
 
   useEffect(() => {
     loadTiposEPlanos();
@@ -439,18 +443,29 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     }
   };
 
+  /** Sugestão de slug: nome + sufixo do CPF/CNPJ (últimos 6 do CNPJ ou 4 do CPF) para evitar URLs duplicadas. */
+  const getSuggestedSlug = (nome: string, cpfCnpj: string) => {
+    const base = (nome || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') || 'loja';
+    const digits = (cpfCnpj || '').replace(/\D/g, '');
+    let suffix = '';
+    if (digits.length >= 12) suffix = digits.slice(-6);
+    else if (digits.length >= 4) suffix = digits.slice(-4);
+    else if (digits.length) suffix = digits;
+    return suffix ? `${base}-${suffix}` : base;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Auto-gerar slug a partir do nome
+    // Sugestão de slug (nome + CPF/CNPJ) para evitar duplicidade entre lojas com mesmo nome
     if (name === 'nome') {
-      const slug = value.toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      setFormData(prev => ({ ...prev, slug }));
+      setFormData(prev => ({ ...prev, slug: getSuggestedSlug(value, prev.cpf_cnpj) }));
     }
     
     // Carregar planos quando tipo de loja for selecionado
@@ -474,7 +489,7 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
 
   const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCpfCnpj(e.target.value);
-    setFormData(prev => ({ ...prev, cpf_cnpj: formatted }));
+    setFormData(prev => ({ ...prev, cpf_cnpj: formatted, slug: getSuggestedSlug(prev.nome, formatted) }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -482,34 +497,15 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     setLoading(true);
 
     try {
-      console.log('Dados enviados:', formData);
-      
-      // Criar loja (banco será criado automaticamente no backend se necessário)
       const response = await apiClient.post('/superadmin/lojas/', formData);
-      
-      // Mostrar informações da loja criada
       const loja = response.data;
-      let mensagem = `✅ Loja "${loja.nome}" criada com sucesso!\n\n`;
-      
-      mensagem += `📋 Informações importantes:\n`;
-      mensagem += `• Email enviado para: ${formData.owner_email}\n`;
-      
-      if (loja.senha_provisoria || loja._senha_provisoria) {
-        const senha = loja.senha_provisoria || loja._senha_provisoria;
-        mensagem += `• Senha provisória gerada: ${senha}\n`;
-      }
-      
-      mensagem += `\n🔐 Dados de acesso enviados por email:\n`;
-      mensagem += `• URL: http://localhost:3000${loja.login_page_url}\n`;
-      mensagem += `• Usuário: ${formData.owner_username}\n`;
-      mensagem += `• Email: ${formData.owner_email}\n`;
-      
-      mensagem += `\n💡 O proprietário pode alterar a senha no primeiro acesso.`;
-      mensagem += `\n\n⚠️ IMPORTANTE: Use o botão "Criar Banco" na lista de lojas para criar o banco de dados isolado.`;
-      
-      alert(mensagem);
+      setCreatedLoja(loja);
+      setShowSuccess(true);
       onSuccess();
-      onClose();
+      // Fechar após animação
+      setTimeout(() => {
+        onClose();
+      }, 3200);
     } catch (error: any) {
       console.error('Erro completo ao criar loja:', error);
       console.error('Response data:', error.response?.data);
@@ -547,22 +543,63 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     : 0;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full h-full max-w-7xl max-h-[95vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-0">
+      <div className="bg-white w-full h-full max-w-full max-h-full flex flex-col rounded-none shadow-2xl">
         {/* Header fixo */}
-        <div className="flex items-center justify-between p-6 border-b bg-purple-900 text-white rounded-t-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-purple-900 text-white shrink-0">
           <h2 className="text-2xl font-bold">Nova Loja</h2>
           <button
             onClick={onClose}
-            className="text-white hover:text-gray-200 text-2xl font-bold"
+            className="text-white hover:text-gray-200 text-2xl font-bold w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition"
+            aria-label="Fechar"
           >
             ×
           </button>
         </div>
         
-        {/* Conteúdo com scroll */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <form id="form-nova-loja" onSubmit={handleSubmit} className="space-y-6">
+        {/* Conteúdo: formulário ou tela de sucesso */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 relative">
+          {showSuccess && createdLoja ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 p-8 animate-fade-in">
+              <div className="flex flex-col items-center max-w-md text-center">
+                <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6 animate-scale-in">
+                  <span className="text-5xl text-green-600">✓</span>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">Loja criada com sucesso!</h3>
+                <p className="text-lg text-purple-600 font-semibold mb-4">{createdLoja.nome}</p>
+                <p className="text-sm text-gray-600 mb-2 flex flex-wrap items-center justify-center gap-2">
+                  <span>Acesso:</span>
+                  <span className="font-mono text-gray-800 break-all">{typeof window !== 'undefined' ? `${window.location.origin}${createdLoja.login_page_url}` : createdLoja.login_page_url}</span>
+                  {typeof window !== 'undefined' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = `${window.location.origin}${createdLoja.login_page_url}`;
+                        navigator.clipboard.writeText(url);
+                        setUrlCopied(true);
+                        setTimeout(() => setUrlCopied(false), 2000);
+                      }}
+                      className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 disabled:opacity-70"
+                    >
+                      {urlCopied ? '✓ Copiado!' : 'Copiar URL'}
+                    </button>
+                  )}
+                </p>
+                <p className="text-sm text-gray-500 mb-6">
+                  Email com dados de acesso foi enviado para <strong>{formData.owner_email}</strong>
+                </p>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition font-medium"
+                >
+                  Fechar
+                </button>
+                <p className="text-xs text-gray-400 mt-4 animate-pulse">Fechando automaticamente em instantes...</p>
+              </div>
+            </div>
+          ) : null}
+          <form id="form-nova-loja" onSubmit={handleSubmit} className="space-y-6 max-w-5xl mx-auto">
             {/* Seção 1: Informações Básicas */}
             <div className="border-b pb-6">
               <h3 className="text-lg font-semibold mb-4 text-gray-700">1. Informações Básicas</h3>
@@ -584,18 +621,17 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Slug (URL) *
+                    Slug (URL) – gerado automaticamente
                   </label>
                   <input
                     type="text"
                     name="slug"
                     value={formData.slug}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="minha-loja-tech"
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-600"
+                    placeholder="minha-loja-123456"
                   />
-                  <p className="text-xs text-gray-500 mt-1">URL: /loja/{formData.slug}/login</p>
+                  <p className="text-xs text-gray-500 mt-1">URL: /loja/{formData.slug || '…'}/login — gerado com nome + CPF/CNPJ para evitar duplicidade</p>
                 </div>
 
                 <div>
@@ -782,13 +818,31 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
                 </label>
                 <input
                   type="text"
+                  name="owner_full_name"
+                  value={formData.owner_full_name}
+                  onChange={handleChange}
+                  required
+                  autoComplete="name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="Ex: Maria Silva Santos"
+                />
+                <p className="text-xs text-gray-500 mt-1">Nome completo do administrador da loja</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Usuário para acessar o sistema *
+                </label>
+                <input
+                  type="text"
                   name="owner_username"
                   value={formData.owner_username}
                   onChange={handleChange}
                   required
+                  autoComplete="username"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                  placeholder="admin_loja"
+                  placeholder="Ex: maria.silva ou admin_loja"
                 />
+                <p className="text-xs text-gray-500 mt-1">Login usado para entrar no painel da loja</p>
               </div>
 
               <div>
@@ -852,28 +906,11 @@ function NovaLojaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             </div>
           </div>
 
-          {/* Resumo */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-3 text-gray-700">Resumo</h3>
-            <div className="space-y-2 text-sm">
-              <p>✅ <strong>Loja:</strong> {formData.nome || '(não informado)'}</p>
-              <p>✅ <strong>Tipo:</strong> {tipos.find(t => t.id.toString() === formData.tipo_loja)?.nome || '(não selecionado)'}</p>
-              <p>✅ <strong>Plano:</strong> {planos.find(p => p.id.toString() === formData.plano)?.nome || '(não selecionado)'}</p>
-              <p>✅ <strong>Assinatura:</strong> {formData.tipo_assinatura === 'mensal' ? 'Mensal' : 'Anual'}</p>
-              <p>✅ <strong>Vencimento:</strong> Dia {formData.dia_vencimento}</p>
-              <p>✅ <strong>Email:</strong> {formData.owner_email || '(não informado)'}</p>
-              <p>✅ <strong>Senha Provisória:</strong> {formData.owner_password ? <span className="font-mono text-purple-600">{formData.owner_password}</span> : 'Gerando...'}</p>
-              <p>✅ <strong>Dashboard de Suporte:</strong> Vinculado automaticamente</p>
-              <p>✅ <strong>Página de Login:</strong> /loja/{formData.slug}/login (personalizada)</p>
-              <p>✅ <strong>Banco de Dados:</strong> Será criado automaticamente (isolado)</p>
-              <p>✅ <strong>Email de Boas-vindas:</strong> Será enviado com dados de acesso</p>
-            </div>
-          </div>
         </form>
         </div>
         
         {/* Footer fixo */}
-        <div className="border-t p-6 bg-gray-50">
+        <div className="border-t px-6 py-4 bg-gray-50 shrink-0">
           <div className="flex justify-end space-x-4">
             <button
               type="button"

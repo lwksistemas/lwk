@@ -1,6 +1,7 @@
 """
 Modelos para o Super Admin gerenciar o sistema
 """
+import re
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify
@@ -203,9 +204,36 @@ class Loja(models.Model):
             models.Index(fields=['is_trial', 'trial_ends_at'], name='loja_trial_idx'),
         ]
     
+    def _get_slug_suffix_from_cpf_cnpj(self):
+        """Extrai sufixo numérico do CPF/CNPJ para garantir slug único (ex: últimos 6 dígitos do CNPJ)."""
+        if not self.cpf_cnpj:
+            return None
+        digits = re.sub(r'\D', '', self.cpf_cnpj)
+        if not digits:
+            return None
+        # CNPJ: usar últimos 6 dígitos; CPF: usar últimos 4 para URL curta
+        if len(digits) >= 12:  # CNPJ
+            return digits[-6:]
+        if len(digits) >= 4:
+            return digits[-4:]
+        return digits
+
+    def _generate_unique_slug(self):
+        """Gera slug único a partir do nome e, se houver, sufixo do CPF/CNPJ."""
+        base = slugify(self.nome) or 'loja'
+        suffix = self._get_slug_suffix_from_cpf_cnpj()
+        candidate = f"{base}-{suffix}" if suffix else base
+        # Garantir unicidade: se já existir, acrescentar -2, -3, ...
+        orig = candidate
+        n = 2
+        while Loja.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+            candidate = f"{orig}-{n}"
+            n += 1
+        return candidate
+
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.nome)
+            self.slug = self._generate_unique_slug()
         if not self.database_name:
             self.database_name = f'loja_{self.slug.replace("-", "_")}'
         if not self.login_page_url:

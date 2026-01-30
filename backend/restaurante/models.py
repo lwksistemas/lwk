@@ -167,3 +167,149 @@ class Funcionario(LojaIsolationMixin, BaseFuncionario):
 
     def __str__(self):
         return f"{self.nome} - {self.get_cargo_display()}"
+
+
+class Fornecedor(LojaIsolationMixin, models.Model):
+    """Fornecedores do restaurante (compras / NF de entrada)."""
+    nome = models.CharField(max_length=200, verbose_name='Nome/Razão Social')
+    cnpj = models.CharField(max_length=18, blank=True, null=True, verbose_name='CNPJ')
+    email = models.EmailField(blank=True, null=True)
+    telefone = models.CharField(max_length=20, blank=True, null=True)
+    endereco = models.TextField(blank=True, null=True)
+    observacoes = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'restaurante_fornecedores'
+        ordering = ['nome']
+        verbose_name = 'Fornecedor'
+        verbose_name_plural = 'Fornecedores'
+
+    def __str__(self):
+        return self.nome
+
+
+def nfe_upload_path(instance, filename):
+    """Ex: nfe_restaurante/2025/01/loja_1_<unique>_<filename>"""
+    import uuid
+    from django.utils import timezone
+    safe = (instance.numero or str(instance.id or uuid.uuid4().hex[:8])).replace(' ', '_')
+    return f"nfe_restaurante/{timezone.now().strftime('%Y/%m')}/loja_{getattr(instance, 'loja_id', 0)}_{safe}_{filename}"
+
+
+class NotaFiscalEntrada(LojaIsolationMixin, models.Model):
+    """Entrada de nota fiscal de compra (NF-e) vinculada a fornecedor e opcionalmente ao estoque."""
+    numero = models.CharField(max_length=30, verbose_name='Número da NF')
+    fornecedor = models.ForeignKey(
+        Fornecedor, on_delete=models.PROTECT, related_name='notas_fiscais',
+        verbose_name='Fornecedor'
+    )
+    data_emissao = models.DateField(verbose_name='Data de emissão', null=True, blank=True)
+    data_entrada = models.DateField(verbose_name='Data de entrada', null=True, blank=True)
+    valor_total = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        verbose_name='Valor total'
+    )
+    xml_file = models.FileField(
+        upload_to=nfe_upload_path, blank=True, null=True,
+        verbose_name='Arquivo XML da NF-e'
+    )
+    observacoes = models.TextField(blank=True, null=True)
+    aplicado_estoque = models.BooleanField(
+        default=False,
+        verbose_name='Aplicado ao estoque',
+        help_text='Se os itens da NF já foram lançados no estoque'
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'restaurante_notas_fiscais_entrada'
+        ordering = ['-data_entrada', '-created_at']
+        verbose_name = 'Nota Fiscal de Entrada'
+        verbose_name_plural = 'Notas Fiscais de Entrada'
+
+    def __str__(self):
+        return f"NF {self.numero} - {self.fornecedor.nome}"
+
+
+class ItemNotaFiscalEntrada(models.Model):
+    """Item de uma nota fiscal de entrada (produto/ingrediente)."""
+    nota_fiscal = models.ForeignKey(
+        NotaFiscalEntrada, on_delete=models.CASCADE, related_name='itens'
+    )
+    descricao = models.CharField(max_length=200, verbose_name='Descrição')
+    quantidade = models.DecimalField(max_digits=12, decimal_places=3, default=1)
+    unidade = models.CharField(max_length=10, default='UN')  # UN, KG, CX, etc.
+    valor_unitario = models.DecimalField(max_digits=12, decimal_places=4, default=0)
+    valor_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'restaurante_itens_nf_entrada'
+        verbose_name = 'Item da NF'
+        verbose_name_plural = 'Itens da NF'
+
+    def __str__(self):
+        return f"{self.descricao} x {self.quantidade}"
+
+
+class EstoqueItem(LojaIsolationMixin, models.Model):
+    """Item de estoque (ingrediente ou produto) do restaurante."""
+    nome = models.CharField(max_length=200)
+    unidade = models.CharField(max_length=10, default='UN')  # UN, KG, L, CX
+    quantidade_atual = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    quantidade_minima = models.DecimalField(
+        max_digits=12, decimal_places=3, default=0,
+        help_text='Alerta quando estoque ficar abaixo'
+    )
+    observacoes = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'restaurante_estoque_itens'
+        ordering = ['nome']
+        verbose_name = 'Item de Estoque'
+        verbose_name_plural = 'Itens de Estoque'
+
+    def __str__(self):
+        return f"{self.nome} ({self.quantidade_atual} {self.unidade})"
+
+
+class MovimentoEstoque(models.Model):
+    """Movimentação de estoque (entrada/saída), opcionalmente vinculada a uma NF."""
+    ENTRADA = 'entrada'
+    SAIDA = 'saida'
+    TIPO_CHOICES = [(ENTRADA, 'Entrada'), (SAIDA, 'Saída')]
+
+    estoque_item = models.ForeignKey(
+        EstoqueItem, on_delete=models.PROTECT, related_name='movimentos'
+    )
+    quantidade = models.DecimalField(max_digits=12, decimal_places=3)
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    nota_fiscal = models.ForeignKey(
+        NotaFiscalEntrada, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='movimentos_estoque'
+    )
+    observacao = models.CharField(max_length=200, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'restaurante_movimentos_estoque'
+        ordering = ['-created_at']
+        verbose_name = 'Movimento de Estoque'
+        verbose_name_plural = 'Movimentos de Estoque'
+
+    def __str__(self):
+        return f"{self.tipo} {self.quantidade} - {self.estoque_item.nome}"

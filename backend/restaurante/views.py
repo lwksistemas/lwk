@@ -1,14 +1,19 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Sum
 from datetime import date
 from core.views import BaseModelViewSet
-from .models import Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario
+from .models import (
+    Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario,
+    Fornecedor, NotaFiscalEntrada, ItemNotaFiscalEntrada, EstoqueItem
+)
 from .serializers import (
     CategoriaSerializer, ItemCardapioSerializer, MesaSerializer,
     ClienteSerializer, ReservaSerializer, PedidoSerializer,
-    ItemPedidoSerializer, FuncionarioSerializer
+    ItemPedidoSerializer, FuncionarioSerializer,
+    FornecedorSerializer, NotaFiscalEntradaSerializer, EstoqueItemSerializer
 )
 
 
@@ -125,3 +130,27 @@ class ItemPedidoViewSet(BaseModelViewSet):
     # Otimização: select_related
     queryset = ItemPedido.objects.select_related('pedido', 'item_cardapio').all()
     serializer_class = ItemPedidoSerializer
+
+
+class FornecedorViewSet(BaseModelViewSet):
+    queryset = Fornecedor.objects.all()
+    serializer_class = FornecedorSerializer
+
+
+class NotaFiscalEntradaViewSet(BaseModelViewSet):
+    """Entrada de NF-e: upload de XML, vinculação a fornecedor e estoque."""
+    queryset = NotaFiscalEntrada.objects.select_related('fornecedor').prefetch_related('itens').all()
+    serializer_class = NotaFiscalEntradaSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        fornecedor_id = self.request.query_params.get('fornecedor_id')
+        if fornecedor_id:
+            queryset = queryset.filter(fornecedor_id=fornecedor_id)
+        return queryset
+
+
+class EstoqueItemViewSet(BaseModelViewSet):
+    queryset = EstoqueItem.objects.all()
+    serializer_class = EstoqueItemSerializer

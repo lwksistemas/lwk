@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario
+from .models import (
+    Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario,
+    Fornecedor, NotaFiscalEntrada, ItemNotaFiscalEntrada, EstoqueItem, MovimentoEstoque
+)
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -67,3 +70,43 @@ class FuncionarioSerializer(serializers.ModelSerializer):
         model = Funcionario
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
+
+
+class FornecedorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Fornecedor
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class ItemNotaFiscalEntradaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItemNotaFiscalEntrada
+        fields = '__all__'
+        read_only_fields = ['created_at']
+
+
+class NotaFiscalEntradaSerializer(serializers.ModelSerializer):
+    fornecedor_nome = serializers.CharField(source='fornecedor.nome', read_only=True)
+    itens = ItemNotaFiscalEntradaSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = NotaFiscalEntrada
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class EstoqueItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EstoqueItem
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class MovimentoEstoqueSerializer(serializers.ModelSerializer):
+    estoque_item_nome = serializers.CharField(source='estoque_item.nome', read_only=True)
+
+    class Meta:
+        model = MovimentoEstoque
+        fields = '__all__'
+        read_only_fields = ['created_at']

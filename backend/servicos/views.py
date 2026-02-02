@@ -42,6 +42,27 @@ class ProfissionalViewSet(BaseModelViewSet):
 class FuncionarioViewSet(BaseModelViewSet):
     queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
+    
+    def _ensure_owner_funcionario(self):
+        """
+        Garante que o administrador da loja exista como funcionário (aparece em Funcionários).
+        
+        NOTA: O app servicos NÃO usa LojaIsolationMixin, então este método
+        não faz nada por enquanto. Implementar quando migrar para isolamento por loja.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug("ℹ️ [FuncionarioViewSet SERVICOS] App servicos não usa isolamento por loja ainda")
+        return
+    
+    def list(self, request, *args, **kwargs):
+        self._ensure_owner_funcionario()
+        return super().list(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        # IMPORTANTE: Garantir que admin existe antes de filtrar
+        self._ensure_owner_funcionario()
+        return super().get_queryset()
 
 
 class AgendamentoViewSet(BaseModelViewSet):

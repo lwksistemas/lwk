@@ -60,28 +60,44 @@ class VendedorViewSet(BaseModelViewSet):
         from tenants.middleware import get_current_loja_id
         from superadmin.models import Loja
         from decimal import Decimal
-
+        import logging
+        
+        logger = logging.getLogger(__name__)
         loja_id = get_current_loja_id()
+        
         if not loja_id:
+            logger.warning("⚠️ [_ensure_owner_vendedor] Nenhuma loja_id no contexto")
             return
+        
         try:
             loja = Loja.objects.get(id=loja_id)
             owner = loja.owner
+            
+            # Verificar se já existe usando all_without_filter para bypass do isolamento
             exists = Vendedor.objects.all_without_filter().filter(
-                loja_id=loja_id, email=owner.email
+                loja_id=loja_id, 
+                email=owner.email
             ).exists()
+            
             if not exists:
+                logger.info(f"✅ [_ensure_owner_vendedor] Criando vendedor admin para loja {loja_id}")
                 Vendedor.objects.all_without_filter().create(
-                    nome=owner.get_full_name() or owner.username,
+                    nome=owner.get_full_name() or owner.username or owner.email.split('@')[0],
                     email=owner.email,
-                    telefone='',
-                    cargo='Gerente de Vendas',
+                    telefone=getattr(owner, 'telefone', '') or '',
+                    cargo='Administrador',
                     is_admin=True,
                     loja_id=loja_id,
                     meta_mensal=Decimal('10000.00'),
                 )
+                logger.info(f"✅ [_ensure_owner_vendedor] Vendedor admin criado com sucesso")
+            else:
+                logger.debug(f"ℹ️ [_ensure_owner_vendedor] Vendedor admin já existe para loja {loja_id}")
+                
         except Loja.DoesNotExist:
-            pass
+            logger.error(f"❌ [_ensure_owner_vendedor] Loja {loja_id} não encontrada")
+        except Exception as e:
+            logger.error(f"❌ [_ensure_owner_vendedor] Erro ao criar vendedor admin: {e}")
 
     def list(self, request, *args, **kwargs):
         self._ensure_owner_vendedor()

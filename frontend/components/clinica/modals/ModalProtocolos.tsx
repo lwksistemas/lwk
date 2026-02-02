@@ -1,5 +1,5 @@
-import { ensureArray } from '@/lib/array-helpers';
 'use client';
+import { ensureArray } from '@/lib/array-helpers';
 
 import { useState, useEffect, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';

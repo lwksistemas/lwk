@@ -52,6 +52,12 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
   }, [loadFuncionarios]);
 
   const handleEdit = (funcionario: Funcionario) => {
+    // 🛡️ PROTEÇÃO: Não permitir editar administrador
+    if (funcionario.is_admin) {
+      alert('⚠️ O administrador da loja não pode ser editado por aqui.\n\nPara alterar dados do administrador, acesse as configurações da loja no painel do SuperAdmin.');
+      return;
+    }
+    
     setEditingFuncionario(funcionario);
     setFormData({
       nome: funcionario.nome || '',
@@ -63,6 +69,12 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
   };
 
   const handleDelete = async (funcionario: Funcionario) => {
+    // 🛡️ PROTEÇÃO: Não permitir excluir administrador
+    if (funcionario.is_admin) {
+      alert('⚠️ O administrador da loja não pode ser excluído.\n\nO administrador é vinculado automaticamente ao criar a loja.');
+      return;
+    }
+    
     if (!confirm(`Tem certeza que deseja excluir o funcionário ${funcionario.nome}?`)) return;
     
     try {
@@ -146,9 +158,16 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
       ) : (
         <div className="space-y-4 mb-6">
           {funcionarios.map((func) => (
-            <div key={func.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+            <div 
+              key={func.id} 
+              className={`flex items-center justify-between p-4 border rounded-lg ${
+                func.is_admin 
+                  ? 'bg-blue-50 border-blue-200' 
+                  : 'hover:bg-gray-50'
+              }`}
+            >
               <div className="flex-1">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 mb-1">
                   <p className="font-semibold text-lg">{func.nome}</p>
                   {func.is_admin && (
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
@@ -158,15 +177,36 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
                 </div>
                 <p className="text-sm text-gray-600">{func.cargo}</p>
                 <p className="text-sm text-gray-600">{func.email} • {func.telefone}</p>
+                {func.is_admin && (
+                  <p className="text-xs text-blue-600 mt-2">
+                    ℹ️ Administrador vinculado automaticamente à loja (não pode ser editado ou excluído)
+                  </p>
+                )}
               </div>
               <div className="flex space-x-2">
-                <button onClick={() => handleEdit(func)} className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600">
-                  ✏️ Editar
-                </button>
-                {!func.is_admin && (
-                  <button onClick={() => handleDelete(func)} className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600">
-                    🗑️ Excluir
+                {func.is_admin ? (
+                  <button 
+                    disabled
+                    className="px-4 py-2 text-sm bg-gray-300 text-gray-500 rounded-md cursor-not-allowed"
+                    title="Administrador não pode ser editado"
+                  >
+                    🔒 Protegido
                   </button>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => handleEdit(func)} 
+                      className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(func)} 
+                      className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600"
+                    >
+                      🗑️ Excluir
+                    </button>
+                  </>
                 )}
               </div>
             </div>

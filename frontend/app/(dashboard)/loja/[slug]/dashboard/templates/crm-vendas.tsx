@@ -144,7 +144,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
           <ActionButton onClick={handleNovoLead} color="#3B82F6" icon="🎯" label="Leads" />
           <ActionButton onClick={handleClientes} color="#F59E0B" icon="👤" label="Clientes" />
-          <ActionButton onClick={handleVendedores} color="#EC4899" icon="👥" label="Vendedores" />
+          <ActionButton onClick={handleVendedores} color="#EC4899" icon="👥" label="Funcionários" />
           <ActionButton onClick={handleNovoProduto} color="#06B6D4" icon="📦" label="Produto" />
           <ActionButton onClick={handlePipeline} color="#8B5CF6" icon="🔄" label="Pipeline" />
           <ActionButton onClick={handleRelatorios} color="#059669" icon="📊" label="Relatórios" />
@@ -1292,15 +1292,15 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
   };
 
   const handleDelete = async (funcionario: any) => {
-    if (!confirm(`Tem certeza que deseja excluir o vendedor ${funcionario.nome}?`)) return;
+    if (!confirm(`Tem certeza que deseja excluir o funcionário ${funcionario.nome}?`)) return;
     
     try {
       await clinicaApiClient.delete(`/crm/vendedores/${funcionario.id}/`);
-      toast.success('Vendedor excluído com sucesso!');
+      toast.success('Funcionário excluído com sucesso!');
       loadFuncionarios();
     } catch (error: any) {
-      console.error('Erro ao excluir vendedor:', error);
-      toast.error(error.response?.data?.detail || 'Erro ao excluir vendedor');
+      console.error('Erro ao excluir funcionário:', error);
+      toast.error(error.response?.data?.detail || 'Erro ao excluir funcionário');
     }
   };
 
@@ -1327,16 +1327,16 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
     try {
       if (editingFuncionario) {
         await clinicaApiClient.put(`/crm/vendedores/${editingFuncionario.id}/`, formData);
-        toast.success('Vendedor atualizado com sucesso!');
+        toast.success('Funcionário atualizado com sucesso!');
       } else {
         await clinicaApiClient.post('/crm/vendedores/', formData);
-        toast.success('Vendedor cadastrado com sucesso!');
+        toast.success('Funcionário cadastrado com sucesso!');
       }
       loadFuncionarios();
       resetForm();
     } catch (error: any) {
-      console.error('Erro ao salvar vendedor:', error);
-      toast.error(error.response?.data?.detail || 'Erro ao salvar vendedor');
+      console.error('Erro ao salvar funcionário:', error);
+      toast.error(error.response?.data?.detail || 'Erro ao salvar funcionário');
     } finally {
       setSubmitting(false);
     }
@@ -1347,7 +1347,7 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
           <h3 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
-            👥 {editingFuncionario ? 'Editar Vendedor' : 'Novo Vendedor'}
+            👥 {editingFuncionario ? 'Editar Funcionário' : 'Novo Funcionário'}
           </h3>
           
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -1399,17 +1399,27 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Cargo *
+                  Função/Cargo *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="cargo"
                   value={formData.cargo}
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 dark:bg-gray-700 dark:text-white"
-                  placeholder="Ex: Vendedor, Gerente de Vendas"
-                />
+                >
+                  <option value="">Selecione a função...</option>
+                  <option value="Vendedor">Vendedor</option>
+                  <option value="Vendedor Sênior">Vendedor Sênior</option>
+                  <option value="Gerente de Vendas">Gerente de Vendas</option>
+                  <option value="Coordenador de Vendas">Coordenador de Vendas</option>
+                  <option value="Supervisor de Vendas">Supervisor de Vendas</option>
+                  <option value="Consultor de Vendas">Consultor de Vendas</option>
+                  <option value="Representante Comercial">Representante Comercial</option>
+                  <option value="Executivo de Contas">Executivo de Contas</option>
+                  <option value="Assistente Comercial">Assistente Comercial</option>
+                  <option value="Outro">Outro</option>
+                </select>
               </div>
 
               <div>
@@ -1458,25 +1468,25 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-xl">
         <h3 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
-          👥 Gerenciar Vendedores
+          👥 Gerenciar Funcionários
         </h3>
         
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          💡 O administrador da loja é automaticamente cadastrado como vendedor
+          💡 O administrador da loja aparece automaticamente na lista de funcionários
         </p>
         
         {loading ? (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando vendedores...</div>
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">Carregando funcionários...</div>
         ) : !Array.isArray(funcionarios) || funcionarios.length === 0 ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p className="text-lg mb-2">Nenhum vendedor cadastrado</p>
+            <p className="text-lg mb-2">Nenhum funcionário cadastrado</p>
             <p className="text-sm mb-4">Cadastre sua equipe de vendas</p>
             <button
               onClick={() => setShowForm(true)}
               className="px-6 py-3 rounded-md text-white hover:opacity-90 min-h-[44px]"
               style={{ backgroundColor: loja.cor_primaria }}
             >
-              + Cadastrar Vendedor
+              + Cadastrar Funcionário
             </button>
           </div>
         ) : (
@@ -1531,7 +1541,7 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
             className="px-6 py-2 text-white rounded-md hover:opacity-90 min-h-[40px]"
             style={{ backgroundColor: loja.cor_primaria }}
           >
-            + Novo Vendedor
+            + Novo Funcionário
           </button>
         </div>
       </div>

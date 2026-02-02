@@ -133,33 +133,40 @@ class TenantMiddleware:
                 loja = Loja.objects.get(id=int(loja_id))
                 
                 # SEGURANÇA: Validar que o usuário pertence a esta loja
-                if not self._validate_user_owns_loja(request, loja):
-                    return None
+                # IMPORTANTE: Só validar se o usuário estiver autenticado
+                if hasattr(request, 'user') and request.user.is_authenticated:
+                    if not self._validate_user_owns_loja(request, loja):
+                        logger.warning(f"⚠️ [_get_tenant_slug] Usuário {request.user.id} não tem permissão para loja {loja_id}")
+                        return None
                 
                 return loja.slug
             except (Loja.DoesNotExist, ValueError):
+                logger.warning(f"⚠️ [_get_tenant_slug] Loja {loja_id} não encontrada")
                 pass
         
         # 2. Tentar pegar do header X-Tenant-Slug (fallback, case-insensitive)
         tenant_slug = request.headers.get('X-Tenant-Slug')
         if tenant_slug:
-            if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                return None
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                    return None
             return tenant_slug.strip()
         
         # 3. Tentar pegar do parâmetro de query
         tenant_slug = request.GET.get('tenant')
         if tenant_slug:
-            if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                return None
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                    return None
             return tenant_slug
         
         # 4. Tentar pegar da URL (ex: /loja/linda/...)
         path_parts = request.path.split('/')
         if len(path_parts) >= 3 and path_parts[1] == 'loja':
             tenant_slug = path_parts[2]
-            if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                return None
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                    return None
             return tenant_slug
         
         # 5. Tentar pegar do subdomain
@@ -167,8 +174,9 @@ class TenantMiddleware:
         parts = host.split('.')
         if len(parts) > 2:  # ex: loja1.localhost
             tenant_slug = parts[0]
-            if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                return None
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                    return None
             return tenant_slug
         
         return None

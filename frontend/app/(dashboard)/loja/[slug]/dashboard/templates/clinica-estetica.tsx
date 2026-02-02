@@ -94,8 +94,15 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       setLoading(true);
       setLoadingAgendamentos(true);
       const response = await clinicaApiClient.get<{ estatisticas: Estatisticas; proximos: Agendamento[] }>('/clinica/agendamentos/dashboard/');
-      setEstatisticas(response.data.estatisticas);
-      setProximosAgendamentos(response.data.proximos);
+      setEstatisticas(response.data.estatisticas || {
+        agendamentos_hoje: 0,
+        agendamentos_mes: 0,
+        clientes_ativos: 0,
+        procedimentos_ativos: 0,
+        receita_mensal: 0
+      });
+      // Garantir que proximos seja sempre um array
+      setProximosAgendamentos(Array.isArray(response.data.proximos) ? response.data.proximos : []);
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
       const msg = formatApiError(error);
@@ -120,7 +127,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
     try {
       setLoadingAgendamentos(true);
       const response = await clinicaApiClient.get('/clinica/agendamentos/proximos/');
-      setProximosAgendamentos(response.data);
+      // Garantir que seja sempre um array
+      setProximosAgendamentos(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error);
       toast.error('Erro ao carregar agendamentos');

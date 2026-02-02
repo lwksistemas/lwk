@@ -1501,9 +1501,16 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
         ) : (
           <div className="space-y-4 mb-6">
             {(Array.isArray(funcionarios) ? funcionarios : []).map((func: any) => (
-              <div key={func.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 gap-3">
+              <div 
+                key={func.id} 
+                className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 border dark:border-gray-600 rounded-lg gap-3 ${
+                  func.is_admin 
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                }`}
+              >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 flex-wrap gap-2">
+                  <div className="flex items-center space-x-2 flex-wrap gap-2 mb-1">
                     <p className="font-semibold text-lg text-gray-900 dark:text-white">{func.nome}</p>
                     {func.is_admin && (
                       <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">
@@ -1516,21 +1523,36 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                   <p className="text-sm font-semibold mt-1" style={{ color: loja.cor_primaria }}>
                     Meta Mensal: R$ {parseFloat(func.meta_mensal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
+                  {func.is_admin && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                      ℹ️ Administrador vinculado automaticamente à loja (não pode ser editado ou excluído)
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => handleEdit(func)}
-                    className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 min-h-[40px]"
-                  >
-                    ✏️ Editar
-                  </button>
-                  {!func.is_admin && (
+                  {func.is_admin ? (
                     <button
-                      onClick={() => handleDelete(func)}
-                      className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 min-h-[40px]"
+                      disabled
+                      className="px-4 py-2 text-sm bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-md cursor-not-allowed min-h-[40px]"
+                      title="Administrador não pode ser editado"
                     >
-                      🗑️ Excluir
+                      🔒 Protegido
                     </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleEdit(func)}
+                        className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 min-h-[40px]"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(func)}
+                        className="px-4 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 min-h-[40px]"
+                      >
+                        🗑️ Excluir
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

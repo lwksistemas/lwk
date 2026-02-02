@@ -211,35 +211,54 @@ class TenantMiddleware:
             try:
                 from crm_vendas.models import Vendedor
                 from clinica_estetica.models import Funcionario as FuncionarioClinica
+                from restaurante.models import Funcionario as FuncionarioRestaurante
+                from servicos.models import Funcionario as FuncionarioServicos
                 
                 logger.info(f"🔍 [_validate_user_owns_loja] Verificando se é vendedor/funcionário...")
                 
-                # Verificar se é vendedor (CRM)
+                # Verificar se é vendedor (CRM Vendas)
                 is_vendedor = Vendedor.objects.all_without_filter().filter(
                     loja_id=loja.id,
                     email=request.user.email,
                     is_active=True
                 ).exists()
                 
-                logger.info(f"🔍 [_validate_user_owns_loja] É vendedor? {is_vendedor}")
+                logger.info(f"🔍 [_validate_user_owns_loja] É vendedor (CRM)? {is_vendedor}")
                 
                 if is_vendedor:
                     logger.info(f"✅ Usuário {request.user.id} é vendedor da loja {loja.slug}")
                     return True
                 
-                # Verificar se é funcionário (Clínica)
-                is_funcionario = FuncionarioClinica.objects.all_without_filter().filter(
+                # Verificar se é funcionário (Clínica Estética)
+                is_funcionario_clinica = FuncionarioClinica.objects.all_without_filter().filter(
                     loja_id=loja.id,
                     email=request.user.email,
                     is_active=True
                 ).exists()
                 
-                logger.info(f"🔍 [_validate_user_owns_loja] É funcionário? {is_funcionario}")
+                logger.info(f"🔍 [_validate_user_owns_loja] É funcionário (Clínica)? {is_funcionario_clinica}")
                 
-                if is_funcionario:
+                if is_funcionario_clinica:
                     logger.info(f"✅ Usuário {request.user.id} é funcionário da loja {loja.slug}")
                     return True
-                    
+                
+                # Verificar se é funcionário (Restaurante)
+                is_funcionario_restaurante = FuncionarioRestaurante.objects.all_without_filter().filter(
+                    loja_id=loja.id,
+                    email=request.user.email,
+                    is_active=True
+                ).exists()
+                
+                logger.info(f"🔍 [_validate_user_owns_loja] É funcionário (Restaurante)? {is_funcionario_restaurante}")
+                
+                if is_funcionario_restaurante:
+                    logger.info(f"✅ Usuário {request.user.id} é funcionário da loja {loja.slug}")
+                    return True
+                
+                # Verificar se é funcionário (Serviços)
+                # Nota: Serviços não usa LojaIsolationMixin, então não tem loja_id
+                # Vamos pular essa verificação por enquanto
+                
             except Exception as e:
                 logger.error(f"❌ Erro ao verificar se é funcionário: {e}", exc_info=True)
             

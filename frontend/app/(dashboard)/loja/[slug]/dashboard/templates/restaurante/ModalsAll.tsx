@@ -1409,8 +1409,15 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
             {lista.length === 0 ? <p className="text-gray-500 py-4">Nenhum funcionário.</p> : lista.map(f => (
               <div key={f.id} className="flex items-center justify-between p-3 border dark:border-gray-600 rounded-lg">
                 <div>
-                  <span className="font-medium text-gray-900 dark:text-white">{f.nome}</span>
-                  <span className="ml-2 px-2 py-0.5 rounded text-xs bg-gray-200 dark:bg-gray-700">{CARGO_FUNCIONARIO.find(c => c.value === f.cargo)?.label ?? f.cargo}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-gray-900 dark:text-white">{f.nome}</span>
+                    {f.is_admin && (
+                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">
+                        👤 Administrador
+                      </span>
+                    )}
+                    <span className="px-2 py-0.5 rounded text-xs bg-gray-200 dark:bg-gray-700">{CARGO_FUNCIONARIO.find(c => c.value === f.cargo)?.label ?? f.cargo}</span>
+                  </div>
                   {f.email && <p className="text-sm text-gray-500">{f.email}</p>}
                 </div>
                 <div className="flex gap-2">

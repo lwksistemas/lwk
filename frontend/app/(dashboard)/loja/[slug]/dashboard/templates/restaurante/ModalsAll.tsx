@@ -1407,7 +1407,7 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
         {loading ? <p className="text-center text-gray-500 py-8">Carregando...</p> : (
           <div className="space-y-2">
             {lista.length === 0 ? <p className="text-gray-500 py-4">Nenhum funcionário.</p> : lista.map(f => (
-              <div key={f.id} className="flex items-center justify-between p-3 border dark:border-gray-600 rounded-lg">
+              <div key={f.id} className="flex items-center justify-between p-3 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-gray-900 dark:text-white">{f.nome}</span>
@@ -1416,13 +1416,13 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
                         👤 Administrador
                       </span>
                     )}
-                    <span className="px-2 py-0.5 rounded text-xs bg-gray-200 dark:bg-gray-700">{CARGO_FUNCIONARIO.find(c => c.value === f.cargo)?.label ?? f.cargo}</span>
                   </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{CARGO_FUNCIONARIO.find(c => c.value === f.cargo)?.label ?? f.cargo}</p>
                   {f.email && <p className="text-sm text-gray-500">{f.email}</p>}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => { setEditId(f.id); setForm({ nome: f.nome, email: f.email || '', telefone: f.telefone || '', cargo: f.cargo }); setShowForm(true); }} className="px-3 py-1 text-sm rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>Editar</button>
-                  {!f.is_admin && <button onClick={() => handleDelete(f.id, f.nome)} className="px-3 py-1 text-sm bg-red-600 text-white rounded-lg">Excluir</button>}
+                  <button onClick={() => { setEditId(f.id); setForm({ nome: f.nome, email: f.email || '', telefone: f.telefone || '', cargo: f.cargo }); setShowForm(true); }} className="px-3 py-1 text-sm rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
+                  {!f.is_admin && <button onClick={() => handleDelete(f.id, f.nome)} className="px-3 py-1 text-sm bg-red-600 text-white rounded-lg">🗑️ Excluir</button>}
                 </div>
               </div>
             ))}

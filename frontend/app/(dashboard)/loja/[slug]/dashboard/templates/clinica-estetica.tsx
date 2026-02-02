@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
 import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
 import GerenciadorConsultas from '@/components/clinica/GerenciadorConsultas';
+import { ensureArray } from '@/lib/array-helpers';
 
 // Lazy loading dos modais - carrega apenas quando necessário
 const ModalClientes = lazy(() => import('@/components/clinica/modals/ModalClientes').then(m => ({ default: m.ModalClientes })));
@@ -101,8 +102,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
         procedimentos_ativos: 0,
         receita_mensal: 0
       });
-      // Garantir que proximos seja sempre um array
-      setProximosAgendamentos(Array.isArray(response.data.proximos) ? response.data.proximos : []);
+      // Garantir que proximos seja sempre um array usando ensureArray
+      setProximosAgendamentos(ensureArray<Agendamento>(response.data.proximos));
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
       const msg = formatApiError(error);
@@ -127,8 +128,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
     try {
       setLoadingAgendamentos(true);
       const response = await clinicaApiClient.get('/clinica/agendamentos/proximos/');
-      // Garantir que seja sempre um array
-      setProximosAgendamentos(Array.isArray(response.data) ? response.data : []);
+      // Garantir que seja sempre um array usando ensureArray
+      setProximosAgendamentos(ensureArray<Agendamento>(response.data));
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error);
       toast.error('Erro ao carregar agendamentos');

@@ -58,7 +58,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
   const loadProtocolos = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/protocolos/');
-      setProtocolos(ensureArray(response.data));
+      setProtocolos(ensureArray<Protocolo>(response.data));
     } catch (error) {
       console.error('Erro ao carregar protocolos:', error);
     }
@@ -67,7 +67,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
   const loadProcedimentos = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/procedimentos/');
-      setProcedimentos(ensureArray(response.data));
+      setProcedimentos(ensureArray<Procedimento>(response.data));
     } catch (error) {
       console.error('Erro ao carregar procedimentos:', error);
     } finally {

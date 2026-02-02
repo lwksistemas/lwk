@@ -42,70 +42,77 @@ class TenantMiddleware:
         import logging
         logger = logging.getLogger(__name__)
         
-        # Detectar tenant por subdomain, header ou parâmetro
-        tenant_slug = self._get_tenant_slug(request)
-        logger.info(f"🔍 [TenantMiddleware] URL: {request.path} | Slug detectado: {tenant_slug}")
-        
-        if tenant_slug:
-            # Buscar a loja pelo slug (case-insensitive: dani/Dani funcionam)
-            from superadmin.models import Loja
-            try:
-                loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
-                if not loja:
-                    raise Loja.DoesNotExist
-                loja_id = loja.id
-                # Usar slug real da loja para db_name (consistência)
-                db_name = f'loja_{loja.slug}'
-                
-                # Verificar se o banco existe nas configurações
-                if db_name in settings.DATABASES:
-                    # Limite de tamanho: bloquear escritas se o arquivo SQLite da loja >= 512 MB
-                    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
-                        db_path = getattr(settings, 'BASE_DIR', None)
-                        if db_path is not None and loja.database_created and loja.database_name:
-                            path = Path(db_path) / f'db_{loja.database_name}.sqlite3'
-                            if path.exists():
-                                try:
-                                    size = path.stat().st_size
-                                    if size >= LIMITE_BANCO_LOJA_BYTES:
-                                        logger.warning(
-                                            f"⚠️ [TenantMiddleware] Loja {loja.slug} atingiu limite "
-                                            f"de banco ({size / (1024*1024):.1f} MB >= {LIMITE_BANCO_LOJA_MB} MB)"
-                                        )
-                                        return JsonResponse(
-                                            {
-                                                'error': (
-                                                    f'Limite de armazenamento da loja atingido '
-                                                    f'({LIMITE_BANCO_LOJA_MB} MB). '
-                                                    'Entre em contato com o suporte para ampliar o plano.'
-                                                ),
-                                                'code': 'STORAGE_LIMIT_REACHED',
-                                                'limite_mb': LIMITE_BANCO_LOJA_MB,
-                                            },
-                                            status=507,
-                                        )
-                                except OSError:
-                                    pass
-                    set_current_tenant_db(db_name)
-                else:
-                    # Banco não existe, usar default
+        try:
+            # Detectar tenant por subdomain, header ou parâmetro
+            tenant_slug = self._get_tenant_slug(request)
+            logger.info(f"🔍 [TenantMiddleware] URL: {request.path} | Slug detectado: {tenant_slug}")
+            
+            if tenant_slug:
+                # Buscar a loja pelo slug (case-insensitive: dani/Dani funcionam)
+                from superadmin.models import Loja
+                try:
+                    loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
+                    if not loja:
+                        raise Loja.DoesNotExist
+                    loja_id = loja.id
+                    # Usar slug real da loja para db_name (consistência)
+                    db_name = f'loja_{loja.slug}'
+                    
+                    # Verificar se o banco existe nas configurações
+                    if db_name in settings.DATABASES:
+                        # Limite de tamanho: bloquear escritas se o arquivo SQLite da loja >= 512 MB
+                        if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+                            db_path = getattr(settings, 'BASE_DIR', None)
+                            if db_path is not None and loja.database_created and loja.database_name:
+                                path = Path(db_path) / f'db_{loja.database_name}.sqlite3'
+                                if path.exists():
+                                    try:
+                                        size = path.stat().st_size
+                                        if size >= LIMITE_BANCO_LOJA_BYTES:
+                                            logger.warning(
+                                                f"⚠️ [TenantMiddleware] Loja {loja.slug} atingiu limite "
+                                                f"de banco ({size / (1024*1024):.1f} MB >= {LIMITE_BANCO_LOJA_MB} MB)"
+                                            )
+                                            return JsonResponse(
+                                                {
+                                                    'error': (
+                                                        f'Limite de armazenamento da loja atingido '
+                                                        f'({LIMITE_BANCO_LOJA_MB} MB). '
+                                                        'Entre em contato com o suporte para ampliar o plano.'
+                                                    ),
+                                                    'code': 'STORAGE_LIMIT_REACHED',
+                                                    'limite_mb': LIMITE_BANCO_LOJA_MB,
+                                                },
+                                                status=507,
+                                            )
+                                    except OSError:
+                                        pass
+                        set_current_tenant_db(db_name)
+                    else:
+                        # Banco não existe, usar default
+                        set_current_tenant_db('default')
+                    
+                    # ✅ IMPORTANTE: Setar o loja_id no contexto para o LojaIsolationManager
+                    set_current_loja_id(loja_id)
+                    logger.info(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={db_name}")
+                    
+                except Loja.DoesNotExist:
+                    logger.warning(f"⚠️ [TenantMiddleware] Loja não encontrada: slug={tenant_slug}")
                     set_current_tenant_db('default')
-                
-                # ✅ IMPORTANTE: Setar o loja_id no contexto para o LojaIsolationManager
-                set_current_loja_id(loja_id)
-                logger.info(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={db_name}")
-                
-            except Loja.DoesNotExist:
-                logger.warning(f"⚠️ [TenantMiddleware] Loja não encontrada: slug={tenant_slug}")
+                    set_current_loja_id(None)
+            else:
+                logger.debug(f"ℹ️ [TenantMiddleware] Nenhum slug detectado - usando default")
                 set_current_tenant_db('default')
                 set_current_loja_id(None)
-        else:
-            logger.debug(f"ℹ️ [TenantMiddleware] Nenhum slug detectado - usando default")
-            set_current_tenant_db('default')
+            
+            response = self.get_response(request)
+            return response
+        finally:
+            # 🛡️ SEGURANÇA CRÍTICA: Limpar contexto após cada requisição
+            # Previne vazamento de loja_id entre requisições
             set_current_loja_id(None)
-        
-        response = self.get_response(request)
-        return response
+            set_current_tenant_db('default')
+            logger.debug("🧹 [TenantMiddleware] Contexto limpo após requisição")
     
     def _get_tenant_slug(self, request):
         """

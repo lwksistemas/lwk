@@ -62,7 +62,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   const loadAnamneses = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/anamneses/');
-      setAnamneses(ensureArray(response.data));
+      setAnamneses(ensureArray<Anamnese>(response.data));
     } catch (error) {
       console.error('Erro ao carregar anamneses:', error);
     }
@@ -71,7 +71,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   const loadTemplates = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/anamneses-templates/');
-      setTemplates(ensureArray(response.data));
+      setTemplates(ensureArray<Template>(response.data));
     } catch (error) {
       console.error('Erro ao carregar templates:', error);
     }
@@ -80,7 +80,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   const loadProcedimentos = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/procedimentos/');
-      setProcedimentos(ensureArray(response.data));
+      setProcedimentos(ensureArray<Procedimento>(response.data));
     } catch (error) {
       console.error('Erro ao carregar procedimentos:', error);
     } finally {

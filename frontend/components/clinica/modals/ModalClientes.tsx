@@ -55,7 +55,7 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
       setLoading(true);
       setLoadError(false);
       const response = await clinicaApiClient.get('/clinica/clientes/');
-      setClientes(ensureArray(response.data));
+      setClientes(ensureArray<Cliente>(response.data));
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
       setLoadError(true);

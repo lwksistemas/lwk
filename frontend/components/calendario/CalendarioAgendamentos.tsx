@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { ensureArray } from '@/lib/array-helpers';
 
 interface Agendamento {
   id: number;
@@ -69,7 +70,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   const carregarProfissionais = async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/profissionais/');
-      setProfissionais(response.data ?? []);
+      setProfissionais(ensureArray<Profissional>(response.data));
     } catch (error) {
       console.error('Erro ao carregar profissionais:', error);
     }
@@ -93,8 +94,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
         clinicaApiClient.get('/clinica/bloqueios/', { params }),
       ]);
 
-      setAgendamentos(agRes.data ?? []);
-      setBloqueios(blRes.data ?? []);
+      setAgendamentos(ensureArray<Agendamento>(agRes.data));
+      setBloqueios(ensureArray<BloqueioAgenda>(blRes.data));
     } catch (error) {
       console.error('Erro ao carregar agendamentos:', error);
     } finally {
@@ -704,9 +705,9 @@ function ModalAgendamento({
         clinicaApiClient.get('/clinica/procedimentos/')
       ]);
       
-      setClientes(clientesRes.data);
-      setProfissionais(profissionaisRes.data);
-      setProcedimentos(procedimentosRes.data);
+      setClientes(ensureArray<any>(clientesRes.data));
+      setProfissionais(ensureArray<any>(profissionaisRes.data));
+      setProcedimentos(ensureArray<any>(procedimentosRes.data));
     } catch (error) {
       console.error('Erro ao carregar dados do formulário:', error);
     } finally {

@@ -276,6 +276,30 @@ class FuncionarioViewSet(BaseModelViewSet):
     queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Garante isolamento por loja com validação extra de segurança
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        queryset = super().get_queryset()
+        
+        # Validação extra de segurança
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        
+        if not loja_id:
+            logger.critical("🚨 [FuncionarioViewSet] Tentativa de acesso sem loja_id no contexto")
+            return queryset.none()
+        
+        # O filtro já é aplicado pelo LojaIsolationManager,
+        # mas adicionar log para debug
+        logger.info(f"✅ [FuncionarioViewSet] Filtrando funcionários por loja_id={loja_id}")
+        logger.info(f"📊 [FuncionarioViewSet] Total de funcionários encontrados: {queryset.count()}")
+        
+        return queryset
 
 
 class ConsultaViewSet(BaseModelViewSet):

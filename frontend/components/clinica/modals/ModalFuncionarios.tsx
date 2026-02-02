@@ -39,7 +39,7 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
   const loadFuncionarios = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/funcionarios/');
-      setFuncionarios(ensureArray(response.data));
+      setFuncionarios(ensureArray<Funcionario>(response.data));
     } catch (error) {
       console.error('Erro ao carregar funcionários:', error);
     } finally {

@@ -84,9 +84,9 @@ export function ModalAgendamento({ loja, onClose, onSuccess }: ModalAgendamentoP
         clinicaApiClient.get('/clinica/procedimentos/')
       ]);
       
-      setClientes(ensureArray(clientesRes.data));
-      setProfissionais(ensureArray(profissionaisRes.data));
-      setProcedimentos(ensureArray(procedimentosRes.data));
+      setClientes(ensureArray<Cliente>(clientesRes.data));
+      setProfissionais(ensureArray<Profissional>(profissionaisRes.data));
+      setProcedimentos(ensureArray<Procedimento>(procedimentosRes.data));
     } catch (error) {
       console.error('Erro ao carregar dados do formulário:', error);
     } finally {

@@ -55,7 +55,7 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
       setLoading(true);
       setLoadError(false);
       const response = await clinicaApiClient.get('/clinica/procedimentos/');
-      setProcedimentos(ensureArray(response.data));
+      setProcedimentos(ensureArray<Procedimento>(response.data));
     } catch (error) {
       console.error('Erro ao carregar procedimentos:', error);
       setLoadError(true);

@@ -1260,16 +1260,25 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
 
   const loadFuncionarios = async () => {
     try {
-      const lojaId = sessionStorage.getItem('current_loja_id');
+      const lojaId = sessionStorage.getItem('current_loja_id') || String(loja.id);
       console.log('🔍 [loadFuncionarios] Loja ID:', lojaId);
+      console.log('🔍 [loadFuncionarios] Loja object:', loja);
+      
+      if (!lojaId) {
+        console.error('❌ [loadFuncionarios] Nenhuma loja_id disponível!');
+        setFuncionarios([]);
+        setLoading(false);
+        return;
+      }
       
       const response = await clinicaApiClient.get('/crm/vendedores/', {
         headers: {
-          'X-Loja-ID': lojaId || ''
+          'X-Loja-ID': lojaId
         }
       });
       const data = response.data;
       const list = Array.isArray(data) ? data : (data?.results ?? []);
+      console.log('✅ [loadFuncionarios] Funcionários carregados:', list.length);
       setFuncionarios(list);
     } catch (error) {
       console.error('❌ [loadFuncionarios] Erro ao carregar vendedores:', error);

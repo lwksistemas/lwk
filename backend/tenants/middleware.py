@@ -186,13 +186,18 @@ class TenantMiddleware:
         import logging
         logger = logging.getLogger(__name__)
         
+        logger.info(f"🔍 [_validate_user_owns_loja] Validando acesso - Loja: {loja.slug} (ID: {loja.id})")
+        
         if not hasattr(request, 'user') or not request.user.is_authenticated:
             logger.warning("⚠️ Usuário não autenticado tentando acessar loja")
             return False
         
+        logger.info(f"🔍 [_validate_user_owns_loja] Usuário: {request.user.id} ({request.user.email})")
+        logger.info(f"🔍 [_validate_user_owns_loja] Owner da loja: {loja.owner_id}")
+        
         # SuperAdmin pode acessar qualquer loja
         if request.user.is_superuser:
-            logger.debug(f"✅ SuperAdmin acessando loja {loja.slug}")
+            logger.info(f"✅ SuperAdmin acessando loja {loja.slug}")
             return True
         
         # Validar owner
@@ -207,12 +212,16 @@ class TenantMiddleware:
                 from crm_vendas.models import Vendedor
                 from clinica_estetica.models import Funcionario as FuncionarioClinica
                 
+                logger.info(f"🔍 [_validate_user_owns_loja] Verificando se é vendedor/funcionário...")
+                
                 # Verificar se é vendedor (CRM)
                 is_vendedor = Vendedor.objects.all_without_filter().filter(
                     loja_id=loja.id,
                     email=request.user.email,
                     is_active=True
                 ).exists()
+                
+                logger.info(f"🔍 [_validate_user_owns_loja] É vendedor? {is_vendedor}")
                 
                 if is_vendedor:
                     logger.info(f"✅ Usuário {request.user.id} é vendedor da loja {loja.slug}")
@@ -225,20 +234,22 @@ class TenantMiddleware:
                     is_active=True
                 ).exists()
                 
+                logger.info(f"🔍 [_validate_user_owns_loja] É funcionário? {is_funcionario}")
+                
                 if is_funcionario:
                     logger.info(f"✅ Usuário {request.user.id} é funcionário da loja {loja.slug}")
                     return True
                     
             except Exception as e:
-                logger.error(f"❌ Erro ao verificar se é funcionário: {e}")
+                logger.error(f"❌ Erro ao verificar se é funcionário: {e}", exc_info=True)
             
             logger.critical(
-                f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.id} ({request.user.email}) "
-                f"tentou acessar loja {loja.slug} (ID: {loja.id}) sem permissão"
+                f"🚨 BLOQUEIO: Usuário {request.user.id} ({request.user.email}) "
+                f"não tem permissão para loja {loja.slug} (ID: {loja.id})"
             )
             return False
         
-        logger.debug(f"✅ Usuário {request.user.id} validado para loja {loja.slug} (owner)")
+        logger.info(f"✅ Usuário {request.user.id} validado para loja {loja.slug} (owner)")
         return True
     
     def _validate_user_owns_loja_by_slug(self, request, tenant_slug):

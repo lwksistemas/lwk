@@ -330,23 +330,29 @@ class FuncionarioViewSet(BaseModelViewSet):
         import logging
         logger = logging.getLogger(__name__)
         
-        # IMPORTANTE: Garantir que admin existe antes de filtrar
-        self._ensure_owner_funcionario()
-        
-        queryset = super().get_queryset()
-        
         # Validação extra de segurança
         from tenants.middleware import get_current_loja_id
         loja_id = get_current_loja_id()
         
+        logger.info(f"🔍 [FuncionarioViewSet.get_queryset] INÍCIO - loja_id no contexto: {loja_id}")
+        
         if not loja_id:
             logger.critical("🚨 [FuncionarioViewSet] Tentativa de acesso sem loja_id no contexto")
-            return queryset.none()
+            return Funcionario.objects.none()
         
-        # O filtro já é aplicado pelo LojaIsolationManager,
-        # mas adicionar log para debug
-        logger.info(f"✅ [FuncionarioViewSet] Filtrando funcionários por loja_id={loja_id}")
-        logger.info(f"📊 [FuncionarioViewSet] Total de funcionários encontrados: {queryset.count()}")
+        # IMPORTANTE: Garantir que admin existe antes de filtrar
+        self._ensure_owner_funcionario()
+        
+        # Verificar quantos funcionários existem NO BANCO (sem filtro)
+        total_sem_filtro = Funcionario.objects.all_without_filter().filter(loja_id=loja_id).count()
+        logger.info(f"📊 [FuncionarioViewSet] Total NO BANCO (sem filtro): {total_sem_filtro}")
+        
+        # Agora aplicar o filtro normal
+        queryset = super().get_queryset()
+        total_com_filtro = queryset.count()
+        
+        logger.info(f"📊 [FuncionarioViewSet] Total COM FILTRO (LojaIsolationManager): {total_com_filtro}")
+        logger.info(f"🔍 [FuncionarioViewSet.get_queryset] FIM - retornando {total_com_filtro} funcionários")
         
         return queryset
 

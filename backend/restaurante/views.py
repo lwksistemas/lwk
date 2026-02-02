@@ -109,9 +109,33 @@ class FuncionarioViewSet(BaseModelViewSet):
         return super().list(request, *args, **kwargs)
     
     def get_queryset(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        
+        logger.info(f"🔍 [FuncionarioViewSet.get_queryset RESTAURANTE] INÍCIO - loja_id no contexto: {loja_id}")
+        
+        if not loja_id:
+            logger.critical("🚨 [FuncionarioViewSet RESTAURANTE] Tentativa de acesso sem loja_id no contexto")
+            return Funcionario.objects.none()
+        
         # IMPORTANTE: Garantir que admin existe antes de filtrar
         self._ensure_owner_funcionario()
-        return super().get_queryset()
+        
+        # Verificar quantos funcionários existem NO BANCO (sem filtro)
+        total_sem_filtro = Funcionario.objects.all_without_filter().filter(loja_id=loja_id).count()
+        logger.info(f"📊 [FuncionarioViewSet RESTAURANTE] Total NO BANCO (sem filtro): {total_sem_filtro}")
+        
+        # Agora aplicar o filtro normal
+        queryset = super().get_queryset()
+        total_com_filtro = queryset.count()
+        
+        logger.info(f"📊 [FuncionarioViewSet RESTAURANTE] Total COM FILTRO: {total_com_filtro}")
+        logger.info(f"🔍 [FuncionarioViewSet RESTAURANTE] FIM - retornando {total_com_filtro} funcionários")
+        
+        return queryset
 
 
 class ReservaViewSet(BaseModelViewSet):

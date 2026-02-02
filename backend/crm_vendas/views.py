@@ -104,6 +104,9 @@ class VendedorViewSet(BaseModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
+        # IMPORTANTE: Garantir que admin existe antes de filtrar
+        self._ensure_owner_vendedor()
+        
         queryset = super().get_queryset()
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:

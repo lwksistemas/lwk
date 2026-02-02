@@ -107,6 +107,11 @@ class FuncionarioViewSet(BaseModelViewSet):
     def list(self, request, *args, **kwargs):
         self._ensure_owner_funcionario()
         return super().list(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        # IMPORTANTE: Garantir que admin existe antes de filtrar
+        self._ensure_owner_funcionario()
+        return super().get_queryset()
 
 
 class ReservaViewSet(BaseModelViewSet):

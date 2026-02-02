@@ -330,6 +330,9 @@ class FuncionarioViewSet(BaseModelViewSet):
         import logging
         logger = logging.getLogger(__name__)
         
+        # IMPORTANTE: Garantir que admin existe antes de filtrar
+        self._ensure_owner_funcionario()
+        
         queryset = super().get_queryset()
         
         # Validação extra de segurança

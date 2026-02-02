@@ -9,15 +9,44 @@ from rest_framework import status
 class BaseModelViewSet(viewsets.ModelViewSet):
     """
     ViewSet genérico para modelos simples
-    Inclui filtro por is_active e permissões básicas
+    Inclui filtro por is_active, permissões básicas e validação de isolamento
     """
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        """Filtra apenas registros ativos"""
+        """
+        Filtra apenas registros ativos e valida isolamento por loja
+        
+        SEGURANÇA: Valida que loja_id está no contexto para modelos isolados
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         queryset = self.queryset
+        
+        # 🛡️ SEGURANÇA CRÍTICA: Validar isolamento por loja
+        if hasattr(self.queryset.model, 'loja_id'):
+            from tenants.middleware import get_current_loja_id
+            
+            loja_id = get_current_loja_id()
+            
+            if not loja_id:
+                logger.critical(
+                    f"🚨 [{self.__class__.__name__}] "
+                    f"Tentativa de acesso ao modelo {self.queryset.model.__name__} "
+                    f"sem loja_id no contexto. Retornando queryset vazio."
+                )
+                return queryset.none()
+            
+            logger.debug(
+                f"✅ [{self.__class__.__name__}] "
+                f"Filtrando {self.queryset.model.__name__} por loja_id={loja_id}"
+            )
+        
+        # Filtro is_active
         if hasattr(self.queryset.model, 'is_active'):
             queryset = queryset.filter(is_active=True)
+        
         return queryset
     
     def perform_create(self, serializer):

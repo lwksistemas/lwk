@@ -133,16 +133,8 @@ class TenantMiddleware:
                 loja = Loja.objects.get(id=int(loja_id))
                 
                 # SEGURANÇA: Validar que o usuário pertence a esta loja
-                if hasattr(request, 'user') and request.user.is_authenticated:
-                    # SuperAdmin pode acessar qualquer loja (apenas para endpoints específicos)
-                    if not request.user.is_superuser:
-                        # Verificar se é o owner da loja
-                        if loja.owner_id != request.user.id:
-                            logger.critical(
-                                f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.id} tentou "
-                                f"acessar loja {loja_id} que pertence ao usuário {loja.owner_id}"
-                            )
-                            return None  # Bloqueia acesso
+                if not self._validate_user_owns_loja(request, loja):
+                    return None
                 
                 return loja.slug
             except (Loja.DoesNotExist, ValueError):
@@ -151,35 +143,84 @@ class TenantMiddleware:
         # 2. Tentar pegar do header X-Tenant-Slug (fallback, case-insensitive)
         tenant_slug = request.headers.get('X-Tenant-Slug')
         if tenant_slug:
-            # Validar que usuário pertence a esta loja
-            if hasattr(request, 'user') and request.user.is_authenticated and not request.user.is_superuser:
-                try:
-                    from superadmin.models import Loja
-                    loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
-                    if loja and loja.owner_id != request.user.id:
-                        logger.critical(
-                            f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.id} tentou "
-                            f"acessar loja {tenant_slug} via X-Tenant-Slug"
-                        )
-                        return None
-                except Exception:
-                    pass
+            if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                return None
             return tenant_slug.strip()
         
         # 3. Tentar pegar do parâmetro de query
         tenant_slug = request.GET.get('tenant')
         if tenant_slug:
+            if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                return None
             return tenant_slug
         
         # 4. Tentar pegar da URL (ex: /loja/linda/...)
         path_parts = request.path.split('/')
         if len(path_parts) >= 3 and path_parts[1] == 'loja':
-            return path_parts[2]
+            tenant_slug = path_parts[2]
+            if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                return None
+            return tenant_slug
         
         # 5. Tentar pegar do subdomain
         host = request.get_host().split(':')[0]
         parts = host.split('.')
         if len(parts) > 2:  # ex: loja1.localhost
-            return parts[0]
+            tenant_slug = parts[0]
+            if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                return None
+            return tenant_slug
         
         return None
+    
+    def _validate_user_owns_loja(self, request, loja):
+        """Valida que usuário autenticado é owner da loja (objeto Loja)"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not hasattr(request, 'user') or not request.user.is_authenticated:
+            logger.warning("⚠️ Usuário não autenticado tentando acessar loja")
+            return False
+        
+        # SuperAdmin pode acessar qualquer loja
+        if request.user.is_superuser:
+            logger.debug(f"✅ SuperAdmin acessando loja {loja.slug}")
+            return True
+        
+        # Validar owner
+        if loja.owner_id != request.user.id:
+            logger.critical(
+                f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.id} ({request.user.email}) "
+                f"tentou acessar loja {loja.slug} (ID: {loja.id}) que pertence ao usuário {loja.owner_id}"
+            )
+            return False
+        
+        logger.debug(f"✅ Usuário {request.user.id} validado para loja {loja.slug}")
+        return True
+    
+    def _validate_user_owns_loja_by_slug(self, request, tenant_slug):
+        """Valida que usuário autenticado é owner da loja (por slug)"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not hasattr(request, 'user') or not request.user.is_authenticated:
+            logger.warning("⚠️ Usuário não autenticado tentando acessar loja")
+            return False
+        
+        # SuperAdmin pode acessar qualquer loja
+        if request.user.is_superuser:
+            logger.debug(f"✅ SuperAdmin acessando loja {tenant_slug}")
+            return True
+        
+        try:
+            from superadmin.models import Loja
+            loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
+            
+            if not loja:
+                logger.warning(f"⚠️ Loja não encontrada: {tenant_slug}")
+                return False
+            
+            return self._validate_user_owns_loja(request, loja)
+        except Exception as e:
+            logger.error(f"❌ Erro ao validar owner: {e}")
+            return False

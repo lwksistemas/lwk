@@ -115,6 +115,12 @@ class TenantMiddleware:
             logger.debug("🧹 [TenantMiddleware] Contexto limpo após requisição")
             
             return response
+        except Exception as e:
+            # Em caso de erro, limpar contexto e re-raise
+            logger.error(f"❌ [TenantMiddleware] Erro: {e}")
+            set_current_loja_id(None)
+            set_current_tenant_db('default')
+            raise
     
     def _get_tenant_slug(self, request):
         """

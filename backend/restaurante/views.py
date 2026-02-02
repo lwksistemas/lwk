@@ -105,17 +105,44 @@ class FuncionarioViewSet(BaseModelViewSet):
             logger.error(f"❌ [_ensure_owner_funcionario] Erro ao criar funcionário admin: {e}")
 
     def list(self, request, *args, **kwargs):
-        self._ensure_owner_funcionario()
-        return super().list(request, *args, **kwargs)
-    
-    def get_queryset(self):
+        """
+        Lista funcionários garantindo que o admin existe e o queryset é avaliado
+        ANTES do contexto ser limpo pelo middleware
+        """
         import logging
         logger = logging.getLogger(__name__)
         
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
+        # 1. Garantir que admin existe
+        self._ensure_owner_funcionario()
         
-        logger.info(f"🔍 [FuncionarioViewSet.get_queryset RESTAURANTE] INÍCIO - loja_id no contexto: {loja_id}")
+        # 2. Obter queryset (ainda lazy)
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # 3. FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
+        # Isso converte o queryset lazy em uma lista concreta
+        funcionarios_list = list(queryset)
+        logger.info(f"✅ [FuncionarioViewSet.list RESTAURANTE] Queryset avaliado - {len(funcionarios_list)} funcionários encontrados")
+        
+        # 4. Serializar a lista concreta
+        page = self.paginate_queryset(funcionarios_list)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(funcionarios_list, many=True)
+        return Response(serializer.data)
+    
+    def get_queryset(self):
+        """
+        Retorna queryset filtrado por loja
+        IMPORTANTE: Este queryset é lazy e só será avaliado no list()
+        """
+        import logging
+        from tenants.middleware import get_current_loja_id
+        logger = logging.getLogger(__name__)
+        
+        loja_id = get_current_loja_id()
+        logger.info(f"🔍 [FuncionarioViewSet.get_queryset RESTAURANTE] loja_id no contexto: {loja_id}")
         
         if not loja_id:
             logger.critical("🚨 [FuncionarioViewSet RESTAURANTE] Tentativa de acesso sem loja_id no contexto")
@@ -124,16 +151,8 @@ class FuncionarioViewSet(BaseModelViewSet):
         # IMPORTANTE: Garantir que admin existe antes de filtrar
         self._ensure_owner_funcionario()
         
-        # Verificar quantos funcionários existem NO BANCO (sem filtro)
-        total_sem_filtro = Funcionario.objects.all_without_filter().filter(loja_id=loja_id).count()
-        logger.info(f"📊 [FuncionarioViewSet RESTAURANTE] Total NO BANCO (sem filtro): {total_sem_filtro}")
-        
-        # Agora aplicar o filtro normal
         queryset = super().get_queryset()
-        total_com_filtro = queryset.count()
-        
-        logger.info(f"📊 [FuncionarioViewSet RESTAURANTE] Total COM FILTRO: {total_com_filtro}")
-        logger.info(f"🔍 [FuncionarioViewSet RESTAURANTE] FIM - retornando {total_com_filtro} funcionários")
+        logger.info(f"📊 [FuncionarioViewSet.get_queryset RESTAURANTE] Queryset base obtido (lazy)")
         
         return queryset
 

@@ -106,17 +106,56 @@ class VendedorViewSet(BaseModelViewSet):
             logger.error(f"❌ [_ensure_owner_vendedor] Erro ao criar vendedor admin: {e}", exc_info=True)
 
     def list(self, request, *args, **kwargs):
+        """
+        Lista vendedores garantindo que o admin existe e o queryset é avaliado
+        ANTES do contexto ser limpo pelo middleware
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # 1. Garantir que admin existe
         self._ensure_owner_vendedor()
-        return super().list(request, *args, **kwargs)
+        
+        # 2. Obter queryset (ainda lazy)
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # 3. FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
+        # Isso converte o queryset lazy em uma lista concreta
+        vendedores_list = list(queryset)
+        logger.info(f"✅ [VendedorViewSet.list] Queryset avaliado - {len(vendedores_list)} vendedores encontrados")
+        
+        # 4. Serializar a lista concreta
+        page = self.paginate_queryset(vendedores_list)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(vendedores_list, many=True)
+        return Response(serializer.data)
 
     def get_queryset(self):
+        """
+        Retorna queryset filtrado por loja
+        IMPORTANTE: Este queryset é lazy e só será avaliado no list()
+        """
+        import logging
+        from tenants.middleware import get_current_loja_id
+        logger = logging.getLogger(__name__)
+        
+        loja_id = get_current_loja_id()
+        logger.info(f"🔍 [VendedorViewSet.get_queryset] loja_id no contexto: {loja_id}")
+        
         # IMPORTANTE: Garantir que admin existe antes de filtrar
         self._ensure_owner_vendedor()
         
         queryset = super().get_queryset()
+        logger.info(f"📊 [VendedorViewSet.get_queryset] Queryset base obtido (lazy)")
+        
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
+            logger.info(f"🔍 [VendedorViewSet.get_queryset] Filtrado por is_active={is_active}")
+        
         return queryset
 
 

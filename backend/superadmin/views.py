@@ -119,7 +119,9 @@ class LojaViewSet(viewsets.ModelViewSet):
             return Response({'error': 'slug é obrigatório'}, status=400)
         
         try:
-            loja = Loja.objects.select_related('tipo_loja').get(slug=slug, is_active=True)
+            loja = Loja.objects.select_related('tipo_loja').filter(slug__iexact=slug, is_active=True).first()
+            if not loja:
+                raise Loja.DoesNotExist
             return Response({
                 'id': loja.id,  # ✅ IMPORTANTE: ID único da loja para X-Loja-ID
                 'nome': loja.nome,

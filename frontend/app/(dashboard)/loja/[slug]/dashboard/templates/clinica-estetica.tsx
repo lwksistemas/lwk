@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { clinicaApiClient } from '@/lib/api-client';
+import { formatApiError } from '@/lib/api-errors';
 import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
@@ -97,7 +98,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       setProximosAgendamentos(response.data.proximos);
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
-      toast.error('Erro ao carregar dashboard');
+      const msg = formatApiError(error);
+      toast.error(msg || 'Erro ao carregar dashboard. Recarregue a página e tente novamente.');
     } finally {
       setLoading(false);
       setLoadingAgendamentos(false);

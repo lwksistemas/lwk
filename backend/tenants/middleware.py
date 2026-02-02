@@ -47,14 +47,15 @@ class TenantMiddleware:
         logger.info(f"🔍 [TenantMiddleware] URL: {request.path} | Slug detectado: {tenant_slug}")
         
         if tenant_slug:
-            # Buscar a loja pelo slug
+            # Buscar a loja pelo slug (case-insensitive: dani/Dani funcionam)
             from superadmin.models import Loja
             try:
-                loja = Loja.objects.get(slug=tenant_slug)
+                loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
+                if not loja:
+                    raise Loja.DoesNotExist
                 loja_id = loja.id
-                
-                # Configurar banco da loja
-                db_name = f'loja_{tenant_slug}'
+                # Usar slug real da loja para db_name (consistência)
+                db_name = f'loja_{loja.slug}'
                 
                 # Verificar se o banco existe nas configurações
                 if db_name in settings.DATABASES:
@@ -140,23 +141,23 @@ class TenantMiddleware:
             except (Loja.DoesNotExist, ValueError):
                 pass
         
-        # 2. Tentar pegar do header X-Tenant-Slug (fallback)
+        # 2. Tentar pegar do header X-Tenant-Slug (fallback, case-insensitive)
         tenant_slug = request.headers.get('X-Tenant-Slug')
         if tenant_slug:
             # Validar que usuário pertence a esta loja
             if hasattr(request, 'user') and request.user.is_authenticated and not request.user.is_superuser:
                 try:
                     from superadmin.models import Loja
-                    loja = Loja.objects.get(slug=tenant_slug)
-                    if loja.owner_id != request.user.id:
+                    loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
+                    if loja and loja.owner_id != request.user.id:
                         logger.critical(
                             f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.id} tentou "
                             f"acessar loja {tenant_slug} via X-Tenant-Slug"
                         )
                         return None
-                except Loja.DoesNotExist:
+                except Exception:
                     pass
-            return tenant_slug
+            return tenant_slug.strip()
         
         # 3. Tentar pegar do parâmetro de query
         tenant_slug = request.GET.get('tenant')

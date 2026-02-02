@@ -29,13 +29,19 @@ class LojaIsolationManager(models.Manager):
     def get_queryset(self):
         """Retorna queryset filtrado pela loja do contexto"""
         from tenants.middleware import get_current_loja_id
+        import logging
+        logger = logging.getLogger(__name__)
         
         # Obter loja_id do contexto da thread
         loja_id = get_current_loja_id()
         
+        logger.info(f"🔍 [LojaIsolationManager.get_queryset] loja_id no contexto: {loja_id}")
+        
         if loja_id:
             logger.debug(f"🔒 [LojaIsolationManager] Filtrando por loja_id={loja_id}")
-            return super().get_queryset().filter(loja_id=loja_id)
+            qs = super().get_queryset().filter(loja_id=loja_id)
+            logger.info(f"📊 [LojaIsolationManager] Queryset filtrado - count: {qs.count()}")
+            return qs
         
         # Se não há loja no contexto, retornar queryset vazio (segurança)
         logger.warning("⚠️ [LojaIsolationManager] Nenhuma loja no contexto - retornando queryset vazio")

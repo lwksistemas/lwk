@@ -65,6 +65,8 @@ class VendedorViewSet(BaseModelViewSet):
         logger = logging.getLogger(__name__)
         loja_id = get_current_loja_id()
         
+        logger.info(f"🔍 [_ensure_owner_vendedor] Chamado - loja_id no contexto: {loja_id}")
+        
         if not loja_id:
             logger.warning("⚠️ [_ensure_owner_vendedor] Nenhuma loja_id no contexto")
             return
@@ -73,11 +75,15 @@ class VendedorViewSet(BaseModelViewSet):
             loja = Loja.objects.get(id=loja_id)
             owner = loja.owner
             
+            logger.info(f"🔍 [_ensure_owner_vendedor] Loja: {loja.slug}, Owner: {owner.email}")
+            
             # Verificar se já existe usando all_without_filter para bypass do isolamento
             exists = Vendedor.objects.all_without_filter().filter(
                 loja_id=loja_id, 
                 email=owner.email
             ).exists()
+            
+            logger.info(f"🔍 [_ensure_owner_vendedor] Admin já existe? {exists}")
             
             if not exists:
                 logger.info(f"✅ [_ensure_owner_vendedor] Criando vendedor admin para loja {loja_id}")
@@ -97,7 +103,7 @@ class VendedorViewSet(BaseModelViewSet):
         except Loja.DoesNotExist:
             logger.error(f"❌ [_ensure_owner_vendedor] Loja {loja_id} não encontrada")
         except Exception as e:
-            logger.error(f"❌ [_ensure_owner_vendedor] Erro ao criar vendedor admin: {e}")
+            logger.error(f"❌ [_ensure_owner_vendedor] Erro ao criar vendedor admin: {e}", exc_info=True)
 
     def list(self, request, *args, **kwargs):
         self._ensure_owner_vendedor()

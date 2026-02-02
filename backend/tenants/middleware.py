@@ -106,13 +106,15 @@ class TenantMiddleware:
                 set_current_loja_id(None)
             
             response = self.get_response(request)
-            return response
-        finally:
+            
             # 🛡️ SEGURANÇA CRÍTICA: Limpar contexto após cada requisição
             # Previne vazamento de loja_id entre requisições
+            # IMPORTANTE: Limpar DEPOIS de gerar a resposta, não no finally
             set_current_loja_id(None)
             set_current_tenant_db('default')
             logger.debug("🧹 [TenantMiddleware] Contexto limpo após requisição")
+            
+            return response
     
     def _get_tenant_slug(self, request):
         """

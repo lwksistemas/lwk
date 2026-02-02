@@ -1,3 +1,4 @@
+import { ensureArray } from '@/lib/array-helpers';
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -38,7 +39,7 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
   const loadFuncionarios = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/funcionarios/');
-      setFuncionarios(response.data);
+      setFuncionarios(ensureArray(response.data));
     } catch (error) {
       console.error('Erro ao carregar funcionários:', error);
     } finally {

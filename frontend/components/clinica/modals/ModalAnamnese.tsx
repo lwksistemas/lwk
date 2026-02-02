@@ -1,3 +1,4 @@
+import { ensureArray } from '@/lib/array-helpers';
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -61,7 +62,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   const loadAnamneses = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/anamneses/');
-      setAnamneses(response.data);
+      setAnamneses(ensureArray(response.data));
     } catch (error) {
       console.error('Erro ao carregar anamneses:', error);
     }
@@ -70,7 +71,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   const loadTemplates = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/anamneses-templates/');
-      setTemplates(response.data);
+      setTemplates(ensureArray(response.data));
     } catch (error) {
       console.error('Erro ao carregar templates:', error);
     }
@@ -79,7 +80,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   const loadProcedimentos = useCallback(async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/procedimentos/');
-      setProcedimentos(response.data);
+      setProcedimentos(ensureArray(response.data));
     } catch (error) {
       console.error('Erro ao carregar procedimentos:', error);
     } finally {

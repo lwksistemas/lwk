@@ -1,3 +1,4 @@
+import { ensureArray } from '@/lib/array-helpers';
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -54,7 +55,7 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
       setLoading(true);
       setLoadError(false);
       const response = await clinicaApiClient.get('/clinica/profissionais/');
-      setProfissionais(response.data ?? []);
+      setProfissionais(ensureArray(response.data));
     } catch (error) {
       console.error('Erro ao carregar profissionais:', error);
       setLoadError(true);

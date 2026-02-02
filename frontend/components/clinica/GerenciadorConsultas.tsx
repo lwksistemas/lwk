@@ -34,6 +34,8 @@ interface EvolucaoPaciente {
   satisfacao_paciente?: number;
 }
 
+import { ensureArray } from '@/lib/array-helpers';
+
 interface LojaInfo {
   id: number;
   nome: string;
@@ -98,15 +100,15 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   const loadConsultas = async (skipSyncIfEmpty = false) => {
     try {
       const response = await clinicaApiClient.get('/clinica/consultas/');
-      let data = response.data ?? [];
+      let data = ensureArray(response.data);
 
       // Só sincronizar com agendamentos quando lista vazia na carga inicial (não após excluir)
       // Após excluir, skipSyncIfEmpty=true evita recriar a consulta via sync
-      if (Array.isArray(data) && data.length === 0 && !skipSyncIfEmpty) {
+      if (data.length === 0 && !skipSyncIfEmpty) {
         try {
           await clinicaApiClient.post('/clinica/consultas/sync_from_agendamentos/');
           const res = await clinicaApiClient.get('/clinica/consultas/');
-          data = res.data ?? [];
+          data = ensureArray(res.data);
         } catch (_) {
           // ignora erro do sync (ex.: contexto sem loja)
         }
@@ -124,7 +126,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   const loadProfissionais = async () => {
     try {
       const response = await clinicaApiClient.get('/clinica/profissionais/');
-      setProfissionais(response.data);
+      setProfissionais(ensureArray(response.data));
     } catch (error) {
       console.error('Erro ao carregar profissionais:', error);
     }
@@ -133,7 +135,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   const loadEvolucoes = async (consultaId: number) => {
     try {
       const response = await clinicaApiClient.get(`/clinica/evolucoes/?consulta_id=${consultaId}`);
-      setEvolucoes(response.data);
+      setEvolucoes(ensureArray(response.data));
     } catch (error) {
       console.error('Erro ao carregar evoluções:', error);
     }

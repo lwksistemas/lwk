@@ -1,3 +1,4 @@
+import { ensureArray } from '@/lib/array-helpers';
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -54,7 +55,7 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
       setLoading(true);
       setLoadError(false);
       const response = await clinicaApiClient.get('/clinica/clientes/');
-      setClientes(response.data ?? []);
+      setClientes(ensureArray(response.data));
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
       setLoadError(true);

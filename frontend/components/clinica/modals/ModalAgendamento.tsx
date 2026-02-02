@@ -56,6 +56,8 @@ const HORARIOS = [
   { value: '19:00', label: '19:00' },
 ];
 
+import { ensureArray } from '@/lib/array-helpers';
+
 const initialFormData = {
   cliente: '',
   profissional: '',
@@ -82,9 +84,9 @@ export function ModalAgendamento({ loja, onClose, onSuccess }: ModalAgendamentoP
         clinicaApiClient.get('/clinica/procedimentos/')
       ]);
       
-      setClientes(clientesRes.data);
-      setProfissionais(profissionaisRes.data);
-      setProcedimentos(procedimentosRes.data);
+      setClientes(ensureArray(clientesRes.data));
+      setProfissionais(ensureArray(profissionaisRes.data));
+      setProcedimentos(ensureArray(procedimentosRes.data));
     } catch (error) {
       console.error('Erro ao carregar dados do formulário:', error);
     } finally {

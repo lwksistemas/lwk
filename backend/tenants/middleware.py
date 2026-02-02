@@ -189,13 +189,48 @@ class TenantMiddleware:
         
         # Validar owner
         if loja.owner_id != request.user.id:
+            logger.warning(
+                f"⚠️ Usuário {request.user.id} ({request.user.email}) não é owner da loja {loja.slug} (owner: {loja.owner_id})"
+            )
+            
+            # 🔧 PERMITIR acesso se for funcionário da loja (para CRM Vendas, Clínica, etc.)
+            # Verificar se é funcionário em qualquer app
+            try:
+                from crm_vendas.models import Vendedor
+                from clinica_estetica.models import Funcionario as FuncionarioClinica
+                
+                # Verificar se é vendedor (CRM)
+                is_vendedor = Vendedor.objects.all_without_filter().filter(
+                    loja_id=loja.id,
+                    email=request.user.email,
+                    is_active=True
+                ).exists()
+                
+                if is_vendedor:
+                    logger.info(f"✅ Usuário {request.user.id} é vendedor da loja {loja.slug}")
+                    return True
+                
+                # Verificar se é funcionário (Clínica)
+                is_funcionario = FuncionarioClinica.objects.all_without_filter().filter(
+                    loja_id=loja.id,
+                    email=request.user.email,
+                    is_active=True
+                ).exists()
+                
+                if is_funcionario:
+                    logger.info(f"✅ Usuário {request.user.id} é funcionário da loja {loja.slug}")
+                    return True
+                    
+            except Exception as e:
+                logger.error(f"❌ Erro ao verificar se é funcionário: {e}")
+            
             logger.critical(
                 f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.id} ({request.user.email}) "
-                f"tentou acessar loja {loja.slug} (ID: {loja.id}) que pertence ao usuário {loja.owner_id}"
+                f"tentou acessar loja {loja.slug} (ID: {loja.id}) sem permissão"
             )
             return False
         
-        logger.debug(f"✅ Usuário {request.user.id} validado para loja {loja.slug}")
+        logger.debug(f"✅ Usuário {request.user.id} validado para loja {loja.slug} (owner)")
         return True
     
     def _validate_user_owns_loja_by_slug(self, request, tenant_slug):

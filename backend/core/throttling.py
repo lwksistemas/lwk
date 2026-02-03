@@ -78,10 +78,10 @@ class ReportsThrottle(UserRateThrottle):
 
 class StrictAnonThrottle(AnonRateThrottle):
     """
-    Rate limiting estrito para usuários anônimos
-    50 requests por hora
+    Rate limiting para usuários anônimos - aumentado temporariamente
+    500 requests por hora (para recuperar do loop infinito)
     """
-    rate = '50/hour'
+    rate = '500/hour'
 
 
 class RelaxedUserThrottle(UserRateThrottle):

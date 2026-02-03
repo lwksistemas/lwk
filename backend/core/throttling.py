@@ -90,3 +90,25 @@ class RelaxedUserThrottle(UserRateThrottle):
     3000 requests por hora (para suportar mais usuários)
     """
     rate = '3000/hour'
+
+
+class DashboardRateThrottle(UserRateThrottle):
+    """
+    🛡️ Rate limiting específico para endpoints de dashboard
+    Previne loops infinitos no frontend
+    10 requisições por minuto por usuário
+    """
+    rate = '10/minute'
+    scope = 'dashboard'
+    
+    def allow_request(self, request, view):
+        allowed = super().allow_request(request, view)
+        
+        if not allowed:
+            logger.warning(
+                f"🚨 Rate limit excedido para dashboard: "
+                f"User={getattr(request.user, 'username', 'anonymous')}, "
+                f"Path={request.path}"
+            )
+        
+        return allowed

@@ -7,6 +7,7 @@ from django.utils import timezone
 from datetime import date, datetime, timedelta
 from core.views import BaseModelViewSet, BaseFuncionarioViewSet
 from core.mixins import ClienteSearchMixin
+from core.throttling import DashboardRateThrottle
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento, Funcionario,
     ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
@@ -153,9 +154,12 @@ class AgendamentoViewSet(BaseModelViewSet):
         
         return Response(stats)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], throttle_classes=[DashboardRateThrottle])
     def dashboard(self, request):
-        """Retorna estatísticas + próximos agendamentos em uma única resposta (menos round-trips)."""
+        """
+        Retorna estatísticas + próximos agendamentos em uma única resposta (menos round-trips).
+        Rate limited: 10 requisições por minuto para prevenir loops infinitos.
+        """
         hoje = date.today()
         primeiro_dia_mes = hoje.replace(day=1)
         qs = self.queryset

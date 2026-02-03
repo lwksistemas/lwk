@@ -65,10 +65,6 @@ class FuncionarioViewSet(BaseModelViewSet):
         """Garante que o administrador da loja exista como funcionário."""
         from core.utils import ensure_owner_as_funcionario
         ensure_owner_as_funcionario(Funcionario, cargo_padrao='gerente')
-        except Loja.DoesNotExist:
-            logger.error(f"❌ [_ensure_owner_funcionario] Loja {loja_id} não encontrada")
-        except Exception as e:
-            logger.error(f"❌ [_ensure_owner_funcionario] Erro ao criar funcionário admin: {e}")
 
     def list(self, request, *args, **kwargs):
         """

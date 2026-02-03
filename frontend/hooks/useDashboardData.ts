@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 
@@ -22,7 +22,8 @@ interface UseDashboardDataReturn<T, U> {
 /**
  * Hook customizado para carregar dados do dashboard.
  * Centraliza a lógica de loading, error handling e data fetching.
- * Previne loops infinitos com retry limitado.
+ * 
+ * ✅ SOLUÇÃO DEFINITIVA: Sem useCallback, executa apenas uma vez no mount
  * 
  * @example
  * const { loading, stats, data, reload, error } = useDashboardData({
@@ -45,22 +46,14 @@ export function useDashboardData<T, U>({
   const [data, setData] = useState<U[]>(initialData);
   const [error, setError] = useState(false);
   
-  // Prevenir loops infinitos
-  const retryCount = useRef(0);
-  const maxRetries = 3;
-  const hasShownError = useRef(false);
+  // Ref para controlar se o componente está montado
+  const isMountedRef = useRef(true);
+  const hasLoadedRef = useRef(false);
+  const hasShownErrorRef = useRef(false);
 
-  const loadDashboard = useCallback(async () => {
-    if (!enabled) return;
-    
-    // Prevenir retry infinito
-    if (retryCount.current >= maxRetries) {
-      console.warn('Máximo de tentativas atingido para:', endpoint);
-      setLoading(false);
-      setLoadingData(false);
-      setError(true);
-      return;
-    }
+  // Função de reload exposta para uso manual
+  const reload = useRef(async () => {
+    if (!enabled || !isMountedRef.current) return;
     
     try {
       setLoading(true);
@@ -69,9 +62,9 @@ export function useDashboardData<T, U>({
       
       const response = await clinicaApiClient.get(endpoint);
       
-      // Reset retry count on success
-      retryCount.current = 0;
-      hasShownError.current = false;
+      if (!isMountedRef.current) return;
+      
+      hasShownErrorRef.current = false;
       
       if (transformResponse) {
         const { stats: newStats, data: newData } = transformResponse(response.data);
@@ -88,17 +81,20 @@ export function useDashboardData<T, U>({
         );
       }
     } catch (err: any) {
+      if (!isMountedRef.current) return;
+      
       console.error('Erro ao carregar dashboard:', err);
-      retryCount.current += 1;
       setError(true);
       
       // Mostrar toast apenas uma vez
-      if (!hasShownError.current) {
-        hasShownError.current = true;
+      if (!hasShownErrorRef.current) {
+        hasShownErrorRef.current = true;
         
         // Verificar se é erro de autenticação
         if (err.response?.status === 401) {
           toast.error('Sessão expirada. Faça login novamente.');
+        } else if (err.response?.status === 429) {
+          toast.error('Muitas requisições. Aguarde um momento.');
         } else {
           toast.error('Erro ao carregar dados do dashboard');
         }
@@ -107,21 +103,33 @@ export function useDashboardData<T, U>({
       setStats(initialStats);
       setData(initialData);
     } finally {
-      setLoading(false);
-      setLoadingData(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setLoadingData(false);
+      }
     }
-  }, [endpoint, initialStats, initialData, transformResponse, toast, enabled]);
+  }).current;
 
+  // Carregar dados apenas uma vez no mount
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    // Prevenir execução duplicada
+    if (hasLoadedRef.current) return;
+    
+    hasLoadedRef.current = true;
+    reload();
+    
+    // Cleanup: marcar componente como desmontado
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []); // Array vazio = executa apenas uma vez
 
   return {
     loading,
     loadingData,
     stats,
     data,
-    reload: loadDashboard,
+    reload,
     error
   };
 }

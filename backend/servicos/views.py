@@ -50,7 +50,7 @@ class FuncionarioViewSet(BaseModelViewSet):
         Garante que o administrador da loja exista como funcionário.
         Cria automaticamente se não existir.
         """
-        from stores.models import Loja
+        from stores.models import Store
         import logging
         logger = logging.getLogger(__name__)
         
@@ -61,7 +61,7 @@ class FuncionarioViewSet(BaseModelViewSet):
             return
         
         try:
-            loja = Loja.objects.get(id=loja_id)
+            loja = Store.objects.get(id=loja_id)
             
             # Verificar se já existe funcionário admin para esta loja
             admin_exists = Funcionario.objects.filter(
@@ -79,7 +79,7 @@ class FuncionarioViewSet(BaseModelViewSet):
                     cargo='Administrador',
                     is_admin=True
                 )
-                logger.info(f"✅ [FuncionarioViewSet SERVICOS] Admin criado para loja {loja.nome}")
+                logger.info(f"✅ [FuncionarioViewSet SERVICOS] Admin criado para loja {loja.name}")
         except Exception as e:
             logger.error(f"❌ [FuncionarioViewSet SERVICOS] Erro ao criar admin: {e}")
     

@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='servicos_categorias',
-                to='stores.loja',
+                to='stores.store',
                 verbose_name='Loja'
             ),
         ),
@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='servicos_servicos',
-                to='stores.loja',
+                to='stores.store',
                 verbose_name='Loja'
             ),
         ),
@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='servicos_clientes',
-                to='stores.loja',
+                to='stores.store',
                 verbose_name='Loja'
             ),
         ),
@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='servicos_profissionais',
-                to='stores.loja',
+                to='stores.store',
                 verbose_name='Loja'
             ),
         ),
@@ -68,7 +68,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='servicos_agendamentos',
-                to='stores.loja',
+                to='stores.store',
                 verbose_name='Loja'
             ),
         ),
@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='servicos_ordens_servico',
-                to='stores.loja',
+                to='stores.store',
                 verbose_name='Loja'
             ),
         ),
@@ -92,7 +92,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='servicos_orcamentos',
-                to='stores.loja',
+                to='stores.store',
                 verbose_name='Loja'
             ),
         ),
@@ -104,7 +104,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name='servicos_funcionarios',
-                to='stores.loja',
+                to='stores.store',
                 verbose_name='Loja'
             ),
         ),

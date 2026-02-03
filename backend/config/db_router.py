@@ -17,7 +17,16 @@ class MultiTenantRouter:
     suporte_apps = {'suporte'}
     
     # Apps que usam bancos de loja
-    loja_apps = {'stores', 'products'}
+    loja_apps = {
+        'stores', 
+        'products', 
+        'clinica_estetica', 
+        'cabeleireiro', 
+        'crm_vendas', 
+        'ecommerce', 
+        'restaurante', 
+        'servicos'
+    }
     
     def db_for_read(self, model, **hints):
         """Direciona leitura para o banco correto"""

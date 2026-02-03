@@ -109,7 +109,7 @@ export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Agendamentos de Hoje</h3>
           <button
-            onClick={() => setShowModalAgendamento(true)}
+            onClick={() => openModal('agendamento')}
             className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg text-white hover:opacity-90 transition-all btn-press shadow-md"
             style={{ backgroundColor: loja.cor_primaria }}
           >
@@ -117,20 +117,20 @@ export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
           </button>
         </div>
 
-        {loadingAgendamentos ? (
+        {loadingData ? (
           <AgendamentosListSkeleton count={3} />
-        ) : agendamentosHoje.length === 0 ? (
+        ) : data.length === 0 ? (
           <EmptyState
             message="Nenhum agendamento para hoje"
             subMessage="Comece criando um novo agendamento"
             actionLabel="+ Novo Agendamento"
-            onAction={() => setShowModalAgendamento(true)}
+            onAction={() => openModal('agendamento')}
             cor={loja.cor_primaria}
             icon="📅"
           />
         ) : (
           <div className="space-y-4">
-            {agendamentosHoje.map((agendamento) => (
+            {data.map((agendamento) => (
               <AgendamentoCard key={agendamento.id} agendamento={agendamento} cor={loja.cor_primaria} />
             ))}
           </div>

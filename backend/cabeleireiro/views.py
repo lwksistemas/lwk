@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from core.views import BaseModelViewSet, BaseFuncionarioViewSet
 from core.mixins import ClienteSearchMixin
+from core.throttling import DashboardRateThrottle
 from .models import (
     Cliente, Profissional, Servico, Agendamento, Produto, Venda,
     Funcionario, HorarioFuncionamento, BloqueioAgenda
@@ -101,9 +102,12 @@ class AgendamentoViewSet(BaseModelViewSet):
         
         return queryset
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], throttle_classes=[DashboardRateThrottle])
     def dashboard(self, request):
-        """Retorna dados para o dashboard"""
+        """
+        Retorna dados para o dashboard.
+        Rate limited: 10 requisições por minuto para prevenir loops infinitos.
+        """
         hoje = date.today()
         inicio_mes = date(hoje.year, hoje.month, 1)
         

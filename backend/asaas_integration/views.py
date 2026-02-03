@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 import os
 import logging
 
+from core.throttling import DashboardRateThrottle
+
 # Importações condicionais para evitar erros na inicialização
 try:
     import requests
@@ -620,9 +622,12 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = super().get_queryset()
         return queryset.order_by('-created_at')
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], throttle_classes=[DashboardRateThrottle])
     def dashboard_stats(self, request):
-        """Estatísticas para dashboard financeiro"""
+        """
+        Estatísticas para dashboard financeiro.
+        Rate limited: 10 requisições por minuto para prevenir loops infinitos.
+        """
         try:
             # Estatísticas das assinaturas
             total_assinaturas = LojaAssinatura.objects.count()

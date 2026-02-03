@@ -116,15 +116,16 @@ export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
       setLoading(false);
       setLoadingAgendamentos(false);
     }
-  }, [toast]);
+  }, []); // Removido toast das dependências para evitar loop
 
   useEffect(() => {
     if (typeof window !== 'undefined' && loja?.id) {
       sessionStorage.setItem('current_loja_id', String(loja.id));
       if (loja.slug) sessionStorage.setItem('loja_slug', loja.slug);
+      loadDashboard();
     }
-    loadDashboard();
-  }, [loadDashboard, loja?.id, loja?.slug]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Executar apenas uma vez no mount
 
   if (loading) {
     return <DashboardSkeleton />;

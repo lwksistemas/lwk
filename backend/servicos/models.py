@@ -1,8 +1,9 @@
 from django.db import models
 from core.models import BaseCategoria, BaseCliente, BaseFuncionario
+from core.mixins import LojaIsolationMixin
 
 
-class Categoria(BaseCategoria):
+class Categoria(LojaIsolationMixin, BaseCategoria):
     """Categorias de serviços"""
     
     class Meta:
@@ -12,7 +13,7 @@ class Categoria(BaseCategoria):
         verbose_name_plural = 'Categorias'
 
 
-class Servico(models.Model):
+class Servico(LojaIsolationMixin, models.Model):
     """Serviços oferecidos"""
     nome = models.CharField(max_length=200)
     descricao = models.TextField()
@@ -33,7 +34,7 @@ class Servico(models.Model):
         return f"{self.nome} - R$ {self.preco}"
 
 
-class Cliente(BaseCliente):
+class Cliente(LojaIsolationMixin, BaseCliente):
     """Clientes"""
     tipo_cliente = models.CharField(max_length=20, choices=[('pf', 'Pessoa Física'), ('pj', 'Pessoa Jurídica')], default='pf')
     observacoes = models.TextField(blank=True, null=True)
@@ -45,7 +46,7 @@ class Cliente(BaseCliente):
         verbose_name_plural = 'Clientes'
 
 
-class Profissional(models.Model):
+class Profissional(LojaIsolationMixin, models.Model):
     """Profissionais que executam os serviços"""
     nome = models.CharField(max_length=200)
     email = models.EmailField()
@@ -66,7 +67,7 @@ class Profissional(models.Model):
         return f"{self.nome} - {self.especialidade}"
 
 
-class Agendamento(models.Model):
+class Agendamento(LojaIsolationMixin, models.Model):
     """Agendamentos de serviços"""
     STATUS_CHOICES = [
         ('agendado', 'Agendado'),
@@ -98,7 +99,7 @@ class Agendamento(models.Model):
         return f"{self.cliente.nome} - {self.servico.nome} - {self.data} {self.horario}"
 
 
-class OrdemServico(models.Model):
+class OrdemServico(LojaIsolationMixin, models.Model):
     """Ordens de serviço"""
     STATUS_CHOICES = [
         ('aberta', 'Aberta'),
@@ -140,7 +141,7 @@ class OrdemServico(models.Model):
         return f"OS #{self.numero_os} - {self.cliente.nome}"
 
 
-class Orcamento(models.Model):
+class Orcamento(LojaIsolationMixin, models.Model):
     """Orçamentos"""
     STATUS_CHOICES = [
         ('pendente', 'Pendente'),
@@ -172,7 +173,7 @@ class Orcamento(models.Model):
         return f"Orçamento #{self.numero_orcamento} - {self.cliente.nome}"
 
 
-class Funcionario(BaseFuncionario):
+class Funcionario(LojaIsolationMixin, BaseFuncionario):
     """Funcionários"""
 
     class Meta:

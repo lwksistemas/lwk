@@ -40,20 +40,48 @@ class ProfissionalViewSet(BaseModelViewSet):
 
 
 class FuncionarioViewSet(BaseModelViewSet):
-    queryset = Funcionario.objects.all()
+    # IMPORTANTE: NÃO definir queryset como atributo de classe!
+    # O queryset deve ser obtido dinamicamente no get_queryset()
+    # para garantir que o middleware já setou o loja_id no contexto
     serializer_class = FuncionarioSerializer
     
     def _ensure_owner_funcionario(self):
         """
-        Garante que o administrador da loja exista como funcionário (aparece em Funcionários).
-        
-        NOTA: O app servicos NÃO usa LojaIsolationMixin, então este método
-        não faz nada por enquanto. Implementar quando migrar para isolamento por loja.
+        Garante que o administrador da loja exista como funcionário.
+        Cria automaticamente se não existir.
         """
+        from stores.models import Loja
         import logging
         logger = logging.getLogger(__name__)
-        logger.debug("ℹ️ [FuncionarioViewSet SERVICOS] App servicos não usa isolamento por loja ainda")
-        return
+        
+        # Obter loja_id do contexto (setado pelo middleware)
+        loja_id = getattr(self.request, 'loja_id', None)
+        if not loja_id:
+            logger.warning("⚠️ [FuncionarioViewSet SERVICOS] Nenhuma loja no contexto")
+            return
+        
+        try:
+            loja = Loja.objects.get(id=loja_id)
+            
+            # Verificar se já existe funcionário admin para esta loja
+            admin_exists = Funcionario.objects.filter(
+                loja_id=loja_id,
+                is_admin=True
+            ).exists()
+            
+            if not admin_exists and loja.owner:
+                # Criar funcionário admin automaticamente
+                Funcionario.objects.create(
+                    loja_id=loja_id,
+                    nome=loja.owner.get_full_name() or loja.owner.username,
+                    email=loja.owner.email,
+                    telefone='',
+                    cargo='Administrador',
+                    is_admin=True
+                )
+                logger.info(f"✅ [FuncionarioViewSet SERVICOS] Admin criado para loja {loja.nome}")
+        except Exception as e:
+            logger.error(f"❌ [FuncionarioViewSet SERVICOS] Erro ao criar admin: {e}")
     
     def list(self, request, *args, **kwargs):
         self._ensure_owner_funcionario()
@@ -62,7 +90,8 @@ class FuncionarioViewSet(BaseModelViewSet):
     def get_queryset(self):
         # IMPORTANTE: Garantir que admin existe antes de filtrar
         self._ensure_owner_funcionario()
-        return super().get_queryset()
+        # O BaseModelViewSet já aplica o filtro por loja_id
+        return Funcionario.objects.all()
 
 
 class AgendamentoViewSet(BaseModelViewSet):

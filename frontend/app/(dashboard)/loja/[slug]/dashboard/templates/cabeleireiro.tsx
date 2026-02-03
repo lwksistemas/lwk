@@ -1,63 +1,54 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
-import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
-import GerenciadorConsultas from '@/components/clinica/GerenciadorConsultas';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
-import { LojaInfo, EstatisticasClinica, Agendamento } from '@/types/dashboard';
+import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 
-// Lazy loading dos modais - carrega apenas quando necessário
-const ModalClientes = lazy(() => import('@/components/clinica/modals/ModalClientes').then(m => ({ default: m.ModalClientes })));
-const ModalProfissionais = lazy(() => import('@/components/clinica/modals/ModalProfissionais').then(m => ({ default: m.ModalProfissionais })));
-const ModalProcedimentos = lazy(() => import('@/components/clinica/modals/ModalProcedimentos').then(m => ({ default: m.ModalProcedimentos })));
-const ModalProtocolos = lazy(() => import('@/components/clinica/modals/ModalProtocolos').then(m => ({ default: m.ModalProtocolos })));
-const ModalAnamnese = lazy(() => import('@/components/clinica/modals/ModalAnamnese').then(m => ({ default: m.ModalAnamnese })));
-const ModalFuncionarios = lazy(() => import('@/components/clinica/modals/ModalFuncionarios').then(m => ({ default: m.ModalFuncionarios })));
-const ModalAgendamento = lazy(() => import('@/components/clinica/modals/ModalAgendamento').then(m => ({ default: m.ModalAgendamento })));
-const ConfiguracoesModal = lazy(() => import('@/components/clinica/modals/ConfiguracoesModal').then(m => ({ default: m.ConfiguracoesModal })));
-
-// Componente de loading para modais
-function ModalLoadingFallback() {
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-2xl">
-        <div className="flex items-center gap-3">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-700 dark:text-gray-300">Carregando...</span>
-        </div>
-      </div>
-    </div>
-  );
+// Types específicos do Cabeleireiro
+interface EstatisticasCabeleireiro {
+  agendamentos_hoje: number;
+  agendamentos_mes: number;
+  clientes_ativos: number;
+  servicos_ativos: number;
+  receita_mensal: number;
 }
 
-export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
+interface AgendamentoCabeleireiro {
+  id: number;
+  cliente_nome: string;
+  cliente_telefone: string;
+  profissional_nome: string;
+  servico_nome: string;
+  data: string;
+  horario: string;
+  status: string;
+  valor: number;
+}
+
+export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   const router = useRouter();
   const toast = useToast();
 
   // Hook para gerenciar modais
   const { modals, openModal, closeModal } = useModals([
-    'agendamento', 'cliente', 'procedimentos', 'profissional',
-    'protocolos', 'anamnese', 'configuracoes', 'funcionarios'
+    'agendamento', 'cliente', 'servico', 'profissional',
+    'produto', 'venda', 'funcionarios', 'horarios', 'bloqueios'
   ] as const);
 
-  // Estados de navegação
-  const [showCalendario, setShowCalendario] = useState(false);
-  const [showConsultas, setShowConsultas] = useState(false);
-
   // Hook para carregar dados do dashboard
-  const { loading, loadingData, stats, data, reload } = useDashboardData<EstatisticasClinica, Agendamento>({
-    endpoint: '/clinica/agendamentos/dashboard/',
+  const { loading, loadingData, stats, data, reload } = useDashboardData<EstatisticasCabeleireiro, AgendamentoCabeleireiro>({
+    endpoint: '/cabeleireiro/agendamentos/dashboard/',
     initialStats: {
       agendamentos_hoje: 0,
       agendamentos_mes: 0,
       clientes_ativos: 0,
-      procedimentos_ativos: 0,
+      servicos_ativos: 0,
       receita_mensal: 0
     },
     initialData: [],
@@ -66,14 +57,14 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
         agendamentos_hoje: 0,
         agendamentos_mes: 0,
         clientes_ativos: 0,
-        procedimentos_ativos: 0,
+        servicos_ativos: 0,
         receita_mensal: 0
       },
-      data: ensureArray<Agendamento>(responseData.proximos)
+      data: ensureArray<AgendamentoCabeleireiro>(responseData.proximos)
     })
   });
 
-  // Garantir que o backend receba X-Loja-ID (e loja_slug como fallback) antes de qualquer requisição da clínica
+  // Garantir que o backend receba X-Loja-ID
   useEffect(() => {
     if (typeof window !== 'undefined' && loja?.id) {
       const current = sessionStorage.getItem('current_loja_id');
@@ -87,49 +78,18 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   // Handlers
   const handleNovoAgendamento = () => openModal('agendamento');
   const handleNovoCliente = () => openModal('cliente');
-  const handleProcedimentos = () => openModal('procedimentos');
+  const handleServicos = () => openModal('servico');
   const handleNovoProfissional = () => openModal('profissional');
-  const handleProtocolos = () => openModal('protocolos');
-  const handleAnamnese = () => openModal('anamnese');
-  const handleConfiguracoes = () => openModal('configuracoes');
+  const handleProdutos = () => openModal('produto');
+  const handleVendas = () => openModal('venda');
   const handleFuncionarios = () => openModal('funcionarios');
-  const handleCalendario = () => setShowCalendario(true);
-  const handleConsultas = () => setShowConsultas(true);
+  const handleHorarios = () => openModal('horarios');
+  const handleBloqueios = () => openModal('bloqueios');
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
 
   // Loading inicial
   if (loading) {
     return <DashboardSkeleton />;
-  }
-
-  // Calendário
-  if (showCalendario) {
-    return (
-      <div className="px-2 sm:px-0">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
-          <h2 className="text-xl sm:text-2xl font-bold dark:text-white" style={{ color: loja.cor_primaria }}>
-            Calendário - Clínica de Estética
-          </h2>
-          <button
-            onClick={() => setShowCalendario(false)}
-            className="px-4 py-2.5 min-h-[44px] bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors btn-press text-sm sm:text-base w-full sm:w-auto"
-          >
-            ← Voltar ao Dashboard
-          </button>
-        </div>
-        <CalendarioAgendamentos loja={loja} />
-      </div>
-    );
-  }
-
-  // Consultas
-  if (showConsultas) {
-    return (
-      <GerenciadorConsultas 
-        loja={loja} 
-        onClose={() => setShowConsultas(false)} 
-      />
-    );
   }
 
   return (
@@ -145,35 +105,34 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       {/* Ações Rápidas */}
       <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg card-hover">
         <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
-          🚀 Ações Rápidas
+          💇 Ações Rápidas
         </h3>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
           <ActionButton onClick={handleNovoAgendamento} color="#3B82F6" icon="📅" label="Agendamento" />
-          <ActionButton onClick={handleCalendario} color="#10B981" icon="🗓️" label="Calendário" />
-          <ActionButton onClick={handleConsultas} color="#8B5CF6" icon="🏥" label="Consultas" />
           <ActionButton onClick={handleNovoCliente} color="#F59E0B" icon="👤" label="Cliente" />
-          <ActionButton onClick={handleNovoProfissional} color="#EF4444" icon="👨‍⚕️" label="Profissional" />
-          <ActionButton onClick={handleProcedimentos} color="#06B6D4" icon="💆" label="Procedimentos" />
+          <ActionButton onClick={handleNovoProfissional} color="#EF4444" icon="💇" label="Profissional" />
+          <ActionButton onClick={handleServicos} color="#06B6D4" icon="✂️" label="Serviços" />
+          <ActionButton onClick={handleProdutos} color="#8B5CF6" icon="🧴" label="Produtos" />
+          <ActionButton onClick={handleVendas} color="#10B981" icon="💰" label="Vendas" />
           <ActionButton onClick={handleFuncionarios} color="#EC4899" icon="👥" label="Funcionários" />
-          <ActionButton onClick={handleProtocolos} color="#8B5A2B" icon="📋" label="Protocolos" />
-          <ActionButton onClick={handleAnamnese} color="#7C3AED" icon="📝" label="Anamnese" />
-          <ActionButton onClick={handleConfiguracoes} color="#6B7280" icon="⚙️" label="Configurações" />
-          <ActionButton onClick={handleRelatorios} color="#059669" icon="📈" label="Relatórios" />
+          <ActionButton onClick={handleHorarios} color="#6366F1" icon="🕐" label="Horários" />
+          <ActionButton onClick={handleBloqueios} color="#EF4444" icon="🚫" label="Bloqueios" />
+          <ActionButton onClick={handleRelatorios} color="#059669" icon="📊" label="Relatórios" />
         </div>
         
         <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 text-center">
-            💡 <strong>Dashboard Clínica de Estética</strong> - Clique nas ações para gerenciar sua clínica
+            💡 <strong>Dashboard Cabeleireiro</strong> - Gerencie agendamentos, clientes, serviços e produtos
           </p>
         </div>
       </div>
 
       {/* Estatísticas */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        <StatCard title="Agendamentos Hoje" value={stats.agendamentos_hoje} icon="📅" cor={loja.cor_primaria} trend="+12%" />
+        <StatCard title="Agendamentos Hoje" value={stats.agendamentos_hoje} icon="📅" cor={loja.cor_primaria} trend="+15%" />
         <StatCard title="Clientes Ativos" value={stats.clientes_ativos} icon="👥" cor={loja.cor_primaria} />
-        <StatCard title="Procedimentos" value={stats.procedimentos_ativos} icon="💆" cor={loja.cor_primaria} />
-        <StatCard title="Receita Mensal" value={`R$ ${stats.receita_mensal.toLocaleString('pt-BR')}`} icon="💰" cor={loja.cor_primaria} trend="+8%" />
+        <StatCard title="Serviços" value={stats.servicos_ativos} icon="✂️" cor={loja.cor_primaria} />
+        <StatCard title="Receita Mensal" value={`R$ ${stats.receita_mensal.toLocaleString('pt-BR')}`} icon="💰" cor={loja.cor_primaria} trend="+10%" />
       </div>
 
       {/* Próximos Agendamentos */}
@@ -208,81 +167,21 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
         )}
       </div>
 
-      {/* Modais com Lazy Loading */}
-      <Suspense fallback={<ModalLoadingFallback />}>
-        {modals.agendamento && (
-          <ModalAgendamento 
-            loja={loja}
-            onClose={() => closeModal('agendamento')}
-            onSuccess={() => {
-              reload();
-              toast.success('Agendamento criado com sucesso!');
-            }}
-          />
-        )}
-
-        {modals.cliente && (
-          <ModalClientes 
-            loja={loja}
-            onClose={() => closeModal('cliente')}
-            onSuccess={() => {
-              reload();
-              toast.success('Cliente salvo com sucesso!');
-            }}
-          />
-        )}
-
-        {modals.profissional && (
-          <ModalProfissionais 
-            loja={loja}
-            onClose={() => closeModal('profissional')}
-          />
-        )}
-
-        {modals.procedimentos && (
-          <ModalProcedimentos 
-            loja={loja}
-            onClose={() => closeModal('procedimentos')}
-            onSuccess={() => {
-              reload();
-              toast.success('Procedimento salvo com sucesso!');
-            }}
-          />
-        )}
-
-        {modals.protocolos && (
-          <ModalProtocolos 
-            loja={loja}
-            onClose={() => closeModal('protocolos')}
-          />
-        )}
-
-        {modals.anamnese && (
-          <ModalAnamnese 
-            loja={loja}
-            onClose={() => closeModal('anamnese')}
-          />
-        )}
-
-        {modals.configuracoes && (
-          <ConfiguracoesModal 
-            loja={loja}
-            onClose={() => closeModal('configuracoes')}
-          />
-        )}
-
-        {modals.funcionarios && (
-          <ModalFuncionarios 
-            loja={loja}
-            onClose={() => closeModal('funcionarios')}
-          />
-        )}
-      </Suspense>
+      {/* Modais - Implementar conforme necessário */}
+      {modals.agendamento && <div>Modal Agendamento (TODO)</div>}
+      {modals.cliente && <div>Modal Cliente (TODO)</div>}
+      {modals.servico && <div>Modal Serviço (TODO)</div>}
+      {modals.profissional && <div>Modal Profissional (TODO)</div>}
+      {modals.produto && <div>Modal Produto (TODO)</div>}
+      {modals.venda && <div>Modal Venda (TODO)</div>}
+      {modals.funcionarios && <div>Modal Funcionários (TODO)</div>}
+      {modals.horarios && <div>Modal Horários (TODO)</div>}
+      {modals.bloqueios && <div>Modal Bloqueios (TODO)</div>}
     </div>
   );
 }
 
-// Componente de botão de ação rápida - Modernizado e Responsivo
+// Componente de botão de ação rápida
 function ActionButton({ onClick, color, icon, label }: { onClick: () => void; color: string; icon: string; label: string }) {
   return (
     <button 
@@ -293,7 +192,6 @@ function ActionButton({ onClick, color, icon, label }: { onClick: () => void; co
                  relative overflow-hidden min-h-[70px] sm:min-h-[80px] md:min-h-[100px]"
       style={{ backgroundColor: color }}
     >
-      {/* Efeito de brilho no hover */}
       <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
       <div className="relative flex flex-col items-center justify-center h-full">
         <div className="text-xl sm:text-2xl md:text-3xl mb-1 sm:mb-2 transform group-hover:scale-110 transition-transform duration-200">{icon}</div>
@@ -303,7 +201,7 @@ function ActionButton({ onClick, color, icon, label }: { onClick: () => void; co
   );
 }
 
-// Componente de card de estatísticas - Modernizado e Responsivo
+// Componente de card de estatísticas
 function StatCard({ title, value, icon, cor, trend }: { title: string; value: string | number; icon: string; cor: string; trend?: string }) {
   return (
     <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 md:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 card-hover group">
@@ -331,12 +229,14 @@ function StatCard({ title, value, icon, cor, trend }: { title: string; value: st
   );
 }
 
-// Componente de card de agendamento - Modernizado e Responsivo
-function AgendamentoCard({ agendamento, cor }: { agendamento: Agendamento; cor: string }) {
+// Componente de card de agendamento
+function AgendamentoCard({ agendamento, cor }: { agendamento: AgendamentoCabeleireiro; cor: string }) {
   const statusConfig: Record<string, { bg: string; text: string }> = {
     confirmado: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-800 dark:text-green-300' },
     agendado: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-800 dark:text-blue-300' },
     cancelado: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-300' },
+    em_atendimento: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-300' },
+    concluido: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-300' },
   };
   
   const status = statusConfig[agendamento.status] || { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-300' };
@@ -355,7 +255,7 @@ function AgendamentoCard({ agendamento, cor }: { agendamento: Agendamento; cor: 
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">{agendamento.cliente_nome}</p>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{agendamento.procedimento_nome}</p>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{agendamento.servico_nome}</p>
           <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 truncate">Prof: {agendamento.profissional_nome}</p>
         </div>
       </div>
@@ -374,7 +274,7 @@ function AgendamentoCard({ agendamento, cor }: { agendamento: Agendamento; cor: 
   );
 }
 
-// Componente de estado vazio - Responsivo
+// Componente de estado vazio
 function EmptyState({ message, subMessage, actionLabel, onAction, cor }: { 
   message: string; 
   subMessage: string; 

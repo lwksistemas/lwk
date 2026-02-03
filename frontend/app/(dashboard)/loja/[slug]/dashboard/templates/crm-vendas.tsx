@@ -1,111 +1,56 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { useModals } from '@/hooks/useModals';
+import { LojaInfo, EstatisticasCRM, Lead } from '@/types/dashboard';
+import { ORIGENS_CRM, STATUS_LEAD } from '@/constants/status';
 
-interface LojaInfo {
-  id: number;
-  nome: string;
-  slug: string;
-  tipo_loja_nome: string;
-  cor_primaria: string;
-  cor_secundaria: string;
-  logo?: string;
-}
-
-interface EstatisticasCRM {
-  leads_ativos: number;
-  negociacoes: number;
-  vendas_mes: number;
-  receita: number;
-}
-
-interface Lead {
-  id: number;
-  nome: string;
-  empresa: string;
-  status: string;
-  valor_estimado: number | string;
-  created_at?: string;
-}
-
-// Valores do backend (Lead model) - usados no dashboard e modais
-const ORIGENS_CRM = [
-  { value: 'site', label: 'Site' },
-  { value: 'indicacao', label: 'Indicação' },
-  { value: 'redes_sociais', label: 'Redes Sociais' },
-  { value: 'email_marketing', label: 'Email Marketing' },
-  { value: 'evento', label: 'Evento' },
-  { value: 'telefone', label: 'Telefone' },
-  { value: 'outro', label: 'Outro' }
-];
-const STATUS_LEAD = [
-  { value: 'novo', label: 'Novo Lead' },
-  { value: 'contato_inicial', label: 'Contato Inicial' },
-  { value: 'qualificado', label: 'Qualificado' },
-  { value: 'proposta_enviada', label: 'Proposta Enviada' },
-  { value: 'negociacao', label: 'Negociação' },
-  { value: 'fechado', label: 'Fechado' },
-  { value: 'perdido', label: 'Perdido' }
-];
 const INTERESSES_CRM = ['Produto A', 'Produto B', 'Serviço Premium', 'Consultoria', 'Outro'];
 
 export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
   const router = useRouter();
   const toast = useToast();
-  const [showModalPipeline, setShowModalPipeline] = useState(false);
-  const [showModalLead, setShowModalLead] = useState(false);
-  const [showModalCliente, setShowModalCliente] = useState(false);
-  const [showModalVendedor, setShowModalVendedor] = useState(false);
-  const [showModalProduto, setShowModalProduto] = useState(false);
-  const [showModalFuncionarios, setShowModalFuncionarios] = useState(false);
-
   const [estatisticas, setEstatisticas] = useState<EstatisticasCRM>({
     leads_ativos: 0,
     negociacoes: 0,
     vendas_mes: 0,
     receita: 0
   });
-  const [leadsRecentes, setLeadsRecentes] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingLeads, setLoadingLeads] = useState(false);
 
-  const loadDashboard = useCallback(async () => {
-    try {
-      setLoading(true);
-      setLoadingLeads(true);
-      const [statsRes, leadsRes] = await Promise.all([
-        clinicaApiClient.get<EstatisticasCRM>('/crm/vendas/estatisticas/'),
-        clinicaApiClient.get<Lead[] | { results?: Lead[] }>('/crm/leads/recentes/')
-      ]);
-      // Estatísticas: aceitar objeto direto ou aninhado
-      const stats = statsRes.data;
-      setEstatisticas(
-        stats && typeof stats === 'object' && 'leads_ativos' in stats
-          ? stats as EstatisticasCRM
-          : { leads_ativos: 0, negociacoes: 0, vendas_mes: 0, receita: 0 }
-      );
-      // Leads: aceitar array direto, formato paginado { results: [] } ou fallback []
-      const leadsRaw = leadsRes.data;
-      const leadsArray = Array.isArray(leadsRaw)
-        ? leadsRaw
-        : (leadsRaw && typeof leadsRaw === 'object' && Array.isArray((leadsRaw as { results?: Lead[] }).results))
-          ? (leadsRaw as { results: Lead[] }).results
+  // Hook para gerenciar modais
+  const { modals, openModal, closeModal } = useModals([
+    'pipeline', 'lead', 'cliente', 'vendedor', 'produto', 'funcionarios'
+  ] as const);
+
+  // Hook para carregar leads
+  const { loading, loadingData, data, reload } = useDashboardData<EstatisticasCRM, Lead>({
+    endpoint: '/crm/leads/recentes/',
+    initialStats: {
+      leads_ativos: 0,
+      negociacoes: 0,
+      vendas_mes: 0,
+      receita: 0
+    },
+    initialData: [],
+    transformResponse: (responseData) => {
+      const leadsArray = Array.isArray(responseData)
+        ? responseData
+        : (responseData && typeof responseData === 'object' && Array.isArray((responseData as { results?: Lead[] }).results))
+          ? (responseData as { results: Lead[] }).results
           : [];
-      setLeadsRecentes(leadsArray);
-    } catch (error) {
-      console.error('Erro ao carregar dashboard CRM:', error);
-      toast.error('Erro ao carregar dashboard');
-      setLeadsRecentes([]);
-    } finally {
-      setLoading(false);
-      setLoadingLeads(false);
+      
+      return {
+        stats: { leads_ativos: 0, negociacoes: 0, vendas_mes: 0, receita: 0 },
+        data: leadsArray
+      };
     }
-  }, [toast]);
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined' && loja?.id) {
@@ -113,14 +58,30 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
       if (current !== String(loja.id)) sessionStorage.setItem('current_loja_id', String(loja.id));
       if (loja.slug) sessionStorage.setItem('loja_slug', loja.slug);
     }
-    loadDashboard();
-  }, [loadDashboard, loja?.id, loja?.slug]);
+  }, [loja?.id, loja?.slug]);
 
-  const handleNovoLead = () => setShowModalLead(true);
-  const handleClientes = () => setShowModalCliente(true);
-  const handleVendedores = () => setShowModalFuncionarios(true);
-  const handleNovoProduto = () => setShowModalProduto(true);
-  const handlePipeline = () => setShowModalPipeline(true);
+  // Carregar estatísticas separadamente
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const { clinicaApiClient } = await import('@/lib/api-client');
+        const statsRes = await clinicaApiClient.get<EstatisticasCRM>('/crm/vendas/estatisticas/');
+        const statsData = statsRes.data;
+        if (statsData && typeof statsData === 'object' && 'leads_ativos' in statsData) {
+          setEstatisticas(statsData as EstatisticasCRM);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error);
+      }
+    };
+    loadStats();
+  }, []);
+
+  const handleNovoLead = () => openModal('lead');
+  const handleClientes = () => openModal('cliente');
+  const handleVendedores = () => openModal('funcionarios');
+  const handleNovoProduto = () => openModal('produto');
+  const handlePipeline = () => openModal('pipeline');
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
 
   if (loading) {
@@ -177,9 +138,9 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
           </button>
         </div>
 
-        {loadingLeads ? (
+        {loadingData ? (
           <AgendamentosListSkeleton count={3} />
-        ) : !Array.isArray(leadsRecentes) || leadsRecentes.length === 0 ? (
+        ) : !Array.isArray(data) || data.length === 0 ? (
           <EmptyState
             message="Nenhum lead cadastrado"
             subMessage="Comece adicionando seu primeiro lead"
@@ -190,7 +151,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
           />
         ) : (
           <div className="space-y-4">
-            {(Array.isArray(leadsRecentes) ? leadsRecentes : []).map((lead: Lead) => (
+            {(Array.isArray(data) ? data : []).map((lead: Lead) => (
               <LeadCard key={lead.id} lead={lead} cor={loja.cor_primaria} />
             ))}
           </div>
@@ -198,12 +159,12 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
       </div>
 
       {/* Modais */}
-      {showModalLead && <ModalNovoLead loja={loja} onClose={() => setShowModalLead(false)} onSuccess={loadDashboard} />}
-      {showModalCliente && <ModalNovoCliente loja={loja} onClose={() => setShowModalCliente(false)} />}
-      {showModalVendedor && <ModalNovoVendedor loja={loja} onClose={() => setShowModalVendedor(false)} />}
-      {showModalProduto && <ModalNovoProduto loja={loja} onClose={() => setShowModalProduto(false)} />}
-      {showModalPipeline && <ModalPipeline loja={loja} onClose={() => setShowModalPipeline(false)} />}
-      {showModalFuncionarios && <ModalFuncionarios loja={loja} onClose={() => setShowModalFuncionarios(false)} />}
+      {modals.lead && <ModalNovoLead loja={loja} onClose={() => closeModal('lead')} onSuccess={reload} />}
+      {modals.cliente && <ModalNovoCliente loja={loja} onClose={() => closeModal('cliente')} />}
+      {modals.vendedor && <ModalNovoVendedor loja={loja} onClose={() => closeModal('vendedor')} />}
+      {modals.produto && <ModalNovoProduto loja={loja} onClose={() => closeModal('produto')} />}
+      {modals.pipeline && <ModalPipeline loja={loja} onClose={() => closeModal('pipeline')} />}
+      {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => closeModal('funcionarios')} />}
     </div>
   );
 }

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { useModals } from '@/hooks/useModals';
 import type { LojaInfo, EstatisticasRestaurante, Pedido } from './restaurante/types';
 import { ActionButton, StatCard, PedidoCard, EmptyState } from './restaurante/components/restaurante-shared';
 
@@ -59,52 +60,41 @@ export default function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
     cardapio: 0,
     faturamento: 0
   });
-  const [pedidosRecentes, setPedidosRecentes] = useState<Pedido[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingPedidos, setLoadingPedidos] = useState(false);
 
-  const [showModalCardapio, setShowModalCardapio] = useState(false);
-  const [showModalMesas, setShowModalMesas] = useState(false);
-  const [showModalPedidos, setShowModalPedidos] = useState(false);
-  const [showModalDelivery, setShowModalDelivery] = useState(false);
-  const [showModalPDV, setShowModalPDV] = useState(false);
-  const [showModalNotaFiscal, setShowModalNotaFiscal] = useState(false);
-  const [showModalEstoque, setShowModalEstoque] = useState(false);
-  const [showModalBalanca, setShowModalBalanca] = useState(false);
-  const [showModalFuncionarios, setShowModalFuncionarios] = useState(false);
-  const [showModalClientes, setShowModalClientes] = useState(false);
+  // Hook para gerenciar modais
+  const { modals, openModal, closeModal } = useModals([
+    'cardapio', 'mesas', 'pedidos', 'delivery', 'pdv',
+    'notaFiscal', 'estoque', 'balanca', 'funcionarios', 'clientes'
+  ] as const);
 
-  const loadDashboard = useCallback(async () => {
-    try {
-      setLoading(true);
-      setLoadingPedidos(true);
-      const [statsRes, pedidosRes] = await Promise.all([
-        clinicaApiClient.get<EstatisticasRestaurante>('/restaurante/pedidos/estatisticas/'),
-        clinicaApiClient.get<Pedido[] | { results?: Pedido[] }>('/restaurante/pedidos/')
-      ]);
-      const stats = statsRes.data;
-      setEstatisticas({
-        pedidos_hoje: stats?.pedidos_hoje ?? 0,
-        mesas_ocupadas: stats?.mesas_ocupadas ?? '0/0',
-        cardapio: stats?.cardapio ?? 0,
-        faturamento: stats?.faturamento ?? 0
-      });
-      const pedidosRaw = pedidosRes.data;
-      const pedidosArray = Array.isArray(pedidosRaw)
-        ? pedidosRaw.slice(0, 5)
-        : (pedidosRaw && typeof pedidosRaw === 'object' && Array.isArray((pedidosRaw as { results?: Pedido[] }).results))
-          ? (pedidosRaw as { results: Pedido[] }).results.slice(0, 5)
+  // Hook para carregar pedidos
+  const { loading, loadingData, data, reload } = useDashboardData<EstatisticasRestaurante, Pedido>({
+    endpoint: '/restaurante/pedidos/',
+    initialStats: {
+      pedidos_hoje: 0,
+      mesas_ocupadas: '0/0',
+      cardapio: 0,
+      faturamento: 0
+    },
+    initialData: [],
+    transformResponse: (responseData) => {
+      const pedidosArray = Array.isArray(responseData)
+        ? responseData.slice(0, 5)
+        : (responseData && typeof responseData === 'object' && Array.isArray((responseData as { results?: Pedido[] }).results))
+          ? (responseData as { results: Pedido[] }).results.slice(0, 5)
           : [];
-      setPedidosRecentes(pedidosArray);
-    } catch (error) {
-      console.error('Erro ao carregar dashboard Restaurante:', error);
-      toast.error('Erro ao carregar dashboard');
-      setPedidosRecentes([]);
-    } finally {
-      setLoading(false);
-      setLoadingPedidos(false);
+      
+      return {
+        stats: {
+          pedidos_hoje: 0,
+          mesas_ocupadas: '0/0',
+          cardapio: 0,
+          faturamento: 0
+        },
+        data: pedidosArray
+      };
     }
-  }, [toast]);
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined' && loja?.id) {
@@ -112,8 +102,27 @@ export default function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
       if (current !== String(loja.id)) sessionStorage.setItem('current_loja_id', String(loja.id));
       if (loja.slug) sessionStorage.setItem('loja_slug', loja.slug);
     }
-    loadDashboard();
-  }, [loadDashboard, loja?.id, loja?.slug]);
+  }, [loja?.id, loja?.slug]);
+
+  // Carregar estatísticas separadamente
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const { clinicaApiClient } = await import('@/lib/api-client');
+        const statsRes = await clinicaApiClient.get<EstatisticasRestaurante>('/restaurante/pedidos/estatisticas/');
+        const statsData = statsRes.data;
+        setEstatisticas({
+          pedidos_hoje: statsData?.pedidos_hoje ?? 0,
+          mesas_ocupadas: statsData?.mesas_ocupadas ?? '0/0',
+          cardapio: statsData?.cardapio ?? 0,
+          faturamento: statsData?.faturamento ?? 0
+        });
+      } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error);
+      }
+    };
+    loadStats();
+  }, []);
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -134,16 +143,16 @@ export default function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
           🚀 Ações Rápidas
         </h3>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
-          <ActionButton onClick={() => setShowModalCardapio(true)} color="#3B82F6" icon="📋" label="Cardápio" />
-          <ActionButton onClick={() => setShowModalMesas(true)} color="#F59E0B" icon="🪑" label="Mesas" />
-          <ActionButton onClick={() => setShowModalPedidos(true)} color="#10B981" icon="📦" label="Pedidos" />
-          <ActionButton onClick={() => setShowModalDelivery(true)} color="#EC4899" icon="🛵" label="Delivery" />
-          <ActionButton onClick={() => setShowModalPDV(true)} color="#8B5CF6" icon="💳" label="PDV" />
-          <ActionButton onClick={() => setShowModalNotaFiscal(true)} color="#06B6D4" icon="📄" label="Nota Fiscal" />
-          <ActionButton onClick={() => setShowModalEstoque(true)} color="#059669" icon="📦" label="Estoque" />
-          <ActionButton onClick={() => setShowModalBalanca(true)} color="#D97706" icon="⚖️" label="Balança" />
-          <ActionButton onClick={() => setShowModalFuncionarios(true)} color="#6366F1" icon="👥" label="Funcionários" />
-          <ActionButton onClick={() => setShowModalClientes(true)} color="#0EA5E9" icon="👤" label="Clientes" />
+          <ActionButton onClick={() => openModal('cardapio')} color="#3B82F6" icon="📋" label="Cardápio" />
+          <ActionButton onClick={() => openModal('mesas')} color="#F59E0B" icon="🪑" label="Mesas" />
+          <ActionButton onClick={() => openModal('pedidos')} color="#10B981" icon="📦" label="Pedidos" />
+          <ActionButton onClick={() => openModal('delivery')} color="#EC4899" icon="🛵" label="Delivery" />
+          <ActionButton onClick={() => openModal('pdv')} color="#8B5CF6" icon="💳" label="PDV" />
+          <ActionButton onClick={() => openModal('notaFiscal')} color="#06B6D4" icon="📄" label="Nota Fiscal" />
+          <ActionButton onClick={() => openModal('estoque')} color="#059669" icon="📦" label="Estoque" />
+          <ActionButton onClick={() => openModal('balanca')} color="#D97706" icon="⚖️" label="Balança" />
+          <ActionButton onClick={() => openModal('funcionarios')} color="#6366F1" icon="👥" label="Funcionários" />
+          <ActionButton onClick={() => openModal('clientes')} color="#0EA5E9" icon="👤" label="Clientes" />
         </div>
         <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 text-center">
@@ -165,27 +174,27 @@ export default function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Pedidos Recentes</h3>
           <button
-            onClick={() => setShowModalPedidos(true)}
+            onClick={() => openModal('pedidos')}
             className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg text-white hover:opacity-90 transition-all btn-press shadow-md"
             style={{ backgroundColor: loja.cor_primaria }}
           >
             Ver todos
           </button>
         </div>
-        {loadingPedidos ? (
+        {loadingData ? (
           <AgendamentosListSkeleton count={3} />
-        ) : !Array.isArray(pedidosRecentes) || pedidosRecentes.length === 0 ? (
+        ) : !Array.isArray(data) || data.length === 0 ? (
           <EmptyState
             message="Nenhum pedido ainda"
             subMessage="Os pedidos aparecerão aqui"
             actionLabel="Novo Pedido"
-            onAction={() => setShowModalPedidos(true)}
+            onAction={() => openModal('pedidos')}
             cor={loja.cor_primaria}
             icon="📦"
           />
         ) : (
           <div className="space-y-4">
-            {pedidosRecentes.map((pedido) => (
+            {data.map((pedido) => (
               <PedidoCard key={pedido.id} pedido={pedido} cor={loja.cor_primaria} />
             ))}
           </div>
@@ -193,16 +202,16 @@ export default function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
       </div>
 
       {/* Modais */}
-      {showModalCardapio && <ModalCardapio loja={loja} onClose={() => setShowModalCardapio(false)} onSuccess={loadDashboard} />}
-      {showModalMesas && <ModalMesas loja={loja} onClose={() => setShowModalMesas(false)} onSuccess={loadDashboard} />}
-      {showModalPedidos && <ModalPedidos loja={loja} onClose={() => setShowModalPedidos(false)} onSuccess={loadDashboard} />}
-      {showModalDelivery && <ModalDelivery loja={loja} onClose={() => setShowModalDelivery(false)} onSuccess={loadDashboard} />}
-      {showModalPDV && <ModalPDV loja={loja} onClose={() => setShowModalPDV(false)} onSuccess={loadDashboard} />}
-      {showModalNotaFiscal && <ModalNotaFiscal loja={loja} onClose={() => setShowModalNotaFiscal(false)} />}
-      {showModalEstoque && <ModalEstoque loja={loja} onClose={() => setShowModalEstoque(false)} />}
-      {showModalBalanca && <ModalBalanca loja={loja} onClose={() => setShowModalBalanca(false)} />}
-      {showModalFuncionarios && <ModalFuncionarios loja={loja} onClose={() => setShowModalFuncionarios(false)} />}
-      {showModalClientes && <ModalClientes loja={loja} onClose={() => setShowModalClientes(false)} />}
+      {modals.cardapio && <ModalCardapio loja={loja} onClose={() => closeModal('cardapio')} onSuccess={reload} />}
+      {modals.mesas && <ModalMesas loja={loja} onClose={() => closeModal('mesas')} onSuccess={reload} />}
+      {modals.pedidos && <ModalPedidos loja={loja} onClose={() => closeModal('pedidos')} onSuccess={reload} />}
+      {modals.delivery && <ModalDelivery loja={loja} onClose={() => closeModal('delivery')} onSuccess={reload} />}
+      {modals.pdv && <ModalPDV loja={loja} onClose={() => closeModal('pdv')} onSuccess={reload} />}
+      {modals.notaFiscal && <ModalNotaFiscal loja={loja} onClose={() => closeModal('notaFiscal')} />}
+      {modals.estoque && <ModalEstoque loja={loja} onClose={() => closeModal('estoque')} />}
+      {modals.balanca && <ModalBalanca loja={loja} onClose={() => closeModal('balanca')} />}
+      {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => closeModal('funcionarios')} />}
+      {modals.clientes && <ModalClientes loja={loja} onClose={() => closeModal('clientes')} />}
     </div>
   );
 }

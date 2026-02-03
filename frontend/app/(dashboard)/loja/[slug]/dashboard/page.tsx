@@ -9,6 +9,7 @@ import DashboardClinicaEstetica from './templates/clinica-estetica';
 import DashboardCRMVendas from './templates/crm-vendas';
 import DashboardRestaurante from './templates/restaurante';
 import DashboardServicos from './templates/servicos';
+import DashboardCabeleireiro from './templates/cabeleireiro';
 
 interface LojaInfo {
   id: number;
@@ -197,6 +198,11 @@ function renderDashboardPorTipo(loja: LojaInfo) {
   // Dashboard específico para Serviços
   if (tipoSlug.includes('servicos') || tipoSlug.includes('servico')) {
     return <DashboardServicos loja={loja} />;
+  }
+  
+  // Dashboard específico para Cabeleireiro
+  if (tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia')) {
+    return <DashboardCabeleireiro loja={loja} />;
   }
   
   // Dashboard genérico (fallback)

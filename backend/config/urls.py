@@ -29,6 +29,7 @@ def api_root(request):
             'ecommerce': '/api/ecommerce/',
             'restaurante': '/api/restaurante/',
             'servicos': '/api/servicos/',
+            'cabeleireiro': '/api/cabeleireiro/',
         },
         'documentacao': 'Sistema Multi-Tenant para gestão de lojas',
         'schema': '/api/schema/',
@@ -59,4 +60,5 @@ urlpatterns = [
     path('api/ecommerce/', include('ecommerce.urls')),
     path('api/restaurante/', include('restaurante.urls')),
     path('api/servicos/', include('servicos.urls')),
+    path('api/cabeleireiro/', include('cabeleireiro.urls')),
 ]

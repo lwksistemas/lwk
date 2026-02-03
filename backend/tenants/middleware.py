@@ -55,8 +55,8 @@ class TenantMiddleware:
                     if not loja:
                         raise Loja.DoesNotExist
                     loja_id = loja.id
-                    # Usar slug real da loja para db_name (consistência)
-                    db_name = f'loja_{loja.slug}'
+                    # Usar database_name da loja (pode ser diferente do slug)
+                    db_name = loja.database_name if loja.database_name else f'loja_{loja.slug}'
                     
                     # Verificar se o banco existe nas configurações
                     if db_name in settings.DATABASES:

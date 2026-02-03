@@ -59,7 +59,6 @@ class ClienteViewSet(BaseModelViewSet):
 
 
 class FuncionarioViewSet(BaseModelViewSet):
-    queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
     
     def _ensure_owner_funcionario(self):
@@ -147,7 +146,7 @@ class FuncionarioViewSet(BaseModelViewSet):
     def get_queryset(self):
         """
         Retorna queryset filtrado por loja
-        IMPORTANTE: Este queryset é lazy e só será avaliado no list()
+        IMPORTANTE: Obter queryset dinamicamente (não usar atributo de classe)
         """
         import logging
         from tenants.middleware import get_current_loja_id
@@ -163,8 +162,9 @@ class FuncionarioViewSet(BaseModelViewSet):
         # IMPORTANTE: Garantir que admin existe antes de filtrar
         self._ensure_owner_funcionario()
         
-        queryset = super().get_queryset()
-        logger.info(f"📊 [FuncionarioViewSet.get_queryset RESTAURANTE] Queryset base obtido (lazy)")
+        # Obter queryset dinamicamente (não usar self.queryset)
+        queryset = Funcionario.objects.filter(is_active=True)
+        logger.info(f"📊 [FuncionarioViewSet.get_queryset RESTAURANTE] Queryset obtido dinamicamente")
         
         return queryset
 

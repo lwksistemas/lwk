@@ -8,6 +8,7 @@ import BotaoSuporte from '@/components/suporte/BotaoSuporte';
 import DashboardClinicaEstetica from './templates/clinica-estetica';
 import DashboardCRMVendas from './templates/crm-vendas';
 import DashboardRestaurante from './templates/restaurante';
+import DashboardServicos from './templates/servicos';
 
 interface LojaInfo {
   id: number;
@@ -194,7 +195,7 @@ function renderDashboardPorTipo(loja: LojaInfo) {
   }
   
   // Dashboard específico para Serviços
-  if (tipoSlug.includes('servicos')) {
+  if (tipoSlug.includes('servicos') || tipoSlug.includes('servico')) {
     return <DashboardServicos loja={loja} />;
   }
   
@@ -232,35 +233,6 @@ function DashboardEcommerce({ loja }: { loja: LojaInfo }) {
 }
 
 // Restaurante: usando DashboardRestaurante do template restaurante.tsx
-
-// Dashboard para Serviços
-function DashboardServicos({ loja }: { loja: LojaInfo }) {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-        Dashboard - Serviços
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Serviços Ativos</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Clientes</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Agendamentos</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Receita</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 0</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Dashboard Genérico (fallback)
 function DashboardGenerico({ loja }: { loja: LojaInfo }) {

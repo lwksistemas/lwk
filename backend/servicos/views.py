@@ -70,6 +70,65 @@ class AgendamentoViewSet(BaseModelViewSet):
     queryset = Agendamento.objects.select_related('cliente', 'servico', 'profissional').all()
     serializer_class = AgendamentoSerializer
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filtrar por data
+        data = self.request.query_params.get('data')
+        if data:
+            queryset = queryset.filter(data=data)
+        
+        # Filtrar por status
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        
+        # Filtrar por cliente
+        cliente_id = self.request.query_params.get('cliente_id')
+        if cliente_id:
+            queryset = queryset.filter(cliente_id=cliente_id)
+        
+        # Filtrar por profissional
+        profissional_id = self.request.query_params.get('profissional_id')
+        if profissional_id:
+            queryset = queryset.filter(profissional_id=profissional_id)
+        
+        return queryset
+
+    @action(detail=False, methods=['get'])
+    def estatisticas(self, request):
+        """Retorna estatísticas do dashboard"""
+        from django.db.models import Sum, Count
+        from datetime import date
+        
+        hoje = date.today()
+        primeiro_dia_mes = hoje.replace(day=1)
+        
+        # Agendamentos hoje
+        agendamentos_hoje = self.queryset.filter(data=hoje).count()
+        
+        # Ordens de serviço abertas
+        ordens_abertas = OrdemServico.objects.filter(
+            status__in=['aberta', 'em_andamento', 'aguardando_peca']
+        ).count()
+        
+        # Orçamentos pendentes
+        orcamentos_pendentes = Orcamento.objects.filter(status='pendente').count()
+        
+        # Receita mensal (agendamentos concluídos)
+        receita = self.queryset.filter(
+            data__gte=primeiro_dia_mes,
+            data__lte=hoje,
+            status='concluido'
+        ).aggregate(total=Sum('valor'))['total'] or 0
+        
+        return Response({
+            'agendamentos_hoje': agendamentos_hoje,
+            'ordens_abertas': ordens_abertas,
+            'orcamentos_pendentes': orcamentos_pendentes,
+            'receita_mensal': float(receita)
+        })
+
 
 class OrdemServicoViewSet(BaseModelViewSet):
     # Otimização: select_related

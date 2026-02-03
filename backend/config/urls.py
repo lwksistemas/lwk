@@ -60,5 +60,5 @@ urlpatterns = [
     path('api/ecommerce/', include('ecommerce.urls')),
     path('api/restaurante/', include('restaurante.urls')),
     path('api/servicos/', include('servicos.urls')),
-    path('api/cabeleireiro/', include('cabeleireiro.urls')),
+    # path('api/cabeleireiro/', include('cabeleireiro.urls')),  # TEMPORARIAMENTE DESABILITADO
 ]

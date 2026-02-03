@@ -206,12 +206,5 @@ def clear_loja_context():
     set_current_loja_id(None)
     logger.info("🔓 Contexto de loja limpo")
 
-
-def get_current_loja_id():
-    """
-    Retorna o loja_id do contexto atual
-    
-    NOTA: Delega para tenants.middleware para garantir consistência
-    """
-    from tenants.middleware import get_current_loja_id as tenant_get_loja_id
-    return tenant_get_loja_id()
+# NOTA: get_current_loja_id() está definido em tenants.middleware
+# Importar diretamente de lá: from tenants.middleware import get_current_loja_id

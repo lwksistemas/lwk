@@ -277,46 +277,9 @@ class FuncionarioViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def _ensure_owner_funcionario(self):
-        """Garante que o administrador da loja exista como funcionário (aparece em Funcionários)."""
-        from tenants.middleware import get_current_loja_id
-        from superadmin.models import Loja
-        import logging
-        
-        logger = logging.getLogger(__name__)
-        loja_id = get_current_loja_id()
-        
-        if not loja_id:
-            logger.warning("⚠️ [_ensure_owner_funcionario] Nenhuma loja_id no contexto")
-            return
-        
-        try:
-            loja = Loja.objects.get(id=loja_id)
-            owner = loja.owner
-            
-            # Verificar se já existe usando all_without_filter para bypass do isolamento
-            exists = Funcionario.objects.all_without_filter().filter(
-                loja_id=loja_id, 
-                email=owner.email
-            ).exists()
-            
-            if not exists:
-                logger.info(f"✅ [_ensure_owner_funcionario] Criando funcionário admin para loja {loja_id}")
-                Funcionario.objects.all_without_filter().create(
-                    nome=owner.get_full_name() or owner.username or owner.email.split('@')[0],
-                    email=owner.email,
-                    telefone=getattr(owner, 'telefone', '') or '',
-                    cargo='Administrador',
-                    is_admin=True,
-                    loja_id=loja_id,
-                )
-                logger.info(f"✅ [_ensure_owner_funcionario] Funcionário admin criado com sucesso")
-            else:
-                logger.debug(f"ℹ️ [_ensure_owner_funcionario] Funcionário admin já existe para loja {loja_id}")
-                
-        except Loja.DoesNotExist:
-            logger.error(f"❌ [_ensure_owner_funcionario] Loja {loja_id} não encontrada")
-        except Exception as e:
-            logger.error(f"❌ [_ensure_owner_funcionario] Erro ao criar funcionário admin: {e}")
+        """Garante que o administrador da loja exista como funcionário."""
+        from core.utils import ensure_owner_as_funcionario
+        ensure_owner_as_funcionario(Funcionario, cargo_padrao='Administrador')
 
     def list(self, request, *args, **kwargs):
         """

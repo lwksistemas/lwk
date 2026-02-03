@@ -1,3 +1,4 @@
+
 # 🧪 TESTE COMPLETO: Admin em Todas as Lojas (v316)
 
 ## 🎯 OBJETIVO

@@ -52,7 +52,6 @@ class ClienteViewSet(BaseModelViewSet):
 
 
 class VendedorViewSet(BaseModelViewSet):
-    queryset = Vendedor.objects.all()
     serializer_class = VendedorSerializer
 
     def _ensure_owner_vendedor(self):
@@ -148,7 +147,7 @@ class VendedorViewSet(BaseModelViewSet):
     def get_queryset(self):
         """
         Retorna queryset filtrado por loja
-        IMPORTANTE: Este queryset é lazy e só será avaliado no list()
+        IMPORTANTE: Obter queryset dinamicamente (não usar atributo de classe)
         """
         import logging
         from tenants.middleware import get_current_loja_id
@@ -160,8 +159,9 @@ class VendedorViewSet(BaseModelViewSet):
         # IMPORTANTE: Garantir que admin existe antes de filtrar
         self._ensure_owner_vendedor()
         
-        queryset = super().get_queryset()
-        logger.info(f"📊 [VendedorViewSet.get_queryset] Queryset base obtido (lazy)")
+        # Obter queryset dinamicamente (não usar self.queryset)
+        queryset = Vendedor.objects.filter(is_active=True)
+        logger.info(f"📊 [VendedorViewSet.get_queryset] Queryset obtido dinamicamente")
         
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:

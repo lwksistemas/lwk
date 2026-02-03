@@ -32,7 +32,7 @@ INSTALLED_APPS = [
     'ecommerce',  # App de e-commerce
     'restaurante',  # App de restaurante
     'servicos',  # App de serviços
-    # 'cabeleireiro',  # App de cabeleireiro/salão de beleza - TEMPORARIAMENTE DESABILITADO
+    'cabeleireiro',  # App de cabeleireiro/salão de beleza
 ]
 
 MIDDLEWARE = [

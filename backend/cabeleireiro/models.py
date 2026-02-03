@@ -22,6 +22,7 @@ class Cliente(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_clientes'
         ordering = ['-created_at']
         verbose_name = 'Cliente'
@@ -46,6 +47,7 @@ class Profissional(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_profissionais'
         ordering = ['nome']
         verbose_name = 'Profissional'
@@ -81,6 +83,7 @@ class Servico(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_servicos'
         ordering = ['categoria', 'nome']
         verbose_name = 'Serviço'
@@ -117,6 +120,7 @@ class Agendamento(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_agendamentos'
         ordering = ['-data', '-horario']
         verbose_name = 'Agendamento'
@@ -154,6 +158,7 @@ class Produto(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_produtos'
         ordering = ['categoria', 'nome']
         verbose_name = 'Produto'
@@ -185,6 +190,7 @@ class Venda(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_vendas'
         ordering = ['-data_venda']
         verbose_name = 'Venda'
@@ -215,6 +221,7 @@ class Funcionario(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_funcionarios'
         ordering = ['nome']
         verbose_name = 'Funcionário'
@@ -244,6 +251,7 @@ class HorarioFuncionamento(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_horarios'
         ordering = ['dia_semana']
         verbose_name = 'Horário de Funcionamento'
@@ -264,6 +272,7 @@ class BloqueioAgenda(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
+        app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_bloqueios'
         ordering = ['-data_inicio']
         verbose_name = 'Bloqueio de Agenda'

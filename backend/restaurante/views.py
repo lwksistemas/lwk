@@ -110,18 +110,30 @@ class FuncionarioViewSet(BaseModelViewSet):
         ANTES do contexto ser limpo pelo middleware
         """
         import logging
+        from tenants.middleware import get_current_loja_id
         logger = logging.getLogger(__name__)
+        
+        loja_id_inicio = get_current_loja_id()
+        logger.info(f"🔍 [FuncionarioViewSet.list RESTAURANTE] INÍCIO - loja_id={loja_id_inicio}")
         
         # 1. Garantir que admin existe
         self._ensure_owner_funcionario()
         
+        loja_id_apos_ensure = get_current_loja_id()
+        logger.info(f"🔍 [FuncionarioViewSet.list RESTAURANTE] Após _ensure_owner - loja_id={loja_id_apos_ensure}")
+        
         # 2. Obter queryset (ainda lazy)
         queryset = self.filter_queryset(self.get_queryset())
+        
+        loja_id_apos_queryset = get_current_loja_id()
+        logger.info(f"🔍 [FuncionarioViewSet.list RESTAURANTE] Após get_queryset - loja_id={loja_id_apos_queryset}")
         
         # 3. FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
         # Isso converte o queryset lazy em uma lista concreta
         funcionarios_list = list(queryset)
-        logger.info(f"✅ [FuncionarioViewSet.list RESTAURANTE] Queryset avaliado - {len(funcionarios_list)} funcionários encontrados")
+        
+        loja_id_apos_list = get_current_loja_id()
+        logger.info(f"✅ [FuncionarioViewSet.list RESTAURANTE] Queryset avaliado - {len(funcionarios_list)} funcionários encontrados - loja_id={loja_id_apos_list}")
         
         # 4. Serializar a lista concreta
         page = self.paginate_queryset(funcionarios_list)

@@ -10,10 +10,10 @@ logger = logging.getLogger(__name__)
 
 class AuthLoginThrottle(UserRateThrottle):
     """
-    Rate limiting para login - muito restritivo
-    5 tentativas a cada 15 minutos
+    Rate limiting para login - aumentado temporariamente
+    100 tentativas a cada 15 minutos (para recuperar do loop infinito)
     """
-    rate = '5/15min'
+    rate = '100/15min'
     scope = 'auth_login'
     
     def allow_request(self, request, view):

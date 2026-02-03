@@ -1,6 +1,6 @@
 from django.db import models
 from core.models import BaseCategoria, BaseCliente, BaseFuncionario
-from core.mixins import LojaIsolationMixin
+from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 
 class Categoria(LojaIsolationMixin, BaseCategoria):
@@ -175,6 +175,8 @@ class Orcamento(LojaIsolationMixin, models.Model):
 
 class Funcionario(LojaIsolationMixin, BaseFuncionario):
     """Funcionários"""
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'servicos_funcionarios'

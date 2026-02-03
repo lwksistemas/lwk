@@ -31,15 +31,25 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
         loja = Loja.objects.get(id=loja_id)
         owner = loja.owner
         
-        # Verificar se já existe usando all_without_filter para bypass do isolamento
-        exists = funcionario_model.objects.all_without_filter().filter(
+        # Verificar se o manager tem all_without_filter (LojaIsolationManager)
+        # Se não tiver, usar filter direto (bypass do isolamento não é necessário)
+        manager = funcionario_model.objects
+        if hasattr(manager, 'all_without_filter'):
+            # Manager customizado com bypass de isolamento
+            base_queryset = manager.all_without_filter()
+        else:
+            # Manager padrão do Django - usar filter direto
+            base_queryset = manager.all()
+        
+        # Verificar se já existe
+        exists = base_queryset.filter(
             loja_id=loja_id, 
             email=owner.email
         ).exists()
         
         if not exists:
             logger.info(f"✅ [ensure_owner_as_funcionario] Criando funcionário admin para loja {loja_id}")
-            funcionario_model.objects.all_without_filter().create(
+            base_queryset.create(
                 nome=owner.get_full_name() or owner.username or owner.email.split('@')[0],
                 email=owner.email,
                 telefone=getattr(owner, 'telefone', '') or '',

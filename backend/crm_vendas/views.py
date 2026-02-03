@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from datetime import date
-from core.views import BaseModelViewSet
+from core.views import BaseModelViewSet, BaseFuncionarioViewSet
 from .models import Lead, Cliente, Vendedor, Produto, Venda, Pipeline
 from .serializers import (
     LeadSerializer, ClienteSerializer, VendedorSerializer,
@@ -51,124 +51,10 @@ class ClienteViewSet(BaseModelViewSet):
         return queryset
 
 
-class VendedorViewSet(BaseModelViewSet):
+class VendedorViewSet(BaseFuncionarioViewSet):
     serializer_class = VendedorSerializer
-
-    def _ensure_owner_vendedor(self):
-        """Garante que o administrador da loja exista como vendedor (aparece em Funcionários)."""
-        from tenants.middleware import get_current_loja_id
-        from superadmin.models import Loja
-        from decimal import Decimal
-        import logging
-        
-        logger = logging.getLogger(__name__)
-        loja_id = get_current_loja_id()
-        
-        logger.info(f"🔍 [_ensure_owner_vendedor] Chamado - loja_id no contexto: {loja_id}")
-        
-        if not loja_id:
-            logger.warning("⚠️ [_ensure_owner_vendedor] Nenhuma loja_id no contexto")
-            return
-        
-        try:
-            loja = Loja.objects.get(id=loja_id)
-            owner = loja.owner
-            
-            logger.info(f"🔍 [_ensure_owner_vendedor] Loja: {loja.slug}, Owner: {owner.email}")
-            
-            # Verificar se já existe usando all_without_filter para bypass do isolamento
-            exists = Vendedor.objects.all_without_filter().filter(
-                loja_id=loja_id, 
-                email=owner.email
-            ).exists()
-            
-            logger.info(f"🔍 [_ensure_owner_vendedor] Admin já existe? {exists}")
-            
-            if not exists:
-                logger.info(f"✅ [_ensure_owner_vendedor] Criando vendedor admin para loja {loja_id}")
-                Vendedor.objects.all_without_filter().create(
-                    nome=owner.get_full_name() or owner.username or owner.email.split('@')[0],
-                    email=owner.email,
-                    telefone=getattr(owner, 'telefone', '') or '',
-                    cargo='Administrador',
-                    is_admin=True,
-                    loja_id=loja_id,
-                    meta_mensal=Decimal('10000.00'),
-                )
-                logger.info(f"✅ [_ensure_owner_vendedor] Vendedor admin criado com sucesso")
-            else:
-                logger.debug(f"ℹ️ [_ensure_owner_vendedor] Vendedor admin já existe para loja {loja_id}")
-                
-        except Loja.DoesNotExist:
-            logger.error(f"❌ [_ensure_owner_vendedor] Loja {loja_id} não encontrada")
-        except Exception as e:
-            logger.error(f"❌ [_ensure_owner_vendedor] Erro ao criar vendedor admin: {e}", exc_info=True)
-
-    def list(self, request, *args, **kwargs):
-        """
-        Lista vendedores garantindo que o admin existe e o queryset é avaliado
-        ANTES do contexto ser limpo pelo middleware
-        """
-        import logging
-        from tenants.middleware import get_current_loja_id
-        logger = logging.getLogger(__name__)
-        
-        loja_id_inicio = get_current_loja_id()
-        logger.info(f"🔍 [VendedorViewSet.list] INÍCIO - loja_id={loja_id_inicio}")
-        
-        # 1. Garantir que admin existe
-        self._ensure_owner_vendedor()
-        
-        loja_id_apos_ensure = get_current_loja_id()
-        logger.info(f"🔍 [VendedorViewSet.list] Após _ensure_owner - loja_id={loja_id_apos_ensure}")
-        
-        # 2. Obter queryset (ainda lazy)
-        queryset = self.filter_queryset(self.get_queryset())
-        
-        loja_id_apos_queryset = get_current_loja_id()
-        logger.info(f"🔍 [VendedorViewSet.list] Após get_queryset - loja_id={loja_id_apos_queryset}")
-        
-        # 3. FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
-        # Isso converte o queryset lazy em uma lista concreta
-        vendedores_list = list(queryset)
-        
-        loja_id_apos_list = get_current_loja_id()
-        logger.info(f"✅ [VendedorViewSet.list] Queryset avaliado - {len(vendedores_list)} vendedores encontrados - loja_id={loja_id_apos_list}")
-        
-        # 4. Serializar a lista concreta
-        page = self.paginate_queryset(vendedores_list)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(vendedores_list, many=True)
-        return Response(serializer.data)
-
-    def get_queryset(self):
-        """
-        Retorna queryset filtrado por loja
-        IMPORTANTE: Obter queryset dinamicamente (não usar atributo de classe)
-        """
-        import logging
-        from tenants.middleware import get_current_loja_id
-        logger = logging.getLogger(__name__)
-        
-        loja_id = get_current_loja_id()
-        logger.info(f"🔍 [VendedorViewSet.get_queryset] loja_id no contexto: {loja_id}")
-        
-        # IMPORTANTE: Garantir que admin existe antes de filtrar
-        self._ensure_owner_vendedor()
-        
-        # Obter queryset dinamicamente (não usar self.queryset)
-        queryset = Vendedor.objects.filter(is_active=True)
-        logger.info(f"📊 [VendedorViewSet.get_queryset] Queryset obtido dinamicamente")
-        
-        is_active = self.request.query_params.get('is_active')
-        if is_active is not None:
-            queryset = queryset.filter(is_active=is_active.lower() == 'true')
-            logger.info(f"🔍 [VendedorViewSet.get_queryset] Filtrado por is_active={is_active}")
-        
-        return queryset
+    model_class = Vendedor
+    cargo_padrao = 'Administrador'
 
 
 class ProdutoViewSet(BaseModelViewSet):

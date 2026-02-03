@@ -83,3 +83,80 @@ class ReadOnlyBaseViewSet(viewsets.ReadOnlyModelViewSet):
         if hasattr(self.queryset.model, 'is_active'):
             queryset = queryset.filter(is_active=True)
         return queryset
+
+
+class BaseFuncionarioViewSet(BaseModelViewSet):
+    """
+    ViewSet base para Funcionários/Vendedores com auto-criação do admin.
+    
+    Centraliza a lógica de garantir que o administrador da loja exista
+    automaticamente como funcionário/vendedor.
+    
+    Uso:
+        class FuncionarioViewSet(BaseFuncionarioViewSet):
+            serializer_class = FuncionarioSerializer
+            model_class = Funcionario
+            cargo_padrao = 'Administrador'
+    """
+    model_class = None  # Deve ser definido na subclasse
+    cargo_padrao = 'Administrador'  # Pode ser sobrescrito
+    
+    def _ensure_owner_funcionario(self):
+        """Garante que o administrador da loja exista como funcionário."""
+        from core.utils import ensure_owner_as_funcionario
+        if self.model_class:
+            ensure_owner_as_funcionario(self.model_class, cargo_padrao=self.cargo_padrao)
+    
+    def list(self, request, *args, **kwargs):
+        """
+        Lista funcionários garantindo que o admin existe e o queryset é avaliado
+        ANTES do contexto ser limpo pelo middleware.
+        """
+        import logging
+        from tenants.middleware import get_current_loja_id
+        logger = logging.getLogger(__name__)
+        
+        loja_id = get_current_loja_id()
+        logger.debug(f"[{self.__class__.__name__}] list() - loja_id={loja_id}")
+        
+        # Garantir que admin existe
+        self._ensure_owner_funcionario()
+        
+        # Obter e avaliar queryset
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
+        # Isso converte o queryset lazy em uma lista concreta
+        funcionarios_list = list(queryset)
+        
+        logger.info(f"[{self.__class__.__name__}] {len(funcionarios_list)} registros retornados")
+        
+        # Paginar e serializar
+        page = self.paginate_queryset(funcionarios_list)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(funcionarios_list, many=True)
+        return Response(serializer.data)
+    
+    def get_queryset(self):
+        """
+        Retorna queryset filtrado por loja.
+        IMPORTANTE: Obter queryset dinamicamente (não usar atributo de classe)
+        """
+        import logging
+        from tenants.middleware import get_current_loja_id
+        logger = logging.getLogger(__name__)
+        
+        loja_id = get_current_loja_id()
+        
+        if not loja_id:
+            logger.critical(f"[{self.__class__.__name__}] Acesso sem loja_id no contexto")
+            return self.model_class.objects.none()
+        
+        # Garantir que admin existe antes de filtrar
+        self._ensure_owner_funcionario()
+        
+        # Retornar queryset dinâmico
+        return self.model_class.objects.filter(is_active=True)

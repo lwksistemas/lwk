@@ -58,7 +58,8 @@ function ModalBase({
 
   useEffect(() => {
     loadItems();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Executar apenas uma vez no mount
 
   const loadItems = async () => {
     try {
@@ -66,7 +67,8 @@ function ModalBase({
       const res = await clinicaApiClient.get(endpoint);
       setItems(Array.isArray(res.data) ? res.data : res.data?.results ?? []);
     } catch (error) {
-      toast.error('Erro ao carregar dados');
+      console.error('Erro ao carregar dados:', error);
+      // Removido toast.error para evitar dependência circular
     } finally {
       setLoadingLista(false);
     }

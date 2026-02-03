@@ -6,7 +6,7 @@ from django.db import models as django_models
 from django.db.models import Sum
 from datetime import date
 from decimal import Decimal
-from core.views import BaseModelViewSet
+from core.views import BaseModelViewSet, BaseFuncionarioViewSet
 from tenants.middleware import get_current_loja_id
 from .models import (
     Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario,
@@ -58,78 +58,10 @@ class ClienteViewSet(BaseModelViewSet):
     serializer_class = ClienteSerializer
 
 
-class FuncionarioViewSet(BaseModelViewSet):
+class FuncionarioViewSet(BaseFuncionarioViewSet):
     serializer_class = FuncionarioSerializer
-    
-    def _ensure_owner_funcionario(self):
-        """Garante que o administrador da loja exista como funcionário."""
-        from core.utils import ensure_owner_as_funcionario
-        ensure_owner_as_funcionario(Funcionario, cargo_padrao='gerente')
-
-    def list(self, request, *args, **kwargs):
-        """
-        Lista funcionários garantindo que o admin existe e o queryset é avaliado
-        ANTES do contexto ser limpo pelo middleware
-        """
-        import logging
-        from tenants.middleware import get_current_loja_id
-        logger = logging.getLogger(__name__)
-        
-        loja_id_inicio = get_current_loja_id()
-        logger.info(f"🔍 [FuncionarioViewSet.list RESTAURANTE] INÍCIO - loja_id={loja_id_inicio}")
-        
-        # 1. Garantir que admin existe
-        self._ensure_owner_funcionario()
-        
-        loja_id_apos_ensure = get_current_loja_id()
-        logger.info(f"🔍 [FuncionarioViewSet.list RESTAURANTE] Após _ensure_owner - loja_id={loja_id_apos_ensure}")
-        
-        # 2. Obter queryset (ainda lazy)
-        queryset = self.filter_queryset(self.get_queryset())
-        
-        loja_id_apos_queryset = get_current_loja_id()
-        logger.info(f"🔍 [FuncionarioViewSet.list RESTAURANTE] Após get_queryset - loja_id={loja_id_apos_queryset}")
-        
-        # 3. FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
-        # Isso converte o queryset lazy em uma lista concreta
-        funcionarios_list = list(queryset)
-        
-        loja_id_apos_list = get_current_loja_id()
-        logger.info(f"✅ [FuncionarioViewSet.list RESTAURANTE] Queryset avaliado - {len(funcionarios_list)} funcionários encontrados - loja_id={loja_id_apos_list}")
-        
-        # 4. Serializar a lista concreta
-        page = self.paginate_queryset(funcionarios_list)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(funcionarios_list, many=True)
-        return Response(serializer.data)
-    
-    def get_queryset(self):
-        """
-        Retorna queryset filtrado por loja
-        IMPORTANTE: Obter queryset dinamicamente (não usar atributo de classe)
-        """
-        import logging
-        from tenants.middleware import get_current_loja_id
-        logger = logging.getLogger(__name__)
-        
-        loja_id = get_current_loja_id()
-        logger.info(f"🔍 [FuncionarioViewSet.get_queryset RESTAURANTE] loja_id no contexto: {loja_id}")
-        
-        if not loja_id:
-            logger.critical("🚨 [FuncionarioViewSet RESTAURANTE] Tentativa de acesso sem loja_id no contexto")
-            return Funcionario.objects.none()
-        
-        # IMPORTANTE: Garantir que admin existe antes de filtrar
-        self._ensure_owner_funcionario()
-        
-        # Obter queryset dinamicamente (não usar self.queryset)
-        queryset = Funcionario.objects.filter(is_active=True)
-        logger.info(f"📊 [FuncionarioViewSet.get_queryset RESTAURANTE] Queryset obtido dinamicamente")
-        
-        return queryset
+    model_class = Funcionario
+    cargo_padrao = 'gerente'
 
 
 class ReservaViewSet(BaseModelViewSet):

@@ -1,39 +1,38 @@
 """
-Serializers genéricos para evitar duplicação de código
+Serializers base para evitar duplicação de código
 """
 from rest_framework import serializers
 
 
-class BaseModelSerializer(serializers.ModelSerializer):
+class BaseLojaSerializer(serializers.ModelSerializer):
     """
-    Serializer genérico para modelos base
+    Serializer base que adiciona loja_id automaticamente no create().
+    
+    Todos os modelos que usam LojaIsolationMixin devem herdar deste serializer
+    para garantir que loja_id seja preenchido automaticamente do contexto.
+    
+    Uso:
+        class ClienteSerializer(BaseLojaSerializer):
+            class Meta:
+                model = Cliente
+                fields = '__all__'
+                read_only_fields = ['created_at', 'updated_at', 'loja_id']
     """
-    class Meta:
-        fields = '__all__'
     
-    def validate(self, data):
-        """Validações customizadas podem ser adicionadas aqui"""
-        return data
-
-
-class TimestampedSerializer(serializers.ModelSerializer):
-    """
-    Serializer que inclui campos de timestamp formatados
-    """
-    created_at_formatted = serializers.SerializerMethodField()
-    updated_at_formatted = serializers.SerializerMethodField()
-    
-    class Meta:
-        fields = '__all__'
-    
-    def get_created_at_formatted(self, obj):
-        """Retorna data de criação formatada"""
-        if obj.created_at:
-            return obj.created_at.strftime('%d/%m/%Y %H:%M')
-        return None
-    
-    def get_updated_at_formatted(self, obj):
-        """Retorna data de atualização formatada"""
-        if obj.updated_at:
-            return obj.updated_at.strftime('%d/%m/%Y %H:%M')
-        return None
+    def create(self, validated_data):
+        """
+        Adiciona loja_id automaticamente do contexto da requisição.
+        
+        Falha explicitamente se o contexto da loja não estiver definido,
+        evitando criação de registros sem isolamento.
+        """
+        from tenants.middleware import get_current_loja_id
+        
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            raise serializers.ValidationError({
+                'loja_id': 'Contexto da loja não identificado. Recarregue a página e tente novamente.'
+            })
+        
+        validated_data['loja_id'] = loja_id
+        return super().create(validated_data)

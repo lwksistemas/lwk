@@ -1,50 +1,27 @@
 from rest_framework import serializers
+from core.serializers import BaseLojaSerializer
 from .models import Lead, Cliente, Vendedor, Produto, Venda, Pipeline
 
 
-class LeadSerializer(serializers.ModelSerializer):
+class LeadSerializer(BaseLojaSerializer):
     class Meta:
         model = Lead
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at', 'loja_id']
 
-    def create(self, validated_data):
-        """Adiciona loja_id automaticamente do contexto (X-Loja-ID)"""
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
-        return super().create(validated_data)
 
-
-class ClienteSerializer(serializers.ModelSerializer):
+class ClienteSerializer(BaseLojaSerializer):
     class Meta:
         model = Cliente
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at', 'loja_id']
 
-    def create(self, validated_data):
-        """Adiciona loja_id automaticamente do contexto (X-Loja-ID)"""
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
-        return super().create(validated_data)
 
-
-class VendedorSerializer(serializers.ModelSerializer):
+class VendedorSerializer(BaseLojaSerializer):
     class Meta:
         model = Vendedor
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at', 'loja_id']
-    
-    def create(self, validated_data):
-        """Adiciona loja_id automaticamente do contexto"""
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
-        if loja_id:
-            validated_data['loja_id'] = loja_id
-        return super().create(validated_data)
 
 
 class ProdutoSerializer(serializers.ModelSerializer):

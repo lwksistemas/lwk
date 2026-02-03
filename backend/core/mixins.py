@@ -208,3 +208,51 @@ def clear_loja_context():
 
 # NOTA: get_current_loja_id() está definido em tenants.middleware
 # Importar diretamente de lá: from tenants.middleware import get_current_loja_id
+
+
+class ClienteSearchMixin:
+    """
+    Mixin para adicionar busca de clientes por nome/telefone/email.
+    
+    Adiciona o endpoint /buscar/ que permite busca rápida de clientes
+    por nome, telefone ou email (mínimo 2 caracteres).
+    
+    Uso:
+        from rest_framework.decorators import action
+        
+        class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
+            queryset = Cliente.objects.all()
+            serializer_class = ClienteSerializer
+            search_serializer_class = ClienteBuscaSerializer  # Opcional
+    """
+    search_serializer_class = None
+    
+    def buscar(self, request):
+        """
+        Busca clientes por nome, telefone ou email.
+        
+        Query params:
+            q: string de busca (mínimo 2 caracteres)
+        
+        Retorna até 10 resultados.
+        """
+        from django.db.models import Q
+        from rest_framework.response import Response
+        from rest_framework.decorators import action
+        
+        params = getattr(request, 'query_params', request.GET)
+        query = params.get('q', '')
+        
+        if len(query) < 2:
+            return Response([])
+        
+        queryset = self.get_queryset().filter(
+            Q(nome__icontains=query) |
+            Q(telefone__icontains=query) |
+            Q(email__icontains=query)
+        )[:10]
+        
+        # Usar search_serializer_class se definido, senão usar o padrão
+        serializer_class = self.search_serializer_class or self.get_serializer_class()
+        serializer = serializer_class(queryset, many=True)
+        return Response(serializer.data)

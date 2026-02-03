@@ -51,7 +51,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const [showConsultas, setShowConsultas] = useState(false);
 
   // Hook para carregar dados do dashboard
-  const { loading, loadingData, stats, data, reload } = useDashboardData<EstatisticasClinica, Agendamento>({
+  const { loading, loadingData, stats, data, reload, error } = useDashboardData<EstatisticasClinica, Agendamento>({
     endpoint: '/clinica/agendamentos/dashboard/',
     initialStats: {
       agendamentos_hoje: 0,
@@ -100,6 +100,42 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   // Loading inicial
   if (loading) {
     return <DashboardSkeleton />;
+  }
+
+  // Erro ao carregar
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Erro ao carregar dashboard
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Não foi possível carregar os dados do dashboard. Verifique sua conexão e tente novamente.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => {
+                sessionStorage.clear();
+                window.location.href = `/loja/${loja.slug}/login`;
+              }}
+              className="px-6 py-3 min-h-[44px] bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors btn-press"
+            >
+              Fazer Login Novamente
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 min-h-[44px] bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors btn-press"
+            >
+              Recarregar Página
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Calendário

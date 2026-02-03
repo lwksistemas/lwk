@@ -240,6 +240,23 @@ CORS_ALLOW_HEADERS = [
     'x-loja-id',  # ✅ Header customizado com ID único da loja
     'x-tenant-slug',  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
 ]
+
+# Expor headers customizados para o frontend
+CORS_EXPOSE_HEADERS = [
+    'content-type',
+    'x-loja-id',
+    'x-tenant-slug',
+]
+
+# Permitir métodos HTTP
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 # Email Settings
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')

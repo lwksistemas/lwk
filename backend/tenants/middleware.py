@@ -58,6 +58,27 @@ class TenantMiddleware:
                     # Usar database_name da loja (pode ser diferente do slug)
                     db_name = loja.database_name if loja.database_name else f'loja_{loja.slug}'
                     
+                    # Configurar banco dinamicamente se não existir
+                    if db_name not in settings.DATABASES:
+                        import dj_database_url
+                        import os
+                        DATABASE_URL = os.environ.get('DATABASE_URL')
+                        if DATABASE_URL:
+                            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+                            schema_name = f"loja_{loja.id}"
+                            settings.DATABASES[db_name] = {
+                                **default_db,
+                                'OPTIONS': {
+                                    'options': f'-c search_path={schema_name},public'
+                                },
+                                'ATOMIC_REQUESTS': False,
+                                'AUTOCOMMIT': True,
+                                'CONN_MAX_AGE': 600,
+                                'CONN_HEALTH_CHECKS': True,
+                                'TIME_ZONE': None,
+                            }
+                            logger.info(f"✅ [TenantMiddleware] Banco '{db_name}' configurado dinamicamente com schema '{schema_name}'")
+                    
                     # Verificar se o banco existe nas configurações
                     if db_name in settings.DATABASES:
                         # Limite de tamanho: bloquear escritas se o arquivo SQLite da loja >= 512 MB

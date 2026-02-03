@@ -246,10 +246,29 @@ def get_queryset(self):
 - ✅ Logs redundantes removidos
 - ✅ Importações corrigidas
 - ✅ Documentação atualizada
-- ⏳ Testes locais (pendente)
-- ⏳ Deploy para produção (pendente)
+- ✅ Deploy backend (Heroku v332)
+- ✅ Deploy frontend (Vercel)
 - ⏳ Verificação em produção (pendente)
 
 ---
 
-**STATUS:** Correções implementadas, aguardando testes e deploy ✅
+## 🚀 DEPLOY REALIZADO
+
+### Backend (Heroku)
+```
+✅ Versão: v332
+✅ URL: https://lwksistemas-38ad47519238.herokuapp.com
+✅ Status: Deploy bem-sucedido
+✅ Migrations: Aplicadas
+```
+
+### Frontend (Vercel)
+```
+✅ URL: https://lwksistemas.com.br
+✅ Status: Deploy bem-sucedido
+✅ Alias: Configurado
+```
+
+---
+
+**STATUS:** ✅ Deploy completo! Pronto para testes em produção

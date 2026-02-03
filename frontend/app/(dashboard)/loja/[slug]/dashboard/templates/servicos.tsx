@@ -98,10 +98,10 @@ export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
 
       {/* Estatísticas */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        <StatCard title="Agendamentos Hoje" value={estatisticas.agendamentos_hoje} icon="📅" cor={loja.cor_primaria} />
-        <StatCard title="Ordens Abertas" value={estatisticas.ordens_abertas} icon="🔧" cor={loja.cor_primaria} />
-        <StatCard title="Orçamentos Pendentes" value={estatisticas.orcamentos_pendentes} icon="💰" cor={loja.cor_primaria} />
-        <StatCard title="Receita Mensal" value={`R$ ${Number(estatisticas.receita_mensal).toLocaleString('pt-BR')}`} icon="💵" cor={loja.cor_primaria} />
+        <StatCard title="Agendamentos Hoje" value={stats.agendamentos_hoje} icon="📅" cor={loja.cor_primaria} />
+        <StatCard title="Ordens Abertas" value={stats.ordens_abertas} icon="🔧" cor={loja.cor_primaria} />
+        <StatCard title="Orçamentos Pendentes" value={stats.orcamentos_pendentes} icon="💰" cor={loja.cor_primaria} />
+        <StatCard title="Receita Mensal" value={`R$ ${Number(stats.receita_mensal).toLocaleString('pt-BR')}`} icon="💵" cor={loja.cor_primaria} />
       </div>
 
       {/* Agendamentos de Hoje */}

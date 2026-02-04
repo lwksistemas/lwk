@@ -56,35 +56,39 @@ class TenantMiddleware:
                         raise Loja.DoesNotExist
                     loja_id = loja.id
                     # Usar database_name da loja (pode ser diferente do slug)
-                    db_name = loja.database_name if loja.database_name else f'loja_{loja.slug}'
-                    
-                    # Configurar banco dinamicamente se não existir
+                    db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", tenant_slug)}'
+
+                    # Configurar banco dinamicamente só se não existir (evita 500 se schema não existir)
                     if db_name not in settings.DATABASES:
-                        import dj_database_url
-                        import os
-                        DATABASE_URL = os.environ.get('DATABASE_URL')
-                        if DATABASE_URL:
-                            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
-                            schema_name = f"loja_{loja.id}"
-                            settings.DATABASES[db_name] = {
-                                **default_db,
-                                'OPTIONS': {
-                                    'options': f'-c search_path={schema_name},public'
-                                },
-                                'ATOMIC_REQUESTS': False,
-                                'AUTOCOMMIT': True,
-                                'CONN_MAX_AGE': 600,
-                                'CONN_HEALTH_CHECKS': True,
-                                'TIME_ZONE': None,
-                            }
-                            logger.info(f"✅ [TenantMiddleware] Banco '{db_name}' configurado dinamicamente com schema '{schema_name}'")
-                    
+                        try:
+                            import dj_database_url
+                            import os
+                            DATABASE_URL = os.environ.get('DATABASE_URL')
+                            if DATABASE_URL:
+                                default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+                                schema_name = f"loja_{loja.id}"
+                                settings.DATABASES[db_name] = {
+                                    **default_db,
+                                    'OPTIONS': {
+                                        'options': f'-c search_path={schema_name},public'
+                                    },
+                                    'ATOMIC_REQUESTS': False,
+                                    'AUTOCOMMIT': True,
+                                    'CONN_MAX_AGE': 600,
+                                    'CONN_HEALTH_CHECKS': True,
+                                    'TIME_ZONE': None,
+                                }
+                                logger.info(f"✅ [TenantMiddleware] Banco '{db_name}' configurado dinamicamente com schema '{schema_name}'")
+                        except Exception as db_err:
+                            logger.warning("TenantMiddleware: falha ao configurar banco %s, usando default: %s", db_name, db_err)
+                            db_name = 'default'
+
                     # Verificar se o banco existe nas configurações
                     if db_name in settings.DATABASES:
                         # Limite de tamanho: bloquear escritas se o arquivo SQLite da loja >= 512 MB
                         if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
                             db_path = getattr(settings, 'BASE_DIR', None)
-                            if db_path is not None and loja.database_created and loja.database_name:
+                            if db_path is not None and getattr(loja, 'database_created', False) and getattr(loja, 'database_name', None):
                                 path = Path(db_path) / f'db_{loja.database_name}.sqlite3'
                                 if path.exists():
                                     try:
@@ -110,15 +114,18 @@ class TenantMiddleware:
                                         pass
                         set_current_tenant_db(db_name)
                     else:
-                        # Banco não existe, usar default
                         set_current_tenant_db('default')
-                    
-                    # ✅ IMPORTANTE: Setar o loja_id no contexto para o LojaIsolationManager
+
+                    # Sempre setar loja_id para o LojaIsolationManager (funciona com default DB)
                     set_current_loja_id(loja_id)
-                    logger.info(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={db_name}")
-                    
+                    logger.info(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={getattr(_thread_locals, 'current_tenant_db', 'default')}")
+
                 except Loja.DoesNotExist:
                     logger.warning(f"⚠️ [TenantMiddleware] Loja não encontrada: slug={tenant_slug}")
+                    set_current_tenant_db('default')
+                    set_current_loja_id(None)
+                except Exception as e:
+                    logger.exception("TenantMiddleware erro para slug=%s: %s", tenant_slug, e)
                     set_current_tenant_db('default')
                     set_current_loja_id(None)
             else:

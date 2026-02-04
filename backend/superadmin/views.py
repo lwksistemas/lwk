@@ -113,28 +113,36 @@ class LojaViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], authentication_classes=[])
     def info_publica(self, request):
-        """Retorna informações públicas da loja para página de login (sem autenticação). Otimizado com select_related."""
+        """Retorna informações públicas da loja para página de login (sem autenticação). Otimizado e defensivo."""
         slug = request.query_params.get('slug')
         if not slug:
             return Response({'error': 'slug é obrigatório'}, status=400)
-        
+        slug = slug.strip()
         try:
             loja = Loja.objects.select_related('tipo_loja').filter(slug__iexact=slug, is_active=True).first()
             if not loja:
-                raise Loja.DoesNotExist
+                return Response({'error': 'Loja não encontrada'}, status=404)
+            tipo = getattr(loja, 'tipo_loja', None)
+            tipo_nome = tipo.nome if tipo else 'Loja'
             return Response({
-                'id': loja.id,  # ✅ IMPORTANTE: ID único da loja para X-Loja-ID
-                'nome': loja.nome,
-                'slug': loja.slug,
-                'tipo_loja_nome': loja.tipo_loja.nome,
-                'cor_primaria': loja.cor_primaria,
-                'cor_secundaria': loja.cor_secundaria,
-                'logo': loja.logo,
-                'login_page_url': loja.login_page_url,
+                'id': loja.id,
+                'nome': getattr(loja, 'nome', '') or '',
+                'slug': getattr(loja, 'slug', '') or slug,
+                'tipo_loja_nome': tipo_nome,
+                'cor_primaria': getattr(loja, 'cor_primaria', None) or '#10B981',
+                'cor_secundaria': getattr(loja, 'cor_secundaria', None) or '#059669',
+                'logo': getattr(loja, 'logo', None) or '',
+                'login_page_url': getattr(loja, 'login_page_url', None) or '',
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
             })
         except Loja.DoesNotExist:
             return Response({'error': 'Loja não encontrada'}, status=404)
+        except Exception as e:
+            logger.exception('info_publica erro para slug=%s: %s', slug, e)
+            return Response(
+                {'error': 'Erro ao carregar dados da loja. Tente novamente.'},
+                status=500
+            )
     
     @action(detail=False, methods=['get'])
     def heartbeat(self, request):

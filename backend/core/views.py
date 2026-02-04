@@ -114,31 +114,38 @@ class BaseFuncionarioViewSet(BaseModelViewSet):
         """
         import logging
         from tenants.middleware import get_current_loja_id
+        from rest_framework import status
         logger = logging.getLogger(__name__)
         
         loja_id = get_current_loja_id()
         logger.debug(f"[{self.__class__.__name__}] list() - loja_id={loja_id}")
         
-        # Garantir que admin existe
-        self._ensure_owner_funcionario()
-        
-        # Obter e avaliar queryset
-        queryset = self.filter_queryset(self.get_queryset())
-        
-        # FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
-        # Isso converte o queryset lazy em uma lista concreta
-        funcionarios_list = list(queryset)
-        
-        logger.info(f"[{self.__class__.__name__}] {len(funcionarios_list)} registros retornados")
-        
-        # Paginar e serializar
-        page = self.paginate_queryset(funcionarios_list)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(funcionarios_list, many=True)
-        return Response(serializer.data)
+        try:
+            # Garantir que admin existe
+            self._ensure_owner_funcionario()
+            
+            # Obter e avaliar queryset
+            queryset = self.filter_queryset(self.get_queryset())
+            
+            # FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
+            # Isso converte o queryset lazy em uma lista concreta
+            funcionarios_list = list(queryset)
+            
+            logger.info(f"[{self.__class__.__name__}] {len(funcionarios_list)} registros retornados")
+            
+            # Paginar e serializar
+            page = self.paginate_queryset(funcionarios_list)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(funcionarios_list, many=True)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.exception(f"[{self.__class__.__name__}] Erro ao listar funcionários: {e}")
+            # Retornar lista vazia em caso de erro (ex.: tabelas não existem)
+            return Response([], status=status.HTTP_200_OK)
     
     def get_queryset(self):
         """

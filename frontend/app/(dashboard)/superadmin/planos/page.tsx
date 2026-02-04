@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { ModalNovoPlano } from '@/components/superadmin/planos';
 
 interface TipoLoja {
   id: number;
@@ -410,7 +411,7 @@ export default function PlanosPage() {
 
       {/* Modal Novo Plano */}
       {showModal && (
-        <NovoPlanoModal 
+        <ModalNovoPlano 
           onClose={handleCloseModal} 
           onSuccess={() => loadPlanosPorTipo(tipoSelecionado!)}
           editingPlano={editingPlano}
@@ -419,8 +420,6 @@ export default function PlanosPage() {
     </div>
   );
 }
-
-// Componente do Modal
 function NovoPlanoModal({ 
   onClose, 
   onSuccess,

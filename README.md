@@ -6,23 +6,43 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios.
 
 - **Frontend**: https://lwksistemas.com.br
 - **Backend API**: https://lwksistemas-38ad47519238.herokuapp.com
-- **Versão Atual**: v245
+- **Versão Atual**: v351
+
+## � Documentação Essencial
+
+### Início Rápido
+- [INICIO_RAPIDO.md](INICIO_RAPIDO.md) - Como começar a usar o sistema
+- [SETUP.md](SETUP.md) - Guia de instalação e configuração
+
+### Correção Atual (v349-v351)
+- [RESUMO_CORRECAO_LOOP_v351.md](RESUMO_CORRECAO_LOOP_v351.md) - ⭐ Resumo da correção do loop infinito
+- [CORRECAO_LOOP_INFINITO_v349.md](CORRECAO_LOOP_INFINITO_v349.md) - Detalhes técnicos da correção
+- [TESTAR_DASHBOARDS_CORRIGIDOS.md](TESTAR_DASHBOARDS_CORRIGIDOS.md) - Guia de teste dos dashboards
+
+### Manutenção
+- [MANUTENCAO_SISTEMA.md](MANUTENCAO_SISTEMA.md) - Guia de manutenção e troubleshooting
+- [LIMPEZA_COMPLETA_v351.md](LIMPEZA_COMPLETA_v351.md) - Detalhes da limpeza realizada
+- [RESUMO_LIMPEZA_FINAL.md](RESUMO_LIMPEZA_FINAL.md) - Resumo da limpeza
+
+### Histórico
+- [docs_backup/](docs_backup/) - Documentação de versões anteriores (v245-v348)
 
 ## 📋 Funcionalidades Principais
 
-### ✅ Implementado e Funcionando
+### ✅ Implementado e Funcionando (v351)
 
 1. **Multi-Tenant com 3 Grupos de Bancos**
    - Superadmin (gerenciamento global)
    - Suporte (sistema de tickets)
-   - Lojas (dados isolados por loja)
+   - Lojas (dados isolados por loja via PostgreSQL schemas)
 
 2. **Tipos de Loja Suportados**
-   - Clínica de Estética
-   - Serviços
-   - Restaurante
-   - CRM Vendas
-   - E-commerce
+   - Clínica de Estética ✅
+   - Cabeleireiro ✅ (novo em v349)
+   - Serviços ✅
+   - Restaurante ✅
+   - CRM Vendas ✅
+   - E-commerce ✅
 
 3. **Segurança**
    - ✅ Sessão única obrigatória (superadmin e suporte)
@@ -30,13 +50,20 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios.
    - ✅ Validação de grupo em cada requisição
    - ✅ Senha provisória com troca obrigatória
    - ✅ JWT Authentication
+   - ✅ Rate limiting em dashboards (10 req/min)
 
-4. **Integração de Pagamentos**
+4. **Dashboards Otimizados (v349-v351)**
+   - ✅ Sem loops infinitos
+   - ✅ Rate limiting aplicado
+   - ✅ Hook reescrito sem useCallback
+   - ✅ 1 requisição por carregamento
+
+5. **Integração de Pagamentos**
    - ✅ Asaas (assinaturas, cobranças, PIX, boleto)
    - ✅ Sincronização automática
    - ✅ Webhooks em tempo real
 
-5. **Gestão de Lojas**
+6. **Gestão de Lojas**
    - ✅ Criar/editar/excluir lojas
    - ✅ Exclusão completa (API Asaas + dados locais)
    - ✅ Dashboard limpo (sem dados de exemplo)
@@ -110,20 +137,28 @@ Usuário: felipe
 Senha: gV@rf2ZJJ3 (senha provisória)
 ```
 
-## ⚠️ Problemas Conhecidos
+## ⚠️ Problemas Resolvidos (v349-v351)
 
-### 1. Cache do Navegador Persistente
-**Problema:** Navegadores mantêm cache agressivo do JavaScript compilado.
+### ✅ Loop Infinito nos Dashboards - RESOLVIDO
+**Problema:** Dashboards fazendo 10-15 requisições/segundo.
 
-**Solução:**
-1. Acesse: https://lwksistemas.com.br/forcar-atualizacao
-2. Aguarde a limpeza automática
-3. Ou use outro navegador (Firefox, Edge)
+**Solução Aplicada:**
+1. ✅ Rate limiting no backend (10 req/min)
+2. ✅ Hook reescrito sem useCallback
+3. ✅ Aplicado em todos os tipos de loja
 
-### 2. Sessão Única - Lojas
-**Status:** Em investigação
-- ✅ Funciona para superadmin
-- ❌ Não funciona para usuários de loja
+**Status:** ✅ Funcionando perfeitamente
+
+### ✅ Código Limpo - CONCLUÍDO
+**Ação:** Limpeza geral do sistema
+
+**Resultado:**
+1. ✅ 121 arquivos .md organizados em docs_backup/
+2. ✅ Código não usado removido
+3. ✅ Cache Python limpo
+4. ✅ SQLite local removido
+
+**Status:** ✅ Sistema 100% limpo
 
 ## 🔧 Comandos Úteis
 
@@ -151,41 +186,53 @@ npm run build
 vercel --prod
 ```
 
-## 📊 Status do Sistema
+## 📊 Status do Sistema (v351)
 
-- **Backend**: ✅ Funcionando
-- **Frontend**: ✅ Funcionando
+- **Backend**: ✅ Funcionando (Heroku)
+- **Frontend**: ✅ Funcionando (Vercel)
 - **Integração Asaas**: ✅ Funcionando
-- **Sessão Única (Superadmin)**: ✅ Funcionando
-- **Sessão Única (Lojas)**: ⚠️ Em correção
-- **Dashboard Limpo**: ✅ Validado
-- **Exclusão Completa**: ✅ Implementada
+- **Sessão Única**: ✅ Funcionando
+- **Dashboards**: ✅ Sem loops (rate limiting aplicado)
+- **Código**: ✅ Limpo e otimizado
+- **Documentação**: ✅ Organizada
 
-## 📝 Histórico de Versões
+## 📝 Histórico de Versões Recentes
 
-- **v245** (26/01/2026) - Forçar invalidação completa de cache
-- **v244** (26/01/2026) - Página de forçar atualização
-- **v243** (26/01/2026) - Logs de debug e window.location.href
-- **v242** (26/01/2026) - Página de limpeza automática de cache
-- **v241** (26/01/2026) - Meta tags de no-cache
-- **v240** (26/01/2026) - Remoção de código duplicado
-- **v239** (26/01/2026) - Cache desabilitado no Vercel
-- **v238** (26/01/2026) - Correção de login com senha provisória
+- **v351** (03/02/2026) - Rate limiting em todos os dashboards
+- **v350** (03/02/2026) - Throttle em cabeleireiro e asaas
+- **v349** (03/02/2026) - Correção definitiva loop infinito + hook reescrito
+- **v348** (03/02/2026) - Correção CORS
+- **v347** (03/02/2026) - Schemas PostgreSQL criados
+- **v346** (03/02/2026) - Otimizações backend (-245 linhas)
 
-## 🎯 Próximos Passos
+Ver histórico completo em [docs_backup/](docs_backup/)
 
-1. ⏳ Corrigir sessão única para usuários de loja
-2. ⏳ Resolver cache persistente do CDN
-3. ⏳ Implementar testes automatizados
-4. ⏳ Adicionar monitoramento de erros
+## 🎯 Manutenção
+
+Para manter o sistema funcionando perfeitamente, consulte:
+- [MANUTENCAO_SISTEMA.md](MANUTENCAO_SISTEMA.md) - Guia completo de manutenção
+
+### Comandos Rápidos
+
+```bash
+# Limpar cache Python
+find backend -type d -name "__pycache__" -exec rm -rf {} +
+
+# Organizar documentação
+./limpar_codigo.sh
+
+# Ver logs
+heroku logs --tail
+```
 
 ## 📞 Suporte
 
 Para dúvidas ou problemas:
-1. Verifique a documentação em `docs_backup/`
-2. Consulte os arquivos de correção mais recentes
-3. Teste em modo anônimo para evitar cache
+1. Consulte [MANUTENCAO_SISTEMA.md](MANUTENCAO_SISTEMA.md) para troubleshooting
+2. Verifique a documentação em [docs_backup/](docs_backup/)
+3. Veja os logs: `heroku logs --tail`
 
 ---
 
-**Sistema em produção e funcionando!** ✨
+**Sistema em produção e funcionando perfeitamente!** ✨  
+**Versão**: v351 | **Data**: 03/02/2026

@@ -375,19 +375,253 @@ function EmptyState({ message, subMessage, actionLabel, onAction, cor }: {
   );
 }
 
-// Modal de Agendamento (placeholder - será implementado depois)
+// Modal de Agendamento
 function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const toast = useToast();
+  const [agendamentos, setAgendamentos] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [profissionais, setProfissionais] = useState<any[]>([]);
+  const [servicos, setServicos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editando, setEditando] = useState<any | null>(null);
+  const [formData, setFormData] = useState({
+    cliente: '',
+    profissional: '',
+    servico: '',
+    data: '',
+    horario: '',
+    observacoes: '',
+    status: 'agendado'
+  });
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
+
+  const carregarDados = async () => {
+    try {
+      setLoading(true);
+      const [agendamentosRes, clientesRes, profissionaisRes, servicosRes] = await Promise.all([
+        apiClient.get('/cabeleireiro/agendamentos/'),
+        apiClient.get('/cabeleireiro/clientes/'),
+        apiClient.get('/cabeleireiro/profissionais/'),
+        apiClient.get('/cabeleireiro/servicos/')
+      ]);
+      setAgendamentos(ensureArray(agendamentosRes.data));
+      setClientes(ensureArray(clientesRes.data));
+      setProfissionais(ensureArray(profissionaisRes.data));
+      setServicos(ensureArray(servicosRes.data));
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar dados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editando) {
+        await apiClient.put(`/cabeleireiro/agendamentos/${editando.id}/`, formData);
+        toast.success('Agendamento atualizado!');
+      } else {
+        await apiClient.post('/cabeleireiro/agendamentos/', formData);
+        toast.success('Agendamento criado!');
+      }
+      setFormData({ cliente: '', profissional: '', servico: '', data: '', horario: '', observacoes: '', status: 'agendado' });
+      setEditando(null);
+      carregarDados();
+    } catch (error: any) {
+      console.error('Erro ao salvar agendamento:', error);
+      const msg = error.response?.data?.detail || error.response?.data?.error || 'Erro ao salvar agendamento';
+      toast.error(msg);
+    }
+  };
+
+  const handleEditar = (agendamento: any) => {
+    setEditando(agendamento);
+    setFormData({
+      cliente: agendamento.cliente || '',
+      profissional: agendamento.profissional || '',
+      servico: agendamento.servico || '',
+      data: agendamento.data || '',
+      horario: agendamento.horario || '',
+      observacoes: agendamento.observacoes || '',
+      status: agendamento.status || 'agendado'
+    });
+  };
+
+  const handleExcluir = async (id: number) => {
+    if (!confirm('Deseja realmente excluir este agendamento?')) return;
+    try {
+      await apiClient.delete(`/cabeleireiro/agendamentos/${id}/`);
+      toast.success('Agendamento excluído!');
+      carregarDados();
+    } catch (error) {
+      console.error('Erro ao excluir agendamento:', error);
+      toast.error('Erro ao excluir agendamento');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      agendado: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+      confirmado: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+      em_atendimento: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+      concluido: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+      cancelado: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+    };
+    return colors[status] || colors.agendado;
+  };
+
   return (
-    <Modal isOpen={true} onClose={onClose} maxWidth="md">
+    <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
       <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">📅 Novo Agendamento</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">📅 Agendamentos</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
         </div>
-        <p className="text-gray-600 dark:text-gray-400 text-sm">
-          Em breve você poderá criar agendamentos por aqui. Por enquanto, use o sistema de agendamentos da clínica.
-        </p>
-        <button onClick={onClose} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
+
+        {/* Formulário */}
+        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Cliente *</label>
+              <select
+                value={formData.cliente}
+                onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
+                required
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="">Selecione um cliente</option>
+                {clientes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Profissional *</label>
+              <select
+                value={formData.profissional}
+                onChange={(e) => setFormData({ ...formData, profissional: e.target.value })}
+                required
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="">Selecione um profissional</option>
+                {profissionais.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Serviço *</label>
+              <select
+                value={formData.servico}
+                onChange={(e) => setFormData({ ...formData, servico: e.target.value })}
+                required
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="">Selecione um serviço</option>
+                {servicos.map((s) => (
+                  <option key={s.id} value={s.id}>{s.nome} - R$ {parseFloat(s.preco).toFixed(2)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Data *</label>
+              <input
+                type="date"
+                value={formData.data}
+                onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                required
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Horário *</label>
+              <input
+                type="time"
+                value={formData.horario}
+                onChange={(e) => setFormData({ ...formData, horario: e.target.value })}
+                required
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="agendado">Agendado</option>
+                <option value="confirmado">Confirmado</option>
+                <option value="em_atendimento">Em Atendimento</option>
+                <option value="concluido">Concluído</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1 dark:text-white">Observações</label>
+              <textarea
+                value={formData.observacoes}
+                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                rows={2}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button type="submit" className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>
+              {editando ? 'Atualizar' : 'Criar Agendamento'}
+            </button>
+            {editando && (
+              <button 
+                type="button" 
+                onClick={() => { 
+                  setEditando(null); 
+                  setFormData({ cliente: '', profissional: '', servico: '', data: '', horario: '', observacoes: '', status: 'agendado' }); 
+                }} 
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+
+        {/* Lista */}
+        {loading ? (
+          <p className="text-center text-gray-500">Carregando...</p>
+        ) : agendamentos.length === 0 ? (
+          <p className="text-center text-gray-500">Nenhum agendamento cadastrado</p>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {agendamentos.map((agendamento) => (
+              <div key={agendamento.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold dark:text-white">{agendamento.cliente_nome}</p>
+                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(agendamento.status)}`}>
+                      {agendamento.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {agendamento.servico_nome} • {agendamento.profissional_nome}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500">
+                    📅 {agendamento.data} às {agendamento.horario}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleEditar(agendamento)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Editar</button>
+                  <button onClick={() => handleExcluir(agendamento.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Excluir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Modal>
   );

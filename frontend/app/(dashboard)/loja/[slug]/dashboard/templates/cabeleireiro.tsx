@@ -222,15 +222,11 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
           <button onClick={() => closeModal('venda')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
         </div>
       </Modal>
-      <Modal isOpen={modals.funcionarios} onClose={() => closeModal('funcionarios')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">👥 Funcionários</h3>
-            <button onClick={() => closeModal('funcionarios')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá gerenciar funcionários por aqui.</p>
-          <button onClick={() => closeModal('funcionarios')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
+      <Modal isOpen={modals.funcionarios} onClose={() => closeModal('funcionarios')} maxWidth="4xl">
+        <ModalFuncionarios loja={loja} onClose={() => {
+          closeModal('funcionarios');
+          reload();
+        }} />
       </Modal>
       <Modal isOpen={modals.horarios} onClose={() => closeModal('horarios')} maxWidth="md">
         <div className="p-6">
@@ -1093,6 +1089,262 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
         )}
       </div>
     </Modal>
+  );
+}
+
+// Modal de Funcionários
+function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const toast = useToast();
+  const [funcionarios, setFuncionarios] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editando, setEditando] = useState<any | null>(null);
+  const [formData, setFormData] = useState({ nome: '', email: '', telefone: '', cargo: '' });
+
+  useEffect(() => {
+    carregarFuncionarios();
+  }, []);
+
+  const carregarFuncionarios = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/cabeleireiro/funcionarios/');
+      setFuncionarios(ensureArray(response.data));
+    } catch (error) {
+      console.error('Erro ao carregar funcionários:', error);
+      toast.error('Erro ao carregar funcionários');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editando) {
+        await apiClient.put(`/cabeleireiro/funcionarios/${editando.id}/`, formData);
+        toast.success('Funcionário atualizado!');
+      } else {
+        await apiClient.post('/cabeleireiro/funcionarios/', formData);
+        toast.success('Funcionário cadastrado!');
+      }
+      setFormData({ nome: '', email: '', telefone: '', cargo: '' });
+      setEditando(null);
+      setShowForm(false);
+      carregarFuncionarios();
+    } catch (error) {
+      console.error('Erro ao salvar funcionário:', error);
+      toast.error('Erro ao salvar funcionário');
+    }
+  };
+
+  const handleEditar = (funcionario: any) => {
+    // Proteção: não permitir editar administrador
+    if (funcionario.is_admin) {
+      alert('⚠️ O administrador da loja não pode ser editado por aqui.\n\nPara alterar dados do administrador, acesse as configurações da loja no painel do SuperAdmin.');
+      return;
+    }
+    
+    setEditando(funcionario);
+    setFormData({
+      nome: funcionario.nome || '',
+      email: funcionario.email || '',
+      telefone: funcionario.telefone || '',
+      cargo: funcionario.cargo || ''
+    });
+    setShowForm(true);
+  };
+
+  const handleExcluir = async (funcionario: any) => {
+    // Proteção: não permitir excluir administrador
+    if (funcionario.is_admin) {
+      alert('⚠️ O administrador da loja não pode ser excluído.\n\nO administrador é vinculado automaticamente ao criar a loja.');
+      return;
+    }
+    
+    if (!confirm(`Deseja realmente excluir o funcionário ${funcionario.nome}?`)) return;
+    try {
+      await apiClient.delete(`/cabeleireiro/funcionarios/${funcionario.id}/`);
+      toast.success('Funcionário excluído!');
+      carregarFuncionarios();
+    } catch (error) {
+      console.error('Erro ao excluir funcionário:', error);
+      toast.error('Erro ao excluir funcionário');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ nome: '', email: '', telefone: '', cargo: '' });
+    setEditando(null);
+    setShowForm(false);
+  };
+
+  if (showForm) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            {editando ? '✏️ Editar Funcionário' : '➕ Novo Funcionário'}
+          </h3>
+          <button onClick={resetForm} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1 dark:text-white">Nome Completo *</label>
+              <input
+                type="text"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                required
+                placeholder="Ex: Maria Silva"
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Email *</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                placeholder="email@exemplo.com"
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Telefone *</label>
+              <input
+                type="tel"
+                value={formData.telefone}
+                onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                required
+                placeholder="(00) 00000-0000"
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1 dark:text-white">Cargo *</label>
+              <input
+                type="text"
+                value={formData.cargo}
+                onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
+                required
+                placeholder="Ex: Cabeleireiro, Manicure, Recepcionista"
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <button type="button" onClick={resetForm} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white">
+              Cancelar
+            </button>
+            <button type="submit" className="px-6 py-2 text-white rounded-lg" style={{ backgroundColor: loja.cor_primaria }}>
+              {editando ? 'Atualizar' : 'Cadastrar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white">👥 Gerenciar Funcionários</h3>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
+      </div>
+
+      {loading ? (
+        <p className="text-center text-gray-500 py-8">Carregando funcionários...</p>
+      ) : funcionarios.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg mb-2">Nenhum funcionário cadastrado</p>
+          <p className="text-sm mb-4">O administrador da loja é automaticamente cadastrado como funcionário</p>
+          <button 
+            onClick={() => setShowForm(true)} 
+            className="px-6 py-3 rounded-lg text-white" 
+            style={{ backgroundColor: loja.cor_primaria }}
+          >
+            + Cadastrar Funcionário
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3 mb-6 max-h-96 overflow-y-auto">
+            {funcionarios.map((func) => (
+              <div 
+                key={func.id} 
+                className={`flex items-center justify-between p-4 border rounded-lg ${
+                  func.is_admin 
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' 
+                    : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
+                }`}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold text-lg dark:text-white">{func.nome}</p>
+                    {func.is_admin && (
+                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-semibold rounded-full">
+                        👤 Administrador
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{func.cargo}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{func.email} • {func.telefone}</p>
+                  {func.is_admin && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                      ℹ️ Administrador vinculado automaticamente à loja (não pode ser editado ou excluído)
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {func.is_admin ? (
+                    <button 
+                      disabled
+                      className="px-4 py-2 text-sm bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed"
+                      title="Administrador não pode ser editado"
+                    >
+                      🔒 Protegido
+                    </button>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={() => handleEditar(func)} 
+                        className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button 
+                        onClick={() => handleExcluir(func)} 
+                        className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600"
+                      >
+                        🗑️ Excluir
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white">
+              Fechar
+            </button>
+            <button 
+              onClick={() => setShowForm(true)} 
+              className="px-6 py-2 text-white rounded-lg" 
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              + Novo Funcionário
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

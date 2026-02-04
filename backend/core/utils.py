@@ -20,6 +20,7 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
     """
     from tenants.middleware import get_current_loja_id
     from superadmin.models import Loja
+    from django.db import connection
     from datetime import date
     
     loja_id = get_current_loja_id()
@@ -32,51 +33,37 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
         loja = Loja.objects.get(id=loja_id)
         owner = loja.owner
         
-        # Verificar se o manager tem all_without_filter (LojaIsolationManager)
-        # Se não tiver, usar filter direto (bypass do isolamento não é necessário)
-        manager = funcionario_model.objects
-        if hasattr(manager, 'all_without_filter'):
-            # Manager customizado com bypass de isolamento
-            base_queryset = manager.all_without_filter()
-        else:
-            # Manager padrão do Django - usar filter direto
-            base_queryset = manager.all()
+        # Usar SQL direto para garantir que estamos no schema correto
+        table_name = funcionario_model._meta.db_table
         
-        # Verificar se já existe
-        exists = base_queryset.filter(
-            loja_id=loja_id, 
-            email=owner.email
-        ).exists()
-        
-        if not exists:
-            logger.info(f"✅ [ensure_owner_as_funcionario] Criando funcionário admin para loja {loja_id}")
+        with connection.cursor() as cursor:
+            # Verificar se já existe
+            cursor.execute(f"""
+                SELECT COUNT(*) FROM {table_name}
+                WHERE loja_id = %s AND email = %s
+            """, [loja_id, owner.email])
             
-            # Preparar dados do funcionário
-            funcionario_data = {
-                'nome': owner.get_full_name() or owner.username or owner.email.split('@')[0],
-                'email': owner.email,
-                'telefone': getattr(owner, 'telefone', '') or '',
-                'cargo': cargo_padrao,
-                'loja_id': loja_id,
-            }
+            count = cursor.fetchone()[0]
             
-            # Adicionar is_admin apenas se o modelo tiver esse campo
-            if hasattr(funcionario_model, 'is_admin'):
-                funcionario_data['is_admin'] = True
-            
-            # Adicionar data_admissao se o modelo tiver esse campo e for obrigatório
-            model_fields = {f.name: f for f in funcionario_model._meta.get_fields()}
-            if 'data_admissao' in model_fields:
-                field = model_fields['data_admissao']
-                if not field.null and not field.blank:
-                    funcionario_data['data_admissao'] = date.today()
-            
-            base_queryset.create(**funcionario_data)
-            logger.info(f"✅ [ensure_owner_as_funcionario] Funcionário admin criado com sucesso")
-            return True
-        else:
-            logger.debug(f"ℹ️ [ensure_owner_as_funcionario] Funcionário admin já existe para loja {loja_id}")
-            return True
+            if count == 0:
+                logger.info(f"✅ [ensure_owner_as_funcionario] Criando funcionário admin para loja {loja_id}")
+                
+                nome = owner.get_full_name() or owner.username or owner.email.split('@')[0]
+                telefone = getattr(owner, 'telefone', '') or ''
+                data_admissao = date.today()
+                
+                # Inserir diretamente
+                cursor.execute(f"""
+                    INSERT INTO {table_name} 
+                    (loja_id, nome, email, telefone, cargo, data_admissao, is_active, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, TRUE, NOW(), NOW())
+                """, [loja_id, nome, owner.email, telefone, cargo_padrao, data_admissao])
+                
+                logger.info(f"✅ [ensure_owner_as_funcionario] Funcionário admin criado com sucesso")
+                return True
+            else:
+                logger.debug(f"ℹ️ [ensure_owner_as_funcionario] Funcionário admin já existe para loja {loja_id}")
+                return True
             
     except Loja.DoesNotExist:
         logger.error(f"❌ [ensure_owner_as_funcionario] Loja {loja_id} não encontrada")

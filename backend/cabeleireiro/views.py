@@ -284,6 +284,8 @@ class FuncionarioViewSet(BaseFuncionarioViewSet):
     queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
     permission_classes = [IsAuthenticated]
+    model_class = Funcionario  # ✅ Necessário para BaseFuncionarioViewSet
+    cargo_padrao = 'Administrador'
 
 
 class HorarioFuncionamentoViewSet(BaseModelViewSet):

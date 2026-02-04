@@ -118,6 +118,7 @@ class VendaSerializer(BaseLojaSerializer):
 class FuncionarioSerializer(BaseLojaSerializer):
     """Serializer de Funcionário"""
     tempo_empresa = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
 
     class Meta:
         model = Funcionario
@@ -131,6 +132,15 @@ class FuncionarioSerializer(BaseLojaSerializer):
         anos = delta.days // 365
         meses = (delta.days % 365) // 30
         return f"{anos} anos e {meses} meses"
+    
+    def get_is_admin(self, obj):
+        """Verifica se o funcionário é o administrador da loja"""
+        from stores.models import Loja
+        try:
+            loja = Loja.objects.get(id=obj.loja_id)
+            return obj.email == loja.email_proprietario
+        except:
+            return False
 
 
 class HorarioFuncionamentoSerializer(BaseLojaSerializer):

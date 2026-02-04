@@ -33,10 +33,16 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
         loja = Loja.objects.get(id=loja_id)
         owner = loja.owner
         
-        # Usar SQL direto para garantir que estamos no schema correto
+        # Obter o schema da loja
+        schema_name = f'loja_{loja.slug.replace("-", "_")}'
         table_name = funcionario_model._meta.db_table
         
+        logger.info(f"🔍 [ensure_owner_as_funcionario] Verificando funcionário admin no schema {schema_name}")
+        
         with connection.cursor() as cursor:
+            # CRÍTICO: Setar o search_path para o schema da loja
+            cursor.execute(f"SET search_path TO {schema_name}, public")
+            
             # Verificar se já existe
             cursor.execute(f"""
                 SELECT COUNT(*) FROM {table_name}
@@ -46,7 +52,7 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
             count = cursor.fetchone()[0]
             
             if count == 0:
-                logger.info(f"✅ [ensure_owner_as_funcionario] Criando funcionário admin para loja {loja_id}")
+                logger.info(f"✅ [ensure_owner_as_funcionario] Criando funcionário admin para loja {loja_id} no schema {schema_name}")
                 
                 nome = owner.get_full_name() or owner.username or owner.email.split('@')[0]
                 telefone = getattr(owner, 'telefone', '') or ''
@@ -59,7 +65,7 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
                     VALUES (%s, %s, %s, %s, %s, %s, TRUE, NOW(), NOW())
                 """, [loja_id, nome, owner.email, telefone, cargo_padrao, data_admissao])
                 
-                logger.info(f"✅ [ensure_owner_as_funcionario] Funcionário admin criado com sucesso")
+                logger.info(f"✅ [ensure_owner_as_funcionario] Funcionário admin criado com sucesso no schema {schema_name}")
                 return True
             else:
                 logger.debug(f"ℹ️ [ensure_owner_as_funcionario] Funcionário admin já existe para loja {loja_id}")

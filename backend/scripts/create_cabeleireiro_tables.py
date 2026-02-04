@@ -13,7 +13,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from django.db import connection
-from stores.models import Loja
+from superadmin.models import Loja
 
 def main():
     # Buscar todas as lojas de cabeleireiro

@@ -135,10 +135,10 @@ class FuncionarioSerializer(BaseLojaSerializer):
     
     def get_is_admin(self, obj):
         """Verifica se o funcionário é o administrador da loja"""
-        from stores.models import Loja
+        from superadmin.models import Loja
         try:
             loja = Loja.objects.get(id=obj.loja_id)
-            return obj.email == loja.email_proprietario
+            return obj.email == loja.owner.email
         except:
             return False
 

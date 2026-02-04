@@ -181,12 +181,11 @@ frontend/components/superadmin/asaas/
 
 ### ✅ Progresso:
 - [x] Análise completa de todas as páginas
-- [x] Identificação dos modais em lojas/page.tsx:
-  - NovaLojaModal (linhas 484-1264) - 780 linhas
-  - ModalEditarLoja (linhas 1265-1388) - 123 linhas  
-  - ModalExcluirLoja (linhas 1389-1500) - 111 linhas
-- [ ] Extração dos modais para arquivos separados
-- [ ] Testes e deploy
+- [x] Identificação dos modais em planos/page.tsx
+- [x] Extração do ModalNovoPlano para arquivo separado ✅
+- [x] Testes e deploy ✅
+- [x] **planos/page.tsx refatorado com sucesso!**
+- [ ] lojas/page.tsx (próximo passo - mais complexo)
 
 ---
 
@@ -199,5 +198,5 @@ frontend/components/superadmin/asaas/
 
 ---
 
-**Criado em**: 04/02/2026  
-**Status**: 🔄 Em Andamento - Fase 1
+**Status**: ✅ Fase 1 Completa - planos/page.tsx refatorado!  
+**Próximo**: lojas/page.tsx (mais complexo, requer atenção especial)

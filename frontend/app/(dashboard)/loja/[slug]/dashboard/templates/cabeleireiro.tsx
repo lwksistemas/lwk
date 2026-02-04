@@ -10,6 +10,7 @@ import { useModals } from '@/hooks/useModals';
 import { Modal } from '@/components/ui/Modal';
 import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
+import apiClient from '@/lib/api-client';
 
 // Types específicos do Cabeleireiro
 interface EstatisticasCabeleireiro {
@@ -39,7 +40,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   // Hook para gerenciar modais
   const { modals, openModal, closeModal } = useModals([
     'agendamento', 'cliente', 'servico', 'profissional',
-    'produto', 'venda', 'funcionarios', 'horarios', 'bloqueios'
+    'produto', 'venda', 'funcionarios', 'horarios', 'bloqueios', 'calendario'
   ] as const);
 
   // Hook para carregar dados do dashboard
@@ -77,7 +78,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   }, [loja?.id, loja?.slug]);
 
   // Handlers
-  const handleNovoAgendamento = () => openModal('agendamento');
+  const handleNovoAgendamento = () => openModal('calendario');
   const handleNovoCliente = () => openModal('cliente');
   const handleServicos = () => openModal('servico');
   const handleNovoProfissional = () => openModal('profissional');
@@ -123,7 +124,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
         
         <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 text-center">
-            💡 <strong>Dashboard Cabeleireiro</strong> - Gerencie agendamentos, clientes, serviços e produtos
+            💡 <strong>Dashboard Cabeleireiro</strong> - Gerencie agendamentos, clientes, serviços e profissionais
           </p>
         </div>
       </div>
@@ -168,47 +169,39 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
         )}
       </div>
 
-      {/* Modais com overlay e botão fechar */}
-      <Modal isOpen={modals.agendamento} onClose={() => closeModal('agendamento')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">📅 Novo Agendamento</h3>
-            <button onClick={() => closeModal('agendamento')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá cadastrar agendamentos por aqui. Use o menu ou entre em contato com o suporte.</p>
-          <button onClick={() => closeModal('agendamento')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
-      </Modal>
-      <Modal isOpen={modals.cliente} onClose={() => closeModal('cliente')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">👤 Novo Cliente</h3>
-            <button onClick={() => closeModal('cliente')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá cadastrar clientes por aqui.</p>
-          <button onClick={() => closeModal('cliente')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
-      </Modal>
-      <Modal isOpen={modals.servico} onClose={() => closeModal('servico')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">✂️ Serviços</h3>
-            <button onClick={() => closeModal('servico')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá gerenciar serviços por aqui.</p>
-          <button onClick={() => closeModal('servico')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
-      </Modal>
-      <Modal isOpen={modals.profissional} onClose={() => closeModal('profissional')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">💇 Novo Profissional</h3>
-            <button onClick={() => closeModal('profissional')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá cadastrar profissionais por aqui.</p>
-          <button onClick={() => closeModal('profissional')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
-      </Modal>
+      {/* Modal de Calendário/Agendamentos */}
+      {modals.calendario && (
+        <ModalAgendamento loja={loja} onClose={() => {
+          closeModal('calendario');
+          reload();
+        }} />
+      )}
+
+      {/* Modal de Clientes */}
+      {modals.cliente && (
+        <ModalCliente loja={loja} onClose={() => {
+          closeModal('cliente');
+          reload();
+        }} />
+      )}
+
+      {/* Modal de Profissionais */}
+      {modals.profissional && (
+        <ModalProfissional loja={loja} onClose={() => {
+          closeModal('profissional');
+          reload();
+        }} />
+      )}
+
+      {/* Modal de Serviços */}
+      {modals.servico && (
+        <ModalServico loja={loja} onClose={() => {
+          closeModal('servico');
+          reload();
+        }} />
+      )}
+
+      {/* Modais simples "Em breve" para funcionalidades ainda não implementadas */}
       <Modal isOpen={modals.produto} onClose={() => closeModal('produto')} maxWidth="md">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
@@ -222,7 +215,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       <Modal isOpen={modals.venda} onClose={() => closeModal('venda')} maxWidth="md">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">💰 Nova Venda</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">� Nova Venda</h3>
             <button onClick={() => closeModal('venda')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
           </div>
           <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá registrar vendas por aqui.</p>
@@ -242,7 +235,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       <Modal isOpen={modals.horarios} onClose={() => closeModal('horarios')} maxWidth="md">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">🕐 Horários de Funcionamento</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">� Horários de Funcionamento</h3>
             <button onClick={() => closeModal('horarios')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
           </div>
           <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá configurar horários por aqui.</p>
@@ -381,3 +374,491 @@ function EmptyState({ message, subMessage, actionLabel, onAction, cor }: {
     </div>
   );
 }
+
+// Modal de Agendamento (placeholder - será implementado depois)
+function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  return (
+    <Modal isOpen={true} onClose={onClose} maxWidth="md">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">📅 Novo Agendamento</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
+        </div>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
+          Em breve você poderá criar agendamentos por aqui. Por enquanto, use o sistema de agendamentos da clínica.
+        </p>
+        <button onClick={onClose} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
+      </div>
+    </Modal>
+  );
+}
+
+// Modal de Cliente
+function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const toast = useToast();
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editando, setEditando] = useState<any | null>(null);
+  const [formData, setFormData] = useState({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', observacoes: '' });
+
+  useEffect(() => {
+    carregarClientes();
+  }, []);
+
+  const carregarClientes = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/cabeleireiro/clientes/');
+      setClientes(ensureArray(response.data));
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+      toast.error('Erro ao carregar clientes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editando) {
+        await apiClient.put(`/cabeleireiro/clientes/${editando.id}/`, formData);
+        toast.success('Cliente atualizado!');
+      } else {
+        await apiClient.post('/cabeleireiro/clientes/', formData);
+        toast.success('Cliente cadastrado!');
+      }
+      setFormData({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', observacoes: '' });
+      setEditando(null);
+      carregarClientes();
+    } catch (error) {
+      console.error('Erro ao salvar cliente:', error);
+      toast.error('Erro ao salvar cliente');
+    }
+  };
+
+  const handleEditar = (cliente: any) => {
+    setEditando(cliente);
+    setFormData({
+      nome: cliente.nome || '',
+      telefone: cliente.telefone || '',
+      email: cliente.email || '',
+      cpf: cliente.cpf || '',
+      data_nascimento: cliente.data_nascimento || '',
+      observacoes: cliente.observacoes || ''
+    });
+  };
+
+  const handleExcluir = async (id: number) => {
+    if (!confirm('Deseja realmente excluir este cliente?')) return;
+    try {
+      await apiClient.delete(`/cabeleireiro/clientes/${id}/`);
+      toast.success('Cliente excluído!');
+      carregarClientes();
+    } catch (error) {
+      console.error('Erro ao excluir cliente:', error);
+      toast.error('Erro ao excluir cliente');
+    }
+  };
+
+  return (
+    <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">👤 Clientes</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
+        </div>
+
+        {/* Formulário */}
+        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              placeholder="Nome *"
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              required
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="tel"
+              placeholder="Telefone *"
+              value={formData.telefone}
+              onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+              required
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="email"
+              placeholder="E-mail"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="text"
+              placeholder="CPF"
+              value={formData.cpf}
+              onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="date"
+              placeholder="Data de Nascimento"
+              value={formData.data_nascimento}
+              onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <textarea
+              placeholder="Observações"
+              value={formData.observacoes}
+              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              rows={2}
+            />
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button type="submit" className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>
+              {editando ? 'Atualizar' : 'Cadastrar'}
+            </button>
+            {editando && (
+              <button type="button" onClick={() => { setEditando(null); setFormData({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', observacoes: '' }); }} className="px-4 py-2 bg-gray-500 text-white rounded-lg">
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+
+        {/* Lista */}
+        {loading ? (
+          <p className="text-center text-gray-500">Carregando...</p>
+        ) : clientes.length === 0 ? (
+          <p className="text-center text-gray-500">Nenhum cliente cadastrado</p>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {clientes.map((cliente) => (
+              <div key={cliente.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="font-semibold dark:text-white">{cliente.nome}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{cliente.telefone} {cliente.email && `• ${cliente.email}`}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleEditar(cliente)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Editar</button>
+                  <button onClick={() => handleExcluir(cliente.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Excluir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// Modal de Profissional
+function ModalProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const toast = useToast();
+  const [profissionais, setProfissionais] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editando, setEditando] = useState<any | null>(null);
+  const [formData, setFormData] = useState({ nome: '', telefone: '', email: '', especialidade: '', comissao_percentual: '' });
+
+  useEffect(() => {
+    carregarProfissionais();
+  }, []);
+
+  const carregarProfissionais = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/cabeleireiro/profissionais/');
+      setProfissionais(ensureArray(response.data));
+    } catch (error) {
+      console.error('Erro ao carregar profissionais:', error);
+      toast.error('Erro ao carregar profissionais');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editando) {
+        await apiClient.put(`/cabeleireiro/profissionais/${editando.id}/`, formData);
+        toast.success('Profissional atualizado!');
+      } else {
+        await apiClient.post('/cabeleireiro/profissionais/', formData);
+        toast.success('Profissional cadastrado!');
+      }
+      setFormData({ nome: '', telefone: '', email: '', especialidade: '', comissao_percentual: '' });
+      setEditando(null);
+      carregarProfissionais();
+    } catch (error) {
+      console.error('Erro ao salvar profissional:', error);
+      toast.error('Erro ao salvar profissional');
+    }
+  };
+
+  const handleEditar = (profissional: any) => {
+    setEditando(profissional);
+    setFormData({
+      nome: profissional.nome || '',
+      telefone: profissional.telefone || '',
+      email: profissional.email || '',
+      especialidade: profissional.especialidade || '',
+      comissao_percentual: profissional.comissao_percentual || ''
+    });
+  };
+
+  const handleExcluir = async (id: number) => {
+    if (!confirm('Deseja realmente excluir este profissional?')) return;
+    try {
+      await apiClient.delete(`/cabeleireiro/profissionais/${id}/`);
+      toast.success('Profissional excluído!');
+      carregarProfissionais();
+    } catch (error) {
+      console.error('Erro ao excluir profissional:', error);
+      toast.error('Erro ao excluir profissional');
+    }
+  };
+
+  return (
+    <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">💇 Profissionais</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
+        </div>
+
+        {/* Formulário */}
+        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              placeholder="Nome *"
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              required
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="tel"
+              placeholder="Telefone *"
+              value={formData.telefone}
+              onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+              required
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="email"
+              placeholder="E-mail"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="text"
+              placeholder="Especialidade"
+              value={formData.especialidade}
+              onChange={(e) => setFormData({ ...formData, especialidade: e.target.value })}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="number"
+              placeholder="Comissão (%)"
+              value={formData.comissao_percentual}
+              onChange={(e) => setFormData({ ...formData, comissao_percentual: e.target.value })}
+              step="0.01"
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button type="submit" className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>
+              {editando ? 'Atualizar' : 'Cadastrar'}
+            </button>
+            {editando && (
+              <button type="button" onClick={() => { setEditando(null); setFormData({ nome: '', telefone: '', email: '', especialidade: '', comissao_percentual: '' }); }} className="px-4 py-2 bg-gray-500 text-white rounded-lg">
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+
+        {/* Lista */}
+        {loading ? (
+          <p className="text-center text-gray-500">Carregando...</p>
+        ) : profissionais.length === 0 ? (
+          <p className="text-center text-gray-500">Nenhum profissional cadastrado</p>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {profissionais.map((profissional) => (
+              <div key={profissional.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="font-semibold dark:text-white">{profissional.nome}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {profissional.telefone} {profissional.especialidade && `• ${profissional.especialidade}`}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleEditar(profissional)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Editar</button>
+                  <button onClick={() => handleExcluir(profissional.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Excluir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// Modal de Serviço
+function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+  const toast = useToast();
+  const [servicos, setServicos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editando, setEditando] = useState<any | null>(null);
+  const [formData, setFormData] = useState({ nome: '', descricao: '', duracao_minutos: '', preco: '' });
+
+  useEffect(() => {
+    carregarServicos();
+  }, []);
+
+  const carregarServicos = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/cabeleireiro/servicos/');
+      setServicos(ensureArray(response.data));
+    } catch (error) {
+      console.error('Erro ao carregar serviços:', error);
+      toast.error('Erro ao carregar serviços');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editando) {
+        await apiClient.put(`/cabeleireiro/servicos/${editando.id}/`, formData);
+        toast.success('Serviço atualizado!');
+      } else {
+        await apiClient.post('/cabeleireiro/servicos/', formData);
+        toast.success('Serviço cadastrado!');
+      }
+      setFormData({ nome: '', descricao: '', duracao_minutos: '', preco: '' });
+      setEditando(null);
+      carregarServicos();
+    } catch (error) {
+      console.error('Erro ao salvar serviço:', error);
+      toast.error('Erro ao salvar serviço');
+    }
+  };
+
+  const handleEditar = (servico: any) => {
+    setEditando(servico);
+    setFormData({
+      nome: servico.nome || '',
+      descricao: servico.descricao || '',
+      duracao_minutos: servico.duracao_minutos || '',
+      preco: servico.preco || ''
+    });
+  };
+
+  const handleExcluir = async (id: number) => {
+    if (!confirm('Deseja realmente excluir este serviço?')) return;
+    try {
+      await apiClient.delete(`/cabeleireiro/servicos/${id}/`);
+      toast.success('Serviço excluído!');
+      carregarServicos();
+    } catch (error) {
+      console.error('Erro ao excluir serviço:', error);
+      toast.error('Erro ao excluir serviço');
+    }
+  };
+
+  return (
+    <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">✂️ Serviços</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
+        </div>
+
+        {/* Formulário */}
+        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              placeholder="Nome do Serviço *"
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              required
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="number"
+              placeholder="Duração (minutos) *"
+              value={formData.duracao_minutos}
+              onChange={(e) => setFormData({ ...formData, duracao_minutos: e.target.value })}
+              required
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <input
+              type="number"
+              placeholder="Preço (R$) *"
+              value={formData.preco}
+              onChange={(e) => setFormData({ ...formData, preco: e.target.value })}
+              required
+              step="0.01"
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+            <textarea
+              placeholder="Descrição"
+              value={formData.descricao}
+              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white md:col-span-2"
+              rows={2}
+            />
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button type="submit" className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>
+              {editando ? 'Atualizar' : 'Cadastrar'}
+            </button>
+            {editando && (
+              <button type="button" onClick={() => { setEditando(null); setFormData({ nome: '', descricao: '', duracao_minutos: '', preco: '' }); }} className="px-4 py-2 bg-gray-500 text-white rounded-lg">
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+
+        {/* Lista */}
+        {loading ? (
+          <p className="text-center text-gray-500">Carregando...</p>
+        ) : servicos.length === 0 ? (
+          <p className="text-center text-gray-500">Nenhum serviço cadastrado</p>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {servicos.map((servico) => (
+              <div key={servico.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg">
+                <div>
+                  <p className="font-semibold dark:text-white">{servico.nome}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {servico.duracao_minutos} min • R$ {parseFloat(servico.preco).toFixed(2)}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleEditar(servico)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Editar</button>
+                  <button onClick={() => handleExcluir(servico.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Excluir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+

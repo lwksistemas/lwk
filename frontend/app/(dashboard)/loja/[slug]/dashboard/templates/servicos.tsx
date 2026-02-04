@@ -16,7 +16,7 @@ import {
   ModalOrdensServico,
   ModalOrcamentos,
   ModalFuncionarios
-} from './servicos-modals-all';
+} from '@/components/servicos/modals';
 
 export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
   const router = useRouter();

@@ -19,7 +19,7 @@ interface ModalBaseProps {
   icon: string;
   endpoint: string;
   formFields: any[];
-  renderListItem: (item: any, handleEditar: any, handleExcluir: any, loja: any) => JSX.Element;
+  renderListItem: (item: any, handleEditar: any, handleExcluir: any, loja: any) => React.ReactElement;
   emptyMessage?: string;
 }
 

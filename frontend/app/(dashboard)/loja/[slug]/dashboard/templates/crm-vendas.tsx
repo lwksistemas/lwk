@@ -10,7 +10,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
 import { LojaInfo, EstatisticasCRM, Lead } from '@/types/dashboard';
 import { ORIGENS_CRM, STATUS_LEAD } from '@/constants/status';
-import { ModalLead } from '@/components/crm-vendas/modals';
+import { ModalLead, ModalCliente } from '@/components/crm-vendas/modals';
 
 const INTERESSES_CRM = ['Produto A', 'Produto B', 'Serviço Premium', 'Consultoria', 'Outro'];
 
@@ -161,7 +161,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
 
       {/* Modais */}
       {modals.lead && <ModalLead loja={loja} onClose={() => closeModal('lead')} onSuccess={reload} />}
-      {modals.cliente && <ModalNovoCliente loja={loja} onClose={() => closeModal('cliente')} />}
+      {modals.cliente && <ModalCliente loja={loja} onClose={() => closeModal('cliente')} />}
       {modals.vendedor && <ModalNovoVendedor loja={loja} onClose={() => closeModal('vendedor')} />}
       {modals.produto && <ModalNovoProduto loja={loja} onClose={() => closeModal('produto')} />}
       {modals.pipeline && <ModalPipeline loja={loja} onClose={() => closeModal('pipeline')} />}

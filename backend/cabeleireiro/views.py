@@ -1,3 +1,4 @@
+import logging
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -107,38 +108,58 @@ class AgendamentoViewSet(BaseModelViewSet):
         """
         Retorna dados para o dashboard.
         Rate limited: 10 requisições por minuto para prevenir loops infinitos.
+        Em caso de erro (ex.: tabelas não existem no schema da loja), retorna dados vazios para não quebrar a página.
         """
+        logger = logging.getLogger(__name__)
         hoje = date.today()
         inicio_mes = date(hoje.year, hoje.month, 1)
-        
-        # Estatísticas
-        agendamentos_hoje = self.get_queryset().filter(data=hoje).count()
-        agendamentos_mes = self.get_queryset().filter(data__gte=inicio_mes).count()
-        clientes_ativos = Cliente.objects.filter(is_active=True).count()
-        servicos_ativos = Servico.objects.filter(is_active=True).count()
-        
-        # Receita mensal
-        receita_mensal = self.get_queryset().filter(
-            data__gte=inicio_mes,
-            status='concluido'
-        ).aggregate(total=Sum('valor_pago'))['total'] or Decimal('0.00')
-        
-        # Próximos agendamentos
-        proximos = self.get_queryset().filter(
-            data__gte=hoje,
-            status__in=['agendado', 'confirmado']
-        ).order_by('data', 'horario')[:10]
-        
-        return Response({
+        empty_response = {
             'estatisticas': {
-                'agendamentos_hoje': agendamentos_hoje,
-                'agendamentos_mes': agendamentos_mes,
-                'clientes_ativos': clientes_ativos,
-                'servicos_ativos': servicos_ativos,
-                'receita_mensal': float(receita_mensal),
+                'agendamentos_hoje': 0,
+                'agendamentos_mes': 0,
+                'clientes_ativos': 0,
+                'servicos_ativos': 0,
+                'receita_mensal': 0.0,
             },
-            'proximos': AgendamentoSerializer(proximos, many=True).data
-        })
+            'proximos': [],
+            'aviso': 'Dados do dashboard não disponíveis no momento. Verifique se as tabelas da loja foram criadas.',
+        }
+        try:
+            # Estatísticas
+            agendamentos_hoje = self.get_queryset().filter(data=hoje).count()
+            agendamentos_mes = self.get_queryset().filter(data__gte=inicio_mes).count()
+            clientes_ativos = Cliente.objects.filter(is_active=True).count()
+            servicos_ativos = Servico.objects.filter(is_active=True).count()
+
+            # Receita mensal
+            receita_mensal = self.get_queryset().filter(
+                data__gte=inicio_mes,
+                status='concluido'
+            ).aggregate(total=Sum('valor_pago'))['total'] or Decimal('0.00')
+
+            # Próximos agendamentos
+            proximos = self.get_queryset().filter(
+                data__gte=hoje,
+                status__in=['agendado', 'confirmado']
+            ).order_by('data', 'horario')[:10]
+
+            return Response({
+                'estatisticas': {
+                    'agendamentos_hoje': agendamentos_hoje,
+                    'agendamentos_mes': agendamentos_mes,
+                    'clientes_ativos': clientes_ativos,
+                    'servicos_ativos': servicos_ativos,
+                    'receita_mensal': float(receita_mensal),
+                },
+                'proximos': AgendamentoSerializer(proximos, many=True).data
+            })
+        except Exception as e:
+            logger.exception(
+                'cabeleireiro dashboard erro (loja pode não ter schema/tabelas): %s',
+                e,
+                extra={'request_path': getattr(request, 'path', None)},
+            )
+            return Response(empty_response, status=200)
 
     @action(detail=False, methods=['get'])
     def calendario(self, request):

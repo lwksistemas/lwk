@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import apiClient from '@/lib/api-client';
+import { ModalProduto, ModalVenda, ModalHorarios, ModalBloqueios } from '@/components/cabeleireiro/modals';
 
 // Types específicos do Cabeleireiro
 interface EstatisticasCabeleireiro {
@@ -201,53 +202,17 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
         }} />
       )}
 
-      {/* Modais simples "Em breve" para funcionalidades ainda não implementadas */}
-      <Modal isOpen={modals.produto} onClose={() => closeModal('produto')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">🧴 Produtos</h3>
-            <button onClick={() => closeModal('produto')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá gerenciar produtos por aqui.</p>
-          <button onClick={() => closeModal('produto')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
-      </Modal>
-      <Modal isOpen={modals.venda} onClose={() => closeModal('venda')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">� Nova Venda</h3>
-            <button onClick={() => closeModal('venda')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá registrar vendas por aqui.</p>
-          <button onClick={() => closeModal('venda')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
-      </Modal>
+      {/* Modais funcionais */}
+      {modals.produto && <ModalProduto loja={loja} onClose={() => { closeModal('produto'); reload(); }} />}
+      {modals.venda && <ModalVenda loja={loja} onClose={() => { closeModal('venda'); reload(); }} />}
       <Modal isOpen={modals.funcionarios} onClose={() => closeModal('funcionarios')} maxWidth="4xl">
         <ModalFuncionarios loja={loja} onClose={() => {
           closeModal('funcionarios');
           reload();
         }} />
       </Modal>
-      <Modal isOpen={modals.horarios} onClose={() => closeModal('horarios')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">� Horários de Funcionamento</h3>
-            <button onClick={() => closeModal('horarios')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá configurar horários por aqui.</p>
-          <button onClick={() => closeModal('horarios')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
-      </Modal>
-      <Modal isOpen={modals.bloqueios} onClose={() => closeModal('bloqueios')} maxWidth="md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">🚫 Bloqueios de Agenda</h3>
-            <button onClick={() => closeModal('bloqueios')} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded">✕</button>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Em breve você poderá gerenciar bloqueios de agenda por aqui.</p>
-          <button onClick={() => closeModal('bloqueios')} className="mt-4 px-4 py-2 rounded-lg text-white text-sm" style={{ backgroundColor: loja.cor_primaria }}>Fechar</button>
-        </div>
-      </Modal>
+      {modals.horarios && <ModalHorarios loja={loja} onClose={() => { closeModal('horarios'); reload(); }} />}
+      {modals.bloqueios && <ModalBloqueios loja={loja} onClose={() => { closeModal('bloqueios'); reload(); }} />}
     </div>
   );
 }

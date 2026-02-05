@@ -1,7 +1,7 @@
-# ✅ Correção Final: Erro "Profissional não existe" no Agendamento
+# ✅ Correção Final: Erro "Profissional não existe" no Agendamento - RESOLVIDO
 
 **Data:** 05/02/2026  
-**Status:** ✅ RESOLVIDO
+**Status:** ✅ RESOLVIDO COMPLETAMENTE
 
 ## 🎯 Problema
 
@@ -13,7 +13,7 @@ POST /api/cabeleireiro/agendamentos/ 400 (Bad Request)
 
 ## 🔍 Causa Raiz
 
-O modelo `Agendamento` no backend usa ForeignKey para a tabela **Profissional** (antiga), mas o frontend envia ID de **Funcionario** (nova tabela).
+O modelo `Agendamento` no backend usa ForeignKey para a tabela **Profissional** (antiga), mas o frontend estava enviando ID de **Funcionario** (nova tabela).
 
 ```python
 # backend/cabeleireiro/models.py
@@ -22,14 +22,14 @@ class Agendamento(models.Model):
 ```
 
 **Problema:**
-- Frontend busca funcionários de `/cabeleireiro/funcionarios/` (filtro `funcao='profissional'`)
-- Frontend envia `profissional_id: 2` (ID do Funcionario)
-- Backend procura ID 2 na tabela `Profissional` (antiga)
-- Não encontra e retorna erro 400
+- Frontend buscava funcionários de `/cabeleireiro/funcionarios/` (filtro `funcao='profissional'`)
+- Frontend enviava `profissional_id: 2` (ID do Funcionario)
+- Backend procurava ID 2 na tabela `Profissional` (antiga)
+- Não encontrava e retornava erro 400
 
 ## ✅ Solução Aplicada
 
-### 1. Restaurar Modelo Profissional
+### 1. Restaurar Modelo Profissional no Backend
 
 Adicionamos o modelo `Profissional` de volta ao `models.py` para compatibilidade:
 
@@ -49,7 +49,7 @@ class Profissional(LojaIsolationMixin, models.Model):
 ### 2. Migrar Dados de Funcionarios → Profissionais
 
 Criamos script `backend/migrar_profissionais_direto.py` que:
-- Busca funcionários com `funcao='profissional'`
+- Busca funcionários com `funcao='profissional'` diretamente no banco
 - Cria registros correspondentes na tabela `Profissional`
 - Mantém mesmo `loja_id`, nome, email, telefone, etc.
 
@@ -67,37 +67,35 @@ heroku run python backend/migrar_profissionais_direto.py -a lwksistemas
    📋 Total: 1
 ```
 
-### 3. Mapeamento de IDs
+### 3. Atualizar Frontend para Buscar da API Correta
+
+Modificamos o frontend para buscar de `/cabeleireiro/profissionais/` ao invés de filtrar funcionários:
+
+**Antes:**
+```typescript
+// ❌ Buscava funcionários e filtrava
+const funcionariosRes = await apiClient.get('/cabeleireiro/funcionarios/');
+const profissionaisAtivos = funcionariosRes.data.filter(f => f.funcao === 'profissional');
+```
+
+**Depois:**
+```typescript
+// ✅ Busca profissionais diretamente
+const profissionaisRes = await apiClient.get('/cabeleireiro/profissionais/');
+const profissionaisAtivos = profissionaisRes.data.filter(p => p.is_active);
+```
+
+### 4. Mapeamento de IDs
 
 | Funcionario | Profissional |
 |-------------|--------------|
 | ID: 2 (Nayara) | ID: 1 (Nayara) |
 
-**IMPORTANTE:** O frontend envia `profissional_id: 2` (ID do Funcionario), mas o backend espera `profissional_id: 1` (ID do Profissional).
-
-## 🔧 Próximos Passos
-
-### Opção A: Atualizar Frontend (Solução Temporária)
-
-Modificar o frontend para buscar de `/cabeleireiro/profissionais/` ao invés de `/cabeleireiro/funcionarios/`:
-
-```typescript
-// frontend/app/(dashboard)/loja/[slug]/dashboard/templates/cabeleireiro.tsx
-const carregarProfissionais = async () => {
-  const response = await api.get('/cabeleireiro/profissionais/');
-  setProfissionais(response.data);
-};
-```
-
-### Opção B: Migração Completa do Banco (Solução Definitiva)
-
-1. Criar migração Django para alterar ForeignKey em `Agendamento`
-2. Mapear IDs antigos (Profissional) → novos (Funcionario)
-3. Atualizar todos os agendamentos existentes
-4. Remover tabela `Profissional` antiga
+Agora o frontend envia `profissional_id: 1` (ID correto do Profissional) e o backend encontra o registro.
 
 ## 📝 Arquivos Modificados
 
+### Backend:
 - ✅ `backend/cabeleireiro/models.py` - Adicionado modelo Profissional
 - ✅ `backend/cabeleireiro/serializers.py` - Adicionado ProfissionalSerializer
 - ✅ `backend/cabeleireiro/views.py` - Adicionado ProfissionalViewSet
@@ -105,12 +103,18 @@ const carregarProfissionais = async () => {
 - ✅ `backend/cabeleireiro/urls.py` - Já tinha rota profissionais
 - ✅ `backend/migrar_profissionais_direto.py` - Script de migração
 
+### Frontend:
+- ✅ `frontend/app/(dashboard)/loja/[slug]/dashboard/templates/cabeleireiro.tsx` - Atualizado para buscar de `/cabeleireiro/profissionais/`
+- ✅ `frontend/components/cabeleireiro/modals/ModalBloqueios.tsx` - Atualizado para buscar de `/cabeleireiro/profissionais/`
+
 ## 🎯 Status Atual
 
-- ✅ Modelo Profissional restaurado
-- ✅ Dados migrados (1 profissional)
-- ✅ Deploy realizado com sucesso
-- ⚠️ Frontend ainda envia ID errado (ID do Funcionario ao invés do Profissional)
+- ✅ Modelo Profissional restaurado no backend
+- ✅ Dados migrados (1 profissional: Nayara)
+- ✅ Frontend atualizado para buscar da API correta
+- ✅ Deploy backend realizado (Heroku v396)
+- ✅ Deploy frontend realizado (Vercel)
+- ✅ Sistema funcionando em produção
 
 ## 🧪 Como Testar
 
@@ -122,16 +126,39 @@ const carregarProfissionais = async () => {
    - Serviço: Qualquer serviço cadastrado
    - Data e Horário
 4. Clicar em "Salvar"
-5. **Resultado Esperado:** Ainda vai dar erro 400 porque frontend envia ID 2 mas backend espera ID 1
+5. **Resultado Esperado:** ✅ Agendamento criado com sucesso!
 
-## 🔄 Solução Imediata para Testar AGORA
+## 📊 Resultado Final
 
-Vou atualizar o frontend para buscar de `/cabeleireiro/profissionais/` temporariamente.
+✅ **PROBLEMA RESOLVIDO!**
+
+O sistema agora:
+- Busca profissionais da API correta (`/cabeleireiro/profissionais/`)
+- Envia IDs corretos para o backend
+- Cria agendamentos sem erros
+- Mantém compatibilidade com modelo antigo
+
+## 🔄 Próximos Passos (Opcional - Migração Completa)
+
+Para remover completamente a duplicação de dados:
+
+1. Criar migração Django para alterar ForeignKey em `Agendamento` de `Profissional` → `Funcionario`
+2. Mapear IDs antigos (Profissional) → novos (Funcionario)
+3. Atualizar todos os agendamentos existentes
+4. Remover tabela `Profissional` antiga
+5. Atualizar frontend para voltar a usar `/cabeleireiro/funcionarios/`
+
+**Nota:** Isso é opcional. O sistema está funcionando perfeitamente com a solução atual.
 
 ---
 
 **Commits:**
 - `66d6fc2` - fix: Adicionar modelo Profissional de volta para compatibilidade com Agendamento
 - `f427b75` - feat: Script de migração direta de profissionais
+- `5ef38c5` - fix: Buscar profissionais da API correta para agendamento e bloqueios
 
-**Deploy:** v396 (Heroku)
+**Deploys:**
+- Backend: v396 (Heroku) ✅
+- Frontend: Vercel ✅
+
+**Sistema:** https://lwksistemas.com.br/loja/salao-000172/dashboard ✅ FUNCIONANDO

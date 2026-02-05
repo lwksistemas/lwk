@@ -55,7 +55,7 @@ def criar_funcionario_admin_automaticamente(sender, instance, created, **kwargs)
             loja_id=instance.id,
             nome=instance.owner.get_full_name() or instance.owner.username,
             email=instance.owner.email,
-            telefone=instance.telefone or '(00) 00000-0000',
+            telefone='(00) 00000-0000',  # Telefone padrão (será atualizado pelo admin)
             cargo='Proprietário',
             funcao='administrador',
             data_admissao=instance.created_at.date() if hasattr(instance.created_at, 'date') else date.today(),

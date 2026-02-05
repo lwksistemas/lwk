@@ -51,7 +51,7 @@ def criar_funcionario_admin(loja):
             loja_id=loja.id,
             nome=loja.owner.get_full_name() or loja.owner.username,
             email=loja.owner.email,
-            telefone=loja.telefone or '(00) 00000-0000',
+            telefone='(00) 00000-0000',  # Telefone padrão (será atualizado pelo admin)
             cargo='Proprietário',
             funcao='administrador',
             data_admissao=loja.created_at.date() if hasattr(loja.created_at, 'date') else date.today(),

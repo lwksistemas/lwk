@@ -23,7 +23,7 @@ class BaseLojaSerializer(serializers.ModelSerializer):
         """
         Adiciona loja_id automaticamente do contexto da requisição.
         
-        Falha explicitamente se o contexto da loja não estiver definido,
+Falha explicitamente se o contexto da loja não estiver definido,
         evitando criação de registros sem isolamento.
         """
         import logging
@@ -32,21 +32,25 @@ class BaseLojaSerializer(serializers.ModelSerializer):
         logger = logging.getLogger(__name__)
         loja_id = get_current_loja_id()
         
-        logger.info(f"[BaseLojaSerializer.create] Tentando criar {self.Meta.model.__name__} - loja_id={loja_id}")
+        # Obter nome do model de forma segura
+        model_name = getattr(self.Meta, 'model', None)
+        model_name_str = model_name.__name__ if model_name else 'Unknown'
+        
+        logger.info(f"[BaseLojaSerializer.create] Tentando criar {model_name_str} - loja_id={loja_id}")
         logger.info(f"[BaseLojaSerializer.create] validated_data keys: {list(validated_data.keys())}")
         
         if not loja_id:
             logger.error(f"[BaseLojaSerializer.create] ERRO: loja_id não encontrado no contexto!")
-            logger.error(f"[BaseLojaSerializer.create] Model: {self.Meta.model.__name__}")
+            logger.error(f"[BaseLojaSerializer.create] Model: {model_name_str}")
             logger.error(f"[BaseLojaSerializer.create] Data: {validated_data}")
             
             raise serializers.ValidationError({
                 'detail': 'Contexto da loja não identificado. Recarregue a página e tente novamente.',
                 'error_code': 'LOJA_CONTEXT_MISSING',
-                'model': self.Meta.model.__name__
+                'model': model_name_str
             })
         
         validated_data['loja_id'] = loja_id
-        logger.info(f"[BaseLojaSerializer.create] Criando {self.Meta.model.__name__} com loja_id={loja_id}")
+        logger.info(f"[BaseLojaSerializer.create] Criando {model_name_str} com loja_id={loja_id}")
         
         return super().create(validated_data)

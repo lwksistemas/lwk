@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'ecommerce',
     'restaurante',
     'servicos',
+    'cabeleireiro',  # App de cabeleireiro/salão de beleza
 ]
 
 # MIDDLEWARE

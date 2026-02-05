@@ -845,7 +845,13 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
-  const [formData, setFormData] = useState({ nome: '', descricao: '', duracao_minutos: '', preco: '' });
+  const [formData, setFormData] = useState({ 
+    nome: '', 
+    descricao: '', 
+    categoria: 'corte',  // ✅ Adicionar categoria obrigatória
+    duracao_minutos: '', 
+    preco: '' 
+  });
 
   useEffect(() => {
     carregarServicos();
@@ -879,7 +885,7 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
         await apiClient.post('/cabeleireiro/servicos/', formData);
         toast.success('Serviço cadastrado!');
       }
-      setFormData({ nome: '', descricao: '', duracao_minutos: '', preco: '' });
+      setFormData({ nome: '', descricao: '', categoria: 'corte', duracao_minutos: '', preco: '' });
       setEditando(null);
       setShowForm(false); // ✅ Voltar para lista após salvar
       await carregarServicos();
@@ -894,6 +900,7 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
     setFormData({
       nome: servico.nome || '',
       descricao: servico.descricao || '',
+      categoria: servico.categoria || 'corte',  // ✅ Incluir categoria
       duracao_minutos: servico.duracao_minutos || '',
       preco: servico.preco || ''
     });
@@ -914,7 +921,7 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
 
   const handleCancelar = () => {
     setEditando(null);
-    setFormData({ nome: '', descricao: '', duracao_minutos: '', preco: '' });
+    setFormData({ nome: '', descricao: '', categoria: 'corte', duracao_minutos: '', preco: '' });
     setShowForm(false);
   };
 
@@ -940,6 +947,22 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
                 required
                 className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
+              <select
+                value={formData.categoria}
+                onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                required
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="corte">Corte</option>
+                <option value="coloracao">Coloração</option>
+                <option value="tratamento">Tratamento</option>
+                <option value="penteado">Penteado</option>
+                <option value="manicure">Manicure/Pedicure</option>
+                <option value="barba">Barba</option>
+                <option value="depilacao">Depilação</option>
+                <option value="maquiagem">Maquiagem</option>
+                <option value="outros">Outros</option>
+              </select>
               <input
                 type="number"
                 placeholder="Duração (minutos) *"
@@ -1105,7 +1128,12 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
     try {
       setLoading(true);
       const response = await apiClient.get('/cabeleireiro/funcionarios/');
-      setFuncionarios(ensureArray(response.data));
+      const data = ensureArray(response.data);
+      setFuncionarios(data);
+      // ✅ Se não tem funcionários (além do admin), mostrar formulário
+      if (data.length === 0) {
+        setShowForm(true);
+      }
     } catch (error) {
       console.error('Erro ao carregar funcionários:', error);
       toast.error('Erro ao carregar funcionários');
@@ -1125,7 +1153,7 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
         toast.success('Funcionário cadastrado!');
       }
       resetForm();
-      carregarFuncionarios();
+      await carregarFuncionarios(); // ✅ Aguardar carregar antes de voltar para lista
     } catch (error) {
       console.error('Erro ao salvar funcionário:', error);
       toast.error('Erro ao salvar funcionário');

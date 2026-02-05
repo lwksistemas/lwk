@@ -74,7 +74,7 @@ class Servico(LojaIsolationMixin, models.Model):
     nome = models.CharField(max_length=200)
     descricao = models.TextField(blank=True, null=True)
     categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES)
-    duracao_minutos = models.IntegerField(help_text='Duração em minutos', db_column='duracao_minutos')
+    duracao_minutos = models.IntegerField(help_text='Duração em minutos')
     preco = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

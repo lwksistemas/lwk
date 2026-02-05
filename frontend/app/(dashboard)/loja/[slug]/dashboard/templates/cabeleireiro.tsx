@@ -396,7 +396,13 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
       const valorServico = servicoSelecionado ? Number(servicoSelecionado.preco) : 0;
       
       const dataToSend = {
-        ...formData,
+        cliente: parseInt(formData.cliente),  // ✅ Converter para número
+        profissional: parseInt(formData.profissional),  // ✅ Converter para número
+        servico: parseInt(formData.servico),  // ✅ Converter para número
+        data: formData.data,
+        horario: formData.horario,
+        observacoes: formData.observacoes,
+        status: formData.status,
         valor: valorServico  // ✅ Adicionar valor do serviço
       };
       

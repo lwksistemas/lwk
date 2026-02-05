@@ -303,8 +303,8 @@ class HorarioFuncionamento(LojaIsolationMixin, models.Model):
 
 class BloqueioAgenda(LojaIsolationMixin, models.Model):
     """Bloqueios de agenda (férias, folgas, etc)"""
-    profissional = models.ForeignKey('Funcionario', on_delete=models.CASCADE, related_name='bloqueios',
-                                     limit_choices_to={'funcao': 'profissional'}, null=True, blank=True,
+    profissional = models.ForeignKey('Profissional', on_delete=models.CASCADE, related_name='bloqueios',
+                                     null=True, blank=True,
                                      help_text='Deixe em branco para bloquear agenda de todos os profissionais')
     data_inicio = models.DateField()
     data_fim = models.DateField()

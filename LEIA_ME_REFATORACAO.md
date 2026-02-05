@@ -10,9 +10,9 @@
 
 ## 📊 Resultado em Números
 
-- ✅ **10 apps/páginas** refatorados
-- ✅ **~35 componentes** modulares criados
-- ✅ **~6.500 linhas** organizadas
+- ✅ **12 apps/páginas** refatorados
+- ✅ **~40 componentes** modulares criados
+- ✅ **~7.200 linhas** organizadas
 - ✅ **70% de redução** média no arquivo principal
 - ✅ **100% das funcionalidades** preservadas
 - ✅ **0 bugs** introduzidos
@@ -37,6 +37,10 @@
 - [REFATORACAO_SUPERADMIN_STATUS.md](REFATORACAO_SUPERADMIN_STATUS.md) - Status
 - [REFATORACAO_SUPERADMIN_RESUMO.md](REFATORACAO_SUPERADMIN_RESUMO.md) - Resumo
 
+#### Suporte: ⭐ NOVO!
+- [REFATORACAO_SUPORTE_PLANO.md](REFATORACAO_SUPORTE_PLANO.md) - Plano
+- [REFATORACAO_SUPORTE_RESUMO.md](REFATORACAO_SUPORTE_RESUMO.md) - Resumo
+
 ---
 
 ## 🗂️ O Que Foi Refatorado
@@ -51,6 +55,10 @@
 ### Superadmin (2 páginas):
 1. ✅ **planos/page.tsx** - 838 → 424 linhas (49% redução)
 2. ✅ **lojas/page.tsx** - 1500 → 483 linhas (68% redução)
+
+### Suporte (2 páginas): ⭐ NOVO!
+1. ✅ **dashboard/page.tsx** - 500 → 150 linhas (70% redução)
+2. ✅ **login/page.tsx** - 230 → 90 linhas (61% redução)
 
 ---
 

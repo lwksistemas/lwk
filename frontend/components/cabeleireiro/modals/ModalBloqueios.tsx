@@ -38,12 +38,17 @@ export function ModalBloqueios({ loja, onClose }: { loja: LojaInfo; onClose: () 
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [bloqueiosRes, profissionaisRes] = await Promise.all([
+      const [bloqueiosRes, funcionariosRes] = await Promise.all([
         apiClient.get('/cabeleireiro/bloqueios/'),
-        apiClient.get('/cabeleireiro/profissionais/')
+        apiClient.get('/cabeleireiro/funcionarios/')  // ✅ Buscar funcionários
       ]);
       setBloqueios(ensureArray(bloqueiosRes.data));
-      setProfissionais(ensureArray(profissionaisRes.data));
+      // ✅ Filtrar apenas funcionários com função 'profissional'
+      const todosFuncionarios = ensureArray(funcionariosRes.data);
+      const profissionaisAtivos = todosFuncionarios.filter((f: any) => 
+        f.funcao === 'profissional' && f.is_active
+      );
+      setProfissionais(profissionaisAtivos);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast.error('Erro ao carregar dados');

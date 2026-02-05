@@ -391,11 +391,22 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // ✅ Buscar o serviço selecionado para pegar o preço
+      const servicoSelecionado = servicos.find(s => s.id === parseInt(formData.servico));
+      const valorServico = servicoSelecionado ? Number(servicoSelecionado.preco) : 0;
+      
+      const dataToSend = {
+        ...formData,
+        valor: valorServico  // ✅ Adicionar valor do serviço
+      };
+      
+      console.log('📤 Enviando agendamento:', dataToSend);
+      
       if (editando) {
-        await apiClient.put(`/cabeleireiro/agendamentos/${editando.id}/`, formData);
+        await apiClient.put(`/cabeleireiro/agendamentos/${editando.id}/`, dataToSend);
         toast.success('Agendamento atualizado!');
       } else {
-        await apiClient.post('/cabeleireiro/agendamentos/', formData);
+        await apiClient.post('/cabeleireiro/agendamentos/', dataToSend);
         toast.success('Agendamento criado!');
       }
       setFormData({ cliente: '', profissional: '', servico: '', data: '', horario: '', observacoes: '', status: 'agendado' });

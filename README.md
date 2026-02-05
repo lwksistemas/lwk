@@ -6,9 +6,15 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios.
 
 - **Frontend**: https://lwksistemas.com.br
 - **Backend API**: https://lwksistemas-38ad47519238.herokuapp.com
-- **Versão Atual**: v351
+- **Versão Atual**: v399 (05/02/2026)
 
-## � Documentação Essencial
+## 📚 Documentação Essencial
+
+### 🆕 Atualizações Recentes (v399 - 05/02/2026)
+- [CORRECAO_USUARIOS_SUPERADMIN.md](CORRECAO_USUARIOS_SUPERADMIN.md) - ⭐ Botões Editar e Excluir funcionando
+- [RESUMO_MELHORIAS_v399.md](RESUMO_MELHORIAS_v399.md) - Resumo completo das melhorias
+- [SOLUCAO_EXCLUSAO_BOLETOS_ASAAS.md](SOLUCAO_EXCLUSAO_BOLETOS_ASAAS.md) - Comportamento da API Asaas
+- [ENTENDENDO_ASAAS_EXCLUSAO.md](ENTENDENDO_ASAAS_EXCLUSAO.md) - Guia visual sobre exclusão
 
 ### Início Rápido
 - [INICIO_RAPIDO.md](INICIO_RAPIDO.md) - Como começar a usar o sistema
@@ -198,6 +204,8 @@ vercel --prod
 
 ## 📝 Histórico de Versões Recentes
 
+- **v399** (05/02/2026) - Correção usuários SuperAdmin + Melhorias Asaas
+- **v398** (05/02/2026) - Correção bloqueios cabeleireiro
 - **v351** (03/02/2026) - Rate limiting em todos os dashboards
 - **v350** (03/02/2026) - Throttle em cabeleireiro e asaas
 - **v349** (03/02/2026) - Correção definitiva loop infinito + hook reescrito
@@ -235,4 +243,4 @@ Para dúvidas ou problemas:
 ---
 
 **Sistema em produção e funcionando perfeitamente!** ✨  
-**Versão**: v351 | **Data**: 03/02/2026
+**Versão**: v399 | **Data**: 05/02/2026 | **Deploy**: ✅ Vercel + Heroku

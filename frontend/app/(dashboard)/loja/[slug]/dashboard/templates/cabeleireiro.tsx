@@ -364,11 +364,18 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
       setClientes(ensureArray(clientesRes.data));
       // ✅ Filtrar apenas funcionários com função 'profissional'
       const todosFuncionarios = ensureArray(funcionariosRes.data);
+      console.log('📋 Todos funcionários:', todosFuncionarios);
       const profissionaisAtivos = todosFuncionarios.filter((f: any) => 
         f.funcao === 'profissional' && f.is_active
       );
+      console.log('✅ Profissionais ativos filtrados:', profissionaisAtivos);
       setProfissionais(profissionaisAtivos);
-      setServicos(ensureArray(servicosRes.data));
+      // ✅ Filtrar apenas serviços ativos
+      const todosServicos = ensureArray(servicosRes.data);
+      console.log('📋 Todos serviços:', todosServicos);
+      const servicosAtivos = todosServicos.filter((s: any) => s.is_active !== false);
+      console.log('✅ Serviços ativos filtrados:', servicosAtivos);
+      setServicos(servicosAtivos);
       // Se não tem agendamentos, mostrar formulário
       if (agendamentosData.length === 0) {
         setShowForm(true);
@@ -497,7 +504,9 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
                 >
                   <option value="">Selecione um serviço</option>
                   {servicos.map((s) => (
-                    <option key={s.id} value={s.id}>{s.nome} - R$ {parseFloat(s.preco).toFixed(2)}</option>
+                    <option key={s.id} value={s.id}>
+                      {s.nome} - R$ {Number(s.preco || 0).toFixed(2)}
+                    </option>
                   ))}
                 </select>
               </div>

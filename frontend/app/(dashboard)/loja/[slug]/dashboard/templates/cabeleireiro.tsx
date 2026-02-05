@@ -420,9 +420,13 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
       setShowForm(false); // ✅ Voltar para lista após salvar
       await carregarDados();
     } catch (error: any) {
-      console.error('Erro ao salvar agendamento:', error);
-      const msg = error.response?.data?.detail || error.response?.data?.error || 'Erro ao salvar agendamento';
-      toast.error(msg);
+      console.error('❌ Erro ao salvar agendamento:', error);
+      console.error('❌ Resposta do servidor:', error.response?.data);
+      const errorMsg = error.response?.data?.detail 
+        || error.response?.data?.error 
+        || JSON.stringify(error.response?.data)
+        || 'Erro ao salvar agendamento';
+      toast.error(errorMsg);
     }
   };
 

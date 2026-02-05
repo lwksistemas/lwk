@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
+import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
 import { Modal } from '@/components/ui/Modal';
@@ -12,6 +13,23 @@ import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import apiClient from '@/lib/api-client';
 import { ModalProduto, ModalVenda, ModalHorarios, ModalBloqueios } from '@/components/cabeleireiro/modals';
+
+// Lazy loading do modal de configurações
+const ConfiguracoesModal = lazy(() => import('@/components/clinica/modals/ConfiguracoesModal').then(m => ({ default: m.ConfiguracoesModal })));
+
+// Componente de loading para modais
+function ModalLoadingFallback() {
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-gray-700 dark:text-gray-300">Carregando...</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Types específicos do Cabeleireiro
 interface EstatisticasCabeleireiro {
@@ -41,8 +59,11 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   // Hook para gerenciar modais
   const { modals, openModal, closeModal } = useModals([
     'agendamento', 'cliente', 'servico',
-    'produto', 'venda', 'funcionarios', 'horarios', 'bloqueios', 'calendario'
+    'produto', 'venda', 'funcionarios', 'horarios', 'bloqueios', 'calendario', 'configuracoes'
   ] as const);
+
+  // Estados de navegação
+  const [showCalendario, setShowCalendario] = useState(false);
 
   // Hook para carregar dados do dashboard
   const { loading, loadingData, stats, data, reload } = useDashboardData<EstatisticasCabeleireiro, AgendamentoCabeleireiro>({
@@ -87,11 +108,37 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   const handleFuncionarios = () => openModal('funcionarios');
   const handleHorarios = () => openModal('horarios');
   const handleBloqueios = () => openModal('bloqueios');
+  const handleCalendario = () => setShowCalendario(true);
+  const handleConfiguracoes = () => openModal('configuracoes');
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
 
   // Loading inicial
   if (loading) {
     return <DashboardSkeleton />;
+  }
+
+  // Calendário
+  if (showCalendario) {
+    return (
+      <div className="px-2 sm:px-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+          <h2 className="text-xl sm:text-2xl font-bold dark:text-white" style={{ color: loja.cor_primaria }}>
+            📅 Calendário - Cabeleireiro
+          </h2>
+          <button
+            onClick={() => setShowCalendario(false)}
+            className="px-4 sm:px-6 py-2 sm:py-3 min-h-[44px] bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all btn-press shadow-lg text-sm sm:text-base"
+          >
+            ← Voltar ao Dashboard
+          </button>
+        </div>
+        <CalendarioAgendamentos 
+          loja={loja} 
+          apiEndpoint="/cabeleireiro/agendamentos"
+          onClose={() => setShowCalendario(false)}
+        />
+      </div>
+    );
   }
 
   return (
@@ -110,14 +157,16 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
           💇 Ações Rápidas
         </h3>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
-          <ActionButton onClick={handleNovoAgendamento} color="#3B82F6" icon="📅" label="Agendamento" />
+          <ActionButton onClick={handleCalendario} color="#3B82F6" icon="📅" label="Calendário" />
+          <ActionButton onClick={handleNovoAgendamento} color="#06B6D4" icon="➕" label="Agendamento" />
           <ActionButton onClick={handleNovoCliente} color="#F59E0B" icon="👤" label="Cliente" />
-          <ActionButton onClick={handleServicos} color="#06B6D4" icon="✂️" label="Serviços" />
-          <ActionButton onClick={handleProdutos} color="#8B5CF6" icon="🧴" label="Produtos" />
-          <ActionButton onClick={handleVendas} color="#10B981" icon="💰" label="Vendas" />
-          <ActionButton onClick={handleFuncionarios} color="#EC4899" icon="👥" label="Funcionários" />
-          <ActionButton onClick={handleHorarios} color="#6366F1" icon="🕐" label="Horários" />
+          <ActionButton onClick={handleServicos} color="#8B5CF6" icon="✂️" label="Serviços" />
+          <ActionButton onClick={handleProdutos} color="#10B981" icon="🧴" label="Produtos" />
+          <ActionButton onClick={handleVendas} color="#EC4899" icon="💰" label="Vendas" />
+          <ActionButton onClick={handleFuncionarios} color="#6366F1" icon="👥" label="Funcionários" />
+          <ActionButton onClick={handleHorarios} color="#14B8A6" icon="🕐" label="Horários" />
           <ActionButton onClick={handleBloqueios} color="#EF4444" icon="🚫" label="Bloqueios" />
+          <ActionButton onClick={handleConfiguracoes} color="#9333EA" icon="⚙️" label="Configurações" />
           <ActionButton onClick={handleRelatorios} color="#059669" icon="📊" label="Relatórios" />
         </div>
         
@@ -1498,3 +1547,12 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
   );
 }
 
+      {/* Modal Configurações */}
+      {modals.configuracoes && (
+        <Suspense fallback={<ModalLoadingFallback />}>
+          <ConfiguracoesModal loja={loja} onClose={() => closeModal('configuracoes')} />
+        </Suspense>
+      )}
+    </div>
+  );
+}

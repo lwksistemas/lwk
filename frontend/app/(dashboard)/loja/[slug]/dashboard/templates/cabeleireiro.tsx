@@ -132,11 +132,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
             ← Voltar ao Dashboard
           </button>
         </div>
-        <CalendarioAgendamentos 
-          loja={loja} 
-          apiEndpoint="/cabeleireiro/agendamentos"
-          onClose={() => setShowCalendario(false)}
-        />
+        <CalendarioAgendamentos loja={loja} />
       </div>
     );
   }
@@ -244,6 +240,16 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       {/* Modais funcionais */}
       {modals.produto && <ModalProduto loja={loja} onClose={() => { closeModal('produto'); reload(); }} />}
       {modals.venda && <ModalVenda loja={loja} onClose={() => { closeModal('venda'); reload(); }} />}
+      {modals.horarios && <ModalHorarios loja={loja} onClose={() => { closeModal('horarios'); reload(); }} />}
+      {modals.bloqueios && <ModalBloqueios loja={loja} onClose={() => { closeModal('bloqueios'); reload(); }} />}
+      
+      {/* Modal Configurações */}
+      {modals.configuracoes && (
+        <Suspense fallback={<ModalLoadingFallback />}>
+          <ConfiguracoesModal loja={loja} onClose={() => closeModal('configuracoes')} />
+        </Suspense>
+      )}
+      
       <Modal isOpen={modals.funcionarios} onClose={() => closeModal('funcionarios')} maxWidth="4xl">
         <ModalFuncionarios loja={loja} onClose={() => {
           closeModal('funcionarios');
@@ -1542,16 +1548,6 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
             </button>
           </div>
         </>
-      )}
-    </div>
-  );
-}
-
-      {/* Modal Configurações */}
-      {modals.configuracoes && (
-        <Suspense fallback={<ModalLoadingFallback />}>
-          <ConfiguracoesModal loja={loja} onClose={() => closeModal('configuracoes')} />
-        </Suspense>
       )}
     </div>
   );

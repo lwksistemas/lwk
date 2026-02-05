@@ -70,7 +70,7 @@ def main():
     print()
     
     # Buscar todas as lojas de cabeleireiro
-    lojas_cabeleireiro = Loja.objects.filter(tipo='cabeleireiro')
+    lojas_cabeleireiro = Loja.objects.filter(tipo_loja__nome='Cabeleireiro')
     total_lojas = lojas_cabeleireiro.count()
     
     print(f"📊 Encontradas {total_lojas} lojas de cabeleireiro")

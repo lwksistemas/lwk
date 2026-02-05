@@ -36,7 +36,7 @@ def criar_funcionario_admin_automaticamente(sender, instance, created, **kwargs)
         return
     
     # Executar apenas para lojas de cabeleireiro
-    if instance.tipo != 'cabeleireiro':
+    if not instance.tipo_loja or instance.tipo_loja.nome != 'Cabeleireiro':
         return
     
     # Verificar se já existe funcionário com o email do owner (idempotência)

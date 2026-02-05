@@ -13,10 +13,10 @@ from django.db import connections
 from django.core.management import call_command
 
 def create_tables():
-    print("🔧 Criando tabelas do cabeleireiro no banco de lojas...")
+    print("🔧 Criando tabelas do cabeleireiro no banco de dados...")
     
-    # Usar o banco 'lojas'
-    connection = connections['lojas']
+    # Usar o banco default (no Heroku é um único banco)
+    connection = connections['default']
     
     with connection.cursor() as cursor:
         # Criar tabela de clientes

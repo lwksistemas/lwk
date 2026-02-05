@@ -786,6 +786,34 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         # ✅ OTIMIZAÇÃO: select_related para user
         return UsuarioSistema.objects.select_related('user').prefetch_related('lojas_acesso').all()
     
+    def destroy(self, request, *args, **kwargs):
+        """Exclusão completa do usuário (UsuarioSistema + User do Django)"""
+        usuario_sistema = self.get_object()
+        user_django = usuario_sistema.user
+        username = user_django.username
+        
+        try:
+            with transaction.atomic():
+                # 1. Excluir UsuarioSistema
+                usuario_sistema.delete()
+                logger.info(f"✅ UsuarioSistema excluído: {username}")
+                
+                # 2. Excluir User do Django
+                user_django.delete()
+                logger.info(f"✅ User Django excluído: {username}")
+            
+            return Response({
+                'message': f'Usuário "{username}" foi completamente removido do sistema',
+                'username': username
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao excluir usuário {username}: {e}")
+            return Response(
+                {'error': f'Erro ao excluir usuário: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     @action(detail=False, methods=['get'])
     def suporte(self, request):
         """Listar apenas usuários de suporte"""

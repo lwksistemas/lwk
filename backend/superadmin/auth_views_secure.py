@@ -160,6 +160,21 @@ class SecureLoginView(APIView):
                 response_data['precisa_trocar_senha'] = precisa_trocar_senha
             except UsuarioSistema.DoesNotExist:
                 pass
+        elif real_user_type == 'superadmin':
+            # Verificar senha provisória do superadmin
+            try:
+                usuario_sistema = UsuarioSistema.objects.get(user=user, tipo='superadmin', is_active=True)
+                precisa_trocar_senha = not usuario_sistema.senha_foi_alterada and bool(usuario_sistema.senha_provisoria)
+                
+                # LOG DETALHADO para debug
+                logger.info(f"🔍 DEBUG SENHA SUPERADMIN - User: {usuario_sistema.user.username}")
+                logger.info(f"   - senha_provisoria existe: {bool(usuario_sistema.senha_provisoria)}")
+                logger.info(f"   - senha_foi_alterada: {usuario_sistema.senha_foi_alterada}")
+                logger.info(f"   - precisa_trocar_senha: {precisa_trocar_senha}")
+                
+                response_data['precisa_trocar_senha'] = precisa_trocar_senha
+            except UsuarioSistema.DoesNotExist:
+                pass
         
         logger.info(f"✅ Login bem-sucedido: {username} (tipo: {real_user_type}, trocar senha: {precisa_trocar_senha})")
         

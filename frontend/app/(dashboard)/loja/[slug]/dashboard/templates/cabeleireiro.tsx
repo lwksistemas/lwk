@@ -334,6 +334,7 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
   const [profissionais, setProfissionais] = useState<any[]>([]);
   const [servicos, setServicos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
   const [formData, setFormData] = useState({
     cliente: '',
@@ -358,10 +359,15 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
         apiClient.get('/cabeleireiro/profissionais/'),
         apiClient.get('/cabeleireiro/servicos/')
       ]);
-      setAgendamentos(ensureArray(agendamentosRes.data));
+      const agendamentosData = ensureArray(agendamentosRes.data);
+      setAgendamentos(agendamentosData);
       setClientes(ensureArray(clientesRes.data));
       setProfissionais(ensureArray(profissionaisRes.data));
       setServicos(ensureArray(servicosRes.data));
+      // Se não tem agendamentos, mostrar formulário
+      if (agendamentosData.length === 0) {
+        setShowForm(true);
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast.error('Erro ao carregar dados');
@@ -382,7 +388,8 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
       }
       setFormData({ cliente: '', profissional: '', servico: '', data: '', horario: '', observacoes: '', status: 'agendado' });
       setEditando(null);
-      carregarDados();
+      setShowForm(false); // ✅ Voltar para lista após salvar
+      await carregarDados();
     } catch (error: any) {
       console.error('Erro ao salvar agendamento:', error);
       const msg = error.response?.data?.detail || error.response?.data?.error || 'Erro ao salvar agendamento';
@@ -401,6 +408,7 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
       observacoes: agendamento.observacoes || '',
       status: agendamento.status || 'agendado'
     });
+    setShowForm(true);
   };
 
   const handleExcluir = async (id: number) => {
@@ -415,6 +423,12 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     }
   };
 
+  const handleCancelar = () => {
+    setEditando(null);
+    setFormData({ cliente: '', profissional: '', servico: '', data: '', horario: '', observacoes: '', status: 'agendado' });
+    setShowForm(false);
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       agendado: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
@@ -426,6 +440,121 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
     return colors[status] || colors.agendado;
   };
 
+  // Se está mostrando formulário
+  if (showForm) {
+    return (
+      <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              {editando ? '✏️ Editar Agendamento' : '➕ Novo Agendamento'}
+            </h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-white">Cliente *</label>
+                <select
+                  value={formData.cliente}
+                  onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="">Selecione um cliente</option>
+                  {clientes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-white">Profissional *</label>
+                <select
+                  value={formData.profissional}
+                  onChange={(e) => setFormData({ ...formData, profissional: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="">Selecione um profissional</option>
+                  {profissionais.map((p) => (
+                    <option key={p.id} value={p.id}>{p.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-white">Serviço *</label>
+                <select
+                  value={formData.servico}
+                  onChange={(e) => setFormData({ ...formData, servico: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="">Selecione um serviço</option>
+                  {servicos.map((s) => (
+                    <option key={s.id} value={s.id}>{s.nome} - R$ {parseFloat(s.preco).toFixed(2)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-white">Data *</label>
+                <input
+                  type="date"
+                  value={formData.data}
+                  onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-white">Horário *</label>
+                <input
+                  type="time"
+                  value={formData.horario}
+                  onChange={(e) => setFormData({ ...formData, horario: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-white">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="agendado">Agendado</option>
+                  <option value="confirmado">Confirmado</option>
+                  <option value="em_atendimento">Em Atendimento</option>
+                  <option value="concluido">Concluído</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1 dark:text-white">Observações</label>
+                <textarea
+                  value={formData.observacoes}
+                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  rows={2}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <button type="button" onClick={handleCancelar} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white">
+                Cancelar
+              </button>
+              <button type="submit" className="px-6 py-2 text-white rounded-lg" style={{ backgroundColor: loja.cor_primaria }}>
+                {editando ? 'Atualizar' : 'Criar Agendamento'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+    );
+  }
+
+  // Mostrando lista
   return (
     <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
       <div className="p-6">
@@ -434,144 +563,59 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
         </div>
 
-        {/* Formulário */}
-        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-white">Cliente *</label>
-              <select
-                value={formData.cliente}
-                onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-                required
-                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Selecione um cliente</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-white">Profissional *</label>
-              <select
-                value={formData.profissional}
-                onChange={(e) => setFormData({ ...formData, profissional: e.target.value })}
-                required
-                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Selecione um profissional</option>
-                {profissionais.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-white">Serviço *</label>
-              <select
-                value={formData.servico}
-                onChange={(e) => setFormData({ ...formData, servico: e.target.value })}
-                required
-                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="">Selecione um serviço</option>
-                {servicos.map((s) => (
-                  <option key={s.id} value={s.id}>{s.nome} - R$ {parseFloat(s.preco).toFixed(2)}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-white">Data *</label>
-              <input
-                type="date"
-                value={formData.data}
-                onChange={(e) => setFormData({ ...formData, data: e.target.value })}
-                required
-                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-white">Horário *</label>
-              <input
-                type="time"
-                value={formData.horario}
-                onChange={(e) => setFormData({ ...formData, horario: e.target.value })}
-                required
-                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-white">Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="agendado">Agendado</option>
-                <option value="confirmado">Confirmado</option>
-                <option value="em_atendimento">Em Atendimento</option>
-                <option value="concluido">Concluído</option>
-                <option value="cancelado">Cancelado</option>
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1 dark:text-white">Observações</label>
-              <textarea
-                value={formData.observacoes}
-                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                rows={2}
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button type="submit" className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>
-              {editando ? 'Atualizar' : 'Criar Agendamento'}
-            </button>
-            {editando && (
-              <button 
-                type="button" 
-                onClick={() => { 
-                  setEditando(null); 
-                  setFormData({ cliente: '', profissional: '', servico: '', data: '', horario: '', observacoes: '', status: 'agendado' }); 
-                }} 
-                className="px-4 py-2 bg-gray-500 text-white rounded-lg"
-              >
-                Cancelar
-              </button>
-            )}
-          </div>
-        </form>
-
-        {/* Lista */}
         {loading ? (
-          <p className="text-center text-gray-500">Carregando...</p>
+          <p className="text-center text-gray-500 py-8">Carregando...</p>
         ) : agendamentos.length === 0 ? (
-          <p className="text-center text-gray-500">Nenhum agendamento cadastrado</p>
-        ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {agendamentos.map((agendamento) => (
-              <div key={agendamento.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold dark:text-white">{agendamento.cliente_nome}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(agendamento.status)}`}>
-                      {agendamento.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {agendamento.servico_nome} • {agendamento.profissional_nome}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500">
-                    📅 {agendamento.data} às {agendamento.horario}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleEditar(agendamento)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Editar</button>
-                  <button onClick={() => handleExcluir(agendamento.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Excluir</button>
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-4">Nenhum agendamento cadastrado</p>
+            <button 
+              onClick={() => setShowForm(true)} 
+              className="px-6 py-3 rounded-lg text-white" 
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              + Criar Primeiro Agendamento
+            </button>
           </div>
+        ) : (
+          <>
+            <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
+              {agendamentos.map((agendamento) => (
+                <div key={agendamento.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold dark:text-white">{agendamento.cliente_nome}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(agendamento.status)}`}>
+                        {agendamento.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {agendamento.servico_nome} • {agendamento.profissional_nome}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">
+                      📅 {agendamento.data} às {agendamento.horario}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEditar(agendamento)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Editar</button>
+                    <button onClick={() => handleExcluir(agendamento.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">Excluir</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white">
+                Fechar
+              </button>
+              <button 
+                onClick={() => setShowForm(true)} 
+                className="px-6 py-2 text-white rounded-lg" 
+                style={{ backgroundColor: loja.cor_primaria }}
+              >
+                + Novo Agendamento
+              </button>
+            </div>
+          </>
         )}
       </div>
     </Modal>
@@ -799,6 +843,7 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
   const toast = useToast();
   const [servicos, setServicos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
   const [formData, setFormData] = useState({ nome: '', descricao: '', duracao_minutos: '', preco: '' });
 
@@ -810,7 +855,12 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
     try {
       setLoading(true);
       const response = await apiClient.get('/cabeleireiro/servicos/');
-      setServicos(ensureArray(response.data));
+      const data = ensureArray(response.data);
+      setServicos(data);
+      // Se não tem serviços, mostrar formulário
+      if (data.length === 0) {
+        setShowForm(true);
+      }
     } catch (error) {
       console.error('Erro ao carregar serviços:', error);
       toast.error('Erro ao carregar serviços');
@@ -831,7 +881,8 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
       }
       setFormData({ nome: '', descricao: '', duracao_minutos: '', preco: '' });
       setEditando(null);
-      carregarServicos();
+      setShowForm(false); // ✅ Voltar para lista após salvar
+      await carregarServicos();
     } catch (error) {
       console.error('Erro ao salvar serviço:', error);
       toast.error('Erro ao salvar serviço');
@@ -846,6 +897,7 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
       duracao_minutos: servico.duracao_minutos || '',
       preco: servico.preco || ''
     });
+    setShowForm(true);
   };
 
   const handleExcluir = async (id: number) => {
@@ -860,6 +912,74 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
     }
   };
 
+  const handleCancelar = () => {
+    setEditando(null);
+    setFormData({ nome: '', descricao: '', duracao_minutos: '', preco: '' });
+    setShowForm(false);
+  };
+
+  // Se está mostrando formulário
+  if (showForm) {
+    return (
+      <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              {editando ? '✏️ Editar Serviço' : '➕ Novo Serviço'}
+            </h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Nome do Serviço *"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                required
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <input
+                type="number"
+                placeholder="Duração (minutos) *"
+                value={formData.duracao_minutos}
+                onChange={(e) => setFormData({ ...formData, duracao_minutos: e.target.value })}
+                required
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <input
+                type="number"
+                placeholder="Preço (R$) *"
+                value={formData.preco}
+                onChange={(e) => setFormData({ ...formData, preco: e.target.value })}
+                required
+                step="0.01"
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <textarea
+                placeholder="Descrição"
+                value={formData.descricao}
+                onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white md:col-span-2"
+                rows={2}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <button type="button" onClick={handleCancelar} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white">
+                Cancelar
+              </button>
+              <button type="submit" className="px-6 py-2 text-white rounded-lg" style={{ backgroundColor: loja.cor_primaria }}>
+                {editando ? 'Atualizar' : 'Cadastrar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+    );
+  }
+
+  // Mostrando lista
   return (
     <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
       <div className="p-6">
@@ -868,76 +988,51 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
         </div>
 
-        {/* Formulário */}
-        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Nome do Serviço *"
-              value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              required
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="number"
-              placeholder="Duração (minutos) *"
-              value={formData.duracao_minutos}
-              onChange={(e) => setFormData({ ...formData, duracao_minutos: e.target.value })}
-              required
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="number"
-              placeholder="Preço (R$) *"
-              value={formData.preco}
-              onChange={(e) => setFormData({ ...formData, preco: e.target.value })}
-              required
-              step="0.01"
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <textarea
-              placeholder="Descrição"
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white md:col-span-2"
-              rows={2}
-            />
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button type="submit" className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>
-              {editando ? 'Atualizar' : 'Cadastrar'}
-            </button>
-            {editando && (
-              <button type="button" onClick={() => { setEditando(null); setFormData({ nome: '', descricao: '', duracao_minutos: '', preco: '' }); }} className="px-4 py-2 bg-gray-500 text-white rounded-lg">
-                Cancelar
-              </button>
-            )}
-          </div>
-        </form>
-
-        {/* Lista */}
         {loading ? (
-          <p className="text-center text-gray-500">Carregando...</p>
+          <p className="text-center text-gray-500 py-8">Carregando...</p>
         ) : servicos.length === 0 ? (
-          <p className="text-center text-gray-500">Nenhum serviço cadastrado</p>
-        ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {servicos.map((servico) => (
-              <div key={servico.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg">
-                <div>
-                  <p className="font-semibold dark:text-white">{servico.nome}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {servico.duracao_minutos} min • R$ {parseFloat(servico.preco).toFixed(2)}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleEditar(servico)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Editar</button>
-                  <button onClick={() => handleExcluir(servico.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Excluir</button>
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-4">Nenhum serviço cadastrado</p>
+            <button 
+              onClick={() => setShowForm(true)} 
+              className="px-6 py-3 rounded-lg text-white" 
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              + Cadastrar Primeiro Serviço
+            </button>
           </div>
+        ) : (
+          <>
+            <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
+              {servicos.map((servico) => (
+                <div key={servico.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <div>
+                    <p className="font-semibold dark:text-white">{servico.nome}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {servico.duracao_minutos} min • R$ {parseFloat(servico.preco).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEditar(servico)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Editar</button>
+                    <button onClick={() => handleExcluir(servico.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">Excluir</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white">
+                Fechar
+              </button>
+              <button 
+                onClick={() => setShowForm(true)} 
+                className="px-6 py-2 text-white rounded-lg" 
+                style={{ backgroundColor: loja.cor_primaria }}
+              >
+                + Novo Serviço
+              </button>
+            </div>
+          </>
         )}
       </div>
     </Modal>

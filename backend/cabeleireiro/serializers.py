@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
 from .models import (
-    Cliente, Servico, Agendamento, Produto, Venda,
+    Cliente, Profissional, Servico, Agendamento, Produto, Venda,
     Funcionario, HorarioFuncionamento, BloqueioAgenda
 )
 
@@ -29,6 +29,14 @@ class ClienteBuscaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = ['id', 'nome', 'telefone', 'email']
+
+
+class ProfissionalSerializer(BaseLojaSerializer):
+    """Serializer de Profissional (modelo antigo - manter para compatibilidade)"""
+    class Meta:
+        model = Profissional
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
 
 
 class ServicoSerializer(BaseLojaSerializer):

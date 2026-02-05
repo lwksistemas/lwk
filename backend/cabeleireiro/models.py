@@ -32,6 +32,30 @@ class Cliente(LojaIsolationMixin, models.Model):
         return self.nome
 
 
+class Profissional(LojaIsolationMixin, models.Model):
+    """Profissionais do cabeleireiro (MODELO ANTIGO - Manter para compatibilidade)"""
+    nome = models.CharField(max_length=200)
+    email = models.EmailField(blank=True, null=True)
+    telefone = models.CharField(max_length=20)
+    especialidade = models.CharField(max_length=100, blank=True, null=True)
+    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'cabeleireiro'
+        db_table = 'cabeleireiro_profissionais'
+        ordering = ['nome']
+        verbose_name = 'Profissional (Antigo)'
+        verbose_name_plural = 'Profissionais (Antigo)'
+
+    def __str__(self):
+        return self.nome
+
+
 class Servico(LojaIsolationMixin, models.Model):
     """Serviços oferecidos pelo cabeleireiro"""
     CATEGORIA_CHOICES = [
@@ -80,8 +104,7 @@ class Agendamento(LojaIsolationMixin, models.Model):
     ]
 
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='agendamentos')
-    profissional = models.ForeignKey('Funcionario', on_delete=models.SET_NULL, null=True, related_name='agendamentos', 
-                                     limit_choices_to={'funcao': 'profissional'})
+    profissional = models.ForeignKey('Profissional', on_delete=models.SET_NULL, null=True, related_name='agendamentos')
     servico = models.ForeignKey(Servico, on_delete=models.CASCADE, related_name='agendamentos')
     data = models.DateField()
     horario = models.TimeField()

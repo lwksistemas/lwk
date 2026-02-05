@@ -11,11 +11,11 @@ from core.views import BaseModelViewSet, BaseFuncionarioViewSet
 from core.mixins import ClienteSearchMixin
 from core.throttling import DashboardRateThrottle
 from .models import (
-    Cliente, Profissional, Servico, Agendamento, Produto, Venda,
+    Cliente, Servico, Agendamento, Produto, Venda,
     Funcionario, HorarioFuncionamento, BloqueioAgenda
 )
 from .serializers import (
-    ClienteSerializer, ProfissionalSerializer, ServicoSerializer,
+    ClienteSerializer, ServicoSerializer,
     AgendamentoSerializer, ProdutoSerializer, VendaSerializer,
     FuncionarioSerializer, HorarioFuncionamentoSerializer,
     BloqueioAgendaSerializer, ClienteBuscaSerializer

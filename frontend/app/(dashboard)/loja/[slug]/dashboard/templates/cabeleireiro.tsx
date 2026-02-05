@@ -353,16 +353,21 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [agendamentosRes, clientesRes, profissionaisRes, servicosRes] = await Promise.all([
+      const [agendamentosRes, clientesRes, funcionariosRes, servicosRes] = await Promise.all([
         apiClient.get('/cabeleireiro/agendamentos/'),
         apiClient.get('/cabeleireiro/clientes/'),
-        apiClient.get('/cabeleireiro/profissionais/'),
+        apiClient.get('/cabeleireiro/funcionarios/'),  // ✅ Buscar funcionários
         apiClient.get('/cabeleireiro/servicos/')
       ]);
       const agendamentosData = ensureArray(agendamentosRes.data);
       setAgendamentos(agendamentosData);
       setClientes(ensureArray(clientesRes.data));
-      setProfissionais(ensureArray(profissionaisRes.data));
+      // ✅ Filtrar apenas funcionários com função 'profissional'
+      const todosFuncionarios = ensureArray(funcionariosRes.data);
+      const profissionaisAtivos = todosFuncionarios.filter((f: any) => 
+        f.funcao === 'profissional' && f.is_active
+      );
+      setProfissionais(profissionaisAtivos);
       setServicos(ensureArray(servicosRes.data));
       // Se não tem agendamentos, mostrar formulário
       if (agendamentosData.length === 0) {

@@ -32,31 +32,6 @@ class Cliente(LojaIsolationMixin, models.Model):
         return self.nome
 
 
-class Profissional(LojaIsolationMixin, models.Model):
-    """Profissional cabeleireiro/barbeiro"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField(blank=True, null=True)
-    telefone = models.CharField(max_length=20)
-    especialidade = models.CharField(max_length=100, help_text='Ex: Coloração, Corte Masculino, Penteados')
-    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), 
-                                               validators=[MinValueValidator(Decimal('0.00'))])
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    objects = LojaIsolationManager()
-
-    class Meta:
-        app_label = 'cabeleireiro'
-        db_table = 'cabeleireiro_profissionais'
-        ordering = ['nome']
-        verbose_name = 'Profissional'
-        verbose_name_plural = 'Profissionais'
-
-    def __str__(self):
-        return f"{self.nome} - {self.especialidade}"
-
-
 class Servico(LojaIsolationMixin, models.Model):
     """Serviços oferecidos pelo cabeleireiro"""
     CATEGORIA_CHOICES = [
@@ -99,13 +74,14 @@ class Agendamento(LojaIsolationMixin, models.Model):
         ('agendado', 'Agendado'),
         ('confirmado', 'Confirmado'),
         ('em_atendimento', 'Em Atendimento'),
-        ('concluido', 'Concluído'),
+        ('concluído', 'Concluído'),
         ('cancelado', 'Cancelado'),
         ('falta', 'Falta'),
     ]
 
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='agendamentos')
-    profissional = models.ForeignKey(Profissional, on_delete=models.SET_NULL, null=True, related_name='agendamentos')
+    profissional = models.ForeignKey('Funcionario', on_delete=models.SET_NULL, null=True, related_name='agendamentos', 
+                                     limit_choices_to={'funcao': 'profissional'})
     servico = models.ForeignKey(Servico, on_delete=models.CASCADE, related_name='agendamentos')
     data = models.DateField()
     horario = models.TimeField()
@@ -304,7 +280,9 @@ class HorarioFuncionamento(LojaIsolationMixin, models.Model):
 
 class BloqueioAgenda(LojaIsolationMixin, models.Model):
     """Bloqueios de agenda (férias, folgas, etc)"""
-    profissional = models.ForeignKey(Profissional, on_delete=models.CASCADE, related_name='bloqueios')
+    profissional = models.ForeignKey('Funcionario', on_delete=models.CASCADE, related_name='bloqueios',
+                                     limit_choices_to={'funcao': 'profissional'}, null=True, blank=True,
+                                     help_text='Deixe em branco para bloquear agenda de todos os profissionais')
     data_inicio = models.DateField()
     data_fim = models.DateField()
     motivo = models.CharField(max_length=200)
@@ -320,4 +298,5 @@ class BloqueioAgenda(LojaIsolationMixin, models.Model):
         verbose_name_plural = 'Bloqueios de Agenda'
 
     def __str__(self):
-        return f"{self.profissional.nome} - {self.data_inicio} a {self.data_fim}"
+        prof_nome = self.profissional.nome if self.profissional else 'Todos'
+        return f"{prof_nome} - {self.data_inicio} a {self.data_fim}"

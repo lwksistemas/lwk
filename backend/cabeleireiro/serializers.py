@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
 from .models import (
-    Cliente, Profissional, Servico, Agendamento, Produto, Venda,
+    Cliente, Servico, Agendamento, Produto, Venda,
     Funcionario, HorarioFuncionamento, BloqueioAgenda
 )
 
@@ -29,29 +29,6 @@ class ClienteBuscaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = ['id', 'nome', 'telefone', 'email']
-
-
-class ProfissionalSerializer(BaseLojaSerializer):
-    """Serializer de Profissional"""
-    total_agendamentos = serializers.SerializerMethodField()
-    total_atendimentos_mes = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Profissional
-        fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
-
-    def get_total_agendamentos(self, obj):
-        return obj.agendamentos.count()
-
-    def get_total_atendimentos_mes(self, obj):
-        from datetime import date
-        hoje = date.today()
-        return obj.agendamentos.filter(
-            data__year=hoje.year,
-            data__month=hoje.month,
-            status='concluido'
-        ).count()
 
 
 class ServicoSerializer(BaseLojaSerializer):

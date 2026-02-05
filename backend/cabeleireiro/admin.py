@@ -21,7 +21,7 @@ class ProfissionalAdmin(admin.ModelAdmin):
 
 @admin.register(Servico)
 class ServicoAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'categoria', 'preco', 'duracao', 'is_active']
+    list_display = ['nome', 'categoria', 'preco', 'duracao_minutos', 'is_active']
     list_filter = ['categoria', 'is_active']
     search_fields = ['nome', 'descricao']
 

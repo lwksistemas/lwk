@@ -583,6 +583,7 @@ function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
   const toast = useToast();
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
   const [formData, setFormData] = useState({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', observacoes: '' });
 
@@ -593,8 +594,15 @@ function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
   const carregarClientes = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Carregando clientes... X-Loja-ID:', sessionStorage.getItem('current_loja_id'));
       const response = await apiClient.get('/cabeleireiro/clientes/');
-      setClientes(ensureArray(response.data));
+      console.log('✅ Clientes carregados:', response.data);
+      const data = ensureArray(response.data);
+      setClientes(data);
+      // Se não tem clientes, mostrar formulário
+      if (data.length === 0) {
+        setShowForm(true);
+      }
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
       toast.error('Erro ao carregar clientes');
@@ -608,14 +616,16 @@ function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
     try {
       if (editando) {
         await apiClient.put(`/cabeleireiro/clientes/${editando.id}/`, formData);
-        toast.success('Cliente atualizado!');
+        toast.success('Cliente atualizado com sucesso!');
       } else {
         await apiClient.post('/cabeleireiro/clientes/', formData);
-        toast.success('Cliente cadastrado!');
+        toast.success('Cliente cadastrado com sucesso!');
       }
+      // Limpar formulário e voltar para lista
       setFormData({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', observacoes: '' });
       setEditando(null);
-      carregarClientes();
+      setShowForm(false); // ✅ Voltar para lista após salvar
+      await carregarClientes(); // Recarregar lista
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
       toast.error('Erro ao salvar cliente');
@@ -632,6 +642,7 @@ function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
       data_nascimento: cliente.data_nascimento || '',
       observacoes: cliente.observacoes || ''
     });
+    setShowForm(true);
   };
 
   const handleExcluir = async (id: number) => {
@@ -646,6 +657,86 @@ function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
     }
   };
 
+  const handleCancelar = () => {
+    setEditando(null);
+    setFormData({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', observacoes: '' });
+    setShowForm(false);
+  };
+
+  // Se está mostrando formulário
+  if (showForm) {
+    return (
+      <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              {editando ? '✏️ Editar Cliente' : '➕ Novo Cliente'}
+            </h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Nome *"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                required
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <input
+                type="tel"
+                placeholder="Telefone *"
+                value={formData.telefone}
+                onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                required
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <input
+                type="email"
+                placeholder="E-mail"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <input
+                type="text"
+                placeholder="CPF"
+                value={formData.cpf}
+                onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <input
+                type="date"
+                placeholder="Data de Nascimento"
+                value={formData.data_nascimento}
+                onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <textarea
+                placeholder="Observações"
+                value={formData.observacoes}
+                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                rows={2}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <button type="button" onClick={handleCancelar} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white">
+                Cancelar
+              </button>
+              <button type="submit" className="px-6 py-2 text-white rounded-lg" style={{ backgroundColor: loja.cor_primaria }}>
+                {editando ? 'Atualizar' : 'Cadastrar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+    );
+  }
+
+  // Mostrando lista
   return (
     <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
       <div className="p-6">
@@ -654,86 +745,49 @@ function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
         </div>
 
-        {/* Formulário */}
-        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Nome *"
-              value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              required
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="tel"
-              placeholder="Telefone *"
-              value={formData.telefone}
-              onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-              required
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="email"
-              placeholder="E-mail"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="text"
-              placeholder="CPF"
-              value={formData.cpf}
-              onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="date"
-              placeholder="Data de Nascimento"
-              value={formData.data_nascimento}
-              onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <textarea
-              placeholder="Observações"
-              value={formData.observacoes}
-              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              rows={2}
-            />
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button type="submit" className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>
-              {editando ? 'Atualizar' : 'Cadastrar'}
-            </button>
-            {editando && (
-              <button type="button" onClick={() => { setEditando(null); setFormData({ nome: '', telefone: '', email: '', cpf: '', data_nascimento: '', observacoes: '' }); }} className="px-4 py-2 bg-gray-500 text-white rounded-lg">
-                Cancelar
-              </button>
-            )}
-          </div>
-        </form>
-
-        {/* Lista */}
         {loading ? (
-          <p className="text-center text-gray-500">Carregando...</p>
+          <p className="text-center text-gray-500 py-8">Carregando...</p>
         ) : clientes.length === 0 ? (
-          <p className="text-center text-gray-500">Nenhum cliente cadastrado</p>
-        ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {clientes.map((cliente) => (
-              <div key={cliente.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg">
-                <div>
-                  <p className="font-semibold dark:text-white">{cliente.nome}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{cliente.telefone} {cliente.email && `• ${cliente.email}`}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleEditar(cliente)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Editar</button>
-                  <button onClick={() => handleExcluir(cliente.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Excluir</button>
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-4">Nenhum cliente cadastrado</p>
+            <button 
+              onClick={() => setShowForm(true)} 
+              className="px-6 py-3 rounded-lg text-white" 
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              + Cadastrar Primeiro Cliente
+            </button>
           </div>
+        ) : (
+          <>
+            <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
+              {clientes.map((cliente) => (
+                <div key={cliente.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <div>
+                    <p className="font-semibold dark:text-white">{cliente.nome}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{cliente.telefone} {cliente.email && `• ${cliente.email}`}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEditar(cliente)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Editar</button>
+                    <button onClick={() => handleExcluir(cliente.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">Excluir</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white">
+                Fechar
+              </button>
+              <button 
+                onClick={() => setShowForm(true)} 
+                className="px-6 py-2 text-white rounded-lg" 
+                style={{ backgroundColor: loja.cor_primaria }}
+              >
+                + Novo Cliente
+              </button>
+            </div>
+          </>
         )}
       </div>
     </Modal>

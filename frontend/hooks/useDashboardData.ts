@@ -112,8 +112,20 @@ export function useDashboardData<T, U>({
 
   // Carregar dados apenas uma vez no mount
   useEffect(() => {
-    // Prevenir execução duplicada
-    if (hasLoadedRef.current) return;
+    // Sempre carregar se enabled=true, independente de hasLoaded
+    // Isso resolve o problema do React Strict Mode (double mount)
+    if (!enabled) return;
+    
+    // Resetar flag se o componente foi remontado
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      hasLoadedRef.current = false;
+    }
+    
+    // Prevenir execução duplicada apenas se já carregou E ainda está montado
+    if (hasLoadedRef.current && isMountedRef.current) {
+      return;
+    }
     
     hasLoadedRef.current = true;
     reload();
@@ -122,7 +134,7 @@ export function useDashboardData<T, U>({
     return () => {
       isMountedRef.current = false;
     };
-  }, []); // Array vazio = executa apenas uma vez
+  }, [enabled]); // Depende de enabled para recarregar se mudar
 
   return {
     loading,

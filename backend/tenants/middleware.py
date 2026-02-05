@@ -58,30 +58,30 @@ class TenantMiddleware:
                     # Usar database_name da loja (pode ser diferente do slug)
                     db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", tenant_slug)}'
 
-                    # Configurar banco dinamicamente só se não existir (evita 500 se schema não existir)
-                    if db_name not in settings.DATABASES:
-                        try:
-                            import dj_database_url
-                            import os
-                            DATABASE_URL = os.environ.get('DATABASE_URL')
-                            if DATABASE_URL:
-                                default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
-                                schema_name = f"loja_{loja.id}"
-                                settings.DATABASES[db_name] = {
-                                    **default_db,
-                                    'OPTIONS': {
-                                        'options': f'-c search_path={schema_name},public'
-                                    },
-                                    'ATOMIC_REQUESTS': False,
-                                    'AUTOCOMMIT': True,
-                                    'CONN_MAX_AGE': 600,
-                                    'CONN_HEALTH_CHECKS': True,
-                                    'TIME_ZONE': None,
-                                }
-                                logger.info(f"✅ [TenantMiddleware] Banco '{db_name}' configurado dinamicamente com schema '{schema_name}'")
-                        except Exception as db_err:
-                            logger.warning("TenantMiddleware: falha ao configurar banco %s, usando default: %s", db_name, db_err)
-                            db_name = 'default'
+                    # Configurar banco dinamicamente (SEMPRE reconfigurar para garantir schema correto)
+                    try:
+                        import dj_database_url
+                        import os
+                        DATABASE_URL = os.environ.get('DATABASE_URL')
+                        if DATABASE_URL:
+                            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+                            # ✅ Usar database_name da loja (ex: loja_salao_000172) ao invés de loja_{id}
+                            schema_name = loja.database_name or f"loja_{loja.id}"
+                            settings.DATABASES[db_name] = {
+                                **default_db,
+                                'OPTIONS': {
+                                    'options': f'-c search_path={schema_name},public'
+                                },
+                                'ATOMIC_REQUESTS': False,
+                                'AUTOCOMMIT': True,
+                                'CONN_MAX_AGE': 600,
+                                'CONN_HEALTH_CHECKS': True,
+                                'TIME_ZONE': None,
+                            }
+                            logger.warning(f"✅ [TenantMiddleware] Banco '{db_name}' configurado com schema '{schema_name}'")
+                    except Exception as db_err:
+                        logger.warning("TenantMiddleware: falha ao configurar banco %s, usando default: %s", db_name, db_err)
+                        db_name = 'default'
 
                     # Verificar se o banco existe nas configurações
                     if db_name in settings.DATABASES:

@@ -786,6 +786,23 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         # ✅ OTIMIZAÇÃO: select_related para user
         return UsuarioSistema.objects.select_related('user').prefetch_related('lojas_acesso').all()
     
+    def create(self, request, *args, **kwargs):
+        """Criar usuário com senha provisória gerada automaticamente"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        # Pegar senha provisória gerada
+        senha_provisoria = getattr(serializer.instance, '_senha_provisoria_gerada', None)
+        
+        # Adicionar senha provisória na resposta
+        response_data = serializer.data
+        response_data['senha_provisoria'] = senha_provisoria
+        response_data['message'] = 'Usuário criado com sucesso! Senha provisória enviada por email.'
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+    
     def destroy(self, request, *args, **kwargs):
         """Exclusão completa do usuário (UsuarioSistema + User do Django)"""
         usuario_sistema = self.get_object()

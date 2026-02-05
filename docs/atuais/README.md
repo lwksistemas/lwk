@@ -1,4 +1,4 @@
-# 📚 Documentação Atual - LWK Sistemas
+eu ex# 📚 Documentação Atual - LWK Sistemas
 
 ## 📋 Documentos Importantes (Fevereiro 2026)
 

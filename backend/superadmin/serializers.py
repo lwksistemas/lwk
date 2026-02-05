@@ -29,21 +29,33 @@ class UsuarioSistemaSerializer(serializers.ModelSerializer):
         fields = '__all__'
     
     def create(self, validated_data):
+        import random
+        import string
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
         user_data = validated_data.pop('user')
-        password = user_data.pop('password', 'senha123')
+        
+        # Gerar senha provisória automaticamente
+        senha_provisoria = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%&*', k=10))
         
         # Criar usuário
         user = User.objects.create_user(
             username=user_data['username'],
             email=user_data.get('email', ''),
-            password=password,
+            password=senha_provisoria,
             first_name=user_data.get('first_name', ''),
             last_name=user_data.get('last_name', ''),
             is_staff=True
         )
         
-        # Criar perfil
-        perfil = UsuarioSistema.objects.create(user=user, **validated_data)
+        # Criar perfil com senha provisória
+        perfil = UsuarioSistema.objects.create(
+            user=user, 
+            senha_provisoria=senha_provisoria,
+            senha_foi_alterada=False,
+            **validated_data
+        )
         
         # Adicionar ao grupo
         if perfil.tipo == 'suporte':
@@ -52,6 +64,51 @@ class UsuarioSistemaSerializer(serializers.ModelSerializer):
         elif perfil.tipo == 'superadmin':
             user.is_superuser = True
             user.save()
+        
+        # Enviar email com senha provisória
+        try:
+            tipo_display = 'Super Admin' if perfil.tipo == 'superadmin' else 'Suporte'
+            url_login = f"https://lwksistemas.com.br/{perfil.tipo}/login"
+            
+            assunto = f"Bem-vindo ao LWK Sistemas - {tipo_display}"
+            mensagem = f"""
+Olá {user.first_name or user.username}!
+
+Sua conta foi criada no LWK Sistemas.
+
+🔐 DADOS DE ACESSO:
+• URL de Login: {url_login}
+• Usuário: {user.username}
+• Senha Provisória: {senha_provisoria}
+
+⚠️ IMPORTANTE:
+• Esta é uma senha provisória gerada automaticamente
+• Você será solicitado a trocar a senha no primeiro acesso
+• Por segurança, altere a senha assim que fizer login
+• Mantenha seus dados de acesso em segurança
+
+📋 INFORMAÇÕES DA CONTA:
+• Nome: {user.first_name} {user.last_name}
+• Email: {user.email}
+• Tipo: {tipo_display}
+
+---
+Equipe LWK Sistemas
+            """.strip()
+            
+            send_mail(
+                subject=assunto,
+                message=mensagem,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True
+            )
+            logger.info(f"✅ Email enviado para {user.email} com senha provisória")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao enviar email: {e}")
+        
+        # Armazenar senha provisória no contexto para retornar na resposta
+        perfil._senha_provisoria_gerada = senha_provisoria
         
         return perfil
 

@@ -367,7 +367,7 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
   const [formData, setFormData] = useState({
     username: usuario?.user.username || '',
     email: usuario?.user.email || '',
-    password: '',
+    password: '', // Só usado ao editar
     first_name: usuario?.user.first_name || '',
     last_name: usuario?.user.last_name || '',
     tipo: usuario?.tipo || 'suporte',
@@ -410,8 +410,9 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
         last_name: formData.last_name,
       };
 
-      // Só incluir senha se for novo usuário ou se foi preenchida
-      if (!isEditing || formData.password) {
+      // Ao criar: backend gera senha provisória automaticamente
+      // Ao editar: só incluir senha se foi preenchida
+      if (isEditing && formData.password) {
         userData.password = formData.password;
       }
 
@@ -422,9 +423,10 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
         await apiClient.put(`/superadmin/usuarios/${usuario.id}/`, payload);
         alert('✅ Usuário atualizado com sucesso!');
       } else {
-        // Criar novo usuário
-        await apiClient.post('/superadmin/usuarios/', payload);
-        alert('✅ Usuário criado com sucesso!');
+        // Criar novo usuário (senha provisória gerada automaticamente)
+        const response = await apiClient.post('/superadmin/usuarios/', payload);
+        const senhaProvisoria = response.data.senha_provisoria;
+        alert(`✅ Usuário criado com sucesso!\n\n📧 Senha provisória enviada para: ${formData.email}\n🔐 Senha: ${senhaProvisoria}\n\n⚠️ O usuário deverá trocar a senha no primeiro acesso.`);
       }
 
       onSuccess();
@@ -525,22 +527,36 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Senha {isEditing ? '(deixe em branco para não alterar)' : '*'}
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required={!isEditing}
-                  minLength={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                  placeholder={isEditing ? "Deixe em branco para manter a atual" : "Mínimo 6 caracteres"}
-                />
-              </div>
+              {/* Campo de senha só aparece ao editar */}
+              {isEditing && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nova Senha (opcional)
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    minLength={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="Deixe em branco para manter a atual"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Deixe em branco para não alterar a senha
+                  </p>
+                </div>
+              )}
             </div>
+
+            {/* Aviso sobre senha provisória ao criar */}
+            {!isEditing && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-800">
+                  <strong>ℹ️ Senha Provisória:</strong> Uma senha será gerada automaticamente e enviada para o email do usuário. O usuário deverá trocar a senha no primeiro acesso.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Tipo e Permissões */}

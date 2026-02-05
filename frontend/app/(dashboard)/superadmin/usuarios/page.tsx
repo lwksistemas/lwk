@@ -31,6 +31,7 @@ export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editandoUsuario, setEditandoUsuario] = useState<Usuario | null>(null);
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
 
   useEffect(() => {
@@ -70,6 +71,24 @@ export default function UsuariosPage() {
     } catch (error: any) {
       console.error('Erro ao alterar status:', error);
       alert(`❌ Erro: ${error.response?.data?.error || 'Erro ao alterar status'}`);
+    }
+  };
+
+  const handleEditar = (usuario: Usuario) => {
+    setEditandoUsuario(usuario);
+    setShowModal(true);
+  };
+
+  const handleExcluir = async (usuario: Usuario) => {
+    if (!confirm(`⚠️ ATENÇÃO!\n\nDeseja realmente EXCLUIR o usuário ${usuario.user.username}?\n\nEsta ação NÃO pode ser desfeita!`)) return;
+
+    try {
+      await apiClient.delete(`/superadmin/usuarios/${usuario.id}/`);
+      alert('✅ Usuário excluído com sucesso!');
+      loadUsuarios();
+    } catch (error: any) {
+      console.error('Erro ao excluir usuário:', error);
+      alert(`❌ Erro: ${error.response?.data?.error || 'Erro ao excluir usuário'}`);
     }
   };
 
@@ -296,14 +315,23 @@ export default function UsuariosPage() {
                         {formatDate(usuario.created_at)}
                       </td>
                       <td className="px-6 py-4 text-sm space-x-2">
-                        <button className="text-blue-600 hover:text-blue-800">
-                          Editar
+                        <button 
+                          onClick={() => handleEditar(usuario)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          ✏️ Editar
                         </button>
                         <button
                           onClick={() => toggleUsuarioStatus(usuario)}
-                          className={usuario.is_active ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}
+                          className={`font-medium ${usuario.is_active ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'}`}
                         >
-                          {usuario.is_active ? 'Desativar' : 'Ativar'}
+                          {usuario.is_active ? '⏸️ Desativar' : '▶️ Ativar'}
+                        </button>
+                        <button
+                          onClick={() => handleExcluir(usuario)}
+                          className="text-red-600 hover:text-red-800 font-medium"
+                        >
+                          🗑️ Excluir
                         </button>
                       </td>
                     </tr>
@@ -315,32 +343,41 @@ export default function UsuariosPage() {
         </div>
       </main>
 
-      {/* Modal Novo Usuário */}
+      {/* Modal Novo/Editar Usuário */}
       {showModal && (
         <NovoUsuarioModal 
-          onClose={() => setShowModal(false)} 
-          onSuccess={loadUsuarios} 
+          usuario={editandoUsuario}
+          onClose={() => {
+            setShowModal(false);
+            setEditandoUsuario(null);
+          }} 
+          onSuccess={() => {
+            loadUsuarios();
+            setEditandoUsuario(null);
+          }} 
         />
       )}
     </div>
   );
 }
 
-// Modal de Novo Usuário
-function NovoUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+// Modal de Novo/Editar Usuário
+function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario | null; onClose: () => void; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
+    username: usuario?.user.username || '',
+    email: usuario?.user.email || '',
     password: '',
-    first_name: '',
-    last_name: '',
-    tipo: 'suporte',
-    telefone: '',
-    pode_criar_lojas: false,
-    pode_gerenciar_financeiro: false,
-    pode_acessar_todas_lojas: false,
+    first_name: usuario?.user.first_name || '',
+    last_name: usuario?.user.last_name || '',
+    tipo: usuario?.tipo || 'suporte',
+    telefone: usuario?.telefone || '',
+    pode_criar_lojas: usuario?.pode_criar_lojas || false,
+    pode_gerenciar_financeiro: usuario?.pode_gerenciar_financeiro || false,
+    pode_acessar_todas_lojas: usuario?.pode_acessar_todas_lojas || false,
   });
+
+  const isEditing = !!usuario;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -357,27 +394,44 @@ function NovoUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucce
     setLoading(true);
 
     try {
-      await apiClient.post('/superadmin/usuarios/', {
-        user: {
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-        },
+      const payload: any = {
         tipo: formData.tipo,
         telefone: formData.telefone,
         pode_criar_lojas: formData.pode_criar_lojas,
         pode_gerenciar_financeiro: formData.pode_gerenciar_financeiro,
         pode_acessar_todas_lojas: formData.pode_acessar_todas_lojas,
-      });
+      };
 
-      alert('✅ Usuário criado com sucesso!');
+      // Dados do usuário Django
+      const userData: any = {
+        username: formData.username,
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+      };
+
+      // Só incluir senha se for novo usuário ou se foi preenchida
+      if (!isEditing || formData.password) {
+        userData.password = formData.password;
+      }
+
+      payload.user = userData;
+
+      if (isEditing && usuario) {
+        // Atualizar usuário existente
+        await apiClient.put(`/superadmin/usuarios/${usuario.id}/`, payload);
+        alert('✅ Usuário atualizado com sucesso!');
+      } else {
+        // Criar novo usuário
+        await apiClient.post('/superadmin/usuarios/', payload);
+        alert('✅ Usuário criado com sucesso!');
+      }
+
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Erro ao criar usuário:', error);
-      alert(`❌ Erro: ${error.response?.data?.error || JSON.stringify(error.response?.data) || 'Erro ao criar usuário'}`);
+      console.error('Erro ao salvar usuário:', error);
+      alert(`❌ Erro: ${error.response?.data?.error || JSON.stringify(error.response?.data) || 'Erro ao salvar usuário'}`);
     } finally {
       setLoading(false);
     }
@@ -386,7 +440,9 @@ function NovoUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6 text-purple-900">Novo Usuário do Sistema</h2>
+        <h2 className="text-2xl font-bold mb-6 text-purple-900">
+          {isEditing ? '✏️ Editar Usuário' : '➕ Novo Usuário do Sistema'}
+        </h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informações Básicas */}
@@ -403,9 +459,13 @@ function NovoUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucce
                   value={formData.username}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  disabled={isEditing}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="usuario123"
                 />
+                {isEditing && (
+                  <p className="text-xs text-gray-500 mt-1">Nome de usuário não pode ser alterado</p>
+                )}
               </div>
 
               <div>
@@ -467,17 +527,17 @@ function NovoUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucce
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Senha *
+                  Senha {isEditing ? '(deixe em branco para não alterar)' : '*'}
                 </label>
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  required
+                  required={!isEditing}
                   minLength={6}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={isEditing ? "Deixe em branco para manter a atual" : "Mínimo 6 caracteres"}
                 />
               </div>
             </div>
@@ -553,7 +613,7 @@ function NovoUsuarioModal({ onClose, onSuccess }: { onClose: () => void; onSucce
               disabled={loading}
               className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Criando...' : 'Criar Usuário'}
+              {loading ? (isEditing ? 'Atualizando...' : 'Criando...') : (isEditing ? 'Atualizar Usuário' : 'Criar Usuário')}
             </button>
           </div>
         </form>

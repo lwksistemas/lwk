@@ -411,24 +411,19 @@ function ModalAgendamento({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
       const [agendamentosRes, clientesRes, profissionaisRes, servicosRes] = await Promise.all([
         apiClient.get('/cabeleireiro/agendamentos/'),
         apiClient.get('/cabeleireiro/clientes/'),
-        apiClient.get('/cabeleireiro/profissionais/'),  // ✅ Buscar profissionais diretamente
+        apiClient.get('/cabeleireiro/profissionais/'),
         apiClient.get('/cabeleireiro/servicos/')
       ]);
       const agendamentosData = ensureArray(agendamentosRes.data);
       setAgendamentos(agendamentosData);
       setClientes(ensureArray(clientesRes.data));
-      // ✅ Profissionais já vêm filtrados da API
       const profissionaisAtivos = ensureArray(profissionaisRes.data).filter((p: any) => p.is_active !== false);
-      console.log('✅ Profissionais ativos:', profissionaisAtivos);
       setProfissionais(profissionaisAtivos);
-      // ✅ Filtrar apenas serviços ativos
       const todosServicos = ensureArray(servicosRes.data);
-      console.log('📋 Todos serviços:', todosServicos);
       const servicosAtivos = todosServicos.filter((s: any) => s.is_active !== false);
-      console.log('✅ Serviços ativos filtrados:', servicosAtivos);
       setServicos(servicosAtivos);
-      // Se não tem agendamentos, mostrar formulário
-      if (agendamentosData.length === 0) {
+      // ✅ Só mostrar formulário na primeira carga se não tem dados
+      if (agendamentosData.length === 0 && !showForm) {
         setShowForm(true);
       }
     } catch (error) {
@@ -724,13 +719,11 @@ function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
   const carregarClientes = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Carregando clientes... X-Loja-ID:', sessionStorage.getItem('current_loja_id'));
       const response = await apiClient.get('/cabeleireiro/clientes/');
-      console.log('✅ Clientes carregados:', response.data);
       const data = ensureArray(response.data);
       setClientes(data);
-      // Se não tem clientes, mostrar formulário
-      if (data.length === 0) {
+      // ✅ Só mostrar formulário na primeira carga se não tem dados
+      if (data.length === 0 && !showForm) {
         setShowForm(true);
       }
     } catch (error) {
@@ -1222,8 +1215,8 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
       const response = await apiClient.get('/cabeleireiro/funcionarios/');
       const data = ensureArray(response.data);
       setFuncionarios(data);
-      // ✅ Se não tem funcionários (além do admin), mostrar formulário
-      if (data.length === 0) {
+      // ✅ Só mostrar formulário na primeira carga se não tem dados
+      if (data.length === 0 && !showForm) {
         setShowForm(true);
       }
     } catch (error) {

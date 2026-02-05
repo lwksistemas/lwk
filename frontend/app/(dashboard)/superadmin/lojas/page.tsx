@@ -149,31 +149,42 @@ export default function GerenciarLojasPage() {
     try {
       const response = await apiClient.delete(`/superadmin/lojas/${lojaParaExcluir.id}/`);
       
+      // Verificar se a resposta tem a estrutura esperada
+      if (!response.data || !response.data.detalhes) {
+        // Exclusão bem-sucedida mas sem detalhes - mostrar mensagem simples
+        alert(`✅ Loja "${lojaParaExcluir.nome}" foi removida com sucesso!`);
+        setShowModalExcluir(false);
+        setLojaParaExcluir(null);
+        loadLojas();
+        return;
+      }
+      
       // Mostrar detalhes da exclusão
       const detalhes = response.data.detalhes;
-      let mensagem = `✅ Loja "${response.data.detalhes.loja_nome}" foi completamente removida!\n\n`;
+      const lojaNome = detalhes.loja_nome || lojaParaExcluir.nome;
+      let mensagem = `✅ Loja "${lojaNome}" foi completamente removida!\n\n`;
       
       mensagem += `📋 Detalhes da limpeza:\n`;
       mensagem += `• Loja: ✅ Removida\n`;
       
-      if (detalhes.banco_dados.existia) {
+      if (detalhes.banco_dados?.existia) {
         mensagem += `• Banco de dados: ✅ Arquivo removido (${detalhes.banco_dados.nome})\n`;
         mensagem += `• Configurações: ✅ Removidas do sistema\n`;
       } else {
         mensagem += `• Banco de dados: ℹ️ Não havia banco criado\n`;
       }
       
-      if (detalhes.dados_financeiros.financeiro_removido) {
+      if (detalhes.dados_financeiros?.financeiro_removido) {
         mensagem += `• Dados financeiros: ✅ Removidos\n`;
       }
       
-      if (detalhes.dados_financeiros.pagamentos_removidos > 0) {
+      if (detalhes.dados_financeiros?.pagamentos_removidos > 0) {
         mensagem += `• Histórico de pagamentos: ✅ ${detalhes.dados_financeiros.pagamentos_removidos} registro(s) removido(s)\n`;
       }
       
-      if (detalhes.usuario_proprietario.removido) {
+      if (detalhes.usuario_proprietario?.removido) {
         mensagem += `• Usuário proprietário: ✅ Removido (${detalhes.usuario_proprietario.username})\n`;
-      } else {
+      } else if (detalhes.usuario_proprietario?.username) {
         const motivo = detalhes.usuario_proprietario.motivo_nao_removido || 'Mantido no sistema';
         mensagem += `• Usuário proprietário: ℹ️ ${motivo} (${detalhes.usuario_proprietario.username})\n`;
       }
@@ -200,6 +211,8 @@ export default function GerenciarLojasPage() {
       
       if (error.response?.data?.error) {
         mensagemErro += error.response.data.error;
+      } else if (error.message) {
+        mensagemErro += error.message;
       } else {
         mensagemErro += 'Erro desconhecido';
       }

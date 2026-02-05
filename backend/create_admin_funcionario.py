@@ -36,30 +36,50 @@ def criar_funcionario_admin(loja):
     Returns:
         tuple: (sucesso: bool, mensagem: str)
     """
-    # Verificar se já existe (idempotência)
-    funcionario_existente = Funcionario.objects.filter(
-        loja_id=loja.id,
-        email=loja.owner.email
-    ).first()
+    from django.db import connection
     
-    if funcionario_existente:
-        return True, f"Administrador já cadastrado: {funcionario_existente.nome}"
-    
-    try:
-        # Criar funcionário administrador
-        funcionario = Funcionario.objects.create(
-            loja_id=loja.id,
-            nome=loja.owner.get_full_name() or loja.owner.username,
-            email=loja.owner.email,
-            telefone='(00) 00000-0000',  # Telefone padrão (será atualizado pelo admin)
-            cargo='Proprietário',
-            funcao='administrador',
-            data_admissao=loja.created_at.date() if hasattr(loja.created_at, 'date') else date.today(),
-            is_active=True
-        )
-        return True, f"Administrador criado: {funcionario.nome} (ID: {funcionario.id})"
-    except Exception as e:
-        return False, f"Erro ao criar administrador: {e}"
+    # Usar query direta para evitar problemas com LojaIsolationManager
+    # que depende do contexto da requisição (não disponível em scripts)
+    with connection.cursor() as cursor:
+        # Verificar se já existe (idempotência)
+        cursor.execute("""
+            SELECT id, nome FROM cabeleireiro_funcionarios 
+            WHERE loja_id = %s AND email = %s
+        """, [loja.id, loja.owner.email])
+        
+        funcionario_existente = cursor.fetchone()
+        
+        if funcionario_existente:
+            return True, f"Administrador já cadastrado: {funcionario_existente[1]} (ID: {funcionario_existente[0]})"
+        
+        try:
+            # Criar funcionário administrador usando query direta
+            nome = loja.owner.get_full_name() or loja.owner.username
+            data_admissao = loja.created_at.date() if hasattr(loja.created_at, 'date') else date.today()
+            
+            cursor.execute("""
+                INSERT INTO cabeleireiro_funcionarios 
+                (loja_id, nome, email, telefone, cargo, funcao, especialidade, comissao_percentual, data_admissao, is_active, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                RETURNING id, nome
+            """, [
+                loja.id,
+                nome,
+                loja.owner.email,
+                '(00) 00000-0000',  # Telefone padrão
+                'Proprietário',
+                'administrador',
+                '',  # especialidade vazia
+                0.00,  # comissão 0
+                data_admissao,
+                True  # is_active
+            ])
+            
+            resultado = cursor.fetchone()
+            return True, f"Administrador criado: {resultado[1]} (ID: {resultado[0]})"
+            
+        except Exception as e:
+            return False, f"Erro ao criar administrador: {e}"
 
 
 def main():

@@ -74,7 +74,7 @@ class AgendamentoSerializer(BaseLojaSerializer):
     cliente_telefone = serializers.CharField(source='cliente.telefone', read_only=True)
     profissional_nome = serializers.CharField(source='profissional.nome', read_only=True)
     servico_nome = serializers.CharField(source='servico.nome', read_only=True)
-    servico_duracao = serializers.IntegerField(source='servico.duracao', read_only=True)
+    servico_duracao = serializers.IntegerField(source='servico.duracao_minutos', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:

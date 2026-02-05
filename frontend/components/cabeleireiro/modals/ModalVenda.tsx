@@ -105,7 +105,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
 
   const produtoSelecionado = produtos.find(p => p.id === parseInt(formData.produto));
   const valorTotal = produtoSelecionado 
-    ? (produtoSelecionado.preco_venda * parseInt(formData.quantidade || '0')).toFixed(2)
+    ? (Number(produtoSelecionado.preco_venda) * parseInt(formData.quantidade || '0')).toFixed(2)
     : '0.00';
 
   if (showForm) {
@@ -129,7 +129,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                 <option value="">Selecione um produto</option>
                 {produtos.map(produto => (
                   <option key={produto.id} value={produto.id}>
-                    {produto.nome} - R$ {produto.preco_venda.toFixed(2)} (Estoque: {produto.estoque_atual})
+                    {produto.nome} - R$ {Number(produto.preco_venda).toFixed(2)} (Estoque: {produto.estoque_atual})
                   </option>
                 ))}
               </select>
@@ -252,7 +252,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-bold" style={{ color: loja.cor_primaria }}>
-                      R$ {venda.valor_total.toFixed(2)}
+                      R$ {Number(venda.valor_total).toFixed(2)}
                     </p>
                   </div>
                 </div>

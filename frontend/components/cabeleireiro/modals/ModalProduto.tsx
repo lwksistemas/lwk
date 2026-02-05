@@ -290,7 +290,7 @@ export function ModalProduto({ loja, onClose }: { loja: LojaInfo; onClose: () =>
                       {produto.marca && ` • ${produto.marca}`}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      💰 R$ {produto.preco_venda.toFixed(2)} • 📦 Estoque: {produto.estoque_atual}
+                      💰 R$ {Number(produto.preco_venda).toFixed(2)} • 📦 Estoque: {produto.estoque_atual}
                     </p>
                   </div>
                   <div className="flex gap-2">

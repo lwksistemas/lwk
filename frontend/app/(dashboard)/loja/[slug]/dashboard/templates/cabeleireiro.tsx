@@ -40,7 +40,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
 
   // Hook para gerenciar modais
   const { modals, openModal, closeModal } = useModals([
-    'agendamento', 'cliente', 'servico', 'profissional',
+    'agendamento', 'cliente', 'servico',
     'produto', 'venda', 'funcionarios', 'horarios', 'bloqueios', 'calendario'
   ] as const);
 
@@ -82,7 +82,6 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   const handleNovoAgendamento = () => openModal('calendario');
   const handleNovoCliente = () => openModal('cliente');
   const handleServicos = () => openModal('servico');
-  const handleNovoProfissional = () => openModal('profissional');
   const handleProdutos = () => openModal('produto');
   const handleVendas = () => openModal('venda');
   const handleFuncionarios = () => openModal('funcionarios');
@@ -113,7 +112,6 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
           <ActionButton onClick={handleNovoAgendamento} color="#3B82F6" icon="📅" label="Agendamento" />
           <ActionButton onClick={handleNovoCliente} color="#F59E0B" icon="👤" label="Cliente" />
-          <ActionButton onClick={handleNovoProfissional} color="#EF4444" icon="💇" label="Profissional" />
           <ActionButton onClick={handleServicos} color="#06B6D4" icon="✂️" label="Serviços" />
           <ActionButton onClick={handleProdutos} color="#8B5CF6" icon="🧴" label="Produtos" />
           <ActionButton onClick={handleVendas} color="#10B981" icon="💰" label="Vendas" />
@@ -182,14 +180,6 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       {modals.cliente && (
         <ModalCliente loja={loja} onClose={() => {
           closeModal('cliente');
-          reload();
-        }} />
-      )}
-
-      {/* Modal de Profissionais */}
-      {modals.profissional && (
-        <ModalProfissional loja={loja} onClose={() => {
-          closeModal('profissional');
           reload();
         }} />
       )}
@@ -750,163 +740,6 @@ function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
   );
 }
 
-// Modal de Profissional
-function ModalProfissional({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
-  const toast = useToast();
-  const [profissionais, setProfissionais] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editando, setEditando] = useState<any | null>(null);
-  const [formData, setFormData] = useState({ nome: '', telefone: '', email: '', especialidade: '', comissao_percentual: '' });
-
-  useEffect(() => {
-    carregarProfissionais();
-  }, []);
-
-  const carregarProfissionais = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get('/cabeleireiro/profissionais/');
-      setProfissionais(ensureArray(response.data));
-    } catch (error) {
-      console.error('Erro ao carregar profissionais:', error);
-      toast.error('Erro ao carregar profissionais');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editando) {
-        await apiClient.put(`/cabeleireiro/profissionais/${editando.id}/`, formData);
-        toast.success('Profissional atualizado!');
-      } else {
-        await apiClient.post('/cabeleireiro/profissionais/', formData);
-        toast.success('Profissional cadastrado!');
-      }
-      setFormData({ nome: '', telefone: '', email: '', especialidade: '', comissao_percentual: '' });
-      setEditando(null);
-      carregarProfissionais();
-    } catch (error) {
-      console.error('Erro ao salvar profissional:', error);
-      toast.error('Erro ao salvar profissional');
-    }
-  };
-
-  const handleEditar = (profissional: any) => {
-    setEditando(profissional);
-    setFormData({
-      nome: profissional.nome || '',
-      telefone: profissional.telefone || '',
-      email: profissional.email || '',
-      especialidade: profissional.especialidade || '',
-      comissao_percentual: profissional.comissao_percentual || ''
-    });
-  };
-
-  const handleExcluir = async (id: number) => {
-    if (!confirm('Deseja realmente excluir este profissional?')) return;
-    try {
-      await apiClient.delete(`/cabeleireiro/profissionais/${id}/`);
-      toast.success('Profissional excluído!');
-      carregarProfissionais();
-    } catch (error) {
-      console.error('Erro ao excluir profissional:', error);
-      toast.error('Erro ao excluir profissional');
-    }
-  };
-
-  return (
-    <Modal isOpen={true} onClose={onClose} maxWidth="4xl">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">💇 Profissionais</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded">✕</button>
-        </div>
-
-        {/* Formulário */}
-        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Nome *"
-              value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              required
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="tel"
-              placeholder="Telefone *"
-              value={formData.telefone}
-              onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-              required
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="email"
-              placeholder="E-mail"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="text"
-              placeholder="Especialidade"
-              value={formData.especialidade}
-              onChange={(e) => setFormData({ ...formData, especialidade: e.target.value })}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            <input
-              type="number"
-              placeholder="Comissão (%)"
-              value={formData.comissao_percentual}
-              onChange={(e) => setFormData({ ...formData, comissao_percentual: e.target.value })}
-              step="0.01"
-              className="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button type="submit" className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: loja.cor_primaria }}>
-              {editando ? 'Atualizar' : 'Cadastrar'}
-            </button>
-            {editando && (
-              <button type="button" onClick={() => { setEditando(null); setFormData({ nome: '', telefone: '', email: '', especialidade: '', comissao_percentual: '' }); }} className="px-4 py-2 bg-gray-500 text-white rounded-lg">
-                Cancelar
-              </button>
-            )}
-          </div>
-        </form>
-
-        {/* Lista */}
-        {loading ? (
-          <p className="text-center text-gray-500">Carregando...</p>
-        ) : profissionais.length === 0 ? (
-          <p className="text-center text-gray-500">Nenhum profissional cadastrado</p>
-        ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {profissionais.map((profissional) => (
-              <div key={profissional.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-700 rounded-lg">
-                <div>
-                  <p className="font-semibold dark:text-white">{profissional.nome}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {profissional.telefone} {profissional.especialidade && `• ${profissional.especialidade}`}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleEditar(profissional)} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Editar</button>
-                  <button onClick={() => handleExcluir(profissional.id)} className="px-3 py-1 bg-red-500 text-white rounded text-sm">Excluir</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </Modal>
-  );
-}
-
 // Modal de Serviço
 function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
   const toast = useToast();
@@ -1057,6 +890,46 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
   );
 }
 
+// Funções auxiliares para badges de função
+function getFuncaoBadge(funcao: string): string {
+  const badges: Record<string, string> = {
+    administrador: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+    gerente: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+    atendente: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+    profissional: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+    caixa: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300',
+    estoquista: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
+    visualizador: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+  };
+  return badges[funcao] || badges.atendente;
+}
+
+function getFuncaoIcon(funcao: string): string {
+  const icons: Record<string, string> = {
+    administrador: '👤',
+    gerente: '👔',
+    atendente: '📞',
+    profissional: '💇',
+    caixa: '💰',
+    estoquista: '📦',
+    visualizador: '👁️'
+  };
+  return icons[funcao] || '👤';
+}
+
+function getFuncaoLabel(funcao: string): string {
+  const labels: Record<string, string> = {
+    administrador: 'Administrador',
+    gerente: 'Gerente',
+    atendente: 'Atendente',
+    profissional: 'Profissional',
+    caixa: 'Caixa',
+    estoquista: 'Estoquista',
+    visualizador: 'Visualizador'
+  };
+  return labels[funcao] || 'Atendente';
+}
+
 // Modal de Funcionários
 function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
   const toast = useToast();
@@ -1064,7 +937,16 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
-  const [formData, setFormData] = useState({ nome: '', email: '', telefone: '', cargo: '' });
+  const [formData, setFormData] = useState({ 
+    nome: '', 
+    email: '', 
+    telefone: '', 
+    cargo: '', 
+    funcao: 'atendente',
+    especialidade: '',
+    comissao_percentual: '0.00',
+    data_admissao: new Date().toISOString().split('T')[0]
+  });
 
   useEffect(() => {
     carregarFuncionarios();
@@ -1093,9 +975,7 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
         await apiClient.post('/cabeleireiro/funcionarios/', formData);
         toast.success('Funcionário cadastrado!');
       }
-      setFormData({ nome: '', email: '', telefone: '', cargo: '' });
-      setEditando(null);
-      setShowForm(false);
+      resetForm();
       carregarFuncionarios();
     } catch (error) {
       console.error('Erro ao salvar funcionário:', error);
@@ -1115,7 +995,11 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
       nome: funcionario.nome || '',
       email: funcionario.email || '',
       telefone: funcionario.telefone || '',
-      cargo: funcionario.cargo || ''
+      cargo: funcionario.cargo || '',
+      funcao: funcionario.funcao || 'atendente',
+      especialidade: funcionario.especialidade || '',
+      comissao_percentual: funcionario.comissao_percentual || '0.00',
+      data_admissao: funcionario.data_admissao || new Date().toISOString().split('T')[0]
     });
     setShowForm(true);
   };
@@ -1139,7 +1023,16 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
   };
 
   const resetForm = () => {
-    setFormData({ nome: '', email: '', telefone: '', cargo: '' });
+    setFormData({ 
+      nome: '', 
+      email: '', 
+      telefone: '', 
+      cargo: '', 
+      funcao: 'atendente',
+      especialidade: '',
+      comissao_percentual: '0.00',
+      data_admissao: new Date().toISOString().split('T')[0]
+    });
     setEditando(null);
     setShowForm(false);
   };
@@ -1189,14 +1082,83 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                 className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1 dark:text-white">Cargo *</label>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Função no Sistema *</label>
+              <select
+                value={formData.funcao}
+                onChange={(e) => setFormData({ ...formData, funcao: e.target.value })}
+                required
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="administrador">👤 Administrador (Acesso Total)</option>
+                <option value="gerente">👔 Gerente</option>
+                <option value="atendente">📞 Atendente/Recepcionista</option>
+                <option value="profissional">💇 Profissional/Cabeleireiro</option>
+                <option value="caixa">💰 Caixa</option>
+                <option value="estoquista">📦 Estoquista</option>
+                <option value="visualizador">👁️ Visualizador (Apenas Leitura)</option>
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Define as permissões de acesso ao sistema
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Cargo (Descritivo) *</label>
               <input
                 type="text"
                 value={formData.cargo}
                 onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
                 required
                 placeholder="Ex: Cabeleireiro, Manicure, Recepcionista"
+                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Cargo para identificação interna
+              </p>
+            </div>
+            
+            {/* Campos condicionais para profissionais */}
+            {formData.funcao === 'profissional' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1 dark:text-white">Especialidade</label>
+                  <input
+                    type="text"
+                    value={formData.especialidade}
+                    onChange={(e) => setFormData({ ...formData, especialidade: e.target.value })}
+                    placeholder="Ex: Coloração, Corte Masculino, Penteados"
+                    className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Especialidade do profissional
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 dark:text-white">Comissão (%)</label>
+                  <input
+                    type="number"
+                    value={formData.comissao_percentual}
+                    onChange={(e) => setFormData({ ...formData, comissao_percentual: e.target.value })}
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Comissão sobre serviços realizados
+                  </p>
+                </div>
+              </>
+            )}
+            
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-white">Data de Admissão *</label>
+              <input
+                type="date"
+                value={formData.data_admissao}
+                onChange={(e) => setFormData({ ...formData, data_admissao: e.target.value })}
+                required
                 className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
@@ -1251,14 +1213,23 @@ function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="font-semibold text-lg dark:text-white">{func.nome}</p>
-                    {func.is_admin && (
+                    {func.is_admin ? (
                       <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-semibold rounded-full">
                         👤 Administrador
+                      </span>
+                    ) : (
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getFuncaoBadge(func.funcao)}`}>
+                        {getFuncaoIcon(func.funcao)} {getFuncaoLabel(func.funcao)}
                       </span>
                     )}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{func.cargo}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{func.email} • {func.telefone}</p>
+                  {func.funcao === 'profissional' && func.especialidade && (
+                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                      ✂️ {func.especialidade} {func.comissao_percentual && `• Comissão: ${func.comissao_percentual}%`}
+                    </p>
+                  )}
                   {func.is_admin && (
                     <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
                       ℹ️ Administrador vinculado automaticamente à loja (não pode ser editado ou excluído)

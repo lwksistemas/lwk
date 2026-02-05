@@ -119,6 +119,8 @@ class FuncionarioSerializer(BaseLojaSerializer):
     """Serializer de Funcionário"""
     tempo_empresa = serializers.SerializerMethodField()
     is_admin = serializers.SerializerMethodField()
+    funcao_display = serializers.CharField(source='get_funcao_display', read_only=True)
+    is_profissional = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Funcionario

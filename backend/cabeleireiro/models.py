@@ -206,12 +206,48 @@ class Venda(LojaIsolationMixin, models.Model):
 
 
 class Funcionario(LojaIsolationMixin, models.Model):
-    """Funcionários do cabeleireiro (recepcionistas, auxiliares, etc)"""
+    """Funcionários do cabeleireiro (recepcionistas, auxiliares, profissionais, etc)"""
+    
+    # Níveis de permissão/função
+    FUNCAO_CHOICES = [
+        ('administrador', 'Administrador'),           # Acesso total
+        ('gerente', 'Gerente'),                       # Acesso quase total (sem financeiro)
+        ('atendente', 'Atendente/Recepcionista'),    # Agendamentos, clientes
+        ('profissional', 'Profissional/Cabeleireiro'), # Atende clientes + sua agenda
+        ('caixa', 'Caixa'),                          # Vendas e pagamentos
+        ('estoquista', 'Estoquista'),                # Produtos e estoque
+        ('visualizador', 'Visualizador'),            # Apenas leitura
+    ]
+    
     nome = models.CharField(max_length=200)
     email = models.EmailField(blank=True, null=True)
     telefone = models.CharField(max_length=20)
     cpf = models.CharField(max_length=14, blank=True, null=True)
-    cargo = models.CharField(max_length=100)
+    
+    # Separar cargo (descritivo) de função (permissões)
+    cargo = models.CharField(max_length=100, help_text='Cargo descritivo (ex: Recepcionista, Cabeleireiro)')
+    funcao = models.CharField(
+        max_length=20, 
+        choices=FUNCAO_CHOICES, 
+        default='atendente',
+        help_text='Define as permissões de acesso ao sistema'
+    )
+    
+    # Campos específicos para profissionais que atendem
+    especialidade = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        help_text='Ex: Coloração, Corte Masculino, Penteados (para profissionais)'
+    )
+    comissao_percentual = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Comissão sobre serviços realizados (para profissionais)'
+    )
+    
     salario = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     data_admissao = models.DateField()
     is_active = models.BooleanField(default=True)
@@ -228,7 +264,12 @@ class Funcionario(LojaIsolationMixin, models.Model):
         verbose_name_plural = 'Funcionários'
 
     def __str__(self):
-        return f"{self.nome} - {self.cargo}"
+        return f"{self.nome} - {self.get_funcao_display()}"
+    
+    @property
+    def is_profissional(self):
+        """Verifica se o funcionário é um profissional que atende clientes"""
+        return self.funcao == 'profissional'
 
 
 class HorarioFuncionamento(LojaIsolationMixin, models.Model):

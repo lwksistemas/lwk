@@ -880,6 +880,7 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
+  const [primeiraVez, setPrimeiraVez] = useState(true);  // ✅ Controlar primeira carga
   const [formData, setFormData] = useState({ 
     nome: '', 
     descricao: '', 
@@ -898,10 +899,11 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
       const response = await apiClient.get('/cabeleireiro/servicos/');
       const data = ensureArray(response.data);
       setServicos(data);
-      // Se não tem serviços, mostrar formulário
-      if (data.length === 0) {
+      // ✅ Só mostrar formulário se for primeira vez E não tem serviços
+      if (primeiraVez && data.length === 0) {
         setShowForm(true);
       }
+      setPrimeiraVez(false);  // ✅ Marcar que já carregou
     } catch (error) {
       console.error('Erro ao carregar serviços:', error);
       toast.error('Erro ao carregar serviços');
@@ -947,7 +949,11 @@ function ModalServico({ loja, onClose }: { loja: LojaInfo; onClose: () => void }
     try {
       await apiClient.delete(`/cabeleireiro/servicos/${id}/`);
       toast.success('Serviço excluído!');
-      carregarServicos();
+      // ✅ Recarregar mas NÃO mostrar formulário automaticamente
+      const response = await apiClient.get('/cabeleireiro/servicos/');
+      const data = ensureArray(response.data);
+      setServicos(data);
+      // NÃO mudar showForm aqui - deixar o usuário decidir
     } catch (error) {
       console.error('Erro ao excluir serviço:', error);
       toast.error('Erro ao excluir serviço');

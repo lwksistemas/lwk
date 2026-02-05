@@ -89,9 +89,17 @@ class AsaasDeletionService:
             }
     
     def _delete_customer_payments(self, customer_id: str) -> int:
-        """Cancela todos os pagamentos de um cliente"""
+        """
+        Cancela todos os pagamentos de um cliente
+        
+        IMPORTANTE: A API do Asaas NÃO exclui permanentemente os pagamentos.
+        Eles são marcados como 'deleted: true' e mantidos no histórico para auditoria.
+        Os pagamentos cancelados não podem mais ser pagos.
+        """
         try:
             deleted_count = 0
+            skipped_count = 0
+            error_count = 0
             
             # Buscar pagamentos do cliente na API
             try:
@@ -103,45 +111,61 @@ class AsaasDeletionService:
                 for payment in payments:
                     payment_id = payment.get('id')
                     payment_status = payment.get('status')
+                    payment_value = payment.get('value', 0)
                     
-                    # Só cancelar pagamentos que podem ser cancelados
-                    if payment_status in ['PENDING', 'AWAITING_PAYMENT', 'OVERDUE']:
-                        try:
-                            self.client.delete_payment(payment_id)
-                            deleted_count += 1
-                            logger.info(f"✅ Pagamento cancelado: {payment_id}")
-                        except Exception as e:
-                            # Verificar se é erro de status inválido
-                            if "não pode ser removida" in str(e) or "invalid_action" in str(e):
-                                logger.info(f"ℹ️ Pagamento {payment_id} não pode ser cancelado (já processado)")
-                            else:
-                                logger.warning(f"⚠️ Erro ao cancelar pagamento {payment_id}: {e}")
-                    else:
-                        logger.info(f"ℹ️ Pagamento {payment_id} não cancelado (status: {payment_status})")
+                    # Tentar cancelar TODOS os pagamentos (não só pendentes)
+                    # A API retornará erro se o pagamento não puder ser cancelado
+                    try:
+                        self.client.delete_payment(payment_id)
+                        deleted_count += 1
+                        logger.info(f"✅ Pagamento cancelado: {payment_id} (R$ {payment_value}, status: {payment_status})")
+                    except Exception as e:
+                        error_msg = str(e).lower()
+                        
+                        # Verificar se é erro de status inválido (pagamento já processado)
+                        if any(x in error_msg for x in ['não pode ser removida', 'invalid_action', 'cannot be deleted', 'already']):
+                            skipped_count += 1
+                            logger.info(f"ℹ️ Pagamento {payment_id} não pode ser cancelado (status: {payment_status}, R$ {payment_value})")
+                        else:
+                            error_count += 1
+                            logger.warning(f"⚠️ Erro ao cancelar pagamento {payment_id}: {e}")
+                
+                # Resumo da operação
+                logger.info(f"📊 Resumo: {deleted_count} cancelados, {skipped_count} não canceláveis, {error_count} erros")
                 
             except Exception as e:
                 logger.warning(f"⚠️ Erro ao buscar pagamentos do cliente {customer_id}: {e}")
             
-            # Também tentar cancelar pagamentos do banco local
+            # Também tentar cancelar pagamentos do banco local que não foram processados acima
             try:
                 local_payments = AsaasPayment.objects.filter(customer__asaas_id=customer_id)
+                local_count = local_payments.count()
                 
-                for payment in local_payments:
-                    if payment.status in ['PENDING', 'AWAITING_PAYMENT', 'OVERDUE']:
+                if local_count > 0:
+                    logger.info(f"📋 Verificando {local_count} pagamentos locais")
+                    
+                    for payment in local_payments:
+                        # Tentar cancelar independente do status
                         try:
                             self.client.delete_payment(payment.asaas_id)
                             deleted_count += 1
-                            logger.info(f"✅ Pagamento local cancelado: {payment.asaas_id}")
+                            logger.info(f"✅ Pagamento local cancelado: {payment.asaas_id} (status: {payment.status})")
                         except Exception as e:
+                            error_msg = str(e).lower()
+                            
                             # Verificar se é erro de status inválido
-                            if "não pode ser removida" in str(e) or "invalid_action" in str(e):
-                                logger.info(f"ℹ️ Pagamento local {payment.asaas_id} não pode ser cancelado (já processado)")
+                            if any(x in error_msg for x in ['não pode ser removida', 'invalid_action', 'cannot be deleted', 'already', '404']):
+                                logger.info(f"ℹ️ Pagamento local {payment.asaas_id} já foi processado ou não existe mais")
                             else:
                                 logger.warning(f"⚠️ Erro ao cancelar pagamento local {payment.asaas_id}: {e}")
-                    else:
-                        logger.info(f"ℹ️ Pagamento local {payment.asaas_id} não cancelado (status: {payment.status})")
+                                
             except Exception as e:
                 logger.warning(f"⚠️ Erro ao processar pagamentos locais: {e}")
+            
+            # Log final com informação importante
+            if deleted_count > 0:
+                logger.info(f"✅ Total de {deleted_count} pagamentos cancelados")
+                logger.info(f"ℹ️ NOTA: Pagamentos cancelados ficam no histórico do Asaas para auditoria (marcados como 'deleted: true')")
             
             return deleted_count
             

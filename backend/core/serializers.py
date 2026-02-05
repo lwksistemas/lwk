@@ -26,13 +26,27 @@ class BaseLojaSerializer(serializers.ModelSerializer):
         Falha explicitamente se o contexto da loja não estiver definido,
         evitando criação de registros sem isolamento.
         """
+        import logging
         from tenants.middleware import get_current_loja_id
         
+        logger = logging.getLogger(__name__)
         loja_id = get_current_loja_id()
+        
+        logger.info(f"[BaseLojaSerializer.create] Tentando criar {self.Meta.model.__name__} - loja_id={loja_id}")
+        logger.info(f"[BaseLojaSerializer.create] validated_data keys: {list(validated_data.keys())}")
+        
         if not loja_id:
+            logger.error(f"[BaseLojaSerializer.create] ERRO: loja_id não encontrado no contexto!")
+            logger.error(f"[BaseLojaSerializer.create] Model: {self.Meta.model.__name__}")
+            logger.error(f"[BaseLojaSerializer.create] Data: {validated_data}")
+            
             raise serializers.ValidationError({
-                'loja_id': 'Contexto da loja não identificado. Recarregue a página e tente novamente.'
+                'detail': 'Contexto da loja não identificado. Recarregue a página e tente novamente.',
+                'error_code': 'LOJA_CONTEXT_MISSING',
+                'model': self.Meta.model.__name__
             })
         
         validated_data['loja_id'] = loja_id
+        logger.info(f"[BaseLojaSerializer.create] Criando {self.Meta.model.__name__} com loja_id={loja_id}")
+        
         return super().create(validated_data)

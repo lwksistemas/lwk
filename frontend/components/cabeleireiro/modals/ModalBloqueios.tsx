@@ -38,16 +38,13 @@ export function ModalBloqueios({ loja, onClose }: { loja: LojaInfo; onClose: () 
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [bloqueiosRes, funcionariosRes] = await Promise.all([
+      const [bloqueiosRes, profissionaisRes] = await Promise.all([
         apiClient.get('/cabeleireiro/bloqueios/'),
-        apiClient.get('/cabeleireiro/funcionarios/')  // ✅ Buscar funcionários
+        apiClient.get('/cabeleireiro/profissionais/')  // ✅ Buscar profissionais diretamente
       ]);
       setBloqueios(ensureArray(bloqueiosRes.data));
-      // ✅ Filtrar apenas funcionários com função 'profissional'
-      const todosFuncionarios = ensureArray(funcionariosRes.data);
-      const profissionaisAtivos = todosFuncionarios.filter((f: any) => 
-        f.funcao === 'profissional' && f.is_active
-      );
+      // ✅ Profissionais já vêm filtrados da API
+      const profissionaisAtivos = ensureArray(profissionaisRes.data).filter((p: any) => p.is_active !== false);
       setProfissionais(profissionaisAtivos);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);

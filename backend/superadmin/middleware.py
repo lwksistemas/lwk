@@ -60,6 +60,8 @@ class SuperAdminSecurityMiddleware:
                 '/api/superadmin/lojas/info_publica/',
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
                 '/api/superadmin/lojas/debug_senha_status/',
+                '/api/superadmin/usuarios/recuperar_senha/',  # Recuperação de senha superadmin/suporte
+                '/api/superadmin/lojas/recuperar_senha/',     # Recuperação de senha lojas
             ]
             
             # Endpoints que proprietários de lojas podem acessar (com autenticação)

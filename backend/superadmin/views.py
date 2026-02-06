@@ -925,9 +925,9 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             'tipo': usuario_sistema.get_tipo_display()
         })
     
-    @action(detail=False, methods=['post'], permission_classes=[IsSuperAdmin])
+    @action(detail=False, methods=['post'], permission_classes=[])
     def recuperar_senha(self, request):
-        """Recuperar senha de usuário do sistema (APENAS SuperAdmin)"""
+        """Recuperar senha de usuário do sistema (público para recuperação de senha)"""
         email = request.data.get('email')
         tipo = request.data.get('tipo')  # 'superadmin' ou 'suporte'
         

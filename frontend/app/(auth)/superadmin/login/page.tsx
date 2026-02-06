@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
+import PasswordInput from '@/components/auth/PasswordInput';
+import ErrorAlert from '@/components/auth/ErrorAlert';
+import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
@@ -10,9 +13,6 @@ export default function SuperAdminLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
-  const [emailRecuperacao, setEmailRecuperacao] = useState('');
-  const [loadingRecuperacao, setLoadingRecuperacao] = useState(false);
-  const [mensagemRecuperacao, setMensagemRecuperacao] = useState('');
 
   // Verificar se usuário já está logado como outro tipo
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function SuperAdminLoginPage() {
       
       // Redirecionar para o dashboard correto
       if (userType === 'suporte') {
-        router.push('/suporte/dashboard');
+        router.push('/superadmin/dashboard');
       } else if (userType === 'loja' && lojaSlug) {
         router.push(`/loja/${lojaSlug}/dashboard`);
       }
@@ -37,13 +37,12 @@ export default function SuperAdminLoginPage() {
     setLoading(true);
 
     try {
-      // Login retorna precisa_trocar_senha diretamente
       const loginResponse = await authService.login(credentials, 'superadmin');
       
       console.log('🔍 Login Response:', loginResponse);
       console.log('🔍 precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
       
-      // Verificar se precisa trocar senha (vem na resposta do login)
+      // Verificar se precisa trocar senha
       if (loginResponse.precisa_trocar_senha === true) {
         console.log('✅ Redirecionando para trocar senha...');
         window.location.href = '/superadmin/trocar-senha';
@@ -54,53 +53,20 @@ export default function SuperAdminLoginPage() {
       window.location.href = '/superadmin/dashboard';
     } catch (err: any) {
       console.error('❌ Erro no login:', err);
-      let errorMessage = 'Erro ao fazer login';
-      
-      if (err.response?.data?.error) {
-        errorMessage = err.response.data.error;
-      } else if (err.response?.data?.detail) {
-        errorMessage = err.response.data.detail;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
+      setError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRecuperarSenha = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMensagemRecuperacao('');
-    setLoadingRecuperacao(true);
-
-    try {
-      const apiClient = (await import('@/lib/api-client')).default;
-      await apiClient.post('/superadmin/usuarios/recuperar_senha/', {
-        email: emailRecuperacao,
-        tipo: 'superadmin'
-      });
-      setMensagemRecuperacao('✅ Senha provisória enviada para o email cadastrado!');
-      setTimeout(() => {
-        setShowRecuperarSenha(false);
-        setEmailRecuperacao('');
-        setMensagemRecuperacao('');
-      }, 3000);
-    } catch (err: any) {
-      setMensagemRecuperacao(err.response?.data?.detail || '❌ Erro ao recuperar senha. Verifique o email.');
-    } finally {
-      setLoadingRecuperacao(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-indigo-900">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-indigo-900 p-4">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-2xl">
+        {/* Header */}
         <div>
           <div className="mx-auto h-16 w-16 bg-purple-600 rounded-full flex items-center justify-center">
             <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
           </div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
@@ -110,57 +76,67 @@ export default function SuperAdminLoginPage() {
             Acesso restrito ao sistema
           </p>
         </div>
+
+        {/* Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded">
-              {error}
-            </div>
-          )}
+          <ErrorAlert message={error} onClose={() => setError('')} />
+          
           <div className="space-y-4">
+            {/* Username */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
                 Usuário
               </label>
               <input
                 id="username"
                 type="text"
                 required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                autoComplete="username"
+                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
                 value={credentials.username}
-                onChange={(e) =>
-                  setCredentials({ ...credentials, username: e.target.value })
-                }
+                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                placeholder="Digite seu usuário"
+                disabled={loading}
               />
             </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Senha
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                value={credentials.password}
-                onChange={(e) =>
-                  setCredentials({ ...credentials, password: e.target.value })
-                }
-              />
-            </div>
+
+            {/* Password */}
+            <PasswordInput
+              id="password"
+              value={credentials.password}
+              onChange={(value) => setCredentials({ ...credentials, password: value })}
+              label="Senha"
+              placeholder="Digite sua senha"
+              autoComplete="current-password"
+            />
           </div>
+
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-md disabled:opacity-50 transition-colors"
+            className="w-full py-3 px-4 min-h-[48px] bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
           >
-            {loading ? 'Entrando...' : 'Entrar como Super Admin'}
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Entrando...
+              </span>
+            ) : (
+              'Entrar como Super Admin'
+            )}
           </button>
         </form>
         
+        {/* Forgot Password Link */}
         <div className="text-center">
           <button
             onClick={() => setShowRecuperarSenha(true)}
-            className="text-sm text-purple-600 hover:text-purple-700 hover:underline"
+            className="text-sm text-purple-600 hover:text-purple-700 hover:underline min-h-[44px] py-2 px-4 transition-colors"
+            disabled={loading}
           >
             Esqueceu sua senha?
           </button>
@@ -168,63 +144,14 @@ export default function SuperAdminLoginPage() {
       </div>
 
       {/* Modal Recuperar Senha */}
-      {showRecuperarSenha && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full">
-            <h3 className="text-2xl font-bold mb-4 text-purple-600">
-              Recuperar Senha
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Digite o email cadastrado para receber uma nova senha provisória.
-            </p>
-            
-            <form onSubmit={handleRecuperarSenha} className="space-y-4">
-              {mensagemRecuperacao && (
-                <div className={`p-3 rounded ${mensagemRecuperacao.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {mensagemRecuperacao}
-                </div>
-              )}
-              
-              <div>
-                <label htmlFor="email-recuperacao" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  id="email-recuperacao"
-                  type="email"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  value={emailRecuperacao}
-                  onChange={(e) => setEmailRecuperacao(e.target.value)}
-                  placeholder="seu@email.com"
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRecuperarSenha(false);
-                    setEmailRecuperacao('');
-                    setMensagemRecuperacao('');
-                  }}
-                  disabled={loadingRecuperacao}
-                  className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loadingRecuperacao}
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md disabled:opacity-50"
-                >
-                  {loadingRecuperacao ? 'Enviando...' : 'Enviar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <RecuperarSenhaModal
+        isOpen={showRecuperarSenha}
+        onClose={() => setShowRecuperarSenha(false)}
+        endpoint="/superadmin/usuarios/recuperar_senha/"
+        extraData={{ tipo: 'superadmin' }}
+        title="Recuperar Senha - Super Admin"
+        primaryColor="#9333ea"
+      />
     </div>
   );
 }

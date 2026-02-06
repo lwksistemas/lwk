@@ -289,6 +289,20 @@ export const authService = {
         throw new Error(`Você não pode fazer login nesta loja. Sua loja é: ${suaLoja}`);
       }
       
+      // Verificar se é erro de credenciais inválidas (401)
+      if (error.response?.status === 401) {
+        throw new Error('❌ Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.');
+      }
+      
+      // Verificar se há mensagem de erro específica
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      }
+      
       throw error;
     }
   },

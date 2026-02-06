@@ -28,6 +28,7 @@ class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
     serializer_class = ClienteSerializer
     search_serializer_class = ClienteBuscaSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # ✅ Desabilitar paginação para retornar todos os clientes
 
     @action(detail=False, methods=['get'])
     def buscar(self, request):
@@ -40,6 +41,7 @@ class ProfissionalViewSet(BaseModelViewSet):
     queryset = Profissional.objects.all()
     serializer_class = ProfissionalSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # ✅ Desabilitar paginação
 
     @action(detail=True, methods=['get'])
     def agenda(self, request, pk=None):
@@ -62,6 +64,7 @@ class ServicoViewSet(BaseModelViewSet):
     queryset = Servico.objects.all()
     serializer_class = ServicoSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # ✅ Desabilitar paginação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -77,6 +80,7 @@ class ServicoViewSet(BaseModelViewSet):
 class AgendamentoViewSet(BaseModelViewSet):
     """ViewSet de Agendamentos"""
     queryset = Agendamento.objects.select_related('cliente', 'profissional', 'servico')
+    pagination_class = None  # ✅ Desabilitar paginação
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
 
@@ -210,6 +214,7 @@ class ProdutoViewSet(BaseModelViewSet):
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # ✅ Desabilitar paginação
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -242,6 +247,7 @@ class VendaViewSet(BaseModelViewSet):
     queryset = Venda.objects.select_related('cliente', 'produto')
     serializer_class = VendaSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # ✅ Desabilitar paginação
 
     def perform_create(self, serializer):
         """Ao criar venda, atualiza estoque do produto"""
@@ -285,6 +291,7 @@ class FuncionarioViewSet(BaseFuncionarioViewSet):
     serializer_class = FuncionarioSerializer
     permission_classes = [IsAuthenticated]
     model_class = Funcionario  # ✅ Necessário para BaseFuncionarioViewSet
+    pagination_class = None  # ✅ Desabilitar paginação
     cargo_padrao = 'Administrador'
 
 
@@ -293,6 +300,7 @@ class HorarioFuncionamentoViewSet(BaseModelViewSet):
     queryset = HorarioFuncionamento.objects.all()
     serializer_class = HorarioFuncionamentoSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # ✅ Desabilitar paginação
 
 
 class BloqueioAgendaViewSet(BaseModelViewSet):
@@ -300,6 +308,7 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
     queryset = BloqueioAgenda.objects.select_related('profissional')
     serializer_class = BloqueioAgendaSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # ✅ Desabilitar paginação
 
     def get_queryset(self):
         queryset = super().get_queryset()

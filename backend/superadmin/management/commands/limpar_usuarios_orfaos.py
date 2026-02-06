@@ -48,13 +48,23 @@ class Command(BaseCommand):
         
         # Excluir tokens primeiro (se existirem)
         try:
-            from rest_framework_simplejwt.token_blacklist import models as token_models
-            tokens_count = token_models.OutstandingToken.objects.filter(user__in=orfaos).count()
-            if tokens_count > 0:
-                self.stdout.write(f"🔑 Excluindo {tokens_count} token(s)...")
-                token_models.OutstandingToken.objects.filter(user__in=orfaos).delete()
-        except (ImportError, AttributeError):
-            pass  # Token blacklist não instalado ou não configurado
+            from django.db import connection
+            with connection.cursor() as cursor:
+                # Deletar tokens diretamente via SQL
+                user_ids = list(orfaos.values_list('id', flat=True))
+                if user_ids:
+                    placeholders = ','.join(['%s'] * len(user_ids))
+                    self.stdout.write(f"🔑 Excluindo tokens...")
+                    cursor.execute(
+                        f"DELETE FROM token_blacklist_outstandingtoken WHERE user_id IN ({placeholders})",
+                        user_ids
+                    )
+                    cursor.execute(
+                        f"DELETE FROM token_blacklist_blacklistedtoken WHERE token_id IN (SELECT id FROM token_blacklist_outstandingtoken WHERE user_id IN ({placeholders}))",
+                        user_ids
+                    )
+        except Exception as e:
+            self.stdout.write(f"⚠️ Erro ao excluir tokens: {e}")
         
         # Excluir sessões (se existirem)
         try:
@@ -63,8 +73,8 @@ class Command(BaseCommand):
             if sessoes_count > 0:
                 self.stdout.write(f"🔐 Excluindo {sessoes_count} sessão(ões)...")
                 UserSession.objects.filter(user__in=orfaos).delete()
-        except Exception:
-            pass
+        except Exception as e:
+            self.stdout.write(f"⚠️ Erro ao excluir sessões: {e}")
         
         # Excluir usuários
         count = orfaos.count()

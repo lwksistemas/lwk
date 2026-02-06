@@ -314,8 +314,27 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => handleEditar(profissional)} className="px-3 py-2 text-sm text-white rounded-lg hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
-                    <button onClick={() => handleExcluir(profissional.id, profissional.nome)} className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 min-h-[40px]">🗑️ Excluir</button>
+                    {!profissional.is_admin ? (
+                      <>
+                        <button 
+                          onClick={() => handleEditar(profissional)} 
+                          className="px-3 py-2 text-sm text-white rounded-lg hover:opacity-90 min-h-[40px]" 
+                          style={{ backgroundColor: loja.cor_primaria }}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button 
+                          onClick={() => handleExcluir(profissional.id, profissional.nome)} 
+                          className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 min-h-[40px]"
+                        >
+                          🗑️ Excluir
+                        </button>
+                      </>
+                    ) : (
+                      <span className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 italic">
+                        🔒 Admin da loja (não pode ser editado/excluído)
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}

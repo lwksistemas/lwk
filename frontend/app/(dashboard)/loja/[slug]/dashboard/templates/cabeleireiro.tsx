@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
-import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
+import CalendarioCabeleireiro from '@/components/cabeleireiro/CalendarioCabeleireiro';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
 import { Modal } from '@/components/ui/Modal';
@@ -65,6 +65,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
 
   // Estados de navegação
   const [showCalendario, setShowCalendario] = useState(false);
+  const [agendamentoIdEditando, setAgendamentoIdEditando] = useState<number | null>(null);
 
   // Hook para carregar dados do dashboard
   const { loading, loadingData, stats, data, reload } = useDashboardData<EstatisticasCabeleireiro, AgendamentoCabeleireiro>({
@@ -125,6 +126,36 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   const handleConfiguracoes = () => openModal('configuracoes');
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
 
+  // Handlers de agendamentos
+  const handleEditarAgendamento = (agendamento: AgendamentoCabeleireiro) => {
+    setAgendamentoIdEditando(agendamento.id);
+    openModal('agendamento');
+  };
+
+  const handleExcluirAgendamento = async (id: number, clienteNome: string) => {
+    if (!confirm(`Deseja excluir o agendamento de ${clienteNome}?`)) return;
+    
+    try {
+      await apiClient.delete(`/cabeleireiro/agendamentos/${id}/`);
+      toast.success('Agendamento excluído!');
+      reload();
+    } catch (error) {
+      console.error('Erro ao excluir agendamento:', error);
+      toast.error('Erro ao excluir agendamento');
+    }
+  };
+
+  const handleMudarStatus = async (id: number, novoStatus: string) => {
+    try {
+      await apiClient.patch(`/cabeleireiro/agendamentos/${id}/`, { status: novoStatus });
+      toast.success('Status atualizado!');
+      reload();
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error('Erro ao atualizar status');
+    }
+  };
+
   // Loading inicial
   if (loading) {
     return <DashboardSkeleton />;
@@ -132,22 +163,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
 
   // Calendário
   if (showCalendario) {
-    return (
-      <div className="px-2 sm:px-0">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
-          <h2 className="text-xl sm:text-2xl font-bold dark:text-white" style={{ color: loja.cor_primaria }}>
-            📅 Calendário - Cabeleireiro
-          </h2>
-          <button
-            onClick={() => setShowCalendario(false)}
-            className="px-4 sm:px-6 py-2 sm:py-3 min-h-[44px] bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all btn-press shadow-lg text-sm sm:text-base"
-          >
-            ← Voltar ao Dashboard
-          </button>
-        </div>
-        <CalendarioAgendamentos loja={loja} />
-      </div>
-    );
+    return <CalendarioCabeleireiro loja={loja} onClose={() => setShowCalendario(false)} />;
   }
 
   return (
@@ -220,7 +236,14 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
         ) : (
           <div className="space-y-4">
             {data.map((agendamento) => (
-              <AgendamentoCard key={agendamento.id} agendamento={agendamento} cor={loja.cor_primaria} />
+              <AgendamentoCard 
+                key={agendamento.id} 
+                agendamento={agendamento} 
+                cor={loja.cor_primaria}
+                onEditar={() => handleEditarAgendamento(agendamento)}
+                onExcluir={() => handleExcluirAgendamento(agendamento.id, agendamento.cliente_nome)}
+                onMudarStatus={(novoStatus) => handleMudarStatus(agendamento.id, novoStatus)}
+              />
             ))}
           </div>
         )}
@@ -232,6 +255,19 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
           closeModal('calendario');
           reload();
         }} />
+      )}
+
+      {/* Modal de Edição de Agendamento */}
+      {modals.agendamento && agendamentoIdEditando && (
+        <ModalAgendamentos 
+          loja={loja} 
+          agendamentoId={agendamentoIdEditando}
+          onClose={() => {
+            closeModal('agendamento');
+            setAgendamentoIdEditando(null);
+            reload();
+          }} 
+        />
       )}
 
       {/* Modal de Clientes */}
@@ -319,22 +355,41 @@ function StatCard({ title, value, icon, cor, trend }: { title: string; value: st
 }
 
 // Componente de card de agendamento
-function AgendamentoCard({ agendamento, cor }: { agendamento: AgendamentoCabeleireiro; cor: string }) {
-  const statusConfig: Record<string, { bg: string; text: string }> = {
-    confirmado: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-800 dark:text-green-300' },
-    agendado: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-800 dark:text-blue-300' },
-    cancelado: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-300' },
-    em_atendimento: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-300' },
-    concluido: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-300' },
+function AgendamentoCard({ 
+  agendamento, 
+  cor,
+  onEditar,
+  onExcluir,
+  onMudarStatus
+}: { 
+  agendamento: AgendamentoCabeleireiro; 
+  cor: string;
+  onEditar: () => void;
+  onExcluir: () => void;
+  onMudarStatus: (status: string) => void;
+}) {
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  
+  const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+    confirmado: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-800 dark:text-green-300', label: 'Confirmado' },
+    agendado: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-800 dark:text-blue-300', label: 'Agendado' },
+    cancelado: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-300', label: 'Cancelado' },
+    em_atendimento: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-300', label: 'Em Atendimento' },
+    concluido: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-300', label: 'Concluído' },
   };
   
-  const status = statusConfig[agendamento.status] || { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-300' };
+  const status = statusConfig[agendamento.status] || { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-300', label: agendamento.status };
+
+  const handleStatusChange = (novoStatus: string) => {
+    setShowStatusMenu(false);
+    onMudarStatus(novoStatus);
+  };
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl 
                     hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 
-                    cursor-pointer group card-hover gap-3 sm:gap-4">
-      <div className="flex items-center space-x-3 sm:space-x-4">
+                    group card-hover gap-3 sm:gap-4">
+      <div className="flex items-center space-x-3 sm:space-x-4 flex-1 cursor-pointer" onClick={onEditar}>
         <div 
           className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0
                      transform group-hover:scale-105 transition-transform duration-200 shadow-md"
@@ -348,16 +403,50 @@ function AgendamentoCard({ agendamento, cor }: { agendamento: AgendamentoCabelei
           <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 truncate">Prof: {agendamento.profissional_nome}</p>
         </div>
       </div>
-      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-1 pl-13 sm:pl-0">
+      
+      <div className="flex items-center gap-2 sm:gap-3 pl-13 sm:pl-0">
         <div className="sm:text-right">
           <p className="font-bold text-base sm:text-lg" style={{ color: cor }}>
             {agendamento.horario}
           </p>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{agendamento.data}</p>
         </div>
-        <span className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full font-medium whitespace-nowrap ${status.bg} ${status.text}`}>
-          {agendamento.status}
-        </span>
+        
+        {/* Status com dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowStatusMenu(!showStatusMenu)}
+            className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full font-medium whitespace-nowrap ${status.bg} ${status.text} hover:opacity-80 transition-all`}
+          >
+            {status.label} ▼
+          </button>
+          
+          {showStatusMenu && (
+            <div className="absolute right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-10 min-w-[150px]">
+              {Object.entries(statusConfig).map(([key, config]) => (
+                <button
+                  key={key}
+                  onClick={() => handleStatusChange(key)}
+                  className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg ${config.text}`}
+                >
+                  {config.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Botão Excluir */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onExcluir();
+          }}
+          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+          title="Excluir agendamento"
+        >
+          🗑️
+        </button>
       </div>
     </div>
   );

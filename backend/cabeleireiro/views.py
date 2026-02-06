@@ -84,6 +84,31 @@ class AgendamentoViewSet(BaseModelViewSet):
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
 
+    def list(self, request, *args, **kwargs):
+        """
+        Lista agendamentos garantindo que o queryset é avaliado
+        ANTES do contexto ser limpo pelo middleware.
+        """
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Obter e avaliar queryset
+            queryset = self.filter_queryset(self.get_queryset())
+            
+            # FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
+            agendamentos_list = list(queryset)
+            
+            logger.info(f"[AgendamentoViewSet] {len(agendamentos_list)} agendamentos retornados")
+            
+            # Serializar
+            serializer = self.get_serializer(agendamentos_list, many=True)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.exception(f"[AgendamentoViewSet] Erro ao listar agendamentos: {e}")
+            # Retornar lista vazia em caso de erro
+            return Response([], status=status.HTTP_200_OK)
+
     def get_queryset(self):
         queryset = super().get_queryset()
         params = getattr(self.request, 'query_params', self.request.GET)
@@ -309,6 +334,31 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
     serializer_class = BloqueioAgendaSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = None  # ✅ Desabilitar paginação
+
+    def list(self, request, *args, **kwargs):
+        """
+        Lista bloqueios garantindo que o queryset é avaliado
+        ANTES do contexto ser limpo pelo middleware.
+        """
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Obter e avaliar queryset
+            queryset = self.filter_queryset(self.get_queryset())
+            
+            # FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
+            bloqueios_list = list(queryset)
+            
+            logger.info(f"[BloqueioAgendaViewSet] {len(bloqueios_list)} bloqueios retornados")
+            
+            # Serializar
+            serializer = self.get_serializer(bloqueios_list, many=True)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.exception(f"[BloqueioAgendaViewSet] Erro ao listar bloqueios: {e}")
+            # Retornar lista vazia em caso de erro
+            return Response([], status=status.HTTP_200_OK)
 
     def get_queryset(self):
         queryset = super().get_queryset()

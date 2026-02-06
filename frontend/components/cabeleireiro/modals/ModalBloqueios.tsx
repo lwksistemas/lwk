@@ -38,16 +38,30 @@ export function ModalBloqueios({ loja, onClose }: { loja: LojaInfo; onClose: () 
   const carregarDados = async () => {
     try {
       setLoading(true);
+      
+      console.log('🔍 [ModalBloqueios] Iniciando carregamento...');
+      
       const [bloqueiosRes, profissionaisRes] = await Promise.all([
         apiClient.get('/cabeleireiro/bloqueios/'),
-        apiClient.get('/cabeleireiro/profissionais/')  // ✅ Buscar profissionais diretamente
+        apiClient.get('/cabeleireiro/profissionais/')
       ]);
-      setBloqueios(ensureArray(bloqueiosRes.data));
-      // ✅ Profissionais já vêm filtrados da API
+      
+      console.log('📦 [ModalBloqueios] Resposta bloqueios:', bloqueiosRes);
+      console.log('📦 [ModalBloqueios] bloqueiosRes.data:', bloqueiosRes.data);
+      console.log('📦 [ModalBloqueios] Tipo:', typeof bloqueiosRes.data);
+      console.log('📦 [ModalBloqueios] É array?', Array.isArray(bloqueiosRes.data));
+      
+      const bloqueiosArray = ensureArray<Bloqueio>(bloqueiosRes.data);
       const profissionaisAtivos = ensureArray(profissionaisRes.data).filter((p: any) => p.is_active !== false);
+      
+      console.log('✅ [ModalBloqueios] Bloqueios extraídos:', bloqueiosArray);
+      console.log('✅ [ModalBloqueios] Quantidade:', bloqueiosArray.length);
+      console.log('✅ [ModalBloqueios] Profissionais:', profissionaisAtivos.length);
+      
+      setBloqueios(bloqueiosArray);
       setProfissionais(profissionaisAtivos);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('❌ [ModalBloqueios] Erro ao carregar dados:', error);
       toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);

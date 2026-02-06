@@ -16,17 +16,26 @@ interface Agendamento {
   id: number;
   cliente: number;
   cliente_nome: string;
-  profissional: number;
+  profissional: number | null;
   profissional_nome: string;
   servico: number;
   servico_nome: string;
   data: string;
   horario: string;
   status: string;
+  valor: string | number;
   observacoes?: string;
 }
 
-export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
+export function ModalAgendamentos({ 
+  loja, 
+  onClose,
+  agendamentoId 
+}: { 
+  loja: LojaInfo; 
+  onClose: () => void;
+  agendamentoId?: number;
+}) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
   const [profissionais, setProfissionais] = useState<any[]>([]);
@@ -41,6 +50,7 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
     data: '',
     horario: '',
     status: 'agendado',
+    valor: '',
     observacoes: ''
   });
 
@@ -48,9 +58,41 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
     carregarDados();
   }, []);
 
+  // Carregar agendamento específico para edição
+  useEffect(() => {
+    if (agendamentoId) {
+      carregarAgendamentoParaEdicao(agendamentoId);
+    }
+  }, [agendamentoId]);
+
+  const carregarAgendamentoParaEdicao = async (id: number) => {
+    try {
+      const response = await apiClient.get(`/cabeleireiro/agendamentos/${id}/`);
+      const agendamento = response.data;
+      
+      setFormData({
+        cliente: agendamento.cliente.toString(),
+        profissional: agendamento.profissional?.toString() || '',
+        servico: agendamento.servico.toString(),
+        data: agendamento.data,
+        horario: agendamento.horario,
+        status: agendamento.status,
+        valor: agendamento.valor?.toString() || '',
+        observacoes: agendamento.observacoes || ''
+      });
+      setEditando(agendamento);
+      setShowForm(true);
+    } catch (error) {
+      console.error('Erro ao carregar agendamento:', error);
+      alert(formatApiError(error));
+    }
+  };
+
   const carregarDados = async () => {
     try {
       setLoading(true);
+      
+      console.log('🔍 [ModalAgendamentos] Iniciando carregamento...');
       
       // Carregar dados em paralelo
       const [agendamentosRes, clientesRes, profissionaisRes, servicosRes] = await Promise.all([
@@ -60,13 +102,29 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
         apiClient.get('/cabeleireiro/servicos/')
       ]);
       
+      console.log('📦 [ModalAgendamentos] Resposta agendamentos:', agendamentosRes);
+      console.log('📦 [ModalAgendamentos] agendamentosRes.data:', agendamentosRes.data);
+      console.log('📦 [ModalAgendamentos] Tipo:', typeof agendamentosRes.data);
+      console.log('📦 [ModalAgendamentos] É array?', Array.isArray(agendamentosRes.data));
+      
       // Extrair arrays de forma segura
-      setAgendamentos(extractArrayData<Agendamento>(agendamentosRes));
-      setClientes(extractArrayData(clientesRes));
-      setProfissionais(extractArrayData(profissionaisRes));
-      setServicos(extractArrayData(servicosRes));
+      const agendamentosArray = extractArrayData<Agendamento>(agendamentosRes);
+      const clientesArray = extractArrayData(clientesRes);
+      const profissionaisArray = extractArrayData(profissionaisRes);
+      const servicosArray = extractArrayData(servicosRes);
+      
+      console.log('✅ [ModalAgendamentos] Agendamentos extraídos:', agendamentosArray);
+      console.log('✅ [ModalAgendamentos] Quantidade:', agendamentosArray.length);
+      console.log('✅ [ModalAgendamentos] Clientes:', clientesArray.length);
+      console.log('✅ [ModalAgendamentos] Profissionais:', profissionaisArray.length);
+      console.log('✅ [ModalAgendamentos] Serviços:', servicosArray.length);
+      
+      setAgendamentos(agendamentosArray);
+      setClientes(clientesArray);
+      setProfissionais(profissionaisArray);
+      setServicos(servicosArray);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('❌ [ModalAgendamentos] Erro ao carregar dados:', error);
       alert(formatApiError(error));
       
       // Garantir arrays vazios em caso de erro
@@ -83,10 +141,21 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
     e.preventDefault();
     
     try {
+      const payload = {
+        cliente: parseInt(formData.cliente),
+        profissional: formData.profissional ? parseInt(formData.profissional) : null,
+        servico: parseInt(formData.servico),
+        data: formData.data,
+        horario: formData.horario,
+        status: formData.status,
+        valor: parseFloat(formData.valor),
+        observacoes: formData.observacoes || null
+      };
+
       if (editando) {
-        await apiClient.put(`/cabeleireiro/agendamentos/${editando.id}/`, formData);
+        await apiClient.put(`/cabeleireiro/agendamentos/${editando.id}/`, payload);
       } else {
-        await apiClient.post('/cabeleireiro/agendamentos/', formData);
+        await apiClient.post('/cabeleireiro/agendamentos/', payload);
       }
       
       // Recarregar dados
@@ -100,6 +169,7 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
         data: '',
         horario: '',
         status: 'agendado',
+        valor: '',
         observacoes: ''
       });
       setEditando(null);
@@ -113,15 +183,26 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
   const handleEditar = (agendamento: Agendamento) => {
     setFormData({
       cliente: agendamento.cliente.toString(),
-      profissional: agendamento.profissional.toString(),
+      profissional: agendamento.profissional?.toString() || '',
       servico: agendamento.servico.toString(),
       data: agendamento.data,
       horario: agendamento.horario,
       status: agendamento.status,
+      valor: agendamento.valor?.toString() || '',
       observacoes: agendamento.observacoes || ''
     });
     setEditando(agendamento);
     setShowForm(true);
+  };
+
+  const handleServicoChange = (servicoId: string) => {
+    setFormData({ ...formData, servico: servicoId });
+    
+    // Preencher valor automaticamente com o preço do serviço
+    const servico = servicos.find(s => s.id.toString() === servicoId);
+    if (servico && servico.preco) {
+      setFormData(prev => ({ ...prev, servico: servicoId, valor: servico.preco.toString() }));
+    }
   };
 
   const handleExcluir = async (id: number, nome: string) => {
@@ -180,15 +261,29 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
                 <label className="block text-sm font-medium mb-1">Serviço *</label>
                 <select
                   value={formData.servico}
-                  onChange={(e) => setFormData({ ...formData, servico: e.target.value })}
+                  onChange={(e) => handleServicoChange(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg"
                   required
                 >
                   <option value="">Selecione...</option>
                   {servicos.map(s => (
-                    <option key={s.id} value={s.id}>{s.nome} - R$ {s.preco}</option>
+                    <option key={s.id} value={s.id}>{s.nome} - R$ {parseFloat(s.preco).toFixed(2)}</option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Valor (R$) *</label>
+                <input
+                  type="number"
+                  value={formData.valor}
+                  onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  required
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                />
               </div>
 
               <div>
@@ -296,31 +391,58 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
           </div>
         ) : (
           <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-            {agendamentos.map((agendamento) => (
-              <div key={agendamento.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-xl hover:bg-gray-50 gap-3">
-                <div className="flex-1">
-                  <p className="font-semibold text-lg">{agendamento.cliente_nome}</p>
-                  <p className="text-sm text-gray-600">
-                    ✂️ {agendamento.servico_nome} • 👤 {agendamento.profissional_nome}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    📅 {new Date(agendamento.data).toLocaleDateString('pt-BR')} às {agendamento.horario}
-                  </p>
-                  <span className={`inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full ${
-                    agendamento.status === 'concluido' ? 'bg-green-100 text-green-800' :
-                    agendamento.status === 'cancelado' ? 'bg-red-100 text-red-800' :
-                    agendamento.status === 'em_atendimento' ? 'bg-blue-100 text-blue-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {agendamento.status.replace('_', ' ').toUpperCase()}
-                  </span>
+            {agendamentos.map((agendamento) => {
+              // Definir cores por status
+              const statusColors: Record<string, { bg: string; text: string; label: string }> = {
+                agendado: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Agendado' },
+                confirmado: { bg: 'bg-green-100', text: 'text-green-800', label: 'Confirmado' },
+                em_atendimento: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Em Atendimento' },
+                concluido: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Concluído' },
+                cancelado: { bg: 'bg-red-100', text: 'text-red-800', label: 'Cancelado' }
+              };
+              
+              const statusColor = statusColors[agendamento.status] || statusColors.agendado;
+              
+              return (
+                <div key={agendamento.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-xl hover:bg-gray-50 gap-3 transition-all">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="font-semibold text-lg">{agendamento.cliente_nome}</p>
+                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${statusColor.bg} ${statusColor.text}`}>
+                        {statusColor.label}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">
+                      ✂️ {agendamento.servico_nome} • 👤 {agendamento.profissional_nome}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      📅 {new Date(agendamento.data + 'T00:00:00').toLocaleDateString('pt-BR')} às {agendamento.horario}
+                    </p>
+                    <p className="text-sm font-semibold" style={{ color: loja.cor_primaria }}>
+                      💰 R$ {typeof agendamento.valor === 'number' ? agendamento.valor.toFixed(2) : parseFloat(agendamento.valor).toFixed(2)}
+                    </p>
+                    {agendamento.observacoes && (
+                      <p className="text-xs text-gray-500 mt-1">📝 {agendamento.observacoes}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleEditar(agendamento)} 
+                      className="px-3 py-2 text-sm text-white rounded-lg hover:opacity-90 transition-all" 
+                      style={{ backgroundColor: loja.cor_primaria }}
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button 
+                      onClick={() => handleExcluir(agendamento.id, agendamento.cliente_nome)} 
+                      className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+                    >
+                      🗑️ Excluir
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleEditar(agendamento)} className="px-3 py-2 text-sm text-white rounded-lg hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
-                  <button onClick={() => handleExcluir(agendamento.id, agendamento.cliente_nome)} className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">🗑️ Excluir</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

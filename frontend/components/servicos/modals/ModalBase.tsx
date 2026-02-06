@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
+import { extractArrayData, formatApiError } from '@/lib/api-helpers';
 
 interface LojaInfo {
   id: number;
@@ -51,9 +52,13 @@ export function ModalBase({
     try {
       setLoadingLista(true);
       const res = await clinicaApiClient.get(endpoint);
-      setItems(Array.isArray(res.data) ? res.data : res.data?.results ?? []);
+      
+      // Extrair array de forma segura
+      setItems(extractArrayData(res));
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      toast.error(formatApiError(error));
+      setItems([]); // Garantir array vazio em caso de erro
     } finally {
       setLoadingLista(false);
     }
@@ -73,23 +78,30 @@ export function ModalBase({
 
   const handleExcluir = async (id: number, nome: string) => {
     if (!confirm(`Excluir "${nome}"?`)) return;
+    
     try {
       await clinicaApiClient.delete(`${endpoint}${id}/`);
       toast.success('Excluído com sucesso');
-      loadItems();
+      await loadItems();
       onSuccess?.();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erro ao excluir');
+      console.error('Erro ao excluir:', error);
+      toast.error(formatApiError(error));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
+      // Preparar payload com transformações
       const payload = formFields.reduce((acc: any, field: any) => {
         const value = formData[field.name];
-        return { ...acc, [field.apiName || field.name]: field.transform ? field.transform(value) : value };
+        return { 
+          ...acc, 
+          [field.apiName || field.name]: field.transform ? field.transform(value) : value 
+        };
       }, {});
 
       if (editando) {
@@ -99,11 +111,13 @@ export function ModalBase({
         await clinicaApiClient.post(endpoint, payload);
         toast.success('Criado com sucesso');
       }
+      
       setMostrarFormulario(false);
-      loadItems();
+      await loadItems();
       onSuccess?.();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erro ao salvar');
+      console.error('Erro ao salvar:', error);
+      toast.error(formatApiError(error));
     } finally {
       setLoading(false);
     }

@@ -11,6 +11,7 @@ import { useModals } from '@/hooks/useModals';
 import { Modal } from '@/components/ui/Modal';
 import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
+import { extractArrayData } from '@/lib/api-helpers';
 import apiClient from '@/lib/api-client';
 import { ModalProduto, ModalVenda, ModalHorarios, ModalBloqueios, ModalClientes, ModalServicos, ModalAgendamentos, ModalFuncionarios } from '@/components/cabeleireiro/modals';
 
@@ -76,16 +77,28 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       receita_mensal: 0
     },
     initialData: [],
-    transformResponse: (responseData) => ({
-      stats: responseData.estatisticas || {
+    transformResponse: (responseData) => {
+      // Garantir que sempre retornamos objetos válidos
+      const stats = responseData?.estatisticas || {
         agendamentos_hoje: 0,
         agendamentos_mes: 0,
         clientes_ativos: 0,
         servicos_ativos: 0,
         receita_mensal: 0
-      },
-      data: ensureArray<AgendamentoCabeleireiro>(responseData.proximos)
-    })
+      };
+      
+      // Garantir que proximos seja sempre um array
+      let proximos = responseData?.proximos;
+      if (!Array.isArray(proximos)) {
+        console.warn('Dashboard: proximos não é array, usando []', proximos);
+        proximos = [];
+      }
+      
+      return {
+        stats,
+        data: proximos
+      };
+    }
   });
 
   // Garantir que o backend receba X-Loja-ID
@@ -196,7 +209,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
         
         {loadingData ? (
           <AgendamentosListSkeleton count={3} />
-        ) : data.length === 0 ? (
+        ) : !Array.isArray(data) || data.length === 0 ? (
           <EmptyState 
             message="Nenhum agendamento cadastrado"
             subMessage="Comece adicionando seu primeiro agendamento"
@@ -250,12 +263,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
         </Suspense>
       )}
       
-      <Modal isOpen={modals.funcionarios} onClose={() => closeModal('funcionarios')} maxWidth="4xl">
-        <ModalFuncionarios loja={loja} onClose={() => {
-          closeModal('funcionarios');
-          reload();
-        }} />
-      </Modal>
+      {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => { closeModal('funcionarios'); reload(); }} />}
       {modals.horarios && <ModalHorarios loja={loja} onClose={() => { closeModal('horarios'); reload(); }} />}
       {modals.bloqueios && <ModalBloqueios loja={loja} onClose={() => { closeModal('bloqueios'); reload(); }} />}
     </div>

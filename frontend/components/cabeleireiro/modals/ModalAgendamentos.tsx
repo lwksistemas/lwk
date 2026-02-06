@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import apiClient from '@/lib/api-client';
+import { extractArrayData, formatApiError } from '@/lib/api-helpers';
 
 interface LojaInfo {
   id: number;
@@ -50,6 +51,8 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
   const carregarDados = async () => {
     try {
       setLoading(true);
+      
+      // Carregar dados em paralelo
       const [agendamentosRes, clientesRes, profissionaisRes, servicosRes] = await Promise.all([
         apiClient.get('/cabeleireiro/agendamentos/'),
         apiClient.get('/cabeleireiro/clientes/'),
@@ -57,12 +60,20 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
         apiClient.get('/cabeleireiro/servicos/')
       ]);
       
-      setAgendamentos(agendamentosRes.data);
-      setClientes(clientesRes.data);
-      setProfissionais(profissionaisRes.data);
-      setServicos(servicosRes.data);
+      // Extrair arrays de forma segura
+      setAgendamentos(extractArrayData<Agendamento>(agendamentosRes));
+      setClientes(extractArrayData(clientesRes));
+      setProfissionais(extractArrayData(profissionaisRes));
+      setServicos(extractArrayData(servicosRes));
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      alert(formatApiError(error));
+      
+      // Garantir arrays vazios em caso de erro
+      setAgendamentos([]);
+      setClientes([]);
+      setProfissionais([]);
+      setServicos([]);
     } finally {
       setLoading(false);
     }
@@ -70,13 +81,18 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     try {
       if (editando) {
         await apiClient.put(`/cabeleireiro/agendamentos/${editando.id}/`, formData);
       } else {
         await apiClient.post('/cabeleireiro/agendamentos/', formData);
       }
+      
+      // Recarregar dados
       await carregarDados();
+      
+      // Resetar formulário
       setFormData({
         cliente: '',
         profissional: '',
@@ -90,7 +106,7 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
       setShowForm(false);
     } catch (error) {
       console.error('Erro ao salvar agendamento:', error);
-      alert('Erro ao salvar agendamento');
+      alert(formatApiError(error));
     }
   };
 
@@ -116,7 +132,7 @@ export function ModalAgendamentos({ loja, onClose }: { loja: LojaInfo; onClose: 
       await carregarDados();
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error);
-      alert('Erro ao excluir agendamento');
+      alert(formatApiError(error));
     }
   };
 

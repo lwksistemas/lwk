@@ -269,6 +269,35 @@ class Funcionario(LojaIsolationMixin, models.Model):
     def is_profissional(self):
         """Verifica se o funcionário é um profissional que atende clientes"""
         return self.funcao == 'profissional'
+    
+    def save(self, *args, **kwargs):
+        """Sincroniza automaticamente com tabela Profissional quando funcao='profissional'"""
+        super().save(*args, **kwargs)
+        
+        # Se é profissional, sincronizar com tabela Profissional (para compatibilidade com Agendamento)
+        if self.funcao == 'profissional':
+            # Buscar ou criar profissional vinculado a este funcionário
+            # Usar nome + loja_id como chave única (mais confiável que email)
+            profissional, created = Profissional.objects.get_or_create(
+                loja_id=self.loja_id,
+                nome=self.nome,
+                defaults={
+                    'email': self.email or '',
+                    'telefone': self.telefone,
+                    'especialidade': self.especialidade or '',
+                    'comissao_percentual': self.comissao_percentual,
+                    'is_active': self.is_active,
+                }
+            )
+            
+            # Se já existia, atualizar dados
+            if not created:
+                profissional.email = self.email or ''
+                profissional.telefone = self.telefone
+                profissional.especialidade = self.especialidade or ''
+                profissional.comissao_percentual = self.comissao_percentual
+                profissional.is_active = self.is_active
+                profissional.save()
 
 
 class HorarioFuncionamento(LojaIsolationMixin, models.Model):

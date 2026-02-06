@@ -14,7 +14,6 @@ export default function SuperAdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
-  // Verificar se usuário já está logado como outro tipo
   useEffect(() => {
     const userType = authService.getUserType();
     const lojaSlug = authService.getLojaSlug();
@@ -22,9 +21,8 @@ export default function SuperAdminLoginPage() {
     if (userType && userType !== 'superadmin') {
       console.log(`🚨 BLOQUEIO: Usuário tipo "${userType}" tentou acessar login de Super Admin`);
       
-      // Redirecionar para o dashboard correto
       if (userType === 'suporte') {
-        router.push('/superadmin/dashboard');
+        router.push('/suporte/dashboard');
       } else if (userType === 'loja' && lojaSlug) {
         router.push(`/loja/${lojaSlug}/dashboard`);
       }
@@ -39,20 +37,13 @@ export default function SuperAdminLoginPage() {
     try {
       const loginResponse = await authService.login(credentials, 'superadmin');
       
-      console.log('🔍 Login Response:', loginResponse);
-      console.log('🔍 precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
-      
-      // Verificar se precisa trocar senha
       if (loginResponse.precisa_trocar_senha === true) {
-        console.log('✅ Redirecionando para trocar senha...');
         window.location.href = '/superadmin/trocar-senha';
         return;
       }
       
-      console.log('✅ Redirecionando para dashboard...');
       window.location.href = '/superadmin/dashboard';
     } catch (err: any) {
-      console.error('❌ Erro no login:', err);
       setError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoading(false);
@@ -62,11 +53,10 @@ export default function SuperAdminLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-indigo-900 p-4">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-2xl">
-        {/* Header */}
         <div>
           <div className="mx-auto h-16 w-16 bg-purple-600 rounded-full flex items-center justify-center">
             <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
@@ -77,12 +67,10 @@ export default function SuperAdminLoginPage() {
           </p>
         </div>
 
-        {/* Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <ErrorAlert message={error} onClose={() => setError('')} />
           
           <div className="space-y-4">
-            {/* Username */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
                 Usuário
@@ -100,7 +88,6 @@ export default function SuperAdminLoginPage() {
               />
             </div>
 
-            {/* Password */}
             <PasswordInput
               id="password"
               value={credentials.password}
@@ -111,7 +98,6 @@ export default function SuperAdminLoginPage() {
             />
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -131,7 +117,6 @@ export default function SuperAdminLoginPage() {
           </button>
         </form>
         
-        {/* Forgot Password Link */}
         <div className="text-center">
           <button
             onClick={() => setShowRecuperarSenha(true)}
@@ -143,7 +128,6 @@ export default function SuperAdminLoginPage() {
         </div>
       </div>
 
-      {/* Modal Recuperar Senha */}
       <RecuperarSenhaModal
         isOpen={showRecuperarSenha}
         onClose={() => setShowRecuperarSenha(false)}

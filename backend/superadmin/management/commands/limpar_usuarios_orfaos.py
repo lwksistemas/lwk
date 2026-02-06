@@ -48,13 +48,13 @@ class Command(BaseCommand):
         
         # Excluir tokens primeiro (se existirem)
         try:
-            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
-            tokens_count = OutstandingToken.objects.filter(user__in=orfaos).count()
+            from rest_framework_simplejwt.token_blacklist import models as token_models
+            tokens_count = token_models.OutstandingToken.objects.filter(user__in=orfaos).count()
             if tokens_count > 0:
                 self.stdout.write(f"🔑 Excluindo {tokens_count} token(s)...")
-                OutstandingToken.objects.filter(user__in=orfaos).delete()
-        except ImportError:
-            pass  # Token blacklist não instalado
+                token_models.OutstandingToken.objects.filter(user__in=orfaos).delete()
+        except (ImportError, AttributeError):
+            pass  # Token blacklist não instalado ou não configurado
         
         # Excluir sessões (se existirem)
         try:
@@ -63,7 +63,7 @@ class Command(BaseCommand):
             if sessoes_count > 0:
                 self.stdout.write(f"🔐 Excluindo {sessoes_count} sessão(ões)...")
                 UserSession.objects.filter(user__in=orfaos).delete()
-        except:
+        except Exception:
             pass
         
         # Excluir usuários

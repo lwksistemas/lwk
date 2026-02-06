@@ -537,10 +537,10 @@ export default function CalendarioCabeleireiro({ loja, onClose }: { loja: LojaIn
         <div className="p-6 border-b">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
             <div>
-              <h2 className="text-2xl font-bold" style={{ color: loja.cor_primaria }}>
+              <h2 className="text-2xl font-bold hidden sm:block" style={{ color: loja.cor_primaria }}>
                 📅 Calendário - Cabeleireiro
               </h2>
-              <p className="text-gray-600 mt-1">{obterTituloPeriodo()}</p>
+              <p className="text-gray-600 dark:text-gray-400 mt-1 hidden sm:block">{obterTituloPeriodo()}</p>
             </div>
 
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">

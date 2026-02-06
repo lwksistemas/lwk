@@ -46,7 +46,27 @@ class Command(BaseCommand):
         self.stdout.write("="*70)
         self.stdout.write(f"\nSerão excluídos {orfaos.count()} usuário(s).\n")
         
-        # Excluir
+        # Excluir tokens primeiro (se existirem)
+        try:
+            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+            tokens_count = OutstandingToken.objects.filter(user__in=orfaos).count()
+            if tokens_count > 0:
+                self.stdout.write(f"🔑 Excluindo {tokens_count} token(s)...")
+                OutstandingToken.objects.filter(user__in=orfaos).delete()
+        except ImportError:
+            pass  # Token blacklist não instalado
+        
+        # Excluir sessões (se existirem)
+        try:
+            from superadmin.models import UserSession
+            sessoes_count = UserSession.objects.filter(user__in=orfaos).count()
+            if sessoes_count > 0:
+                self.stdout.write(f"🔐 Excluindo {sessoes_count} sessão(ões)...")
+                UserSession.objects.filter(user__in=orfaos).delete()
+        except:
+            pass
+        
+        # Excluir usuários
         count = orfaos.count()
         orfaos.delete()
         

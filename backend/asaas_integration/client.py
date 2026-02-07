@@ -218,7 +218,7 @@ class AsaasPaymentService:
             # Fallback para configuração vazia
             self.client = AsaasClient(api_key='', sandbox=True)
     
-    def create_loja_subscription_payment(self, loja_data: Dict[str, Any], plano_data: Dict[str, Any], due_date: str = None) -> Dict[str, Any]:
+    def create_loja_subscription_payment(self, loja_data: Dict[str, Any], plano_data: Dict[str, Any], due_date: str = None, customer_id: str = None) -> Dict[str, Any]:
         """
         Cria cobrança para assinatura de loja
         
@@ -226,29 +226,41 @@ class AsaasPaymentService:
             loja_data: Dados da loja (nome, email, cpf_cnpj, etc)
             plano_data: Dados do plano (valor, nome, etc)
             due_date: Data de vencimento no formato YYYY-MM-DD (opcional, padrão: +7 dias)
+            customer_id: ID do customer existente no Asaas (opcional, se não fornecido cria novo)
         
         Returns:
             Dict com dados da cobrança criada
         """
         try:
-            # 1. Criar ou buscar cliente
-            customer_data = {
-                'name': loja_data['nome'],
-                'email': loja_data['email'],
-                'cpfCnpj': loja_data['cpf_cnpj'],
-                'phone': loja_data.get('telefone', ''),
-                'address': loja_data.get('endereco', ''),
-                'addressNumber': loja_data.get('numero', ''),
-                'complement': loja_data.get('complemento', ''),
-                'province': loja_data.get('bairro', ''),
-                'city': loja_data.get('cidade', ''),
-                'state': loja_data.get('estado', ''),
-                'postalCode': loja_data.get('cep', ''),
-                'externalReference': f"loja_{loja_data['slug']}"
-            }
+            # 1. Usar customer existente ou criar novo
+            if customer_id:
+                logger.info(f"Usando customer existente: {customer_id}")
+                # Buscar dados do customer para retornar
+                try:
+                    customer = self.client.get_customer(customer_id)
+                except:
+                    # Se não conseguir buscar, usar o ID fornecido mesmo assim
+                    customer = {'id': customer_id}
+            else:
+                # Criar novo customer
+                customer_data = {
+                    'name': loja_data['nome'],
+                    'email': loja_data['email'],
+                    'cpfCnpj': loja_data['cpf_cnpj'],
+                    'phone': loja_data.get('telefone', ''),
+                    'address': loja_data.get('endereco', ''),
+                    'addressNumber': loja_data.get('numero', ''),
+                    'complement': loja_data.get('complemento', ''),
+                    'province': loja_data.get('bairro', ''),
+                    'city': loja_data.get('cidade', ''),
+                    'state': loja_data.get('estado', ''),
+                    'postalCode': loja_data.get('cep', ''),
+                    'externalReference': f"loja_{loja_data['slug']}"
+                }
+                
+                logger.info(f"Criando cliente Asaas para loja: {loja_data['nome']}")
+                customer = self.client.create_customer(customer_data)
             
-            logger.info(f"Criando cliente Asaas para loja: {loja_data['nome']}")
-            customer = self.client.create_customer(customer_data)
             customer_id = customer['id']
             
             # 2. Criar cobrança

@@ -802,26 +802,42 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             loja_data = self._preparar_dados_loja(loja)
             plano_data = self._preparar_dados_plano(assinatura)
             
-            # Criar cobrança
+            # Buscar customer_id existente da assinatura
+            customer_id = assinatura.asaas_customer.asaas_id if assinatura.asaas_customer else None
+            logger.info(f"📝 Customer ID da assinatura: {customer_id}")
+            
+            # Criar cobrança usando o customer existente
             from .client import AsaasPaymentService
             service = AsaasPaymentService()
-            resultado = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
+            resultado = service.create_loja_subscription_payment(
+                loja_data, 
+                plano_data, 
+                due_date=due_date_str,
+                customer_id=customer_id  # Usar customer existente
+            )
             
             # Salvar no banco de dados local
             if resultado.get('success'):
-                from .models import AsaasPayment, AsaasCustomer
+                from .models import AsaasPayment, AsaasCustomer, LojaAssinatura
                 from superadmin.models import FinanceiroLoja, PagamentoLoja
                 
-                # Criar ou buscar customer
-                customer, _ = AsaasCustomer.objects.get_or_create(
-                    asaas_id=resultado['customer_id'],
-                    defaults={
-                        'name': loja.nome,
-                        'email': loja.owner.email,
-                        'cpf_cnpj': loja_data.get('cpf_cnpj', ''),
-                        'phone': loja_data.get('telefone', ''),
-                    }
-                )
+                # Buscar customer existente da assinatura (não criar novo)
+                try:
+                    loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
+                    customer = loja_assinatura.asaas_customer
+                    logger.info(f"✅ Usando customer existente da assinatura: {customer.asaas_id}")
+                except LojaAssinatura.DoesNotExist:
+                    # Fallback: criar ou buscar customer se não houver assinatura
+                    logger.warning(f"⚠️ LojaAssinatura não encontrada, criando/buscando customer")
+                    customer, _ = AsaasCustomer.objects.get_or_create(
+                        asaas_id=resultado['customer_id'],
+                        defaults={
+                            'name': loja.nome,
+                            'email': loja.owner.email,
+                            'cpf_cnpj': loja_data.get('cpf_cnpj', ''),
+                            'phone': loja_data.get('telefone', ''),
+                        }
+                    )
                 
                 # Criar pagamento no AsaasPayment
                 payment = AsaasPayment.objects.create(

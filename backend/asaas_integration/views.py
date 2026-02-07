@@ -653,59 +653,109 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    def _get_dia_vencimento(self, loja):
+        """Buscar dia de vencimento configurado da loja"""
+        try:
+            return loja.financeiro.dia_vencimento
+        except AttributeError:
+            logger.warning(f"Financeiro não encontrado para loja {loja.nome}, usando dia padrão 10")
+            return 10
+    
+    def _calcular_proxima_data_vencimento(self, dia_vencimento):
+        """Calcular próxima data de vencimento baseada no dia configurado"""
+        from datetime import datetime
+        from dateutil.relativedelta import relativedelta
+        
+        hoje = datetime.now().date()
+        proxima_data = hoje + relativedelta(months=1)
+        
+        try:
+            proxima_data = proxima_data.replace(day=dia_vencimento)
+        except ValueError:
+            # Dia não existe no mês (ex: 31 em fevereiro), usar último dia do mês
+            proxima_data = (proxima_data.replace(day=1) + relativedelta(months=1) - relativedelta(days=1))
+        
+        return proxima_data
+    
+    def _preparar_dados_loja(self, loja):
+        """Preparar dados da loja para criação de cobrança"""
+        return {
+            'nome': loja.nome,
+            'slug': loja.slug,
+            'email': loja.owner.email,
+            'cpf_cnpj': loja.cpf_cnpj,
+            'telefone': getattr(loja.owner, 'telefone', ''),
+            'endereco': getattr(loja, 'endereco', ''),
+            'cidade': getattr(loja, 'cidade', ''),
+            'estado': getattr(loja, 'estado', ''),
+            'cep': getattr(loja, 'cep', '')
+        }
+    
+    def _preparar_dados_plano(self, assinatura):
+        """Preparar dados do plano para criação de cobrança"""
+        return {
+            'nome': assinatura.plano_nome,
+            'preco': float(assinatura.plano_valor)
+        }
+    
     @action(detail=True, methods=['post'])
     def generate_new_payment(self, request, pk=None):
         """Gerar nova cobrança para assinatura"""
         try:
-            assinatura = self.get_object()
-            
-            # Importar serviço de pagamento
+            # Validar disponibilidade do serviço Asaas
             if not AsaasClient:
                 return Response(
                     {'error': 'Serviço Asaas não disponível'},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
             
+            # Buscar assinatura e loja
+            assinatura = self.get_object()
+            loja = Loja.objects.select_related('owner', 'financeiro').get(slug=assinatura.loja_slug)
+            
+            # Calcular data de vencimento
+            dia_vencimento = self._get_dia_vencimento(loja)
+            proxima_data = self._calcular_proxima_data_vencimento(dia_vencimento)
+            due_date_str = proxima_data.strftime('%Y-%m-%d')
+            
+            # Log informativo
+            logger.info(f"📅 Gerando nova cobrança para {loja.nome}")
+            logger.info(f"   - Dia de vencimento: {dia_vencimento}")
+            logger.info(f"   - Próxima data: {due_date_str}")
+            
+            # Preparar dados
+            loja_data = self._preparar_dados_loja(loja)
+            plano_data = self._preparar_dados_plano(assinatura)
+            
+            # Criar cobrança
             from .client import AsaasPaymentService
             service = AsaasPaymentService()
+            resultado = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
             
-            # Dados da loja
-            loja = Loja.objects.select_related('owner').get(slug=assinatura.loja_slug)
-            
-            loja_data = {
-                'nome': loja.nome,
-                'slug': loja.slug,
-                'email': loja.owner.email,
-                'cpf_cnpj': loja.cpf_cnpj,
-                'telefone': getattr(loja.owner, 'telefone', ''),
-                'endereco': getattr(loja, 'endereco', ''),
-                'cidade': getattr(loja, 'cidade', ''),
-                'estado': getattr(loja, 'estado', ''),
-                'cep': getattr(loja, 'cep', '')
-            }
-            
-            plano_data = {
-                'nome': assinatura.plano_nome,
-                'preco': float(assinatura.plano_valor)
-            }
-            
-            # Criar nova cobrança
-            resultado = service.create_loja_subscription_payment(loja_data, plano_data)
-            
+            # Retornar resultado
             if resultado.get('success'):
                 return Response({
                     'success': True,
                     'message': 'Nova cobrança gerada com sucesso',
-                    'payment_id': resultado.get('payment_id')
+                    'payment_id': resultado.get('payment_id'),
+                    'due_date': due_date_str
                 })
-            else:
-                return Response(
-                    {'error': resultado.get('error', 'Erro ao gerar cobrança')},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            
+            return Response(
+                {'error': resultado.get('error', 'Erro ao gerar cobrança')},
+                status=status.HTTP_400_BAD_REQUEST
+            )
                 
+        except Loja.DoesNotExist:
+            logger.error(f"Loja não encontrada: {assinatura.loja_slug}")
+            return Response(
+                {'error': 'Loja não encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
             logger.error(f"Erro ao gerar nova cobrança: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return Response(
                 {'error': f'Erro interno: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

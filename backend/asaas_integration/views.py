@@ -838,6 +838,11 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 
                 logger.info(f"✅ Pagamento salvo no banco local (ID: {payment.id})")
                 
+                # Atualizar current_payment da assinatura
+                assinatura.current_payment = payment
+                assinatura.save()
+                logger.info(f"✅ Assinatura atualizada com novo pagamento atual")
+                
                 # Atualizar FinanceiroLoja com dados do novo boleto
                 try:
                     financeiro = FinanceiroLoja.objects.get(loja=loja)

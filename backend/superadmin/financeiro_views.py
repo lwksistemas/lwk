@@ -261,11 +261,27 @@ def dashboard_financeiro_loja(request, loja_slug):
     pix_qr_code = None
     pix_copy_paste = None
     
+    logger.info(f"🔍 Buscando boleto para loja: {loja.nome} (slug: {loja.slug})")
+    
     try:
         from asaas_integration.models import LojaAssinatura, AsaasPayment
         
         # Buscar assinatura da loja
-        loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
+        try:
+            loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
+            logger.info(f"✅ LojaAssinatura encontrada: customer_id={loja_assinatura.asaas_customer.asaas_id}")
+        except LojaAssinatura.DoesNotExist:
+            logger.error(f"❌ LojaAssinatura não encontrada para slug: {loja.slug}")
+            raise
+        
+        # Buscar todos os pagamentos do customer para debug
+        todos_pagamentos = AsaasPayment.objects.filter(
+            customer=loja_assinatura.asaas_customer
+        ).order_by('-due_date')
+        
+        logger.info(f"📊 Total de pagamentos no Asaas: {todos_pagamentos.count()}")
+        for pag in todos_pagamentos[:5]:
+            logger.info(f"   - ID: {pag.asaas_id}, Status: {pag.status}, Vencimento: {pag.due_date}, Valor: R$ {pag.value}")
         
         # Buscar próximo pagamento pendente (mais recente)
         proximo_boleto = AsaasPayment.objects.filter(
@@ -279,16 +295,26 @@ def dashboard_financeiro_loja(request, loja_slug):
             pix_qr_code = proximo_boleto.pix_qr_code
             pix_copy_paste = proximo_boleto.pix_copy_paste
             
-            logger.info(f"✅ Próximo boleto encontrado para {loja.nome}: {proximo_boleto.asaas_id}, vencimento: {proximo_boleto.due_date}")
+            logger.info(f"✅ Próximo boleto encontrado para {loja.nome}:")
+            logger.info(f"   - ID: {proximo_boleto.asaas_id}")
+            logger.info(f"   - Vencimento: {proximo_boleto.due_date}")
+            logger.info(f"   - Status: {proximo_boleto.status}")
+            logger.info(f"   - Boleto URL: {boleto_url[:50] if boleto_url else 'None'}...")
+            logger.info(f"   - PIX: {'Sim' if pix_copy_paste else 'Não'}")
         else:
             logger.warning(f"⚠️ Nenhum boleto pendente encontrado para {loja.nome}")
+            logger.warning(f"   - Data atual: {timezone.now().date()}")
+            logger.warning(f"   - Filtro: status=PENDING, due_date >= {timezone.now().date()}")
             
     except Exception as e:
-        logger.warning(f"⚠️ Erro ao buscar boleto do Asaas para {loja.nome}: {e}")
+        logger.error(f"❌ Erro ao buscar boleto do Asaas para {loja.nome}: {e}")
+        import traceback
+        traceback.print_exc()
         # Fallback para dados do FinanceiroLoja
         boleto_url = financeiro.boleto_url
         pix_qr_code = financeiro.pix_qr_code
         pix_copy_paste = financeiro.pix_copy_paste
+        logger.info(f"   - Usando fallback: boleto_url={boleto_url[:50] if boleto_url else 'None'}")
     
     return Response({
         'loja': {

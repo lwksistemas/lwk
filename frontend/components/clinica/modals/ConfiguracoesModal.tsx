@@ -154,14 +154,14 @@ export function ConfiguracoesModal({ loja, onClose }: ConfiguracoesModalProps) {
                 <div className="text-center">
                   <p className="text-sm text-gray-600">Último Pagamento</p>
                   <p className="text-lg font-semibold text-green-600">
-                    {new Date(dadosFinanceiros.financeiro.ultimo_pagamento).toLocaleDateString('pt-BR')}
+                    {dadosFinanceiros.financeiro.ultimo_pagamento.split('-').reverse().join('/')}
                   </p>
                 </div>
               )}
               <div className="text-center">
                 <p className="text-sm text-gray-600">Próximo Vencimento</p>
                 <p className="text-lg font-semibold">
-                  {new Date(dadosFinanceiros.financeiro.data_proxima_cobranca).toLocaleDateString('pt-BR')}
+                  {dadosFinanceiros.financeiro.data_proxima_cobranca.split('-').reverse().join('/')}
                 </p>
               </div>
               <div className="text-center">

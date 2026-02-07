@@ -244,14 +244,14 @@ def dashboard_financeiro_loja(request, loja_slug):
     # Buscar dados financeiros
     pagamentos = PagamentoLoja.objects.filter(loja=loja).order_by('-data_vencimento')
     
-    # Estatísticas
-    total_pagamentos = pagamentos.count()
-    pagamentos_pagos = pagamentos.filter(status='pago').count()
-    pagamentos_pendentes = pagamentos.filter(status='pendente').count()
-    pagamentos_atrasados = pagamentos.filter(status='atrasado').count()
+    # Estatísticas baseadas em PagamentoLoja
+    total_pagamentos_loja = pagamentos.count()
+    pagamentos_pagos_loja = pagamentos.filter(status='pago').count()
+    pagamentos_pendentes_loja = pagamentos.filter(status='pendente').count()
+    pagamentos_atrasados_loja = pagamentos.filter(status='atrasado').count()
     
-    valor_total_pago = sum(p.valor for p in pagamentos.filter(status='pago'))
-    valor_total_pendente = sum(p.valor for p in pagamentos.filter(status__in=['pendente', 'atrasado']))
+    valor_total_pago_loja = sum(p.valor for p in pagamentos.filter(status='pago'))
+    valor_total_pendente_loja = sum(p.valor for p in pagamentos.filter(status__in=['pendente', 'atrasado']))
     
     # Próximo pagamento
     proximo_pagamento = pagamentos.filter(status='pendente').first()
@@ -261,10 +261,19 @@ def dashboard_financeiro_loja(request, loja_slug):
     pix_qr_code = None
     pix_copy_paste = None
     
+    # Estatísticas do Asaas (mais precisas)
+    total_pagamentos_asaas = 0
+    pagamentos_pagos_asaas = 0
+    pagamentos_pendentes_asaas = 0
+    pagamentos_atrasados_asaas = 0
+    valor_total_pago_asaas = 0
+    valor_total_pendente_asaas = 0
+    
     logger.info(f"🔍 Buscando boleto para loja: {loja.nome} (slug: {loja.slug})")
     
     try:
         from asaas_integration.models import LojaAssinatura, AsaasPayment
+        from decimal import Decimal
         
         # Buscar assinatura da loja
         try:
@@ -305,6 +314,27 @@ def dashboard_financeiro_loja(request, loja_slug):
             logger.warning(f"⚠️ Nenhum boleto pendente encontrado para {loja.nome}")
             logger.warning(f"   - Data atual: {timezone.now().date()}")
             logger.warning(f"   - Filtro: status=PENDING, due_date >= {timezone.now().date()}")
+        
+        # Calcular estatísticas do Asaas
+        total_pagamentos_asaas = todos_pagamentos.count()
+        pagamentos_pagos_asaas = todos_pagamentos.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']).count()
+        pagamentos_pendentes_asaas = todos_pagamentos.filter(status='PENDING').count()
+        pagamentos_atrasados_asaas = todos_pagamentos.filter(status='OVERDUE').count()
+        
+        # Calcular valores
+        for pag in todos_pagamentos.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']):
+            valor_total_pago_asaas += Decimal(str(pag.value))
+        
+        for pag in todos_pagamentos.filter(status__in=['PENDING', 'OVERDUE']):
+            valor_total_pendente_asaas += Decimal(str(pag.value))
+        
+        logger.info(f"📊 Estatísticas do Asaas para {loja.nome}:")
+        logger.info(f"   - Total: {total_pagamentos_asaas}")
+        logger.info(f"   - Pagos: {pagamentos_pagos_asaas}")
+        logger.info(f"   - Pendentes: {pagamentos_pendentes_asaas}")
+        logger.info(f"   - Atrasados: {pagamentos_atrasados_asaas}")
+        logger.info(f"   - Valor pago: R$ {valor_total_pago_asaas}")
+        logger.info(f"   - Valor pendente: R$ {valor_total_pendente_asaas}")
             
     except Exception as e:
         logger.error(f"❌ Erro ao buscar boleto do Asaas para {loja.nome}: {e}")
@@ -315,6 +345,14 @@ def dashboard_financeiro_loja(request, loja_slug):
         pix_qr_code = financeiro.pix_qr_code
         pix_copy_paste = financeiro.pix_copy_paste
         logger.info(f"   - Usando fallback: boleto_url={boleto_url[:50] if boleto_url else 'None'}")
+    
+    # Usar estatísticas do Asaas se disponíveis, senão usar do PagamentoLoja
+    total_pagamentos = total_pagamentos_asaas if total_pagamentos_asaas > 0 else total_pagamentos_loja
+    pagamentos_pagos = pagamentos_pagos_asaas if total_pagamentos_asaas > 0 else pagamentos_pagos_loja
+    pagamentos_pendentes = pagamentos_pendentes_asaas if total_pagamentos_asaas > 0 else pagamentos_pendentes_loja
+    pagamentos_atrasados = pagamentos_atrasados_asaas if total_pagamentos_asaas > 0 else pagamentos_atrasados_loja
+    valor_total_pago = float(valor_total_pago_asaas) if total_pagamentos_asaas > 0 else valor_total_pago_loja
+    valor_total_pendente = float(valor_total_pendente_asaas) if total_pagamentos_asaas > 0 else valor_total_pendente_loja
     
     return Response({
         'loja': {
@@ -327,8 +365,8 @@ def dashboard_financeiro_loja(request, loja_slug):
         'financeiro': {
             'status_pagamento': financeiro.get_status_pagamento_display(),
             'valor_mensalidade': float(financeiro.valor_mensalidade),
-            'data_proxima_cobranca': financeiro.data_proxima_cobranca,
-            'ultimo_pagamento': financeiro.ultimo_pagamento,
+            'data_proxima_cobranca': financeiro.data_proxima_cobranca.strftime('%Y-%m-%d') if financeiro.data_proxima_cobranca else None,
+            'ultimo_pagamento': financeiro.ultimo_pagamento.strftime('%Y-%m-%d') if financeiro.ultimo_pagamento else None,
             'dia_vencimento': financeiro.dia_vencimento,
             'total_pago': float(financeiro.total_pago),
             'total_pendente': float(financeiro.total_pendente),

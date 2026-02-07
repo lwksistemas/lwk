@@ -181,7 +181,9 @@ export default function FinanceiroLojaPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR')
+    // Parse manual para evitar problema de timezone
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    return `${day}/${month}/${year}`;
   }
 
   if (loading) {

@@ -167,7 +167,9 @@ export default function FinanceiroPage() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    // Parse manual para evitar problema de timezone
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    return `${day}/${month}/${year}`;
   };
 
   const getStatusColor = (status: string) => {

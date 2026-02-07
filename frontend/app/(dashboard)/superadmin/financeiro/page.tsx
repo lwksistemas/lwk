@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { ModalNovaCobranca } from '@/components/superadmin/financeiro/ModalNovaCobranca';
+import { ModalConfirmarExclusao } from '@/components/superadmin/financeiro/ModalConfirmarExclusao';
 
 interface AsaasPayment {
   id: number;
@@ -66,6 +68,7 @@ function AssinaturaCard({
   onCopyPix,
   onUpdateStatus,
   onNovaCobranca,
+  onExcluirPagamento,
   gerandoCobranca,
   formatDate,
   formatCurrency,
@@ -75,7 +78,8 @@ function AssinaturaCard({
   onDownloadBoleto: (payment: AsaasPayment) => void;
   onCopyPix: (pixCode: string) => void;
   onUpdateStatus: (paymentId: number) => void;
-  onNovaCobranca: (assinaturaId: number) => void;
+  onNovaCobranca: (assinatura: LojaAssinatura) => void;
+  onExcluirPagamento: (payment: AsaasPayment) => void;
   gerandoCobranca: number | null;
   formatDate: (date: string) => string;
   formatCurrency: (value: string | number) => string;
@@ -157,11 +161,20 @@ function AssinaturaCard({
             </button>
             
             <button
-              onClick={() => onNovaCobranca(assinatura.id)}
+              onClick={() => onNovaCobranca(assinatura)}
               disabled={gerandoCobranca === assinatura.id}
               className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 disabled:opacity-50 transition-colors"
             >
               {gerandoCobranca === assinatura.id ? 'Gerando...' : '➕ Nova Cobrança'}
+            </button>
+            
+            <button
+              onClick={() => onExcluirPagamento(assinatura.current_payment_data!)}
+              disabled={assinatura.current_payment_data!.is_paid}
+              className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={assinatura.current_payment_data!.is_paid ? 'Não é possível excluir cobrança paga' : 'Excluir cobrança'}
+            >
+              🗑️ Excluir
             </button>
           </div>
         </div>
@@ -181,6 +194,10 @@ export default function FinanceiroPage() {
   const [activeTab, setActiveTab] = useState<'assinaturas' | 'pagamentos'>('assinaturas');
   const [gerandoCobranca, setGerandoCobranca] = useState<number | null>(null);
   const [showModalNovaCobranca, setShowModalNovaCobranca] = useState(false);
+  const [assinaturaParaCobranca, setAssinaturaParaCobranca] = useState<LojaAssinatura | null>(null);
+  const [showModalExclusao, setShowModalExclusao] = useState(false);
+  const [pagamentoParaExcluir, setPagamentoParaExcluir] = useState<AsaasPayment | null>(null);
+  const [excluindoPagamento, setExcluindoPagamento] = useState(false);
 
   // Verificação de autenticação
   useEffect(() => {
@@ -232,23 +249,68 @@ export default function FinanceiroPage() {
     }
   };
 
-  // Gerar nova cobrança
-  const generateNewPayment = async (assinaturaId: number) => {
+  // Criar cobrança manual
+  const createManualPayment = async (assinaturaId: number, dueDate?: string) => {
     setGerandoCobranca(assinaturaId);
     try {
-      const response = await apiClient.post(`/asaas/subscriptions/${assinaturaId}/generate_new_payment/`);
+      const endpoint = dueDate 
+        ? `/asaas/subscriptions/${assinaturaId}/create_manual_payment/`
+        : `/asaas/subscriptions/${assinaturaId}/generate_new_payment/`;
+      
+      const payload = dueDate ? { due_date: dueDate } : {};
+      
+      const response = await apiClient.post(endpoint, payload);
       if (response.data.success) {
         await loadData();
-        alert('Nova cobrança gerada com sucesso!');
+        setShowModalNovaCobranca(false);
+        setAssinaturaParaCobranca(null);
+        alert('Cobrança criada com sucesso!');
       } else {
-        alert(response.data.error || 'Erro ao gerar cobrança');
+        alert(response.data.error || 'Erro ao criar cobrança');
       }
     } catch (error: any) {
-      console.error('Erro ao gerar nova cobrança:', error);
-      alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao gerar nova cobrança'}`);
+      console.error('Erro ao criar cobrança:', error);
+      alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao criar cobrança'}`);
     } finally {
       setGerandoCobranca(null);
     }
+  };
+
+  // Excluir cobrança
+  const deletePayment = async (paymentId: number) => {
+    setExcluindoPagamento(true);
+    try {
+      const response = await apiClient.delete(`/asaas/payments/${paymentId}/delete_payment/`);
+      if (response.data.success) {
+        await loadData();
+        setShowModalExclusao(false);
+        setPagamentoParaExcluir(null);
+        alert('Cobrança excluída com sucesso!');
+      } else {
+        alert(response.data.error || 'Erro ao excluir cobrança');
+      }
+    } catch (error: any) {
+      console.error('Erro ao excluir cobrança:', error);
+      alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao excluir cobrança'}`);
+    } finally {
+      setExcluindoPagamento(false);
+    }
+  };
+
+  // Abrir modal de nova cobrança
+  const handleNovaCobranca = (assinatura: LojaAssinatura) => {
+    setAssinaturaParaCobranca(assinatura);
+    setShowModalNovaCobranca(true);
+  };
+
+  // Abrir modal de exclusão
+  const handleExcluirPagamento = (pagamento: AsaasPayment) => {
+    if (pagamento.is_paid) {
+      alert('Não é possível excluir uma cobrança já paga');
+      return;
+    }
+    setPagamentoParaExcluir(pagamento);
+    setShowModalExclusao(true);
   };
 
   // Copiar código PIX
@@ -296,29 +358,6 @@ export default function FinanceiroPage() {
                 ← Voltar
               </a>
               <h1 className="text-2xl font-bold">Financeiro - Asaas</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {
-                  if (assinaturas.length === 0) {
-                    alert('Não há assinaturas no momento.');
-                    return;
-                  }
-                  assinaturas.length === 1 
-                    ? generateNewPayment(assinaturas[0].id)
-                    : setShowModalNovaCobranca(true);
-                }}
-                disabled={gerandoCobranca !== null}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-md transition-colors disabled:opacity-50"
-              >
-                {gerandoCobranca !== null ? 'Gerando...' : '➕ Nova Cobrança'}
-              </button>
-              <button
-                onClick={loadData}
-                className="px-4 py-2 bg-purple-700 hover:bg-purple-800 rounded-md transition-colors"
-              >
-                🔄 Atualizar
-              </button>
             </div>
           </div>
         </div>
@@ -375,7 +414,8 @@ export default function FinanceiroPage() {
                         onDownloadBoleto={downloadBoleto}
                         onCopyPix={copyPixCode}
                         onUpdateStatus={updatePaymentStatus}
-                        onNovaCobranca={generateNewPayment}
+                        onNovaCobranca={handleNovaCobranca}
+                        onExcluirPagamento={handleExcluirPagamento}
                         gerandoCobranca={gerandoCobranca}
                         formatDate={formatDate}
                         formatCurrency={formatCurrency}
@@ -461,6 +501,14 @@ export default function FinanceiroPage() {
                               >
                                 🔄 Status
                               </button>
+                              <button
+                                onClick={() => handleExcluirPagamento(pagamento)}
+                                disabled={pagamento.is_paid}
+                                className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title={pagamento.is_paid ? 'Não é possível excluir cobrança paga' : 'Excluir cobrança'}
+                              >
+                                🗑️ Excluir
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -475,37 +523,29 @@ export default function FinanceiroPage() {
       </main>
 
       {/* Modal: Nova Cobrança */}
-      {showModalNovaCobranca && assinaturas.length > 1 && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Nova Cobrança - Escolha a loja</h3>
-            <ul className="space-y-2 mb-4">
-              {assinaturas.map((a) => (
-                <li key={a.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModalNovaCobranca(false);
-                      generateNewPayment(a.id);
-                    }}
-                    disabled={gerandoCobranca !== null}
-                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-purple-50 hover:border-purple-300 disabled:opacity-50 transition-colors"
-                  >
-                    <span className="font-medium text-gray-900">{a.loja_nome}</span>
-                    <span className="text-gray-500 text-sm block">{a.loja_slug} · {a.plano_nome}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              onClick={() => setShowModalNovaCobranca(false)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
+      {showModalNovaCobranca && assinaturaParaCobranca && (
+        <ModalNovaCobranca
+          assinatura={assinaturaParaCobranca}
+          onClose={() => {
+            setShowModalNovaCobranca(false);
+            setAssinaturaParaCobranca(null);
+          }}
+          onConfirm={createManualPayment}
+          loading={gerandoCobranca !== null}
+        />
+      )}
+
+      {/* Modal: Confirmar Exclusão */}
+      {showModalExclusao && pagamentoParaExcluir && (
+        <ModalConfirmarExclusao
+          pagamento={pagamentoParaExcluir}
+          onClose={() => {
+            setShowModalExclusao(false);
+            setPagamentoParaExcluir(null);
+          }}
+          onConfirm={deletePayment}
+          loading={excluindoPagamento}
+        />
       )}
     </div>
   );

@@ -807,13 +807,42 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             service = AsaasPaymentService()
             resultado = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
             
-            # Retornar resultado
+            # Salvar no banco de dados local
             if resultado.get('success'):
+                from .models import AsaasPayment, AsaasCustomer
+                
+                # Criar ou buscar customer
+                customer, _ = AsaasCustomer.objects.get_or_create(
+                    asaas_id=resultado['customer_id'],
+                    defaults={
+                        'name': loja.nome,
+                        'email': loja.owner.email,
+                        'cpf_cnpj': loja_data.get('cpf_cnpj', ''),
+                        'phone': loja_data.get('telefone', ''),
+                    }
+                )
+                
+                # Criar pagamento
+                payment = AsaasPayment.objects.create(
+                    customer=customer,
+                    asaas_id=resultado['payment_id'],
+                    value=resultado['value'],
+                    status=resultado['status'],
+                    due_date=resultado['due_date'],
+                    description=f"Assinatura {plano_data['nome']} - Loja {loja.nome}",
+                    bank_slip_url=resultado.get('boleto_url', ''),
+                    pix_copy_paste=resultado.get('pix_copy_paste', ''),
+                    external_reference=f"loja_{loja.slug}_assinatura"
+                )
+                
+                logger.info(f"✅ Pagamento salvo no banco local (ID: {payment.id})")
+                
                 return Response({
                     'success': True,
                     'message': 'Cobrança manual criada com sucesso',
                     'payment_id': resultado.get('payment_id'),
-                    'due_date': due_date_str
+                    'due_date': due_date_str,
+                    'local_payment_id': payment.id
                 })
             
             return Response(

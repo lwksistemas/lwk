@@ -837,7 +837,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 
                 # Se o pagamento foi confirmado, atualizar financeiro e criar próximo boleto
                 loja_updated = False
-                if payment.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'] and old_status != payment.status:
+                if payment.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
                     try:
                         from superadmin.sync_service import AsaasSyncService
                         sync_service = AsaasSyncService()

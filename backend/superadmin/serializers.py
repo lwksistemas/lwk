@@ -314,16 +314,23 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             from calendar import monthrange
             
             # Calcular próxima cobrança baseada no dia de vencimento
+            # SEMPRE no próximo mês (não no mês atual)
             hoje = date.today()
-            if hoje.day <= dia_vencimento:
-                # Próxima cobrança neste mês
-                proxima_cobranca = date(hoje.year, hoje.month, dia_vencimento)
+            
+            # Calcular próximo mês
+            if hoje.month == 12:
+                proximo_mes = 1
+                proximo_ano = hoje.year + 1
             else:
-                # Próxima cobrança no próximo mês
-                if hoje.month == 12:
-                    proxima_cobranca = date(hoje.year + 1, 1, dia_vencimento)
-                else:
-                    proxima_cobranca = date(hoje.year, hoje.month + 1, dia_vencimento)
+                proximo_mes = hoje.month + 1
+                proximo_ano = hoje.year
+            
+            # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
+            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
+            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
+            
+            # Definir próxima cobrança sempre no próximo mês
+            proxima_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
             
             financeiro = FinanceiroLoja.objects.create(
                 loja=loja,

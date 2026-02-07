@@ -839,16 +839,35 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 logger.info(f"✅ Pagamento salvo no AsaasPayment (ID: {payment.id})")
                 
                 # Criar pagamento no PagamentoLoja (para histórico da loja)
-                pagamento_loja = PagamentoLoja.objects.create(
-                    loja=loja,
-                    asaas_payment_id=resultado['payment_id'],
-                    valor=resultado['value'],
-                    status='pendente',
-                    data_vencimento=resultado['due_date'],
-                    boleto_url=resultado.get('boleto_url', '')
-                )
-                
-                logger.info(f"✅ Pagamento salvo no PagamentoLoja (ID: {pagamento_loja.id})")
+                try:
+                    financeiro = FinanceiroLoja.objects.get(loja=loja)
+                    
+                    # Calcular referência do mês baseado na data de vencimento
+                    from datetime import datetime
+                    due_date_obj = datetime.strptime(resultado['due_date'], '%Y-%m-%d').date()
+                    referencia_mes = due_date_obj.replace(day=1)
+                    
+                    pagamento_loja = PagamentoLoja.objects.create(
+                        loja=loja,
+                        financeiro=financeiro,
+                        asaas_payment_id=resultado['payment_id'],
+                        valor=resultado['value'],
+                        status='pendente',
+                        data_vencimento=resultado['due_date'],
+                        referencia_mes=referencia_mes,
+                        forma_pagamento='boleto',
+                        boleto_url=resultado.get('boleto_url', ''),
+                        boleto_pdf_url=resultado.get('boleto_url', ''),
+                        pix_copy_paste=resultado.get('pix_copy_paste', '')
+                    )
+                    
+                    logger.info(f"✅ Pagamento salvo no PagamentoLoja (ID: {pagamento_loja.id})")
+                except FinanceiroLoja.DoesNotExist:
+                    logger.error(f"❌ FinanceiroLoja não encontrado para {loja.slug}, não foi possível criar PagamentoLoja")
+                except Exception as e:
+                    logger.error(f"❌ Erro ao criar PagamentoLoja: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
                 
                 # Atualizar current_payment da assinatura
                 assinatura.current_payment = payment

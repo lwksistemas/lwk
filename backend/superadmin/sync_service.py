@@ -515,17 +515,22 @@ class AsaasSyncService:
             financeiro.status_pagamento = 'ativo'
             financeiro.ultimo_pagamento = timezone.now()
             
-            # Calcular próxima data de cobrança baseada no dia de vencimento
-            hoje = date.today()
+            # Calcular próxima data de cobrança baseada na DATA DE VENCIMENTO ATUAL (não na data de hoje)
+            # Isso garante que após pagar o boleto de março, o próximo seja abril, não março novamente
+            data_vencimento_atual = financeiro.data_proxima_cobranca
             dia_vencimento = financeiro.dia_vencimento
             
-            # Calcular próximo mês
-            if hoje.month == 12:
+            logger.info(f"📅 Cálculo de próxima cobrança:")
+            logger.info(f"   - Data Vencimento Atual: {data_vencimento_atual}")
+            logger.info(f"   - Dia Vencimento Configurado: {dia_vencimento}")
+            
+            # Calcular próximo mês baseado na data de vencimento atual
+            if data_vencimento_atual.month == 12:
                 proximo_mes = 1
-                proximo_ano = hoje.year + 1
+                proximo_ano = data_vencimento_atual.year + 1
             else:
-                proximo_mes = hoje.month + 1
-                proximo_ano = hoje.year
+                proximo_mes = data_vencimento_atual.month + 1
+                proximo_ano = data_vencimento_atual.year
             
             # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
             ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
@@ -534,12 +539,9 @@ class AsaasSyncService:
             # Definir próxima data de cobrança
             proxima_data_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
             
-            logger.info(f"📅 Cálculo de próxima cobrança:")
-            logger.info(f"   - Hoje: {hoje}")
-            logger.info(f"   - Dia Vencimento: {dia_vencimento}")
             logger.info(f"   - Próximo Mês/Ano: {proximo_mes}/{proximo_ano}")
             logger.info(f"   - Próxima Cobrança Calculada: {proxima_data_cobranca}")
-            logger.info(f"   - Próxima Cobrança Anterior: {financeiro.data_proxima_cobranca}")
+            logger.info(f"   - Diferença: {data_vencimento_atual} → {proxima_data_cobranca}")
             
             financeiro.data_proxima_cobranca = proxima_data_cobranca
             

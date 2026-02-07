@@ -515,9 +515,22 @@ class AsaasSyncService:
             dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
             
             # Definir próxima data de cobrança
-            financeiro.data_proxima_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
+            proxima_data_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
+            financeiro.data_proxima_cobranca = proxima_data_cobranca
             
             financeiro.save()
+            
+            # Atualizar também LojaAssinatura.data_vencimento (para SuperAdmin Financeiro)
+            try:
+                from asaas_integration.models import LojaAssinatura
+                loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
+                loja_assinatura.data_vencimento = proxima_data_cobranca
+                loja_assinatura.save()
+                logger.info(f"LojaAssinatura.data_vencimento atualizada para {proxima_data_cobranca}")
+            except LojaAssinatura.DoesNotExist:
+                logger.warning(f"LojaAssinatura não encontrada para loja {loja.slug}")
+            except Exception as e:
+                logger.error(f"Erro ao atualizar LojaAssinatura: {e}")
             
             # Desbloquear loja se estiver bloqueada
             if loja.is_blocked:

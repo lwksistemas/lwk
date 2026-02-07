@@ -44,11 +44,6 @@ if REQUESTS_AVAILABLE:
 else:
     AsaasClient = None
 
-class IsSuperAdmin(permissions.BasePermission):
-    """Permissão apenas para super admins"""
-    def has_permission(self, request, view):
-        return request.user and request.user.is_superuser
-
 @api_view(['GET', 'POST'])
 @permission_classes([IsSuperAdmin])
 def asaas_config(request):
@@ -369,16 +364,7 @@ def asaas_webhook(request):
         
     except Exception as e:
         logger.error(f"Erro no webhook Asaas: {e}")
-        return Response({
-            'status': 'error',
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        logger.error(f"Erro no webhook Asaas: {e}")
-        # Retornar 200 mesmo com erro para não reenviar o webhook
+        # Retornar 200 para não reenviar o webhook
         return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_200_OK)
 
 

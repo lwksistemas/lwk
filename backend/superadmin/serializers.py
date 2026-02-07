@@ -333,23 +333,17 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 status_pagamento='ativo' if not loja.is_trial else 'pendente'
             )
             
-            # 🚀 INTEGRAÇÃO ASAAS: Criar cobrança automática
-            try:
-                from .asaas_service import LojaAsaasService
-                
-                asaas_service = LojaAsaasService()
-                resultado_asaas = asaas_service.criar_cobranca_loja(loja, financeiro)
-                
-                if resultado_asaas.get('success'):
-                    print(f"✅ Cobrança Asaas criada: {resultado_asaas.get('payment_id')}")
-                    loja._asaas_data = resultado_asaas  # Adicionar dados para retorno
-                else:
-                    print(f"⚠️ Erro na cobrança Asaas: {resultado_asaas.get('error')}")
-                    loja._asaas_error = resultado_asaas.get('error')
-                    
-            except Exception as e:
-                print(f"⚠️ Erro na integração Asaas: {e}")
-                loja._asaas_error = str(e)
+            # 🚀 INTEGRAÇÃO ASAAS: Criação automática via signal
+            # A cobrança é criada automaticamente pelo signal em asaas_integration/signals.py
+            # Não criar aqui para evitar duplicação
+            # 
+            # NOTA: O signal create_asaas_subscription_on_loja_creation já cria:
+            # - AsaasCustomer
+            # - AsaasPayment  
+            # - LojaAssinatura
+            #
+            # Se precisar dos dados do Asaas imediatamente após criar a loja,
+            # consulte LojaAssinatura.objects.get(loja_slug=loja.slug)
         
             # Enviar email com senha provisória
             try:

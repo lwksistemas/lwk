@@ -835,12 +835,24 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 
                 payment.save()
                 
+                # Se o pagamento foi confirmado, atualizar financeiro e criar próximo boleto
+                loja_updated = False
+                if payment.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'] and old_status != payment.status:
+                    try:
+                        from superadmin.sync_service import AsaasSyncService
+                        sync_service = AsaasSyncService()
+                        loja_updated = sync_service._update_loja_financeiro_from_payment(payment)
+                        logger.info(f"Financeiro da loja atualizado via botão Atualizar Status: {loja_updated}")
+                    except Exception as e:
+                        logger.error(f"Erro ao atualizar financeiro da loja: {e}")
+                
                 return Response({
                     'success': True,
                     'message': 'Status atualizado com sucesso',
                     'old_status': old_status,
                     'new_status': payment.status,
-                    'status_display': payment.get_status_display()
+                    'status_display': payment.get_status_display(),
+                    'loja_updated': loja_updated
                 })
             else:
                 return Response(

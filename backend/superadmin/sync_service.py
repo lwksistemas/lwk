@@ -657,6 +657,33 @@ class AsaasSyncService:
                         logger.info(f"   - Payment ID: {financeiro.asaas_payment_id}")
                         logger.info(f"   - Boleto URL: {financeiro.boleto_url[:50] if financeiro.boleto_url else 'None'}...")
                         
+                        # Criar registro em PagamentoLoja para histórico da loja
+                        try:
+                            from superadmin.models import PagamentoLoja
+                            
+                            # Calcular referência do mês
+                            referencia_mes = proxima_data_cobranca.replace(day=1)
+                            
+                            pagamento_loja = PagamentoLoja.objects.create(
+                                loja=loja,
+                                financeiro=financeiro,
+                                asaas_payment_id=result['payment_id'],
+                                valor=result['value'],
+                                status='pendente',
+                                data_vencimento=proxima_data_cobranca,
+                                referencia_mes=referencia_mes,
+                                forma_pagamento='boleto',
+                                boleto_url=result['boleto_url'],
+                                boleto_pdf_url=result['boleto_url'],
+                                pix_copy_paste=result['pix_copy_paste']
+                            )
+                            
+                            logger.info(f"✅ Pagamento salvo no PagamentoLoja (ID: {pagamento_loja.id})")
+                        except Exception as e:
+                            logger.error(f"❌ Erro ao criar PagamentoLoja: {e}")
+                            import traceback
+                            logger.error(traceback.format_exc())
+                        
                         logger.info(f"✅ Novo boleto criado no Asaas para {loja.nome}: Vencimento {proxima_data_cobranca}")
                     else:
                         logger.error(f"❌ Erro ao criar novo boleto no Asaas: {result.get('error')}")

@@ -13,19 +13,13 @@ interface AsaasPayment {
   value: string;
   status: string;
   status_display: string;
-  billing_type: string;
-  billing_type_display: string;
   due_date: string;
   payment_date: string | null;
-  invoice_url: string;
   bank_slip_url: string;
-  pix_qr_code: string;
   pix_copy_paste: string;
-  description: string;
   is_paid: boolean;
   is_overdue: boolean;
   is_pending: boolean;
-  created_at: string;
 }
 
 interface LojaAssinatura {
@@ -38,7 +32,6 @@ interface LojaAssinatura {
   data_vencimento: string;
   current_payment_data: AsaasPayment | null;
   total_payments: number;
-  created_at: string;
 }
 
 interface AsaasStats {
@@ -51,15 +44,145 @@ interface AsaasStats {
   receita_pendente: number;
 }
 
+// Componente: Card de Estatística
+function StatCard({ title, value, icon }: { title: string; value: string | number; icon: string }) {
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-600">{title}</p>
+          <p className="text-2xl font-bold text-purple-600">{value}</p>
+        </div>
+        <div className="text-3xl">{icon}</div>
+      </div>
+    </div>
+  );
+}
+
+// Componente: Card de Assinatura
+function AssinaturaCard({
+  assinatura,
+  onDownloadBoleto,
+  onCopyPix,
+  onUpdateStatus,
+  onNovaCobranca,
+  gerandoCobranca,
+  formatDate,
+  formatCurrency,
+  getStatusColor
+}: {
+  assinatura: LojaAssinatura;
+  onDownloadBoleto: (payment: AsaasPayment) => void;
+  onCopyPix: (pixCode: string) => void;
+  onUpdateStatus: (paymentId: number) => void;
+  onNovaCobranca: (assinaturaId: number) => void;
+  gerandoCobranca: number | null;
+  formatDate: (date: string) => string;
+  formatCurrency: (value: string | number) => string;
+  getStatusColor: (status: string) => string;
+}) {
+  return (
+    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900">{assinatura.loja_nome}</h3>
+          <p className="text-sm text-gray-600">
+            {assinatura.plano_nome} - {formatCurrency(assinatura.plano_valor)}
+          </p>
+          <p className="text-sm text-gray-500">Vencimento: {formatDate(assinatura.data_vencimento)}</p>
+          <p className="text-sm text-gray-500">Total de pagamentos: {assinatura.total_payments}</p>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <span className={`px-2 py-1 text-xs rounded-full ${
+            assinatura.ativa ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {assinatura.ativa ? 'Ativa' : 'Inativa'}
+          </span>
+          
+          {assinatura.current_payment_data && (
+            <span className={`px-2 py-1 text-xs rounded-full ${
+              getStatusColor(assinatura.current_payment_data.status)
+            }`}>
+              {assinatura.current_payment_data.status_display}
+            </span>
+          )}
+        </div>
+      </div>
+      
+      {/* Pagamento Atual */}
+      {assinatura.current_payment_data && (
+        <div className="p-3 bg-gray-50 rounded">
+          <h4 className="font-medium text-gray-900 mb-2">Pagamento Atual</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-3">
+            <div>
+              <span className="text-gray-600">Valor:</span>
+              <span className="ml-2 font-medium">
+                {formatCurrency(assinatura.current_payment_data.value)}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Vencimento:</span>
+              <span className="ml-2">{formatDate(assinatura.current_payment_data.due_date)}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">Status:</span>
+              <span className="ml-2">{assinatura.current_payment_data.status_display}</span>
+            </div>
+          </div>
+          
+          {/* Ações */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => onDownloadBoleto(assinatura.current_payment_data!)}
+              className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+            >
+              📄 Baixar Boleto
+            </button>
+            
+            {assinatura.current_payment_data.pix_copy_paste && (
+              <button
+                onClick={() => onCopyPix(assinatura.current_payment_data!.pix_copy_paste)}
+                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+              >
+                📱 Copiar PIX
+              </button>
+            )}
+            
+            <button
+              onClick={() => onUpdateStatus(assinatura.current_payment_data!.id)}
+              className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors"
+            >
+              🔄 Atualizar Status
+            </button>
+            
+            <button
+              onClick={() => onNovaCobranca(assinatura.id)}
+              disabled={gerandoCobranca === assinatura.id}
+              className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 disabled:opacity-50 transition-colors"
+            >
+              {gerandoCobranca === assinatura.id ? 'Gerando...' : '➕ Nova Cobrança'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Componente Principal
 export default function FinanceiroPage() {
   const router = useRouter();
   const [assinaturas, setAssinaturas] = useState<LojaAssinatura[]>([]);
   const [pagamentos, setPagamentos] = useState<AsaasPayment[]>([]);
   const [stats, setStats] = useState<AsaasStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'assinaturas' | 'pagamentos'>('assinaturas');
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
+  const [activeTab, setActiveTab] = useState<'assinaturas' | 'pagamentos'>('assinaturas');
+  const [gerandoCobranca, setGerandoCobranca] = useState<number | null>(null);
+  const [showModalNovaCobranca, setShowModalNovaCobranca] = useState(false);
 
+  // Verificação de autenticação
   useEffect(() => {
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
       router.push('/superadmin/login');
@@ -68,22 +191,19 @@ export default function FinanceiroPage() {
     loadData();
   }, [router]);
 
+  // Carregar dados
   const loadData = async () => {
     try {
       setLoading(true);
+      const [statsRes, assinaturasRes, pagamentosRes] = await Promise.all([
+        apiClient.get('/asaas/subscriptions/dashboard_stats/'),
+        apiClient.get('/asaas/subscriptions/'),
+        apiClient.get('/asaas/payments/')
+      ]);
       
-      // Carregar estatísticas
-      const statsResponse = await apiClient.get('/asaas/subscriptions/dashboard_stats/');
-      setStats(statsResponse.data);
-      
-      // Carregar assinaturas
-      const assinaturasResponse = await apiClient.get('/asaas/subscriptions/');
-      setAssinaturas(assinaturasResponse.data.results || assinaturasResponse.data);
-      
-      // Carregar pagamentos
-      const pagamentosResponse = await apiClient.get('/asaas/payments/');
-      setPagamentos(pagamentosResponse.data.results || pagamentosResponse.data);
-      
+      setStats(statsRes.data);
+      setAssinaturas(assinaturasRes.data.results || assinaturasRes.data);
+      setPagamentos(pagamentosRes.data.results || pagamentosRes.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -91,38 +211,20 @@ export default function FinanceiroPage() {
     }
   };
 
-  const downloadBoleto = async (payment: AsaasPayment) => {
-    // Preferir abrir URL do boleto diretamente (evita erro de blob/CORS)
+  // Baixar boleto
+  const downloadBoleto = (payment: AsaasPayment) => {
     if (payment.bank_slip_url) {
       window.open(payment.bank_slip_url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    try {
-      const response = await apiClient.get(`/asaas/payments/${payment.id}/download_pdf/`, {
-        responseType: 'blob'
-      });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `boleto_${payment.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error('Erro ao baixar boleto:', error);
-      const msg = error.response?.data instanceof Blob
-        ? 'Erro ao baixar boleto. Tente abrir o link do boleto em nova aba.'
-        : (error.response?.data?.error || 'Erro ao baixar boleto');
-      alert(msg);
+    } else {
+      alert('Boleto não disponível');
     }
   };
 
+  // Atualizar status do pagamento
   const updatePaymentStatus = async (paymentId: number) => {
     try {
       await apiClient.post(`/asaas/payments/${paymentId}/update_status/`);
-      loadData(); // Recarregar dados
+      await loadData();
       alert('Status atualizado com sucesso!');
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
@@ -130,9 +232,7 @@ export default function FinanceiroPage() {
     }
   };
 
-  const [gerandoCobranca, setGerandoCobranca] = useState<number | null>(null);
-  const [showModalNovaCobranca, setShowModalNovaCobranca] = useState(false);
-
+  // Gerar nova cobrança
   const generateNewPayment = async (assinaturaId: number) => {
     setGerandoCobranca(assinaturaId);
     try {
@@ -145,29 +245,26 @@ export default function FinanceiroPage() {
       }
     } catch (error: any) {
       console.error('Erro ao gerar nova cobrança:', error);
-      const msg = error.response?.data?.error || error.message || 'Erro ao gerar nova cobrança';
-      alert(`Erro: ${msg}`);
+      alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao gerar nova cobrança'}`);
     } finally {
       setGerandoCobranca(null);
     }
   };
 
+  // Copiar código PIX
   const copyPixCode = (pixCode: string) => {
     navigator.clipboard.writeText(pixCode);
     alert('Código PIX copiado!');
   };
 
+  // Formatadores
   const formatCurrency = (value: string | number) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
-    return num.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    });
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
-    // Parse manual para evitar problema de timezone
     const [year, month, day] = dateString.split('T')[0].split('-');
     return `${day}/${month}/${year}`;
   };
@@ -183,6 +280,7 @@ export default function FinanceiroPage() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  // Filtrar pagamentos
   const pagamentosFiltrados = filtroStatus === 'todos' 
     ? pagamentos 
     : pagamentos.filter(p => p.status === filtroStatus);
@@ -194,7 +292,7 @@ export default function FinanceiroPage() {
         <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">
-              <a href="/superadmin/dashboard" className="text-purple-200 hover:text-white">
+              <a href="/superadmin/dashboard" className="text-purple-200 hover:text-white transition-colors">
                 ← Voltar
               </a>
               <h1 className="text-2xl font-bold">Financeiro - Asaas</h1>
@@ -203,14 +301,12 @@ export default function FinanceiroPage() {
               <button
                 onClick={() => {
                   if (assinaturas.length === 0) {
-                    alert('Não há assinaturas no momento. Crie uma loja em "Gerenciar Lojas" e ative a cobrança para ver assinaturas aqui.');
+                    alert('Não há assinaturas no momento.');
                     return;
                   }
-                  if (assinaturas.length === 1) {
-                    generateNewPayment(assinaturas[0].id);
-                  } else {
-                    setShowModalNovaCobranca(true);
-                  }
+                  assinaturas.length === 1 
+                    ? generateNewPayment(assinaturas[0].id)
+                    : setShowModalNovaCobranca(true);
                 }}
                 disabled={gerandoCobranca !== null}
                 className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-md transition-colors disabled:opacity-50"
@@ -230,305 +326,155 @@ export default function FinanceiroPage() {
 
       {/* Main Content */}
       <main className="w-full max-w-full py-6 px-4 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Estatísticas */}
-          {stats && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Receita Total</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(stats.receita_total)}
-                    </p>
-                  </div>
-                  <div className="text-3xl">💰</div>
-                </div>
-              </div>
+        {/* Estatísticas */}
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <StatCard title="Receita Total" value={formatCurrency(stats.receita_total)} icon="💰" />
+            <StatCard title="Assinaturas Ativas" value={stats.assinaturas_ativas} icon="✅" />
+            <StatCard title="Pagamentos Pendentes" value={stats.pagamentos_pendentes} icon="⏳" />
+            <StatCard title="Receita Pendente" value={formatCurrency(stats.receita_pendente)} icon="💸" />
+          </div>
+        )}
 
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Assinaturas Ativas</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {stats.assinaturas_ativas}
-                    </p>
-                  </div>
-                  <div className="text-3xl">✅</div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Pagamentos Pendentes</p>
-                    <p className="text-2xl font-bold text-yellow-600">
-                      {stats.pagamentos_pendentes}
-                    </p>
-                  </div>
-                  <div className="text-3xl">⏳</div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Receita Pendente</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {formatCurrency(stats.receita_pendente)}
-                    </p>
-                  </div>
-                  <div className="text-3xl">💸</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tabs */}
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="border-b border-gray-200">
-              <nav className="-mb-px flex">
+        {/* Tabs */}
+        <div className="bg-white rounded-lg shadow mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex">
+              {(['assinaturas', 'pagamentos'] as const).map((tab) => (
                 <button
-                  onClick={() => setActiveTab('assinaturas')}
-                  className={`py-4 px-6 text-sm font-medium border-b-2 ${
-                    activeTab === 'assinaturas'
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab
                       ? 'border-purple-500 text-purple-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Assinaturas ({assinaturas.length})
+                  {tab === 'assinaturas' ? 'Assinaturas' : 'Pagamentos'} (
+                  {tab === 'assinaturas' ? assinaturas.length : pagamentos.length})
                 </button>
-                <button
-                  onClick={() => setActiveTab('pagamentos')}
-                  className={`py-4 px-6 text-sm font-medium border-b-2 ${
-                    activeTab === 'pagamentos'
-                      ? 'border-purple-500 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Pagamentos ({pagamentos.length})
-                </button>
-              </nav>
-            </div>
+              ))}
+            </nav>
+          </div>
 
-            {/* Tab Content */}
-            <div className="p-6">
-              {loading ? (
-                <div className="text-center py-12">Carregando...</div>
-              ) : activeTab === 'assinaturas' ? (
-                /* Assinaturas Tab */
-                <div>
-                  {assinaturas.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">Nenhuma assinatura encontrada.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {assinaturas.map((assinatura) => (
-                        <div key={assinatura.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-gray-900">
-                                {assinatura.loja_nome}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                {assinatura.plano_nome} - {formatCurrency(assinatura.plano_valor)}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                Vencimento: {formatDate(assinatura.data_vencimento)}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                Total de pagamentos: {assinatura.total_payments}
-                              </p>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-2 py-1 text-xs rounded-full ${
-                                assinatura.ativa ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
-                                {assinatura.ativa ? 'Ativa' : 'Inativa'}
-                              </span>
-                              
-                              {assinatura.current_payment_data && (
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  getStatusColor(assinatura.current_payment_data.status)
-                                }`}>
-                                  {assinatura.current_payment_data.status_display}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Pagamento Atual */}
-                          {assinatura.current_payment_data && (
-                            <div className="mt-4 p-3 bg-gray-50 rounded">
-                              <h4 className="font-medium text-gray-900 mb-2">Pagamento Atual</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <span className="text-gray-600">Valor:</span>
-                                  <span className="ml-2 font-medium">
-                                    {formatCurrency(assinatura.current_payment_data.value)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-600">Vencimento:</span>
-                                  <span className="ml-2">
-                                    {formatDate(assinatura.current_payment_data.due_date)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-600">Status:</span>
-                                  <span className="ml-2">
-                                    {assinatura.current_payment_data.status_display}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              {/* Ações do Pagamento */}
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {(assinatura.current_payment_data.bank_slip_url || true) && (
-                                  <button
-                                    onClick={() => downloadBoleto(assinatura.current_payment_data!)}
-                                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                                  >
-                                    📄 Baixar Boleto
-                                  </button>
-                                )}
-                                
-                                {assinatura.current_payment_data.pix_copy_paste && (
-                                  <button
-                                    onClick={() => copyPixCode(assinatura.current_payment_data!.pix_copy_paste)}
-                                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-                                  >
-                                    📱 Copiar PIX
-                                  </button>
-                                )}
-                                
-                                <button
-                                  onClick={() => updatePaymentStatus(assinatura.current_payment_data!.id)}
-                                  className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
-                                >
-                                  🔄 Atualizar Status
-                                </button>
-                                
-                                <button
-                                  onClick={() => generateNewPayment(assinatura.id)}
-                                  disabled={gerandoCobranca === assinatura.id}
-                                  className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 disabled:opacity-50"
-                                >
-                                  {gerandoCobranca === assinatura.id ? 'Gerando...' : '➕ Nova Cobrança'}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Pagamentos Tab */
-                <div>
-                  {/* Filtros */}
-                  <div className="mb-4 flex items-center space-x-4">
-                    <span className="text-sm font-medium text-gray-700">Filtrar por status:</span>
-                    <div className="flex space-x-2">
-                      {['todos', 'PENDING', 'RECEIVED', 'CONFIRMED', 'OVERDUE'].map((status) => (
-                        <button
-                          key={status}
-                          onClick={() => setFiltroStatus(status)}
-                          className={`px-3 py-1 rounded text-sm ${
-                            filtroStatus === status
-                              ? 'bg-purple-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {status === 'todos' ? 'Todos' : status}
-                        </button>
-                      ))}
-                    </div>
+          {/* Tab Content */}
+          <div className="p-6">
+            {loading ? (
+              <div className="text-center py-12">Carregando...</div>
+            ) : activeTab === 'assinaturas' ? (
+              /* Assinaturas Tab */
+              <div>
+                {assinaturas.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">Nenhuma assinatura encontrada.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {assinaturas.map((assinatura) => (
+                      <AssinaturaCard
+                        key={assinatura.id}
+                        assinatura={assinatura}
+                        onDownloadBoleto={downloadBoleto}
+                        onCopyPix={copyPixCode}
+                        onUpdateStatus={updatePaymentStatus}
+                        onNovaCobranca={generateNewPayment}
+                        gerandoCobranca={gerandoCobranca}
+                        formatDate={formatDate}
+                        formatCurrency={formatCurrency}
+                        getStatusColor={getStatusColor}
+                      />
+                    ))}
                   </div>
+                )}
+              </div>
+            ) : (
+              /* Pagamentos Tab */
+              <div>
+                {/* Filtros */}
+                <div className="mb-4 flex items-center space-x-4">
+                  <span className="text-sm font-medium text-gray-700">Filtrar por status:</span>
+                  <div className="flex space-x-2">
+                    {['todos', 'PENDING', 'RECEIVED', 'CONFIRMED', 'OVERDUE'].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => setFiltroStatus(status)}
+                        className={`px-3 py-1 rounded text-sm transition-colors ${
+                          filtroStatus === status
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {status === 'todos' ? 'Todos' : status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                  {pagamentosFiltrados.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">Nenhum pagamento encontrado.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Cliente
+                {pagamentosFiltrados.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">Nenhum pagamento encontrado.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {['Cliente', 'Valor', 'Status', 'Vencimento', 'Ações'].map((header) => (
+                            <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              {header}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Valor
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Vencimento
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Ações
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {pagamentosFiltrados.map((pagamento) => (
-                            <tr key={pagamento.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4">
-                                <div>
-                                  <div className="font-medium text-gray-900">{pagamento.customer_name}</div>
-                                  <div className="text-sm text-gray-500">{pagamento.customer_email}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                                {formatCurrency(pagamento.value)}
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(pagamento.status)}`}>
-                                  {pagamento.status_display}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-500">
-                                {formatDate(pagamento.due_date)}
-                              </td>
-                              <td className="px-6 py-4 text-sm space-x-2">
-                                {(pagamento.bank_slip_url || true) && (
-                                  <button
-                                    onClick={() => downloadBoleto(pagamento)}
-                                    className="text-blue-600 hover:text-blue-800"
-                                  >
-                                    📄 PDF
-                                  </button>
-                                )}
-                                {pagamento.pix_copy_paste && (
-                                  <button
-                                    onClick={() => copyPixCode(pagamento.pix_copy_paste)}
-                                    className="text-green-600 hover:text-green-800"
-                                  >
-                                    📱 PIX
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => updatePaymentStatus(pagamento.id)}
-                                  className="text-purple-600 hover:text-purple-800"
-                                >
-                                  🔄 Status
-                                </button>
-                              </td>
-                            </tr>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {pagamentosFiltrados.map((pagamento) => (
+                          <tr key={pagamento.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="font-medium text-gray-900">{pagamento.customer_name}</div>
+                              <div className="text-sm text-gray-500">{pagamento.customer_email}</div>
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                              {formatCurrency(pagamento.value)}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(pagamento.status)}`}>
+                                {pagamento.status_display}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              {formatDate(pagamento.due_date)}
+                            </td>
+                            <td className="px-6 py-4 text-sm space-x-2">
+                              <button
+                                onClick={() => downloadBoleto(pagamento)}
+                                className="text-blue-600 hover:text-blue-800 transition-colors"
+                              >
+                                📄 PDF
+                              </button>
+                              {pagamento.pix_copy_paste && (
+                                <button
+                                  onClick={() => copyPixCode(pagamento.pix_copy_paste)}
+                                  className="text-green-600 hover:text-green-800 transition-colors"
+                                >
+                                  📱 PIX
+                                </button>
+                              )}
+                              <button
+                                onClick={() => updatePaymentStatus(pagamento.id)}
+                                className="text-purple-600 hover:text-purple-800 transition-colors"
+                              >
+                                🔄 Status
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>
 
-      {/* Modal: escolher assinatura para nova cobrança */}
+      {/* Modal: Nova Cobrança */}
       {showModalNovaCobranca && assinaturas.length > 1 && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
@@ -543,7 +489,7 @@ export default function FinanceiroPage() {
                       generateNewPayment(a.id);
                     }}
                     disabled={gerandoCobranca !== null}
-                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-purple-50 hover:border-purple-300 disabled:opacity-50"
+                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-purple-50 hover:border-purple-300 disabled:opacity-50 transition-colors"
                   >
                     <span className="font-medium text-gray-900">{a.loja_nome}</span>
                     <span className="text-gray-500 text-sm block">{a.loja_slug} · {a.plano_nome}</span>
@@ -554,7 +500,7 @@ export default function FinanceiroPage() {
             <button
               type="button"
               onClick={() => setShowModalNovaCobranca(false)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Cancelar
             </button>

@@ -3,7 +3,12 @@
 ## 📋 PROBLEMA IDENTIFICADO
 
 ### Sintoma
-Admin da loja aparece na lista de funcionários com botões de **Editar** e **Excluir** visíveis, mas não deveria poder ser editado/excluído.
+Admin da loja aparece na lista de funcionários do **CRM Vendas** com botões de **Editar** e **Excluir** visíveis, mas não deveria poder ser editado/excluído.
+
+### Loja Afetada
+- **URL**: https://lwksistemas.com.br/loja/felix-r0172/dashboard
+- **Tipo**: CRM Vendas
+- **Problema**: Admin com botões de editar/excluir
 
 ### Comportamento Esperado
 - ✅ Admin aparece na lista de funcionários (correto)
@@ -14,64 +19,31 @@ Admin da loja aparece na lista de funcionários com botões de **Editar** e **Ex
 
 ## ✅ SOLUÇÃO IMPLEMENTADA
 
-### Correção no Frontend
+### 1. Backend - Adicionar campo `is_admin`
 
-**Arquivo**: `frontend/components/cabeleireiro/modals/ModalFuncionarios.tsx`
+**Arquivo**: `backend/crm_vendas/serializers.py`
 
 **Antes** ❌:
-```tsx
-<div className="flex gap-2">
-  {!profissional.is_admin ? (
-    <>
-      <button onClick={() => handleEditar(profissional)}>
-        ✏️ Editar
-      </button>
-      <button onClick={() => handleExcluir(profissional.id, profissional.nome)}>
-        🗑️ Excluir
-      </button>
-    </>
-  ) : (
-    <span>🔒 Admin da loja (não pode ser editado/excluído)</span>
-  )}
-</div>
+```python
+class VendedorSerializer(BaseLojaSerializer):
+    class Meta:
+        model = Vendedor
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
 ```
-
-**Problema**: Lógica invertida - `!profissional.is_admin` mostra botões quando **NÃO** é admin
 
 **Depois** ✅:
-```tsx
-<div className="flex gap-2">
-  {profissional.is_admin ? (
-    <span>🔒 Admin da loja (não pode ser editado/excluído)</span>
-  ) : (
-    <>
-      <button onClick={() => handleEditar(profissional)}>
-        ✏️ Editar
-      </button>
-      <button onClick={() => handleExcluir(profissional.id, profissional.nome)}>
-        🗑️ Excluir
-      </button>
-    </>
-  )}
-</div>
-```
-
-**Solução**: Lógica corrigida - `profissional.is_admin` mostra mensagem quando **É** admin
-
----
-
-## 🔍 VERIFICAÇÃO BACKEND
-
-### Campo `is_admin` no Serializer
-
-**Arquivo**: `backend/cabeleireiro/serializers.py`
-
 ```python
-class FuncionarioSerializer(BaseLojaSerializer):
+class VendedorSerializer(BaseLojaSerializer):
     is_admin = serializers.SerializerMethodField()
     
+    class Meta:
+        model = Vendedor
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+    
     def get_is_admin(self, obj):
-        """Verifica se o funcionário é o administrador da loja"""
+        """Verifica se o vendedor é o administrador da loja"""
         from superadmin.models import Loja
         try:
             loja = Loja.objects.get(id=obj.loja_id)
@@ -80,7 +52,46 @@ class FuncionarioSerializer(BaseLojaSerializer):
             return False
 ```
 
-✅ **Backend correto**: Compara email do funcionário com email do owner da loja
+### 2. Frontend - Adicionar proteção visual
+
+**Arquivo**: `frontend/components/crm-vendas/modals/ModalFuncionarios.tsx`
+
+**Antes** ❌:
+```tsx
+<div className="flex gap-2">
+  <button onClick={() => handleEditar(func)}>✏️ Editar</button>
+  <button onClick={() => handleExcluir(func.id, func.nome)}>🗑️</button>
+</div>
+```
+
+**Depois** ✅:
+```tsx
+<div className="flex gap-2">
+  {func.is_admin ? (
+    <span className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 italic">
+      🔒 Admin da loja (não pode ser editado/excluído)
+    </span>
+  ) : (
+    <>
+      <button onClick={() => handleEditar(func)}>✏️ Editar</button>
+      <button onClick={() => handleExcluir(func.id, func.nome)}>🗑️</button>
+    </>
+  )}
+</div>
+```
+
+### 3. Badge [Admin] adicionado
+
+```tsx
+<div className="flex items-center gap-2">
+  <p className="font-semibold text-lg dark:text-white">{func.nome}</p>
+  {func.is_admin && (
+    <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">
+      Admin
+    </span>
+  )}
+</div>
+```
 
 ---
 
@@ -137,7 +148,7 @@ class FuncionarioSerializer(BaseLojaSerializer):
 
 ## 🧪 COMO TESTAR
 
-### Teste 1: Verificar Admin Protegido
+### Teste 1: Verificar Admin Protegido (CRM Vendas)
 1. Acessar: https://lwksistemas.com.br/loja/felix-r0172/dashboard
 2. Clicar em **"Funcionários"** nas Ações Rápidas
 3. Localizar o admin da loja na lista
@@ -155,17 +166,6 @@ class FuncionarioSerializer(BaseLojaSerializer):
 - **SEM** badge [Admin]
 - Botões **[✏️ Editar]** e **[🗑️ Excluir]** visíveis
 - Pode editar e excluir normalmente
-
-### Teste 3: Tentar Editar Admin (via API)
-```bash
-# Mesmo que tente via API, o backend deve bloquear
-curl -X PUT https://lwksistemas-38ad47519238.herokuapp.com/api/cabeleireiro/funcionarios/{id}/ \
-  -H "Authorization: Bearer {token}" \
-  -H "Content-Type: application/json" \
-  -d '{"nome": "Teste"}'
-```
-
-✅ **Esperado**: Erro ou bloqueio (se implementado no backend)
 
 ---
 

@@ -268,6 +268,7 @@ def dashboard_financeiro_loja(request, loja_slug):
             'status_pagamento': financeiro.get_status_pagamento_display(),
             'valor_mensalidade': float(financeiro.valor_mensalidade),
             'data_proxima_cobranca': financeiro.data_proxima_cobranca,
+            'ultimo_pagamento': financeiro.ultimo_pagamento,
             'dia_vencimento': financeiro.dia_vencimento,
             'total_pago': float(financeiro.total_pago),
             'total_pendente': float(financeiro.total_pendente),

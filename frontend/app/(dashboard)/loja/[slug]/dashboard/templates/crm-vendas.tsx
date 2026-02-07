@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
@@ -11,6 +11,23 @@ import { useModals } from '@/hooks/useModals';
 import { LojaInfo, EstatisticasCRM, Lead } from '@/types/dashboard';
 import { ORIGENS_CRM, STATUS_LEAD } from '@/constants/status';
 import { ModalLead, ModalCliente, ModalProduto, ModalPipeline, ModalFuncionarios } from '@/components/crm-vendas/modals';
+
+// Lazy loading do modal de configurações
+const ConfiguracoesModal = lazy(() => import('@/components/clinica/modals/ConfiguracoesModal').then(m => ({ default: m.ConfiguracoesModal })));
+
+// Componente de loading para modais
+function ModalLoadingFallback() {
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-gray-700 dark:text-gray-300">Carregando...</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const INTERESSES_CRM = ['Produto A', 'Produto B', 'Serviço Premium', 'Consultoria', 'Outro'];
 
@@ -26,7 +43,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
 
   // Hook para gerenciar modais
   const { modals, openModal, closeModal } = useModals([
-    'pipeline', 'lead', 'cliente', 'vendedor', 'produto', 'funcionarios'
+    'pipeline', 'lead', 'cliente', 'vendedor', 'produto', 'funcionarios', 'configuracoes'
   ] as const);
 
   // Hook para carregar leads
@@ -83,6 +100,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
   const handleVendedores = () => openModal('funcionarios');
   const handleNovoProduto = () => openModal('produto');
   const handlePipeline = () => openModal('pipeline');
+  const handleConfiguracoes = () => openModal('configuracoes');
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
 
   if (loading) {
@@ -109,6 +127,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
           <ActionButton onClick={handleVendedores} color="#EC4899" icon="👥" label="Funcionários" />
           <ActionButton onClick={handleNovoProduto} color="#06B6D4" icon="📦" label="Produto" />
           <ActionButton onClick={handlePipeline} color="#8B5CF6" icon="🔄" label="Pipeline" />
+          <ActionButton onClick={handleConfiguracoes} color="#9333EA" icon="⚙️" label="Configurações" />
           <ActionButton onClick={handleRelatorios} color="#059669" icon="📊" label="Relatórios" />
         </div>
         <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
@@ -165,6 +184,13 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
       {modals.produto && <ModalProduto loja={loja} onClose={() => closeModal('produto')} />}
       {modals.pipeline && <ModalPipeline loja={loja} onClose={() => closeModal('pipeline')} />}
       {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => closeModal('funcionarios')} />}
+      
+      {/* Modal Configurações */}
+      {modals.configuracoes && (
+        <Suspense fallback={<ModalLoadingFallback />}>
+          <ConfiguracoesModal loja={loja} onClose={() => closeModal('configuracoes')} />
+        </Suspense>
+      )}
     </div>
   );
 }

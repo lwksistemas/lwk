@@ -15,6 +15,7 @@ interface DadosFinanceiros {
     status_pagamento: string;
     valor_mensalidade: number;
     data_proxima_cobranca: string;
+    ultimo_pagamento?: string;
     dia_vencimento: number;
     tem_asaas: boolean;
     boleto_url?: string;
@@ -142,13 +143,21 @@ export function ConfiguracoesModal({ loja, onClose }: ConfiguracoesModalProps) {
             <h4 className="text-lg font-semibold mb-3" style={{ color: loja.cor_primaria }}>
               💰 Informações Financeiras
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="text-center">
                 <p className="text-sm text-gray-600">Valor Mensal</p>
                 <p className="text-2xl font-bold" style={{ color: loja.cor_primaria }}>
                   R$ {dadosFinanceiros.financeiro.valor_mensalidade.toFixed(2)}
                 </p>
               </div>
+              {dadosFinanceiros.financeiro.ultimo_pagamento && (
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Último Pagamento</p>
+                  <p className="text-lg font-semibold text-green-600">
+                    {new Date(dadosFinanceiros.financeiro.ultimo_pagamento).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              )}
               <div className="text-center">
                 <p className="text-sm text-gray-600">Próximo Vencimento</p>
                 <p className="text-lg font-semibold">

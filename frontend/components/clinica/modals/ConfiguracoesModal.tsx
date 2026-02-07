@@ -28,6 +28,19 @@ interface DadosFinanceiros {
     pagamentos_pendentes: number;
     pagamentos_atrasados: number;
   };
+  historico_pagamentos?: Array<{
+    id: number;
+    asaas_id: string;
+    valor: number;
+    status: string;
+    status_display: string;
+    data_vencimento: string;
+    data_pagamento?: string;
+    boleto_url?: string;
+    is_paid: boolean;
+    is_pending: boolean;
+    is_overdue: boolean;
+  }>;
   proximo_pagamento?: {
     valor: string;
     data_vencimento: string;
@@ -249,6 +262,70 @@ export function ConfiguracoesModal({ loja, onClose }: ConfiguracoesModalProps) {
               </div>
             </div>
           </div>
+
+          {/* Histórico de Pagamentos */}
+          {dadosFinanceiros.historico_pagamentos && dadosFinanceiros.historico_pagamentos.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 px-6 py-4 border-b border-gray-200">
+                <h4 className="text-lg font-semibold" style={{ color: loja.cor_primaria }}>
+                  📋 Histórico de Pagamentos ({dadosFinanceiros.historico_pagamentos.length})
+                </h4>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {dadosFinanceiros.historico_pagamentos.map((pagamento, index) => (
+                  <div 
+                    key={pagamento.id} 
+                    className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      {/* Informações do Pagamento */}
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <span className="text-sm font-medium text-gray-500">
+                            #{dadosFinanceiros.historico_pagamentos.length - index}
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            pagamento.is_paid
+                              ? 'bg-green-100 text-green-800'
+                              : pagamento.is_overdue
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {pagamento.is_paid ? '✓ Pago' : pagamento.is_overdue ? '⚠ Vencido' : '⏳ Pendente'}
+                          </span>
+                          <span className="text-lg font-bold" style={{ color: loja.cor_primaria }}>
+                            R$ {pagamento.valor.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <span>
+                            <strong>Vencimento:</strong> {pagamento.data_vencimento.split('-').reverse().join('/')}
+                          </span>
+                          {pagamento.data_pagamento && (
+                            <span className="text-green-600">
+                              <strong>Pago em:</strong> {pagamento.data_pagamento.split('-').reverse().join('/')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Ações */}
+                      <div className="flex items-center space-x-2">
+                        {pagamento.boleto_url && (
+                          <button
+                            onClick={() => window.open(pagamento.boleto_url, '_blank')}
+                            className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors text-sm font-medium"
+                          >
+                            📄 Ver Boleto
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Próximo Pagamento */}
           {dadosFinanceiros.proximo_pagamento && (

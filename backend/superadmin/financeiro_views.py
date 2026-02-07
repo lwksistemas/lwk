@@ -399,5 +399,32 @@ def dashboard_financeiro_loja(request, loja_slug):
             'taxa_pagamento': (pagamentos_pagos / total_pagamentos * 100) if total_pagamentos > 0 else 0
         },
         'proximo_pagamento': PagamentoLojaSerializer(proximo_pagamento).data if proximo_pagamento else None,
-        'pagamentos_recentes': PagamentoLojaSerializer(pagamentos[:5], many=True).data
+        'pagamentos_recentes': PagamentoLojaSerializer(pagamentos[:5], many=True).data,
+        'historico_pagamentos': []
     })
+    
+    # Adicionar histórico do Asaas se disponível
+    try:
+        if 'todos_pagamentos' in locals() and todos_pagamentos:
+            historico = []
+            for pag in todos_pagamentos:
+                historico.append({
+                    'id': pag.id,
+                    'asaas_id': pag.asaas_id,
+                    'valor': float(pag.value),
+                    'status': pag.status,
+                    'status_display': pag.get_status_display() if hasattr(pag, 'get_status_display') else pag.status,
+                    'data_vencimento': pag.due_date.strftime('%Y-%m-%d') if pag.due_date else None,
+                    'data_pagamento': pag.payment_date.strftime('%Y-%m-%d') if pag.payment_date else None,
+                    'boleto_url': pag.bank_slip_url or pag.invoice_url,
+                    'is_paid': pag.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'],
+                    'is_pending': pag.status == 'PENDING',
+                    'is_overdue': pag.status == 'OVERDUE'
+                })
+            response_data = response.data
+            response_data['historico_pagamentos'] = historico
+            return Response(response_data)
+    except Exception as e:
+        logger.error(f"Erro ao adicionar histórico: {e}")
+    
+    return response

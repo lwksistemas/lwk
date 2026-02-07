@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from .models import Loja, FinanceiroLoja, PagamentoLoja
 from .serializers import FinanceiroLojaSerializer, PagamentoLojaSerializer
 from .asaas_service import LojaAsaasService

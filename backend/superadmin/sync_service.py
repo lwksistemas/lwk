@@ -643,6 +643,20 @@ class AsaasSyncService:
                         loja_assinatura.current_payment = new_payment
                         loja_assinatura.save()
                         
+                        # Atualizar FinanceiroLoja com dados do novo boleto
+                        financeiro.asaas_customer_id = loja_assinatura.asaas_customer.asaas_id
+                        financeiro.asaas_payment_id = result['payment_id']
+                        financeiro.boleto_url = result['boleto_url']
+                        financeiro.boleto_pdf_url = result['boleto_url']
+                        financeiro.pix_qr_code = result['pix_qr_code']
+                        financeiro.pix_copy_paste = result['pix_copy_paste']
+                        financeiro.save()
+                        
+                        logger.info(f"✅ FinanceiroLoja atualizado com dados do novo boleto")
+                        logger.info(f"   - Customer ID: {financeiro.asaas_customer_id}")
+                        logger.info(f"   - Payment ID: {financeiro.asaas_payment_id}")
+                        logger.info(f"   - Boleto URL: {financeiro.boleto_url[:50] if financeiro.boleto_url else 'None'}...")
+                        
                         logger.info(f"✅ Novo boleto criado no Asaas para {loja.nome}: Vencimento {proxima_data_cobranca}")
                     else:
                         logger.error(f"❌ Erro ao criar novo boleto no Asaas: {result.get('error')}")

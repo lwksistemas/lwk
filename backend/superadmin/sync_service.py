@@ -520,17 +520,73 @@ class AsaasSyncService:
             
             financeiro.save()
             
-            # Atualizar também LojaAssinatura.data_vencimento (para SuperAdmin Financeiro)
+            # Criar próximo boleto no Asaas automaticamente
             try:
-                from asaas_integration.models import LojaAssinatura
+                from asaas_integration.models import LojaAssinatura, AsaasPayment
+                from asaas_integration.client import AsaasPaymentService
+                
                 loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
+                
+                # Atualizar data_vencimento da assinatura
                 loja_assinatura.data_vencimento = proxima_data_cobranca
                 loja_assinatura.save()
                 logger.info(f"LojaAssinatura.data_vencimento atualizada para {proxima_data_cobranca}")
+                
+                # Criar novo boleto no Asaas para o próximo mês
+                asaas_service = AsaasPaymentService()
+                
+                # Preparar dados para nova cobrança
+                loja_data = {
+                    'nome': loja.nome,
+                    'slug': loja.slug,
+                    'email': loja.owner.email,
+                    'cpf_cnpj': loja.cpf_cnpj or '000.000.000-00',
+                    'telefone': getattr(loja.owner, 'telefone', ''),
+                }
+                
+                valor_plano = loja.plano.preco_anual if loja.tipo_assinatura == 'anual' else loja.plano.preco_mensal
+                plano_data = {
+                    'nome': f"{loja.plano.nome} ({loja.get_tipo_assinatura_display()})",
+                    'preco': valor_plano
+                }
+                
+                # Criar cobrança no Asaas com vencimento no próximo mês
+                due_date_str = proxima_data_cobranca.strftime('%Y-%m-%d')
+                result = asaas_service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
+                
+                if result['success']:
+                    # Criar novo pagamento no banco local
+                    from datetime import datetime
+                    new_payment = AsaasPayment.objects.create(
+                        asaas_id=result['payment_id'],
+                        customer=loja_assinatura.asaas_customer,
+                        external_reference=f"loja_{loja.slug}_assinatura_{proxima_data_cobranca.strftime('%Y%m')}",
+                        billing_type='BOLETO',
+                        status=result['status'],
+                        value=result['value'],
+                        due_date=datetime.strptime(result['due_date'], '%Y-%m-%d').date(),
+                        invoice_url=result['payment_url'],
+                        bank_slip_url=result['boleto_url'],
+                        pix_qr_code=result['pix_qr_code'],
+                        pix_copy_paste=result['pix_copy_paste'],
+                        description=f"Assinatura {plano_data['nome']} - Loja {loja.nome} - {proxima_data_cobranca.strftime('%m/%Y')}",
+                        raw_data=result['raw_payment']
+                    )
+                    
+                    # Atualizar current_payment da assinatura
+                    loja_assinatura.current_payment = new_payment
+                    loja_assinatura.save()
+                    
+                    logger.info(f"✅ Novo boleto criado no Asaas para {loja.nome}: Vencimento {proxima_data_cobranca}")
+                else:
+                    logger.error(f"Erro ao criar novo boleto no Asaas: {result.get('error')}")
+                    
             except LojaAssinatura.DoesNotExist:
                 logger.warning(f"LojaAssinatura não encontrada para loja {loja.slug}")
             except Exception as e:
-                logger.error(f"Erro ao atualizar LojaAssinatura: {e}")
+                logger.error(f"Erro ao criar próximo boleto: {e}")
+                import traceback
+                traceback.print_exc()
             
             # Desbloquear loja se estiver bloqueada
             if loja.is_blocked:

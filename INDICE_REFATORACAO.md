@@ -15,6 +15,57 @@ Este índice organiza toda a documentação da refatoração do projeto LWK Sist
   - Resultado final de todo o projeto
   - **Recomendado para começar!**
 
+### 2. Correções e Melhorias Recentes
+
+#### v430 - Correção Admin Funcionários ⭐ NOVO
+- **[CORRECAO_ADMIN_FUNCIONARIOS_v430.md](CORRECAO_ADMIN_FUNCIONARIOS_v430.md)**
+  - Problema: Admin com botões de editar/excluir
+  - Solução: Lógica invertida corrigida
+  - Botão Configurações: Já existe nas Ações Rápidas
+  - Status: ✅ Completo e Deployed
+
+- **[RESUMO_CORRECAO_v430.md](RESUMO_CORRECAO_v430.md)**
+  - Resumo visual da correção
+  - Comparação antes vs depois
+  - Guia de testes
+  - Checklist completo
+
+#### v429 - Correção Cobrança Duplicada Asaas
+- **[CORRECAO_COBRANCA_DUPLICADA_ASAAS_v429.md](CORRECAO_COBRANCA_DUPLICADA_ASAAS_v429.md)**
+  - Problema: 2 cobranças criadas ao criar loja
+  - Solução: Removida criação duplicada
+  - Verificação: Webhook atualiza financeiro corretamente
+  - Status: ✅ Completo e Verificado
+
+- **[RESUMO_VERIFICACAO_WEBHOOK_v429.md](RESUMO_VERIFICACAO_WEBHOOK_v429.md)**
+  - Resumo visual da correção
+  - Tabela de atualizações do webhook
+  - Confirmações completas
+  - Guia de testes
+
+- **[FLUXO_WEBHOOK_PAGAMENTO_v429.md](FLUXO_WEBHOOK_PAGAMENTO_v429.md)**
+  - Diagrama completo do fluxo
+  - Detalhamento por etapa
+  - Comparação antes vs depois
+  - Logs esperados
+
+- **[GUIA_TESTE_WEBHOOK_v429.md](GUIA_TESTE_WEBHOOK_v429.md)**
+  - Guia passo a passo de testes
+  - Checklist completo
+  - Problemas comuns e soluções
+  - Relatório de teste
+
+#### v428 - Melhoria Calendário Mobile
+- **[MELHORIA_CALENDARIO_MOBILE_v428.md](MELHORIA_CALENDARIO_MOBILE_v428.md)**
+  - Título e data ocultados em mobile
+  - Melhor visualização em dispositivos pequenos
+
+#### v415-v427 - Melhorias Dashboard Cabeleireiro
+- **[DASHBOARD_CABELEIREIRO_PADRAO_v426.md](DASHBOARD_CABELEIREIRO_PADRAO_v426.md)**
+  - Todas as melhorias v415-v426 documentadas
+  - Dashboard padrão para novas lojas
+  - Funcionalidades completas
+
 ---
 
 ## 📂 Apps de Loja
@@ -133,6 +184,12 @@ frontend/components/superadmin/lojas/
 1. **REFATORACAO_COMPLETA_FINAL.md** - Comece aqui!
 2. **REFATORACAO_SUPERADMIN_RESUMO.md** - Detalhes do Superadmin
 3. **RESUMO_REFATORACAO_COMPLETA.md** - Detalhes dos Apps
+
+### Para Correções Recentes (v429):
+1. **RESUMO_VERIFICACAO_WEBHOOK_v429.md** - Resumo visual ⭐
+2. **CORRECAO_COBRANCA_DUPLICADA_ASAAS_v429.md** - Detalhes técnicos
+3. **FLUXO_WEBHOOK_PAGAMENTO_v429.md** - Diagrama completo
+4. **GUIA_TESTE_WEBHOOK_v429.md** - Como testar
 
 ### Para Detalhes Técnicos:
 1. **REFATORACAO_BOAS_PRATICAS.md** - Padrões e exemplos
@@ -262,7 +319,8 @@ frontend/components/superadmin/lojas/
 **Refatoração**: ✅ 100% COMPLETA  
 **Documentação**: ✅ 100% COMPLETA  
 **Sistema**: ✅ Funcionando Perfeitamente  
-**Data**: 04/02/2026
+**Última Correção**: v429 - Cobrança Duplicada Asaas ✅  
+**Data**: 07/02/2026
 
 ---
 
@@ -274,6 +332,6 @@ Toda a documentação está organizada e pronta para uso. Comece pelo **REFATORA
 
 ---
 
-**Última Atualização**: 04/02/2026  
-**Versão**: 1.0  
-**Status**: ✅ Completo
+**Última Atualização**: 07/02/2026  
+**Versão**: 1.1  
+**Status**: ✅ Completo (incluindo v429)

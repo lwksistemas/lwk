@@ -18,10 +18,21 @@ class ClienteSerializer(BaseLojaSerializer):
 
 
 class VendedorSerializer(BaseLojaSerializer):
+    is_admin = serializers.SerializerMethodField()
+    
     class Meta:
         model = Vendedor
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at', 'loja_id']
+    
+    def get_is_admin(self, obj):
+        """Verifica se o vendedor é o administrador da loja"""
+        from superadmin.models import Loja
+        try:
+            loja = Loja.objects.get(id=obj.loja_id)
+            return obj.email == loja.owner.email
+        except:
+            return False
 
 
 class ProdutoSerializer(serializers.ModelSerializer):

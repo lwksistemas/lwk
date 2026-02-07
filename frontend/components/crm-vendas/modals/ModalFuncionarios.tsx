@@ -144,13 +144,26 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
               {funcionarios.map((func: any) => (
                 <div key={func.id} className="flex flex-col sm:flex-row justify-between p-4 border dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 gap-3">
                   <div className="flex-1">
-                    <p className="font-semibold text-lg dark:text-white">{func.nome}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-lg dark:text-white">{func.nome}</p>
+                      {func.is_admin && (
+                        <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">Admin</span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{func.cargo || 'Vendedor'}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{func.email} • {func.telefone}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => handleEditar(func)} className="px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
-                    <button onClick={() => handleExcluir(func.id, func.nome)} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">🗑️</button>
+                    {func.is_admin ? (
+                      <span className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 italic">
+                        🔒 Admin da loja (não pode ser editado/excluído)
+                      </span>
+                    ) : (
+                      <>
+                        <button onClick={() => handleEditar(func)} className="px-4 py-2 text-sm text-white rounded-lg" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
+                        <button onClick={() => handleExcluir(func.id, func.nome)} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">🗑️</button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

@@ -472,12 +472,19 @@ class AsaasSyncService:
                 return pagamento.loja
             if hasattr(pagamento, 'external_reference') and pagamento.external_reference:
                 if 'loja_' in pagamento.external_reference:
-                    loja_slug = pagamento.external_reference.replace('loja_', '').replace('_assinatura', '')
-                    return Loja.objects.get(slug=loja_slug, is_active=True)
+                    # Extrair slug da loja do external_reference
+                    # Formato: loja_luiz-salao-5889_assinatura_202604
+                    # Resultado esperado: luiz-salao-5889
+                    import re
+                    match = re.search(r'loja_([^_]+(?:_\d+)?)', pagamento.external_reference)
+                    if match:
+                        loja_slug = match.group(1)
+                        logger.info(f"🔍 Slug extraído do external_reference: {loja_slug}")
+                        return Loja.objects.get(slug=loja_slug, is_active=True)
         except Loja.DoesNotExist:
-            pass
+            logger.warning(f"❌ Loja não encontrada com slug: {loja_slug}")
         except Exception as e:
-            logger.debug("_get_loja_from_payment: %s", e)
+            logger.error(f"❌ Erro ao extrair loja do pagamento: {e}")
         return None
 
     def _update_loja_financeiro_from_payment(self, pagamento):

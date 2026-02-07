@@ -760,6 +760,81 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 {'error': f'Erro interno: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    @action(detail=True, methods=['post'])
+    def create_manual_payment(self, request, pk=None):
+        """Criar cobrança manual com data personalizada"""
+        try:
+            # Validar disponibilidade do serviço Asaas
+            if not AsaasClient:
+                return Response(
+                    {'error': 'Serviço Asaas não disponível'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            
+            # Buscar assinatura e loja
+            assinatura = self.get_object()
+            loja = Loja.objects.select_related('owner', 'financeiro').get(slug=assinatura.loja_slug)
+            
+            # Obter data de vencimento do request
+            due_date_str = request.data.get('due_date')
+            if not due_date_str:
+                return Response(
+                    {'error': 'Data de vencimento é obrigatória'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validar formato da data
+            from datetime import datetime
+            try:
+                datetime.strptime(due_date_str, '%Y-%m-%d')
+            except ValueError:
+                return Response(
+                    {'error': 'Formato de data inválido. Use YYYY-MM-DD'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Log informativo
+            logger.info(f"📅 Criando cobrança manual para {loja.nome}")
+            logger.info(f"   - Data de vencimento: {due_date_str}")
+            
+            # Preparar dados
+            loja_data = self._preparar_dados_loja(loja)
+            plano_data = self._preparar_dados_plano(assinatura)
+            
+            # Criar cobrança
+            from .client import AsaasPaymentService
+            service = AsaasPaymentService()
+            resultado = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
+            
+            # Retornar resultado
+            if resultado.get('success'):
+                return Response({
+                    'success': True,
+                    'message': 'Cobrança manual criada com sucesso',
+                    'payment_id': resultado.get('payment_id'),
+                    'due_date': due_date_str
+                })
+            
+            return Response(
+                {'error': resultado.get('error', 'Erro ao criar cobrança')},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+                
+        except Loja.DoesNotExist:
+            logger.error(f"Loja não encontrada: {assinatura.loja_slug}")
+            return Response(
+                {'error': 'Loja não encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Erro ao criar cobrança manual: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return Response(
+                {'error': f'Erro interno: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
@@ -928,6 +1003,74 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 
         except Exception as e:
             logger.error(f"❌ Erro ao atualizar status: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Erro interno: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['delete'])
+    def delete_payment(self, request, pk=None):
+        """Excluir cobrança no Asaas e no sistema"""
+        try:
+            payment = self.get_object()
+            
+            logger.info(f"🗑️ Excluindo cobrança {payment.asaas_id}")
+            logger.info(f"   - Status: {payment.status}")
+            logger.info(f"   - Valor: R$ {payment.value}")
+            
+            # Validar se pode excluir
+            if payment.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
+                return Response(
+                    {'error': 'Não é possível excluir uma cobrança já paga'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not payment.asaas_id:
+                return Response(
+                    {'error': 'Pagamento não possui ID do Asaas'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not AsaasClient:
+                return Response(
+                    {'error': 'Serviço Asaas não disponível'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            
+            # Obter configuração
+            config = AsaasConfig.get_config()
+            if not config or not config.api_key:
+                return Response(
+                    {'error': 'Asaas não configurado'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Excluir no Asaas
+            client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
+            try:
+                client.delete_payment(payment.asaas_id)
+                logger.info(f"✅ Cobrança excluída no Asaas")
+            except Exception as e:
+                logger.error(f"❌ Erro ao excluir no Asaas: {e}")
+                return Response(
+                    {'error': f'Erro ao excluir no Asaas: {str(e)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Excluir localmente
+            payment_id = payment.id
+            payment.delete()
+            logger.info(f"✅ Cobrança excluída localmente (ID: {payment_id})")
+            
+            return Response({
+                'success': True,
+                'message': 'Cobrança excluída com sucesso'
+            })
+                
+        except Exception as e:
+            logger.error(f"❌ Erro ao excluir cobrança: {e}")
             import traceback
             traceback.print_exc()
             return Response(

@@ -256,6 +256,40 @@ def dashboard_financeiro_loja(request, loja_slug):
     # Próximo pagamento
     proximo_pagamento = pagamentos.filter(status='pendente').first()
     
+    # Buscar próximo boleto pendente no Asaas (mais recente)
+    boleto_url = None
+    pix_qr_code = None
+    pix_copy_paste = None
+    
+    try:
+        from asaas_integration.models import LojaAssinatura, AsaasPayment
+        
+        # Buscar assinatura da loja
+        loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
+        
+        # Buscar próximo pagamento pendente (mais recente)
+        proximo_boleto = AsaasPayment.objects.filter(
+            customer=loja_assinatura.asaas_customer,
+            status='PENDING',
+            due_date__gte=timezone.now().date()
+        ).order_by('due_date').first()
+        
+        if proximo_boleto:
+            boleto_url = proximo_boleto.bank_slip_url or proximo_boleto.invoice_url
+            pix_qr_code = proximo_boleto.pix_qr_code
+            pix_copy_paste = proximo_boleto.pix_copy_paste
+            
+            logger.info(f"✅ Próximo boleto encontrado para {loja.nome}: {proximo_boleto.asaas_id}, vencimento: {proximo_boleto.due_date}")
+        else:
+            logger.warning(f"⚠️ Nenhum boleto pendente encontrado para {loja.nome}")
+            
+    except Exception as e:
+        logger.warning(f"⚠️ Erro ao buscar boleto do Asaas para {loja.nome}: {e}")
+        # Fallback para dados do FinanceiroLoja
+        boleto_url = financeiro.boleto_url
+        pix_qr_code = financeiro.pix_qr_code
+        pix_copy_paste = financeiro.pix_copy_paste
+    
     return Response({
         'loja': {
             'id': loja.id,
@@ -272,12 +306,12 @@ def dashboard_financeiro_loja(request, loja_slug):
             'dia_vencimento': financeiro.dia_vencimento,
             'total_pago': float(financeiro.total_pago),
             'total_pendente': float(financeiro.total_pendente),
-            'tem_asaas': bool(financeiro.asaas_payment_id),
+            'tem_asaas': bool(financeiro.asaas_payment_id) or bool(boleto_url),
             'asaas_customer_id': financeiro.asaas_customer_id,
             'asaas_payment_id': financeiro.asaas_payment_id,
-            'boleto_url': financeiro.boleto_url,
-            'pix_qr_code': financeiro.pix_qr_code,
-            'pix_copy_paste': financeiro.pix_copy_paste
+            'boleto_url': boleto_url,
+            'pix_qr_code': pix_qr_code,
+            'pix_copy_paste': pix_copy_paste
         },
         'estatisticas': {
             'total_pagamentos': total_pagamentos,

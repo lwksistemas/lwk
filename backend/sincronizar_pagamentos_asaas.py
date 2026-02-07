@@ -31,7 +31,7 @@ def sincronizar_pagamentos_faltantes():
         logger.info("🔍 Buscando todos os pagamentos no Asaas...")
         
         # Buscar todos os pagamentos do Asaas
-        response = client._make_request('GET', 'payments', params={
+        response = client._make_request('GET', 'payments', {
             'limit': 100,
             'offset': 0
         })
@@ -69,7 +69,7 @@ def sincronizar_pagamentos_faltantes():
                 
                 # Buscar dados do customer no Asaas
                 try:
-                    customer_data = client._make_request('GET', f'customers/{customer_id}')
+                    customer_data = client.get_customer(customer_id)
                 except Exception as e:
                     logger.error(f"   ❌ Erro ao buscar customer {customer_id}: {e}")
                     continue

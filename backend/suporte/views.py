@@ -135,8 +135,8 @@ def meus_chamados(request):
         try:
             from superadmin.models import Loja
             loja = Loja.objects.get(owner=user, is_active=True)
-            # Filtrar por loja E email do usuário
-            chamados = Chamado.objects.filter(loja=loja, usuario_email=user.email)
+            # Filtrar por loja_slug (não por objeto loja)
+            chamados = Chamado.objects.filter(loja_slug=loja.slug, usuario_email=user.email)
         except Loja.DoesNotExist:
             # Se não encontrar loja, retornar vazio
             chamados = Chamado.objects.none()

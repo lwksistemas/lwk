@@ -8,17 +8,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@receiver(post_save, sender='superadmin.Loja')
-def create_asaas_subscription_on_loja_creation(sender, instance, created, **kwargs):
+@receiver(post_save, sender='superadmin.FinanceiroLoja')
+def create_asaas_subscription_on_financeiro_creation(sender, instance, created, **kwargs):
     """
-    Cria automaticamente uma assinatura no Asaas quando uma nova loja é criada
+    Cria automaticamente uma assinatura no Asaas quando o FinanceiroLoja é criado
     """
     if not created:
         return
     
     # Verificar se a integração com Asaas está habilitada
     if not getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False):
-        logger.info(f"Integração Asaas desabilitada. Loja {instance.nome} criada sem cobrança.")
+        logger.info(f"Integração Asaas desabilitada. Loja {instance.loja.nome} criada sem cobrança.")
         return
     
     try:
@@ -26,30 +26,27 @@ def create_asaas_subscription_on_loja_creation(sender, instance, created, **kwar
         from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
         from django.db import transaction
         
-        logger.info(f"Criando assinatura Asaas para loja: {instance.nome}")
+        loja = instance.loja
         
-        # Buscar FinanceiroLoja para obter data_proxima_cobranca
-        try:
-            financeiro = instance.financeiro
-            due_date_str = financeiro.data_proxima_cobranca.strftime('%Y-%m-%d')
-            logger.info(f"Usando data_proxima_cobranca do FinanceiroLoja: {due_date_str}")
-        except Exception as e:
-            logger.warning(f"FinanceiroLoja não encontrado, usando data padrão (+7 dias): {e}")
-            due_date_str = None
+        logger.info(f"Criando assinatura Asaas para loja: {loja.nome}")
+        
+        # Usar data_proxima_cobranca do FinanceiroLoja
+        due_date_str = instance.data_proxima_cobranca.strftime('%Y-%m-%d')
+        logger.info(f"Usando data_proxima_cobranca do FinanceiroLoja: {due_date_str}")
         
         # Preparar dados da loja
         loja_data = {
-            'nome': instance.nome,
-            'slug': instance.slug,
-            'email': instance.owner.email,
-            'cpf_cnpj': instance.cpf_cnpj or '000.000.000-00',  # CPF padrão se não informado
-            'telefone': getattr(instance.owner, 'telefone', ''),
+            'nome': loja.nome,
+            'slug': loja.slug,
+            'email': loja.owner.email,
+            'cpf_cnpj': loja.cpf_cnpj or '000.000.000-00',  # CPF padrão se não informado
+            'telefone': getattr(loja.owner, 'telefone', ''),
         }
         
         # Preparar dados do plano
-        valor_plano = instance.plano.preco_anual if instance.tipo_assinatura == 'anual' else instance.plano.preco_mensal
+        valor_plano = loja.plano.preco_anual if loja.tipo_assinatura == 'anual' else loja.plano.preco_mensal
         plano_data = {
-            'nome': f"{instance.plano.nome} ({instance.get_tipo_assinatura_display()})",
+            'nome': f"{loja.plano.nome} ({loja.get_tipo_assinatura_display()})",
             'preco': valor_plano
         }
         
@@ -59,7 +56,7 @@ def create_asaas_subscription_on_loja_creation(sender, instance, created, **kwar
             result = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
             
             if not result['success']:
-                logger.error(f"Erro ao criar cobrança Asaas para loja {instance.nome}: {result['error']}")
+                logger.error(f"Erro ao criar cobrança Asaas para loja {loja.nome}: {result['error']}")
                 return
             
             # Criar cliente no banco local
@@ -102,13 +99,15 @@ def create_asaas_subscription_on_loja_creation(sender, instance, created, **kwar
                 data_vencimento=payment.due_date
             )
             
-            logger.info(f"✅ Assinatura Asaas criada com sucesso para loja {instance.nome}")
+            logger.info(f"✅ Assinatura Asaas criada com sucesso para loja {loja.nome}")
             logger.info(f"   Payment ID: {payment.asaas_id}")
             logger.info(f"   Valor: R$ {payment.value}")
             logger.info(f"   Vencimento: {payment.due_date}")
             
     except Exception as e:
-        logger.error(f"❌ Erro ao criar assinatura Asaas para loja {instance.nome}: {e}")
+        logger.error(f"❌ Erro ao criar assinatura Asaas para loja {loja.nome}: {e}")
+        import traceback
+        traceback.print_exc()
         # Não interrompe a criação da loja, apenas loga o erro
 
 @receiver(post_save, sender='superadmin.Loja')

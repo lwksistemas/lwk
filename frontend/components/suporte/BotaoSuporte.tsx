@@ -13,12 +13,13 @@ export default function BotaoSuporte({ lojaSlug, lojaNome }: BotaoSuporteProps =
 
   return (
     <>
-      {/* Botão Flutuante */}
+      {/* Botão Flutuante - Melhorado */}
       <button
         onClick={() => setModalAberto(true)}
-        className="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-300 hover:scale-110 group"
+        className="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-300 hover:scale-105 group flex items-center gap-2 px-5 py-3"
         title="Abrir Suporte"
       >
+        {/* Ícone de Headset/Microfone */}
         <svg
           className="w-6 h-6"
           fill="none"
@@ -29,14 +30,17 @@ export default function BotaoSuporte({ lojaSlug, lojaNome }: BotaoSuporteProps =
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
           />
         </svg>
         
-        {/* Tooltip */}
-        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-sm px-3 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          Precisa de ajuda?
-        </span>
+        {/* Texto "Suporte" */}
+        <span className="font-semibold text-sm">Suporte</span>
+        
+        {/* Badge de notificação (opcional - pode ser usado no futuro) */}
+        {/* <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          3
+        </span> */}
       </button>
 
       {/* Modal de Chamado */}

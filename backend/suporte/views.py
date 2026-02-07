@@ -119,7 +119,7 @@ def criar_chamado_rapido(request):
 @permission_classes([permissions.IsAuthenticated])
 def meus_chamados(request):
     """
-    Listar chamados do usuário logado
+    Listar chamados do usuário logado (filtrado por loja)
     """
     user = request.user
     
@@ -129,9 +129,17 @@ def meus_chamados(request):
     # Suporte vê todos
     elif user.groups.filter(name='suporte').exists():
         chamados = Chamado.objects.all()
-    # Usuário comum vê apenas seus chamados
+    # Usuário comum vê apenas seus chamados DA SUA LOJA
     else:
-        chamados = Chamado.objects.filter(usuario_email=user.email)
+        # Buscar loja do usuário
+        try:
+            from superadmin.models import Loja
+            loja = Loja.objects.get(owner=user, is_active=True)
+            # Filtrar por loja E email do usuário
+            chamados = Chamado.objects.filter(loja=loja, usuario_email=user.email)
+        except Loja.DoesNotExist:
+            # Se não encontrar loja, retornar vazio
+            chamados = Chamado.objects.none()
     
     # Filtros opcionais
     status_filter = request.query_params.get('status')

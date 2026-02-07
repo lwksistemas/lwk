@@ -28,6 +28,15 @@ def create_asaas_subscription_on_loja_creation(sender, instance, created, **kwar
         
         logger.info(f"Criando assinatura Asaas para loja: {instance.nome}")
         
+        # Buscar FinanceiroLoja para obter data_proxima_cobranca
+        try:
+            financeiro = instance.financeiro
+            due_date_str = financeiro.data_proxima_cobranca.strftime('%Y-%m-%d')
+            logger.info(f"Usando data_proxima_cobranca do FinanceiroLoja: {due_date_str}")
+        except Exception as e:
+            logger.warning(f"FinanceiroLoja não encontrado, usando data padrão (+7 dias): {e}")
+            due_date_str = None
+        
         # Preparar dados da loja
         loja_data = {
             'nome': instance.nome,
@@ -45,9 +54,9 @@ def create_asaas_subscription_on_loja_creation(sender, instance, created, **kwar
         }
         
         with transaction.atomic():
-            # Criar cobrança no Asaas
+            # Criar cobrança no Asaas com data correta
             service = AsaasPaymentService()
-            result = service.create_loja_subscription_payment(loja_data, plano_data)
+            result = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
             
             if not result['success']:
                 logger.error(f"Erro ao criar cobrança Asaas para loja {instance.nome}: {result['error']}")

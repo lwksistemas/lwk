@@ -218,13 +218,14 @@ class AsaasPaymentService:
             # Fallback para configuração vazia
             self.client = AsaasClient(api_key='', sandbox=True)
     
-    def create_loja_subscription_payment(self, loja_data: Dict[str, Any], plano_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_loja_subscription_payment(self, loja_data: Dict[str, Any], plano_data: Dict[str, Any], due_date: str = None) -> Dict[str, Any]:
         """
         Cria cobrança para assinatura de loja
         
         Args:
             loja_data: Dados da loja (nome, email, cpf_cnpj, etc)
             plano_data: Dados do plano (valor, nome, etc)
+            due_date: Data de vencimento no formato YYYY-MM-DD (opcional, padrão: +7 dias)
         
         Returns:
             Dict com dados da cobrança criada
@@ -251,20 +252,24 @@ class AsaasPaymentService:
             customer_id = customer['id']
             
             # 2. Criar cobrança
-            due_date = datetime.now() + timedelta(days=7)  # Vencimento em 7 dias
+            # Usar data fornecida ou calcular +7 dias
+            if due_date:
+                payment_due_date = due_date
+            else:
+                payment_due_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
             
             payment_data = {
                 'customer': customer_id,
                 'billingType': 'BOLETO',  # Boleto com PIX
                 'value': float(plano_data['preco']),
-                'dueDate': due_date.strftime('%Y-%m-%d'),
+                'dueDate': payment_due_date,
                 'description': f"Assinatura {plano_data['nome']} - Loja {loja_data['nome']}",
                 'externalReference': f"loja_{loja_data['slug']}_assinatura",
                 'postalService': False,
                 'split': []
             }
             
-            logger.info(f"Criando cobrança Asaas: R$ {plano_data['preco']}")
+            logger.info(f"Criando cobrança Asaas: R$ {plano_data['preco']} - Vencimento: {payment_due_date}")
             payment = self.client.create_payment(payment_data)
             
             # 3. Buscar dados do PIX (se disponível)

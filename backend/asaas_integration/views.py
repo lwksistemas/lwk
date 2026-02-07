@@ -810,6 +810,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             # Salvar no banco de dados local
             if resultado.get('success'):
                 from .models import AsaasPayment, AsaasCustomer
+                from superadmin.models import FinanceiroLoja
                 
                 # Criar ou buscar customer
                 customer, _ = AsaasCustomer.objects.get_or_create(
@@ -836,6 +837,19 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 )
                 
                 logger.info(f"✅ Pagamento salvo no banco local (ID: {payment.id})")
+                
+                # Atualizar FinanceiroLoja com dados do novo boleto
+                try:
+                    financeiro = FinanceiroLoja.objects.get(loja=loja)
+                    financeiro.asaas_customer_id = resultado['customer_id']
+                    financeiro.asaas_payment_id = resultado['payment_id']
+                    financeiro.boleto_url = resultado.get('boleto_url', '')
+                    financeiro.pix_qr_code = resultado.get('pix_qr_code', '')
+                    financeiro.data_proxima_cobranca = resultado['due_date']
+                    financeiro.save()
+                    logger.info(f"✅ FinanceiroLoja atualizado com novo boleto")
+                except FinanceiroLoja.DoesNotExist:
+                    logger.warning(f"⚠️  FinanceiroLoja não encontrado para {loja.slug}")
                 
                 return Response({
                     'success': True,

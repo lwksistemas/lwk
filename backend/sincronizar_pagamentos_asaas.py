@@ -25,8 +25,17 @@ def sincronizar_pagamentos_faltantes():
     """Busca pagamentos no Asaas e sincroniza com banco local"""
     
     try:
+        # Obter API key das variáveis de ambiente
+        from decouple import config
+        api_key = config('ASAAS_API_KEY', default='')
+        sandbox = config('ASAAS_SANDBOX', default='True', cast=bool)
+        
+        if not api_key:
+            logger.error("❌ ASAAS_API_KEY não configurada!")
+            return
+        
         # Inicializar cliente Asaas
-        client = AsaasClient()
+        client = AsaasClient(api_key=api_key, sandbox=sandbox)
         
         logger.info("🔍 Buscando todos os pagamentos no Asaas...")
         

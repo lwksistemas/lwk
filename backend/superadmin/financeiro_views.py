@@ -339,6 +339,9 @@ def dashboard_financeiro_loja(request, loja_slug):
     except Exception as e:
         logger.error(f"❌ Erro ao buscar boleto do Asaas para {loja.nome}: {e}")
         import traceback
+        logger.error(f"Traceback completo:")
+        logger.error(traceback.format_exc())
+        import traceback
         traceback.print_exc()
         # Fallback para dados do FinanceiroLoja
         boleto_url = financeiro.boleto_url
@@ -353,6 +356,14 @@ def dashboard_financeiro_loja(request, loja_slug):
     pagamentos_atrasados = pagamentos_atrasados_asaas if total_pagamentos_asaas > 0 else pagamentos_atrasados_loja
     valor_total_pago = float(valor_total_pago_asaas) if total_pagamentos_asaas > 0 else valor_total_pago_loja
     valor_total_pendente = float(valor_total_pendente_asaas) if total_pagamentos_asaas > 0 else valor_total_pendente_loja
+    
+    logger.info(f"📊 Estatísticas finais para {loja.nome}:")
+    logger.info(f"   - Total Pagamentos: {total_pagamentos} (Asaas: {total_pagamentos_asaas}, Loja: {total_pagamentos_loja})")
+    logger.info(f"   - Pagos: {pagamentos_pagos} (Asaas: {pagamentos_pagos_asaas}, Loja: {pagamentos_pagos_loja})")
+    logger.info(f"   - Pendentes: {pagamentos_pendentes} (Asaas: {pagamentos_pendentes_asaas}, Loja: {pagamentos_pendentes_loja})")
+    logger.info(f"   - Atrasados: {pagamentos_atrasados} (Asaas: {pagamentos_atrasados_asaas}, Loja: {pagamentos_atrasados_loja})")
+    logger.info(f"   - Valor Pago: R$ {valor_total_pago} (Asaas: {valor_total_pago_asaas}, Loja: {valor_total_pago_loja})")
+    logger.info(f"   - Valor Pendente: R$ {valor_total_pendente} (Asaas: {valor_total_pendente_asaas}, Loja: {valor_total_pendente_loja})")
     
     return Response({
         'loja': {

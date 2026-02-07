@@ -810,7 +810,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             # Salvar no banco de dados local
             if resultado.get('success'):
                 from .models import AsaasPayment, AsaasCustomer
-                from superadmin.models import FinanceiroLoja
+                from superadmin.models import FinanceiroLoja, PagamentoLoja
                 
                 # Criar ou buscar customer
                 customer, _ = AsaasCustomer.objects.get_or_create(
@@ -823,7 +823,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                     }
                 )
                 
-                # Criar pagamento
+                # Criar pagamento no AsaasPayment
                 payment = AsaasPayment.objects.create(
                     customer=customer,
                     asaas_id=resultado['payment_id'],
@@ -836,7 +836,19 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                     external_reference=f"loja_{loja.slug}_assinatura"
                 )
                 
-                logger.info(f"✅ Pagamento salvo no banco local (ID: {payment.id})")
+                logger.info(f"✅ Pagamento salvo no AsaasPayment (ID: {payment.id})")
+                
+                # Criar pagamento no PagamentoLoja (para histórico da loja)
+                pagamento_loja = PagamentoLoja.objects.create(
+                    loja=loja,
+                    asaas_payment_id=resultado['payment_id'],
+                    valor=resultado['value'],
+                    status='pendente',
+                    data_vencimento=resultado['due_date'],
+                    boleto_url=resultado.get('boleto_url', '')
+                )
+                
+                logger.info(f"✅ Pagamento salvo no PagamentoLoja (ID: {pagamento_loja.id})")
                 
                 # Atualizar current_payment da assinatura
                 assinatura.current_payment = payment

@@ -486,13 +486,30 @@ class AsaasSyncService:
             from datetime import date
             from calendar import monthrange
             
+            logger.info(f"🔄 _update_loja_financeiro_from_payment iniciado para pagamento {pagamento.id}")
+            logger.info(f"   - Asaas ID: {pagamento.asaas_id}")
+            logger.info(f"   - Status: {pagamento.status}")
+            logger.info(f"   - External Reference: {getattr(pagamento, 'external_reference', 'N/A')}")
+            
             loja = self._get_loja_from_payment(pagamento)
             if not loja:
-                logger.warning(f"Não foi possível identificar a loja do pagamento {pagamento.id}")
+                logger.warning(f"❌ Não foi possível identificar a loja do pagamento {pagamento.id}")
+                logger.warning(f"   - hasattr loja: {hasattr(pagamento, 'loja')}")
+                logger.warning(f"   - hasattr external_reference: {hasattr(pagamento, 'external_reference')}")
+                if hasattr(pagamento, 'external_reference'):
+                    logger.warning(f"   - external_reference value: {pagamento.external_reference}")
                 return False
+            
+            logger.info(f"✅ Loja identificada: {loja.nome} (slug: {loja.slug})")
             
             # Atualizar financeiro da loja
             financeiro = loja.financeiro
+            
+            logger.info(f"📊 Financeiro atual:")
+            logger.info(f"   - Status: {financeiro.status_pagamento}")
+            logger.info(f"   - Último Pagamento: {financeiro.ultimo_pagamento}")
+            logger.info(f"   - Próxima Cobrança: {financeiro.data_proxima_cobranca}")
+            logger.info(f"   - Dia Vencimento: {financeiro.dia_vencimento}")
             
             # Atualizar status para ativo
             financeiro.status_pagamento = 'ativo'
@@ -516,23 +533,36 @@ class AsaasSyncService:
             
             # Definir próxima data de cobrança
             proxima_data_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
+            
+            logger.info(f"📅 Cálculo de próxima cobrança:")
+            logger.info(f"   - Hoje: {hoje}")
+            logger.info(f"   - Dia Vencimento: {dia_vencimento}")
+            logger.info(f"   - Próximo Mês/Ano: {proximo_mes}/{proximo_ano}")
+            logger.info(f"   - Próxima Cobrança Calculada: {proxima_data_cobranca}")
+            logger.info(f"   - Próxima Cobrança Anterior: {financeiro.data_proxima_cobranca}")
+            
             financeiro.data_proxima_cobranca = proxima_data_cobranca
             
             financeiro.save()
+            logger.info(f"✅ Financeiro salvo com nova data: {proxima_data_cobranca}")
             
             # Criar próximo boleto no Asaas automaticamente
             try:
                 from asaas_integration.models import LojaAssinatura, AsaasPayment
                 from asaas_integration.client import AsaasPaymentService
                 
+                logger.info(f"🔍 Buscando LojaAssinatura para slug: {loja.slug}")
                 loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
+                logger.info(f"✅ LojaAssinatura encontrada")
                 
                 # Atualizar data_vencimento da assinatura
+                logger.info(f"📝 Atualizando data_vencimento: {loja_assinatura.data_vencimento} → {proxima_data_cobranca}")
                 loja_assinatura.data_vencimento = proxima_data_cobranca
                 loja_assinatura.save()
-                logger.info(f"LojaAssinatura.data_vencimento atualizada para {proxima_data_cobranca}")
+                logger.info(f"✅ LojaAssinatura.data_vencimento atualizada para {proxima_data_cobranca}")
                 
                 # Verificar se já existe cobrança para essa data (evitar duplicação)
+                logger.info(f"🔍 Verificando cobranças existentes para {proxima_data_cobranca}...")
                 cobranca_existente = AsaasPayment.objects.filter(
                     customer=loja_assinatura.asaas_customer,
                     due_date=proxima_data_cobranca,
@@ -540,8 +570,10 @@ class AsaasSyncService:
                 ).exists()
                 
                 if cobranca_existente:
-                    logger.info(f"Já existe cobrança para {proxima_data_cobranca}, pulando criação")
+                    logger.info(f"⚠️ Já existe cobrança para {proxima_data_cobranca}, pulando criação")
                 else:
+                    logger.info(f"✅ Nenhuma cobrança existente, criando novo boleto...")
+                    
                     # Criar novo boleto no Asaas para o próximo mês
                     asaas_service = AsaasPaymentService()
                     
@@ -560,11 +592,24 @@ class AsaasSyncService:
                         'preco': valor_plano
                     }
                     
+                    logger.info(f"💰 Dados da cobrança:")
+                    logger.info(f"   - Loja: {loja_data['nome']}")
+                    logger.info(f"   - Plano: {plano_data['nome']}")
+                    logger.info(f"   - Valor: R$ {plano_data['preco']}")
+                    logger.info(f"   - Vencimento: {proxima_data_cobranca}")
+                    
                     # Criar cobrança no Asaas com vencimento no próximo mês
                     due_date_str = proxima_data_cobranca.strftime('%Y-%m-%d')
+                    logger.info(f"🚀 Chamando Asaas API para criar cobrança...")
                     result = asaas_service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
                     
                     if result['success']:
+                        logger.info(f"✅ Cobrança criada no Asaas com sucesso!")
+                        logger.info(f"   - Payment ID: {result['payment_id']}")
+                        logger.info(f"   - Status: {result['status']}")
+                        logger.info(f"   - Valor: R$ {result['value']}")
+                        logger.info(f"   - Vencimento: {result['due_date']}")
+                        
                         # Criar novo pagamento no banco local
                         from datetime import datetime
                         new_payment = AsaasPayment.objects.create(
@@ -583,18 +628,20 @@ class AsaasSyncService:
                             raw_data=result['raw_payment']
                         )
                         
+                        logger.info(f"✅ Pagamento criado no banco local (ID: {new_payment.id})")
+                        
                         # Atualizar current_payment da assinatura
                         loja_assinatura.current_payment = new_payment
                         loja_assinatura.save()
                         
                         logger.info(f"✅ Novo boleto criado no Asaas para {loja.nome}: Vencimento {proxima_data_cobranca}")
                     else:
-                        logger.error(f"Erro ao criar novo boleto no Asaas: {result.get('error')}")
+                        logger.error(f"❌ Erro ao criar novo boleto no Asaas: {result.get('error')}")
                     
             except LojaAssinatura.DoesNotExist:
-                logger.warning(f"LojaAssinatura não encontrada para loja {loja.slug}")
+                logger.warning(f"❌ LojaAssinatura não encontrada para loja {loja.slug}")
             except Exception as e:
-                logger.error(f"Erro ao criar próximo boleto: {e}")
+                logger.error(f"❌ Erro ao criar próximo boleto: {e}")
                 import traceback
                 traceback.print_exc()
             
@@ -605,17 +652,19 @@ class AsaasSyncService:
                 loja.blocked_reason = ''
                 loja.days_overdue = 0
                 loja.save()
-                logger.info(f"Loja {loja.nome} desbloqueada automaticamente após pagamento")
+                logger.info(f"✅ Loja {loja.nome} desbloqueada automaticamente após pagamento")
             
             logger.info(
-                f"Financeiro da loja {loja.nome} atualizado: "
+                f"✅ Financeiro da loja {loja.nome} atualizado: "
                 f"status={financeiro.status_pagamento}, "
                 f"próxima_cobrança={financeiro.data_proxima_cobranca}"
             )
             return True
             
         except Exception as e:
-            logger.error(f"Erro ao atualizar financeiro da loja: {e}")
+            logger.error(f"❌ Erro ao atualizar financeiro da loja: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def get_sync_stats(self):

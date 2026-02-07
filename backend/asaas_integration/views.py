@@ -800,6 +800,10 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             payment = self.get_object()
             
+            logger.info(f"🔄 Botão Atualizar Status clicado para pagamento {payment.asaas_id}")
+            logger.info(f"   - Status atual: {payment.status}")
+            logger.info(f"   - External Reference: {payment.external_reference}")
+            
             if not payment.asaas_id:
                 return Response(
                     {'error': 'Pagamento não possui ID do Asaas'},
@@ -829,6 +833,8 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 old_status = payment.status
                 payment.status = result.get('status', payment.status)
                 
+                logger.info(f"   - Status no Asaas: {payment.status}")
+                
                 # Atualizar data de pagamento se foi pago
                 if payment.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
                     payment.payment_date = result.get('paymentDate')
@@ -838,13 +844,23 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 # Se o pagamento foi confirmado, atualizar financeiro e criar próximo boleto
                 loja_updated = False
                 if payment.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
+                    logger.info(f"   - Pagamento está PAGO, iniciando atualização do financeiro...")
                     try:
                         from superadmin.sync_service import AsaasSyncService
                         sync_service = AsaasSyncService()
                         loja_updated = sync_service._update_loja_financeiro_from_payment(payment)
-                        logger.info(f"Financeiro da loja atualizado via botão Atualizar Status: {loja_updated}")
+                        logger.info(f"   - Resultado da atualização: {loja_updated}")
+                        
+                        if loja_updated:
+                            logger.info(f"✅ Financeiro da loja atualizado com sucesso via botão Atualizar Status")
+                        else:
+                            logger.warning(f"⚠️ Financeiro da loja NÃO foi atualizado (retornou False)")
                     except Exception as e:
-                        logger.error(f"Erro ao atualizar financeiro da loja: {e}")
+                        logger.error(f"❌ Erro ao atualizar financeiro da loja: {e}")
+                        import traceback
+                        traceback.print_exc()
+                else:
+                    logger.info(f"   - Pagamento NÃO está pago (status: {payment.status}), pulando atualização")
                 
                 return Response({
                     'success': True,
@@ -861,7 +877,9 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 )
                 
         except Exception as e:
-            logger.error(f"Erro ao atualizar status: {e}")
+            logger.error(f"❌ Erro ao atualizar status: {e}")
+            import traceback
+            traceback.print_exc()
             return Response(
                 {'error': f'Erro interno: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

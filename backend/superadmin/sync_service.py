@@ -483,6 +483,9 @@ class AsaasSyncService:
     def _update_loja_financeiro_from_payment(self, pagamento):
         """Atualiza financeiro da loja baseado no pagamento confirmado"""
         try:
+            from datetime import date
+            from calendar import monthrange
+            
             loja = self._get_loja_from_payment(pagamento)
             if not loja:
                 logger.warning(f"Não foi possível identificar a loja do pagamento {pagamento.id}")
@@ -494,6 +497,26 @@ class AsaasSyncService:
             # Atualizar status para ativo
             financeiro.status_pagamento = 'ativo'
             financeiro.ultimo_pagamento = timezone.now()
+            
+            # Calcular próxima data de cobrança baseada no dia de vencimento
+            hoje = date.today()
+            dia_vencimento = financeiro.dia_vencimento
+            
+            # Calcular próximo mês
+            if hoje.month == 12:
+                proximo_mes = 1
+                proximo_ano = hoje.year + 1
+            else:
+                proximo_mes = hoje.month + 1
+                proximo_ano = hoje.year
+            
+            # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
+            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
+            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
+            
+            # Definir próxima data de cobrança
+            financeiro.data_proxima_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
+            
             financeiro.save()
             
             # Desbloquear loja se estiver bloqueada
@@ -505,7 +528,11 @@ class AsaasSyncService:
                 loja.save()
                 logger.info(f"Loja {loja.nome} desbloqueada automaticamente após pagamento")
             
-            logger.info(f"Financeiro da loja {loja.nome} atualizado: status={financeiro.status_pagamento}")
+            logger.info(
+                f"Financeiro da loja {loja.nome} atualizado: "
+                f"status={financeiro.status_pagamento}, "
+                f"próxima_cobrança={financeiro.data_proxima_cobranca}"
+            )
             return True
             
         except Exception as e:

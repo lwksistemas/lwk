@@ -282,7 +282,7 @@ export function ConfiguracoesModal({ loja, onClose }: ConfiguracoesModalProps) {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
                           <span className="text-sm font-medium text-gray-500">
-                            #{dadosFinanceiros.historico_pagamentos.length - index}
+                            #{(dadosFinanceiros.historico_pagamentos?.length || 0) - index}
                           </span>
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             pagamento.is_paid

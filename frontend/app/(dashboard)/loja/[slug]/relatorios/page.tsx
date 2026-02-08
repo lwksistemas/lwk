@@ -218,22 +218,22 @@ export default function RelatoriosPage() {
         className="text-white shadow-lg"
         style={{ backgroundColor: lojaInfo.cor_primaria }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div>
-              <h1 className="text-2xl font-bold">{lojaInfo.nome}</h1>
-              <p className="text-sm opacity-90">Relatórios</p>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row justify-between min-h-[56px] sm:h-16 py-2 sm:py-0 items-start sm:items-center gap-2 sm:gap-0">
+            <div className="w-full sm:w-auto">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold">{lojaInfo.nome}</h1>
+              <p className="text-xs sm:text-sm opacity-90">Relatórios</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <button
                 onClick={handleVoltar}
-                className="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors text-sm"
               >
                 ← Voltar
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-red-600 hover:bg-red-700 rounded-md transition-colors text-sm"
               >
                 Sair
               </button>
@@ -243,8 +243,8 @@ export default function RelatoriosPage() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 print-area">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-4 sm:py-6 px-3 sm:px-4 md:px-6 lg:px-8 print-area">
+        <div className="py-4 sm:py-6">
           
           {/* Cabeçalho para impressão */}
           <div className="hidden print:block mb-6">
@@ -257,17 +257,17 @@ export default function RelatoriosPage() {
           </div>
           
           {/* Filtros */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6 no-print">
-            <h3 className="text-lg font-semibold mb-4">Filtros</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6 no-print">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Filtros</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Período
                 </label>
                 <select
                   value={periodoSelecionado}
                   onChange={(e) => setPeriodoSelecionado(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
                 >
                   <option value="hoje">Hoje</option>
                   <option value="semana_atual">Semana Atual</option>
@@ -280,33 +280,33 @@ export default function RelatoriosPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Data Início
                 </label>
                 <input
                   type="date"
                   value={dataInicio}
                   onChange={(e) => setDataInicio(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Data Fim
                 </label>
                 <input
                   type="date"
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
                 />
               </div>
             </div>
 
             <div className="mt-4 flex justify-end">
               <button
-                className="px-6 py-2 text-white rounded-md hover:opacity-90"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2 min-h-[44px] text-sm sm:text-base text-white rounded-md hover:opacity-90"
                 style={{ backgroundColor: lojaInfo.cor_primaria }}
               >
                 Aplicar Filtros
@@ -315,32 +315,32 @@ export default function RelatoriosPage() {
           </div>
 
           {/* Resumo Financeiro */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <h3 className="text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
               📊 Resumo Financeiro
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Receita Total</p>
-                <p className="text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Receita Total</p>
+                <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Despesas</p>
-                <p className="text-2xl font-bold text-red-600">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Despesas</p>
+                <p className="text-lg sm:text-2xl font-bold text-red-600">
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Lucro Líquido</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Lucro Líquido</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Margem</p>
-                <p className="text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Margem</p>
+                <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0%
                 </p>
               </div>
@@ -348,63 +348,63 @@ export default function RelatoriosPage() {
           </div>
 
           {/* Agendamentos */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <h3 className="text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
               📅 Relatório de Agendamentos
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Total de Agendamentos</p>
-                <p className="text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Total de Agendamentos</p>
+                <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Realizados</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Realizados</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0 (0%)
                 </p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Cancelados</p>
-                <p className="text-2xl font-bold text-red-600">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Cancelados</p>
+                <p className="text-lg sm:text-2xl font-bold text-red-600">
                   0 (0%)
                 </p>
               </div>
             </div>
 
-            <div className="text-center py-8 text-gray-500">
-              <p className="text-lg">Nenhum agendamento registrado no período</p>
+            <div className="text-center py-6 sm:py-8 text-gray-500">
+              <p className="text-sm sm:text-lg">Nenhum agendamento registrado no período</p>
             </div>
           </div>
 
           {/* Clientes */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <h3 className="text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
               👥 Relatório de Clientes
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Total de Clientes</p>
-                <p className="text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Total de Clientes</p>
+                <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Novos no Período</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Novos no Período</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0
                 </p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Clientes Ativos</p>
-                <p className="text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Clientes Ativos</p>
+                <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Taxa de Retorno</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Taxa de Retorno</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0%
                 </p>
               </div>
@@ -412,36 +412,36 @@ export default function RelatoriosPage() {
           </div>
 
           {/* Profissionais */}
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <h3 className="text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
               👨‍⚕️ Desempenho dos Profissionais
             </h3>
-            <div className="text-center py-8 text-gray-500">
-              <p className="text-lg">Nenhum profissional cadastrado</p>
+            <div className="text-center py-6 sm:py-8 text-gray-500">
+              <p className="text-sm sm:text-lg">Nenhum profissional cadastrado</p>
             </div>
           </div>
 
           {/* Botões de Exportação */}
-          <div className="bg-white p-6 rounded-lg shadow no-print">
-            <h3 className="text-lg font-semibold mb-4">Exportar Relatórios</h3>
-            <div className="flex flex-wrap gap-4">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow no-print">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Exportar Relatórios</h3>
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
               <button
                 onClick={handleExportarExcel}
-                className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
+                className="w-full sm:w-auto px-4 sm:px-6 py-3 min-h-[44px] bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <span>📄</span>
                 <span>Exportar Excel</span>
               </button>
               <button
                 onClick={handleExportarPDF}
-                className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center space-x-2"
+                className="w-full sm:w-auto px-4 sm:px-6 py-3 min-h-[44px] bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <span>📑</span>
                 <span>Exportar PDF</span>
               </button>
               <button
                 onClick={handleEnviarEmail}
-                className="px-6 py-3 text-white rounded-md hover:opacity-90 transition-colors flex items-center space-x-2"
+                className="w-full sm:w-auto px-4 sm:px-6 py-3 min-h-[44px] text-white rounded-md hover:opacity-90 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
                 style={{ backgroundColor: lojaInfo.cor_primaria }}
               >
                 <span>📧</span>

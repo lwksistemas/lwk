@@ -112,7 +112,7 @@ class AgendamentoSerializer(BaseLojaSerializer):
         return agendamento
 
 
-class EvolucaoPacienteSerializer(serializers.ModelSerializer):
+class EvolucaoPacienteSerializer(BaseLojaSerializer):
     cliente_nome = serializers.CharField(source='cliente.nome', read_only=True)
     profissional_nome = serializers.CharField(source='profissional.nome', read_only=True)
     agendamento_info = serializers.SerializerMethodField()
@@ -121,7 +121,7 @@ class EvolucaoPacienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = EvolucaoPaciente
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at', 'data_evolucao']
+        read_only_fields = ['created_at', 'updated_at', 'data_evolucao', 'loja_id']
 
     def get_agendamento_info(self, obj):
         if obj.agendamento:

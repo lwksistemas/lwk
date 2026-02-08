@@ -208,18 +208,18 @@ export default function FinanceiroLojaPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Financeiro</h1>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+        <div className="w-full sm:w-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold">Financeiro</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             {data.loja.nome} - {data.loja.plano} ({data.loja.tipo_assinatura})
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Badge variant={getStatusColor(data.financeiro.status_pagamento)}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Badge variant={getStatusColor(data.financeiro.status_pagamento)} className="text-xs sm:text-sm">
             {getStatusIcon(data.financeiro.status_pagamento)}
             {data.financeiro.status_pagamento}
           </Badge>
@@ -229,27 +229,29 @@ export default function FinanceiroLojaPage() {
               variant="outline" 
               onClick={atualizarStatusAsaas}
               disabled={atualizandoStatus}
+              className="text-xs sm:text-sm min-h-[40px]"
             >
               {atualizandoStatus ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
               ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
+                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               )}
-              Atualizar Status
+              <span className="hidden sm:inline">Atualizar Status</span>
+              <span className="sm:hidden">Atualizar</span>
             </Button>
           )}
         </div>
       </div>
 
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Mensalidade</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Mensalidade</CardTitle>
+            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(data.financeiro.valor_mensalidade)}</div>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{formatCurrency(data.financeiro.valor_mensalidade)}</div>
             <p className="text-xs text-muted-foreground">
               Vencimento dia {data.financeiro.dia_vencimento}
             </p>
@@ -257,22 +259,22 @@ export default function FinanceiroLojaPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Próxima Cobrança</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Próxima Cobrança</CardTitle>
+            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatDate(data.financeiro.data_proxima_cobranca)}</div>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{formatDate(data.financeiro.data_proxima_cobranca)}</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pago</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Pago</CardTitle>
+            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(data.estatisticas.valor_total_pago)}</div>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{formatCurrency(data.estatisticas.valor_total_pago)}</div>
             <p className="text-xs text-muted-foreground">
               {data.estatisticas.pagamentos_pagos} pagamentos
             </p>
@@ -280,12 +282,12 @@ export default function FinanceiroLojaPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendente</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Pendente</CardTitle>
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(data.estatisticas.valor_total_pendente)}</div>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{formatCurrency(data.estatisticas.valor_total_pendente)}</div>
             <p className="text-xs text-muted-foreground">
               {data.estatisticas.pagamentos_pendentes + data.estatisticas.pagamentos_atrasados} pagamentos
             </p>
@@ -296,35 +298,39 @@ export default function FinanceiroLojaPage() {
       {/* Próximo Pagamento */}
       {data.proximo_pagamento && (
         <Card>
-          <CardHeader>
-            <CardTitle>Próximo Pagamento</CardTitle>
-            <CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Próximo Pagamento</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               Vencimento: {formatDate(data.proximo_pagamento.data_vencimento)}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <p className="text-2xl font-bold">{formatCurrency(data.proximo_pagamento.valor)}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xl sm:text-2xl font-bold">{formatCurrency(data.proximo_pagamento.valor)}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Referência: {formatDate(data.proximo_pagamento.referencia_mes)}
                 </p>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 {data.proximo_pagamento.boleto_url && (
                   <Button 
                     variant="outline"
                     onClick={() => window.open(data.proximo_pagamento.boleto_url, '_blank')}
+                    className="text-xs sm:text-sm min-h-[40px] w-full sm:w-auto"
                   >
-                    <CreditCard className="w-4 h-4 mr-2" />
+                    <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     Ver Boleto
                   </Button>
                 )}
                 
                 {data.proximo_pagamento.asaas_payment_id && (
-                  <Button onClick={() => baixarBoleto(data.proximo_pagamento.id)}>
-                    <Download className="w-4 h-4 mr-2" />
+                  <Button 
+                    onClick={() => baixarBoleto(data.proximo_pagamento.id)}
+                    className="text-xs sm:text-sm min-h-[40px] w-full sm:w-auto"
+                  >
+                    <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     Baixar PDF
                   </Button>
                 )}
@@ -337,17 +343,17 @@ export default function FinanceiroLojaPage() {
       {/* Tabs para Boleto e PIX */}
       {data.financeiro.tem_asaas && (data.financeiro.boleto_url || data.financeiro.pix_qr_code) && (
         <Card>
-          <CardHeader>
-            <CardTitle>Formas de Pagamento</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Formas de Pagamento</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6">
             <Tabs defaultValue="boleto">
-              <TabsList>
+              <TabsList className="w-full sm:w-auto">
                 {data.financeiro.boleto_url && (
-                  <TabsTrigger value="boleto">Boleto</TabsTrigger>
+                  <TabsTrigger value="boleto" className="flex-1 sm:flex-none text-xs sm:text-sm">Boleto</TabsTrigger>
                 )}
                 {data.financeiro.pix_qr_code && (
-                  <TabsTrigger value="pix">PIX</TabsTrigger>
+                  <TabsTrigger value="pix" className="flex-1 sm:flex-none text-xs sm:text-sm">PIX</TabsTrigger>
                 )}
               </TabsList>
               
@@ -357,8 +363,9 @@ export default function FinanceiroLojaPage() {
                     <Button 
                       variant="outline"
                       onClick={() => window.open(data.financeiro.boleto_url, '_blank')}
+                      className="text-xs sm:text-sm min-h-[40px] w-full sm:w-auto"
                     >
-                      <CreditCard className="w-4 h-4 mr-2" />
+                      <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                       Abrir Boleto
                     </Button>
                   </div>
@@ -367,29 +374,29 @@ export default function FinanceiroLojaPage() {
               
               {data.financeiro.pix_qr_code && (
                 <TabsContent value="pix" className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="text-center">
-                      <h4 className="font-medium mb-2">QR Code</h4>
-                      <div className="bg-white p-4 rounded border inline-block">
+                      <h4 className="font-medium mb-2 text-sm sm:text-base">QR Code</h4>
+                      <div className="bg-white p-3 sm:p-4 rounded border inline-block">
                         <img 
                           src={`data:image/png;base64,${data.financeiro.pix_qr_code}`} 
                           alt="QR Code PIX"
-                          className="w-48 h-48"
+                          className="w-32 h-32 sm:w-48 sm:h-48"
                         />
                       </div>
                     </div>
                     
                     <div>
-                      <h4 className="font-medium mb-2">Código PIX</h4>
-                      <div className="bg-gray-100 p-3 rounded text-sm font-mono break-all">
+                      <h4 className="font-medium mb-2 text-sm sm:text-base">Código PIX</h4>
+                      <div className="bg-gray-100 p-2 sm:p-3 rounded text-xs sm:text-sm font-mono break-all">
                         {data.financeiro.pix_copy_paste}
                       </div>
                       <Button 
                         variant="outline" 
-                        className="mt-2"
+                        className="mt-2 text-xs sm:text-sm min-h-[40px] w-full sm:w-auto"
                         onClick={copiarPixCodigo}
                       >
-                        <Copy className="w-4 h-4 mr-2" />
+                        <Copy className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                         Copiar Código
                       </Button>
                     </div>
@@ -403,22 +410,22 @@ export default function FinanceiroLojaPage() {
 
       {/* Histórico de Pagamentos */}
       <Card>
-        <CardHeader>
-          <CardTitle>Histórico de Pagamentos</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Histórico de Pagamentos</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-3 sm:space-y-4">
             {data.pagamentos_recentes.map((pagamento) => (
-              <div key={pagamento.id} className="flex items-center justify-between p-4 border rounded">
-                <div>
-                  <p className="font-medium">{formatCurrency(pagamento.valor)}</p>
-                  <p className="text-sm text-muted-foreground">
+              <div key={pagamento.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded gap-3">
+                <div className="w-full sm:w-auto">
+                  <p className="font-medium text-sm sm:text-base">{formatCurrency(pagamento.valor)}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     {formatDate(pagamento.referencia_mes)} - Venc: {formatDate(pagamento.data_vencimento)}
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <Badge variant={getStatusColor(pagamento.status)}>
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                  <Badge variant={getStatusColor(pagamento.status)} className="text-xs">
                     {pagamento.status}
                   </Badge>
                   
@@ -427,8 +434,9 @@ export default function FinanceiroLojaPage() {
                       variant="outline" 
                       size="sm"
                       onClick={() => baixarBoleto(pagamento.id)}
+                      className="min-h-[36px]"
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                   )}
                 </div>

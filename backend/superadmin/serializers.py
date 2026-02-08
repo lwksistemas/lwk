@@ -293,8 +293,32 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 # Aplicar migrations no novo schema
                 from django.core.management import call_command
                 try:
+                    # Migrations básicas (sempre aplicar)
                     call_command('migrate', 'stores', '--database', loja.database_name, verbosity=0)
                     call_command('migrate', 'products', '--database', loja.database_name, verbosity=0)
+                    
+                    # Migrations específicas por tipo de loja
+                    tipo_loja_nome = loja.tipo_loja.nome if loja.tipo_loja else ''
+                    
+                    if tipo_loja_nome == 'Clínica de Estética':
+                        call_command('migrate', 'clinica_estetica', '--database', loja.database_name, verbosity=0)
+                        print(f"✅ Migrations de Clínica de Estética aplicadas")
+                    elif tipo_loja_nome == 'CRM Vendas':
+                        call_command('migrate', 'crm_vendas', '--database', loja.database_name, verbosity=0)
+                        print(f"✅ Migrations de CRM Vendas aplicadas")
+                    elif tipo_loja_nome == 'Restaurante':
+                        call_command('migrate', 'restaurante', '--database', loja.database_name, verbosity=0)
+                        print(f"✅ Migrations de Restaurante aplicadas")
+                    elif tipo_loja_nome == 'Serviços':
+                        call_command('migrate', 'servicos', '--database', loja.database_name, verbosity=0)
+                        print(f"✅ Migrations de Serviços aplicadas")
+                    elif tipo_loja_nome == 'Cabeleireiro':
+                        call_command('migrate', 'cabeleireiro', '--database', loja.database_name, verbosity=0)
+                        print(f"✅ Migrations de Cabeleireiro aplicadas")
+                    elif tipo_loja_nome == 'E-commerce':
+                        call_command('migrate', 'ecommerce', '--database', loja.database_name, verbosity=0)
+                        print(f"✅ Migrations de E-commerce aplicadas")
+                    
                     print(f"✅ Migrations aplicadas no schema '{schema_name}'")
                 except Exception as e:
                     print(f"⚠️ Erro ao aplicar migrations: {e}")

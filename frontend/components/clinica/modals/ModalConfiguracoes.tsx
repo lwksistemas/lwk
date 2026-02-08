@@ -85,7 +85,7 @@ export function ModalConfiguracoes({ loja, onClose }: ModalConfiguracoesProps) {
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} maxWidth="6xl">
+    <Modal isOpen={true} onClose={onClose} maxWidth="5xl">
       <div className="p-6">
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-2" style={{ color: loja.cor_primaria }}>
           ⚙️ Configurações da Loja

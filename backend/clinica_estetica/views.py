@@ -18,7 +18,8 @@ from .serializers import (
     AgendamentoSerializer, FuncionarioSerializer, ProtocoloProcedimentoSerializer,
     EvolucaoPacienteSerializer, AnamnesesTemplateSerializer, AnamneseSerializer,
     HorarioFuncionamentoSerializer, BloqueioAgendaSerializer, ClienteBuscaSerializer,
-    ConsultaSerializer, HistoricoLoginSerializer
+    ConsultaSerializer, HistoricoLoginSerializer, CategoriaFinanceiraSerializer,
+    TransacaoSerializer
 )
 
 
@@ -479,3 +480,253 @@ class HistoricoLoginViewSet(BaseModelViewSet):
         self.perform_create(serializer)
         
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+
+class CategoriaFinanceiraViewSet(BaseModelViewSet):
+    """
+    ViewSet para Categorias Financeiras
+    CRUD completo com filtros
+    """
+    serializer_class = CategoriaFinanceiraSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Filtros: tipo, is_active
+        """
+        from clinica_estetica.models import CategoriaFinanceira
+        
+        queryset = CategoriaFinanceira.objects.all().order_by('tipo', 'nome')
+        params = getattr(self.request, 'query_params', self.request.GET)
+        
+        # Filtro por tipo
+        tipo = params.get('tipo')
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        
+        # Filtro por ativo
+        is_active = params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        return queryset
+
+
+class TransacaoViewSet(BaseModelViewSet):
+    """
+    ViewSet para Transações Financeiras
+    Com ações customizadas e relatórios
+    """
+    serializer_class = TransacaoSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Filtros: tipo, status, categoria, data_inicio, data_fim
+        """
+        from clinica_estetica.models import Transacao
+        
+        queryset = Transacao.objects.select_related('categoria', 'cliente').order_by('-data_vencimento')
+        params = getattr(self.request, 'query_params', self.request.GET)
+        
+        # Filtro por tipo
+        tipo = params.get('tipo')
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        
+        # Filtro por status
+        status_param = params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        
+        # Filtro por categoria
+        categoria_id = params.get('categoria')
+        if categoria_id:
+            queryset = queryset.filter(categoria_id=categoria_id)
+        
+        # Filtro por período
+        data_inicio = params.get('data_inicio')
+        data_fim = params.get('data_fim')
+        if data_inicio:
+            queryset = queryset.filter(data_vencimento__gte=data_inicio)
+        if data_fim:
+            queryset = queryset.filter(data_vencimento__lte=data_fim)
+        
+        return queryset
+    
+    def perform_create(self, serializer):
+        """
+        Adiciona created_by automaticamente
+        """
+        user = self.request.user
+        created_by = user.get_full_name() or user.username
+        serializer.save(created_by=created_by)
+    
+    @action(detail=True, methods=['post'])
+    def marcar_como_pago(self, request, pk=None):
+        """
+        Marca transação como paga
+        """
+        transacao = self.get_object()
+        
+        forma_pagamento = request.data.get('forma_pagamento')
+        data_pagamento = request.data.get('data_pagamento')
+        valor_pago = request.data.get('valor_pago', transacao.valor)
+        
+        if not forma_pagamento:
+            return Response(
+                {'error': 'Forma de pagamento é obrigatória'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        transacao.status = 'pago'
+        transacao.forma_pagamento = forma_pagamento
+        transacao.valor_pago = valor_pago
+        
+        if data_pagamento:
+            transacao.data_pagamento = data_pagamento
+        else:
+            from django.utils import timezone
+            transacao.data_pagamento = timezone.now().date()
+        
+        transacao.save()
+        
+        serializer = self.get_serializer(transacao)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def cancelar(self, request, pk=None):
+        """
+        Cancela transação
+        """
+        transacao = self.get_object()
+        
+        if transacao.status == 'pago':
+            return Response(
+                {'error': 'Não é possível cancelar uma transação já paga'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        transacao.status = 'cancelado'
+        transacao.save()
+        
+        serializer = self.get_serializer(transacao)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def resumo(self, request):
+        """
+        Retorna resumo financeiro do período
+        """
+        from clinica_estetica.models import Transacao
+        from django.db.models import Sum, Q, Count
+        from django.utils import timezone
+        from decimal import Decimal
+        
+        params = getattr(request, 'query_params', request.GET)
+        
+        # Período (padrão: mês atual)
+        data_inicio = params.get('data_inicio')
+        data_fim = params.get('data_fim')
+        
+        if not data_inicio or not data_fim:
+            hoje = timezone.now().date()
+            data_inicio = hoje.replace(day=1)
+            # Último dia do mês
+            if hoje.month == 12:
+                data_fim = hoje.replace(year=hoje.year + 1, month=1, day=1) - timezone.timedelta(days=1)
+            else:
+                data_fim = hoje.replace(month=hoje.month + 1, day=1) - timezone.timedelta(days=1)
+        
+        # Queries otimizadas
+        transacoes = Transacao.objects.filter(
+            data_vencimento__gte=data_inicio,
+            data_vencimento__lte=data_fim
+        )
+        
+        # Receitas
+        receitas = transacoes.filter(tipo='receita')
+        total_receitas = receitas.aggregate(total=Sum('valor'))['total'] or Decimal('0')
+        receitas_pagas = receitas.filter(status='pago').aggregate(total=Sum('valor_pago'))['total'] or Decimal('0')
+        receitas_pendentes = receitas.filter(status='pendente').aggregate(total=Sum('valor'))['total'] or Decimal('0')
+        
+        # Despesas
+        despesas = transacoes.filter(tipo='despesa')
+        total_despesas = despesas.aggregate(total=Sum('valor'))['total'] or Decimal('0')
+        despesas_pagas = despesas.filter(status='pago').aggregate(total=Sum('valor_pago'))['total'] or Decimal('0')
+        despesas_pendentes = despesas.filter(status='pendente').aggregate(total=Sum('valor'))['total'] or Decimal('0')
+        
+        # Saldo
+        saldo = receitas_pagas - despesas_pagas
+        
+        # Atrasados
+        hoje = timezone.now().date()
+        atrasados = transacoes.filter(
+            status='pendente',
+            data_vencimento__lt=hoje
+        )
+        transacoes_atrasadas = atrasados.count()
+        valor_atrasado = atrasados.aggregate(total=Sum('valor'))['total'] or Decimal('0')
+        
+        resumo = {
+            'total_receitas': float(total_receitas),
+            'total_despesas': float(total_despesas),
+            'saldo': float(saldo),
+            'receitas_pendentes': float(receitas_pendentes),
+            'despesas_pendentes': float(despesas_pendentes),
+            'receitas_pagas': float(receitas_pagas),
+            'despesas_pagas': float(despesas_pagas),
+            'transacoes_atrasadas': transacoes_atrasadas,
+            'valor_atrasado': float(valor_atrasado),
+        }
+        
+        from clinica_estetica.serializers import TransacaoResumoSerializer
+        serializer = TransacaoResumoSerializer(resumo)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def fluxo_caixa(self, request):
+        """
+        Retorna fluxo de caixa diário do período
+        """
+        from clinica_estetica.models import Transacao
+        from django.db.models import Sum
+        from django.utils import timezone
+        from datetime import timedelta
+        from decimal import Decimal
+        
+        params = getattr(request, 'query_params', request.GET)
+        
+        # Período (padrão: últimos 30 dias)
+        data_fim = timezone.now().date()
+        data_inicio = data_fim - timedelta(days=30)
+        
+        if params.get('data_inicio'):
+            data_inicio = params.get('data_inicio')
+        if params.get('data_fim'):
+            data_fim = params.get('data_fim')
+        
+        # Agrupar por data
+        transacoes = Transacao.objects.filter(
+            data_vencimento__gte=data_inicio,
+            data_vencimento__lte=data_fim,
+            status='pago'
+        ).values('data_pagamento').annotate(
+            receitas=Sum('valor_pago', filter=Q(tipo='receita')),
+            despesas=Sum('valor_pago', filter=Q(tipo='despesa'))
+        ).order_by('data_pagamento')
+        
+        # Formatar resposta
+        fluxo = []
+        for item in transacoes:
+            receitas = float(item['receitas'] or Decimal('0'))
+            despesas = float(item['despesas'] or Decimal('0'))
+            fluxo.append({
+                'data': item['data_pagamento'],
+                'receitas': receitas,
+                'despesas': despesas,
+                'saldo': receitas - despesas
+            })
+        
+        return Response(fluxo)

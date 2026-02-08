@@ -19,9 +19,9 @@ const ModalProcedimentos = lazy(() => import('@/components/clinica/modals/ModalP
 const ModalProtocolos = lazy(() => import('@/components/clinica/modals/ModalProtocolos').then(m => ({ default: m.ModalProtocolos })));
 const ModalAnamnese = lazy(() => import('@/components/clinica/modals/ModalAnamnese').then(m => ({ default: m.ModalAnamnese })));
 const ModalFuncionarios = lazy(() => import('@/components/clinica/modals/ModalFuncionarios').then(m => ({ default: m.ModalFuncionarios })));
-const ModalAgendamento = lazy(() => import('@/components/clinica/modals/ModalAgendamento').then(m => ({ default: m.ModalAgendamento })));
 const ConfiguracoesModal = lazy(() => import('@/components/clinica/modals/ConfiguracoesModal').then(m => ({ default: m.ConfiguracoesModal })));
 const ModalConfiguracoes = lazy(() => import('@/components/clinica/modals/ModalConfiguracoes').then(m => ({ default: m.ModalConfiguracoes })));
+const ModalFinanceiro = lazy(() => import('@/components/clinica/modals/ModalFinanceiro').then(m => ({ default: m.ModalFinanceiro })));
 
 // Componente de loading para modais
 function ModalLoadingFallback() {
@@ -43,8 +43,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
   // Hook para gerenciar modais
   const { modals, openModal, closeModal } = useModals([
-    'agendamento', 'cliente', 'procedimentos', 'profissional',
-    'protocolos', 'anamnese', 'configuracoes', 'funcionarios', 'assinatura'
+    'cliente', 'procedimentos', 'profissional',
+    'protocolos', 'anamnese', 'configuracoes', 'funcionarios', 'assinatura', 'financeiro'
   ] as const);
 
   // Estados de navegação
@@ -86,7 +86,6 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   }, [loja?.id, loja?.slug]);
 
   // Handlers
-  const handleNovoAgendamento = () => openModal('agendamento');
   const handleNovoCliente = () => openModal('cliente');
   const handleProcedimentos = () => openModal('procedimentos');
   const handleNovoProfissional = () => openModal('profissional');
@@ -97,6 +96,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const handleFuncionarios = () => openModal('funcionarios');
   const handleCalendario = () => setShowCalendario(true);
   const handleConsultas = () => setShowConsultas(true);
+  const handleFinanceiro = () => openModal('financeiro');
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
 
   // Loading inicial
@@ -186,7 +186,6 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           🚀 Ações Rápidas
         </h3>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
-          <ActionButton onClick={handleNovoAgendamento} color="#3B82F6" icon="📅" label="Agendamento" />
           <ActionButton onClick={handleCalendario} color="#10B981" icon="🗓️" label="Calendário" />
           <ActionButton onClick={handleConsultas} color="#8B5CF6" icon="🏥" label="Consultas" />
           <ActionButton onClick={handleNovoCliente} color="#F59E0B" icon="👤" label="Cliente" />
@@ -195,6 +194,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           <ActionButton onClick={handleFuncionarios} color="#EC4899" icon="👥" label="Funcionários" />
           <ActionButton onClick={handleProtocolos} color="#8B5A2B" icon="📋" label="Protocolos" />
           <ActionButton onClick={handleAnamnese} color="#7C3AED" icon="📝" label="Anamnese" />
+          <ActionButton onClick={handleFinanceiro} color="#10B981" icon="💰" label="Financeiro" />
           <ActionButton onClick={handleAssinatura} color="#F97316" icon="✍️" label="Assinatura" />
           <ActionButton onClick={handleConfiguracoes} color="#6B7280" icon="⚙️" label="Configurações" />
           <ActionButton onClick={handleRelatorios} color="#059669" icon="📈" label="Relatórios" />
@@ -321,6 +321,13 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           <ModalFuncionarios 
             loja={loja}
             onClose={() => closeModal('funcionarios')}
+          />
+        )}
+
+        {modals.financeiro && (
+          <ModalFinanceiro 
+            loja={loja}
+            onClose={() => closeModal('financeiro')}
           />
         )}
       </Suspense>

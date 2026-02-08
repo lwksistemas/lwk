@@ -447,3 +447,150 @@ class HistoricoLogin(LojaIsolationMixin, models.Model):
     
     def __str__(self):
         return f"{self.usuario_nome} - {self.acao} - {self.created_at}"
+
+
+
+class CategoriaFinanceira(LojaIsolationMixin, models.Model):
+    """
+    Categorias para organizar receitas e despesas
+    Reutilizável e extensível (SOLID - Open/Closed)
+    """
+    TIPO_CHOICES = [
+        ('receita', 'Receita'),
+        ('despesa', 'Despesa'),
+    ]
+    
+    nome = models.CharField(max_length=100, verbose_name="Nome")
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name="Tipo")
+    descricao = models.TextField(blank=True, null=True, verbose_name="Descrição")
+    cor = models.CharField(max_length=7, default='#3B82F6', verbose_name="Cor", help_text="Cor em hexadecimal")
+    is_active = models.BooleanField(default=True, verbose_name="Ativo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    objects = LojaIsolationManager()
+    
+    class Meta:
+        db_table = 'clinica_categorias_financeiras'
+        ordering = ['tipo', 'nome']
+        verbose_name = 'Categoria Financeira'
+        verbose_name_plural = 'Categorias Financeiras'
+        indexes = [
+            models.Index(fields=['loja_id', 'tipo']),
+            models.Index(fields=['loja_id', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.nome}"
+
+
+class Transacao(LojaIsolationMixin, models.Model):
+    """
+    Transações financeiras (receitas e despesas)
+    Modelo principal do sistema financeiro
+    """
+    TIPO_CHOICES = [
+        ('receita', 'Receita'),
+        ('despesa', 'Despesa'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pendente', 'Pendente'),
+        ('pago', 'Pago'),
+        ('cancelado', 'Cancelado'),
+        ('atrasado', 'Atrasado'),
+    ]
+    
+    FORMA_PAGAMENTO_CHOICES = [
+        ('dinheiro', 'Dinheiro'),
+        ('cartao_credito', 'Cartão de Crédito'),
+        ('cartao_debito', 'Cartão de Débito'),
+        ('pix', 'PIX'),
+        ('transferencia', 'Transferência'),
+        ('boleto', 'Boleto'),
+        ('cheque', 'Cheque'),
+        ('outros', 'Outros'),
+    ]
+    
+    # Informações básicas
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name="Tipo")
+    descricao = models.CharField(max_length=200, verbose_name="Descrição")
+    categoria = models.ForeignKey(CategoriaFinanceira, on_delete=models.PROTECT, verbose_name="Categoria")
+    
+    # Valores
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor")
+    valor_pago = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Valor Pago")
+    
+    # Datas
+    data_vencimento = models.DateField(verbose_name="Data de Vencimento")
+    data_pagamento = models.DateField(blank=True, null=True, verbose_name="Data de Pagamento")
+    
+    # Status e forma de pagamento
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente', verbose_name="Status")
+    forma_pagamento = models.CharField(max_length=20, choices=FORMA_PAGAMENTO_CHOICES, blank=True, null=True, verbose_name="Forma de Pagamento")
+    
+    # Relacionamentos opcionais
+    cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Cliente", help_text="Cliente relacionado (para receitas)")
+    agendamento = models.ForeignKey(Agendamento, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Agendamento", help_text="Agendamento relacionado")
+    
+    # Informações adicionais
+    observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    anexo = models.CharField(max_length=500, blank=True, null=True, verbose_name="Anexo", help_text="URL do anexo (nota fiscal, recibo, etc)")
+    
+    # Recorrência
+    is_recorrente = models.BooleanField(default=False, verbose_name="É Recorrente")
+    recorrencia_tipo = models.CharField(max_length=20, blank=True, null=True, verbose_name="Tipo de Recorrência", choices=[
+        ('mensal', 'Mensal'),
+        ('trimestral', 'Trimestral'),
+        ('semestral', 'Semestral'),
+        ('anual', 'Anual'),
+    ])
+    
+    # Auditoria
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.CharField(max_length=200, blank=True, null=True, verbose_name="Criado por")
+    
+    objects = LojaIsolationManager()
+    
+    class Meta:
+        db_table = 'clinica_transacoes'
+        ordering = ['-data_vencimento', '-created_at']
+        verbose_name = 'Transação'
+        verbose_name_plural = 'Transações'
+        indexes = [
+            models.Index(fields=['loja_id', 'tipo', 'status']),
+            models.Index(fields=['loja_id', 'data_vencimento']),
+            models.Index(fields=['loja_id', 'data_pagamento']),
+            models.Index(fields=['loja_id', 'categoria']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.descricao} - R$ {self.valor}"
+    
+    def save(self, *args, **kwargs):
+        """
+        Lógica de negócio ao salvar (Clean Code)
+        """
+        # Se foi pago, definir data de pagamento
+        if self.status == 'pago' and not self.data_pagamento:
+            from django.utils import timezone
+            self.data_pagamento = timezone.now().date()
+        
+        # Se valor_pago >= valor, marcar como pago
+        if self.valor_pago >= self.valor and self.status == 'pendente':
+            self.status = 'pago'
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def valor_pendente(self):
+        """Valor ainda não pago"""
+        return self.valor - self.valor_pago
+    
+    @property
+    def esta_atrasado(self):
+        """Verifica se está atrasado"""
+        from django.utils import timezone
+        if self.status == 'pendente':
+            return self.data_vencimento < timezone.now().date()
+        return False

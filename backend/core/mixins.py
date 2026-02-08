@@ -50,7 +50,11 @@ class LojaIsolationManager(models.Manager):
         
         # 🔒 SEGURANÇA: Sempre filtrar por loja_id
         if loja_id:
-            qs = super().get_queryset().filter(loja_id=loja_id)
+            # Usar o banco de dados correto (schema isolado)
+            qs = super().get_queryset()
+            if tenant_db and tenant_db != 'default':
+                qs = qs.using(tenant_db)
+            qs = qs.filter(loja_id=loja_id)
             logger.info(f"📊 [LojaIsolationManager] Queryset filtrado por loja_id={loja_id} - count: {qs.count()}")
             return qs
         

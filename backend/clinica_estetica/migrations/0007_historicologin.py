@@ -7,7 +7,7 @@ import core.mixins
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_estetica', '0006_consulta'),
+        ('clinica_estetica', '0006_remove_funcionario_user_funcionario_is_admin'),
     ]
 
     operations = [

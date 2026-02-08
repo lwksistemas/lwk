@@ -57,6 +57,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'superadmin.middleware.JWTAuthenticationMiddleware',  # PROCESSA JWT ANTES
     'superadmin.middleware.SuperAdminSecurityMiddleware',  # APÓS AUTENTICAÇÃO
+    'superadmin.historico_middleware.HistoricoAcessoMiddleware',  # ✅ Histórico de acessos
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

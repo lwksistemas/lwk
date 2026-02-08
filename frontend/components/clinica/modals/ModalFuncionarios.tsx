@@ -51,7 +51,7 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
   const carregarFuncionarios = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/clinica_estetica/funcionarios/');
+      const response = await apiClient.get('/clinica/funcionarios/');
       const data = extractArrayData<Funcionario>(response);
       console.log('Funcionários carregados:', data);
       setFuncionarios(data);
@@ -79,9 +79,9 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
       };
 
       if (editando) {
-        await apiClient.put(`/clinica_estetica/funcionarios/${editando.id}/`, payload);
+        await apiClient.put(`/clinica/funcionarios/${editando.id}/`, payload);
       } else {
-        await apiClient.post('/clinica_estetica/funcionarios/', payload);
+        await apiClient.post('/clinica/funcionarios/', payload);
       }
       
       await carregarFuncionarios();
@@ -123,7 +123,7 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
     if (!confirm(`Deseja excluir o funcionário "${nome}"?`)) return;
     
     try {
-      await apiClient.delete(`/clinica_estetica/funcionarios/${id}/`);
+      await apiClient.delete(`/clinica/funcionarios/${id}/`);
       await carregarFuncionarios();
     } catch (error) {
       console.error('Erro ao excluir funcionário:', error);

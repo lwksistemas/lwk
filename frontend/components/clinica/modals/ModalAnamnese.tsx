@@ -55,6 +55,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'anamneses' | 'templates'>('templates');
   const [showForm, setShowForm] = useState(false);
+  const [showAnamneseForm, setShowAnamneseForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [formData, setFormData] = useState(initialFormData);
   const [submitting, setSubmitting] = useState(false);
@@ -184,6 +185,28 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   };
 
   const procedimentosOptions = procedimentos.map(p => ({ value: p.id, label: p.nome }));
+
+  // Formulário de nova anamnese (preencher)
+  if (showAnamneseForm) {
+    return (
+      <CrudModal loja={loja} onClose={() => setShowAnamneseForm(false)} title="Nova Anamnese" icon="📝" maxWidth="4xl">
+        <div className="text-center py-12">
+          <p className="text-lg mb-4">🚧 Funcionalidade em desenvolvimento</p>
+          <p className="text-sm text-gray-600 mb-6">
+            Esta funcionalidade permitirá preencher anamneses durante consultas.<br/>
+            Por enquanto, você pode criar templates de anamnese.
+          </p>
+          <button 
+            onClick={() => setShowAnamneseForm(false)} 
+            className="px-6 py-2 text-white rounded-md hover:opacity-90" 
+            style={{ backgroundColor: loja.cor_primaria }}
+          >
+            Voltar
+          </button>
+        </div>
+      </CrudModal>
+    );
+  }
 
   // Formulário de template
   if (showForm) {
@@ -378,7 +401,11 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
           </button>
         )}
         {activeTab === 'anamneses' && templates.length > 0 && (
-          <button className="px-6 py-2 text-white rounded-md hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>
+          <button 
+            onClick={() => setShowAnamneseForm(true)} 
+            className="px-6 py-2 text-white rounded-md hover:opacity-90" 
+            style={{ backgroundColor: loja.cor_primaria }}
+          >
             + Nova Anamnese
           </button>
         )}

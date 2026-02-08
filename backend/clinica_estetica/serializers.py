@@ -3,7 +3,7 @@ from core.serializers import BaseLojaSerializer
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento, Funcionario,
     ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
-    HorarioFuncionamento, BloqueioAgenda, Consulta
+    HorarioFuncionamento, BloqueioAgenda, Consulta, HistoricoLogin
 )
 
 
@@ -216,3 +216,25 @@ class ConsultaSerializer(serializers.ModelSerializer):
 
     def get_total_evolucoes(self, obj):
         return obj.evolucoes.count()
+
+
+
+class HistoricoLoginSerializer(BaseLojaSerializer):
+    """
+    Serializer para Histórico de Login
+    Registra ações dos usuários com IP e detalhes
+    """
+    
+    class Meta:
+        model = HistoricoLogin
+        fields = [
+            'id', 'usuario', 'usuario_nome', 'acao', 'detalhes',
+            'ip_address', 'user_agent', 'created_at', 'loja_id'
+        ]
+        read_only_fields = ['id', 'created_at', 'loja_id']
+    
+    def create(self, validated_data):
+        """
+        Adiciona loja_id automaticamente ao criar
+        """
+        return super().create(validated_data)

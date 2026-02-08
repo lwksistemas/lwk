@@ -187,3 +187,29 @@ O sistema está **100% correto** e funcionando conforme solicitado:
 **Data**: 08/02/2026
 **Versão**: v468
 **Status**: ✅ Sistema Correto e Funcionando
+
+
+## 🔧 CORREÇÃO v469: Endpoint de Funcionários
+
+### Problema Identificado
+- Frontend chamava: `/api/clinica_estetica/funcionarios/` (com underscore)
+- Backend registrou: `/api/clinica/` (sem underscore)
+- Resultado: Erro 404 - Admin não aparecia na lista
+
+### Solução Aplicada
+Corrigidos 3 endpoints em `ModalFuncionarios.tsx`:
+- ✅ GET: `/clinica/funcionarios/`
+- ✅ POST/PUT: `/clinica/funcionarios/`
+- ✅ DELETE: `/clinica/funcionarios/${id}/`
+
+### Deploy
+- Frontend v469: ✅ Realizado
+- URL: https://lwksistemas.com.br
+
+### Resultado
+Agora o admin "Nayara Souza" deve aparecer corretamente na lista de funcionários da Clínica Harmonis.
+
+---
+
+**Atualização**: 08/02/2026 - v469
+**Status**: ✅ Endpoint Corrigido

@@ -9,7 +9,8 @@ from superadmin.models import Loja
 loja = Loja.objects.get(slug='clinica-harmonis-5898')
 print(f"Loja: {loja.nome} (ID: {loja.id})")
 
-admins = Funcionario.objects.filter(loja_id=loja.id, is_admin=True, email='pjluiz25@hotmail.com').order_by('id')
+# Usar all_without_filter() para bypassar o LojaIsolationManager
+admins = Funcionario.objects.all_without_filter().filter(loja_id=loja.id, is_admin=True, email='pjluiz25@hotmail.com').order_by('id')
 print(f"Total de admins: {admins.count()}")
 
 for admin in admins:
@@ -24,5 +25,5 @@ if admins.count() > 1:
         dup.delete()
     print("Duplicatas removidas!")
 
-admins_final = Funcionario.objects.filter(loja_id=loja.id, is_admin=True)
+admins_final = Funcionario.objects.all_without_filter().filter(loja_id=loja.id, is_admin=True)
 print(f"Total final: {admins_final.count()}")

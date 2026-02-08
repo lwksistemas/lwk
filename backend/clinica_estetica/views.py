@@ -18,7 +18,7 @@ from .serializers import (
     AgendamentoSerializer, FuncionarioSerializer, ProtocoloProcedimentoSerializer,
     EvolucaoPacienteSerializer, AnamnesesTemplateSerializer, AnamneseSerializer,
     HorarioFuncionamentoSerializer, BloqueioAgendaSerializer, ClienteBuscaSerializer,
-    ConsultaSerializer
+    ConsultaSerializer, HistoricoLoginSerializer
 )
 
 
@@ -413,3 +413,69 @@ class ConsultaViewSet(BaseModelViewSet):
         consultas = self.queryset.filter(agendamento__data=hoje)
         serializer = self.get_serializer(consultas, many=True)
         return Response(serializer.data)
+
+
+
+class HistoricoLoginViewSet(BaseModelViewSet):
+    """
+    ViewSet para Histórico de Login
+    Lista ações dos usuários com filtros por data, usuário e ação
+    """
+    serializer_class = HistoricoLoginSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Retorna histórico filtrado por loja
+        Suporta filtros por: usuario, acao, data_inicio, data_fim
+        """
+        from clinica_estetica.models import HistoricoLogin
+        
+        queryset = HistoricoLogin.objects.all().order_by('-created_at')
+        params = getattr(self.request, 'query_params', self.request.GET)
+        
+        # Filtro por usuário
+        usuario = params.get('usuario')
+        if usuario:
+            queryset = queryset.filter(usuario__icontains=usuario)
+        
+        # Filtro por ação
+        acao = params.get('acao')
+        if acao:
+            queryset = queryset.filter(acao=acao)
+        
+        # Filtro por período
+        data_inicio = params.get('data_inicio')
+        data_fim = params.get('data_fim')
+        if data_inicio:
+            queryset = queryset.filter(created_at__gte=data_inicio)
+        if data_fim:
+            queryset = queryset.filter(created_at__lte=data_fim)
+        
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Cria registro de histórico
+        Captura IP automaticamente da requisição
+        """
+        # Capturar IP do cliente
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0]
+        else:
+            ip_address = request.META.get('REMOTE_ADDR')
+        
+        # Capturar User Agent
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # Adicionar ao request.data
+        data = request.data.copy()
+        data['ip_address'] = ip_address
+        data['user_agent'] = user_agent
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

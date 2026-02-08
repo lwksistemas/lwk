@@ -21,6 +21,7 @@ const ModalAnamnese = lazy(() => import('@/components/clinica/modals/ModalAnamne
 const ModalFuncionarios = lazy(() => import('@/components/clinica/modals/ModalFuncionarios').then(m => ({ default: m.ModalFuncionarios })));
 const ModalAgendamento = lazy(() => import('@/components/clinica/modals/ModalAgendamento').then(m => ({ default: m.ModalAgendamento })));
 const ConfiguracoesModal = lazy(() => import('@/components/clinica/modals/ConfiguracoesModal').then(m => ({ default: m.ConfiguracoesModal })));
+const ModalConfiguracoes = lazy(() => import('@/components/clinica/modals/ModalConfiguracoes').then(m => ({ default: m.ModalConfiguracoes })));
 
 // Componente de loading para modais
 function ModalLoadingFallback() {
@@ -43,7 +44,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   // Hook para gerenciar modais
   const { modals, openModal, closeModal } = useModals([
     'agendamento', 'cliente', 'procedimentos', 'profissional',
-    'protocolos', 'anamnese', 'configuracoes', 'funcionarios'
+    'protocolos', 'anamnese', 'configuracoes', 'funcionarios', 'assinatura'
   ] as const);
 
   // Estados de navegação
@@ -92,6 +93,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const handleProtocolos = () => openModal('protocolos');
   const handleAnamnese = () => openModal('anamnese');
   const handleConfiguracoes = () => openModal('configuracoes');
+  const handleAssinatura = () => openModal('assinatura');
   const handleFuncionarios = () => openModal('funcionarios');
   const handleCalendario = () => setShowCalendario(true);
   const handleConsultas = () => setShowConsultas(true);
@@ -193,6 +195,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           <ActionButton onClick={handleFuncionarios} color="#EC4899" icon="👥" label="Funcionários" />
           <ActionButton onClick={handleProtocolos} color="#8B5A2B" icon="📋" label="Protocolos" />
           <ActionButton onClick={handleAnamnese} color="#7C3AED" icon="📝" label="Anamnese" />
+          <ActionButton onClick={handleAssinatura} color="#F97316" icon="✍️" label="Assinatura" />
           <ActionButton onClick={handleConfiguracoes} color="#6B7280" icon="⚙️" label="Configurações" />
           <ActionButton onClick={handleRelatorios} color="#059669" icon="📈" label="Relatórios" />
         </div>
@@ -300,8 +303,15 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           />
         )}
 
-        {modals.configuracoes && (
+        {modals.assinatura && (
           <ConfiguracoesModal 
+            loja={loja}
+            onClose={() => closeModal('assinatura')}
+          />
+        )}
+
+        {modals.configuracoes && (
+          <ModalConfiguracoes 
             loja={loja}
             onClose={() => closeModal('configuracoes')}
           />

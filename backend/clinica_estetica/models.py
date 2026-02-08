@@ -398,3 +398,52 @@ class BloqueioAgenda(models.Model):
 
     def __str__(self):
         return f"{self.titulo} - {self.data_inicio} a {self.data_fim}"
+
+
+
+class HistoricoLogin(LojaIsolationMixin, models.Model):
+    """
+    Histórico de login e ações dos usuários da clínica
+    Herda de HistoricoAcao (core.models) para reutilizar código
+    """
+    ACAO_CHOICES = [
+        ('login', 'Login'),
+        ('logout', 'Logout'),
+        ('criar', 'Criar'),
+        ('editar', 'Editar'),
+        ('excluir', 'Excluir'),
+        ('visualizar', 'Visualizar'),
+        ('exportar', 'Exportar'),
+        ('importar', 'Importar'),
+    ]
+    
+    # Informações do usuário
+    usuario = models.CharField(max_length=200, verbose_name="Usuário")
+    usuario_nome = models.CharField(max_length=200, verbose_name="Nome do Usuário")
+    
+    # Informações da ação
+    acao = models.CharField(max_length=20, choices=ACAO_CHOICES, verbose_name="Ação")
+    detalhes = models.TextField(blank=True, null=True, verbose_name="Detalhes")
+    
+    # Informações técnicas
+    ip_address = models.GenericIPAddressField(verbose_name="Endereço IP")
+    user_agent = models.TextField(blank=True, null=True, verbose_name="User Agent")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    objects = LojaIsolationManager()
+    
+    class Meta:
+        db_table = 'clinica_historico_login'
+        ordering = ['-created_at']
+        verbose_name = 'Histórico de Login'
+        verbose_name_plural = 'Histórico de Logins'
+        indexes = [
+            models.Index(fields=['loja_id', '-created_at']),
+            models.Index(fields=['usuario', '-created_at']),
+            models.Index(fields=['acao', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.usuario_nome} - {self.acao} - {self.created_at}"

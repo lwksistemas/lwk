@@ -7,7 +7,7 @@ from core.mixins import LojaIsolationMixin, LojaIsolationManager
 class Cliente(LojaIsolationMixin, models.Model):
     """Cliente da clínica de estética"""
     nome = models.CharField(max_length=200)
-    email = models.EmailField()
+    email = models.EmailField(blank=True, null=True)
     telefone = models.CharField(max_length=20)
     cpf = models.CharField(max_length=14, blank=True, null=True)
     data_nascimento = models.DateField(blank=True, null=True)
@@ -34,7 +34,7 @@ class Cliente(LojaIsolationMixin, models.Model):
 class Profissional(LojaIsolationMixin, models.Model):
     """Profissional que realiza procedimentos"""
     nome = models.CharField(max_length=200)
-    email = models.EmailField()
+    email = models.EmailField(blank=True, null=True)
     telefone = models.CharField(max_length=20)
     especialidade = models.CharField(max_length=100)
     registro_profissional = models.CharField(max_length=50, blank=True, null=True)

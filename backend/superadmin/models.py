@@ -239,6 +239,41 @@ class Loja(models.Model):
             candidate = f"{orig}-{n}"
             n += 1
         return candidate
+    
+    def clean(self):
+        """
+        Validações customizadas antes de salvar
+        
+        SEGURANÇA: Garante que database_name é único e válido
+        """
+        from django.core.exceptions import ValidationError
+        import re
+        
+        # Validar database_name único
+        if self.database_name:
+            # Validar formato (apenas letras, números e underscore)
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', self.database_name):
+                raise ValidationError({
+                    'database_name': 'Database name deve conter apenas letras, números e underscore, e começar com letra ou underscore'
+                })
+            
+            # Validar unicidade
+            existing = Loja.objects.filter(database_name=self.database_name).exclude(pk=self.pk)
+            if existing.exists():
+                raise ValidationError({
+                    'database_name': f'Já existe uma loja com database_name "{self.database_name}". Cada loja deve ter um database_name único.'
+                })
+        
+        # Validar que database_name não muda após criação (prevenir acidentes)
+        if self.pk:  # Se já existe (update)
+            try:
+                old = Loja.objects.get(pk=self.pk)
+                if old.database_name != self.database_name:
+                    raise ValidationError({
+                        'database_name': 'Não é permitido alterar database_name de uma loja existente. Isso pode causar perda de dados.'
+                    })
+            except Loja.DoesNotExist:
+                pass
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -252,6 +287,10 @@ class Loja(models.Model):
             self.cor_primaria = self.tipo_loja.cor_primaria
         if not self.cor_secundaria and self.tipo_loja:
             self.cor_secundaria = self.tipo_loja.cor_secundaria
+        
+        # Executar validações antes de salvar
+        self.full_clean()
+        
         super().save(*args, **kwargs)
     
     def __str__(self):

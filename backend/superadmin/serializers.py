@@ -246,12 +246,27 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             validated_data['owner'] = owner
             validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
             validated_data['senha_foi_alterada'] = False  # Garantir que precisa trocar no primeiro login
+            
+            # 🔒 VALIDAÇÃO: Verificar que database_name será único
+            if 'slug' in validated_data:
+                proposed_db_name = f"loja_{validated_data['slug'].replace('-', '_')}"
+                if Loja.objects.filter(database_name=proposed_db_name).exists():
+                    raise serializers.ValidationError({
+                        'slug': f'Já existe uma loja com database_name derivado deste slug. O sistema gerará um slug único automaticamente.'
+                    })
+            
             loja = Loja.objects.create(**validated_data)
             
             # LOG para confirmar criação
-            print(f"✅ Loja criada: {loja.slug}")
-            print(f"   - senha_provisoria: {owner_password[:3]}***")
-            print(f"   - senha_foi_alterada: {loja.senha_foi_alterada}")
+            print(f"\n{'='*80}")
+            print(f"✅ Loja criada: {loja.nome}")
+            print(f"   - ID: {loja.id}")
+            print(f"   - Slug: {loja.slug}")
+            print(f"   - Database name: {loja.database_name}")
+            print(f"   - Owner: {owner.username} ({owner.email})")
+            print(f"   - Senha provisória: {owner_password[:3]}***")
+            print(f"   - Senha foi alterada: {loja.senha_foi_alterada}")
+            print(f"{'='*80}\n")
             
             # Criar schema no PostgreSQL automaticamente
             try:
@@ -269,6 +284,20 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 # Marcar como criado
                 loja.database_created = True
                 loja.save()
+                
+                # 🔒 VALIDAÇÃO: Verificar que schema foi criado com sucesso
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT COUNT(*) 
+                        FROM information_schema.schemata 
+                        WHERE schema_name = %s
+                    """, [schema_name])
+                    schema_exists = cursor.fetchone()[0] > 0
+                    
+                    if not schema_exists:
+                        raise Exception(f"Schema '{schema_name}' não foi criado corretamente!")
+                    
+                    print(f"✅ Schema '{schema_name}' verificado e confirmado")
                 
                 # Adicionar às configurações do Django
                 from django.conf import settings
@@ -288,6 +317,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                         'CONN_HEALTH_CHECKS': True,
                         'TIME_ZONE': None,
                     }
+                    print(f"✅ Configuração de banco adicionada para '{loja.database_name}'")
                     print(f"✅ Banco '{loja.database_name}' adicionado às configurações")
                 
                 # Aplicar migrations no novo schema

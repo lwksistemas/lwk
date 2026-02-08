@@ -20,7 +20,7 @@ const ModalProtocolos = lazy(() => import('@/components/clinica/modals/ModalProt
 const ModalAnamnese = lazy(() => import('@/components/clinica/modals/ModalAnamnese').then(m => ({ default: m.ModalAnamnese })));
 const ModalFuncionarios = lazy(() => import('@/components/clinica/modals/ModalFuncionarios').then(m => ({ default: m.ModalFuncionarios })));
 const ConfiguracoesModal = lazy(() => import('@/components/clinica/modals/ConfiguracoesModal').then(m => ({ default: m.ConfiguracoesModal })));
-const ModalConfiguracoes = lazy(() => import('@/components/clinica/modals/ModalConfiguracoes').then(m => ({ default: m.ModalConfiguracoes })));
+const ModalConfiguracoes = lazy(() => import('@/components/clinica/modals/ModalConfiguracoes'));
 const ModalFinanceiro = lazy(() => import('@/components/clinica/modals/ModalFinanceiro'));
 
 // Componente de loading para modais

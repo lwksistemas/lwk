@@ -41,6 +41,7 @@ class HistoricoAcessoMiddleware:
             '/static/',
             '/media/',
             '/favicon.ico',
+            '/api/auth/',  # Autenticação (login/logout) - usuário ainda não está autenticado
             '/api/superadmin/historico-acessos/',  # Evitar loop infinito
             '/api/auth/token/refresh/',  # Refresh token (muito frequente)
             '/api/superadmin/lojas/heartbeat/',  # Heartbeat (muito frequente)

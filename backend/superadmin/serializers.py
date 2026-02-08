@@ -469,6 +469,30 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             #
             # Se precisar dos dados do Asaas imediatamente após criar a loja,
             # consulte LojaAssinatura.objects.get(loja_slug=loja.slug)
+            
+            # 👤 CRIAR FUNCIONÁRIO ADMIN AUTOMATICAMENTE
+            try:
+                # Importar o model de Funcionario do tipo de loja correto
+                tipo_loja_nome = loja.tipo_loja.nome if loja.tipo_loja else ''
+                
+                if tipo_loja_nome == 'Clínica de Estética':
+                    from clinica_estetica.models import Funcionario
+                    
+                    # Criar funcionário admin
+                    Funcionario.objects.create(
+                        loja_id=loja.id,
+                        nome=owner_first_name + (' ' + owner_last_name if owner_last_name else ''),
+                        email=owner_email,
+                        telefone='',
+                        cargo='Administrador',
+                        is_admin=True,
+                        is_active=True
+                    )
+                    print(f"✅ Funcionário admin criado para {owner_email}")
+                    
+            except Exception as e:
+                print(f"⚠️ Erro ao criar funcionário admin: {e}")
+                # Não falhar a criação da loja por causa do funcionário
         
             # Enviar email com senha provisória
             try:

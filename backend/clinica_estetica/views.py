@@ -30,10 +30,16 @@ class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
     
     def get_queryset(self):
         """
-        Retorna queryset filtrado por loja
+        Retorna queryset filtrado por loja e is_active
         IMPORTANTE: Não usar queryset como atributo de classe para evitar cache
         """
-        return Cliente.objects.all()
+        queryset = Cliente.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Cliente, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
     @action(detail=False, methods=['get'])
     def buscar(self, request):
@@ -46,8 +52,14 @@ class ProfissionalViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Retorna queryset filtrado por loja"""
-        return Profissional.objects.all()
+        """Retorna queryset filtrado por loja e is_active"""
+        queryset = Profissional.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Profissional, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
 
 class ProcedimentoViewSet(BaseModelViewSet):

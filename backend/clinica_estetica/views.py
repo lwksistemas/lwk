@@ -24,10 +24,16 @@ from .serializers import (
 
 
 class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
-    queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
     search_serializer_class = ClienteBuscaSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Retorna queryset filtrado por loja
+        IMPORTANTE: Não usar queryset como atributo de classe para evitar cache
+        """
+        return Cliente.objects.all()
 
     @action(detail=False, methods=['get'])
     def buscar(self, request):
@@ -36,18 +42,26 @@ class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
 
 
 class ProfissionalViewSet(BaseModelViewSet):
-    queryset = Profissional.objects.all()
     serializer_class = ProfissionalSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja"""
+        return Profissional.objects.all()
 
 
 class ProcedimentoViewSet(BaseModelViewSet):
-    queryset = Procedimento.objects.all()
     serializer_class = ProcedimentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e categoria"""
+        queryset = Procedimento.objects.all()
+        
+        # Aplicar filtro is_active do BaseModelViewSet
+        if hasattr(Procedimento, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         params = getattr(self.request, 'query_params', self.request.GET)
         categoria = params.get('categoria')
         if categoria:
@@ -56,12 +70,17 @@ class ProcedimentoViewSet(BaseModelViewSet):
 
 
 class ProtocoloProcedimentoViewSet(BaseModelViewSet):
-    queryset = ProtocoloProcedimento.objects.all()
     serializer_class = ProtocoloProcedimentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e procedimento"""
+        queryset = ProtocoloProcedimento.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(ProtocoloProcedimento, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         params = getattr(self.request, 'query_params', self.request.GET)
         procedimento_id = params.get('procedimento_id')
         if procedimento_id:
@@ -70,12 +89,16 @@ class ProtocoloProcedimentoViewSet(BaseModelViewSet):
 
 
 class AgendamentoViewSet(BaseModelViewSet):
-    queryset = Agendamento.objects.select_related('cliente', 'profissional', 'procedimento')
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja com select_related"""
+        queryset = Agendamento.objects.select_related('cliente', 'profissional', 'procedimento')
+        
+        # Aplicar filtro is_active
+        if hasattr(Agendamento, 'is_active'):
+            queryset = queryset.filter(is_active=True)
         params = getattr(self.request, 'query_params', self.request.GET)
         
         # Filtros
@@ -122,7 +145,7 @@ class AgendamentoViewSet(BaseModelViewSet):
     def proximos(self, request):
         """Retorna próximos agendamentos"""
         hoje = date.today()
-        agendamentos = self.queryset.filter(
+        agendamentos = self.get_queryset().filter(
             data__gte=hoje,
             status__in=['agendado', 'confirmado']
         ).order_by('data', 'horario')[:10]
@@ -135,15 +158,16 @@ class AgendamentoViewSet(BaseModelViewSet):
         """Retorna estatísticas do dashboard"""
         hoje = date.today()
         primeiro_dia_mes = hoje.replace(day=1)
+        qs = self.get_queryset()
         
         stats = {
-            'agendamentos_hoje': self.queryset.filter(data=hoje).count(),
-            'agendamentos_mes': self.queryset.filter(
+            'agendamentos_hoje': qs.filter(data=hoje).count(),
+            'agendamentos_mes': qs.filter(
                 data__gte=primeiro_dia_mes,
                 data__lte=hoje
             ).count(),
             'receita_mensal': float(
-                self.queryset.filter(
+                qs.filter(
                     data__gte=primeiro_dia_mes,
                     data__lte=hoje,
                     status='concluido'
@@ -163,7 +187,7 @@ class AgendamentoViewSet(BaseModelViewSet):
         """
         hoje = date.today()
         primeiro_dia_mes = hoje.replace(day=1)
-        qs = self.queryset
+        qs = self.get_queryset()
 
         stats = {
             'agendamentos_hoje': qs.filter(data=hoje).count(),
@@ -192,12 +216,16 @@ class AgendamentoViewSet(BaseModelViewSet):
 
 
 class EvolucaoPacienteViewSet(BaseModelViewSet):
-    queryset = EvolucaoPaciente.objects.select_related('cliente', 'profissional', 'agendamento')
     serializer_class = EvolucaoPacienteSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e cliente"""
+        queryset = EvolucaoPaciente.objects.select_related('cliente', 'profissional', 'agendamento')
+        
+        # Aplicar filtro is_active
+        if hasattr(EvolucaoPaciente, 'is_active'):
+            queryset = queryset.filter(is_active=True)
         cliente_id = getattr(self.request, "query_params", self.request.GET).get('cliente_id')
         if cliente_id:
             queryset = queryset.filter(cliente_id=cliente_id)
@@ -205,12 +233,16 @@ class EvolucaoPacienteViewSet(BaseModelViewSet):
 
 
 class AnamnesesTemplateViewSet(BaseModelViewSet):
-    queryset = AnamnesesTemplate.objects.select_related('procedimento')
     serializer_class = AnamnesesTemplateSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e procedimento"""
+        queryset = AnamnesesTemplate.objects.select_related('procedimento')
+        
+        # Aplicar filtro is_active
+        if hasattr(AnamnesesTemplate, 'is_active'):
+            queryset = queryset.filter(is_active=True)
         procedimento_id = getattr(self.request, "query_params", self.request.GET).get('procedimento_id')
         if procedimento_id:
             queryset = queryset.filter(procedimento_id=procedimento_id)
@@ -218,12 +250,12 @@ class AnamnesesTemplateViewSet(BaseModelViewSet):
 
 
 class AnamneseViewSet(BaseModelViewSet):
-    queryset = Anamnese.objects.select_related('cliente', 'template', 'agendamento')
     serializer_class = AnamneseSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e cliente"""
+        queryset = Anamnese.objects.select_related('cliente', 'template', 'agendamento')
         cliente_id = getattr(self.request, "query_params", self.request.GET).get('cliente_id')
         if cliente_id:
             queryset = queryset.filter(cliente_id=cliente_id)
@@ -231,21 +263,21 @@ class AnamneseViewSet(BaseModelViewSet):
 
 
 class HorarioFuncionamentoViewSet(BaseModelViewSet):
-    queryset = HorarioFuncionamento.objects.all()
     serializer_class = HorarioFuncionamentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return self.queryset.filter(is_active=True).order_by('dia_semana')
+        """Retorna horários ativos ordenados por dia da semana"""
+        return HorarioFuncionamento.objects.filter(is_active=True).order_by('dia_semana')
 
 
 class BloqueioAgendaViewSet(BaseModelViewSet):
-    queryset = BloqueioAgenda.objects.select_related('profissional')
     serializer_class = BloqueioAgendaSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna bloqueios filtrados por loja, data e profissional"""
+        queryset = BloqueioAgenda.objects.select_related('profissional')
         params = getattr(self.request, "query_params", self.request.GET)
         data_inicio = params.get('data_inicio')
         data_fim = params.get('data_fim')

@@ -499,8 +499,11 @@ class HistoricoAcessoGlobalSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at']
     
     def get_data_hora(self, obj):
-        """Formata data e hora para exibição"""
-        return obj.created_at.strftime('%d/%m/%Y %H:%M:%S')
+        """Formata data e hora para exibição (timezone local)"""
+        from django.utils import timezone
+        # Converter de UTC para timezone local (America/Sao_Paulo)
+        local_time = timezone.localtime(obj.created_at)
+        return local_time.strftime('%d/%m/%Y %H:%M:%S')
 
 
 class HistoricoAcessoGlobalListSerializer(serializers.ModelSerializer):
@@ -536,4 +539,8 @@ class HistoricoAcessoGlobalListSerializer(serializers.ModelSerializer):
         ]
     
     def get_data_hora(self, obj):
-        return obj.created_at.strftime('%d/%m/%Y %H:%M:%S')
+        """Formata data e hora para exibição (timezone local)"""
+        from django.utils import timezone
+        # Converter de UTC para timezone local (America/Sao_Paulo)
+        local_time = timezone.localtime(obj.created_at)
+        return local_time.strftime('%d/%m/%Y %H:%M:%S')

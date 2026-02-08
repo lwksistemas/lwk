@@ -147,6 +147,13 @@ export default function SuperAdminDashboard() {
               href="/superadmin/asaas"
               color="orange"
             />
+            <MenuCard
+              title="Histórico de Acessos"
+              description="Monitore todas as ações realizadas no sistema"
+              icon="📊"
+              href="/superadmin/historico-acessos"
+              color="purple"
+            />
           </div>
         </div>
       </main>

@@ -47,6 +47,7 @@ MIDDLEWARE = [
     'config.security_middleware.SecurityIsolationMiddleware',
     'core.mixins.LojaContextMiddleware',
     'tenants.middleware.TenantMiddleware',
+    'superadmin.historico_middleware.HistoricoAcessoMiddleware',  # ✅ Histórico de acessos
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

@@ -135,9 +135,9 @@ export default function SuperAdminDashboard() {
             />
             <MenuCard
               title="Relatórios"
-              description="Relatórios e análises do sistema"
+              description="Histórico de acessos e análises do sistema"
               icon="📊"
-              href="/superadmin/relatorios"
+              href="/superadmin/historico-acessos"
               color="pink"
             />
             <MenuCard
@@ -146,13 +146,6 @@ export default function SuperAdminDashboard() {
               icon="🔧"
               href="/superadmin/asaas"
               color="orange"
-            />
-            <MenuCard
-              title="Histórico de Acessos"
-              description="Monitore todas as ações realizadas no sistema"
-              icon="📊"
-              href="/superadmin/historico-acessos"
-              color="purple"
             />
           </div>
         </div>

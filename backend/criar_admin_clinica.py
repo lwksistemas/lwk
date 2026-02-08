@@ -38,7 +38,6 @@ def criar_admin_clinica():
             email=loja.owner.email,
             telefone='',
             cargo='Administrador',
-            funcao='administrador',
             is_admin=True,
             is_active=True,
             loja_id=loja.id

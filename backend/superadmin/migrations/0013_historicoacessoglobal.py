@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('superadmin', '0009_alter_loja_database_name'),
+        ('superadmin', '0012_add_loja_endereco'),
     ]
 
     operations = [

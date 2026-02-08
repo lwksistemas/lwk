@@ -27,20 +27,28 @@ class LojaIsolationManager(models.Manager):
     """
     
     def get_queryset(self):
-        """Retorna queryset filtrado pela loja do contexto"""
-        from tenants.middleware import get_current_loja_id
+        """
+        Retorna queryset filtrado pela loja do contexto
+        
+        IMPORTANTE: Para PostgreSQL com schemas isolados, o schema já garante o isolamento.
+        Não é necessário filtrar por loja_id - apenas retornar o queryset normal.
+        O TenantMiddleware já configurou o schema correto via search_path.
+        """
+        from tenants.middleware import get_current_loja_id, get_current_tenant_db
         import logging
         logger = logging.getLogger(__name__)
         
-        # Obter loja_id do contexto da thread
+        # Obter loja_id e database do contexto da thread
         loja_id = get_current_loja_id()
+        tenant_db = get_current_tenant_db()
         
-        logger.info(f"🔍 [LojaIsolationManager.get_queryset] loja_id no contexto: {loja_id}")
+        logger.info(f"🔍 [LojaIsolationManager.get_queryset] loja_id={loja_id}, db={tenant_db}")
         
+        # Se há loja no contexto, retornar queryset normal
+        # O schema PostgreSQL já garante o isolamento
         if loja_id:
-            logger.debug(f"🔒 [LojaIsolationManager] Filtrando por loja_id={loja_id}")
-            qs = super().get_queryset().filter(loja_id=loja_id)
-            logger.info(f"📊 [LojaIsolationManager] Queryset filtrado - count: {qs.count()}")
+            qs = super().get_queryset()
+            logger.info(f"📊 [LojaIsolationManager] Queryset do schema isolado - count: {qs.count()}")
             return qs
         
         # Se não há loja no contexto, retornar queryset vazio (segurança)

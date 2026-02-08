@@ -213,8 +213,8 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
           </button>
         </div>
       ) : clientes.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <p className="text-lg mb-2">Nenhum cliente cadastrado</p>
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <p className="text-lg mb-2 text-gray-700 dark:text-gray-300">Nenhum cliente cadastrado</p>
           <p className="text-sm mb-4">Comece adicionando seu primeiro cliente</p>
           <button onClick={() => setShowForm(true)} className="px-6 py-3 rounded-md text-white hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>
             + Cadastrar Primeiro Cliente
@@ -223,17 +223,17 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
       ) : (
         <div className="space-y-4 mb-6">
           {clientes.map((cliente) => (
-            <div key={cliente.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+            <div key={cliente.id} className="flex items-center justify-between p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 bg-white dark:bg-gray-700/30">
               <div className="flex-1">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: loja.cor_primaria }}>
                     {cliente.nome.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-semibold text-lg">{cliente.nome}</p>
-                    <p className="text-sm text-gray-600">{cliente.email} • {cliente.telefone}</p>
+                    <p className="font-semibold text-lg text-gray-900 dark:text-white">{cliente.nome}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{cliente.email} • {cliente.telefone}</p>
                     {cliente.cidade && cliente.estado && (
-                      <p className="text-xs text-gray-500">{cliente.cidade}, {cliente.estado}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">{cliente.cidade}, {cliente.estado}</p>
                     )}
                   </div>
                 </div>
@@ -252,7 +252,7 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
       )}
 
       <div className="flex justify-end space-x-4">
-        <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+        <button onClick={onClose} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white">
           Fechar
         </button>
         {clientes.length > 0 && (

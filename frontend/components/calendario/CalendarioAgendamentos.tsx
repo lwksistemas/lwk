@@ -58,6 +58,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   const [showModalAgendamento, setShowModalAgendamento] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [dataHoraSelecionada, setDataHoraSelecionada] = useState<{data: string, horario: string} | null>(null);
+  const [showModalBloqueio, setShowModalBloqueio] = useState(false);
 
   useEffect(() => {
     carregarProfissionais();
@@ -237,6 +238,21 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     }
   };
 
+  const handleExcluirBloqueio = async (bloqueioId: number) => {
+    if (!confirm('Tem certeza que deseja excluir este bloqueio?')) {
+      return;
+    }
+
+    try {
+      await clinicaApiClient.delete(`/clinica/bloqueios/${bloqueioId}/`);
+      alert('✅ Bloqueio excluído com sucesso!');
+      carregarAgendamentos();
+    } catch (error) {
+      console.error('Erro ao excluir bloqueio:', error);
+      alert('❌ Erro ao excluir bloqueio');
+    }
+  };
+
   const renderizarVisualizacao = () => {
     switch (visualizacao) {
       case 'dia':
@@ -313,8 +329,20 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                         }`}
                         title={bloqueio.observacoes || bloqueio.titulo}
                       >
-                        <div className="font-semibold">
-                          {bloqueiaNoContexto ? '⛔ Bloqueado' : '⚠️ Bloqueio (profissional)'}
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="font-semibold">
+                            {bloqueiaNoContexto ? '⛔ Bloqueado' : '⚠️ Bloqueio (profissional)'}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExcluirBloqueio(bloqueio.id);
+                            }}
+                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm"
+                            title="Excluir bloqueio"
+                          >
+                            🗑️
+                          </button>
                         </div>
                         <div className="text-xs">
                           {bloqueio.titulo}{' '}
@@ -414,8 +442,20 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                         }`}
                         title={bloqueio.observacoes || bloqueio.titulo}
                       >
-                        <div className="font-semibold truncate">
-                          {bloqueiaNoContexto ? '⛔ Bloqueado' : '⚠️ Bloqueio'}
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="font-semibold truncate flex-1">
+                            {bloqueiaNoContexto ? '⛔ Bloqueado' : '⚠️ Bloqueio'}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExcluirBloqueio(bloqueio.id);
+                            }}
+                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 ml-1"
+                            title="Excluir bloqueio"
+                          >
+                            🗑️
+                          </button>
                         </div>
                         <div className="truncate">{bloqueio.titulo}</div>
                       </div>
@@ -601,14 +641,22 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               </button>
             </div>
 
-            {/* Botão Novo Agendamento */}
-            <button
-              onClick={() => handleNovoAgendamento()}
-              className="px-4 py-2 text-white rounded-lg hover:opacity-90"
-              style={{ backgroundColor: loja.cor_primaria }}
-            >
-              + Novo Agendamento
-            </button>
+            {/* Botões de Ação */}
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setShowModalBloqueio(true)}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              >
+                🚫 Bloquear Horário
+              </button>
+              <button
+                onClick={() => handleNovoAgendamento()}
+                className="px-4 py-2 text-white rounded-lg hover:opacity-90"
+                style={{ backgroundColor: loja.cor_primaria }}
+              >
+                + Novo Agendamento
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -632,6 +680,20 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
           onSuccess={() => {
             carregarAgendamentos();
             setShowModalAgendamento(false);
+          }}
+        />
+      )}
+
+      {/* Modal de Bloqueio */}
+      {showModalBloqueio && (
+        <ModalBloqueio
+          loja={loja}
+          profissionais={profissionais}
+          profissionalSelecionado={profissionalSelecionado}
+          onClose={() => setShowModalBloqueio(false)}
+          onSuccess={() => {
+            carregarAgendamentos();
+            setShowModalBloqueio(false);
           }}
         />
       )}
@@ -923,6 +985,281 @@ function ModalAgendamento({
               style={{ backgroundColor: loja.cor_primaria }}
             >
               {loading ? 'Salvando...' : (agendamento ? 'Atualizar' : 'Criar Agendamento')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+// Modal para criar bloqueios de horário
+function ModalBloqueio({
+  loja,
+  profissionais,
+  profissionalSelecionado,
+  onClose,
+  onSuccess
+}: {
+  loja: LojaInfo;
+  profissionais: Profissional[];
+  profissionalSelecionado: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    tipo: 'periodo', // 'periodo' ou 'dia_completo'
+    profissional: profissionalSelecionado || '',
+    data_inicio: '',
+    data_fim: '',
+    horario_inicio: '08:00',
+    horario_fim: '18:00',
+    motivo: ''
+  });
+  const [loading, setLoading] = useState(false);
+
+  const horarios = [
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+    '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+    '17:00', '17:30', '18:00', '18:30', '19:00'
+  ];
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const bloqueioData = {
+        titulo: formData.motivo || 'Bloqueio de agenda',
+        tipo: formData.tipo === 'dia_completo' ? 'feriado' : 'outros',
+        profissional: formData.profissional ? parseInt(formData.profissional) : null,
+        data_inicio: formData.data_inicio,
+        data_fim: formData.data_fim,
+        horario_inicio: formData.tipo === 'periodo' ? formData.horario_inicio : null,
+        horario_fim: formData.tipo === 'periodo' ? formData.horario_fim : null,
+        observacoes: formData.motivo
+      };
+
+      await clinicaApiClient.post('/clinica/bloqueios/', bloqueioData);
+      alert('✅ Bloqueio criado com sucesso!');
+      onSuccess();
+    } catch (error) {
+      console.error('Erro ao criar bloqueio:', error);
+      alert('❌ Erro ao criar bloqueio');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="border-b dark:border-gray-700 p-6 flex items-center justify-between">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
+            🚫 Bloquear Horário
+          </h3>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                       hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+          >
+            ✕ Fechar
+          </button>
+        </div>
+
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Tipo de Bloqueio */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tipo de Bloqueio *
+              </label>
+              <select
+                name="tipo"
+                value={formData.tipo}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 
+                           bg-white dark:bg-gray-700 
+                           text-gray-900 dark:text-white 
+                           border border-gray-300 dark:border-gray-600 
+                           rounded-md"
+              >
+                <option value="periodo">Período Específico</option>
+                <option value="dia_completo">Dia Completo</option>
+              </select>
+            </div>
+
+            {/* Profissional */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Profissional
+              </label>
+              <select
+                name="profissional"
+                value={formData.profissional}
+                onChange={handleChange}
+                className="w-full px-3 py-2 
+                           bg-white dark:bg-gray-700 
+                           text-gray-900 dark:text-white 
+                           border border-gray-300 dark:border-gray-600 
+                           rounded-md"
+              >
+                <option value="">Todos os profissionais</option>
+                {profissionais.map(prof => (
+                  <option key={prof.id} value={prof.id}>
+                    {prof.nome}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                Deixe em branco para bloquear para todos
+              </p>
+            </div>
+
+            {/* Data Início */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Data Início *
+              </label>
+              <input
+                type="date"
+                name="data_inicio"
+                value={formData.data_inicio}
+                onChange={handleChange}
+                required
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full px-3 py-2 
+                           bg-white dark:bg-gray-700 
+                           text-gray-900 dark:text-white 
+                           border border-gray-300 dark:border-gray-600 
+                           rounded-md"
+              />
+            </div>
+
+            {/* Data Fim */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Data Fim *
+              </label>
+              <input
+                type="date"
+                name="data_fim"
+                value={formData.data_fim}
+                onChange={handleChange}
+                required
+                min={formData.data_inicio || new Date().toISOString().split('T')[0]}
+                className="w-full px-3 py-2 
+                           bg-white dark:bg-gray-700 
+                           text-gray-900 dark:text-white 
+                           border border-gray-300 dark:border-gray-600 
+                           rounded-md"
+              />
+            </div>
+
+            {/* Horário Início (apenas para período) */}
+            {formData.tipo === 'periodo' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Horário Início *
+                  </label>
+                  <select
+                    name="horario_inicio"
+                    value={formData.horario_inicio}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 
+                               bg-white dark:bg-gray-700 
+                               text-gray-900 dark:text-white 
+                               border border-gray-300 dark:border-gray-600 
+                               rounded-md"
+                  >
+                    {horarios.map(hora => (
+                      <option key={hora} value={hora}>{hora}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Horário Fim *
+                  </label>
+                  <select
+                    name="horario_fim"
+                    value={formData.horario_fim}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 
+                               bg-white dark:bg-gray-700 
+                               text-gray-900 dark:text-white 
+                               border border-gray-300 dark:border-gray-600 
+                               rounded-md"
+                  >
+                    {horarios.map(hora => (
+                      <option key={hora} value={hora}>{hora}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Motivo */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Motivo do Bloqueio *
+              </label>
+              <textarea
+                name="motivo"
+                value={formData.motivo}
+                onChange={handleChange}
+                required
+                rows={3}
+                className="w-full px-3 py-2 
+                           bg-white dark:bg-gray-700 
+                           text-gray-900 dark:text-white 
+                           border border-gray-300 dark:border-gray-600 
+                           rounded-md 
+                           resize-none"
+                placeholder="Ex: Férias, Reunião, Treinamento..."
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-600">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-6 py-2 
+                         border border-gray-300 dark:border-gray-600 
+                         rounded-md 
+                         hover:bg-gray-50 dark:hover:bg-gray-700 
+                         disabled:opacity-50 
+                         text-gray-900 dark:text-white"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              {loading ? 'Criando...' : '🚫 Criar Bloqueio'}
             </button>
           </div>
         </form>

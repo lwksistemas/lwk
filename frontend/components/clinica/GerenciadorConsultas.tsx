@@ -55,7 +55,6 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
   const [activeTab, setActiveTab] = useState<'consultas' | 'evolucao'>('consultas');
   const [showFormEvolucao, setShowFormEvolucao] = useState(false);
   const [modoFullscreen, setModoFullscreen] = useState(false);
-  const [showAgendaProfissional, setShowAgendaProfissional] = useState(false);
   const [startingConsultaId, setStartingConsultaId] = useState<number | null>(null);
   const [finishingConsultaId, setFinishingConsultaId] = useState<number | null>(null);
 
@@ -462,20 +461,44 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
           <h3 className="text-2xl font-bold" style={{ color: loja.cor_primaria }}>
             🏥 Sistema de Consultas
           </h3>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+          >
+            ← Voltar ao Dashboard
+          </button>
+        </div>
+
+        {/* Filtro por Profissional */}
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg flex-shrink-0">
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowAgendaProfissional(true)}
-              className="px-4 py-2 text-white rounded-md hover:opacity-90"
-              style={{ backgroundColor: loja.cor_primaria }}
-            >
-              📅 Agenda por Profissional
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-            >
-              ← Voltar ao Dashboard
-            </button>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Filtrar por Profissional
+              </label>
+              <select
+                value={profissionalSelecionado}
+                onChange={(e) => setProfissionalSelecionado(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">Todos os profissionais</option>
+                {profissionais.map(prof => (
+                  <option key={prof.id} value={prof.id}>
+                    {prof.nome} - {prof.especialidade}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {profissionalSelecionado && (
+              <button
+                onClick={() => setProfissionalSelecionado('')}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                           hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                🔄 Limpar Filtro
+              </button>
+            )}
           </div>
         </div>
 
@@ -502,21 +525,21 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
               {consultasFiltered.map((consulta) => (
                 <div
                   key={consulta.id}
-                  className="p-4 border rounded-lg hover:bg-gray-50 bg-white shadow-sm"
+                  className="p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 bg-white dark:bg-gray-700/30 shadow-sm"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
-                      <h5 className="font-semibold text-lg mb-1">{consulta.cliente_nome}</h5>
-                      <p className="text-sm text-gray-600 mb-2">{consulta.procedimento_nome}</p>
+                      <h5 className="font-semibold text-lg mb-1 text-gray-900 dark:text-white">{consulta.cliente_nome}</h5>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{consulta.procedimento_nome}</p>
                       <div className="space-y-1">
-                        <p className="text-xs text-gray-500 flex items-center">
+                        <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center">
                           📅 {consulta.agendamento_data} às {consulta.agendamento_horario}
                         </p>
-                        <p className="text-xs text-gray-500 flex items-center">
+                        <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center">
                           👨‍⚕️ {consulta.profissional_nome}
                         </p>
                         {consulta.total_evolucoes > 0 && (
-                          <p className="text-xs text-green-600 flex items-center">
+                          <p className="text-xs text-green-600 dark:text-green-400 flex items-center">
                             📊 {consulta.total_evolucoes} evolução(ões)
                           </p>
                         )}
@@ -679,15 +702,6 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
               )}
             </div>
           </div>
-        )}
-
-        {/* Agenda por Profissional */}
-        {showAgendaProfissional && (
-          <AgendaProfissional 
-            loja={loja}
-            profissionais={profissionais}
-            onClose={() => setShowAgendaProfissional(false)}
-          />
         )}
       </div>
     </div>
@@ -1185,420 +1199,3 @@ function EvolucaoDetalhes({
   );
 }
 
-// Componente para Agenda por Profissional
-function AgendaProfissional({ 
-  loja, 
-  profissionais, 
-  onClose 
-}: { 
-  loja: LojaInfo; 
-  profissionais: any[]; 
-  onClose: () => void; 
-}) {
-  const [profissionalSelecionado, setProfissionalSelecionado] = useState<string>('');
-  const [dataAtual, setDataAtual] = useState(new Date());
-  const [agendamentos, setAgendamentos] = useState<any[]>([]);
-  const [bloqueios, setBloqueios] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showBloqueioForm, setShowBloqueioForm] = useState(false);
-  const [bloqueioForm, setBloqueioForm] = useState({
-    data_inicio: '',
-    data_fim: '',
-    horario_inicio: '',
-    horario_fim: '',
-    motivo: '',
-    tipo: 'periodo' // 'periodo' ou 'dia_completo'
-  });
-
-  const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  const horarios = Array.from({ length: 12 }, (_, i) => {
-    const hora = 8 + i;
-    return `${hora.toString().padStart(2, '0')}:00`;
-  });
-
-  useEffect(() => {
-    if (profissionalSelecionado) {
-      loadAgendaProfissional();
-    }
-  }, [profissionalSelecionado, dataAtual]);
-
-  const loadAgendaProfissional = async () => {
-    setLoading(true);
-    try {
-      const dataFormatada = dataAtual.toISOString().split('T')[0];
-      
-      // Carregar agendamentos do profissional
-      const responseAgendamentos = await clinicaApiClient.get(
-        `/clinica/agendamentos/?profissional_id=${profissionalSelecionado}`
-      );
-      setAgendamentos(responseAgendamentos.data);
-
-      // Carregar bloqueios da agenda
-      const responseBloqueios = await clinicaApiClient.get(
-        `/clinica/bloqueios/?profissional_id=${profissionalSelecionado}`
-      );
-      setBloqueios(responseBloqueios.data);
-    } catch (error) {
-      console.error('Erro ao carregar agenda:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const excluirBloqueio = async (bloqueioId: number) => {
-    if (!confirm('Tem certeza que deseja excluir este bloqueio?')) {
-      return;
-    }
-
-    try {
-      await clinicaApiClient.delete(`/clinica/bloqueios/${bloqueioId}/`);
-      
-      // Recarregar bloqueios
-      loadAgendaProfissional();
-      
-      alert('✅ Bloqueio excluído com sucesso!');
-    } catch (error) {
-      console.error('Erro ao excluir bloqueio:', error);
-      alert('❌ Erro ao excluir bloqueio');
-    }
-  };
-
-  const criarBloqueio = async () => {
-    try {
-      const bloqueioData = {
-        titulo: bloqueioForm.motivo || 'Bloqueio de agenda',
-        tipo: bloqueioForm.tipo === 'dia_completo' ? 'feriado' : 'outros',
-        profissional: parseInt(profissionalSelecionado),
-        data_inicio: bloqueioForm.data_inicio,
-        data_fim: bloqueioForm.data_fim,
-        horario_inicio: bloqueioForm.tipo === 'periodo' ? bloqueioForm.horario_inicio : null,
-        horario_fim: bloqueioForm.tipo === 'periodo' ? bloqueioForm.horario_fim : null,
-        observacoes: bloqueioForm.motivo
-      };
-      
-      await clinicaApiClient.post('/clinica/bloqueios/', bloqueioData);
-      
-      // Recarregar bloqueios
-      loadAgendaProfissional();
-      
-      setShowBloqueioForm(false);
-      setBloqueioForm({
-        data_inicio: '',
-        data_fim: '',
-        horario_inicio: '',
-        horario_fim: '',
-        motivo: '',
-        tipo: 'periodo'
-      });
-      
-      alert('✅ Bloqueio criado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao criar bloqueio:', error);
-      alert('❌ Erro ao criar bloqueio');
-    }
-  };
-
-  const navegarSemana = (direcao: number) => {
-    const novaData = new Date(dataAtual);
-    novaData.setDate(novaData.getDate() + (direcao * 7));
-    setDataAtual(novaData);
-  };
-
-  const getInicioSemana = (data: Date) => {
-    const inicio = new Date(data);
-    inicio.setDate(data.getDate() - data.getDay());
-    return inicio;
-  };
-
-  const getDiasSemana = () => {
-    const inicioSemana = getInicioSemana(dataAtual);
-    return Array.from({ length: 7 }, (_, i) => {
-      const dia = new Date(inicioSemana);
-      dia.setDate(inicioSemana.getDate() + i);
-      return dia;
-    });
-  };
-
-  const getBloqueioHorario = (dia: Date, horario: string) => {
-    const dataStr = dia.toISOString().split('T')[0];
-    return bloqueios.find(bloqueio => {
-      if (bloqueio.tipo === 'feriado' || !bloqueio.horario_inicio || !bloqueio.horario_fim) {
-        // Bloqueio de dia completo
-        return dataStr >= bloqueio.data_inicio && dataStr <= bloqueio.data_fim;
-      } else {
-        // Bloqueio de período específico
-        return dataStr >= bloqueio.data_inicio && 
-               dataStr <= bloqueio.data_fim &&
-               horario >= bloqueio.horario_inicio.substring(0, 5) && 
-               horario <= bloqueio.horario_fim.substring(0, 5);
-      }
-    });
-  };
-
-  const isHorarioBloqueado = (dia: Date, horario: string) => {
-    const dataStr = dia.toISOString().split('T')[0];
-    return bloqueios.some(bloqueio => {
-      if (bloqueio.tipo === 'feriado' || !bloqueio.horario_inicio || !bloqueio.horario_fim) {
-        // Bloqueio de dia completo
-        return dataStr >= bloqueio.data_inicio && dataStr <= bloqueio.data_fim;
-      } else {
-        // Bloqueio de período específico
-        return dataStr >= bloqueio.data_inicio && 
-               dataStr <= bloqueio.data_fim &&
-               horario >= bloqueio.horario_inicio.substring(0, 5) && 
-               horario <= bloqueio.horario_fim.substring(0, 5);
-      }
-    });
-  };
-
-  const getAgendamentoHorario = (dia: Date, horario: string) => {
-    const dataStr = dia.toISOString().split('T')[0];
-    return agendamentos.find(ag => 
-      ag.data === dataStr && ag.horario === horario + ':00'
-    );
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-7xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-2xl font-bold" style={{ color: loja.cor_primaria }}>
-            📅 Agenda por Profissional
-          </h3>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-          >
-            ✕ Fechar
-          </button>
-        </div>
-
-        {/* Seleção de Profissional */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 mr-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Selecionar Profissional
-              </label>
-              <select
-                value={profissionalSelecionado}
-                onChange={(e) => setProfissionalSelecionado(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                style={{ '--tw-ring-color': loja.cor_primaria } as React.CSSProperties}
-              >
-                <option value="">Selecione um profissional...</option>
-                {profissionais.map(prof => (
-                  <option key={prof.id} value={prof.id}>
-                    {prof.nome} - {prof.especialidade}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {profissionalSelecionado && (
-              <button
-                onClick={() => setShowBloqueioForm(true)}
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-              >
-                🚫 Bloquear Horário
-              </button>
-            )}
-          </div>
-        </div>
-
-        {profissionalSelecionado ? (
-          <div>
-            {/* Navegação da Semana */}
-            <div className="flex justify-between items-center mb-4">
-              <button
-                onClick={() => navegarSemana(-1)}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                ← Semana Anterior
-              </button>
-              
-              <h4 className="text-lg font-semibold">
-                Semana de {getInicioSemana(dataAtual).toLocaleDateString('pt-BR')}
-              </h4>
-              
-              <button
-                onClick={() => navegarSemana(1)}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Próxima Semana →
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="text-center py-8">Carregando agenda...</div>
-            ) : (
-              /* Grade da Agenda */
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-300">
-                  <thead>
-                    <tr>
-                      <th className="border border-gray-300 p-2 bg-gray-100 w-20">Horário</th>
-                      {getDiasSemana().map((dia, index) => (
-                        <th key={index} className="border border-gray-300 p-2 bg-gray-100 min-w-32">
-                          <div className="text-center">
-                            <div className="font-semibold">{diasSemana[dia.getDay()]}</div>
-                            <div className="text-sm text-gray-600">
-                              {dia.getDate()}/{(dia.getMonth() + 1).toString().padStart(2, '0')}
-                            </div>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {horarios.map(horario => (
-                      <tr key={horario}>
-                        <td className="border border-gray-300 p-2 bg-gray-50 text-center font-medium">
-                          {horario}
-                        </td>
-                        {getDiasSemana().map((dia, diaIndex) => {
-                          const agendamento = getAgendamentoHorario(dia, horario);
-                          const bloqueado = isHorarioBloqueado(dia, horario);
-                          const bloqueio = getBloqueioHorario(dia, horario);
-                          
-                          return (
-                            <td key={diaIndex} className="border border-gray-300 p-1">
-                              {bloqueado && bloqueio ? (
-                                <div className="bg-red-200 text-red-800 p-2 rounded text-xs">
-                                  <div className="text-center mb-1">🚫 Bloqueado</div>
-                                  <div className="text-center">
-                                    <button
-                                      onClick={() => excluirBloqueio(bloqueio.id)}
-                                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                                      title="Excluir bloqueio"
-                                    >
-                                      🗑️
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : agendamento ? (
-                                <div className="bg-blue-100 text-blue-800 p-2 rounded text-xs">
-                                  <div className="font-semibold">{agendamento.cliente_nome}</div>
-                                  <div>{agendamento.procedimento_nome}</div>
-                                  <div className="text-xs">Status: {agendamento.status}</div>
-                                </div>
-                              ) : (
-                                <div className="h-16 bg-green-50 hover:bg-green-100 cursor-pointer rounded flex items-center justify-center text-green-600">
-                                  <span className="text-xs">Disponível</span>
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg mb-2">Selecione um profissional</p>
-            <p className="text-sm">Escolha um profissional acima para visualizar sua agenda</p>
-          </div>
-        )}
-
-        {/* Modal de Bloqueio */}
-        {showBloqueioForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h4 className="text-lg font-bold mb-4" style={{ color: loja.cor_primaria }}>
-                🚫 Bloquear Horário
-              </h4>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Tipo de Bloqueio</label>
-                  <select
-                    value={bloqueioForm.tipo}
-                    onChange={(e) => setBloqueioForm(prev => ({ ...prev, tipo: e.target.value }))}
-                    className="w-full px-3 py-2 border rounded-md"
-                  >
-                    <option value="periodo">Período Específico</option>
-                    <option value="dia_completo">Dia Completo</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Data Início</label>
-                    <input
-                      type="date"
-                      value={bloqueioForm.data_inicio}
-                      onChange={(e) => setBloqueioForm(prev => ({ ...prev, data_inicio: e.target.value }))}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Data Fim</label>
-                    <input
-                      type="date"
-                      value={bloqueioForm.data_fim}
-                      onChange={(e) => setBloqueioForm(prev => ({ ...prev, data_fim: e.target.value }))}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-                </div>
-
-                {bloqueioForm.tipo === 'periodo' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Horário Início</label>
-                      <input
-                        type="time"
-                        value={bloqueioForm.horario_inicio}
-                        onChange={(e) => setBloqueioForm(prev => ({ ...prev, horario_inicio: e.target.value }))}
-                        className="w-full px-3 py-2 border rounded-md"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Horário Fim</label>
-                      <input
-                        type="time"
-                        value={bloqueioForm.horario_fim}
-                        onChange={(e) => setBloqueioForm(prev => ({ ...prev, horario_fim: e.target.value }))}
-                        className="w-full px-3 py-2 border rounded-md"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Motivo</label>
-                  <textarea
-                    value={bloqueioForm.motivo}
-                    onChange={(e) => setBloqueioForm(prev => ({ ...prev, motivo: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 border rounded-md"
-                    placeholder="Ex: Férias, Curso, Compromisso pessoal..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-4 mt-6">
-                <button
-                  onClick={() => setShowBloqueioForm(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={criarBloqueio}
-                  className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-                >
-                  🚫 Criar Bloqueio
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

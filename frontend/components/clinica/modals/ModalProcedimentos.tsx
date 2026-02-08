@@ -172,8 +172,8 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
           </button>
         </div>
       ) : procedimentos.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <p className="text-lg mb-2">Nenhum procedimento cadastrado</p>
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <p className="text-lg mb-2 text-gray-700 dark:text-gray-300">Nenhum procedimento cadastrado</p>
           <p className="text-sm mb-4">Cadastre os procedimentos oferecidos pela sua clínica</p>
           <button onClick={() => setShowForm(true)} className="px-6 py-3 rounded-md text-white hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>
             + Cadastrar Primeiro Procedimento
@@ -182,11 +182,11 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
       ) : (
         <div className="space-y-4 mb-6">
           {procedimentos.map((proc) => (
-            <div key={proc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+            <div key={proc.id} className="flex items-center justify-between p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 bg-white dark:bg-gray-700/30">
               <div className="flex-1">
-                <p className="font-semibold text-lg">{proc.nome}</p>
-                <p className="text-sm text-gray-600">{proc.duracao} min • {proc.categoria}</p>
-                <p className="text-sm text-gray-700">{proc.descricao}</p>
+                <p className="font-semibold text-lg text-gray-900 dark:text-white">{proc.nome}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{proc.duracao} min • {proc.categoria}</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{proc.descricao}</p>
               </div>
               <div className="flex items-center space-x-4">
                 <div className="text-right">
@@ -207,7 +207,7 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
       )}
 
       <div className="flex justify-end space-x-4">
-        <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+        <button onClick={onClose} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white">
           Fechar
         </button>
         <button onClick={() => setShowForm(true)} className="px-6 py-2 text-white rounded-md hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>

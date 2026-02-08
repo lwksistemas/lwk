@@ -406,3 +406,170 @@ class UsuarioSistema(models.Model):
     
     def __str__(self):
         return f"{self.user.username} ({self.get_tipo_display()})"
+
+
+class HistoricoAcessoGlobal(models.Model):
+    """
+    Histórico global de acessos e ações de TODOS os usuários do sistema
+    
+    Usado pelo SuperAdmin para monitorar atividades em todas as lojas.
+    Não usa LojaIsolationMixin pois precisa ser acessível globalmente.
+    
+    Boas práticas aplicadas:
+    - Single Responsibility: Apenas registra ações
+    - DRY: Reutiliza choices e estrutura
+    - Clean Code: Nomes descritivos e documentação clara
+    - Performance: Índices otimizados para queries comuns
+    """
+    
+    ACAO_CHOICES = [
+        ('login', 'Login'),
+        ('logout', 'Logout'),
+        ('criar', 'Criar'),
+        ('editar', 'Editar'),
+        ('excluir', 'Excluir'),
+        ('visualizar', 'Visualizar'),
+        ('exportar', 'Exportar'),
+        ('importar', 'Importar'),
+        ('aprovar', 'Aprovar'),
+        ('rejeitar', 'Rejeitar'),
+    ]
+    
+    # Informações do usuário
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='historico_acoes',
+        help_text='Usuário que realizou a ação'
+    )
+    usuario_email = models.EmailField(help_text='Email do usuário (backup se user for deletado)')
+    usuario_nome = models.CharField(max_length=200, help_text='Nome completo do usuário')
+    
+    # Informações da loja
+    loja = models.ForeignKey(
+        Loja,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='historico_acoes',
+        help_text='Loja onde a ação foi realizada (null para ações do SuperAdmin)'
+    )
+    loja_nome = models.CharField(max_length=200, blank=True, help_text='Nome da loja (backup)')
+    loja_slug = models.CharField(max_length=100, blank=True, help_text='Slug da loja')
+    
+    # Informações da ação
+    acao = models.CharField(
+        max_length=20, 
+        choices=ACAO_CHOICES,
+        db_index=True,
+        help_text='Tipo de ação realizada'
+    )
+    recurso = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='Recurso afetado (ex: Cliente, Produto, Agendamento)'
+    )
+    recurso_id = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='ID do recurso afetado'
+    )
+    detalhes = models.TextField(
+        blank=True,
+        help_text='Detalhes adicionais da ação (JSON ou texto)'
+    )
+    
+    # Informações técnicas
+    ip_address = models.GenericIPAddressField(help_text='Endereço IP do usuário')
+    user_agent = models.TextField(blank=True, help_text='User Agent do navegador')
+    metodo_http = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text='Método HTTP (GET, POST, PUT, DELETE)'
+    )
+    url = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text='URL da requisição'
+    )
+    
+    # Resultado da ação
+    sucesso = models.BooleanField(
+        default=True,
+        help_text='Indica se a ação foi bem-sucedida'
+    )
+    erro = models.TextField(
+        blank=True,
+        help_text='Mensagem de erro (se houver)'
+    )
+    
+    # Timestamp
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    class Meta:
+        db_table = 'superadmin_historico_acesso_global'
+        verbose_name = 'Histórico de Acesso Global'
+        verbose_name_plural = 'Histórico de Acessos Global'
+        ordering = ['-created_at']
+        
+        # ✅ OTIMIZAÇÃO: Índices compostos para queries comuns do SuperAdmin
+        indexes = [
+            # Busca por usuário + data
+            models.Index(fields=['user', '-created_at'], name='hist_user_date_idx'),
+            # Busca por loja + data
+            models.Index(fields=['loja', '-created_at'], name='hist_loja_date_idx'),
+            # Busca por ação + data
+            models.Index(fields=['acao', '-created_at'], name='hist_acao_date_idx'),
+            # Busca por email (para usuários deletados)
+            models.Index(fields=['usuario_email', '-created_at'], name='hist_email_date_idx'),
+            # Busca por IP (segurança)
+            models.Index(fields=['ip_address', '-created_at'], name='hist_ip_date_idx'),
+            # Busca por sucesso (erros)
+            models.Index(fields=['sucesso', '-created_at'], name='hist_sucesso_date_idx'),
+        ]
+    
+    def __str__(self):
+        loja_info = f" - {self.loja_nome}" if self.loja_nome else " - SuperAdmin"
+        return f"{self.usuario_nome} - {self.get_acao_display()}{loja_info} - {self.created_at.strftime('%d/%m/%Y %H:%M')}"
+    
+    @property
+    def navegador(self):
+        """Extrai nome do navegador do user agent"""
+        if not self.user_agent:
+            return 'Desconhecido'
+        
+        ua = self.user_agent.lower()
+        if 'chrome' in ua and 'edg' not in ua:
+            return 'Chrome'
+        elif 'firefox' in ua:
+            return 'Firefox'
+        elif 'safari' in ua and 'chrome' not in ua:
+            return 'Safari'
+        elif 'edg' in ua:
+            return 'Edge'
+        elif 'opera' in ua or 'opr' in ua:
+            return 'Opera'
+        else:
+            return 'Outro'
+    
+    @property
+    def sistema_operacional(self):
+        """Extrai sistema operacional do user agent"""
+        if not self.user_agent:
+            return 'Desconhecido'
+        
+        ua = self.user_agent.lower()
+        if 'windows' in ua:
+            return 'Windows'
+        elif 'mac' in ua:
+            return 'macOS'
+        elif 'linux' in ua:
+            return 'Linux'
+        elif 'android' in ua:
+            return 'Android'
+        elif 'iphone' in ua or 'ipad' in ua:
+            return 'iOS'
+        else:
+            return 'Outro'

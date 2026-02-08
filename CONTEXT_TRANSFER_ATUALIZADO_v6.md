@@ -1,4 +1,4 @@
-# CONTEXT TRANSFER SUMMARY - v487
+# CONTEXT TRANSFER SUMMARY - v488
 
 ## TASK 1: Correção de Modais Sobrepondo Barra Superior (v478)
 - **STATUS**: done
@@ -62,6 +62,20 @@
   - **URL**: https://lwksistemas.com.br
 - **FILEPATHS**: `frontend/components/clinica/modals/ModalAnamnese.tsx`
 
+## TASK 8: Correção Crítica de Segurança - Vazamento de Dados Entre Lojas (v487)
+- **STATUS**: done
+- **DETAILS**: 
+  - **Problema**: Admins de outras lojas aparecendo na lista de funcionários (vazamento de dados entre lojas)
+  - **Causa**: Na v485, removemos o filtro por `loja_id` do `LojaIsolationManager` assumindo que schema PostgreSQL isolado era suficiente
+  - **Solução**: Restaurado filtro `filter(loja_id=loja_id)` como camada extra de segurança (defesa em profundidade)
+  - **Princípios aplicados**: 
+    - Defesa em profundidade (múltiplas camadas de segurança)
+    - Fail-safe defaults (bloqueia se não há contexto)
+    - Least privilege (cada loja só acessa seus dados)
+  - **Resultado**: Isolamento total entre lojas restaurado. Cada loja vê apenas seus próprios funcionários
+  - **Deploy**: ✅ Backend v469 (v487) realizado com sucesso
+- **FILEPATHS**: `backend/core/mixins.py`
+
 ---
 
 ## USER CORRECTIONS AND INSTRUCTIONS
@@ -83,9 +97,9 @@
 - **Projeto**: LWK Sistemas
 - **Backend**: Django + PostgreSQL com schemas isolados (Heroku)
 - **Frontend**: Next.js + TypeScript (Vercel)
-- **Último deploy backend**: v468 (v485)
+- **Último deploy backend**: v469 (v487)
 - **Último deploy frontend**: v486
-- **Próximo deploy**: v487
+- **Próximo deploy**: v488
 
 ---
 

@@ -1109,3 +1109,265 @@ Equipe LWK Sistemas
             {'detail': f'Erro ao enviar email: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+
+class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet para Histórico de Acesso Global (APENAS LEITURA)
+    
+    Apenas SuperAdmin pode acessar.
+    
+    Boas práticas aplicadas:
+    - ReadOnlyModelViewSet: Apenas leitura (segurança)
+    - Filtros otimizados com Q objects
+    - Paginação automática
+    - Select_related para otimizar queries
+    - Permissões restritas (IsSuperAdmin)
+    
+    Filtros disponíveis:
+    - usuario_email: Email do usuário
+    - loja_id: ID da loja
+    - loja_slug: Slug da loja
+    - acao: Tipo de ação
+    - data_inicio: Data inicial (YYYY-MM-DD)
+    - data_fim: Data final (YYYY-MM-DD)
+    - ip_address: Endereço IP
+    - sucesso: true/false
+    - search: Busca em nome, email, loja
+    """
+    
+    permission_classes = [IsSuperAdmin]
+    
+    def get_serializer_class(self):
+        """
+        Usa serializer otimizado para listagem
+        Serializer completo para detalhes
+        """
+        from .serializers import HistoricoAcessoGlobalSerializer, HistoricoAcessoGlobalListSerializer
+        
+        if self.action == 'list':
+            return HistoricoAcessoGlobalListSerializer
+        return HistoricoAcessoGlobalSerializer
+    
+    def get_queryset(self):
+        """
+        Queryset otimizado com filtros
+        
+        Boas práticas:
+        - Select_related para evitar N+1 queries
+        - Filtros via query params
+        - Ordenação por data (mais recente primeiro)
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models import Q
+        from datetime import datetime
+        
+        # Base queryset com select_related para otimização
+        queryset = HistoricoAcessoGlobal.objects.select_related(
+            'user',
+            'loja',
+            'loja__tipo_loja'
+        ).all()
+        
+        # Obter parâmetros de filtro
+        params = self.request.query_params
+        
+        # Filtro por usuário (email)
+        usuario_email = params.get('usuario_email')
+        if usuario_email:
+            queryset = queryset.filter(usuario_email__icontains=usuario_email)
+        
+        # Filtro por loja (ID)
+        loja_id = params.get('loja_id')
+        if loja_id:
+            queryset = queryset.filter(loja_id=loja_id)
+        
+        # Filtro por loja (slug)
+        loja_slug = params.get('loja_slug')
+        if loja_slug:
+            queryset = queryset.filter(loja_slug__iexact=loja_slug)
+        
+        # Filtro por ação
+        acao = params.get('acao')
+        if acao:
+            queryset = queryset.filter(acao=acao)
+        
+        # Filtro por período
+        data_inicio = params.get('data_inicio')
+        data_fim = params.get('data_fim')
+        
+        if data_inicio:
+            try:
+                data_inicio_dt = datetime.strptime(data_inicio, '%Y-%m-%d')
+                queryset = queryset.filter(created_at__gte=data_inicio_dt)
+            except ValueError:
+                pass
+        
+        if data_fim:
+            try:
+                data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d')
+                # Incluir o dia inteiro (até 23:59:59)
+                from datetime import timedelta
+                data_fim_dt = data_fim_dt + timedelta(days=1)
+                queryset = queryset.filter(created_at__lt=data_fim_dt)
+            except ValueError:
+                pass
+        
+        # Filtro por IP
+        ip_address = params.get('ip_address')
+        if ip_address:
+            queryset = queryset.filter(ip_address=ip_address)
+        
+        # Filtro por sucesso
+        sucesso = params.get('sucesso')
+        if sucesso is not None:
+            sucesso_bool = sucesso.lower() == 'true'
+            queryset = queryset.filter(sucesso=sucesso_bool)
+        
+        # Busca geral (nome, email, loja)
+        search = params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(usuario_nome__icontains=search) |
+                Q(usuario_email__icontains=search) |
+                Q(loja_nome__icontains=search) |
+                Q(loja_slug__icontains=search)
+            )
+        
+        return queryset.order_by('-created_at')
+    
+    @action(detail=False, methods=['get'])
+    def estatisticas(self, request):
+        """
+        Retorna estatísticas do histórico
+        
+        Retorna:
+        - Total de acessos
+        - Total de logins
+        - Total de ações por tipo
+        - Usuários mais ativos
+        - Lojas mais ativas
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models import Count
+        from datetime import datetime, timedelta
+        
+        # Período (últimos 30 dias por padrão)
+        data_inicio = request.query_params.get('data_inicio')
+        data_fim = request.query_params.get('data_fim')
+        
+        if not data_inicio:
+            data_inicio = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        if not data_fim:
+            data_fim = datetime.now().strftime('%Y-%m-%d')
+        
+        try:
+            data_inicio_dt = datetime.strptime(data_inicio, '%Y-%m-%d')
+            data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d') + timedelta(days=1)
+        except ValueError:
+            return Response(
+                {'error': 'Formato de data inválido. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Queryset base
+        qs = HistoricoAcessoGlobal.objects.filter(
+            created_at__gte=data_inicio_dt,
+            created_at__lt=data_fim_dt
+        )
+        
+        # Estatísticas
+        stats = {
+            'periodo': {
+                'inicio': data_inicio,
+                'fim': data_fim,
+            },
+            'total_acessos': qs.count(),
+            'total_logins': qs.filter(acao='login').count(),
+            'total_sucesso': qs.filter(sucesso=True).count(),
+            'total_erros': qs.filter(sucesso=False).count(),
+            
+            # Ações por tipo
+            'acoes_por_tipo': list(
+                qs.values('acao')
+                .annotate(total=Count('id'))
+                .order_by('-total')
+            ),
+            
+            # Usuários mais ativos (top 10)
+            'usuarios_mais_ativos': list(
+                qs.values('usuario_email', 'usuario_nome')
+                .annotate(total=Count('id'))
+                .order_by('-total')[:10]
+            ),
+            
+            # Lojas mais ativas (top 10)
+            'lojas_mais_ativas': list(
+                qs.filter(loja__isnull=False)
+                .values('loja_id', 'loja_nome', 'loja_slug')
+                .annotate(total=Count('id'))
+                .order_by('-total')[:10]
+            ),
+            
+            # IPs mais frequentes (top 10)
+            'ips_mais_frequentes': list(
+                qs.values('ip_address')
+                .annotate(total=Count('id'))
+                .order_by('-total')[:10]
+            ),
+        }
+        
+        return Response(stats)
+    
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """
+        Exporta histórico em CSV
+        
+        Aplica os mesmos filtros da listagem
+        """
+        import csv
+        from django.http import HttpResponse
+        from datetime import datetime
+        
+        # Obter queryset filtrado
+        queryset = self.get_queryset()
+        
+        # Limitar a 10000 registros para evitar timeout
+        queryset = queryset[:10000]
+        
+        # Criar resposta CSV
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="historico_acessos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        
+        # Escrever CSV
+        writer = csv.writer(response)
+        writer.writerow([
+            'Data/Hora',
+            'Usuário',
+            'Email',
+            'Loja',
+            'Ação',
+            'Recurso',
+            'IP',
+            'Navegador',
+            'SO',
+            'Sucesso',
+        ])
+        
+        for item in queryset:
+            writer.writerow([
+                item.created_at.strftime('%d/%m/%Y %H:%M:%S'),
+                item.usuario_nome,
+                item.usuario_email,
+                item.loja_nome or 'SuperAdmin',
+                item.get_acao_display(),
+                item.recurso or '-',
+                item.ip_address,
+                item.navegador,
+                item.sistema_operacional,
+                'Sim' if item.sucesso else 'Não',
+            ])
+        
+        return response

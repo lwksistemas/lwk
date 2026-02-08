@@ -13,11 +13,15 @@ from .serializers import (
 
 
 class LeadViewSet(BaseModelViewSet):
-    queryset = Lead.objects.all()
     serializer_class = LeadSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e is_active"""
+        queryset = Lead.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Lead, 'is_active'):
+            queryset = queryset.filter(is_active=True)
         
         # Filtrar por status
         status_param = self.request.query_params.get('status')
@@ -40,14 +44,19 @@ class LeadViewSet(BaseModelViewSet):
 
 
 class ClienteViewSet(BaseModelViewSet):
-    queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e is_active"""
+        queryset = Cliente.objects.all()
+        
+        # Aplicar filtro is_active (padrão: apenas ativos)
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        elif hasattr(Cliente, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         return queryset
 
 
@@ -58,27 +67,38 @@ class VendedorViewSet(BaseFuncionarioViewSet):
 
 
 class ProdutoViewSet(BaseModelViewSet):
-    queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e is_active"""
+        queryset = Produto.objects.all()
+        
+        # Aplicar filtro is_active (padrão: apenas ativos)
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        elif hasattr(Produto, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        # Filtrar por categoria
         categoria = self.request.query_params.get('categoria')
         if categoria:
             queryset = queryset.filter(categoria=categoria)
+        
         return queryset
 
 
 class VendaViewSet(BaseModelViewSet):
-    # Otimização: select_related para evitar N+1
-    queryset = Venda.objects.select_related('cliente', 'vendedor', 'produto').all()
     serializer_class = VendaSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja com select_related"""
+        # Otimização: select_related para evitar N+1
+        queryset = Venda.objects.select_related('cliente', 'vendedor', 'produto')
+        
+        # Aplicar filtro is_active
+        if hasattr(Venda, 'is_active'):
+            queryset = queryset.filter(is_active=True)
         
         # Filtrar por status
         status_param = self.request.query_params.get('status')
@@ -132,12 +152,17 @@ class VendaViewSet(BaseModelViewSet):
 
 
 class PipelineViewSet(BaseModelViewSet):
-    queryset = Pipeline.objects.all()
     serializer_class = PipelineSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e is_active"""
+        queryset = Pipeline.objects.all()
+        
+        # Aplicar filtro is_active (padrão: apenas ativos)
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        elif hasattr(Pipeline, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         return queryset

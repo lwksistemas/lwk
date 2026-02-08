@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum, Count, Q, Avg
+from django.db.models import Sum, Count, Q, Avg, F
 from django.utils import timezone
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -21,14 +21,25 @@ from .serializers import (
     BloqueioAgendaSerializer, ClienteBuscaSerializer
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
     """ViewSet de Clientes - usa ClienteSearchMixin para busca"""
-    queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
     search_serializer_class = ClienteBuscaSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # ✅ Desabilitar paginação para retornar todos os clientes
+    pagination_class = None
+
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja e is_active"""
+        queryset = Cliente.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Cliente, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
     @action(detail=False, methods=['get'])
     def buscar(self, request):
@@ -38,10 +49,19 @@ class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
 
 class ProfissionalViewSet(BaseModelViewSet):
     """ViewSet de Profissionais"""
-    queryset = Profissional.objects.all()
     serializer_class = ProfissionalSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # ✅ Desabilitar paginação
+    pagination_class = None
+
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja e is_active"""
+        queryset = Profissional.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Profissional, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
     @action(detail=True, methods=['get'])
     def agenda(self, request, pk=None):
@@ -61,15 +81,19 @@ class ProfissionalViewSet(BaseModelViewSet):
 
 class ServicoViewSet(BaseModelViewSet):
     """ViewSet de Serviços"""
-    queryset = Servico.objects.all()
     serializer_class = ServicoSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # ✅ Desabilitar paginação
+    pagination_class = None
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        params = getattr(self.request, 'query_params', self.request.GET)
+        """Retorna queryset filtrado por loja, is_active e categoria"""
+        queryset = Servico.objects.all()
         
+        # Aplicar filtro is_active
+        if hasattr(Servico, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        params = getattr(self.request, 'query_params', self.request.GET)
         categoria = params.get('categoria')
         if categoria:
             queryset = queryset.filter(categoria=categoria)
@@ -79,38 +103,18 @@ class ServicoViewSet(BaseModelViewSet):
 
 class AgendamentoViewSet(BaseModelViewSet):
     """ViewSet de Agendamentos"""
-    queryset = Agendamento.objects.select_related('cliente', 'profissional', 'servico')
-    pagination_class = None  # ✅ Desabilitar paginação
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
-
-    def list(self, request, *args, **kwargs):
-        """
-        Lista agendamentos garantindo que o queryset é avaliado
-        ANTES do contexto ser limpo pelo middleware.
-        """
-        logger = logging.getLogger(__name__)
-        
-        try:
-            # Obter e avaliar queryset
-            queryset = self.filter_queryset(self.get_queryset())
-            
-            # FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
-            agendamentos_list = list(queryset)
-            
-            logger.info(f"[AgendamentoViewSet] {len(agendamentos_list)} agendamentos retornados")
-            
-            # Serializar
-            serializer = self.get_serializer(agendamentos_list, many=True)
-            return Response(serializer.data)
-            
-        except Exception as e:
-            logger.exception(f"[AgendamentoViewSet] Erro ao listar agendamentos: {e}")
-            # Retornar lista vazia em caso de erro
-            return Response([], status=status.HTTP_200_OK)
+    pagination_class = None
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja com select_related"""
+        queryset = Agendamento.objects.select_related('cliente', 'profissional', 'servico')
+        
+        # Aplicar filtro is_active
+        if hasattr(Agendamento, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         params = getattr(self.request, 'query_params', self.request.GET)
         
         # Filtros
@@ -137,11 +141,10 @@ class AgendamentoViewSet(BaseModelViewSet):
         """
         Retorna dados para o dashboard.
         Rate limited: 10 requisições por minuto para prevenir loops infinitos.
-        Em caso de erro (ex.: tabelas não existem no schema da loja), retorna dados vazios para não quebrar a página.
         """
-        logger = logging.getLogger(__name__)
         hoje = date.today()
         inicio_mes = date(hoje.year, hoje.month, 1)
+        
         empty_response = {
             'estatisticas': {
                 'agendamentos_hoje': 0,
@@ -151,23 +154,24 @@ class AgendamentoViewSet(BaseModelViewSet):
                 'receita_mensal': 0.0,
             },
             'proximos': [],
-            'aviso': 'Dados do dashboard não disponíveis no momento. Verifique se as tabelas da loja foram criadas.',
         }
+        
         try:
             # Estatísticas
-            agendamentos_hoje = self.get_queryset().filter(data=hoje).count()
-            agendamentos_mes = self.get_queryset().filter(data__gte=inicio_mes).count()
+            qs = self.get_queryset()
+            agendamentos_hoje = qs.filter(data=hoje).count()
+            agendamentos_mes = qs.filter(data__gte=inicio_mes).count()
             clientes_ativos = Cliente.objects.filter(is_active=True).count()
             servicos_ativos = Servico.objects.filter(is_active=True).count()
 
             # Receita mensal
-            receita_mensal = self.get_queryset().filter(
+            receita_mensal = qs.filter(
                 data__gte=inicio_mes,
                 status='concluido'
             ).aggregate(total=Sum('valor_pago'))['total'] or Decimal('0.00')
 
             # Próximos agendamentos
-            proximos = self.get_queryset().filter(
+            proximos = qs.filter(
                 data__gte=hoje,
                 status__in=['agendado', 'confirmado']
             ).order_by('data', 'horario')[:10]
@@ -180,14 +184,10 @@ class AgendamentoViewSet(BaseModelViewSet):
                     'servicos_ativos': servicos_ativos,
                     'receita_mensal': float(receita_mensal),
                 },
-                'proximos': AgendamentoSerializer(proximos, many=True).data
+                'proximos': self.get_serializer(proximos, many=True).data
             })
         except Exception as e:
-            logger.exception(
-                'cabeleireiro dashboard erro (loja pode não ter schema/tabelas): %s',
-                e,
-                extra={'request_path': getattr(request, 'path', None)},
-            )
+            logger.exception(f'[AgendamentoViewSet] Erro no dashboard: {e}')
             return Response(empty_response, status=200)
 
     @action(detail=False, methods=['get'])
@@ -209,40 +209,21 @@ class AgendamentoViewSet(BaseModelViewSet):
         serializer = self.get_serializer(agendamentos, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
-    def estatisticas(self, request):
-        """Retorna estatísticas gerais"""
-        hoje = date.today()
-        inicio_mes = date(hoje.year, hoje.month, 1)
-        
-        agendamentos_hoje = self.get_queryset().filter(data=hoje).count()
-        agendamentos_mes = self.get_queryset().filter(data__gte=inicio_mes).count()
-        clientes_ativos = Cliente.objects.filter(is_active=True).count()
-        servicos_ativos = Servico.objects.filter(is_active=True).count()
-        
-        receita_mensal = self.get_queryset().filter(
-            data__gte=inicio_mes,
-            status='concluido'
-        ).aggregate(total=Sum('valor_pago'))['total'] or Decimal('0.00')
-        
-        return Response({
-            'agendamentos_hoje': agendamentos_hoje,
-            'agendamentos_mes': agendamentos_mes,
-            'clientes_ativos': clientes_ativos,
-            'servicos_ativos': servicos_ativos,
-            'receita_mensal': float(receita_mensal),
-        })
-
 
 class ProdutoViewSet(BaseModelViewSet):
     """ViewSet de Produtos"""
-    queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # ✅ Desabilitar paginação
+    pagination_class = None
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja, is_active e categoria"""
+        queryset = Produto.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Produto, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         params = getattr(self.request, 'query_params', self.request.GET)
         
         categoria = params.get('categoria')
@@ -251,17 +232,15 @@ class ProdutoViewSet(BaseModelViewSet):
         
         estoque_baixo = params.get('estoque_baixo')
         if estoque_baixo == 'true':
-            queryset = queryset.filter(estoque_atual__lte=models.F('estoque_minimo'))
+            queryset = queryset.filter(estoque_atual__lte=F('estoque_minimo'))
         
         return queryset
 
     @action(detail=False, methods=['get'])
     def estoque_baixo(self, request):
         """Retorna produtos com estoque baixo"""
-        from django.db.models import F
         produtos = self.get_queryset().filter(
-            estoque_atual__lte=F('estoque_minimo'),
-            is_active=True
+            estoque_atual__lte=F('estoque_minimo')
         )
         serializer = self.get_serializer(produtos, many=True)
         return Response(serializer.data)
@@ -269,10 +248,19 @@ class ProdutoViewSet(BaseModelViewSet):
 
 class VendaViewSet(BaseModelViewSet):
     """ViewSet de Vendas"""
-    queryset = Venda.objects.select_related('cliente', 'produto')
     serializer_class = VendaSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # ✅ Desabilitar paginação
+    pagination_class = None
+
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja com select_related"""
+        queryset = Venda.objects.select_related('cliente', 'produto')
+        
+        # Aplicar filtro is_active
+        if hasattr(Venda, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
     def perform_create(self, serializer):
         """Ao criar venda, atualiza estoque do produto"""
@@ -312,58 +300,45 @@ class VendaViewSet(BaseModelViewSet):
 
 class FuncionarioViewSet(BaseFuncionarioViewSet):
     """ViewSet de Funcionários - usa BaseFuncionarioViewSet"""
-    queryset = Funcionario.objects.all()
     serializer_class = FuncionarioSerializer
     permission_classes = [IsAuthenticated]
-    model_class = Funcionario  # ✅ Necessário para BaseFuncionarioViewSet
-    pagination_class = None  # ✅ Desabilitar paginação
+    model_class = Funcionario
+    pagination_class = None
     cargo_padrao = 'Administrador'
 
 
 class HorarioFuncionamentoViewSet(BaseModelViewSet):
     """ViewSet de Horários de Funcionamento"""
-    queryset = HorarioFuncionamento.objects.all()
     serializer_class = HorarioFuncionamentoSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # ✅ Desabilitar paginação
+    pagination_class = None
+
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja e is_active"""
+        queryset = HorarioFuncionamento.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(HorarioFuncionamento, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
 
 class BloqueioAgendaViewSet(BaseModelViewSet):
     """ViewSet de Bloqueios de Agenda"""
-    queryset = BloqueioAgenda.objects.select_related('profissional')
     serializer_class = BloqueioAgendaSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # ✅ Desabilitar paginação
-
-    def list(self, request, *args, **kwargs):
-        """
-        Lista bloqueios garantindo que o queryset é avaliado
-        ANTES do contexto ser limpo pelo middleware.
-        """
-        logger = logging.getLogger(__name__)
-        
-        try:
-            # Obter e avaliar queryset
-            queryset = self.filter_queryset(self.get_queryset())
-            
-            # FORÇAR avaliação do queryset AGORA (antes do middleware limpar contexto)
-            bloqueios_list = list(queryset)
-            
-            logger.info(f"[BloqueioAgendaViewSet] {len(bloqueios_list)} bloqueios retornados")
-            
-            # Serializar
-            serializer = self.get_serializer(bloqueios_list, many=True)
-            return Response(serializer.data)
-            
-        except Exception as e:
-            logger.exception(f"[BloqueioAgendaViewSet] Erro ao listar bloqueios: {e}")
-            # Retornar lista vazia em caso de erro
-            return Response([], status=status.HTTP_200_OK)
+    pagination_class = None
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        params = getattr(self.request, 'query_params', self.request.GET)
+        """Retorna queryset filtrado por loja e profissional"""
+        queryset = BloqueioAgenda.objects.select_related('profissional')
         
+        # Aplicar filtro is_active
+        if hasattr(BloqueioAgenda, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        params = getattr(self.request, 'query_params', self.request.GET)
         profissional_id = params.get('profissional_id')
         if profissional_id:
             queryset = queryset.filter(profissional_id=profissional_id)

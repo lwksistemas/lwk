@@ -23,18 +23,32 @@ from .serializers import (
 
 
 class CategoriaViewSet(BaseModelViewSet):
-    # Otimização: prefetch_related para itens
-    queryset = Categoria.objects.prefetch_related('itens').all()
     serializer_class = CategoriaSerializer
+    
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja com prefetch_related"""
+        # Otimização: prefetch_related para itens
+        queryset = Categoria.objects.prefetch_related('itens')
+        
+        # Aplicar filtro is_active
+        if hasattr(Categoria, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
 
 class ItemCardapioViewSet(BaseModelViewSet):
-    # Otimização: select_related para categoria
-    queryset = ItemCardapio.objects.select_related('categoria').all()
     serializer_class = ItemCardapioSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e categoria"""
+        # Otimização: select_related para categoria
+        queryset = ItemCardapio.objects.select_related('categoria')
+        
+        # Aplicar filtro is_active
+        if hasattr(ItemCardapio, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         categoria_id = self.request.query_params.get('categoria_id')
         if categoria_id:
             queryset = queryset.filter(categoria_id=categoria_id)
@@ -42,20 +56,38 @@ class ItemCardapioViewSet(BaseModelViewSet):
 
 
 class MesaViewSet(BaseModelViewSet):
-    queryset = Mesa.objects.all()
     serializer_class = MesaSerializer
+    
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja"""
+        queryset = Mesa.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Mesa, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
     @action(detail=False, methods=['get'])
     def disponiveis(self, request):
         """Mesas disponíveis"""
-        mesas = self.queryset.filter(status='livre', is_active=True)
+        mesas = self.get_queryset().filter(status='livre')
         serializer = self.get_serializer(mesas, many=True)
         return Response(serializer.data)
 
 
 class ClienteViewSet(BaseModelViewSet):
-    queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
+    
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja"""
+        queryset = Cliente.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Cliente, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
 
 class FuncionarioViewSet(BaseFuncionarioViewSet):
@@ -65,12 +97,17 @@ class FuncionarioViewSet(BaseFuncionarioViewSet):
 
 
 class ReservaViewSet(BaseModelViewSet):
-    # Otimização: select_related
-    queryset = Reserva.objects.select_related('cliente', 'mesa').all()
     serializer_class = ReservaSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja, data e status"""
+        # Otimização: select_related
+        queryset = Reserva.objects.select_related('cliente', 'mesa')
+        
+        # Aplicar filtro is_active
+        if hasattr(Reserva, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         data = self.request.query_params.get('data')
         if data:
             queryset = queryset.filter(data=data)
@@ -83,18 +120,23 @@ class ReservaViewSet(BaseModelViewSet):
     def hoje(self, request):
         """Reservas de hoje"""
         hoje = date.today()
-        reservas = self.queryset.filter(data=hoje)
+        reservas = self.get_queryset().filter(data=hoje)
         serializer = self.get_serializer(reservas, many=True)
         return Response(serializer.data)
 
 
 class PedidoViewSet(BaseModelViewSet):
-    # Otimização: select_related e prefetch_related
-    queryset = Pedido.objects.select_related('cliente', 'mesa').prefetch_related('itens', 'itens__item_cardapio').all()
     serializer_class = PedidoSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja, status e tipo"""
+        # Otimização: select_related e prefetch_related
+        queryset = Pedido.objects.select_related('cliente', 'mesa').prefetch_related('itens', 'itens__item_cardapio')
+        
+        # Aplicar filtro is_active
+        if hasattr(Pedido, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         status_param = self.request.query_params.get('status')
         if status_param:
             queryset = queryset.filter(status=status_param)
@@ -133,24 +175,47 @@ class PedidoViewSet(BaseModelViewSet):
 
 
 class ItemPedidoViewSet(BaseModelViewSet):
-    # Otimização: select_related
-    queryset = ItemPedido.objects.select_related('pedido', 'item_cardapio').all()
     serializer_class = ItemPedidoSerializer
+    
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja"""
+        # Otimização: select_related
+        queryset = ItemPedido.objects.select_related('pedido', 'item_cardapio')
+        
+        # Aplicar filtro is_active
+        if hasattr(ItemPedido, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
 
 class FornecedorViewSet(BaseModelViewSet):
-    queryset = Fornecedor.objects.all()
     serializer_class = FornecedorSerializer
+    
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja"""
+        queryset = Fornecedor.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(Fornecedor, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
 
 class NotaFiscalEntradaViewSet(BaseModelViewSet):
     """Entrada de NF-e: upload de XML, vinculação a fornecedor e estoque."""
-    queryset = NotaFiscalEntrada.objects.select_related('fornecedor').prefetch_related('itens').all()
     serializer_class = NotaFiscalEntradaSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Retorna queryset filtrado por loja e fornecedor"""
+        queryset = NotaFiscalEntrada.objects.select_related('fornecedor').prefetch_related('itens')
+        
+        # Aplicar filtro is_active
+        if hasattr(NotaFiscalEntrada, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
         fornecedor_id = self.request.query_params.get('fornecedor_id')
         if fornecedor_id:
             queryset = queryset.filter(fornecedor_id=fornecedor_id)
@@ -158,8 +223,17 @@ class NotaFiscalEntradaViewSet(BaseModelViewSet):
 
 
 class EstoqueItemViewSet(BaseModelViewSet):
-    queryset = EstoqueItem.objects.all()
     serializer_class = EstoqueItemSerializer
+    
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja"""
+        queryset = EstoqueItem.objects.all()
+        
+        # Aplicar filtro is_active
+        if hasattr(EstoqueItem, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        
+        return queryset
 
     @action(detail=False, methods=['get'])
     def alertas(self, request):

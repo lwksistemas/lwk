@@ -33,10 +33,13 @@ class TenantMiddleware:
     """
     Middleware que identifica o tenant pela URL ou header
     e configura o banco de dados correto
+    
+    OTIMIZAÇÃO: Cache de lojas para evitar queries repetidas
     """
     
     def __init__(self, get_response):
         self.get_response = get_response
+        self._loja_cache = {}  # Cache em memória {slug: loja_data}
     
     def __call__(self, request):
         import logging
@@ -50,22 +53,39 @@ class TenantMiddleware:
                 # Buscar a loja pelo slug (case-insensitive: dani/Dani funcionam)
                 from superadmin.models import Loja
                 try:
-                    loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
-                    if not loja:
-                        raise Loja.DoesNotExist
-                    loja_id = loja.id
-                    # Usar database_name da loja (pode ser diferente do slug)
-                    db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", tenant_slug)}'
+                    # OTIMIZAÇÃO: Usar cache para evitar query repetida
+                    cache_key = tenant_slug.lower()
+                    
+                    if cache_key in self._loja_cache:
+                        loja_data = self._loja_cache[cache_key]
+                        loja_id = loja_data['id']
+                        db_name = loja_data['database_name']
+                        logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} encontrada no cache")
+                    else:
+                        loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
+                        if not loja:
+                            raise Loja.DoesNotExist
+                        
+                        loja_id = loja.id
+                        db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", tenant_slug)}'
+                        
+                        # Armazenar no cache
+                        self._loja_cache[cache_key] = {
+                            'id': loja_id,
+                            'database_name': db_name,
+                            'slug': loja.slug
+                        }
+                        logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} adicionada ao cache")
 
                     # Configurar banco dinamicamente (SEMPRE reconfigurar para garantir schema correto)
                     try:
                         import dj_database_url
                         import os
                         DATABASE_URL = os.environ.get('DATABASE_URL')
-                        if DATABASE_URL:
+                        if DATABASE_URL and db_name not in settings.DATABASES:
                             default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
                             # ✅ Usar database_name da loja (ex: loja_salao_000172) ao invés de loja_{id}
-                            schema_name = loja.database_name or f"loja_{loja.id}"
+                            schema_name = db_name.replace('-', '_')
                             settings.DATABASES[db_name] = {
                                 **default_db,
                                 'OPTIONS': {
@@ -77,7 +97,7 @@ class TenantMiddleware:
                                 'CONN_HEALTH_CHECKS': True,
                                 'TIME_ZONE': None,
                             }
-                            logger.warning(f"✅ [TenantMiddleware] Banco '{db_name}' configurado com schema '{schema_name}'")
+                            logger.debug(f"✅ [TenantMiddleware] Banco '{db_name}' configurado com schema '{schema_name}'")
                     except Exception as db_err:
                         logger.warning("TenantMiddleware: falha ao configurar banco %s, usando default: %s", db_name, db_err)
                         db_name = 'default'

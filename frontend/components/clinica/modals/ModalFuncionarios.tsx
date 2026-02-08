@@ -41,7 +41,6 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
     email: '',
     cargo: '',
     funcao: 'atendente',
-    especialidade: '',
     is_active: true
   });
 
@@ -75,7 +74,6 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
         email: formData.email || null,
         cargo: formData.cargo,
         funcao: formData.funcao,
-        especialidade: formData.especialidade || null,
         data_admissao: new Date().toISOString().split('T')[0],
         is_active: formData.is_active
       };
@@ -87,7 +85,7 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
       }
       
       await carregarFuncionarios();
-      setFormData({ nome: '', telefone: '', email: '', cargo: '', funcao: 'atendente', especialidade: '', is_active: true });
+      setFormData({ nome: '', telefone: '', email: '', cargo: '', funcao: 'atendente', is_active: true });
       setEditando(null);
       setShowForm(false);
     } catch (error) {
@@ -109,7 +107,6 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
       email: funcionario.email || '',
       cargo: funcionario.cargo || '',
       funcao: funcionario.funcao || 'atendente',
-      especialidade: funcionario.especialidade || '',
       is_active: funcionario.is_active
     });
     setEditando(funcionario);
@@ -135,7 +132,7 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
   };
 
   const handleNovo = () => {
-    setFormData({ nome: '', telefone: '', email: '', cargo: '', funcao: 'atendente', especialidade: '', is_active: true });
+    setFormData({ nome: '', telefone: '', email: '', cargo: '', funcao: 'atendente', is_active: true });
     setEditando(null);
     setShowForm(true);
   };
@@ -197,9 +194,12 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
                   value={formData.cargo}
                   onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                  placeholder="Ex: Esteticista, Recepcionista..."
+                  placeholder="Ex: Gerente, Recepcionista, Caixa..."
                   required
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  ⚠️ Não cadastre profissionais aqui (use o botão "Profissional")
+                </p>
               </div>
 
               <div>
@@ -214,24 +214,13 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
                 >
                   <option value="administrador">Administrador</option>
                   <option value="gerente">Gerente</option>
-                  <option value="profissional">Profissional/Esteticista</option>
                   <option value="atendente">Atendente/Recepcionista</option>
                   <option value="caixa">Caixa</option>
                   <option value="visualizador">Visualizador</option>
                 </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Especialidade
-                </label>
-                <input
-                  type="text"
-                  value={formData.especialidade}
-                  onChange={(e) => setFormData({ ...formData, especialidade: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
-                  placeholder="Ex: Limpeza de Pele, Massagem, Depilação... (para profissionais)"
-                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  💡 Para cadastrar profissionais (esteticistas), use o botão "Profissional"
+                </p>
               </div>
 
               <div className="md:col-span-2">
@@ -325,11 +314,6 @@ export function ModalFuncionarios({ loja, onClose }: ModalFuncionariosProps) {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       📱 {funcionario.telefone || 'Sem telefone'} {funcionario.email && `• ✉️ ${funcionario.email}`}
                     </p>
-                    {funcionario.especialidade && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        ✨ {funcionario.especialidade}
-                      </p>
-                    )}
                   </div>
                   <div className="flex gap-2">
                     <button 

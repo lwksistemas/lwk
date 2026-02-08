@@ -1321,6 +1321,102 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(stats)
     
     @action(detail=False, methods=['get'])
+    def atividade_temporal(self, request):
+        """
+        Retorna atividade ao longo do tempo (para gráficos)
+        
+        Agrupa por dia, hora ou mês dependendo do período
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models import Count
+        from django.db.models.functions import TruncDate, TruncHour, TruncMonth
+        from datetime import datetime, timedelta
+        
+        # Período (últimos 7 dias por padrão)
+        data_inicio = request.query_params.get('data_inicio')
+        data_fim = request.query_params.get('data_fim')
+        
+        if not data_inicio:
+            data_inicio = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        if not data_fim:
+            data_fim = datetime.now().strftime('%Y-%m-%d')
+        
+        try:
+            data_inicio_dt = datetime.strptime(data_inicio, '%Y-%m-%d')
+            data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d') + timedelta(days=1)
+        except ValueError:
+            return Response(
+                {'error': 'Formato de data inválido. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Determinar granularidade baseado no período
+        dias_diferenca = (data_fim_dt - data_inicio_dt).days
+        
+        qs = HistoricoAcessoGlobal.objects.filter(
+            created_at__gte=data_inicio_dt,
+            created_at__lt=data_fim_dt
+        )
+        
+        if dias_diferenca <= 2:
+            # Até 2 dias: agrupar por hora
+            atividade = list(
+                qs.annotate(periodo=TruncHour('created_at'))
+                .values('periodo')
+                .annotate(
+                    total=Count('id'),
+                    sucessos=Count('id', filter=Q(sucesso=True)),
+                    erros=Count('id', filter=Q(sucesso=False))
+                )
+                .order_by('periodo')
+            )
+            granularidade = 'hora'
+        elif dias_diferenca <= 90:
+            # Até 90 dias: agrupar por dia
+            atividade = list(
+                qs.annotate(periodo=TruncDate('created_at'))
+                .values('periodo')
+                .annotate(
+                    total=Count('id'),
+                    sucessos=Count('id', filter=Q(sucesso=True)),
+                    erros=Count('id', filter=Q(sucesso=False))
+                )
+                .order_by('periodo')
+            )
+            granularidade = 'dia'
+        else:
+            # Mais de 90 dias: agrupar por mês
+            atividade = list(
+                qs.annotate(periodo=TruncMonth('created_at'))
+                .values('periodo')
+                .annotate(
+                    total=Count('id'),
+                    sucessos=Count('id', filter=Q(sucesso=True)),
+                    erros=Count('id', filter=Q(sucesso=False))
+                )
+                .order_by('periodo')
+            )
+            granularidade = 'mes'
+        
+        # Formatar datas para string
+        for item in atividade:
+            if granularidade == 'hora':
+                item['periodo'] = item['periodo'].strftime('%d/%m/%Y %H:00')
+            elif granularidade == 'dia':
+                item['periodo'] = item['periodo'].strftime('%d/%m/%Y')
+            else:
+                item['periodo'] = item['periodo'].strftime('%m/%Y')
+        
+        return Response({
+            'periodo': {
+                'inicio': data_inicio,
+                'fim': data_fim,
+            },
+            'granularidade': granularidade,
+            'atividade': atividade,
+        })
+    
+    @action(detail=False, methods=['get'])
     def exportar(self, request):
         """
         Exporta histórico em CSV

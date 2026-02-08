@@ -129,6 +129,12 @@ class HistoricoAcessoMiddleware:
         # Extrair recurso da URL (ex: /api/clinica/clientes/ -> Cliente)
         recurso = self._extrair_recurso(request.path)
         
+        # Extrair ID do recurso (ex: /api/clinica/clientes/123/ -> 123)
+        recurso_id = self._extrair_recurso_id(request.path)
+        
+        # Extrair detalhes relevantes da requisição
+        detalhes = self._extrair_detalhes(request)
+        
         # Extrair IP
         ip_address = self._get_client_ip(request)
         
@@ -161,8 +167,8 @@ class HistoricoAcessoMiddleware:
                 loja_slug=loja_slug,
                 acao=acao,
                 recurso=recurso,
-                recurso_id=None,  # TODO: Extrair ID do recurso da URL
-                detalhes='',  # TODO: Adicionar detalhes relevantes
+                recurso_id=recurso_id,
+                detalhes=detalhes,
                 ip_address=ip_address,
                 user_agent=user_agent,
                 metodo_http=request.method,
@@ -170,7 +176,7 @@ class HistoricoAcessoMiddleware:
                 sucesso=sucesso,
                 erro=erro,
             )
-            logger.debug(f"✅ Histórico registrado: {usuario_nome} - {acao} - {recurso}")
+            logger.debug(f"✅ Histórico registrado: {usuario_nome} - {acao} - {recurso} (ID: {recurso_id})")
         except Exception as e:
             logger.error(f"❌ Erro ao criar registro de histórico: {e}", exc_info=True)
     
@@ -225,6 +231,59 @@ class HistoricoAcessoMiddleware:
             return recurso
         
         return ''
+    
+    def _extrair_recurso_id(self, path):
+        """
+        Extrai o ID do recurso da URL
+        
+        Exemplos:
+        /api/clinica/clientes/123/ -> 123
+        /api/clinica/procedimentos/456/editar/ -> 456
+        /api/crm/vendas/789/ -> 789
+        """
+        # Remover /api/ do início
+        path = path.replace('/api/', '')
+        
+        # Dividir por /
+        parts = [p for p in path.split('/') if p]
+        
+        # Procurar por número (ID) nas partes
+        for part in parts:
+            if part.isdigit():
+                return int(part)
+        
+        return None
+    
+    def _extrair_detalhes(self, request):
+        """
+        Extrai detalhes relevantes da requisição
+        
+        Retorna JSON com informações úteis (sem dados sensíveis)
+        """
+        import json
+        
+        detalhes = {}
+        
+        # Adicionar query params (se houver)
+        if request.GET:
+            detalhes['query_params'] = dict(request.GET)
+        
+        # Adicionar tamanho do body (sem incluir o conteúdo por segurança)
+        if request.method in ['POST', 'PUT', 'PATCH']:
+            try:
+                if hasattr(request, 'body'):
+                    detalhes['body_size'] = len(request.body)
+            except:
+                pass
+        
+        # Adicionar informações de autenticação
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            detalhes['authenticated'] = True
+            detalhes['is_superuser'] = request.user.is_superuser
+        else:
+            detalhes['authenticated'] = False
+        
+        return json.dumps(detalhes) if detalhes else ''
     
     def _get_client_ip(self, request):
         """

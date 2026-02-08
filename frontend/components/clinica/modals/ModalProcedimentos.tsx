@@ -158,7 +158,7 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
   }
 
   return (
-    <CrudModal loja={loja} onClose={onClose} title="Gerenciar Procedimentos" icon="💆" maxWidth="4xl" fullScreen>
+    <CrudModal loja={loja} onClose={onClose} title="Gerenciar Procedimentos" icon="💆" maxWidth="4xl">
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: loja.cor_primaria }} />

@@ -179,12 +179,12 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
   }
 
   return (
-    <CrudModal loja={loja} onClose={onClose} title="Gerenciar Protocolos de Procedimentos" icon="📋" maxWidth="4xl" fullScreen>
+    <CrudModal loja={loja} onClose={onClose} title="Gerenciar Protocolos de Procedimentos" icon="📋" maxWidth="4xl">
       {loading ? (
         <div className="text-center py-8">Carregando protocolos...</div>
       ) : protocolos.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <p className="text-lg mb-2">Nenhum protocolo cadastrado</p>
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          <p className="text-lg mb-2 text-gray-700 dark:text-gray-300">Nenhum protocolo cadastrado</p>
           <p className="text-sm mb-4">Protocolos padronizam seus procedimentos e garantem qualidade</p>
           <button onClick={() => setShowForm(true)} className="px-6 py-3 rounded-md text-white hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>
             + Criar Primeiro Protocolo
@@ -193,13 +193,13 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
       ) : (
         <div className="space-y-4 mb-6">
           {protocolos.map((protocolo) => (
-            <div key={protocolo.id} className="border rounded-lg p-4 hover:bg-gray-50">
+            <div key={protocolo.id} className="border dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h4 className="font-semibold text-lg">{protocolo.nome}</h4>
-                  <p className="text-sm text-gray-600 mb-2">Procedimento: {protocolo.procedimento_nome}</p>
-                  <p className="text-sm text-gray-700 mb-2">{protocolo.descricao}</p>
-                  <div className="text-xs text-gray-500">
+                  <h4 className="font-semibold text-lg text-gray-900 dark:text-white">{protocolo.nome}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Procedimento: {protocolo.procedimento_nome}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{protocolo.descricao}</p>
+                  <div className="text-xs text-gray-500 dark:text-gray-500">
                     <span className="mr-4">⏱️ {protocolo.tempo_estimado} min</span>
                     {protocolo.created_at && (
                       <span>📅 Criado em {new Date(protocolo.created_at).toLocaleDateString('pt-BR')}</span>
@@ -221,7 +221,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
       )}
 
       <div className="flex justify-end space-x-4">
-        <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+        <button onClick={onClose} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white">
           Fechar
         </button>
         <button onClick={() => setShowForm(true)} className="px-6 py-2 text-white rounded-md hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>

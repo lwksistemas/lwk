@@ -181,7 +181,7 @@ class AgendamentoViewSet(BaseModelViewSet):
 
         agendamentos = qs.filter(
             data__gte=hoje,
-            status__in=['agendado', 'confirmado']
+            status__in=['agendado', 'confirmado', 'em_atendimento']
         ).order_by('data', 'horario')[:10]
         serializer = self.get_serializer(agendamentos, many=True)
 

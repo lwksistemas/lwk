@@ -254,9 +254,9 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     const horarios = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
 
     return (
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b">
-          <h3 className="text-lg font-semibold">Agendamentos do Dia</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="p-4 border-b dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Agendamentos do Dia</h3>
         </div>
         <div className="p-4">
           <div className="space-y-2">
@@ -267,8 +267,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
               
               return (
-                <div key={horario} className="flex items-center border-b pb-2">
-                  <div className="w-16 text-sm text-gray-600 font-mono">
+                <div key={horario} className="flex items-center border-b dark:border-gray-700 pb-2">
+                  <div className="w-16 text-sm text-gray-600 dark:text-gray-400 font-mono">
                     {horario}
                   </div>
                   <div className="flex-1 ml-4">
@@ -280,9 +280,9 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-semibold text-gray-900">{agendamento.cliente_nome}</p>
-                            <p className="text-sm text-gray-600">{agendamento.procedimento_nome}</p>
-                            <p className="text-xs text-gray-500">Prof: {agendamento.profissional_nome}</p>
+                            <p className="font-semibold text-gray-900 dark:text-white">{agendamento.cliente_nome}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{agendamento.procedimento_nome}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500">Prof: {agendamento.profissional_nome}</p>
                           </div>
                           <div className="flex space-x-2">
                             <button
@@ -308,8 +308,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                       </div>
                     ) : bloqueio ? (
                       <div
-                        className={`p-3 rounded-lg border text-red-800 ${
-                          bloqueiaNoContexto ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
+                        className={`p-3 rounded-lg border text-red-800 dark:text-red-300 ${
+                          bloqueiaNoContexto ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/30' : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30'
                         }`}
                         title={bloqueio.observacoes || bloqueio.titulo}
                       >
@@ -324,7 +324,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                           <div className="mt-2">
                             <button
                               onClick={() => handleNovoAgendamento(formatarData(dataAtual), horario)}
-                              className="w-full p-2 text-left text-gray-500 hover:bg-white/60 rounded border border-dashed border-amber-300"
+                              className="w-full p-2 text-left text-gray-500 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-gray-700/60 rounded border border-dashed border-amber-300 dark:border-amber-700"
                             >
                               + Agendar com outro profissional
                             </button>
@@ -334,7 +334,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                     ) : (
                       <button
                         onClick={() => handleNovoAgendamento(formatarData(dataAtual), horario)}
-                        className="w-full p-2 text-left text-gray-400 hover:bg-gray-50 rounded border-2 border-dashed border-gray-200 hover:border-gray-300"
+                        className="w-full p-2 text-left text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 rounded border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                       >
                         + Agendar
                       </button>
@@ -357,18 +357,18 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     const horarios = Array.from({ length: 12 }, (_, i) => `${(i + 8).toString().padStart(2, '0')}:00`);
 
     return (
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
         <div className="min-w-full">
           {/* Cabeçalho dos dias */}
-          <div className="grid grid-cols-8 border-b">
-            <div className="p-3 text-sm font-semibold text-gray-600">Horário</div>
+          <div className="grid grid-cols-8 border-b dark:border-gray-700">
+            <div className="p-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Horário</div>
             {Array.from({ length: 7 }, (_, i) => {
               const dia = new Date(inicioSemana);
               dia.setDate(inicioSemana.getDate() + i);
               
               return (
-                <div key={i} className="p-3 text-center border-l">
-                  <div className="text-sm font-semibold text-gray-900">
+                <div key={i} className="p-3 text-center border-l dark:border-gray-700">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
                     {diasSemana[dia.getDay()]}
                   </div>
                   <div className="text-lg font-bold" style={{ color: loja.cor_primaria }}>
@@ -381,8 +381,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
 
           {/* Grade de horários */}
           {horarios.map(horario => (
-            <div key={horario} className="grid grid-cols-8 border-b">
-              <div className="p-3 text-sm text-gray-600 font-mono border-r">
+            <div key={horario} className="grid grid-cols-8 border-b dark:border-gray-700">
+              <div className="p-3 text-sm text-gray-600 dark:text-gray-400 font-mono border-r dark:border-gray-700">
                 {horario}
               </div>
               {Array.from({ length: 7 }, (_, i) => {
@@ -397,7 +397,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                 const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
 
                 return (
-                  <div key={i} className="p-2 border-l min-h-[60px]">
+                  <div key={i} className="p-2 border-l dark:border-gray-700 min-h-[60px]">
                     {agendamento ? (
                       <div
                         className="p-2 rounded text-xs cursor-pointer hover:opacity-80"
@@ -409,8 +409,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                       </div>
                     ) : bloqueio ? (
                       <div
-                        className={`p-2 rounded text-xs border text-red-800 ${
-                          bloqueiaNoContexto ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
+                        className={`p-2 rounded text-xs border text-red-800 dark:text-red-300 ${
+                          bloqueiaNoContexto ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/30' : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30'
                         }`}
                         title={bloqueio.observacoes || bloqueio.titulo}
                       >
@@ -422,7 +422,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                     ) : (
                       <button
                         onClick={() => handleNovoAgendamento(dataStr, horario)}
-                        className="w-full h-full text-gray-300 hover:text-gray-500 hover:bg-gray-50 rounded border border-dashed border-transparent hover:border-gray-300"
+                        className="w-full h-full text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded border border-dashed border-transparent hover:border-gray-300 dark:hover:border-gray-600"
                       >
                         +
                       </button>
@@ -459,11 +459,11 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     }
 
     return (
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="p-4 border-b dark:border-gray-700">
           <div className="grid grid-cols-7 gap-2">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(dia => (
-              <div key={dia} className="text-center text-sm font-semibold text-gray-600 p-2">
+              <div key={dia} className="text-center text-sm font-semibold text-gray-600 dark:text-gray-400 p-2">
                 {dia}
               </div>
             ))}
@@ -486,20 +486,20 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               return (
                 <div
                   key={dia}
-                  className={`h-24 border rounded-lg p-1 cursor-pointer ${
-                    diaBloqueadoTotal ? 'bg-red-50 border-red-200' : 'hover:bg-gray-50'
+                  className={`h-24 border dark:border-gray-700 rounded-lg p-1 cursor-pointer ${
+                    diaBloqueadoTotal ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                   onClick={() => {
                     if (diaBloqueadoTotal) return;
                     handleNovoAgendamento(dataStr, '09:00');
                   }}
                 >
-                  <div className="text-sm font-semibold text-gray-900 mb-1">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
                     {dia}
                   </div>
                   <div className="space-y-1">
                     {bloqueiosDoDia.length > 0 && (
-                      <div className="text-[10px] px-1 py-0.5 rounded bg-red-100 text-red-800">
+                      <div className="text-[10px] px-1 py-0.5 rounded bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300">
                         ⛔ {bloqueiosDoDia.length} bloqueio(s)
                       </div>
                     )}
@@ -517,7 +517,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                       </div>
                     ))}
                     {agendamentosDoDia.length > 2 && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         +{agendamentosDoDia.length - 2} mais
                       </div>
                     )}
@@ -534,13 +534,13 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   return (
     <div className="space-y-6">
       {/* Cabeçalho do Calendário */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           <div>
-            <h2 className="text-2xl font-bold" style={{ color: loja.cor_primaria }}>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
               📅 Calendário de Agendamentos
             </h2>
-            <p className="text-gray-600 mt-1">{obterTituloPeriodo()}</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">{obterTituloPeriodo()}</p>
           </div>
 
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
@@ -548,7 +548,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
             <select
               value={profissionalSelecionado}
               onChange={(e) => setProfissionalSelecionado(e.target.value)}
-              className="px-3 py-2 border rounded-lg text-sm bg-white"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               title="Filtrar por profissional"
             >
               <option value="">Todos os profissionais</option>
@@ -560,7 +560,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
             </select>
 
             {/* Botões de Visualização */}
-            <div className="flex rounded-lg border">
+            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600">
               {(['dia', 'semana', 'mes'] as VisualizacaoTipo[]).map((tipo) => (
                 <button
                   key={tipo}
@@ -568,7 +568,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                   className={`px-4 py-2 text-sm font-medium capitalize ${
                     visualizacao === tipo
                       ? 'text-white'
-                      : 'text-gray-700 hover:text-gray-900'
+                      : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                   }`}
                   style={{
                     backgroundColor: visualizacao === tipo ? loja.cor_primaria : 'transparent'
@@ -583,19 +583,19 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
             <div className="flex space-x-2">
               <button
                 onClick={() => navegarPeriodo('anterior')}
-                className="px-3 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
               >
                 ←
               </button>
               <button
                 onClick={() => setDataAtual(new Date())}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-white"
               >
                 Hoje
               </button>
               <button
                 onClick={() => navegarPeriodo('proximo')}
-                className="px-3 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
               >
                 →
               </button>
@@ -775,15 +775,15 @@ function ModalAgendamento({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h3 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <h3 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
           📅 {agendamento ? 'Editar Agendamento' : 'Novo Agendamento'}
         </h3>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Cliente *
               </label>
               <select
@@ -791,7 +791,7 @@ function ModalAgendamento({
                 value={formData.cliente}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">Selecione um cliente...</option>
                 {clientes.map(cliente => (
@@ -803,7 +803,7 @@ function ModalAgendamento({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Profissional *
               </label>
               <select
@@ -811,7 +811,7 @@ function ModalAgendamento({
                 value={formData.profissional}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">Selecione um profissional...</option>
                 {profissionais.map(prof => (
@@ -823,7 +823,7 @@ function ModalAgendamento({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Procedimento *
               </label>
               <select
@@ -831,7 +831,7 @@ function ModalAgendamento({
                 value={formData.procedimento}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">Selecione um procedimento...</option>
                 {procedimentos.map(proc => (
@@ -843,7 +843,7 @@ function ModalAgendamento({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Data *
               </label>
               <input
@@ -853,12 +853,12 @@ function ModalAgendamento({
                 onChange={handleChange}
                 required
                 min={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Horário *
               </label>
               <select
@@ -866,7 +866,7 @@ function ModalAgendamento({
                 value={formData.horario}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">Selecione...</option>
                 {horarios.map(hora => (
@@ -876,7 +876,7 @@ function ModalAgendamento({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Valor (R$) *
               </label>
               <input
@@ -887,13 +887,13 @@ function ModalAgendamento({
                 required
                 min="0"
                 step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="0.00"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Observações
               </label>
               <textarea
@@ -901,18 +901,18 @@ function ModalAgendamento({
                 value={formData.observacoes}
                 onChange={handleChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="Informações adicionais sobre o agendamento..."
               />
             </div>
           </div>
 
-          <div className="flex justify-end space-x-4 pt-4">
+          <div className="flex justify-end space-x-4 pt-4 border-t dark:border-gray-600">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-900 dark:text-white"
             >
               Cancelar
             </button>

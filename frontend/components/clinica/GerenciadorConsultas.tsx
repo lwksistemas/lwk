@@ -474,47 +474,9 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
               onClick={onClose}
               className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
             >
-              ✕ Fechar
+              ← Voltar ao Dashboard
             </button>
           </div>
-        </div>
-
-        {/* Filtros */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filtrar por Profissional
-              </label>
-              <select
-                value={profissionalSelecionado}
-                onChange={(e) => setProfissionalSelecionado(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
-                style={{ '--tw-ring-color': loja.cor_primaria } as React.CSSProperties}
-              >
-                <option value="">Todos os profissionais</option>
-                {profissionais.map(prof => (
-                  <option key={prof.id} value={prof.id}>
-                    {prof.nome} - {prof.especialidade}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={() => setProfissionalSelecionado('')}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                🔄 Limpar Filtro
-              </button>
-            </div>
-          </div>
-          
-          {profissionalSelecionado && (
-            <div className="mt-2 text-sm text-gray-600">
-              Mostrando {consultasFiltered.length} consulta(s) de {profissionais.find(p => p.id.toString() === profissionalSelecionado)?.nome}
-            </div>
-          )}
         </div>
 
         {/* Lista de Consultas - Tela Cheia */}

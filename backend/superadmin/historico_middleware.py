@@ -51,6 +51,14 @@ class HistoricoAcessoMiddleware:
         self.track_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
     
     def __call__(self, request):
+        # 🔒 IMPORTANTE: Capturar loja_id ANTES de processar a resposta
+        # O TenantMiddleware limpa o contexto após a resposta, então precisamos capturar agora
+        from tenants.middleware import get_current_loja_id
+        loja_id_contexto = get_current_loja_id()
+        
+        # Armazenar no request para usar depois
+        request._historico_loja_id = loja_id_contexto
+        
         # Processar requisição
         response = self.get_response(request)
         
@@ -112,16 +120,18 @@ class HistoricoAcessoMiddleware:
         loja_nome = ''
         loja_slug = ''
         
-        # Tentar obter loja do contexto
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
+        # 🔒 IMPORTANTE: Usar loja_id capturado ANTES da resposta
+        # O contexto pode ter sido limpo pelo TenantMiddleware após a resposta
+        loja_id = getattr(request, '_historico_loja_id', None)
         
         if loja_id:
             try:
                 loja = Loja.objects.get(id=loja_id)
                 loja_nome = loja.nome
                 loja_slug = loja.slug
+                logger.debug(f"✅ [HistoricoMiddleware] Loja capturada: {loja_nome} (ID: {loja_id})")
             except Loja.DoesNotExist:
+                logger.warning(f"⚠️ [HistoricoMiddleware] Loja {loja_id} não encontrada")
                 pass
         
         # Determinar ação baseada no método HTTP e URL

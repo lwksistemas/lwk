@@ -86,6 +86,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   }, [loja?.id, loja?.slug]);
 
   // Handlers
+  const handleNovoAgendamento = () => setShowCalendario(true);
   const handleNovoCliente = () => openModal('cliente');
   const handleProcedimentos = () => openModal('procedimentos');
   const handleNovoProfissional = () => openModal('profissional');

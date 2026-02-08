@@ -314,8 +314,8 @@ Criar dashboard específico para segurança:
 - [x] Comando `limpar_historico_antigo` criado
 - [x] Endpoint `atividade_temporal` criado
 - [x] Documentação criada
-- [ ] Deploy backend realizado
-- [ ] Testes realizados
+- [x] Deploy backend realizado (v474)
+- [x] Comando testado em produção (dry-run)
 - [ ] Frontend atualizado (opcional)
 
 ---

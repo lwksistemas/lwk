@@ -5,7 +5,8 @@ from .views import (
     AgendamentoViewSet, FuncionarioViewSet, ProtocoloProcedimentoViewSet,
     EvolucaoPacienteViewSet, AnamnesesTemplateViewSet, AnamneseViewSet,
     HorarioFuncionamentoViewSet, BloqueioAgendaViewSet, ConsultaViewSet,
-    HistoricoLoginViewSet, CategoriaFinanceiraViewSet, TransacaoViewSet
+    HistoricoLoginViewSet, CategoriaFinanceiraViewSet, TransacaoViewSet,
+    HistoricoAcessosLojaViewSet
 )
 
 router = DefaultRouter()
@@ -22,6 +23,7 @@ router.register(r'horarios', HorarioFuncionamentoViewSet, basename='clinica-hora
 router.register(r'bloqueios', BloqueioAgendaViewSet, basename='clinica-bloqueios')
 router.register(r'funcionarios', FuncionarioViewSet, basename='clinica-funcionarios')
 router.register(r'historico-login', HistoricoLoginViewSet, basename='clinica-historico-login')
+router.register(r'historico-acessos', HistoricoAcessosLojaViewSet, basename='clinica-historico-acessos')
 router.register(r'categorias-financeiras', CategoriaFinanceiraViewSet, basename='clinica-categorias-financeiras')
 router.register(r'transacoes', TransacaoViewSet, basename='clinica-transacoes')
 

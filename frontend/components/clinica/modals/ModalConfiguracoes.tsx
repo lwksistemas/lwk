@@ -12,14 +12,26 @@ interface LojaInfo {
   cor_primaria: string;
 }
 
-interface HistoricoLogin {
+interface HistoricoAcesso {
   id: number;
-  usuario: string;
   usuario_nome: string;
-  ip_address: string;
-  data_hora: string;
+  usuario_email: string;
   acao: string;
+  acao_display: string;
+  recurso: string;
+  recurso_id: number | null;
+  ip_address: string;
+  navegador: string;
+  sucesso: boolean;
+  data_hora: string;
   detalhes?: string;
+}
+
+interface Estatisticas {
+  total_acoes: number;
+  acoes_por_tipo: Array<{ acao: string; total: number }>;
+  usuarios_mais_ativos: Array<{ usuario_nome: string; usuario_email: string; total: number }>;
+  recursos_mais_acessados: Array<{ recurso: string; total: number }>;
 }
 
 interface ModalConfiguracoesProps {
@@ -28,22 +40,45 @@ interface ModalConfiguracoesProps {
 }
 
 export function ModalConfiguracoes({ loja, onClose }: ModalConfiguracoesProps) {
-  const [historico, setHistorico] = useState<HistoricoLogin[]>([]);
+  const [historico, setHistorico] = useState<HistoricoAcesso[]>([]);
+  const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'historico' | 'geral'>('historico');
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [activeTab, setActiveTab] = useState<'historico' | 'estatisticas' | 'geral'>('historico');
+  
+  // Filtros
+  const [filtros, setFiltros] = useState({
+    usuario: '',
+    acao: '',
+    recurso: '',
+    data_inicio: '',
+    data_fim: '',
+    sucesso: ''
+  });
 
   useEffect(() => {
     if (activeTab === 'historico') {
       carregarHistorico();
+    } else if (activeTab === 'estatisticas') {
+      carregarEstatisticas();
     }
-  }, [activeTab]);
+  }, [activeTab, filtros]);
 
   const carregarHistorico = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/clinica/historico-login/');
-      const data = extractArrayData<HistoricoLogin>(response);
-      console.log('Histórico carregado:', data);
+      
+      // Construir query params
+      const params = new URLSearchParams();
+      if (filtros.usuario) params.append('usuario', filtros.usuario);
+      if (filtros.acao) params.append('acao', filtros.acao);
+      if (filtros.recurso) params.append('recurso', filtros.recurso);
+      if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+      if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+      if (filtros.sucesso) params.append('sucesso', filtros.sucesso);
+      
+      const response = await apiClient.get(`/clinica/historico-acessos/?${params.toString()}`);
+      const data = extractArrayData<HistoricoAcesso>(response);
       setHistorico(data);
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
@@ -53,21 +88,33 @@ export function ModalConfiguracoes({ loja, onClose }: ModalConfiguracoesProps) {
       setLoading(false);
     }
   };
-
-  const formatarDataHora = (dataHora: string) => {
+  
+  const carregarEstatisticas = async () => {
     try {
-      const date = new Date(dataHora);
-      return date.toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    } catch {
-      return dataHora;
+      setLoadingStats(true);
+      
+      const params = new URLSearchParams();
+      if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+      if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+      
+      const response = await apiClient.get(`/clinica/historico-acessos/estatisticas/?${params.toString()}`);
+      setEstatisticas(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    } finally {
+      setLoadingStats(false);
     }
+  };
+
+  const limparFiltros = () => {
+    setFiltros({
+      usuario: '',
+      acao: '',
+      recurso: '',
+      data_inicio: '',
+      data_fim: '',
+      sucesso: ''
+    });
   };
 
   const getAcaoIcon = (acao: string) => {
@@ -82,6 +129,17 @@ export function ModalConfiguracoes({ loja, onClose }: ModalConfiguracoesProps) {
       'importar': '📤'
     };
     return icons[acao.toLowerCase()] || '📝';
+  };
+  
+  const getAcaoColor = (acao: string) => {
+    const colors: Record<string, string> = {
+      'login': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+      'logout': 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
+      'criar': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+      'editar': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+      'excluir': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+    };
+    return colors[acao.toLowerCase()] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
   };
 
   return (

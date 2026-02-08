@@ -320,38 +320,102 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                     print(f"✅ Configuração de banco adicionada para '{loja.database_name}'")
                     print(f"✅ Banco '{loja.database_name}' adicionado às configurações")
                 
-                # Aplicar migrations no novo schema
-                from django.core.management import call_command
+                # Criar tabelas no novo schema copiando estrutura do public
                 try:
-                    # Migrations básicas (sempre aplicar)
-                    call_command('migrate', 'stores', '--database', loja.database_name, verbosity=0)
-                    call_command('migrate', 'products', '--database', loja.database_name, verbosity=0)
-                    
-                    # Migrations específicas por tipo de loja
                     tipo_loja_nome = loja.tipo_loja.nome if loja.tipo_loja else ''
                     
-                    if tipo_loja_nome == 'Clínica de Estética':
-                        call_command('migrate', 'clinica_estetica', '--database', loja.database_name, verbosity=0)
-                        print(f"✅ Migrations de Clínica de Estética aplicadas")
-                    elif tipo_loja_nome == 'CRM Vendas':
-                        call_command('migrate', 'crm_vendas', '--database', loja.database_name, verbosity=0)
-                        print(f"✅ Migrations de CRM Vendas aplicadas")
-                    elif tipo_loja_nome == 'Restaurante':
-                        call_command('migrate', 'restaurante', '--database', loja.database_name, verbosity=0)
-                        print(f"✅ Migrations de Restaurante aplicadas")
-                    elif tipo_loja_nome == 'Serviços':
-                        call_command('migrate', 'servicos', '--database', loja.database_name, verbosity=0)
-                        print(f"✅ Migrations de Serviços aplicadas")
-                    elif tipo_loja_nome == 'Cabeleireiro':
-                        call_command('migrate', 'cabeleireiro', '--database', loja.database_name, verbosity=0)
-                        print(f"✅ Migrations de Cabeleireiro aplicadas")
-                    elif tipo_loja_nome == 'E-commerce':
-                        call_command('migrate', 'ecommerce', '--database', loja.database_name, verbosity=0)
-                        print(f"✅ Migrations de E-commerce aplicadas")
+                    # Definir tabelas por tipo de loja
+                    tabelas_por_tipo = {
+                        'Clínica de Estética': [
+                            'clinica_clientes',
+                            'clinica_profissionais',
+                            'clinica_procedimentos',
+                            'clinica_agendamentos',
+                            'clinica_funcionarios',
+                            'clinica_protocolos',
+                            'clinica_consultas',
+                            'clinica_evolucoes',
+                            'clinica_anamneses_templates',
+                            'clinica_anamneses',
+                            'clinica_horarios_funcionamento',
+                            'clinica_bloqueios_agenda',
+                            'clinica_historico_login',
+                            'clinica_categorias_financeiras',
+                            'clinica_transacoes'
+                        ],
+                        'CRM Vendas': [
+                            'crm_clientes',
+                            'crm_leads',
+                            'crm_oportunidades',
+                            'crm_vendas',
+                            'crm_funcionarios'
+                        ],
+                        'Cabeleireiro': [
+                            'cabeleireiro_clientes',
+                            'cabeleireiro_profissionais',
+                            'cabeleireiro_servicos',
+                            'cabeleireiro_agendamentos',
+                            'cabeleireiro_funcionarios'
+                        ],
+                        'Restaurante': [
+                            'restaurante_mesas',
+                            'restaurante_produtos',
+                            'restaurante_pedidos',
+                            'restaurante_funcionarios'
+                        ],
+                        'Serviços': [
+                            'servicos_clientes',
+                            'servicos_servicos',
+                            'servicos_agendamentos',
+                            'servicos_funcionarios'
+                        ],
+                        'E-commerce': [
+                            'ecommerce_produtos',
+                            'ecommerce_categorias',
+                            'ecommerce_pedidos',
+                            'ecommerce_clientes'
+                        ]
+                    }
                     
-                    print(f"✅ Migrations aplicadas no schema '{schema_name}'")
+                    tabelas = tabelas_por_tipo.get(tipo_loja_nome, [])
+                    
+                    if tabelas:
+                        tabelas_criadas = 0
+                        with connection.cursor() as cursor:
+                            for tabela in tabelas:
+                                try:
+                                    # Verificar se tabela existe no public
+                                    cursor.execute("""
+                                        SELECT table_name 
+                                        FROM information_schema.tables 
+                                        WHERE table_schema = 'public' AND table_name = %s
+                                    """, [tabela])
+                                    
+                                    if not cursor.fetchone():
+                                        print(f"⚠️  Tabela {tabela} não existe no schema public, pulando...")
+                                        continue
+                                    
+                                    # Copiar estrutura da tabela do schema public
+                                    cursor.execute(f"""
+                                        CREATE TABLE {schema_name}.{tabela} 
+                                        (LIKE public.{tabela} INCLUDING ALL)
+                                    """)
+                                    tabelas_criadas += 1
+                                    print(f"   ✅ {tabela}")
+                                except Exception as e:
+                                    print(f"   ⚠️  Erro ao criar {tabela}: {str(e)[:100]}")
+                        
+                        if tabelas_criadas > 0:
+                            print(f"✅ {tabelas_criadas} tabelas criadas no schema '{schema_name}'")
+                        else:
+                            print(f"⚠️ Nenhuma tabela foi criada no schema '{schema_name}'")
+                    else:
+                        print(f"⚠️ Tipo de loja '{tipo_loja_nome}' não tem tabelas definidas")
+                    
                 except Exception as e:
-                    print(f"⚠️ Erro ao aplicar migrations: {e}")
+                    print(f"⚠️ Erro ao criar tabelas: {e}")
+                    import traceback
+                    print(traceback.format_exc())
                 
             except Exception as e:
                 print(f"⚠️ Erro ao criar schema: {e}")

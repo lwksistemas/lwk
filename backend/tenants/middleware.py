@@ -45,7 +45,6 @@ class TenantMiddleware:
         try:
             # Detectar tenant por subdomain, header ou parâmetro
             tenant_slug = self._get_tenant_slug(request)
-            logger.info(f"🔍 [TenantMiddleware] URL: {request.path} | Slug detectado: {tenant_slug}")
             
             if tenant_slug:
                 # Buscar a loja pelo slug (case-insensitive: dani/Dani funcionam)
@@ -161,7 +160,6 @@ class TenantMiddleware:
         
         # 1. Tentar pegar do header X-Loja-ID (PRIORIDADE - ID único)
         loja_id = request.headers.get('X-Loja-ID')
-        logger.info(f"🔍 [_get_tenant_slug] X-Loja-ID header: {loja_id}")
         
         if loja_id:
             try:
@@ -222,18 +220,12 @@ class TenantMiddleware:
         import logging
         logger = logging.getLogger(__name__)
         
-        logger.info(f"🔍 [_validate_user_owns_loja] Validando acesso - Loja: {loja.slug} (ID: {loja.id})")
-        
         if not hasattr(request, 'user') or not request.user.is_authenticated:
             logger.warning("⚠️ Usuário não autenticado tentando acessar loja")
             return False
         
-        logger.info(f"🔍 [_validate_user_owns_loja] Usuário: {request.user.id} ({request.user.email})")
-        logger.info(f"🔍 [_validate_user_owns_loja] Owner da loja: {loja.owner_id}")
-        
         # SuperAdmin pode acessar qualquer loja
         if request.user.is_superuser:
-            logger.info(f"✅ SuperAdmin acessando loja {loja.slug}")
             return True
         
         # Validar owner
@@ -250,8 +242,6 @@ class TenantMiddleware:
                 from restaurante.models import Funcionario as FuncionarioRestaurante
                 from servicos.models import Funcionario as FuncionarioServicos
                 
-                logger.info(f"🔍 [_validate_user_owns_loja] Verificando se é vendedor/funcionário...")
-                
                 # Verificar se é vendedor (CRM Vendas)
                 is_vendedor = Vendedor.objects.all_without_filter().filter(
                     loja_id=loja.id,
@@ -259,10 +249,7 @@ class TenantMiddleware:
                     is_active=True
                 ).exists()
                 
-                logger.info(f"🔍 [_validate_user_owns_loja] É vendedor (CRM)? {is_vendedor}")
-                
                 if is_vendedor:
-                    logger.info(f"✅ Usuário {request.user.id} é vendedor da loja {loja.slug}")
                     return True
                 
                 # Verificar se é funcionário (Clínica Estética)
@@ -272,10 +259,7 @@ class TenantMiddleware:
                     is_active=True
                 ).exists()
                 
-                logger.info(f"🔍 [_validate_user_owns_loja] É funcionário (Clínica)? {is_funcionario_clinica}")
-                
                 if is_funcionario_clinica:
-                    logger.info(f"✅ Usuário {request.user.id} é funcionário da loja {loja.slug}")
                     return True
                 
                 # Verificar se é funcionário (Restaurante)
@@ -285,10 +269,7 @@ class TenantMiddleware:
                     is_active=True
                 ).exists()
                 
-                logger.info(f"🔍 [_validate_user_owns_loja] É funcionário (Restaurante)? {is_funcionario_restaurante}")
-                
                 if is_funcionario_restaurante:
-                    logger.info(f"✅ Usuário {request.user.id} é funcionário da loja {loja.slug}")
                     return True
                 
                 # Verificar se é funcionário (Serviços)
@@ -304,7 +285,6 @@ class TenantMiddleware:
             )
             return False
         
-        logger.info(f"✅ Usuário {request.user.id} validado para loja {loja.slug} (owner)")
         return True
     
     def _validate_user_owns_loja_by_slug(self, request, tenant_slug):
@@ -318,7 +298,6 @@ class TenantMiddleware:
         
         # SuperAdmin pode acessar qualquer loja
         if request.user.is_superuser:
-            logger.debug(f"✅ SuperAdmin acessando loja {tenant_slug}")
             return True
         
         try:

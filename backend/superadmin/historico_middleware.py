@@ -107,10 +107,6 @@ class HistoricoAcessoMiddleware:
         usuario_email = user.email if user else 'Anônimo'
         usuario_nome = user.get_full_name() or user.username if user else 'Anônimo'
         
-        # Debug: verificar se usuário está autenticado
-        if not user:
-            logger.warning(f"⚠️ [HistoricoMiddleware] Usuário não autenticado para {request.method} {request.path}")
-        
         # Extrair informações da loja (se aplicável)
         loja = None
         loja_nome = ''

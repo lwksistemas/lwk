@@ -37,11 +37,6 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                     f"sem loja_id no contexto. Retornando queryset vazio."
                 )
                 return queryset.none()
-            
-            logger.debug(
-                f"✅ [{self.__class__.__name__}] "
-                f"Filtrando {self.queryset.model.__name__} por loja_id={loja_id}"
-            )
         
         # Filtro is_active
         if hasattr(self.queryset.model, 'is_active'):
@@ -118,7 +113,6 @@ class BaseFuncionarioViewSet(BaseModelViewSet):
         logger = logging.getLogger(__name__)
         
         loja_id = get_current_loja_id()
-        logger.debug(f"[{self.__class__.__name__}] list() - loja_id={loja_id}")
         
         try:
             # Garantir que admin existe

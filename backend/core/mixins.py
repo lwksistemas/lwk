@@ -46,8 +46,6 @@ class LojaIsolationManager(models.Manager):
         loja_id = get_current_loja_id()
         tenant_db = get_current_tenant_db()
         
-        logger.info(f"🔍 [LojaIsolationManager.get_queryset] loja_id={loja_id}, db={tenant_db}")
-        
         # 🔒 SEGURANÇA: Sempre filtrar por loja_id
         if loja_id:
             # Usar o banco de dados correto (schema isolado)
@@ -55,7 +53,6 @@ class LojaIsolationManager(models.Manager):
             if tenant_db and tenant_db != 'default':
                 qs = qs.using(tenant_db)
             qs = qs.filter(loja_id=loja_id)
-            logger.info(f"📊 [LojaIsolationManager] Queryset filtrado por loja_id={loja_id} - count: {qs.count()}")
             return qs
         
         # Se não há loja no contexto, retornar queryset vazio (segurança)

@@ -1,12 +1,10 @@
 """
 Comando para criar tabelas nos schemas das lojas existentes
+Usa SQL direto para copiar estrutura do schema public
 """
 from django.core.management.base import BaseCommand
-from django.core.management import call_command
-from django.conf import settings
+from django.db import connection
 from superadmin.models import Loja
-import dj_database_url
-import os
 
 
 class Command(BaseCommand):
@@ -47,44 +45,75 @@ class Command(BaseCommand):
             self.stdout.write(f'   Database: {loja.database_name}')
             self.stdout.write(f'   Tipo: {loja.tipo_loja.nome if loja.tipo_loja else "N/A"}')
 
-            # Adicionar configuração do banco se não existir
-            DATABASE_URL = os.environ.get('DATABASE_URL')
-            if DATABASE_URL and loja.database_name not in settings.DATABASES:
-                default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
-                schema_name = loja.database_name.replace('-', '_')
-                settings.DATABASES[loja.database_name] = {
-                    **default_db,
-                    'OPTIONS': {
-                        'options': f'-c search_path={schema_name},public'
-                    },
-                    'ATOMIC_REQUESTS': False,
-                    'AUTOCOMMIT': True,
-                    'CONN_MAX_AGE': 600,
-                    'CONN_HEALTH_CHECKS': True,
-                    'TIME_ZONE': None,
-                }
-                self.stdout.write(f'   ✓ Configuração de banco adicionada')
+            schema_name = loja.database_name.replace('-', '_')
+            self.stdout.write(f'   Schema: {schema_name}')
 
-            # Aplicar migrations
             try:
-                self.stdout.write(f'\n   🔄 Aplicando migrations...')
-                
-                # Migrations básicas
-                call_command('migrate', 'stores', '--database', loja.database_name, verbosity=0)
-                self.stdout.write(f'   ✓ stores')
-                
-                call_command('migrate', 'products', '--database', loja.database_name, verbosity=0)
-                self.stdout.write(f'   ✓ products')
-                
-                # Migrations específicas por tipo
-                if loja.tipo_loja.nome == 'Clínica de Estética':
-                    call_command('migrate', 'clinica_estetica', '--database', loja.database_name, verbosity=0)
-                    self.stdout.write(f'   ✓ clinica_estetica')
-                
-                self.stdout.write(self.style.SUCCESS(f'\n   ✅ Migrations aplicadas com sucesso!'))
+                with connection.cursor() as cursor:
+                    # Verificar se schema existe
+                    cursor.execute("""
+                        SELECT schema_name 
+                        FROM information_schema.schemata 
+                        WHERE schema_name = %s
+                    """, [schema_name])
+                    
+                    if not cursor.fetchone():
+                        self.stdout.write(self.style.ERROR(f'\n   ❌ Schema {schema_name} não existe'))
+                        continue
+
+                    self.stdout.write(f'\n   🔄 Criando tabelas no schema {schema_name}...')
+
+                    # Listar tabelas que precisam ser criadas
+                    tabelas_clinica = [
+                        'clinica_clientes',
+                        'clinica_profissionais',
+                        'clinica_procedimentos',
+                        'clinica_agendamentos',
+                        'clinica_funcionarios',
+                        'clinica_protocolos',
+                        'clinica_consultas',
+                        'clinica_evolucoes',
+                        'clinica_anamneses_templates',
+                        'clinica_anamneses',
+                        'clinica_horarios_funcionamento',
+                        'clinica_bloqueios_agenda',
+                        'clinica_historico_login',
+                        'clinica_categorias_financeiras',
+                        'clinica_transacoes'
+                    ]
+
+                    tabelas_criadas = 0
+                    
+                    for tabela in tabelas_clinica:
+                        # Verificar se tabela já existe no schema
+                        cursor.execute("""
+                            SELECT table_name 
+                            FROM information_schema.tables 
+                            WHERE table_schema = %s AND table_name = %s
+                        """, [schema_name, tabela])
+                        
+                        if cursor.fetchone():
+                            self.stdout.write(f'      ⏭️  {tabela} (já existe)')
+                            continue
+
+                        # Copiar estrutura da tabela do schema public
+                        try:
+                            cursor.execute(f"""
+                                CREATE TABLE {schema_name}.{tabela} 
+                                (LIKE public.{tabela} INCLUDING ALL)
+                            """)
+                            self.stdout.write(f'      ✅ {tabela}')
+                            tabelas_criadas += 1
+                        except Exception as e:
+                            self.stdout.write(f'      ⚠️  {tabela}: {str(e)[:50]}')
+
+                    if tabelas_criadas > 0:
+                        self.stdout.write(self.style.SUCCESS(f'\n   ✅ {tabelas_criadas} tabelas criadas com sucesso!'))
+                    else:
+                        self.stdout.write(self.style.WARNING(f'\n   ⚠️  Nenhuma tabela nova criada (todas já existiam)'))
                 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'\n   ❌ Erro ao aplicar migrations: {e}'))
+                self.stdout.write(self.style.ERROR(f'\n   ❌ Erro: {e}'))
 
         self.stdout.write('\n' + '='*100)
         self.stdout.write(self.style.SUCCESS('✅ Processo concluído!'))

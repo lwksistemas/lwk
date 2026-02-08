@@ -105,16 +105,18 @@ class TenantMiddleware:
                     # Verificar se o banco existe nas configurações
                     if db_name in settings.DATABASES:
                         # Limite de tamanho: bloquear escritas se o arquivo SQLite da loja >= 512 MB
+                        # NOTA: Isso só se aplica a SQLite local, não PostgreSQL em produção
                         if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
                             db_path = getattr(settings, 'BASE_DIR', None)
-                            if db_path is not None and getattr(loja, 'database_created', False) and getattr(loja, 'database_name', None):
-                                path = Path(db_path) / f'db_{loja.database_name}.sqlite3'
+                            # Verificar se é SQLite (não PostgreSQL)
+                            if db_path is not None and 'sqlite' in str(settings.DATABASES.get(db_name, {}).get('ENGINE', '')):
+                                path = Path(db_path) / f'db_{db_name}.sqlite3'
                                 if path.exists():
                                     try:
                                         size = path.stat().st_size
                                         if size >= LIMITE_BANCO_LOJA_BYTES:
                                             logger.warning(
-                                                f"⚠️ [TenantMiddleware] Loja {loja.slug} atingiu limite "
+                                                f"⚠️ [TenantMiddleware] Loja {tenant_slug} atingiu limite "
                                                 f"de banco ({size / (1024*1024):.1f} MB >= {LIMITE_BANCO_LOJA_MB} MB)"
                                             )
                                             return JsonResponse(

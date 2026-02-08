@@ -378,8 +378,16 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     type="button"
                     onClick={buscarCnpj}
                     disabled={buscarCnpjLoading || formData.cpf_cnpj.replace(/\D/g, '').length !== 14}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                    title="Buscar dados do CNPJ na Receita Federal"
+                    className={`px-4 py-2 rounded-md whitespace-nowrap transition-all ${
+                      buscarCnpjLoading || formData.cpf_cnpj.replace(/\D/g, '').length !== 14
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+                    }`}
+                    title={
+                      formData.cpf_cnpj.replace(/\D/g, '').length !== 14
+                        ? 'Digite um CNPJ válido (14 dígitos)'
+                        : 'Buscar dados do CNPJ na Receita Federal'
+                    }
                   >
                     {buscarCnpjLoading ? 'Buscando...' : 'Buscar CNPJ'}
                   </button>

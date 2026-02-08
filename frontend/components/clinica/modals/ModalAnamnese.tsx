@@ -58,7 +58,21 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
   const [showAnamneseForm, setShowAnamneseForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [formData, setFormData] = useState(initialFormData);
+  // Estados para nova anamnese
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [selectedCliente, setSelectedCliente] = useState<string>('');
+  const [respostas, setRespostas] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  const loadClientes = useCallback(async () => {
+    try {
+      const response = await clinicaApiClient.get('/clinica/clientes/');
+      setClientes(ensureArray<any>(response.data));
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+    }
+  }, []);
 
   const loadAnamneses = useCallback(async () => {
     try {
@@ -93,7 +107,8 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
     loadAnamneses();
     loadTemplates();
     loadProcedimentos();
-  }, [loadAnamneses, loadTemplates, loadProcedimentos]);
+    loadClientes();
+  }, [loadAnamneses, loadTemplates, loadProcedimentos, loadClientes]);
 
   const handleEditTemplate = (template: Template) => {
     setEditingTemplate(template);
@@ -188,22 +203,211 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
 
   // Formulário de nova anamnese (preencher)
   if (showAnamneseForm) {
+    const templateSelecionado = templates.find(t => t.id.toString() === selectedTemplate);
+    const perguntas: Pergunta[] = templateSelecionado ? JSON.parse(templateSelecionado.perguntas || '[]') : [];
+
+    const handleSubmitAnamnese = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setSubmitting(true);
+
+      try {
+        const anamneseData = {
+          cliente: parseInt(selectedCliente),
+          template: parseInt(selectedTemplate),
+          respostas: JSON.stringify(respostas),
+          data_preenchimento: new Date().toISOString().split('T')[0]
+        };
+
+        await clinicaApiClient.post('/clinica/anamneses/', anamneseData);
+        alert('✅ Anamnese preenchida com sucesso!');
+        loadAnamneses();
+        setShowAnamneseForm(false);
+        setSelectedTemplate('');
+        setSelectedCliente('');
+        setRespostas({});
+      } catch (error) {
+        console.error('Erro ao salvar anamnese:', error);
+        alert('❌ Erro ao salvar anamnese');
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
     return (
-      <CrudModal loja={loja} onClose={() => setShowAnamneseForm(false)} title="Nova Anamnese" icon="📝" maxWidth="4xl">
-        <div className="text-center py-12">
-          <p className="text-lg mb-4">🚧 Funcionalidade em desenvolvimento</p>
-          <p className="text-sm text-gray-600 mb-6">
-            Esta funcionalidade permitirá preencher anamneses durante consultas.<br/>
-            Por enquanto, você pode criar templates de anamnese.
-          </p>
-          <button 
-            onClick={() => setShowAnamneseForm(false)} 
-            className="px-6 py-2 text-white rounded-md hover:opacity-90" 
-            style={{ backgroundColor: loja.cor_primaria }}
-          >
-            Voltar
-          </button>
-        </div>
+      <CrudModal loja={loja} onClose={() => {
+        setShowAnamneseForm(false);
+        setSelectedTemplate('');
+        setSelectedCliente('');
+        setRespostas({});
+      }} title="Nova Anamnese" icon="📝" maxWidth="4xl">
+        <form onSubmit={handleSubmitAnamnese} className="space-y-6">
+          {/* Seleção de Cliente e Template */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b dark:border-gray-700">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Cliente *
+              </label>
+              <select
+                value={selectedCliente}
+                onChange={(e) => setSelectedCliente(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">Selecione um cliente...</option>
+                {clientes.map(cliente => (
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Template *
+              </label>
+              <select
+                value={selectedTemplate}
+                onChange={(e) => {
+                  setSelectedTemplate(e.target.value);
+                  setRespostas({});
+                }}
+                required
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">Selecione um template...</option>
+                {templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.nome} - {template.procedimento_nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Perguntas do Template */}
+          {templateSelecionado && perguntas.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {templateSelecionado.nome}
+              </h4>
+              {templateSelecionado.descricao && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  {templateSelecionado.descricao}
+                </p>
+              )}
+
+              {perguntas.map((pergunta, index) => (
+                <div key={index} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {index + 1}. {pergunta.pergunta}
+                    {pergunta.obrigatoria && <span className="text-red-500 ml-1">*</span>}
+                  </label>
+
+                  {pergunta.tipo === 'texto' && (
+                    <textarea
+                      value={respostas[index] || ''}
+                      onChange={(e) => setRespostas(prev => ({ ...prev, [index]: e.target.value }))}
+                      required={pergunta.obrigatoria}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white 
+                                 resize-none"
+                      placeholder="Digite sua resposta..."
+                    />
+                  )}
+
+                  {pergunta.tipo === 'sim_nao' && (
+                    <div className="flex space-x-4">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name={`pergunta_${index}`}
+                          value="Sim"
+                          checked={respostas[index] === 'Sim'}
+                          onChange={(e) => setRespostas(prev => ({ ...prev, [index]: e.target.value }))}
+                          required={pergunta.obrigatoria}
+                          className="mr-2"
+                        />
+                        <span className="text-gray-700 dark:text-gray-300">Sim</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name={`pergunta_${index}`}
+                          value="Não"
+                          checked={respostas[index] === 'Não'}
+                          onChange={(e) => setRespostas(prev => ({ ...prev, [index]: e.target.value }))}
+                          required={pergunta.obrigatoria}
+                          className="mr-2"
+                        />
+                        <span className="text-gray-700 dark:text-gray-300">Não</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {pergunta.tipo === 'numero' && (
+                    <input
+                      type="number"
+                      value={respostas[index] || ''}
+                      onChange={(e) => setRespostas(prev => ({ ...prev, [index]: e.target.value }))}
+                      required={pergunta.obrigatoria}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Digite um número..."
+                    />
+                  )}
+
+                  {pergunta.tipo === 'data' && (
+                    <input
+                      type="date"
+                      value={respostas[index] || ''}
+                      onChange={(e) => setRespostas(prev => ({ ...prev, [index]: e.target.value }))}
+                      required={pergunta.obrigatoria}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                                 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!templateSelecionado && (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <p>Selecione um cliente e um template para começar</p>
+            </div>
+          )}
+
+          {/* Botões */}
+          <div className="flex justify-end space-x-4 pt-4 border-t dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAnamneseForm(false);
+                setSelectedTemplate('');
+                setSelectedCliente('');
+                setRespostas({});
+              }}
+              disabled={submitting}
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                         hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 
+                         text-gray-900 dark:text-white"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || !selectedTemplate || !selectedCliente}
+              className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              {submitting ? 'Salvando...' : '💾 Salvar Anamnese'}
+            </button>
+          </div>
+        </form>
       </CrudModal>
     );
   }

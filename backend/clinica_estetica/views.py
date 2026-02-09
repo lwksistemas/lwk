@@ -387,7 +387,11 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
             if not existe:
                 logger.error(f"[BloqueioAgenda] ERRO CRÍTICO: Tentativa de criar bloqueio com profissional_id={profissional_id} que não existe no schema da loja {loja_id}")
         
-        serializer.save(loja_id=loja_id)
+        # Salvar e logar o que foi realmente salvo
+        bloqueio = serializer.save(loja_id=loja_id)
+        logger.info(f"🔍 [BloqueioAgenda] SALVO NO BANCO: id={bloqueio.id}, data_inicio={bloqueio.data_inicio}, data_fim={bloqueio.data_fim}")
+        
+        return bloqueio
 
 
 class FuncionarioViewSet(BaseFuncionarioViewSet):

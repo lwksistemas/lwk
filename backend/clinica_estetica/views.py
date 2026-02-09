@@ -310,6 +310,18 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
         
         return queryset
     
+    def create(self, request, *args, **kwargs):
+        """Sobrescreve create para logar erros de validação"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"[BloqueioAgenda] Erro ao criar bloqueio: {str(e)}")
+            logger.error(f"[BloqueioAgenda] Dados recebidos: {request.data}")
+            raise
+    
     def perform_create(self, serializer):
         """Preenche automaticamente o loja_id do contexto"""
         from tenants.middleware import get_current_loja_id

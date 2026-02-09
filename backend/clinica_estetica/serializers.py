@@ -177,12 +177,12 @@ class HorarioFuncionamentoSerializer(serializers.ModelSerializer):
 
 class BloqueioAgendaSerializer(serializers.ModelSerializer):
     tipo_nome = serializers.CharField(source='get_tipo_display', read_only=True)
-    profissional_nome = serializers.CharField(source='profissional.nome', read_only=True)
+    profissional_nome = serializers.CharField(source='profissional.nome', read_only=True, allow_null=True)
 
     class Meta:
         model = BloqueioAgenda
         fields = '__all__'
-        read_only_fields = ['created_at']
+        read_only_fields = ['created_at', 'loja_id']  # loja_id é read-only (preenchido automaticamente)
 
 
 class FuncionarioSerializer(BaseLojaSerializer):

@@ -309,6 +309,12 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
             queryset = queryset.filter(Q(profissional_id=profissional_id) | Q(profissional__isnull=True))
         
         return queryset
+    
+    def perform_create(self, serializer):
+        """Preenche automaticamente o loja_id do contexto"""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        serializer.save(loja_id=loja_id)
 
 
 class FuncionarioViewSet(BaseFuncionarioViewSet):

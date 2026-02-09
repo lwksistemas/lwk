@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import BotaoSuporte from '@/components/suporte/BotaoSuporte';
+import ModalChamado from '@/components/suporte/ModalChamado';
 import DashboardClinicaEstetica from './templates/clinica-estetica';
 import DashboardCRMVendas from './templates/crm-vendas';
 import DashboardRestaurante from './templates/restaurante';
@@ -30,6 +30,7 @@ export default function LojaDashboardDinamicoPage() {
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingLento, setLoadingLento] = useState(false);
+  const [modalSuporteAberto, setModalSuporteAberto] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -144,6 +145,17 @@ export default function LojaDashboardDinamicoPage() {
                 <span>Chamados</span>
               </button>
               <button
+                onClick={() => setModalSuporteAberto(true)}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                title="Abrir novo chamado de suporte"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+                <span className="hidden sm:inline">Abrir Suporte</span>
+                <span className="sm:hidden">Suporte</span>
+              </button>
+              <button
                 onClick={() => {
                   const html = document.documentElement;
                   const isDark = html.classList.contains('dark');
@@ -186,8 +198,15 @@ export default function LojaDashboardDinamicoPage() {
         </div>
       </main>
 
-      {/* Botão Flutuante de Suporte - Disponível em todos os dashboards */}
-      <BotaoSuporte lojaSlug={slug} lojaNome={lojaInfo.nome} />
+      {/* Modal de Suporte */}
+      {modalSuporteAberto && (
+        <ModalChamado
+          aberto={modalSuporteAberto}
+          onFechar={() => setModalSuporteAberto(false)}
+          lojaSlug={slug}
+          lojaNome={lojaInfo.nome}
+        />
+      )}
     </div>
   );
 }

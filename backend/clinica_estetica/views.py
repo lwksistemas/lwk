@@ -313,7 +313,15 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
     def perform_create(self, serializer):
         """Preenche automaticamente o loja_id do contexto"""
         from tenants.middleware import get_current_loja_id
+        import logging
+        logger = logging.getLogger(__name__)
+        
         loja_id = get_current_loja_id()
+        
+        # Log dos dados recebidos
+        logger.info(f"[BloqueioAgenda] Dados recebidos: {self.request.data}")
+        logger.info(f"[BloqueioAgenda] loja_id do contexto: {loja_id}")
+        
         serializer.save(loja_id=loja_id)
 
 

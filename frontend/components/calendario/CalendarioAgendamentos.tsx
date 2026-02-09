@@ -1039,20 +1039,29 @@ function ModalBloqueio({
     setLoading(true);
 
     try {
-      const bloqueioData = {
+      const bloqueioData: any = {
         titulo: formData.motivo || 'Bloqueio de agenda',
         tipo: formData.tipo === 'dia_completo' ? 'feriado' : 'outros',
-        profissional: formData.profissional ? parseInt(formData.profissional) : null,
         data_inicio: formData.data_inicio,
         data_fim: formData.data_fim,
-        horario_inicio: formData.tipo === 'periodo' ? formData.horario_inicio : null,
-        horario_fim: formData.tipo === 'periodo' ? formData.horario_fim : null,
         observacoes: formData.motivo
       };
+
+      // Adicionar profissional apenas se selecionado
+      if (formData.profissional) {
+        bloqueioData.profissional = parseInt(formData.profissional);
+      }
+
+      // Adicionar horários apenas se for período
+      if (formData.tipo === 'periodo') {
+        bloqueioData.horario_inicio = formData.horario_inicio;
+        bloqueioData.horario_fim = formData.horario_fim;
+      }
 
       await clinicaApiClient.post('/clinica/bloqueios/', bloqueioData);
       alert('✅ Bloqueio criado com sucesso!');
       onSuccess();
+      onClose();
     } catch (error) {
       console.error('Erro ao criar bloqueio:', error);
       alert('❌ Erro ao criar bloqueio');

@@ -178,10 +178,10 @@ export default function SuperAdminDashboard() {
               color="cyan"
             />
             <MenuCard
-              title="Relatórios"
-              description="Histórico de acessos e análises do sistema"
+              title="Busca de Logs"
+              description="Histórico de acessos e análises avançadas do sistema"
               icon="📊"
-              href="/superadmin/historico-acessos"
+              href="/superadmin/dashboard/logs"
               color="pink"
             />
             <MenuCard

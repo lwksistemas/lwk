@@ -198,18 +198,23 @@ def cached_stat(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
             cache_key = ':'.join(cache_key_parts)
             
             # Tentar obter do cache
-            cached_value = CacheService.get(cache_key)
-            if cached_value is not None:
+            cached_data = CacheService.get(cache_key)
+            if cached_data is not None:
                 logger.info(f"Retornando estatística do cache: {prefix}")
-                return cached_value
+                # Importar Response aqui para evitar circular import
+                from rest_framework.response import Response
+                return Response(cached_data)
             
             # Executar função
             logger.info(f"Calculando estatística: {prefix}")
             result = func(*args, **kwargs)
             
-            # Armazenar no cache (apenas se for Response com data)
+            # Armazenar no cache (apenas os dados, não o objeto Response)
             if hasattr(result, 'data'):
-                CacheService.set(cache_key, result, ttl)
+                try:
+                    CacheService.set(cache_key, result.data, ttl)
+                except Exception as e:
+                    logger.error(f"Erro ao armazenar cache {cache_key}: {e}")
             
             return result
         

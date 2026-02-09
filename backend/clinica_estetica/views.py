@@ -289,7 +289,19 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         """Retorna bloqueios filtrados por loja, data e profissional"""
-        queryset = BloqueioAgenda.objects.select_related('profissional')
+        from tenants.middleware import get_current_loja_id
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        loja_id = get_current_loja_id()
+        
+        if not loja_id:
+            logger.warning("⚠️ [BloqueioAgendaViewSet] Nenhuma loja no contexto")
+            return BloqueioAgenda.objects.none()
+        
+        # Filtrar por loja_id explicitamente
+        queryset = BloqueioAgenda.objects.filter(loja_id=loja_id).select_related('profissional')
+        
         params = getattr(self.request, "query_params", self.request.GET)
         data_inicio = params.get('data_inicio')
         data_fim = params.get('data_fim')
@@ -307,6 +319,8 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
         # Se filtrar por profissional, incluir bloqueios do profissional E bloqueios globais (profissional null)
         if profissional_id:
             queryset = queryset.filter(Q(profissional_id=profissional_id) | Q(profissional__isnull=True))
+        
+        logger.info(f"[BloqueioAgendaViewSet] Retornando {queryset.count()} bloqueios para loja_id={loja_id}")
         
         return queryset
     

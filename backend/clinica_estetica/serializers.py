@@ -208,11 +208,9 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
             profissional_id = profissional.id if hasattr(profissional, 'id') else profissional
             logger.info(f"[BloqueioAgendaSerializer.validate] Verificando profissional_id={profissional_id} na loja_id={loja_id}")
             
-            existe = Profissional.objects.filter(id=profissional_id, loja_id=loja_id).exists()
-            logger.info(f"[BloqueioAgendaSerializer.validate] Profissional existe na loja? {existe}")
-            
-            if not existe:
-                logger.error(f"[BloqueioAgendaSerializer.validate] ERRO: Profissional {profissional_id} não existe na loja {loja_id}")
+            # Verificar se o profissional carregado pertence à loja correta
+            if hasattr(profissional, 'loja_id') and profissional.loja_id != loja_id:
+                logger.error(f"[BloqueioAgendaSerializer.validate] ERRO: Profissional {profissional_id} pertence à loja {profissional.loja_id}, não à loja {loja_id}")
                 raise serializers.ValidationError({
                     'profissional': f"Profissional ID {profissional_id} não existe na loja atual (ID {loja_id}). "
                                    f"Verifique se o profissional está cadastrado nesta loja."

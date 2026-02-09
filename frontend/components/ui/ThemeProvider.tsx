@@ -51,36 +51,57 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setMounted(true);
     
-    // Carregar tema salvo (se existir). Caso contrário, usar "light" como padrão.
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
-    const initialTheme = savedTheme || 'light';
-    setThemeState(initialTheme);
-    
-    const resolved = resolveTheme(initialTheme);
-    setResolvedTheme(resolved);
-    applyTheme(resolved);
+    try {
+      // Carregar tema salvo (se existir). Caso contrário, usar "light" como padrão.
+      const savedTheme = (typeof window !== 'undefined' && window.localStorage) 
+        ? localStorage.getItem('theme') as Theme | null 
+        : null;
+      const initialTheme = savedTheme || 'light';
+      setThemeState(initialTheme);
+      
+      const resolved = resolveTheme(initialTheme);
+      setResolvedTheme(resolved);
+      applyTheme(resolved);
+    } catch (error) {
+      // Fallback se localStorage não estiver disponível
+      console.warn('localStorage not available, using default theme');
+      setThemeState('light');
+      setResolvedTheme('light');
+      applyTheme('light');
+    }
   }, [resolveTheme, applyTheme]);
 
   // Listener para mudanças de preferência do sistema
   useEffect(() => {
-    if (theme !== 'system') return;
+    if (theme !== 'system' || typeof window === 'undefined') return;
 
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    const handleChange = () => {
-      const resolved = resolveTheme('system');
-      setResolvedTheme(resolved);
-      applyTheme(resolved);
-    };
+    try {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      
+      const handleChange = () => {
+        const resolved = resolveTheme('system');
+        setResolvedTheme(resolved);
+        applyTheme(resolved);
+      };
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    } catch (error) {
+      console.warn('matchMedia not available');
+    }
   }, [theme, resolveTheme, applyTheme]);
 
   // Função para definir tema
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem('theme', newTheme);
+    
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('theme', newTheme);
+      }
+    } catch (error) {
+      console.warn('localStorage not available');
+    }
     
     const resolved = resolveTheme(newTheme);
     setResolvedTheme(resolved);

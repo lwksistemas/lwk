@@ -29,6 +29,7 @@ class SecureLoginView(APIView):
         username = request.data.get('username')
         password = request.data.get('password')
         loja_slug = request.data.get('loja_slug')
+        cpf_cnpj = request.data.get('cpf_cnpj', '').strip()
         
         if not username or not password:
             return Response({
@@ -46,6 +47,26 @@ class SecureLoginView(APIView):
                 'code': 'INVALID_CREDENTIALS',
                 'detalhes': 'Se você esqueceu sua senha, clique em "Esqueci minha senha" para receber uma nova senha provisória por email.'
             }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Se for loja e CPF/CNPJ foi fornecido, validar
+        if user_type == 'loja' and cpf_cnpj:
+            import re
+            # Remover formatação do CPF/CNPJ
+            cpf_cnpj_limpo = re.sub(r'[^0-9]', '', cpf_cnpj)
+            
+            # Buscar loja do usuário
+            loja = Loja.objects.filter(owner=user, is_active=True).first()
+            if loja and loja.cpf_cnpj:
+                # Remover formatação do CPF/CNPJ da loja
+                loja_cpf_cnpj_limpo = re.sub(r'[^0-9]', '', loja.cpf_cnpj)
+                
+                # Validar se o CPF/CNPJ corresponde
+                if cpf_cnpj_limpo != loja_cpf_cnpj_limpo:
+                    logger.critical(f"🚨 VIOLAÇÃO: CPF/CNPJ incorreto para usuário {username}")
+                    return Response({
+                        'error': 'CPF/CNPJ incorreto. Verifique os dados e tente novamente.',
+                        'code': 'INVALID_CPF_CNPJ'
+                    }, status=status.HTTP_401_UNAUTHORIZED)
         
         # Identificar tipo real do usuário
         real_user_type = self._get_user_type(user)

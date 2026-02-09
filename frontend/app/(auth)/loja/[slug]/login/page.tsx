@@ -15,6 +15,7 @@ interface LojaInfo {
   cor_primaria: string;
   cor_secundaria: string;
   logo?: string;
+  requer_cpf_cnpj?: boolean;
 }
 
 export default function LojaLoginDinamicoPage() {
@@ -22,7 +23,7 @@ export default function LojaLoginDinamicoPage() {
   const params = useParams();
   const slug = params.slug as string;
   
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [credentials, setCredentials] = useState({ username: '', password: '', cpf_cnpj: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
@@ -48,6 +49,36 @@ export default function LojaLoginDinamicoPage() {
     } finally {
       setLoadingInfo(false);
     }
+  };
+
+  // Função para formatar CPF/CNPJ automaticamente
+  const formatarCpfCnpj = (valor: string) => {
+    // Remove tudo que não é número
+    const numeros = valor.replace(/\D/g, '');
+    
+    // Limita a 14 dígitos (CNPJ)
+    const limitado = numeros.slice(0, 14);
+    
+    // Formata CPF (11 dígitos) ou CNPJ (14 dígitos)
+    if (limitado.length <= 11) {
+      // CPF: 000.000.000-00
+      return limitado
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    } else {
+      // CNPJ: 00.000.000/0000-00
+      return limitado
+        .replace(/(\d{2})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1/$2')
+        .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+    }
+  };
+
+  const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorFormatado = formatarCpfCnpj(e.target.value);
+    setCredentials({ ...credentials, cpf_cnpj: valorFormatado });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -181,6 +212,27 @@ export default function LojaLoginDinamicoPage() {
                 disabled={loading}
               />
             </div>
+            
+            {/* CPF/CNPJ - Apenas se a loja tiver cadastrado */}
+            {lojaInfo?.requer_cpf_cnpj && (
+              <div>
+                <label htmlFor="cpf_cnpj" className="block text-sm font-medium text-gray-700 mb-1">
+                  CPF/CNPJ
+                </label>
+                <input
+                  id="cpf_cnpj"
+                  type="text"
+                  required
+                  autoComplete="off"
+                  className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors"
+                  value={credentials.cpf_cnpj}
+                  onChange={handleCpfCnpjChange}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  disabled={loading}
+                  maxLength={18}
+                />
+              </div>
+            )}
             
             {/* Password */}
             <PasswordInput

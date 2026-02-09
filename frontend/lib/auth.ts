@@ -4,6 +4,7 @@ import { logger } from './logger';
 export interface LoginCredentials {
   username: string;
   password: string;
+  cpf_cnpj?: string;
 }
 
 export interface AuthTokens {

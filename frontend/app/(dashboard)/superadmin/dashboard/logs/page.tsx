@@ -79,9 +79,11 @@ export default function BuscaLogsPage() {
         : `/superadmin/historico-acessos/?${params}`;
 
       const response = await apiClient.get(endpoint);
-      setLogs(response.data.results || response.data);
+      const data = response.data.results || response.data;
+      setLogs(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao buscar logs:', error);
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -144,6 +146,7 @@ export default function BuscaLogsPage() {
       setContextoTemporal(response.data);
     } catch (error) {
       console.error('Erro ao carregar contexto temporal:', error);
+      setContextoTemporal({ antes: [], depois: [] });
     }
   };
 
@@ -185,15 +188,21 @@ export default function BuscaLogsPage() {
     await carregarContextoTemporal(log.id);
   };
 
-  const highlightText = (text: string, query?: string) => {
-    if (!query || !text) return text;
+  const highlightText = (text: string | null | undefined, query?: string) => {
+    if (!text) return text || '';
+    if (!query) return text;
     
-    const parts = text.split(new RegExp(`(${query})`, 'gi'));
-    return parts.map((part, i) => 
-      part.toLowerCase() === query.toLowerCase() 
-        ? <mark key={i} className="bg-yellow-200">{part}</mark>
-        : part
-    );
+    try {
+      const parts = text.split(new RegExp(`(${query})`, 'gi'));
+      return parts.map((part, i) => 
+        part.toLowerCase() === query.toLowerCase() 
+          ? <mark key={i} className="bg-yellow-200">{part}</mark>
+          : part
+      );
+    } catch (error) {
+      console.error('Erro ao destacar texto:', error);
+      return text;
+    }
   };
 
   return (
@@ -502,35 +511,35 @@ export default function BuscaLogsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Usuário</label>
-                  <p className="text-lg">{logSelecionado.usuario_nome}</p>
-                  <p className="text-sm text-gray-600">{logSelecionado.usuario_email}</p>
+                  <p className="text-lg">{logSelecionado.usuario_nome || 'N/A'}</p>
+                  <p className="text-sm text-gray-600">{logSelecionado.usuario_email || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Loja</label>
-                  <p className="text-lg">{logSelecionado.loja_nome}</p>
+                  <p className="text-lg">{logSelecionado.loja_nome || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Ação</label>
-                  <p className="text-lg">{logSelecionado.acao}</p>
+                  <p className="text-lg">{logSelecionado.acao || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Recurso</label>
-                  <p className="text-lg">{logSelecionado.recurso}</p>
+                  <p className="text-lg">{logSelecionado.recurso || 'N/A'}</p>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-500">URL</label>
                   <p className="text-sm font-mono bg-gray-100 p-2 rounded">
-                    {logSelecionado.metodo_http} {logSelecionado.url}
+                    {logSelecionado.metodo_http || 'GET'} {logSelecionado.url || 'N/A'}
                   </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">IP Address</label>
-                  <p className="text-lg">{logSelecionado.ip_address}</p>
+                  <p className="text-lg">{logSelecionado.ip_address || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">User Agent</label>
-                  <p className="text-sm text-gray-600 truncate" title={logSelecionado.user_agent}>
-                    {logSelecionado.user_agent}
+                  <p className="text-sm text-gray-600 truncate" title={logSelecionado.user_agent || ''}>
+                    {logSelecionado.user_agent || 'N/A'}
                   </p>
                 </div>
               </div>
@@ -540,7 +549,13 @@ export default function BuscaLogsPage() {
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-500 mb-2">Detalhes</label>
                   <pre className="bg-gray-100 p-4 rounded text-sm overflow-x-auto">
-                    {JSON.stringify(JSON.parse(logSelecionado.detalhes), null, 2)}
+                    {(() => {
+                      try {
+                        return JSON.stringify(JSON.parse(logSelecionado.detalhes), null, 2);
+                      } catch (error) {
+                        return logSelecionado.detalhes;
+                      }
+                    })()}
                   </pre>
                 </div>
               )}
@@ -551,7 +566,7 @@ export default function BuscaLogsPage() {
                   <h3 className="text-lg font-semibold mb-4">Contexto Temporal</h3>
                   
                   {/* Logs Anteriores */}
-                  {contextoTemporal.antes.length > 0 && (
+                  {contextoTemporal.antes && contextoTemporal.antes.length > 0 && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">
                         ⬆️ Ações Anteriores ({contextoTemporal.antes.length})
@@ -561,15 +576,15 @@ export default function BuscaLogsPage() {
                           <div key={log.id} className="bg-blue-50 p-3 rounded text-sm">
                             <div className="flex justify-between items-start">
                               <div>
-                                <span className="font-medium">{log.acao}</span>
-                                <span className="text-gray-600"> - {log.recurso}</span>
+                                <span className="font-medium">{log.acao || 'N/A'}</span>
+                                <span className="text-gray-600"> - {log.recurso || 'N/A'}</span>
                               </div>
                               <span className="text-xs text-gray-500">
                                 {new Date(log.created_at).toLocaleTimeString('pt-BR')}
                               </span>
                             </div>
                             <div className="text-xs text-gray-600 mt-1">
-                              {log.usuario_nome} • {log.loja_nome}
+                              {log.usuario_nome || 'N/A'} • {log.loja_nome || 'N/A'}
                             </div>
                           </div>
                         ))}
@@ -584,14 +599,14 @@ export default function BuscaLogsPage() {
                       <div>
                         <div className="font-semibold">Log Atual</div>
                         <div className="text-sm text-gray-600">
-                          {logSelecionado.acao} - {logSelecionado.recurso}
+                          {logSelecionado.acao || 'N/A'} - {logSelecionado.recurso || 'N/A'}
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Logs Posteriores */}
-                  {contextoTemporal.depois.length > 0 && (
+                  {contextoTemporal.depois && contextoTemporal.depois.length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">
                         ⬇️ Ações Posteriores ({contextoTemporal.depois.length})
@@ -601,15 +616,15 @@ export default function BuscaLogsPage() {
                           <div key={log.id} className="bg-green-50 p-3 rounded text-sm">
                             <div className="flex justify-between items-start">
                               <div>
-                                <span className="font-medium">{log.acao}</span>
-                                <span className="text-gray-600"> - {log.recurso}</span>
+                                <span className="font-medium">{log.acao || 'N/A'}</span>
+                                <span className="text-gray-600"> - {log.recurso || 'N/A'}</span>
                               </div>
                               <span className="text-xs text-gray-500">
                                 {new Date(log.created_at).toLocaleTimeString('pt-BR')}
                               </span>
                             </div>
                             <div className="text-xs text-gray-600 mt-1">
-                              {log.usuario_nome} • {log.loja_nome}
+                              {log.usuario_nome || 'N/A'} • {log.loja_nome || 'N/A'}
                             </div>
                           </div>
                         ))}

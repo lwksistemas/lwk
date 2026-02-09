@@ -179,8 +179,10 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
     tipo_nome = serializers.CharField(source='get_tipo_display', read_only=True)
     profissional_nome = serializers.CharField(source='profissional.nome', read_only=True, allow_null=True)
     
-    # ✅ CORREÇÃO: Aceitar apenas ID como inteiro para evitar problema de schema
-    # O DRF carrega objetos do schema errado quando usa ForeignKey diretamente
+    # Campo profissional_id para leitura (retorna o ID do profissional)
+    profissional_id = serializers.IntegerField(source='profissional.id', read_only=True, allow_null=True)
+    
+    # Campo profissional para escrita (aceita ID ao criar/atualizar)
     profissional = serializers.IntegerField(required=False, allow_null=True, write_only=True)
 
     class Meta:

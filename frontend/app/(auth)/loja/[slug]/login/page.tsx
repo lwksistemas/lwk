@@ -213,26 +213,24 @@ export default function LojaLoginDinamicoPage() {
               />
             </div>
             
-            {/* CPF/CNPJ - Apenas se a loja tiver cadastrado */}
-            {lojaInfo?.requer_cpf_cnpj && (
-              <div>
-                <label htmlFor="cpf_cnpj" className="block text-sm font-medium text-gray-700 mb-1">
-                  CPF/CNPJ
-                </label>
-                <input
-                  id="cpf_cnpj"
-                  type="text"
-                  required
-                  autoComplete="off"
-                  className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors"
-                  value={credentials.cpf_cnpj}
-                  onChange={handleCpfCnpjChange}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                  disabled={loading}
-                  maxLength={18}
-                />
-              </div>
-            )}
+            {/* CPF/CNPJ - SEMPRE obrigatório para maior segurança */}
+            <div>
+              <label htmlFor="cpf_cnpj" className="block text-sm font-medium text-gray-700 mb-1">
+                CPF/CNPJ
+              </label>
+              <input
+                id="cpf_cnpj"
+                type="text"
+                required
+                autoComplete="off"
+                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors"
+                value={credentials.cpf_cnpj}
+                onChange={handleCpfCnpjChange}
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                disabled={loading}
+                maxLength={18}
+              />
+            </div>
             
             {/* Password */}
             <PasswordInput

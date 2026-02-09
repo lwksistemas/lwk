@@ -1,3 +1,4 @@
+
 # Relatório de Segurança e Análise do Sistema - v542
 
 **Data:** 09/02/2026  
@@ -162,6 +163,14 @@ Cada schema de loja contém as seguintes tabelas (isoladas):
 - ✅ 42 schemas órfãos removidos
 - ✅ Banco de dados otimizado
 
+### v543: Exclusão Automática de Schema
+- ✅ Signal `pre_delete` atualizado
+- ✅ Schema PostgreSQL excluído automaticamente ao deletar loja
+- ✅ Validações de segurança implementadas
+- ✅ Logs detalhados adicionados
+- ✅ Comando de teste `test_schema_deletion` criado
+- ✅ **ZERO schemas órfãos garantido**
+
 ---
 
 ## 📈 Métricas de Performance
@@ -182,6 +191,7 @@ Cada schema de loja contém as seguintes tabelas (isoladas):
 - [x] Auditoria de ações implementada
 - [x] Timezone corrigido
 - [x] Schemas órfãos removidos
+- [x] **Exclusão automática de schema implementada (v543)**
 - [x] Logs de segurança ativos
 - [x] Rate limiting implementado
 - [x] Sessão única por usuário
@@ -213,6 +223,8 @@ Cada schema de loja contém as seguintes tabelas (isoladas):
 ## 📝 Conclusão
 
 O sistema está **SEGURO e FUNCIONANDO CORRETAMENTE**. Todas as 8 lojas ativas têm seus schemas isolados e funcionando perfeitamente. A limpeza de 42 schemas órfãos otimizou o banco de dados e melhorou a performance.
+
+**v543 - CORREÇÃO CRÍTICA:** Implementada exclusão automática de schema PostgreSQL ao deletar loja. O sistema agora **NUNCA mais criará schemas órfãos**. Quando uma loja é excluída, o schema é automaticamente removido junto com todos os dados relacionados.
 
 **Status Final:** ✅ APROVADO PARA PRODUÇÃO
 

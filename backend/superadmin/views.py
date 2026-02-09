@@ -135,7 +135,7 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'logo': getattr(loja, 'logo', None) or '',
                 'login_page_url': getattr(loja, 'login_page_url', None) or '',
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
-                'requer_cpf_cnpj': bool(getattr(loja, 'cpf_cnpj', None)),  # Indica se a loja tem CPF/CNPJ cadastrado
+                'requer_cpf_cnpj': True,  # SEMPRE requer CPF/CNPJ para maior segurança
             })
         except Loja.DoesNotExist:
             return Response({'error': 'Loja não encontrada'}, status=404)

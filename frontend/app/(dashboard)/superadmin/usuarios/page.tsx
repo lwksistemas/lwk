@@ -422,13 +422,16 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
 
       // Dados do usuário Django
       const userData: any = {
-        username: formData.username,
         email: formData.email,
         first_name: formData.first_name,
         last_name: formData.last_name,
       };
 
-      // Ao criar: backend gera senha provisória automaticamente
+      // Ao criar: incluir username (obrigatório)
+      if (!isEditing) {
+        userData.username = formData.username;
+      }
+
       // Ao editar: só incluir senha se foi preenchida
       if (isEditing && formData.password) {
         userData.password = formData.password;

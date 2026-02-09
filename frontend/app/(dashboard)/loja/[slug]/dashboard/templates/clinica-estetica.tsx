@@ -64,8 +64,6 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
     },
     initialData: [],
     transformResponse: (responseData) => {
-      console.log('📊 Dashboard Response:', responseData);
-      console.log('📅 Próximos Agendamentos:', responseData.proximos);
       return {
         stats: responseData.estatisticas || {
           agendamentos_hoje: 0,

@@ -178,56 +178,106 @@ class HorarioFuncionamentoSerializer(serializers.ModelSerializer):
 class BloqueioAgendaSerializer(serializers.ModelSerializer):
     tipo_nome = serializers.CharField(source='get_tipo_display', read_only=True)
     profissional_nome = serializers.CharField(source='profissional.nome', read_only=True, allow_null=True)
+    
+    # ✅ CORREÇÃO: Aceitar apenas ID como inteiro para evitar problema de schema
+    # O DRF carrega objetos do schema errado quando usa ForeignKey diretamente
+    profissional = serializers.IntegerField(required=False, allow_null=True, write_only=True)
 
     class Meta:
         model = BloqueioAgenda
         fields = '__all__'
         read_only_fields = ['created_at', 'loja_id']  # loja_id é read-only (preenchido automaticamente)
     
-    def validate(self, data):
+    def validate_profissional(self, value):
         """
         Valida se o profissional existe na loja atual
         
-        IMPORTANTE: Consulta diretamente o schema da loja para evitar problemas
-        com cache ou objetos carregados do schema errado pelo DRF.
+        IMPORTANTE: Usa SQL direto com search_path explícito para garantir
+        que estamos consultando o schema correto da loja.
         """
         import logging
         logger = logging.getLogger(__name__)
         
-        profissional = data.get('profissional')
-        
-        if profissional is not None:
-            # Pegar loja_id do middleware (thread-local)
+        if value is not None:
             from tenants.middleware import get_current_loja_id
+            from django.db import connection
+            from superadmin.models import Loja
+            
             loja_id = get_current_loja_id()
             
             if not loja_id:
-                raise serializers.ValidationError({
-                    'profissional': "Contexto de loja não encontrado"
-                })
+                raise serializers.ValidationError(
+                    "Contexto de loja não encontrado"
+                )
             
-            # Extrair ID do profissional (pode ser objeto ou int)
-            profissional_id = profissional.id if hasattr(profissional, 'id') else profissional
+            logger.info(f"[BloqueioAgenda] Validando profissional_id={value} na loja_id={loja_id}")
             
-            logger.info(f"[BloqueioAgenda] Validando profissional_id={profissional_id} na loja_id={loja_id}")
+            # Buscar schema da loja
+            try:
+                loja = Loja.objects.get(id=loja_id)
+                schema_name = loja.database_name.replace('-', '_')
+                logger.info(f"[BloqueioAgenda] Schema da loja: {schema_name}")
+            except Loja.DoesNotExist:
+                raise serializers.ValidationError(
+                    f"Loja {loja_id} não encontrada"
+                )
             
-            # Consultar diretamente no schema da loja (não confiar no objeto carregado)
-            existe = Profissional.objects.filter(
-                id=profissional_id,
-                is_active=True
-            ).exists()
+            # Consultar diretamente no schema correto usando SQL
+            with connection.cursor() as cursor:
+                cursor.execute(f"SET search_path TO {schema_name}, public")
+                cursor.execute(
+                    "SELECT EXISTS(SELECT 1 FROM clinica_profissionais WHERE id = %s AND is_active = true)",
+                    [value]
+                )
+                existe = cursor.fetchone()[0]
             
-            logger.info(f"[BloqueioAgenda] Profissional {profissional_id} existe no schema da loja? {existe}")
+            logger.info(f"[BloqueioAgenda] Profissional {value} existe no schema {schema_name}? {existe}")
             
             if not existe:
-                logger.error(f"[BloqueioAgenda] ERRO: Profissional {profissional_id} não existe no schema da loja {loja_id}")
-                raise serializers.ValidationError({
-                    'profissional': f"Profissional ID {profissional_id} não existe nesta loja. "
-                                   f"Por favor, recarregue a página (Ctrl+Shift+R) e tente novamente. "
-                                   f"Isso geralmente acontece quando o cache do navegador está desatualizado."
-                })
+                logger.error(f"[BloqueioAgenda] ERRO: Profissional {value} não existe no schema {schema_name}")
+                raise serializers.ValidationError(
+                    f"Profissional ID {value} não existe nesta loja. "
+                    f"Por favor, recarregue a página (Ctrl+Shift+R) e tente novamente."
+                )
         
-        return data
+        return value
+    
+    def create(self, validated_data):
+        """
+        Cria bloqueio convertendo profissional_id para ForeignKey
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        profissional_id = validated_data.pop('profissional', None)
+        
+        # Criar bloqueio
+        bloqueio = BloqueioAgenda(**validated_data)
+        
+        # Atribuir profissional_id diretamente (evita carregar objeto do schema errado)
+        if profissional_id:
+            bloqueio.profissional_id = profissional_id
+            logger.info(f"[BloqueioAgenda] Criando bloqueio com profissional_id={profissional_id}")
+        
+        bloqueio.save()
+        return bloqueio
+    
+    def update(self, instance, validated_data):
+        """
+        Atualiza bloqueio convertendo profissional_id para ForeignKey
+        """
+        profissional_id = validated_data.pop('profissional', None)
+        
+        # Atualizar campos
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Atualizar profissional_id
+        if profissional_id is not None:
+            instance.profissional_id = profissional_id
+        
+        instance.save()
+        return instance
 
 
 class FuncionarioSerializer(BaseLojaSerializer):

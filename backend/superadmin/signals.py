@@ -224,6 +224,44 @@ def delete_all_loja_data(sender, instance, **kwargs):
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao verificar Asaas: {e}")
         
+        # 4. Excluir schema PostgreSQL (CRÍTICO: prevenir schemas órfãos)
+        try:
+            from django.db import connection
+            import os
+            
+            # Verificar se está usando PostgreSQL (produção)
+            DATABASE_URL = os.environ.get('DATABASE_URL', '')
+            if 'postgres' in DATABASE_URL.lower():
+                # Obter nome do schema (database_name da loja)
+                schema_name = instance.database_name.replace('-', '_')
+                
+                # Validar que não é schema público
+                if schema_name and schema_name != 'public':
+                    with connection.cursor() as cursor:
+                        # Verificar se schema existe
+                        cursor.execute(
+                            "SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s",
+                            [schema_name]
+                        )
+                        schema_exists = cursor.fetchone()
+                        
+                        if schema_exists:
+                            # Excluir schema com CASCADE (remove todas as tabelas)
+                            cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+                            logger.info(f"   ✅ Schema PostgreSQL removido: {schema_name}")
+                        else:
+                            logger.info(f"   ℹ️ Schema PostgreSQL não existe: {schema_name}")
+                else:
+                    logger.warning(f"   ⚠️ Schema inválido ou público, não será removido: {schema_name}")
+            else:
+                logger.info(f"   ℹ️ Não está usando PostgreSQL, schema não será removido")
+                
+        except Exception as e:
+            logger.error(f"   ❌ Erro ao remover schema PostgreSQL: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Não interrompe a exclusão da loja, apenas loga o erro
+        
         logger.info(f"✅ Exclusão em cascata concluída para loja: {loja_nome}")
         
     except Exception as e:

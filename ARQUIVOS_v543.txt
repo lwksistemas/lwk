@@ -1,0 +1,60 @@
+# Arquivos Modificados/Criados - v543
+
+## Código (2 arquivos)
+backend/superadmin/signals.py
+backend/superadmin/management/commands/test_schema_deletion.py
+
+## Documentação (6 arquivos)
+CORRECAO_EXCLUSAO_SCHEMA_v543.md
+RESUMO_IMPLEMENTACAO_v543.md
+GUIA_DEPLOY_v543.md
+CONCLUSAO_SCHEMAS_ORFAOS_v543.md
+RESUMO_VISUAL_v543.md
+RELATORIO_SEGURANCA_SISTEMA_v542.md
+
+## Referência (1 arquivo)
+ARQUIVOS_v543.txt
+
+---
+
+## Comando para adicionar todos os arquivos:
+
+git add backend/superadmin/signals.py
+git add backend/superadmin/management/commands/test_schema_deletion.py
+git add CORRECAO_EXCLUSAO_SCHEMA_v543.md
+git add RESUMO_IMPLEMENTACAO_v543.md
+git add GUIA_DEPLOY_v543.md
+git add CONCLUSAO_SCHEMAS_ORFAOS_v543.md
+git add RESUMO_VISUAL_v543.md
+git add RELATORIO_SEGURANCA_SISTEMA_v542.md
+git add ARQUIVOS_v543.txt
+
+## Ou simplesmente:
+
+git add .
+
+---
+
+## Comando de commit:
+
+git commit -m "fix(v543): adicionar exclusão automática de schema PostgreSQL ao deletar loja
+
+- Adicionada lógica de exclusão de schema no signal pre_delete
+- Previne criação de schemas órfãos no PostgreSQL
+- Validações de segurança implementadas
+- Comando de teste criado
+- Documentação completa
+
+Fixes: Sistema criava schemas órfãos ao excluir lojas"
+
+---
+
+## Comando de deploy:
+
+git push heroku master
+
+---
+
+## Comando de teste:
+
+heroku run python manage.py test_schema_deletion --app lwksistemas

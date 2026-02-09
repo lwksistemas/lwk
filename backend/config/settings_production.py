@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'django_q',  # ✅ Task queue para jobs agendados
     'core',  # App base com modelos abstratos
     'stores',
     'products',
@@ -225,3 +226,32 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# ============================================
+# DJANGO-Q CONFIGURATION (Task Queue)
+# ============================================
+Q_CLUSTER = {
+    'name': 'LWKSistemas',
+    'workers': int(os.environ.get('DJANGO_Q_WORKERS', '4')),
+    'recycle': 500,
+    'timeout': 300,  # 5 minutos
+    'compress': True,
+    'save_limit': 250,
+    'queue_limit': 500,
+    'cpu_affinity': 1,
+    'label': 'Django Q',
+    'redis': None,  # Usar ORM (PostgreSQL)
+    'orm': 'default',
+    'catch_up': True,
+    'sync': False,
+    'ack_failures': True,
+    'max_attempts': 3,
+    'retry': 360,  # 6 minutos (deve ser > timeout)
+}
+
+# Configurações de Notificações de Segurança
+SECURITY_NOTIFICATION_EMAILS = os.environ.get(
+    'SECURITY_NOTIFICATION_EMAILS',
+    ''
+).split(',') if os.environ.get('SECURITY_NOTIFICATION_EMAILS') else []
+SITE_URL = os.environ.get('SITE_URL', 'https://lwksistemas-38ad47519238.herokuapp.com')

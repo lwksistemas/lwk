@@ -68,6 +68,28 @@ class SecureLoginView(APIView):
                         'code': 'INVALID_CPF_CNPJ'
                     }, status=status.HTTP_401_UNAUTHORIZED)
         
+        # Se for superadmin ou suporte e CPF foi fornecido, validar
+        if user_type in ['superadmin', 'suporte'] and cpf_cnpj:
+            import re
+            # Remover formatação do CPF
+            cpf_limpo = re.sub(r'[^0-9]', '', cpf_cnpj)
+            
+            try:
+                usuario_sistema = UsuarioSistema.objects.get(user=user, tipo=user_type, is_active=True)
+                if usuario_sistema.cpf:
+                    # Remover formatação do CPF do usuário
+                    usuario_cpf_limpo = re.sub(r'[^0-9]', '', usuario_sistema.cpf)
+                    
+                    # Validar se o CPF corresponde
+                    if cpf_limpo != usuario_cpf_limpo:
+                        logger.critical(f"🚨 VIOLAÇÃO: CPF incorreto para usuário {username} ({user_type})")
+                        return Response({
+                            'error': 'CPF incorreto. Verifique os dados e tente novamente.',
+                            'code': 'INVALID_CPF'
+                        }, status=status.HTTP_401_UNAUTHORIZED)
+            except UsuarioSistema.DoesNotExist:
+                pass
+        
         # Identificar tipo real do usuário
         real_user_type = self._get_user_type(user)
         

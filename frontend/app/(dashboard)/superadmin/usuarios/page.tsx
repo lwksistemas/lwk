@@ -17,6 +17,7 @@ interface Usuario {
   };
   tipo: string;
   tipo_display: string;
+  cpf: string;
   telefone: string;
   foto: string;
   pode_criar_lojas: boolean;
@@ -371,6 +372,7 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
     first_name: usuario?.user.first_name || '',
     last_name: usuario?.user.last_name || '',
     tipo: usuario?.tipo || 'suporte',
+    cpf: usuario?.cpf || '',
     telefone: usuario?.telefone || '',
     pode_criar_lojas: usuario?.pode_criar_lojas || false,
     pode_gerenciar_financeiro: usuario?.pode_gerenciar_financeiro || false,
@@ -389,6 +391,21 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
     }));
   };
 
+  // Função para formatar CPF automaticamente
+  const formatarCpf = (valor: string) => {
+    const numeros = valor.replace(/\D/g, '');
+    const limitado = numeros.slice(0, 11);
+    return limitado
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  };
+
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorFormatado = formatarCpf(e.target.value);
+    setFormData(prev => ({ ...prev, cpf: valorFormatado }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -396,6 +413,7 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
     try {
       const payload: any = {
         tipo: formData.tipo,
+        cpf: formData.cpf,
         telefone: formData.telefone,
         pode_criar_lojas: formData.pode_criar_lojas,
         pode_gerenciar_financeiro: formData.pode_gerenciar_financeiro,
@@ -510,6 +528,22 @@ function NovoUsuarioModal({ usuario, onClose, onSuccess }: { usuario?: Usuario |
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="Silva"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  CPF *
+                </label>
+                <input
+                  type="text"
+                  name="cpf"
+                  value={formData.cpf}
+                  onChange={handleCpfChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="000.000.000-00"
+                  maxLength={14}
                 />
               </div>
 

@@ -9,7 +9,7 @@ import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [credentials, setCredentials] = useState({ username: '', password: '', cpf_cnpj: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
@@ -50,6 +50,26 @@ export default function SuperAdminLoginPage() {
     }
   };
 
+  // Função para formatar CPF automaticamente
+  const formatarCpf = (valor: string) => {
+    // Remove tudo que não é número
+    const numeros = valor.replace(/\D/g, '');
+    
+    // Limita a 11 dígitos (CPF)
+    const limitado = numeros.slice(0, 11);
+    
+    // Formata CPF: 000.000.000-00
+    return limitado
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  };
+
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorFormatado = formatarCpf(e.target.value);
+    setCredentials({ ...credentials, cpf_cnpj: valorFormatado });
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-indigo-900 p-4">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-2xl">
@@ -85,6 +105,24 @@ export default function SuperAdminLoginPage() {
                 onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                 placeholder="Digite seu usuário"
                 disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="cpf" className="block text-sm font-medium text-gray-700 mb-1">
+                CPF
+              </label>
+              <input
+                id="cpf"
+                type="text"
+                required
+                autoComplete="off"
+                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
+                value={credentials.cpf_cnpj}
+                onChange={handleCpfChange}
+                placeholder="000.000.000-00"
+                disabled={loading}
+                maxLength={14}
               />
             </div>
 

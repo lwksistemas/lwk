@@ -415,6 +415,7 @@ class UsuarioSistema(models.Model):
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     
     # Informações adicionais
+    cpf = models.CharField(max_length=14, blank=True, help_text='CPF do usuário (apenas números ou formatado)')
     telefone = models.CharField(max_length=20, blank=True)
     foto = models.URLField(blank=True)
     

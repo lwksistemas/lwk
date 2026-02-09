@@ -285,7 +285,7 @@ export default function AuditoriaPage() {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={(entry) => `${entry.acao}: ${entry.total}`}
+                    label={(entry: any) => `${entry.acao}: ${entry.total}`}
                   >
                     {acoesPorTipo.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

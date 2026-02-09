@@ -189,12 +189,12 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
         if value is None:
             return value
         
-        # Pegar loja_id do contexto
-        request = self.context.get('request')
-        if not request or not hasattr(request, 'loja_id'):
-            raise serializers.ValidationError("Contexto de loja não encontrado")
+        # Pegar loja_id do middleware (thread-local)
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
         
-        loja_id = request.loja_id
+        if not loja_id:
+            raise serializers.ValidationError("Contexto de loja não encontrado")
         
         # Verificar se profissional existe na loja
         if not Profissional.objects.filter(id=value.id, loja_id=loja_id).exists():

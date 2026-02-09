@@ -289,18 +289,29 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         """Retorna bloqueios filtrados por loja, data e profissional"""
-        from tenants.middleware import get_current_loja_id
+        from tenants.middleware import get_current_loja_id, get_current_tenant_db
         import logging
         logger = logging.getLogger(__name__)
         
         loja_id = get_current_loja_id()
+        tenant_db = get_current_tenant_db()
+        
+        logger.info(f"🔍 [BloqueioAgendaViewSet] loja_id={loja_id}, tenant_db={tenant_db}")
         
         if not loja_id:
             logger.warning("⚠️ [BloqueioAgendaViewSet] Nenhuma loja no contexto")
             return BloqueioAgenda.objects.none()
         
-        # Filtrar por loja_id explicitamente
-        queryset = BloqueioAgenda.objects.filter(loja_id=loja_id).select_related('profissional')
+        # CRÍTICO: Usar o banco correto (schema isolado)
+        queryset = BloqueioAgenda.objects.all()
+        
+        # Se temos um tenant_db específico, usar ele
+        if tenant_db and tenant_db != 'default':
+            queryset = queryset.using(tenant_db)
+            logger.info(f"✅ [BloqueioAgendaViewSet] Usando banco: {tenant_db}")
+        
+        # Filtrar por loja_id explicitamente (camada extra de segurança)
+        queryset = queryset.filter(loja_id=loja_id).select_related('profissional')
         
         params = getattr(self.request, "query_params", self.request.GET)
         data_inicio = params.get('data_inicio')
@@ -315,12 +326,26 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
                 data_inicio__lte=data_fim,
                 data_fim__gte=data_inicio
             )
+            logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro de data: {data_inicio} a {data_fim}")
 
         # Se filtrar por profissional, incluir bloqueios do profissional E bloqueios globais (profissional null)
         if profissional_id:
             queryset = queryset.filter(Q(profissional_id=profissional_id) | Q(profissional__isnull=True))
+            logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro profissional_id={profissional_id}")
         
-        logger.info(f"[BloqueioAgendaViewSet] Retornando {queryset.count()} bloqueios para loja_id={loja_id}")
+        # Log da query SQL para debug
+        logger.info(f"🔍 [BloqueioAgendaViewSet] SQL: {queryset.query}")
+        
+        count = queryset.count()
+        logger.info(f"✅ [BloqueioAgendaViewSet] Retornando {count} bloqueios para loja_id={loja_id}")
+        
+        # Se count é 0, fazer query direta para verificar se bloqueios existem
+        if count == 0:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute(f"SELECT COUNT(*) FROM clinica_bloqueios_agenda WHERE loja_id = {loja_id}")
+                total_bloqueios = cursor.fetchone()[0]
+                logger.warning(f"⚠️ [BloqueioAgendaViewSet] Query retornou 0, mas existem {total_bloqueios} bloqueios no banco para loja_id={loja_id}")
         
         return queryset
     

@@ -193,7 +193,12 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   };
 
   const formatarData = (data: Date): string => {
-    return data.toISOString().split('T')[0];
+    // ✅ CORREÇÃO: Usar timezone local ao invés de UTC
+    // toISOString() converte para UTC, causando mudança de dia
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
   };
 
   const navegarPeriodo = (direcao: 'anterior' | 'proximo') => {

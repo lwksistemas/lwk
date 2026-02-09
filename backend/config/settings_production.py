@@ -85,13 +85,20 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # DATABASE - PostgreSQL via Heroku
+# conn_max_age reduzido para 60s para evitar "too many connections"
+# Heroku Postgres tem limite de conexões por role
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
+        conn_max_age=int(os.environ.get('CONN_MAX_AGE', '60')),  # 60 segundos (antes: 600)
         conn_health_checks=True,
     )
 }
+
+# Adicionar timeout de conexão para evitar conexões travadas
+if 'OPTIONS' not in DATABASES['default']:
+    DATABASES['default']['OPTIONS'] = {}
+DATABASES['default']['OPTIONS']['connect_timeout'] = 10
 
 # CACHE - Redis se REDIS_URL existir (Heroku Redis), senão LocMem (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
 _redis_url = os.environ.get('REDIS_URL')

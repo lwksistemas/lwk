@@ -186,12 +186,18 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """Valida se o profissional existe na loja atual"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         profissional = data.get('profissional')
+        logger.info(f"[BloqueioAgendaSerializer.validate] profissional recebido: {profissional}, tipo: {type(profissional)}")
         
         if profissional is not None:
             # Pegar loja_id do middleware (thread-local)
             from tenants.middleware import get_current_loja_id
             loja_id = get_current_loja_id()
+            
+            logger.info(f"[BloqueioAgendaSerializer.validate] loja_id: {loja_id}")
             
             if not loja_id:
                 raise serializers.ValidationError({
@@ -199,9 +205,12 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
                 })
             
             # Verificar se profissional existe na loja
-            if not Profissional.objects.filter(id=profissional.id, loja_id=loja_id).exists():
+            profissional_id = profissional.id if hasattr(profissional, 'id') else profissional
+            logger.info(f"[BloqueioAgendaSerializer.validate] Verificando profissional_id={profissional_id} na loja_id={loja_id}")
+            
+            if not Profissional.objects.filter(id=profissional_id, loja_id=loja_id).exists():
                 raise serializers.ValidationError({
-                    'profissional': f"Profissional ID {profissional.id} não existe na loja atual (ID {loja_id}). "
+                    'profissional': f"Profissional ID {profissional_id} não existe na loja atual (ID {loja_id}). "
                                    f"Verifique se o profissional está cadastrado nesta loja."
                 })
         

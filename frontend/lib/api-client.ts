@@ -50,13 +50,21 @@ function handle507(error: { response?: { status?: number; data?: { error?: strin
 
 /** Trata 401: sessão inválida (logout) ou refresh token e repete a requisição. */
 async function handle401(
-  error: { response?: { data?: { code?: string; message?: string; detail?: unknown } }; config?: { _retry?: boolean; headers?: { Authorization?: string } } },
+  error: { response?: { data?: { code?: string; message?: string; detail?: unknown } }; config?: { _retry?: boolean; headers?: { Authorization?: string }; url?: string } },
   apiInstance: AxiosInstance
 ): Promise<unknown> {
   const originalRequest = error.config;
   const errorData = error.response?.data;
   const errorCode = errorData?.code || (errorData?.detail as { code?: string })?.code;
   const errorMessage = errorData?.message || (errorData?.detail as { message?: string })?.message || errorData?.detail;
+
+  // Se for erro de login (endpoints de autenticação), NÃO redirecionar
+  // Deixar a página de login tratar o erro
+  const isLoginEndpoint = originalRequest?.url?.includes('/login') || originalRequest?.url?.includes('/token');
+  if (isLoginEndpoint) {
+    logger.log('Erro 401 em endpoint de login - não redirecionar');
+    return Promise.reject(error);
+  }
 
   if (errorCode && SESSION_CODES.includes(errorCode as (typeof SESSION_CODES)[number])) {
     logger.critical('Sessão inválida:', errorCode);

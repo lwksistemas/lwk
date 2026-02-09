@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/lib/auth';
+import { authService, getLoginUrl } from '@/lib/auth';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -24,8 +24,8 @@ export default function DashboardPage() {
           router.push('/loja/login');
         }
       } else {
-        // Não autenticado, redirecionar para login
-        router.push('/superadmin/login');
+        // Não autenticado, redirecionar para login correto
+        router.push(getLoginUrl());
       }
     }
   }, [router]);

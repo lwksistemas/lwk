@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import BotaoSuporte from '@/components/suporte/BotaoSuporte';
 import NotificacoesSeguranca from '@/components/NotificacoesSeguranca';
 import { ToastContainer, useToast } from '@/components/ToastNotificacao';
 
@@ -201,9 +200,6 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
       </main>
-      
-      {/* Botão Flutuante de Suporte */}
-      <BotaoSuporte />
     </div>
   );
 }

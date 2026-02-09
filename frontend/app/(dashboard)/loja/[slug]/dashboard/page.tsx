@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import BotaoSuporte from '@/components/suporte/BotaoSuporte';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import DashboardClinicaEstetica from './templates/clinica-estetica';
 import DashboardCRMVendas from './templates/crm-vendas';
@@ -198,9 +197,6 @@ export default function LojaDashboardDinamicoPage() {
           {renderDashboardPorTipo(lojaInfo)}
         </div>
       </main>
-
-      {/* Botão Flutuante de Suporte - Arrastável */}
-      <BotaoSuporte lojaSlug={slug} lojaNome={lojaInfo.nome} />
 
       {/* Modal de Suporte - Aberto pelo botão fixo da barra superior */}
       {modalSuporteAberto && (

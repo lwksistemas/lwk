@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import BotaoSuporte from '@/components/suporte/BotaoSuporte';
 import { CardEstatisticas, TabelaChamados, ModalAtendimento } from '@/components/suporte/dashboard';
 
 interface Resposta {
@@ -200,9 +199,6 @@ export default function SuporteDashboardPage() {
         onResolver={handleResolver}
         onEnviarResposta={handleEnviarResposta}
       />
-      
-      {/* Botão Flutuante de Suporte */}
-      <BotaoSuporte />
     </div>
   );
 }

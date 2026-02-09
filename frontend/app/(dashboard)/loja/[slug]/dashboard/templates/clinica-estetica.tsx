@@ -50,6 +50,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   // Estados de navegação
   const [showCalendario, setShowCalendario] = useState(false);
   const [showConsultas, setShowConsultas] = useState(false);
+  const [showListaCompleta, setShowListaCompleta] = useState(false);
 
   // Hook para carregar dados do dashboard
   const { loading, loadingData, stats, data, reload, error } = useDashboardData<EstatisticasClinica, Agendamento>({
@@ -103,6 +104,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const handleConsultas = () => setShowConsultas(true);
   const handleFinanceiro = () => openModal('financeiro');
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
+  const handleVerTodos = () => setShowListaCompleta(true);
 
   // Handler para excluir agendamento
   const handleDeleteAgendamento = async (id: number) => {
@@ -257,6 +259,46 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
     );
   }
 
+  // Lista Completa de Agendamentos
+  if (showListaCompleta) {
+    return (
+      <div className="fixed inset-0 bg-white dark:bg-gray-900 z-50 flex flex-col">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4 flex justify-between items-center shadow-sm">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
+              📋 Todos os Agendamentos
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {data.length} agendamento{data.length !== 1 ? 's' : ''} encontrado{data.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowListaCompleta(false)}
+            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+          >
+            ✕ Fechar
+          </button>
+        </div>
+
+        {/* Lista Completa */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto space-y-4">
+            {data.map((agendamento) => (
+              <AgendamentoCard 
+                key={agendamento.id} 
+                agendamento={agendamento} 
+                cor={loja.cor_primaria}
+                onDelete={handleDeleteAgendamento}
+                onStatusChange={handleStatusChange}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8 px-2 sm:px-4 lg:px-8">
       {/* Ações Rápidas */}
@@ -300,12 +342,12 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Próximos Agendamentos</h3>
           <div className="flex gap-2">
             <button
-              onClick={handleCalendario}
+              onClick={handleVerTodos}
               className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg border-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all btn-press shadow-md text-gray-700 dark:text-gray-300"
               style={{ borderColor: loja.cor_primaria }}
-              title="Ver todos os agendamentos"
+              title="Ver todos os agendamentos em lista"
             >
-              📅 Ver Todos
+              📋 Ver Todos
             </button>
             <button
               onClick={handleNovoAgendamento}
@@ -341,7 +383,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
             {data.length > 10 && (
               <div className="text-center pt-2">
                 <button
-                  onClick={handleCalendario}
+                  onClick={handleVerTodos}
                   className="text-sm px-6 py-2 rounded-lg border-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-gray-700 dark:text-gray-300"
                   style={{ borderColor: loja.cor_primaria }}
                 >

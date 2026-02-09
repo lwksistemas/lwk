@@ -298,13 +298,23 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Próximos Agendamentos</h3>
-          <button
-            onClick={handleNovoAgendamento}
-            className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg text-white hover:opacity-90 transition-all btn-press shadow-md"
-            style={{ backgroundColor: loja.cor_primaria }}
-          >
-            + Novo
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCalendario}
+              className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg border-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all btn-press shadow-md text-gray-700 dark:text-gray-300"
+              style={{ borderColor: loja.cor_primaria }}
+              title="Ver todos os agendamentos"
+            >
+              📅 Ver Todos
+            </button>
+            <button
+              onClick={handleNovoAgendamento}
+              className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg text-white hover:opacity-90 transition-all btn-press shadow-md"
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              + Novo
+            </button>
+          </div>
         </div>
         
         {loadingData ? (
@@ -319,7 +329,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           />
         ) : (
           <div className="space-y-4">
-            {data.map((agendamento) => (
+            {data.slice(0, 10).map((agendamento) => (
               <AgendamentoCard 
                 key={agendamento.id} 
                 agendamento={agendamento} 
@@ -328,6 +338,17 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                 onStatusChange={handleStatusChange}
               />
             ))}
+            {data.length > 10 && (
+              <div className="text-center pt-2">
+                <button
+                  onClick={handleCalendario}
+                  className="text-sm px-6 py-2 rounded-lg border-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-gray-700 dark:text-gray-300"
+                  style={{ borderColor: loja.cor_primaria }}
+                >
+                  Ver mais {data.length - 10} agendamentos
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -465,7 +486,6 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
   onDelete?: (id: number) => void;
   onStatusChange?: (id: number, novoStatus: string) => void;
 }) {
-  const [showActions, setShowActions] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
 
   const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
@@ -473,6 +493,8 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
     agendado: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-800 dark:text-blue-300', label: 'Agendado' },
     cancelado: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-300', label: 'Cancelado' },
     concluido: { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-800 dark:text-purple-300', label: 'Concluído' },
+    em_atendimento: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-300', label: 'Em Atendimento' },
+    faltou: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-800 dark:text-orange-300', label: 'Faltou' },
   };
   
   const status = statusConfig[agendamento.status] || { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-300', label: agendamento.status };
@@ -493,11 +515,6 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
       className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl 
                     hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 
                     group card-hover gap-3 sm:gap-4 relative"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => {
-        setShowActions(false);
-        setShowStatusMenu(false);
-      }}
     >
       <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
         <div 
@@ -514,7 +531,7 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
         </div>
       </div>
       
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
         <div className="sm:text-right">
           <p className="font-bold text-base sm:text-lg" style={{ color: cor }}>
             {agendamento.horario}
@@ -522,7 +539,7 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{agendamento.data}</p>
         </div>
         
-        {/* Status com menu dropdown */}
+        {/* Status com menu dropdown - SEMPRE VISÍVEL */}
         <div className="relative">
           <button
             onClick={() => setShowStatusMenu(!showStatusMenu)}
@@ -549,18 +566,16 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
           )}
         </div>
 
-        {/* Botão Excluir */}
-        {(showActions || window.innerWidth < 640) && (
-          <button
-            onClick={handleDelete}
-            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors active:scale-95 flex-shrink-0"
-            title="Excluir agendamento"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        )}
+        {/* Botão Excluir - SEMPRE VISÍVEL */}
+        <button
+          onClick={handleDelete}
+          className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors active:scale-95 flex-shrink-0"
+          title="Excluir agendamento"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
       </div>
     </div>
   );

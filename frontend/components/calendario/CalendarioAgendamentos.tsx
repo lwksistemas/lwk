@@ -75,6 +75,70 @@ const getStatusEmoji = (status: string): string => {
   }
 };
 
+// Componente de menu de status para agendamentos
+function MenuStatus({ 
+  agendamento, 
+  onStatusChange 
+}: { 
+  agendamento: Agendamento; 
+  onStatusChange: (agendamento: Agendamento, novoStatus: string) => void;
+}) {
+  const [showMenu, setShowMenu] = useState(false);
+
+  const statusOptions = [
+    { value: 'agendado', label: 'Agendado', color: '#3B82F6' },
+    { value: 'confirmado', label: 'Confirmado', color: '#10B981' },
+    { value: 'em_atendimento', label: 'Em Atendimento', color: '#10B981' },
+    { value: 'concluido', label: 'Concluído', color: '#10B981' },
+    { value: 'faltou', label: 'Faltou', color: '#EF4444' },
+    { value: 'cancelado', label: 'Cancelado', color: '#9CA3AF' },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowMenu(!showMenu);
+        }}
+        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+        title="Mudar status"
+      >
+        <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      
+      {showMenu && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setShowMenu(false)}
+          />
+          <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20 min-w-[160px]">
+            {statusOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStatusChange(agendamento, option.value);
+                  setShowMenu(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg flex items-center gap-2 ${
+                  option.value === agendamento.status ? 'font-bold' : ''
+                }`}
+              >
+                <span style={{ color: option.color }}>●</span>
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 interface BloqueioAgenda {
   id: number;
   titulo: string;
@@ -322,6 +386,17 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     }
   };
 
+  const handleMudarStatus = async (agendamento: Agendamento, novoStatus: string) => {
+    try {
+      await clinicaApiClient.patch(`/clinica/agendamentos/${agendamento.id}/`, { status: novoStatus });
+      alert('✅ Status atualizado com sucesso!');
+      carregarAgendamentos();
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      alert('❌ Erro ao atualizar status');
+    }
+  };
+
   const handleExcluirBloqueio = async (bloqueioId: number) => {
     if (!confirm('Tem certeza que deseja excluir este bloqueio?')) {
       return;
@@ -394,6 +469,10 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                             </p>
                           </div>
                           <div className="flex space-x-2">
+                            <MenuStatus 
+                              agendamento={agendamento}
+                              onStatusChange={handleMudarStatus}
+                            />
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -518,19 +597,39 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                 const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
 
                 return (
-                  <div key={i} className="p-2 border-l dark:border-gray-700 min-h-[60px]">
+                  <div key={i} className="p-2 border-l dark:border-gray-700 min-h-[60px] relative group">
                     {agendamento ? (
                       <div
-                        className="p-2 rounded text-xs cursor-pointer hover:opacity-80 border-l-2"
+                        className="p-2 rounded text-xs cursor-pointer hover:opacity-80 border-l-2 relative"
                         style={{ 
                           backgroundColor: `${getStatusColor(agendamento.status)}20`, 
                           borderLeftColor: getStatusColor(agendamento.status)
                         }}
                         onClick={() => handleEditarAgendamento(agendamento)}
                       >
-                        <div className="flex items-center gap-1 mb-1">
-                          <span>{getStatusEmoji(agendamento.status)}</span>
-                          <div className="font-semibold truncate">{agendamento.cliente_nome}</div>
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <div className="flex items-center gap-1 flex-1 min-w-0">
+                            <span>{getStatusEmoji(agendamento.status)}</span>
+                            <div className="font-semibold truncate">{agendamento.cliente_nome}</div>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MenuStatus 
+                              agendamento={agendamento}
+                              onStatusChange={handleMudarStatus}
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleExcluirAgendamento(agendamento);
+                              }}
+                              className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                              title="Excluir"
+                            >
+                              <svg className="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         <div className="truncate text-gray-600 dark:text-gray-400">{agendamento.procedimento_nome}</div>
                         <div className="text-[10px] font-medium mt-1" style={{ color: getStatusColor(agendamento.status) }}>

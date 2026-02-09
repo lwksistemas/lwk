@@ -184,26 +184,28 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['created_at', 'loja_id']  # loja_id é read-only (preenchido automaticamente)
     
-    def validate_profissional(self, value):
+    def validate(self, data):
         """Valida se o profissional existe na loja atual"""
-        if value is None:
-            return value
+        profissional = data.get('profissional')
         
-        # Pegar loja_id do middleware (thread-local)
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
+        if profissional is not None:
+            # Pegar loja_id do middleware (thread-local)
+            from tenants.middleware import get_current_loja_id
+            loja_id = get_current_loja_id()
+            
+            if not loja_id:
+                raise serializers.ValidationError({
+                    'profissional': "Contexto de loja não encontrado"
+                })
+            
+            # Verificar se profissional existe na loja
+            if not Profissional.objects.filter(id=profissional.id, loja_id=loja_id).exists():
+                raise serializers.ValidationError({
+                    'profissional': f"Profissional ID {profissional.id} não existe na loja atual (ID {loja_id}). "
+                                   f"Verifique se o profissional está cadastrado nesta loja."
+                })
         
-        if not loja_id:
-            raise serializers.ValidationError("Contexto de loja não encontrado")
-        
-        # Verificar se profissional existe na loja
-        if not Profissional.objects.filter(id=value.id, loja_id=loja_id).exists():
-            raise serializers.ValidationError(
-                f"Profissional ID {value.id} não existe na loja atual (ID {loja_id}). "
-                f"Verifique se o profissional está cadastrado nesta loja."
-            )
-        
-        return value
+        return data
 
 
 class FuncionarioSerializer(BaseLojaSerializer):

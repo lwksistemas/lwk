@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerta de Violação de Segurança</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        .alert-box {
+            background: white;
+            border-left: 4px solid {{ criticidade_color }};
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .alert-box h2 {
+            margin-top: 0;
+            color: {{ criticidade_color }};
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .info-value {
+            color: #333;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-critica {
+            background: #fee;
+            color: #c00;
+        }
+        .badge-alta {
+            background: #ffeaa7;
+            color: #d63031;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚨 Alerta de Violação de Segurança</h1>
+    </div>
+    
+    <div class="content">
+        <div class="alert-box">
+            <h2>{{ tipo_display }}</h2>
+            <p><strong>Criticidade:</strong> 
+                <span class="badge badge-{{ violacao.criticidade }}">{{ criticidade_display }}</span>
+            </p>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-label">Data/Hora:</div>
+            <div class="info-value">{{ data_hora }}</div>
+            
+            <div class="info-label">Usuário:</div>
+            <div class="info-value">{{ violacao.usuario_nome }} ({{ violacao.usuario_email }})</div>
+            
+            <div class="info-label">Loja:</div>
+            <div class="info-value">{{ violacao.loja_nome }}</div>
+            
+            <div class="info-label">IP Address:</div>
+            <div class="info-value">{{ violacao.ip_address }}</div>
+        </div>
+        
+        <h3>Descrição:</h3>
+        <p>{{ violacao.descricao }}</p>
+        
+        {% if violacao.detalhes_tecnicos %}
+        <h3>Detalhes Técnicos:</h3>
+        <p style="background: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+            {{ violacao.detalhes_tecnicos }}
+        </p>
+        {% endif %}
+        
+        <div style="text-align: center;">
+            <a href="{{ url_detalhes }}" class="button">Ver Detalhes Completos</a>
+        </div>
+        
+        <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 4px; margin-top: 20px;">
+            <strong>⚠️ Ação Recomendada:</strong>
+            <p style="margin: 5px 0 0 0;">
+                Acesse o dashboard de alertas para investigar esta violação e tomar as medidas necessárias.
+            </p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Este é um email automático do Sistema de Monitoramento de Segurança.</p>
+        <p>LWK Sistemas - {{ data_hora }}</p>
+    </div>
+</body>
+</html>

@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TipoLojaViewSet, PlanoAssinaturaViewSet, LojaViewSet,
     FinanceiroLojaViewSet, PagamentoLojaViewSet, UsuarioSistemaViewSet,
-    HistoricoAcessoGlobalViewSet,
+    HistoricoAcessoGlobalViewSet, ViolacaoSegurancaViewSet, EstatisticasAuditoriaViewSet,
     recuperar_senha_loja
 )
 from .financeiro_views import (
@@ -21,6 +21,8 @@ router.register(r'financeiro', FinanceiroLojaViewSet, basename='financeiro')
 router.register(r'pagamentos', PagamentoLojaViewSet, basename='pagamento')
 router.register(r'usuarios', UsuarioSistemaViewSet, basename='usuario-sistema')
 router.register(r'historico-acessos', HistoricoAcessoGlobalViewSet, basename='historico-acessos')
+router.register(r'violacoes-seguranca', ViolacaoSegurancaViewSet, basename='violacao-seguranca')
+router.register(r'estatisticas-auditoria', EstatisticasAuditoriaViewSet, basename='estatisticas-auditoria')
 
 # Rotas específicas para dashboard financeiro das lojas
 router.register(r'loja-financeiro', FinanceiroViewSet, basename='loja-financeiro')

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import BotaoSuporte from '@/components/suporte/BotaoSuporte';
+import NotificacoesSeguranca from '@/components/NotificacoesSeguranca';
+import { ToastContainer, useToast } from '@/components/ToastNotificacao';
 
 interface Estatisticas {
   total_lojas: number;
@@ -18,6 +20,7 @@ export default function SuperAdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<Estatisticas | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
@@ -43,6 +46,25 @@ export default function SuperAdminDashboard() {
     router.push('/superadmin/login');
   };
 
+  const handleNovaViolacao = (violacao: any) => {
+    // Mostrar toast para violações críticas
+    if (violacao.criticidade === 'critica') {
+      addToast({
+        tipo: 'critico',
+        titulo: '🚨 Violação Crítica Detectada',
+        mensagem: `${violacao.tipo_display}: ${violacao.usuario_nome}`,
+        duracao: 10000, // 10 segundos para críticas
+      });
+    } else if (violacao.criticidade === 'alta') {
+      addToast({
+        tipo: 'aviso',
+        titulo: '⚠️ Alerta de Segurança',
+        mensagem: `${violacao.tipo_display}: ${violacao.usuario_nome}`,
+        duracao: 7000,
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -53,6 +75,9 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      
       {/* Header */}
       <nav className="bg-purple-900 text-white shadow-lg">
         <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
@@ -61,12 +86,17 @@ export default function SuperAdminDashboard() {
               <h1 className="text-2xl font-bold">Super Admin</h1>
               <span className="text-purple-200">Painel de Controle</span>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
-            >
-              Sair
-            </button>
+            <div className="flex items-center space-x-4">
+              {/* Notificações de Segurança */}
+              <NotificacoesSeguranca onNovaViolacao={handleNovaViolacao} />
+              
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+              >
+                Sair
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -106,6 +136,20 @@ export default function SuperAdminDashboard() {
               color="purple"
             />
             <MenuCard
+              title="Busca de Logs"
+              description="Busca avançada e análise detalhada de logs"
+              icon="🔍"
+              href="/superadmin/dashboard/logs"
+              color="indigo"
+            />
+            <MenuCard
+              title="Dashboard de Auditoria"
+              description="Análise de ações, estatísticas e padrões de uso"
+              icon="📈"
+              href="/superadmin/dashboard/auditoria"
+              color="teal"
+            />
+            <MenuCard
               title="Tipos de Loja"
               description="Configurar tipos de loja e dashboards personalizados"
               icon="🎨"
@@ -141,6 +185,13 @@ export default function SuperAdminDashboard() {
               color="pink"
             />
             <MenuCard
+              title="Alertas de Segurança"
+              description="Monitoramento de violações e atividades suspeitas"
+              icon="�"
+              href="/superadmin/dashboard/alertas"
+              color="red"
+            />
+            <MenuCard
               title="Configuração Asaas"
               description="Configurar e monitorar integração com API Asaas"
               icon="🔧"
@@ -173,7 +224,9 @@ function MenuCard({ title, description, icon, href, color }: MenuCardProps) {
     green: 'bg-green-50 hover:bg-green-100 border-green-200',
     cyan: 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200',
     pink: 'bg-pink-50 hover:bg-pink-100 border-pink-200',
+    red: 'bg-red-50 hover:bg-red-100 border-red-200',
     orange: 'bg-orange-50 hover:bg-orange-100 border-orange-200',
+    teal: 'bg-teal-50 hover:bg-teal-100 border-teal-200',
   };
 
   return (

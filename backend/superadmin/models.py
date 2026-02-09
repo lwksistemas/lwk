@@ -612,3 +612,234 @@ class HistoricoAcessoGlobal(models.Model):
             return 'iOS'
         else:
             return 'Outro'
+
+
+class ViolacaoSeguranca(models.Model):
+    """
+    Registra violações de segurança detectadas automaticamente
+
+    Tipos de violações:
+    - acesso_cross_tenant: Tentativa de acessar recursos de outra loja
+    - brute_force: Múltiplas tentativas de login falhadas
+    - rate_limit_exceeded: Excesso de requisições em curto período
+    - privilege_escalation: Tentativa de acessar recursos sem permissão
+    - mass_deletion: Exclusão em massa de registros
+    - ip_change: Mudança suspeita de IP
+    - suspicious_pattern: Outros padrões suspeitos
+
+    Boas práticas aplicadas:
+    - Single Responsibility: Apenas registra violações
+    - Clean Code: Nomes descritivos e documentação clara
+    - Performance: Índices otimizados para queries comuns
+    - Auditoria: Rastreamento completo de investigação e resolução
+    """
+
+    TIPO_CHOICES = [
+        ('acesso_cross_tenant', 'Acesso Cross-Tenant'),
+        ('brute_force', 'Tentativa de Brute Force'),
+        ('rate_limit_exceeded', 'Rate Limit Excedido'),
+        ('privilege_escalation', 'Escalação de Privilégios'),
+        ('mass_deletion', 'Exclusão em Massa'),
+        ('ip_change', 'Mudança de IP'),
+        ('suspicious_pattern', 'Padrão Suspeito'),
+    ]
+
+    CRITICIDADE_CHOICES = [
+        ('baixa', 'Baixa'),
+        ('media', 'Média'),
+        ('alta', 'Alta'),
+        ('critica', 'Crítica'),
+    ]
+
+    STATUS_CHOICES = [
+        ('nova', 'Nova'),
+        ('investigando', 'Investigando'),
+        ('resolvida', 'Resolvida'),
+        ('falso_positivo', 'Falso Positivo'),
+    ]
+
+    # Identificação
+    tipo = models.CharField(
+        max_length=50,
+        choices=TIPO_CHOICES,
+        db_index=True,
+        help_text='Tipo de violação detectada'
+    )
+    criticidade = models.CharField(
+        max_length=20,
+        choices=CRITICIDADE_CHOICES,
+        db_index=True,
+        help_text='Nível de criticidade da violação'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='nova',
+        db_index=True,
+        help_text='Status da investigação'
+    )
+
+    # Contexto do usuário
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='violacoes_seguranca',
+        help_text='Usuário que cometeu a violação'
+    )
+    usuario_email = models.EmailField(help_text='Email do usuário (backup)')
+    usuario_nome = models.CharField(max_length=200, help_text='Nome do usuário')
+
+    # Contexto da loja
+    loja = models.ForeignKey(
+        Loja,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='violacoes_seguranca',
+        help_text='Loja onde ocorreu a violação'
+    )
+    loja_nome = models.CharField(max_length=200, blank=True, help_text='Nome da loja (backup)')
+
+    # Detalhes da violação
+    descricao = models.TextField(help_text='Descrição da violação detectada')
+    detalhes_tecnicos = models.JSONField(
+        default=dict,
+        help_text='Detalhes técnicos adicionais (JSON)'
+    )
+    ip_address = models.GenericIPAddressField(help_text='IP de origem da violação')
+
+    # Logs relacionados
+    logs_relacionados = models.ManyToManyField(
+        HistoricoAcessoGlobal,
+        related_name='violacoes',
+        blank=True,
+        help_text='Logs que evidenciam a violação'
+    )
+
+    # Gestão da violação
+    resolvido_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='violacoes_resolvidas',
+        help_text='SuperAdmin que resolveu a violação'
+    )
+    resolvido_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Data/hora da resolução'
+    )
+    notas = models.TextField(
+        blank=True,
+        help_text='Notas sobre investigação e resolução'
+    )
+
+    # Notificação
+    notificado = models.BooleanField(
+        default=False,
+        help_text='Indica se SuperAdmin foi notificado'
+    )
+    notificado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Data/hora da notificação'
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'superadmin_violacoes_seguranca'
+        verbose_name = 'Violação de Segurança'
+        verbose_name_plural = 'Violações de Segurança'
+        ordering = ['-created_at']
+
+        # ✅ OTIMIZAÇÃO: Índices compostos para queries comuns
+        indexes = [
+            # Dashboard de alertas: violações não resolvidas por criticidade
+            models.Index(
+                fields=['status', 'criticidade', '-created_at'],
+                name='viol_status_crit_idx'
+            ),
+            # Busca por tipo + data
+            models.Index(
+                fields=['tipo', '-created_at'],
+                name='viol_tipo_date_idx'
+            ),
+            # Busca por usuário + data
+            models.Index(
+                fields=['user', '-created_at'],
+                name='viol_user_date_idx'
+            ),
+            # Busca por loja + data
+            models.Index(
+                fields=['loja', '-created_at'],
+                name='viol_loja_date_idx'
+            ),
+            # Busca por IP (segurança)
+            models.Index(
+                fields=['ip_address', '-created_at'],
+                name='viol_ip_date_idx'
+            ),
+            # Violações não notificadas
+            models.Index(
+                fields=['notificado', 'criticidade'],
+                name='viol_notif_crit_idx'
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.usuario_nome} - {self.created_at.strftime('%d/%m/%Y %H:%M')}"
+
+    def get_criticidade_color(self):
+        """Retorna cor para exibição baseada na criticidade"""
+        colors = {
+            'baixa': '#10B981',    # Verde
+            'media': '#F59E0B',    # Amarelo
+            'alta': '#EF4444',     # Vermelho
+            'critica': '#DC2626',  # Vermelho escuro
+        }
+        return colors.get(self.criticidade, '#6B7280')  # Cinza padrão
+
+    def get_tipo_display_friendly(self):
+        """Retorna descrição amigável do tipo de violação"""
+        descriptions = {
+            'acesso_cross_tenant': 'Tentativa de acessar dados de outra loja',
+            'brute_force': 'Múltiplas tentativas de login falhadas',
+            'rate_limit_exceeded': 'Excesso de requisições em curto período',
+            'privilege_escalation': 'Tentativa de acessar recursos sem permissão',
+            'mass_deletion': 'Exclusão em massa de registros',
+            'ip_change': 'Acesso de IP diferente do habitual',
+            'suspicious_pattern': 'Padrão de comportamento suspeito detectado',
+        }
+        return descriptions.get(self.tipo, self.get_tipo_display())
+
+    @classmethod
+    def get_criticidade_automatica(cls, tipo):
+        """
+        Define criticidade automática baseada no tipo de violação
+
+        Mapeamento:
+        - brute_force: alta
+        - rate_limit_exceeded: media
+        - acesso_cross_tenant: critica
+        - privilege_escalation: critica
+        - mass_deletion: alta
+        - ip_change: baixa
+        - suspicious_pattern: media
+        """
+        mapeamento = {
+            'brute_force': 'alta',
+            'rate_limit_exceeded': 'media',
+            'acesso_cross_tenant': 'critica',
+            'privilege_escalation': 'critica',
+            'mass_deletion': 'alta',
+            'ip_change': 'baixa',
+            'suspicious_pattern': 'media',
+        }
+        return mapeamento.get(tipo, 'media')
+

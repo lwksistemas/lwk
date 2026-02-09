@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',  # 🔐 SEGURANÇA: Blacklist para invalidar tokens
     'corsheaders',
+    'django_q',  # ✅ Task queue para jobs agendados
     'core',  # App base com modelos abstratos
     'stores',
     'products',
@@ -271,8 +272,38 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Sistema Multi-Loja <n
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# Configurações de Notificações de Segurança
+SECURITY_NOTIFICATION_EMAILS = config(
+    'SECURITY_NOTIFICATION_EMAILS',
+    default='',
+    cast=lambda v: [email.strip() for email in v.split(',') if email.strip()]
+)
+SITE_URL = config('SITE_URL', default='http://localhost:3000')
+
 # Nota Fiscal Asaas (emissão ao confirmar pagamento da assinatura)
 # Serviço municipal conforme configuração da prefeitura da conta LWK no Asaas
 ASAAS_INVOICE_SERVICE_CODE = config('ASAAS_INVOICE_SERVICE_CODE', default='')
 ASAAS_INVOICE_SERVICE_NAME = config('ASAAS_INVOICE_SERVICE_NAME', default='Software sob demanda / Assinatura de sistema')
 ASAAS_INVOICE_SERVICE_ID = config('ASAAS_INVOICE_SERVICE_ID', default='')
+
+# ============================================
+# DJANGO-Q CONFIGURATION (Task Queue)
+# ============================================
+Q_CLUSTER = {
+    'name': 'LWKSistemas',
+    'workers': 4,  # Número de workers paralelos
+    'recycle': 500,  # Reciclar worker após N tarefas
+    'timeout': 300,  # Timeout de 5 minutos por tarefa
+    'compress': True,  # Comprimir dados na fila
+    'save_limit': 250,  # Manter últimas 250 tarefas no histórico
+    'queue_limit': 500,  # Limite de tarefas na fila
+    'cpu_affinity': 1,  # CPU affinity
+    'label': 'Django Q',
+    'redis': None,  # Usar ORM (banco de dados) ao invés de Redis
+    'orm': 'default',  # Usar banco 'default' para armazenar tarefas
+    'catch_up': True,  # Executar tarefas perdidas ao reiniciar
+    'sync': False,  # Executar de forma assíncrona (não bloquear)
+    'ack_failures': True,  # Reconhecer falhas
+    'max_attempts': 3,  # Tentar até 3 vezes em caso de falha
+    'retry': 360,  # Aguardar 360s (6min) antes de retentar (deve ser > timeout)
+}

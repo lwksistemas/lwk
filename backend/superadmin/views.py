@@ -11,13 +11,14 @@ import logging
 logger = logging.getLogger(__name__)
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja,
-    PagamentoLoja, UsuarioSistema
+    PagamentoLoja, UsuarioSistema, ViolacaoSeguranca
 )
 from .serializers import (
     TipoLojaSerializer, PlanoAssinaturaSerializer, LojaSerializer,
     FinanceiroLojaSerializer, PagamentoLojaSerializer, UsuarioSistemaSerializer,
-    LojaCreateSerializer
+    LojaCreateSerializer, ViolacaoSegurancaSerializer, ViolacaoSegurancaListSerializer
 )
+from .cache import cached_stat, invalidate_stats_cache
 
 class IsOwnerOrSuperAdmin(permissions.BasePermission):
     """Permissão para proprietário da loja ou super admin"""
@@ -1467,3 +1468,604 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
             ])
         
         return response
+    
+    @action(detail=False, methods=['get'])
+    def exportar_json(self, request):
+        """
+        Exporta histórico em JSON
+        
+        Aplica os mesmos filtros da listagem
+        """
+        from django.http import JsonResponse
+        from datetime import datetime
+        
+        # Obter queryset filtrado
+        queryset = self.get_queryset()
+        
+        # Limitar a 10000 registros para evitar timeout
+        queryset = queryset[:10000]
+        
+        # Serializar dados
+        serializer = self.get_serializer(queryset, many=True)
+        
+        # Criar resposta JSON
+        response = JsonResponse({
+            'total': queryset.count(),
+            'exportado_em': datetime.now().isoformat(),
+            'dados': serializer.data
+        }, safe=False)
+        
+        response['Content-Disposition'] = f'attachment; filename="historico_acessos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"'
+        
+        return response
+    
+    @action(detail=True, methods=['get'])
+    def contexto_temporal(self, request, pk=None):
+        """
+        Retorna contexto temporal de um log específico
+        
+        Mostra N logs anteriores e N posteriores do mesmo usuário
+        para entender o contexto da ação.
+        
+        Query params:
+        - antes: Número de logs anteriores (padrão: 5)
+        - depois: Número de logs posteriores (padrão: 5)
+        
+        Returns:
+        - log_atual: Log selecionado
+        - logs_anteriores: Lista de logs anteriores
+        - logs_posteriores: Lista de logs posteriores
+        """
+        from .models import HistoricoAcessoGlobal
+        
+        # Obter log atual
+        log_atual = self.get_object()
+        
+        # Obter parâmetros
+        try:
+            antes = int(request.query_params.get('antes', 5))
+            depois = int(request.query_params.get('depois', 5))
+        except ValueError:
+            return Response(
+                {'error': 'Parâmetros "antes" e "depois" devem ser números inteiros'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Limitar a 20 logs de cada lado
+        antes = min(antes, 20)
+        depois = min(depois, 20)
+        
+        # Buscar logs anteriores do mesmo usuário
+        logs_anteriores = HistoricoAcessoGlobal.objects.filter(
+            usuario_email=log_atual.usuario_email,
+            created_at__lt=log_atual.created_at
+        ).select_related('user', 'loja').order_by('-created_at')[:antes]
+        
+        # Buscar logs posteriores do mesmo usuário
+        logs_posteriores = HistoricoAcessoGlobal.objects.filter(
+            usuario_email=log_atual.usuario_email,
+            created_at__gt=log_atual.created_at
+        ).select_related('user', 'loja').order_by('created_at')[:depois]
+        
+        # Serializar
+        from .serializers import HistoricoAcessoGlobalListSerializer
+        
+        return Response({
+            'log_atual': HistoricoAcessoGlobalListSerializer(log_atual).data,
+            'logs_anteriores': HistoricoAcessoGlobalListSerializer(logs_anteriores, many=True).data,
+            'logs_posteriores': HistoricoAcessoGlobalListSerializer(logs_posteriores, many=True).data,
+            'total_anteriores': logs_anteriores.count(),
+            'total_posteriores': logs_posteriores.count(),
+        })
+    
+    @action(detail=False, methods=['get'])
+    def busca_avancada(self, request):
+        """
+        Busca avançada com texto livre
+        
+        Busca em múltiplos campos simultaneamente:
+        - Nome do usuário
+        - Email do usuário
+        - Nome da loja
+        - Slug da loja
+        - Recurso
+        - Detalhes da ação
+        - URL
+        - User agent
+        
+        Query params:
+        - q: Texto de busca (obrigatório)
+        - Todos os outros filtros do get_queryset também funcionam
+        
+        Returns:
+        - Resultados paginados com highlight dos termos encontrados
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models import Q
+        
+        # Obter termo de busca
+        query = request.query_params.get('q', '').strip()
+        
+        if not query:
+            return Response(
+                {'error': 'Parâmetro "q" (termo de busca) é obrigatório'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Buscar em múltiplos campos
+        queryset = self.get_queryset().filter(
+            Q(usuario_nome__icontains=query) |
+            Q(usuario_email__icontains=query) |
+            Q(loja_nome__icontains=query) |
+            Q(loja_slug__icontains=query) |
+            Q(recurso__icontains=query) |
+            Q(detalhes__icontains=query) |
+            Q(url__icontains=query) |
+            Q(user_agent__icontains=query) |
+            Q(ip_address__icontains=query)
+        )
+        
+        # Paginar resultados
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response({
+                'termo_busca': query,
+                'total_encontrado': queryset.count(),
+                'resultados': serializer.data
+            })
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'termo_busca': query,
+            'total_encontrado': queryset.count(),
+            'resultados': serializer.data
+        })
+
+
+class ViolacaoSegurancaViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar violações de segurança
+    
+    Endpoints:
+    - GET /api/superadmin/violacoes-seguranca/ - Lista violações
+    - GET /api/superadmin/violacoes-seguranca/{id}/ - Detalhes de uma violação
+    - PUT /api/superadmin/violacoes-seguranca/{id}/ - Atualizar violação
+    - POST /api/superadmin/violacoes-seguranca/{id}/resolver/ - Marcar como resolvida
+    - POST /api/superadmin/violacoes-seguranca/{id}/marcar_falso_positivo/ - Marcar como falso positivo
+    - GET /api/superadmin/violacoes-seguranca/estatisticas/ - Estatísticas de violações
+    
+    Boas práticas:
+    - Read-only por padrão (apenas SuperAdmin pode modificar)
+    - Filtros otimizados
+    - Serializers diferentes para list e detail
+    - Actions customizadas para operações específicas
+    """
+    permission_classes = [IsSuperAdmin]
+    
+    def get_serializer_class(self):
+        """
+        Usa serializer otimizado para listagem
+        Serializer completo para detalhes
+        """
+        if self.action == 'list':
+            return ViolacaoSegurancaListSerializer
+        return ViolacaoSegurancaSerializer
+    
+    def get_queryset(self):
+        """
+        Retorna violações com filtros aplicados
+        
+        Filtros disponíveis:
+        - status: nova, investigando, resolvida, falso_positivo
+        - criticidade: baixa, media, alta, critica
+        - tipo: brute_force, rate_limit, etc.
+        - loja_id: ID da loja
+        - usuario_email: Email do usuário
+        - data_inicio: Data inicial (YYYY-MM-DD)
+        - data_fim: Data final (YYYY-MM-DD)
+        
+        Ordenação: Por criticidade (desc) e data (desc)
+        """
+        from .models import ViolacaoSeguranca
+        from datetime import datetime
+        
+        # Base queryset com select_related para otimização
+        queryset = ViolacaoSeguranca.objects.all().select_related(
+            'user', 'loja', 'resolvido_por'
+        ).prefetch_related('logs_relacionados')
+        
+        # Filtros
+        status = self.request.query_params.get('status')
+        criticidade = self.request.query_params.get('criticidade')
+        tipo = self.request.query_params.get('tipo')
+        loja_id = self.request.query_params.get('loja_id')
+        usuario_email = self.request.query_params.get('usuario_email')
+        data_inicio = self.request.query_params.get('data_inicio')
+        data_fim = self.request.query_params.get('data_fim')
+        
+        if status:
+            queryset = queryset.filter(status=status)
+        if criticidade:
+            queryset = queryset.filter(criticidade=criticidade)
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        if loja_id:
+            queryset = queryset.filter(loja_id=loja_id)
+        if usuario_email:
+            queryset = queryset.filter(usuario_email__icontains=usuario_email)
+        if data_inicio:
+            try:
+                data_inicio_dt = datetime.strptime(data_inicio, '%Y-%m-%d')
+                queryset = queryset.filter(created_at__gte=data_inicio_dt)
+            except ValueError:
+                pass
+        if data_fim:
+            try:
+                data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d')
+                from datetime import timedelta
+                data_fim_dt = data_fim_dt + timedelta(days=1)
+                queryset = queryset.filter(created_at__lt=data_fim_dt)
+            except ValueError:
+                pass
+        
+        # Ordenação customizada: criticidade (desc) e data (desc)
+        # Ordem de criticidade: critica > alta > media > baixa
+        from django.db.models import Case, When, IntegerField
+        
+        queryset = queryset.annotate(
+            criticidade_ordem=Case(
+                When(criticidade='critica', then=4),
+                When(criticidade='alta', then=3),
+                When(criticidade='media', then=2),
+                When(criticidade='baixa', then=1),
+                default=0,
+                output_field=IntegerField()
+            )
+        ).order_by('-criticidade_ordem', '-created_at')
+        
+        return queryset
+    
+    @action(detail=True, methods=['post'])
+    def resolver(self, request, pk=None):
+        """
+        Marca violação como resolvida
+        
+        POST /api/superadmin/violacoes-seguranca/{id}/resolver/
+        
+        Body (opcional):
+        {
+            "notas": "Investigado e resolvido. Usuário foi alertado."
+        }
+        
+        Response:
+        {
+            "status": "resolvida",
+            "resolvido_por": "admin@example.com",
+            "resolvido_em": "2024-01-15T10:30:00Z"
+        }
+        """
+        from django.utils import timezone
+        
+        violacao = self.get_object()
+        violacao.status = 'resolvida'
+        violacao.resolvido_por = request.user
+        violacao.resolvido_em = timezone.now()
+        violacao.notas = request.data.get('notas', '')
+        violacao.save()
+        
+        logger.info(f"✅ Violação {violacao.id} resolvida por {request.user.email}")
+        
+        return Response({
+            'status': 'resolvida',
+            'resolvido_por': request.user.email,
+            'resolvido_em': violacao.resolvido_em,
+            'notas': violacao.notas
+        })
+    
+    @action(detail=True, methods=['post'])
+    def marcar_falso_positivo(self, request, pk=None):
+        """
+        Marca violação como falso positivo
+        
+        POST /api/superadmin/violacoes-seguranca/{id}/marcar_falso_positivo/
+        
+        Body (opcional):
+        {
+            "notas": "Falso positivo - comportamento normal do sistema."
+        }
+        
+        Response:
+        {
+            "status": "falso_positivo",
+            "resolvido_por": "admin@example.com",
+            "resolvido_em": "2024-01-15T10:30:00Z"
+        }
+        """
+        from django.utils import timezone
+        
+        violacao = self.get_object()
+        violacao.status = 'falso_positivo'
+        violacao.resolvido_por = request.user
+        violacao.resolvido_em = timezone.now()
+        violacao.notas = request.data.get('notas', '')
+        violacao.save()
+        
+        logger.info(f"ℹ️  Violação {violacao.id} marcada como falso positivo por {request.user.email}")
+        
+        return Response({
+            'status': 'falso_positivo',
+            'resolvido_por': request.user.email,
+            'resolvido_em': violacao.resolvido_em,
+            'notas': violacao.notas
+        })
+    
+    @action(detail=False, methods=['get'])
+    def estatisticas(self, request):
+        """
+        Estatísticas de violações
+        
+        GET /api/superadmin/violacoes-seguranca/estatisticas/
+        
+        Response:
+        {
+            "total": 150,
+            "nao_resolvidas": 25,
+            "por_status": [
+                {"status": "nova", "count": 10},
+                {"status": "investigando", "count": 15},
+                {"status": "resolvida", "count": 120},
+                {"status": "falso_positivo", "count": 5}
+            ],
+            "por_criticidade": [
+                {"criticidade": "critica", "count": 5},
+                {"criticidade": "alta", "count": 20},
+                {"criticidade": "media", "count": 50},
+                {"criticidade": "baixa", "count": 75}
+            ],
+            "por_tipo": [
+                {"tipo": "brute_force", "count": 30},
+                {"tipo": "rate_limit_exceeded", "count": 40},
+                ...
+            ],
+            "ultimas_24h": 12
+        }
+        """
+        from .models import ViolacaoSeguranca
+        from django.db.models import Count
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        total = queryset.count()
+        nao_resolvidas = queryset.filter(status__in=['nova', 'investigando']).count()
+        
+        por_status = queryset.values('status').annotate(count=Count('id')).order_by('-count')
+        por_criticidade = queryset.values('criticidade').annotate(count=Count('id')).order_by('-count')
+        por_tipo = queryset.values('tipo').annotate(count=Count('id')).order_by('-count')
+        
+        # Violações nas últimas 24h
+        cutoff_24h = timezone.now() - timedelta(hours=24)
+        ultimas_24h = queryset.filter(created_at__gte=cutoff_24h).count()
+        
+        return Response({
+            'total': total,
+            'nao_resolvidas': nao_resolvidas,
+            'por_status': list(por_status),
+            'por_criticidade': list(por_criticidade),
+            'por_tipo': list(por_tipo),
+            'ultimas_24h': ultimas_24h
+        })
+
+
+class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
+    """
+    ViewSet para estatísticas de auditoria
+    
+    Endpoints:
+    - GET /api/superadmin/estatisticas-auditoria/acoes_por_dia/ - Gráfico de ações por dia
+    - GET /api/superadmin/estatisticas-auditoria/acoes_por_tipo/ - Distribuição por tipo
+    - GET /api/superadmin/estatisticas-auditoria/lojas_mais_ativas/ - Ranking de lojas
+    - GET /api/superadmin/estatisticas-auditoria/usuarios_mais_ativos/ - Ranking de usuários
+    - GET /api/superadmin/estatisticas-auditoria/horarios_pico/ - Distribuição por hora
+    - GET /api/superadmin/estatisticas-auditoria/taxa_sucesso/ - Taxa de sucesso vs falha
+    
+    Boas práticas:
+    - ViewSet sem modelo (apenas actions)
+    - Queries otimizadas com agregações
+    - Cache de resultados (TODO: implementar Redis)
+    - Filtros de período
+    """
+    permission_classes = [IsSuperAdmin]
+    
+    @action(detail=False, methods=['get'])
+    @cached_stat(ttl=300, key_prefix='acoes_por_dia')
+    def acoes_por_dia(self, request):
+        """
+        Gráfico de ações por dia (últimos N dias)
+        
+        GET /api/superadmin/estatisticas-auditoria/acoes_por_dia/?dias=30
+        
+        Query params:
+        - dias: Número de dias (padrão: 30)
+        
+        Response:
+        [
+            {"dia": "2024-01-15", "count": 150},
+            {"dia": "2024-01-16", "count": 200},
+            ...
+        ]
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models.functions import TruncDate
+        from django.db.models import Count
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        dias = int(request.query_params.get('dias', 30))
+        data_inicio = timezone.now() - timedelta(days=dias)
+        
+        acoes = HistoricoAcessoGlobal.objects.filter(
+            created_at__gte=data_inicio
+        ).annotate(
+            dia=TruncDate('created_at')
+        ).values('dia').annotate(
+            count=Count('id')
+        ).order_by('dia')
+        
+        # Formatar datas
+        resultado = [
+            {
+                'dia': item['dia'].strftime('%Y-%m-%d'),
+                'count': item['count']
+            }
+            for item in acoes
+        ]
+        
+        return Response(resultado)
+    
+    @action(detail=False, methods=['get'])
+    @cached_stat(ttl=300, key_prefix='acoes_por_tipo')
+    def acoes_por_tipo(self, request):
+        """
+        Distribuição de ações por tipo
+        
+        GET /api/superadmin/estatisticas-auditoria/acoes_por_tipo/
+        
+        Response:
+        [
+            {"acao": "criar", "count": 500},
+            {"acao": "editar", "count": 300},
+            {"acao": "excluir", "count": 100},
+            ...
+        ]
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models import Count
+        
+        acoes = HistoricoAcessoGlobal.objects.values('acao').annotate(
+            count=Count('id')
+        ).order_by('-count')
+        
+        return Response(list(acoes))
+    
+    @action(detail=False, methods=['get'])
+    @cached_stat(ttl=300, key_prefix='lojas_mais_ativas')
+    def lojas_mais_ativas(self, request):
+        """
+        Ranking de lojas mais ativas
+        
+        GET /api/superadmin/estatisticas-auditoria/lojas_mais_ativas/?limit=10
+        
+        Query params:
+        - limit: Número de lojas (padrão: 10)
+        
+        Response:
+        [
+            {"loja_id": 1, "loja_nome": "Loja A", "count": 1000},
+            {"loja_id": 2, "loja_nome": "Loja B", "count": 800},
+            ...
+        ]
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models import Count
+        
+        limit = int(request.query_params.get('limit', 10))
+        
+        lojas = HistoricoAcessoGlobal.objects.exclude(
+            loja__isnull=True
+        ).values('loja_id', 'loja_nome').annotate(
+            count=Count('id')
+        ).order_by('-count')[:limit]
+        
+        return Response(list(lojas))
+    
+    @action(detail=False, methods=['get'])
+    @cached_stat(ttl=300, key_prefix='usuarios_mais_ativos')
+    def usuarios_mais_ativos(self, request):
+        """
+        Ranking de usuários mais ativos
+        
+        GET /api/superadmin/estatisticas-auditoria/usuarios_mais_ativos/?limit=10
+        
+        Query params:
+        - limit: Número de usuários (padrão: 10)
+        
+        Response:
+        [
+            {"usuario_email": "user@example.com", "usuario_nome": "João Silva", "count": 500},
+            ...
+        ]
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models import Count
+        
+        limit = int(request.query_params.get('limit', 10))
+        
+        usuarios = HistoricoAcessoGlobal.objects.values(
+            'usuario_email', 'usuario_nome'
+        ).annotate(
+            count=Count('id')
+        ).order_by('-count')[:limit]
+        
+        return Response(list(usuarios))
+    
+    @action(detail=False, methods=['get'])
+    @cached_stat(ttl=300, key_prefix='horarios_pico')
+    def horarios_pico(self, request):
+        """
+        Distribuição de ações por hora do dia
+        
+        GET /api/superadmin/estatisticas-auditoria/horarios_pico/
+        
+        Response:
+        [
+            {"hora": 0, "count": 50},
+            {"hora": 1, "count": 30},
+            ...
+            {"hora": 23, "count": 100}
+        ]
+        """
+        from .models import HistoricoAcessoGlobal
+        from django.db.models import Count
+        from django.db.models.functions import ExtractHour
+        
+        acoes = HistoricoAcessoGlobal.objects.annotate(
+            hora=ExtractHour('created_at')
+        ).values('hora').annotate(
+            count=Count('id')
+        ).order_by('hora')
+        
+        return Response(list(acoes))
+    
+    @action(detail=False, methods=['get'])
+    @cached_stat(ttl=300, key_prefix='taxa_sucesso')
+    def taxa_sucesso(self, request):
+        """
+        Taxa de sucesso vs falha
+        
+        GET /api/superadmin/estatisticas-auditoria/taxa_sucesso/
+        
+        Response:
+        {
+            "total": 10000,
+            "sucessos": 9500,
+            "falhas": 500,
+            "taxa_sucesso": 95.0
+        }
+        """
+        from .models import HistoricoAcessoGlobal
+        
+        total = HistoricoAcessoGlobal.objects.count()
+        sucessos = HistoricoAcessoGlobal.objects.filter(sucesso=True).count()
+        falhas = total - sucessos
+        
+        taxa_sucesso = (sucessos / total * 100) if total > 0 else 0
+        
+        return Response({
+            'total': total,
+            'sucessos': sucessos,
+            'falhas': falhas,
+            'taxa_sucesso': round(taxa_sucesso, 2)
+        })

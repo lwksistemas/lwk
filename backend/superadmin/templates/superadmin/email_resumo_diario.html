@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumo Diário de Violações</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .section {
+            background: white;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .violacao-item {
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #dc3545;
+            background: #fff5f5;
+            border-radius: 4px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .badge-critica { background: #fee; color: #c00; }
+        .badge-alta { background: #ffeaa7; color: #d63031; }
+        .badge-media { background: #fff3cd; color: #856404; }
+        .badge-baixa { background: #d1ecf1; color: #0c5460; }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Resumo Diário de Segurança</h1>
+        <p style="margin: 5px 0 0 0;">{{ data }}</p>
+    </div>
+    
+    <div class="content">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ total }}</div>
+                <div class="stat-label">Total de Violações</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ por_criticidade.critica }}</div>
+                <div class="stat-label">Críticas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ por_status.nova }}</div>
+                <div class="stat-label">Novas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ por_status.resolvida }}</div>
+                <div class="stat-label">Resolvidas</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Por Criticidade</h3>
+            <p>
+                <span class="badge badge-critica">Crítica: {{ por_criticidade.critica }}</span>
+                <span class="badge badge-alta">Alta: {{ por_criticidade.alta }}</span>
+                <span class="badge badge-media">Média: {{ por_criticidade.media }}</span>
+                <span class="badge badge-baixa">Baixa: {{ por_criticidade.baixa }}</span>
+            </p>
+        </div>
+        
+        {% if violacoes_criticas %}
+        <div class="section">
+            <h3>🚨 Violações Críticas (Top 10)</h3>
+            {% for violacao in violacoes_criticas %}
+            <div class="violacao-item">
+                <strong>{{ violacao.get_tipo_display }}</strong><br>
+                <small>
+                    {{ violacao.usuario_nome }} • {{ violacao.loja_nome }} • 
+                    {{ violacao.created_at|date:"d/m/Y H:i" }}
+                </small>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div style="background: #e7f3ff; border: 1px solid #2196f3; padding: 15px; border-radius: 4px; margin-top: 20px;">
+            <strong>💡 Recomendação:</strong>
+            <p style="margin: 5px 0 0 0;">
+                Acesse o dashboard de alertas para revisar todas as violações e tomar as ações necessárias.
+            </p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Este é um email automático do Sistema de Monitoramento de Segurança.</p>
+        <p>LWK Sistemas - Resumo gerado em {{ data }}</p>
+    </div>
+</body>
+</html>

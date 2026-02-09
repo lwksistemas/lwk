@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0014_alter_loja_options_alter_planoassinatura_options_and_more'),
+        ('superadmin', '0014_violacaoseguranca'),
     ]
 
     operations = [

@@ -115,6 +115,62 @@ Equipe LWK Sistemas
         perfil._senha_provisoria_gerada = senha_provisoria
         
         return perfil
+    
+    def update(self, instance, validated_data):
+        """
+        Atualizar usuário do sistema
+        
+        IMPORTANTE:
+        - Username NÃO pode ser alterado (ignorado se enviado)
+        - Senha só é atualizada se fornecida
+        - Tipo pode ser alterado (superadmin <-> suporte)
+        """
+        user_data = validated_data.pop('user', {})
+        
+        # Atualizar dados do User (exceto username)
+        user = instance.user
+        if 'email' in user_data:
+            user.email = user_data['email']
+        if 'first_name' in user_data:
+            user.first_name = user_data['first_name']
+        if 'last_name' in user_data:
+            user.last_name = user_data['last_name']
+        
+        # Atualizar senha se fornecida
+        if 'password' in user_data and user_data['password']:
+            user.set_password(user_data['password'])
+        
+        user.save()
+        
+        # Atualizar tipo e permissões
+        tipo_antigo = instance.tipo
+        tipo_novo = validated_data.get('tipo', tipo_antigo)
+        
+        if tipo_antigo != tipo_novo:
+            # Remover permissões antigas
+            if tipo_antigo == 'superadmin':
+                user.is_superuser = False
+            elif tipo_antigo == 'suporte':
+                grupo_suporte = Group.objects.filter(name='suporte').first()
+                if grupo_suporte:
+                    user.groups.remove(grupo_suporte)
+            
+            # Adicionar novas permissões
+            if tipo_novo == 'superadmin':
+                user.is_superuser = True
+            elif tipo_novo == 'suporte':
+                grupo_suporte, _ = Group.objects.get_or_create(name='suporte')
+                user.groups.add(grupo_suporte)
+            
+            user.save()
+        
+        # Atualizar campos do UsuarioSistema
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        instance.save()
+        
+        return instance
 
 
 class TipoLojaSerializer(serializers.ModelSerializer):

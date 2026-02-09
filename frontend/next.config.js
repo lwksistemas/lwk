@@ -78,16 +78,6 @@ const nextConfig = {
     // Usar timestamp + versão para garantir unicidade (dashboard Restaurante v258)
     return 'v258-restaurante-' + Date.now();
   },
-  
-  // Proxy para API
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com'}/api/:path*`,
-      },
-    ]
-  },
 }
 
 module.exports = nextConfig

@@ -183,6 +183,27 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
         model = BloqueioAgenda
         fields = '__all__'
         read_only_fields = ['created_at', 'loja_id']  # loja_id é read-only (preenchido automaticamente)
+    
+    def validate_profissional(self, value):
+        """Valida se o profissional existe na loja atual"""
+        if value is None:
+            return value
+        
+        # Pegar loja_id do contexto
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'loja_id'):
+            raise serializers.ValidationError("Contexto de loja não encontrado")
+        
+        loja_id = request.loja_id
+        
+        # Verificar se profissional existe na loja
+        if not Profissional.objects.filter(id=value.id, loja_id=loja_id).exists():
+            raise serializers.ValidationError(
+                f"Profissional ID {value.id} não existe na loja atual (ID {loja_id}). "
+                f"Verifique se o profissional está cadastrado nesta loja."
+            )
+        
+        return value
 
 
 class FuncionarioSerializer(BaseLojaSerializer):

@@ -1010,7 +1010,7 @@ function ModalBloqueio({
 }) {
   const [formData, setFormData] = useState({
     tipo: 'periodo', // 'periodo' ou 'dia_completo'
-    profissional: profissionalSelecionado || '',
+    profissional: '', // Sempre vazio inicialmente - usuário deve escolher explicitamente
     data_inicio: '',
     data_fim: '',
     horario_inicio: '08:00',

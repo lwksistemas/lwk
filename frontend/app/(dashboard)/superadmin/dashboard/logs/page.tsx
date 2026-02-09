@@ -75,8 +75,8 @@ export default function BuscaLogsPage() {
       });
 
       const endpoint = filtros.q 
-        ? `/superadmin/historico-acesso-global/busca_avancada/?${params}`
-        : `/superadmin/historico-acesso-global/?${params}`;
+        ? `/superadmin/historico-acessos/busca_avancada/?${params}`
+        : `/superadmin/historico-acessos/?${params}`;
 
       const response = await apiClient.get(endpoint);
       setLogs(response.data.results || response.data);
@@ -95,7 +95,7 @@ export default function BuscaLogsPage() {
       });
 
       const response = await apiClient.get(
-        `/superadmin/historico-acesso-global/exportar/?${params}`,
+        `/superadmin/historico-acessos/exportar/?${params}`,
         { responseType: 'blob' }
       );
 
@@ -119,7 +119,7 @@ export default function BuscaLogsPage() {
       });
 
       const response = await apiClient.get(
-        `/superadmin/historico-acesso-global/exportar_json/?${params}`
+        `/superadmin/historico-acessos/exportar_json/?${params}`
       );
 
       const dataStr = JSON.stringify(response.data, null, 2);
@@ -139,7 +139,7 @@ export default function BuscaLogsPage() {
   const carregarContextoTemporal = async (logId: number) => {
     try {
       const response = await apiClient.get(
-        `/superadmin/historico-acesso-global/${logId}/contexto_temporal/?antes=10&depois=10`
+        `/superadmin/historico-acessos/${logId}/contexto_temporal/?antes=10&depois=10`
       );
       setContextoTemporal(response.data);
     } catch (error) {

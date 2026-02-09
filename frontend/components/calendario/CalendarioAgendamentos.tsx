@@ -110,17 +110,35 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     return (hh || 0) * 60 + (mm || 0);
   };
 
+  const bloqueioDeveSerExibido = (bloqueio: BloqueioAgenda) => {
+    // Se não tem profissional, é global - sempre exibir
+    if (!bloqueio.profissional) return true;
+    
+    // Se não há filtro (Todos), exibir todos os bloqueios
+    if (!profissionalSelecionado) return true;
+    
+    // Se há filtro, exibir apenas bloqueios do profissional selecionado ou globais
+    return profissionalSelecionado === String(bloqueio.profissional);
+  };
+
   const bloqueioImpedeCriacaoNoContextoAtual = (bloqueio: BloqueioAgenda) => {
     // Se não tem profissional, é global (impede sempre).
-    // Se tem profissional, só impede quando o calendário está filtrado por aquele profissional.
     if (!bloqueio.profissional) return true;
-    if (!profissionalSelecionado) return false; // "Todos": não impedir criação (pois pode agendar com outro profissional)
+    
+    // Se não há filtro (Todos): não impedir criação (pois pode agendar com outro profissional)
+    if (!profissionalSelecionado) return false;
+    
+    // Se há filtro: impedir apenas se for o profissional selecionado
     return profissionalSelecionado === String(bloqueio.profissional);
   };
 
   const getBloqueioAt = (dataStr: string, horario: string) => {
     const slotMin = timeToMinutes(horario) ?? 0;
-    return bloqueios.find((b) => {
+    
+    // Filtrar bloqueios que devem ser exibidos no contexto atual
+    const bloqueiosVisiveis = bloqueios.filter(bloqueioDeveSerExibido);
+    
+    return bloqueiosVisiveis.find((b) => {
       // Data dentro do intervalo (inclusive)
       if (dataStr < b.data_inicio || dataStr > b.data_fim) return false;
 
@@ -136,7 +154,10 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   };
 
   const getBloqueiosDoDia = (dataStr: string) => {
-    return bloqueios.filter((b) => dataStr >= b.data_inicio && dataStr <= b.data_fim);
+    // Filtrar bloqueios que devem ser exibidos no contexto atual
+    const bloqueiosVisiveis = bloqueios.filter(bloqueioDeveSerExibido);
+    
+    return bloqueiosVisiveis.filter((b) => dataStr >= b.data_inicio && dataStr <= b.data_fim);
   };
 
   const calcularPeriodo = () => {

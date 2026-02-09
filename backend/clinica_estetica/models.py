@@ -379,6 +379,7 @@ class BloqueioAgenda(models.Model):
         ('outros', 'Outros'),
     ]
     
+    loja_id = models.IntegerField(db_index=True, help_text='ID da loja (isolamento multi-tenant)')
     titulo = models.CharField(max_length=200)
     tipo = models.CharField(max_length=20, choices=TIPO_BLOQUEIO)
     data_inicio = models.DateField()

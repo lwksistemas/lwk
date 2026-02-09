@@ -98,7 +98,8 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
 
   const loadConsultas = async (skipSyncIfEmpty = false) => {
     try {
-      const response = await clinicaApiClient.get('/clinica/consultas/');
+      // Buscar apenas consultas cujo agendamento foi confirmado
+      const response = await clinicaApiClient.get('/clinica/consultas/?agendamento_confirmado=true');
       let data = ensureArray<Consulta>(response.data);
 
       // Só sincronizar com agendamentos quando lista vazia na carga inicial (não após excluir)
@@ -106,7 +107,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       if (data.length === 0 && !skipSyncIfEmpty) {
         try {
           await clinicaApiClient.post('/clinica/consultas/sync_from_agendamentos/');
-          const res = await clinicaApiClient.get('/clinica/consultas/');
+          const res = await clinicaApiClient.get('/clinica/consultas/?agendamento_confirmado=true');
           data = ensureArray<Consulta>(res.data);
         } catch (_) {
           // ignora erro do sync (ex.: contexto sem loja)

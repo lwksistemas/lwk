@@ -432,6 +432,10 @@ class ConsultaViewSet(BaseModelViewSet):
             base = base.filter(profissional_id=params.get('profissional_id'))
         if params.get('status'):
             base = base.filter(status=params.get('status'))
+        
+        # Filtro para mostrar apenas consultas cujo agendamento foi confirmado
+        if params.get('agendamento_confirmado') == 'true':
+            base = base.filter(agendamento__status__in=['confirmado', 'em_atendimento', 'concluido'])
 
         return base
 

@@ -304,6 +304,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
     procedimento_nome = serializers.CharField(source='procedimento.nome', read_only=True)
     agendamento_data = serializers.DateField(source='agendamento.data', read_only=True)
     agendamento_horario = serializers.TimeField(source='agendamento.horario', read_only=True)
+    agendamento_status = serializers.CharField(source='agendamento.status', read_only=True)
     duracao_minutos = serializers.ReadOnlyField()
     total_evolucoes = serializers.SerializerMethodField()
 

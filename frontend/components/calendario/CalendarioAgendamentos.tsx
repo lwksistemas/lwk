@@ -17,6 +17,64 @@ interface Agendamento {
   observacoes?: string;
 }
 
+// Função para obter cor baseada no status do agendamento
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case 'agendado':
+      return '#3B82F6'; // Azul
+    case 'confirmado':
+      return '#10B981'; // Verde
+    case 'em_atendimento':
+      return '#10B981'; // Verde (mesmo que confirmado)
+    case 'faltou':
+      return '#EF4444'; // Vermelho
+    case 'cancelado':
+      return '#9CA3AF'; // Cinza
+    default:
+      return '#6B7280'; // Cinza padrão
+  }
+};
+
+// Função para obter texto do status em português
+const getStatusText = (status: string): string => {
+  switch (status) {
+    case 'agendado':
+      return 'Agendado';
+    case 'confirmado':
+      return 'Confirmado';
+    case 'em_atendimento':
+      return 'Em Atendimento';
+    case 'concluido':
+      return 'Concluído';
+    case 'faltou':
+      return 'Faltou';
+    case 'cancelado':
+      return 'Cancelado';
+    default:
+      return status;
+  }
+};
+
+// Função para obter emoji do status
+const getStatusEmoji = (status: string): string => {
+  switch (status) {
+    case 'agendado':
+      return '🔵';
+    case 'confirmado':
+      return '🟢';
+    case 'em_atendimento':
+      return '🟢';
+    case 'concluido':
+      return '✅';
+    case 'faltou':
+      return '🔴';
+    case 'cancelado':
+      return '⚪';
+    default:
+      return '⚫';
+  }
+};
+
 interface BloqueioAgenda {
   id: number;
   titulo: string;
@@ -316,15 +374,24 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                   <div className="flex-1 ml-4">
                     {agendamento ? (
                       <div 
-                        className="p-3 rounded-lg cursor-pointer hover:opacity-80"
-                        style={{ backgroundColor: `${loja.cor_primaria}20`, borderLeft: `4px solid ${loja.cor_primaria}` }}
+                        className="p-3 rounded-lg cursor-pointer hover:opacity-80 border-l-4"
+                        style={{ 
+                          backgroundColor: `${getStatusColor(agendamento.status)}20`, 
+                          borderLeftColor: getStatusColor(agendamento.status)
+                        }}
                         onClick={() => handleEditarAgendamento(agendamento)}
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{agendamento.cliente_nome}</p>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg">{getStatusEmoji(agendamento.status)}</span>
+                              <p className="font-semibold text-gray-900 dark:text-white">{agendamento.cliente_nome}</p>
+                            </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">{agendamento.procedimento_nome}</p>
                             <p className="text-xs text-gray-500 dark:text-gray-500">Prof: {agendamento.profissional_nome}</p>
+                            <p className="text-xs font-medium mt-1" style={{ color: getStatusColor(agendamento.status) }}>
+                              {getStatusText(agendamento.status)}
+                            </p>
                           </div>
                           <div className="flex space-x-2">
                             <button
@@ -454,12 +521,21 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                   <div key={i} className="p-2 border-l dark:border-gray-700 min-h-[60px]">
                     {agendamento ? (
                       <div
-                        className="p-2 rounded text-xs cursor-pointer hover:opacity-80"
-                        style={{ backgroundColor: `${loja.cor_primaria}20`, color: loja.cor_primaria }}
+                        className="p-2 rounded text-xs cursor-pointer hover:opacity-80 border-l-2"
+                        style={{ 
+                          backgroundColor: `${getStatusColor(agendamento.status)}20`, 
+                          borderLeftColor: getStatusColor(agendamento.status)
+                        }}
                         onClick={() => handleEditarAgendamento(agendamento)}
                       >
-                        <div className="font-semibold truncate">{agendamento.cliente_nome}</div>
-                        <div className="truncate">{agendamento.procedimento_nome}</div>
+                        <div className="flex items-center gap-1 mb-1">
+                          <span>{getStatusEmoji(agendamento.status)}</span>
+                          <div className="font-semibold truncate">{agendamento.cliente_nome}</div>
+                        </div>
+                        <div className="truncate text-gray-600 dark:text-gray-400">{agendamento.procedimento_nome}</div>
+                        <div className="text-[10px] font-medium mt-1" style={{ color: getStatusColor(agendamento.status) }}>
+                          {getStatusText(agendamento.status)}
+                        </div>
                       </div>
                     ) : bloqueio ? (
                       <div
@@ -572,13 +648,17 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                     {agendamentosDoDia.slice(0, 2).map(agendamento => (
                       <div
                         key={agendamento.id}
-                        className="text-xs p-1 rounded truncate cursor-pointer"
-                        style={{ backgroundColor: `${loja.cor_primaria}20`, color: loja.cor_primaria }}
+                        className="text-xs p-1 rounded truncate cursor-pointer border-l-2"
+                        style={{ 
+                          backgroundColor: `${getStatusColor(agendamento.status)}15`, 
+                          borderLeftColor: getStatusColor(agendamento.status)
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEditarAgendamento(agendamento);
                         }}
                       >
+                        <span className="mr-1">{getStatusEmoji(agendamento.status)}</span>
                         {agendamento.horario} {agendamento.cliente_nome}
                       </div>
                     ))}
@@ -607,6 +687,26 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               📅 Calendário de Agendamentos
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">{obterTituloPeriodo()}</p>
+            
+            {/* Legenda de Cores */}
+            <div className="flex flex-wrap gap-3 mt-3">
+              <div className="flex items-center gap-1 text-xs">
+                <span>🔵</span>
+                <span className="text-gray-600 dark:text-gray-400">Agendado</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs">
+                <span>🟢</span>
+                <span className="text-gray-600 dark:text-gray-400">Confirmado/Em Atendimento</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs">
+                <span>🔴</span>
+                <span className="text-gray-600 dark:text-gray-400">Faltou</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs">
+                <span>⚪</span>
+                <span className="text-gray-600 dark:text-gray-400">Cancelado</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">

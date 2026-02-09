@@ -323,16 +323,30 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
             raise
     
     def perform_create(self, serializer):
-        """Preenche automaticamente o loja_id do contexto"""
+        """
+        Preenche automaticamente o loja_id do contexto
+        
+        Logs detalhados para debug de problemas de isolamento multi-tenant
+        """
         from tenants.middleware import get_current_loja_id
         import logging
         logger = logging.getLogger(__name__)
         
         loja_id = get_current_loja_id()
+        profissional_id = self.request.data.get('profissional')
         
         # Log dos dados recebidos
         logger.info(f"[BloqueioAgenda] Dados recebidos: {self.request.data}")
         logger.info(f"[BloqueioAgenda] loja_id do contexto: {loja_id}")
+        logger.info(f"[BloqueioAgenda] profissional_id recebido: {profissional_id}")
+        
+        # Verificar se profissional existe no schema da loja (antes de salvar)
+        if profissional_id:
+            existe = Profissional.objects.filter(id=profissional_id, is_active=True).exists()
+            logger.info(f"[BloqueioAgenda] Profissional {profissional_id} existe no schema da loja? {existe}")
+            
+            if not existe:
+                logger.error(f"[BloqueioAgenda] ERRO CRÍTICO: Tentativa de criar bloqueio com profissional_id={profissional_id} que não existe no schema da loja {loja_id}")
         
         serializer.save(loja_id=loja_id)
 

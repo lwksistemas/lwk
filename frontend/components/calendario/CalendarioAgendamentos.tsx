@@ -1049,7 +1049,18 @@ function ModalBloqueio({
 
       // Adicionar profissional apenas se selecionado
       if (formData.profissional) {
-        bloqueioData.profissional = parseInt(formData.profissional);
+        const profissionalId = parseInt(formData.profissional);
+        
+        // Validar que o profissional existe na lista carregada
+        const profissionalExiste = profissionais.some(p => p.id === profissionalId);
+        
+        if (!profissionalExiste) {
+          alert('❌ Erro: Profissional inválido. Por favor, recarregue a página (Ctrl+Shift+R) e tente novamente.');
+          setLoading(false);
+          return;
+        }
+        
+        bloqueioData.profissional = profissionalId;
       }
 
       // Adicionar horários apenas se for período
@@ -1062,9 +1073,15 @@ function ModalBloqueio({
       alert('✅ Bloqueio criado com sucesso!');
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar bloqueio:', error);
-      alert('❌ Erro ao criar bloqueio');
+      
+      // Mensagem de erro mais detalhada
+      const errorMessage = error?.response?.data?.profissional?.[0] || 
+                          error?.response?.data?.detail || 
+                          'Erro ao criar bloqueio';
+      
+      alert(`❌ ${errorMessage}`);
     } finally {
       setLoading(false);
     }

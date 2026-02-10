@@ -254,7 +254,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       {modals.agendamento && (
         <ModalAgendamentos 
           loja={loja} 
-          agendamentoId={agendamentoIdEditando}
+          agendamentoId={agendamentoIdEditando || undefined}
           onClose={() => {
             closeModal('agendamento');
             setAgendamentoIdEditando(null);

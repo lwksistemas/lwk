@@ -1,7 +1,8 @@
 'use client';
 
-// v559 - Dashboard Individual Cabeleireiro - BUILD: 2026-02-10-v3-INDIVIDUAL
+// v561 - Dashboard Individual Cabeleireiro - BUILD: 2026-02-10-v561-FORCE-NEW
 // Este dashboard é COMPLETAMENTE INDEPENDENTE - não usa componentes base compartilhados
+// VERSÃO FORÇADA PARA QUEBRAR CACHE DO VERCEL
 
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
@@ -123,8 +124,12 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   const router = useRouter();
   const toast = useToast();
 
-  // v559 - Dashboard Individual Cabeleireiro (Não usa componentes base)
-  console.log('🚀 Dashboard Cabeleireiro v559 - Individual e Independente');
+  // v561 - FORÇAR NOVA VERSÃO
+  useEffect(() => {
+    console.log('🚀🚀🚀 DASHBOARD CABELEIREIRO v561 - VERSÃO NOVA COM ROLES 🚀🚀🚀');
+    console.log('📍 Arquivo: templates/cabeleireiro.tsx');
+    console.log('📅 Build: 2026-02-10-v561');
+  }, []);
 
   // Estados
   const [showCalendario, setShowCalendario] = useState(false);

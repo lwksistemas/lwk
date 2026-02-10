@@ -9,8 +9,8 @@ import DashboardClinicaEstetica from './templates/clinica-estetica';
 import DashboardCRMVendas from './templates/crm-vendas';
 import DashboardRestaurante from './templates/restaurante';
 import DashboardServicos from './templates/servicos';
-import DashboardCabeleireiro from './templates/cabeleireiro';
-// FORÇAR RELOAD - v564
+import DashboardCabeleireiro from './templates/dashboard-cabeleireiro-novo';
+// v565 - ARQUIVO RENOMEADO PARA FORÇAR VERCEL
 
 interface LojaInfo {
   id: number;

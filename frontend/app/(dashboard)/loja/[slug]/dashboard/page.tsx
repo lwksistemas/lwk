@@ -9,7 +9,8 @@ import DashboardClinicaEstetica from './templates/clinica-estetica';
 import DashboardCRMVendas from './templates/crm-vendas';
 import DashboardRestaurante from './templates/restaurante';
 import DashboardServicos from './templates/servicos';
-import DashboardCabeleireiro from './templates/cabeleireiro-v2';
+import DashboardCabeleireiro from './templates/cabeleireiro';
+// FORÇAR RELOAD - v564
 
 interface LojaInfo {
   id: number;

@@ -177,11 +177,11 @@ export default function SuperAdminDashboard() {
               color="cyan"
             />
             <MenuCard
-              title="Busca de Logs"
-              description="Histórico de acessos e análises avançadas do sistema"
-              icon="📊"
-              href="/superadmin/dashboard/logs"
-              color="pink"
+              title="Alertas de Segurança"
+              description="Monitoramento de violações e atividades suspeitas"
+              icon="🚨"
+              href="/superadmin/dashboard/alertas"
+              color="red"
             />
             <MenuCard
               title="Alertas de Segurança"

@@ -79,8 +79,21 @@ export default function BuscaLogsPage() {
         : `/superadmin/historico-acessos/?${params}`;
 
       const response = await apiClient.get(endpoint);
-      const data = response.data.results || response.data;
-      setLogs(Array.isArray(data) ? data : []);
+      
+      // Busca avançada retorna formato diferente: { resultados: [...] }
+      // Busca normal retorna: { results: [...] } ou array direto
+      let data;
+      if (filtros.q && response.data.resultados) {
+        data = response.data.resultados;
+      } else if (response.data.results) {
+        data = response.data.results;
+      } else if (Array.isArray(response.data)) {
+        data = response.data;
+      } else {
+        data = [];
+      }
+      
+      setLogs(data);
     } catch (error) {
       console.error('Erro ao buscar logs:', error);
       setLogs([]);

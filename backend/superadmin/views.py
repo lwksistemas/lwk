@@ -1190,6 +1190,11 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
         if loja_slug:
             queryset = queryset.filter(loja_slug__iexact=loja_slug)
         
+        # Filtro por loja (nome)
+        loja_nome = params.get('loja_nome')
+        if loja_nome:
+            queryset = queryset.filter(loja_nome__icontains=loja_nome)
+        
         # Filtro por ação
         acao = params.get('acao')
         if acao:

@@ -92,8 +92,6 @@ export function ModalAgendamentos({
     try {
       setLoading(true);
       
-      console.log('🔍 [ModalAgendamentos] Iniciando carregamento...');
-      
       // Carregar dados em paralelo
       const [agendamentosRes, clientesRes, profissionaisRes, servicosRes] = await Promise.all([
         apiClient.get('/cabeleireiro/agendamentos/'),
@@ -102,20 +100,11 @@ export function ModalAgendamentos({
         apiClient.get('/cabeleireiro/servicos/')
       ]);
       
-      console.log('📦 [ModalAgendamentos] Resposta agendamentos:', agendamentosRes);
-      console.log('📦 [ModalAgendamentos] agendamentosRes.data:', agendamentosRes.data);
-      console.log('📦 [ModalAgendamentos] Tipo:', typeof agendamentosRes.data);
-      console.log('📦 [ModalAgendamentos] É array?', Array.isArray(agendamentosRes.data));
-      
       // Extrair arrays de forma segura
       const agendamentosArray = extractArrayData<Agendamento>(agendamentosRes);
       const clientesArray = extractArrayData(clientesRes);
       const profissionaisArray = extractArrayData(profissionaisRes);
       const servicosArray = extractArrayData(servicosRes);
-      
-      console.log('✅ [ModalAgendamentos] Agendamentos extraídos:', agendamentosArray);
-      console.log('✅ [ModalAgendamentos] Quantidade:', agendamentosArray.length);
-      console.log('✅ [ModalAgendamentos] Clientes:', clientesArray.length);
       console.log('✅ [ModalAgendamentos] Profissionais:', profissionaisArray.length);
       console.log('✅ [ModalAgendamentos] Serviços:', servicosArray.length);
       

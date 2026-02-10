@@ -19,7 +19,6 @@ export default function SuperAdminLoginPage() {
     const lojaSlug = authService.getLojaSlug();
     
     if (userType && userType !== 'superadmin') {
-      console.log(`🚨 BLOQUEIO: Usuário tipo "${userType}" tentou acessar login de Super Admin`);
       
       if (userType === 'suporte') {
         router.push('/suporte/dashboard');

@@ -43,25 +43,8 @@ export function ModalClientes({ loja, onClose }: { loja: LojaInfo; onClose: () =
       setLoading(true);
       
       // Debug: verificar headers
-      const lojaId = sessionStorage.getItem('current_loja_id');
-      const lojaSlug = sessionStorage.getItem('loja_slug');
-      console.log('🔍 DEBUG - Carregando clientes:');
-      console.log('  - Loja ID:', lojaId);
-      console.log('  - Loja Slug:', lojaSlug);
-      console.log('  - Loja prop:', loja);
-      
       const response = await apiClient.get('/cabeleireiro/clientes/');
-      
-      // Debug: verificar resposta completa
-      console.log('📦 Resposta completa:', response);
-      console.log('📦 response.data:', response.data);
-      console.log('📦 Tipo de response.data:', typeof response.data);
-      console.log('📦 É array?', Array.isArray(response.data));
-      
-      // Extrair array de forma segura
       const data = extractArrayData<Cliente>(response);
-      console.log('✅ Clientes extraídos:', data);
-      console.log('✅ Quantidade:', data.length);
       
       setClientes(data);
     } catch (error: any) {

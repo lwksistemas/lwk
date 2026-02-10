@@ -45,7 +45,6 @@ export function ModalServicos({ loja, onClose }: { loja: LojaInfo; onClose: () =
       setLoading(true);
       const response = await apiClient.get('/cabeleireiro/servicos/');
       const data = extractArrayData<Servico>(response);
-      console.log('Serviços carregados:', data);
       setServicos(data);
     } catch (error) {
       console.error('Erro ao carregar serviços:', error);

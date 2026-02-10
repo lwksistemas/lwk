@@ -55,9 +55,13 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
           
           // Notificar sobre novas violações
           violacoesUnicas.forEach((v: Violacao) => {
-            mostrarNotificacaoNativa(v);
-            if (onNovaViolacao) {
-              onNovaViolacao(v);
+            try {
+              mostrarNotificacaoNativa(v);
+              if (onNovaViolacao) {
+                onNovaViolacao(v);
+              }
+            } catch (error) {
+              // Silenciosamente ignorar erros de notificação
             }
           });
           
@@ -67,24 +71,44 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
       
       setUltimaVerificacao(new Date());
     } catch (error) {
-      console.error('Erro ao verificar violações:', error);
+      // Silenciosamente ignorar erros de rede no mobile
     }
   };
 
   const mostrarNotificacaoNativa = (violacao: Violacao) => {
-    // Verificar permissão para notificações
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('🚨 Alerta de Segurança', {
-        body: `${violacao.tipo_display}: ${violacao.usuario_nome}`,
-        icon: '/favicon.ico',
-        tag: `violacao-${violacao.id}`,
-      });
+    // Desabilitar notificações nativas no mobile para evitar erros
+    if (typeof window === 'undefined') return;
+    
+    // Detectar se é mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) return; // Não mostrar notificações nativas no mobile
+    
+    // Verificar permissão para notificações (apenas desktop)
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🚨 Alerta de Segurança', {
+          body: `${violacao.tipo_display}: ${violacao.usuario_nome}`,
+          icon: '/favicon.ico',
+          tag: `violacao-${violacao.id}`,
+        });
+      }
+    } catch (error) {
+      // Silenciosamente ignorar erros de notificação
     }
   };
 
   const solicitarPermissaoNotificacoes = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
+    // Desabilitar no mobile
+    if (typeof window === 'undefined') return;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) return;
+    
+    try {
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+    } catch (error) {
+      // Silenciosamente ignorar erros
     }
   };
 

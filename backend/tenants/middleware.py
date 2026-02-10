@@ -142,7 +142,10 @@ class TenantMiddleware:
                     logger.info(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={getattr(_thread_locals, 'current_tenant_db', 'default')}")
 
                 except Loja.DoesNotExist:
-                    logger.warning(f"⚠️ [TenantMiddleware] Loja não encontrada: slug={tenant_slug}")
+                    # Não logar aviso se for requisição de API sem tenant (ex: /api/superadmin/)
+                    # Isso evita poluir logs com avisos desnecessários
+                    if not request.path.startswith('/api/superadmin/') and not request.path.startswith('/api/suporte/'):
+                        logger.warning(f"⚠️ [TenantMiddleware] Loja não encontrada: slug={tenant_slug}")
                     set_current_tenant_db('default')
                     set_current_loja_id(None)
                 except Exception as e:

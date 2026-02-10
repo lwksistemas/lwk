@@ -49,7 +49,6 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
       setLoading(true);
       const response = await apiClient.get('/cabeleireiro/funcionarios/');
       const data = extractArrayData<Profissional>(response);
-      console.log('Funcionários carregados:', data);
       setProfissionais(data);
     } catch (error) {
       console.error('Erro ao carregar funcionários:', error);

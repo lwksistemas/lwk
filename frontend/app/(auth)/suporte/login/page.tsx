@@ -20,7 +20,6 @@ export default function SuporteLoginPage() {
     const lojaSlug = authService.getLojaSlug();
     
     if (userType && userType !== 'suporte') {
-      console.log(`🚨 BLOQUEIO: Usuário tipo "${userType}" tentou acessar login de Suporte`);
       
       // Redirecionar para o dashboard correto
       if (userType === 'superadmin') {
@@ -39,17 +38,11 @@ export default function SuporteLoginPage() {
     try {
       const loginResponse = await authService.login(credentials, 'suporte');
       
-      console.log('🔍 Login Response:', loginResponse);
-      console.log('🔍 precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
-      
       // Verificar se precisa trocar senha
       if (loginResponse.precisa_trocar_senha === true) {
-        console.log('✅ Redirecionando para trocar senha...');
         window.location.href = '/suporte/trocar-senha';
         return;
       }
-      
-      console.log('✅ Redirecionando para dashboard...');
       window.location.href = '/suporte/dashboard';
     } catch (err: any) {
       console.error('❌ Erro no login:', err);

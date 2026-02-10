@@ -89,20 +89,14 @@ export default function LojaLoginDinamicoPage() {
     try {
       const loginResponse = await authService.login(credentials, 'loja', slug);
       
-      console.log('🔍 Login Response:', loginResponse);
-      console.log('🔍 precisa_trocar_senha:', loginResponse.precisa_trocar_senha);
-      
       // Verificar se precisa trocar senha
       const precisaTrocar = loginResponse.precisa_trocar_senha === true;
       
       if (precisaTrocar) {
-        console.log('✅ Redirecionando para trocar senha...');
         markInternalNavigation();
         window.location.replace('/loja/trocar-senha');
         return;
       }
-      
-      console.log('✅ Redirecionando para dashboard...');
       markInternalNavigation();
       window.location.replace(`/loja/${slug}/dashboard`);
     } catch (err: any) {

@@ -239,8 +239,9 @@ function renderDashboardPorTipo(loja: LojaInfo) {
     return <DashboardServicos loja={loja} />;
   }
   
-  // Dashboard específico para Cabeleireiro
+  // Dashboard específico para Cabeleireiro (v559 - Individual)
   if (tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia')) {
+    console.log('✅ Carregando Dashboard Individual do Cabeleireiro v559');
     return <DashboardCabeleireiro loja={loja} />;
   }
   

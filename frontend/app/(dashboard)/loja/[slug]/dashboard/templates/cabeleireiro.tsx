@@ -1,6 +1,11 @@
 'use client';
 
-// v556 - Dashboard Cabeleireiro com Sistema de Roles - BUILD: 2026-02-10-v2
+// v559 - Dashboard Individual Cabeleireiro - BUILD: 2026-02-10-v3-INDIVIDUAL
+// Este dashboard é COMPLETAMENTE INDEPENDENTE - não usa componentes base compartilhados
+
+// Forçar revalidação - não cachear
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
@@ -122,8 +127,8 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   const router = useRouter();
   const toast = useToast();
 
-  // v557 - Dashboard Novo com Roles
-  console.log('🚀 Dashboard Cabeleireiro v557 - Novo com Sistema de Roles');
+  // v559 - Dashboard Individual Cabeleireiro (Não usa componentes base)
+  console.log('🚀 Dashboard Cabeleireiro v559 - Individual e Independente');
 
   // Estados
   const [showCalendario, setShowCalendario] = useState(false);

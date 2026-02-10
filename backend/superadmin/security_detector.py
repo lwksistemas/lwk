@@ -277,7 +277,14 @@ class SecurityDetector:
         """
         Detecta tentativas de escalação de privilégios
         
-        Critério: Usuário não-SuperAdmin acessando endpoints de SuperAdmin
+        Critério: Usuário não-SuperAdmin acessando endpoints RESTRITOS de SuperAdmin
+        
+        IMPORTANTE: Alguns endpoints de /superadmin/ são legítimos para donos de loja:
+        - /superadmin/lojas/{id}/alterar_senha_primeiro_acesso/
+        - /superadmin/lojas/{id}/reenviar_senha/
+        - /superadmin/usuarios/alterar_senha_primeiro_acesso/
+        - /superadmin/lojas/info_publica/
+        - /superadmin/lojas/verificar_senha_provisoria/
         
         Args:
             time_window_minutes: Janela de tempo para análise (padrão: 60 min)
@@ -289,13 +296,42 @@ class SecurityDetector:
         
         cutoff_time = timezone.now() - timedelta(minutes=time_window_minutes)
         
+        # Endpoints legítimos para donos de loja (IsOwnerOrSuperAdmin)
+        ENDPOINTS_LEGITIMOS = [
+            '/superadmin/lojas/',  # Pode acessar sua própria loja
+            '/superadmin/lojas/info_publica/',
+            '/superadmin/lojas/verificar_senha_provisoria/',
+            '/superadmin/lojas/debug_senha_status/',
+            '/superadmin/usuarios/verificar_senha_provisoria/',
+            '/superadmin/usuarios/alterar_senha_primeiro_acesso/',
+            '/superadmin/usuarios/recuperar_senha/',
+            'alterar_senha_primeiro_acesso',
+            'reenviar_senha',
+        ]
+        
         # Buscar acessos a endpoints de superadmin por não-superadmins
-        # Detectar pela URL contendo '/superadmin/' e detalhes indicando is_superuser=False
         suspicious_access = self.HistoricoAcessoGlobal.objects.filter(
             created_at__gte=cutoff_time,
             url__contains='/superadmin/',
             detalhes__contains='"is_superuser": false'
         )
+        
+        # Filtrar apenas acessos a endpoints RESTRITOS (não legítimos)
+        suspicious_access_filtered = []
+        for log in suspicious_access:
+            url = log.url
+            # Verificar se a URL NÃO contém nenhum endpoint legítimo
+            is_legitimo = any(endpoint in url for endpoint in ENDPOINTS_LEGITIMOS)
+            if not is_legitimo:
+                suspicious_access_filtered.append(log.id)
+        
+        # Se não há acessos suspeitos após filtrar, retornar
+        if not suspicious_access_filtered:
+            logger.info(f"✅ Privilege escalation: 0 violações criadas (todos os acessos são legítimos)")
+            return 0
+        
+        # Filtrar queryset para apenas IDs suspeitos
+        suspicious_access = self.HistoricoAcessoGlobal.objects.filter(id__in=suspicious_access_filtered)
         
         violacoes_criadas = 0
         
@@ -331,11 +367,12 @@ class SecurityDetector:
                 usuario_email=usuario_email,
                 usuario_nome=logs.first().usuario_nome,
                 user=user,
-                descricao=f"Usuário não-SuperAdmin tentou acessar {len(urls)} endpoint(s) de SuperAdmin",
+                descricao=f"Usuário não-SuperAdmin tentou acessar {len(urls)} endpoint(s) RESTRITOS de SuperAdmin",
                 detalhes={
                     'urls_acessadas': urls,
                     'quantidade_tentativas': logs.count(),
-                    'janela_tempo': f'{time_window_minutes} minutos'
+                    'janela_tempo': f'{time_window_minutes} minutos',
+                    'nota': 'Endpoints legítimos para donos de loja foram filtrados'
                 },
                 ip_address=logs.first().ip_address,
                 logs=logs
@@ -343,7 +380,7 @@ class SecurityDetector:
             
             if violacao:
                 violacoes_criadas += 1
-                logger.warning(f"⚠️  Privilege escalation detectado: {usuario_email} ({len(urls)} endpoints)")
+                logger.warning(f"⚠️  Privilege escalation detectado: {usuario_email} ({len(urls)} endpoints RESTRITOS)")
         
         logger.info(f"✅ Privilege escalation: {violacoes_criadas} violações criadas")
         return violacoes_criadas

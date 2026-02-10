@@ -311,7 +311,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       {/* Ações Rápidas */}
       <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg card-hover">
         <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
-          💇 Ações Rápidas
+          🚀 DASHBOARD NOVO v563 - SISTEMA DE ROLES
         </h3>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
           {actionButtons.map((button, index) => (

@@ -42,7 +42,7 @@ class Command(BaseCommand):
         
         for violacao in violacoes:
             # Verificar se as URLs acessadas são legítimas
-            detalhes = violacao.detalhes_json or {}
+            detalhes = violacao.detalhes_tecnicos or {}
             urls_acessadas = detalhes.get('urls_acessadas', [])
             
             # Verificar se TODAS as URLs são legítimas
@@ -56,8 +56,8 @@ class Command(BaseCommand):
             if todas_legitimas:
                 # Marcar como falso positivo
                 violacao.status = 'falso_positivo'
-                violacao.observacoes = (
-                    f"{violacao.observacoes or ''}\n\n"
+                violacao.notas = (
+                    f"{violacao.notas or ''}\n\n"
                     f"[AUTO] Marcado como falso positivo automaticamente.\n"
                     f"Motivo: Todas as URLs acessadas são endpoints legítimos para donos de loja.\n"
                     f"URLs: {', '.join(urls_acessadas)}"

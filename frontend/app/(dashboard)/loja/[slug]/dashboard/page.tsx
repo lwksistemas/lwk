@@ -1,9 +1,5 @@
 'use client';
 
-// Forçar revalidação - não cachear esta página
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';

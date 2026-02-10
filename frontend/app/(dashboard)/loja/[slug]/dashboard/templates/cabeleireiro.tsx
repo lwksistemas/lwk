@@ -3,10 +3,6 @@
 // v559 - Dashboard Individual Cabeleireiro - BUILD: 2026-02-10-v3-INDIVIDUAL
 // Este dashboard é COMPLETAMENTE INDEPENDENTE - não usa componentes base compartilhados
 
-// Forçar revalidação - não cachear
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';

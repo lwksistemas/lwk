@@ -42,7 +42,8 @@ class Command(BaseCommand):
         
         for violacao in violacoes:
             # Verificar se as URLs acessadas são legítimas
-            urls_acessadas = violacao.detalhes.get('urls_acessadas', [])
+            detalhes = violacao.detalhes_json or {}
+            urls_acessadas = detalhes.get('urls_acessadas', [])
             
             # Verificar se TODAS as URLs são legítimas
             todas_legitimas = True

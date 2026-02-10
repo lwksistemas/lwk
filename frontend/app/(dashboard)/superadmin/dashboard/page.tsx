@@ -15,6 +15,94 @@ interface Estatisticas {
   receita_mensal_estimada: number;
 }
 
+interface MenuCardProps {
+  title: string;
+  description: string;
+  icon: string;
+  href: string;
+  color: string;
+}
+
+// Configuração dos cards do menu - Single Source of Truth
+const MENU_CARDS: MenuCardProps[] = [
+  {
+    title: 'Gerenciar Lojas',
+    description: 'Criar, editar e gerenciar todas as lojas do sistema',
+    icon: '🏪',
+    href: '/superadmin/lojas',
+    color: 'purple',
+  },
+  {
+    title: 'Tipos de Loja',
+    description: 'Configurar tipos de loja e dashboards personalizados',
+    icon: '🎨',
+    href: '/superadmin/tipos-loja',
+    color: 'indigo',
+  },
+  {
+    title: 'Planos',
+    description: 'Gerenciar planos de assinatura e preços',
+    icon: '💎',
+    href: '/superadmin/planos',
+    color: 'blue',
+  },
+  {
+    title: 'Usuários',
+    description: 'Gerenciar super admins e equipe de suporte',
+    icon: '👥',
+    href: '/superadmin/usuarios',
+    color: 'cyan',
+  },
+  {
+    title: 'Financeiro',
+    description: 'Controle financeiro e pagamentos das lojas',
+    icon: '💰',
+    href: '/superadmin/financeiro',
+    color: 'green',
+  },
+  {
+    title: 'Configuração Asaas',
+    description: 'Configurar e monitorar integração com API Asaas',
+    icon: '🔧',
+    href: '/superadmin/asaas',
+    color: 'orange',
+  },
+  {
+    title: 'Busca de Logs',
+    description: 'Busca avançada e análise detalhada de logs',
+    icon: '🔍',
+    href: '/superadmin/dashboard/logs',
+    color: 'indigo',
+  },
+  {
+    title: 'Dashboard de Auditoria',
+    description: 'Análise de ações, estatísticas e padrões de uso',
+    icon: '📈',
+    href: '/superadmin/dashboard/auditoria',
+    color: 'teal',
+  },
+  {
+    title: 'Alertas de Segurança',
+    description: 'Monitoramento de violações e atividades suspeitas',
+    icon: '🚨',
+    href: '/superadmin/dashboard/alertas',
+    color: 'red',
+  },
+];
+
+// Configuração das cores - DRY (Don't Repeat Yourself)
+const COLOR_CLASSES: Record<string, string> = {
+  purple: 'bg-purple-50 hover:bg-purple-100 border-purple-200',
+  indigo: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200',
+  blue: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
+  green: 'bg-green-50 hover:bg-green-100 border-green-200',
+  cyan: 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200',
+  pink: 'bg-pink-50 hover:bg-pink-100 border-pink-200',
+  red: 'bg-red-50 hover:bg-red-100 border-red-200',
+  orange: 'bg-orange-50 hover:bg-orange-100 border-orange-200',
+  teal: 'bg-teal-50 hover:bg-teal-100 border-teal-200',
+};
+
 export default function SuperAdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<Estatisticas | null>(null);
@@ -22,6 +110,7 @@ export default function SuperAdminDashboard() {
   const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
+    // Verificação de autenticação
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
       router.push('/superadmin/login');
       return;
@@ -34,7 +123,7 @@ export default function SuperAdminDashboard() {
       const response = await apiClient.get('/superadmin/lojas/estatisticas/');
       setStats(response.data);
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      // Erro já logado pelo interceptor do apiClient
     } finally {
       setLoading(false);
     }
@@ -46,20 +135,28 @@ export default function SuperAdminDashboard() {
   };
 
   const handleNovaViolacao = (violacao: any) => {
-    // Mostrar toast para violações críticas
-    if (violacao.criticidade === 'critica') {
-      addToast({
-        tipo: 'critico',
+    // Mostrar toast apenas para violações críticas e altas
+    const toastConfig = {
+      critica: {
+        tipo: 'critico' as const,
         titulo: '🚨 Violação Crítica Detectada',
-        mensagem: `${violacao.tipo_display}: ${violacao.usuario_nome}`,
-        duracao: 10000, // 10 segundos para críticas
-      });
-    } else if (violacao.criticidade === 'alta') {
-      addToast({
-        tipo: 'aviso',
+        duracao: 10000,
+      },
+      alta: {
+        tipo: 'aviso' as const,
         titulo: '⚠️ Alerta de Segurança',
-        mensagem: `${violacao.tipo_display}: ${violacao.usuario_nome}`,
         duracao: 7000,
+      },
+    };
+
+    const config = toastConfig[violacao.criticidade as keyof typeof toastConfig];
+    
+    if (config) {
+      addToast({
+        tipo: config.tipo,
+        titulo: config.titulo,
+        mensagem: `${violacao.tipo_display}: ${violacao.usuario_nome}`,
+        duracao: config.duracao,
       });
     }
   };
@@ -74,7 +171,6 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Toast Container */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       
       {/* Header */}
@@ -86,9 +182,7 @@ export default function SuperAdminDashboard() {
               <span className="text-purple-200">Painel de Controle</span>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Notificações de Segurança */}
               <NotificacoesSeguranca onNovaViolacao={handleNovaViolacao} />
-              
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
@@ -105,98 +199,33 @@ export default function SuperAdminDashboard() {
         <div className="px-4 py-6 sm:px-0">
           {/* Estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Total de Lojas</h3>
-              <p className="text-3xl font-bold text-purple-600 mt-2">{stats?.total_lojas || 0}</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Lojas Ativas</h3>
-              <p className="text-3xl font-bold text-green-600 mt-2">{stats?.lojas_ativas || 0}</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Em Trial</h3>
-              <p className="text-3xl font-bold text-yellow-600 mt-2">{stats?.lojas_trial || 0}</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Receita Mensal</h3>
-              <p className="text-3xl font-bold text-blue-600 mt-2">
-                R$ {stats?.receita_mensal_estimada?.toFixed(2) || '0.00'}
-              </p>
-            </div>
+            <StatCard
+              label="Total de Lojas"
+              value={stats?.total_lojas || 0}
+              color="text-purple-600"
+            />
+            <StatCard
+              label="Lojas Ativas"
+              value={stats?.lojas_ativas || 0}
+              color="text-green-600"
+            />
+            <StatCard
+              label="Em Trial"
+              value={stats?.lojas_trial || 0}
+              color="text-yellow-600"
+            />
+            <StatCard
+              label="Receita Mensal"
+              value={`R$ ${stats?.receita_mensal_estimada?.toFixed(2) || '0.00'}`}
+              color="text-blue-600"
+            />
           </div>
 
           {/* Menu de Ações */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <MenuCard
-              title="Gerenciar Lojas"
-              description="Criar, editar e gerenciar todas as lojas do sistema"
-              icon="🏪"
-              href="/superadmin/lojas"
-              color="purple"
-            />
-            <MenuCard
-              title="Busca de Logs"
-              description="Busca avançada e análise detalhada de logs"
-              icon="🔍"
-              href="/superadmin/dashboard/logs"
-              color="indigo"
-            />
-            <MenuCard
-              title="Dashboard de Auditoria"
-              description="Análise de ações, estatísticas e padrões de uso"
-              icon="📈"
-              href="/superadmin/dashboard/auditoria"
-              color="teal"
-            />
-            <MenuCard
-              title="Tipos de Loja"
-              description="Configurar tipos de loja e dashboards personalizados"
-              icon="🎨"
-              href="/superadmin/tipos-loja"
-              color="indigo"
-            />
-            <MenuCard
-              title="Planos"
-              description="Gerenciar planos de assinatura e preços"
-              icon="💎"
-              href="/superadmin/planos"
-              color="blue"
-            />
-            <MenuCard
-              title="Financeiro"
-              description="Controle financeiro e pagamentos das lojas"
-              icon="💰"
-              href="/superadmin/financeiro"
-              color="green"
-            />
-            <MenuCard
-              title="Usuários"
-              description="Gerenciar super admins e equipe de suporte"
-              icon="👥"
-              href="/superadmin/usuarios"
-              color="cyan"
-            />
-            <MenuCard
-              title="Alertas de Segurança"
-              description="Monitoramento de violações e atividades suspeitas"
-              icon="🚨"
-              href="/superadmin/dashboard/alertas"
-              color="red"
-            />
-            <MenuCard
-              title="Alertas de Segurança"
-              description="Monitoramento de violações e atividades suspeitas"
-              icon="�"
-              href="/superadmin/dashboard/alertas"
-              color="red"
-            />
-            <MenuCard
-              title="Configuração Asaas"
-              description="Configurar e monitorar integração com API Asaas"
-              icon="🔧"
-              href="/superadmin/asaas"
-              color="orange"
-            />
+            {MENU_CARDS.map((card) => (
+              <MenuCard key={card.href} {...card} />
+            ))}
           </div>
         </div>
       </main>
@@ -204,33 +233,27 @@ export default function SuperAdminDashboard() {
   );
 }
 
-interface MenuCardProps {
-  title: string;
-  description: string;
-  icon: string;
-  href: string;
-  color: string;
+// Componente StatCard - Reutilizável e com responsabilidade única
+function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div className="bg-white p-6 rounded-lg shadow">
+      <h3 className="text-gray-500 text-sm font-medium">{label}</h3>
+      <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
+    </div>
+  );
 }
 
+// Componente MenuCard - Reutilizável e com responsabilidade única
 function MenuCard({ title, description, icon, href, color }: MenuCardProps) {
-  const colorClasses = {
-    purple: 'bg-purple-50 hover:bg-purple-100 border-purple-200',
-    indigo: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200',
-    blue: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
-    green: 'bg-green-50 hover:bg-green-100 border-green-200',
-    cyan: 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200',
-    pink: 'bg-pink-50 hover:bg-pink-100 border-pink-200',
-    red: 'bg-red-50 hover:bg-red-100 border-red-200',
-    orange: 'bg-orange-50 hover:bg-orange-100 border-orange-200',
-    teal: 'bg-teal-50 hover:bg-teal-100 border-teal-200',
-  };
+  const colorClass = COLOR_CLASSES[color] || COLOR_CLASSES.purple;
 
   return (
     <a
       href={href}
-      className={`block p-6 rounded-lg border-2 transition-all ${colorClasses[color as keyof typeof colorClasses]}`}
+      className={`block p-6 rounded-lg border-2 transition-all ${colorClass}`}
+      aria-label={`Acessar ${title}`}
     >
-      <div className="text-4xl mb-3">{icon}</div>
+      <div className="text-4xl mb-3" aria-hidden="true">{icon}</div>
       <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
       <p className="text-sm text-gray-600">{description}</p>
     </a>

@@ -98,7 +98,9 @@ export default function LojaLoginDinamicoPage() {
         return;
       }
       markInternalNavigation();
-      window.location.replace(`/loja/${slug}/dashboard`);
+      // Adicionar timestamp para forçar reload e evitar cache
+      const timestamp = new Date().getTime();
+      window.location.replace(`/loja/${slug}/dashboard?_t=${timestamp}`);
     } catch (err: any) {
       console.error('❌ Erro no login:', err);
       setError(err.message || 'Erro ao fazer login. Tente novamente.');

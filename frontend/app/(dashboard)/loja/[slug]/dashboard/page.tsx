@@ -1,5 +1,9 @@
 'use client';
 
+// Forçar revalidação - não cachear esta página
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
@@ -31,6 +35,19 @@ export default function LojaDashboardDinamicoPage() {
   const [loading, setLoading] = useState(true);
   const [loadingLento, setLoadingLento] = useState(false);
   const [modalSuporteAberto, setModalSuporteAberto] = useState(false);
+
+  // Forçar reload se vier de cache (bfcache)
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        console.log('⚠️ Página carregada do cache (bfcache) - forçando reload');
+        window.location.reload();
+      }
+    };
+    
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

@@ -126,9 +126,16 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
 
   // v561 - FORÇAR NOVA VERSÃO
   useEffect(() => {
-    console.log('🚀🚀🚀 DASHBOARD CABELEIREIRO v561 - VERSÃO NOVA COM ROLES 🚀🚀🚀');
+    console.log('🚀🚀🚀 DASHBOARD CABELEIREIRO v564 - VERSÃO NOVA COM ROLES 🚀🚀🚀');
     console.log('📍 Arquivo: templates/cabeleireiro.tsx');
-    console.log('📅 Build: 2026-02-10-v561');
+    console.log('📅 Build: 2026-02-10-v564');
+    
+    // ALERTA VISUAL PARA CONFIRMAR VERSÃO
+    const alertDiv = document.createElement('div');
+    alertDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;padding:20px;text-align:center;z-index:99999;font-size:24px;font-weight:bold;';
+    alertDiv.textContent = '🚀 DASHBOARD NOVO v564 CARREGADO! 🚀';
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
   }, []);
 
   // Estados

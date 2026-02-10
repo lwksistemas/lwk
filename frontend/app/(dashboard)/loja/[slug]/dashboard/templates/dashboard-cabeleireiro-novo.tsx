@@ -80,7 +80,7 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
 
 const DEFAULT_STATUS: StatusConfig = { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-800 dark:text-gray-300', label: 'Desconhecido' };
 
-export default function DashboardCabeleireiroNovo({ loja }: { loja: LojaInfo }) {
+export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
   const router = useRouter();
   const toast = useToast();
 

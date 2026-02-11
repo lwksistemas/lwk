@@ -18,7 +18,7 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
 });
 
 interface AgendaEvent {
-  id: number;
+  id: string;
   title: string;
   start: string;
   end: string;
@@ -26,6 +26,7 @@ interface AgendaEvent {
   borderColor: string;
   textColor: string;
   extendedProps: {
+    dbId: number;
     status: string;
     patient_name: string;
     patient_phone: string;
@@ -117,7 +118,7 @@ export default function AgendaPage() {
       if (resEventos.ok) {
         const data = await resEventos.json();
         const eventosFormatados = data.map((e: any) => ({
-          id: e.id,
+          id: String(e.id),
           title: e.title,
           start: e.start,
           end: e.end,
@@ -125,6 +126,7 @@ export default function AgendaPage() {
           borderColor: e.borderColor,
           textColor: e.textColor,
           extendedProps: {
+            dbId: e.id,
             status: e.status,
             patient_name: e.patient_name,
             patient_phone: e.patient_phone,
@@ -236,7 +238,7 @@ export default function AgendaPage() {
       const token = localStorage.getItem("token");
       const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
-      await fetch(`${baseURL}/clinica-beleza/agenda/${selectedEvent.id}/delete/`, {
+      await fetch(`${baseURL}/clinica-beleza/agenda/${selectedEvent.extendedProps.dbId}/delete/`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,

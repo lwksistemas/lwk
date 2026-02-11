@@ -62,17 +62,20 @@ def verificar_estado():
     
     # 4. Verificar lojas existentes
     print("\n🏪 4. LOJAS CLÍNICA DA BELEZA:")
-    from tenants.models import Loja
-    lojas = Loja.objects.filter(tipo_loja=tipo_loja)
-    if lojas.exists():
-        print(f"   ℹ️  {lojas.count()} loja(s) encontrada(s):")
-        for loja in lojas:
-            print(f"      - {loja.nome} (slug: {loja.slug})")
-            print(f"        Status: {'Ativa' if loja.ativa else 'Inativa'}")
-            if hasattr(loja, 'plano_assinatura') and loja.plano_assinatura:
-                print(f"        Plano: {loja.plano_assinatura.nome}")
-    else:
-        print("   ℹ️  Nenhuma loja criada ainda")
+    try:
+        from tenants.models import Loja
+        lojas = Loja.objects.filter(tipo_loja=tipo_loja)
+        if lojas.exists():
+            print(f"   ℹ️  {lojas.count()} loja(s) encontrada(s):")
+            for loja in lojas:
+                print(f"      - {loja.nome} (slug: {loja.slug})")
+                print(f"        Status: {'Ativa' if loja.ativa else 'Inativa'}")
+                if hasattr(loja, 'plano_assinatura') and loja.plano_assinatura:
+                    print(f"        Plano: {loja.plano_assinatura.nome}")
+        else:
+            print("   ℹ️  Nenhuma loja criada ainda")
+    except ImportError:
+        print("   ℹ️  Modelo Loja não disponível (verificação pulada)")
     
     # 5. Resumo final
     print("\n" + "=" * 60)

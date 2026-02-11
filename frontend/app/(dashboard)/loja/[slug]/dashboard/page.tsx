@@ -10,7 +10,8 @@ import DashboardCRMVendas from './templates/crm-vendas';
 import DashboardRestaurante from './templates/restaurante';
 import DashboardServicos from './templates/servicos';
 import DashboardCabeleireiro from './templates/dashboard-cabeleireiro-novo';
-// v565 - ARQUIVO RENOMEADO PARA FORÇAR VERCEL
+import DashboardClinicaBeleza from './templates/clinica-beleza';
+// v577 - Adicionado Dashboard Clínica da Beleza
 
 interface LojaInfo {
   id: number;
@@ -127,18 +128,19 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
-  // Descobrir se é clínica de estética, restaurante ou cabeleireiro para layout em tela cheia (sem faixas laterais)
+  // Descobrir se é clínica de estética, restaurante, cabeleireiro ou clínica da beleza para layout em tela cheia (sem faixas laterais)
   const tipoSlug = lojaInfo.tipo_loja_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const isClinicaEstetica = tipoSlug.includes('clinica') || tipoSlug.includes('estetica');
+  const isClinicaEstetica = tipoSlug.includes('clinica') && tipoSlug.includes('estetica');
+  const isClinicaBeleza = tipoSlug.includes('clinica') && tipoSlug.includes('beleza');
   const isRestaurante = tipoSlug.includes('restaurante');
   const isCabeleireiro = tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia');
-  const isFullWidth = isClinicaEstetica || isRestaurante || isCabeleireiro;
+  const isFullWidth = isClinicaEstetica || isClinicaBeleza || isRestaurante || isCabeleireiro;
 
   // Renderizar dashboard específico por tipo de loja
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Para cabeleireiro, renderizar SEM header/container (layout próprio) */}
-      {isCabeleireiro ? (
+      {/* Para cabeleireiro e clínica da beleza, renderizar SEM header/container (layout próprio) */}
+      {(isCabeleireiro || isClinicaBeleza) ? (
         renderDashboardPorTipo(lojaInfo)
       ) : (
         <>
@@ -236,8 +238,14 @@ export default function LojaDashboardDinamicoPage() {
 function renderDashboardPorTipo(loja: LojaInfo) {
   const tipoSlug = loja.tipo_loja_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   
+  // Dashboard específico para Clínica da Beleza
+  if (tipoSlug.includes('clinica') && tipoSlug.includes('beleza')) {
+    console.log('✅ CARREGANDO DASHBOARD CLÍNICA DA BELEZA');
+    return <DashboardClinicaBeleza loja={loja} />;
+  }
+  
   // Dashboard específico para Clínica de Estética
-  if (tipoSlug.includes('clinica') || tipoSlug.includes('estetica')) {
+  if (tipoSlug.includes('clinica') && tipoSlug.includes('estetica')) {
     return <DashboardClinicaEstetica loja={loja} />;
   }
   

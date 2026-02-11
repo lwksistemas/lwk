@@ -22,6 +22,7 @@ class Patient(models.Model):
     active = models.BooleanField(default=True, verbose_name="Ativo")
 
     class Meta:
+        app_label = 'clinica_beleza'
         verbose_name = "Paciente"
         verbose_name_plural = "Pacientes"
         ordering = ['name']
@@ -41,6 +42,7 @@ class Professional(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
     class Meta:
+        app_label = 'clinica_beleza'
         verbose_name = "Profissional"
         verbose_name_plural = "Profissionais"
         ordering = ['name']
@@ -60,6 +62,7 @@ class Procedure(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
     class Meta:
+        app_label = 'clinica_beleza'
         verbose_name = "Procedimento"
         verbose_name_plural = "Procedimentos"
         ordering = ['name']
@@ -90,6 +93,7 @@ class Appointment(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
     class Meta:
+        app_label = 'clinica_beleza'
         verbose_name = "Agendamento"
         verbose_name_plural = "Agendamentos"
         ordering = ['-date']
@@ -124,6 +128,7 @@ class Payment(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
     class Meta:
+        app_label = 'clinica_beleza'
         verbose_name = "Pagamento"
         verbose_name_plural = "Pagamentos"
         ordering = ['-created_at']

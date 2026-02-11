@@ -10,6 +10,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { X, Plus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { fetchWithAuth } from "@/lib/auth";
 
 // Importar FullCalendar dinamicamente (client-side only)
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
@@ -59,6 +62,7 @@ interface Procedure {
 
 export default function AgendaPage() {
   const params = useParams();
+  const { user, isAdmin, isRecepcao, isProfissional } = useAuth();
   const [eventos, setEventos] = useState<AgendaEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfessional, setSelectedProfessional] = useState<string>("");
@@ -265,7 +269,8 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="w-screen h-screen flex flex-col bg-gradient-to-br from-pink-100 via-purple-50 to-white">
+    <ProtectedRoute>
+      <div className="w-screen h-screen flex flex-col bg-gradient-to-br from-pink-100 via-purple-50 to-white">
       {/* HEADER */}
       <div className="bg-white/70 backdrop-blur-xl shadow-sm p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -447,5 +452,6 @@ export default function AgendaPage() {
         </div>
       )}
     </div>
+    </ProtectedRoute>
   );
 }

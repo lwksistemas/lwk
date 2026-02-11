@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import Image from "next/image";
 import {
   CalendarDays,
@@ -46,6 +47,7 @@ interface DashboardData {
 }
 
 export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
+  const params = useParams();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -167,7 +169,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
               </div>
 
               <nav className="space-y-2">
-                <SidebarItem icon={<CalendarDays size={20} />} label="Agenda" onClick={() => alert('Página de Agenda em desenvolvimento')} />
+                <SidebarItem icon={<CalendarDays size={20} />} label="Agenda" onClick={() => window.location.href = `/loja/${params.slug}/agenda`} />
                 <SidebarItem icon={<Users size={20} />} label="Pacientes" onClick={() => alert('Página de Pacientes em desenvolvimento')} />
                 <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => alert('Página de Profissionais em desenvolvimento')} />
                 <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => alert('Página de Procedimentos em desenvolvimento')} />
@@ -293,7 +295,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
             <Shortcut 
               label="Calendário" 
               icon={<CalendarDays />} 
-              onClick={() => alert('Página de Calendário em desenvolvimento')}
+              onClick={() => window.location.href = `/loja/${params.slug}/agenda`}
             />
           </section>
         </main>

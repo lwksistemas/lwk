@@ -30,7 +30,7 @@ def verificar_estado():
     
     # 2. Verificar planos
     print("\n💳 2. PLANOS DE ASSINATURA:")
-    planos = PlanoAssinatura.objects.filter(tipo_loja=tipo_loja)
+    planos = PlanoAssinatura.objects.filter(tipos_loja=tipo_loja)
     if planos.exists():
         print(f"   ✅ {planos.count()} planos encontrados:")
         for plano in planos:
@@ -69,7 +69,7 @@ def verificar_estado():
         for loja in lojas:
             print(f"      - {loja.nome} (slug: {loja.slug})")
             print(f"        Status: {'Ativa' if loja.ativa else 'Inativa'}")
-            if loja.plano_assinatura:
+            if hasattr(loja, 'plano_assinatura') and loja.plano_assinatura:
                 print(f"        Plano: {loja.plano_assinatura.nome}")
     else:
         print("   ℹ️  Nenhuma loja criada ainda")

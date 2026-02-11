@@ -10,6 +10,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { X, Plus } from "lucide-react";
+import "@fullcalendar/common/main.css";
+import "@fullcalendar/daygrid/main.css";
+import "@fullcalendar/timegrid/main.css";
 
 // Importar FullCalendar dinamicamente (client-side only)
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {

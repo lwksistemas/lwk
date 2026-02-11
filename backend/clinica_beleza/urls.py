@@ -1,7 +1,7 @@
 """
 URLs para Clínica da Beleza
 """
-from django.urls import path
+from django.urls import path, include
 from .views import (
     DashboardView,
     AppointmentListView, AppointmentDetailView,
@@ -15,6 +15,9 @@ from .views import (
 app_name = 'clinica_beleza'
 
 urlpatterns = [
+    # Autenticação
+    path('auth/', include('clinica_beleza.auth_urls')),
+    
     # Dashboard
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     

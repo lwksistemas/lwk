@@ -127,17 +127,23 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
-  // Descobrir se é clínica de estética ou restaurante para layout em tela cheia (sem faixas laterais)
+  // Descobrir se é clínica de estética, restaurante ou cabeleireiro para layout em tela cheia (sem faixas laterais)
   const tipoSlug = lojaInfo.tipo_loja_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const isClinicaEstetica = tipoSlug.includes('clinica') || tipoSlug.includes('estetica');
   const isRestaurante = tipoSlug.includes('restaurante');
-  const isFullWidth = isClinicaEstetica || isRestaurante;
+  const isCabeleireiro = tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia');
+  const isFullWidth = isClinicaEstetica || isRestaurante || isCabeleireiro;
 
   // Renderizar dashboard específico por tipo de loja
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Header */}
-      <nav 
+      {/* Para cabeleireiro, renderizar SEM header/container (layout próprio) */}
+      {isCabeleireiro ? (
+        renderDashboardPorTipo(lojaInfo)
+      ) : (
+        <>
+          {/* Header */}
+          <nav 
         className="text-white shadow-lg"
         style={{ backgroundColor: lojaInfo.cor_primaria }}
       >
@@ -220,6 +226,8 @@ export default function LojaDashboardDinamicoPage() {
           lojaSlug={slug}
           lojaNome={lojaInfo.nome}
         />
+      )}
+        </>
       )}
     </div>
   );

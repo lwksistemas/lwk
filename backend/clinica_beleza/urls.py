@@ -1,0 +1,35 @@
+"""
+URLs para Clínica da Beleza
+"""
+from django.urls import path
+from .views import (
+    DashboardView,
+    AppointmentListView, AppointmentDetailView,
+    PatientListView,
+    ProfessionalListView,
+    ProcedureListView,
+    PaymentListView
+)
+
+app_name = 'clinica_beleza'
+
+urlpatterns = [
+    # Dashboard
+    path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    
+    # Agendamentos
+    path('appointments/', AppointmentListView.as_view(), name='appointments-list'),
+    path('appointments/<int:pk>/', AppointmentDetailView.as_view(), name='appointments-detail'),
+    
+    # Pacientes
+    path('patients/', PatientListView.as_view(), name='patients-list'),
+    
+    # Profissionais
+    path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),
+    
+    # Procedimentos
+    path('procedures/', ProcedureListView.as_view(), name='procedures-list'),
+    
+    # Pagamentos
+    path('payments/', PaymentListView.as_view(), name='payments-list'),
+]

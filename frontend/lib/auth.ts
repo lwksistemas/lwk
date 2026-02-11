@@ -98,11 +98,11 @@ class AuthService {
    */
   logout(): void {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(this.TOKEN_KEY);
-      localStorage.removeItem(this.REFRESH_KEY);
-      localStorage.removeItem(this.USER_TYPE_KEY);
-      localStorage.removeItem(this.LOJA_SLUG_KEY);
-      localStorage.removeItem(this.INTERNAL_NAV_KEY);
+      sessionStorage.removeItem(this.TOKEN_KEY);
+      sessionStorage.removeItem(this.REFRESH_KEY);
+      sessionStorage.removeItem(this.USER_TYPE_KEY);
+      sessionStorage.removeItem(this.LOJA_SLUG_KEY);
+      sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
     }
   }
 
@@ -118,7 +118,7 @@ class AuthService {
    */
   getToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(this.TOKEN_KEY);
+    return sessionStorage.getItem(this.TOKEN_KEY);
   }
 
   /**
@@ -126,7 +126,7 @@ class AuthService {
    */
   setToken(token: string): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(this.TOKEN_KEY, token);
+      sessionStorage.setItem(this.TOKEN_KEY, token);
     }
   }
 
@@ -135,7 +135,7 @@ class AuthService {
    */
   getRefreshToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(this.REFRESH_KEY);
+    return sessionStorage.getItem(this.REFRESH_KEY);
   }
 
   /**
@@ -143,7 +143,7 @@ class AuthService {
    */
   setRefreshToken(token: string): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(this.REFRESH_KEY, token);
+      sessionStorage.setItem(this.REFRESH_KEY, token);
     }
   }
 
@@ -152,7 +152,7 @@ class AuthService {
    */
   getUserType(): UserType | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(this.USER_TYPE_KEY) as UserType | null;
+    return sessionStorage.getItem(this.USER_TYPE_KEY) as UserType | null;
   }
 
   /**
@@ -160,7 +160,7 @@ class AuthService {
    */
   setUserType(userType: UserType): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(this.USER_TYPE_KEY, userType);
+      sessionStorage.setItem(this.USER_TYPE_KEY, userType);
     }
   }
 
@@ -169,7 +169,7 @@ class AuthService {
    */
   getLojaSlug(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(this.LOJA_SLUG_KEY);
+    return sessionStorage.getItem(this.LOJA_SLUG_KEY);
   }
 
   /**
@@ -177,7 +177,7 @@ class AuthService {
    */
   setLojaSlug(slug: string): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(this.LOJA_SLUG_KEY, slug);
+      sessionStorage.setItem(this.LOJA_SLUG_KEY, slug);
     }
   }
 
@@ -186,7 +186,7 @@ class AuthService {
    */
   isInternalNavigation(): boolean {
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem(this.INTERNAL_NAV_KEY) === 'true';
+    return sessionStorage.getItem(this.INTERNAL_NAV_KEY) === 'true';
   }
 
   /**
@@ -194,10 +194,10 @@ class AuthService {
    */
   markInternalNavigation(): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(this.INTERNAL_NAV_KEY, 'true');
+      sessionStorage.setItem(this.INTERNAL_NAV_KEY, 'true');
       // Remove após 2 segundos
       setTimeout(() => {
-        localStorage.removeItem(this.INTERNAL_NAV_KEY);
+        sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
       }, 2000);
     }
   }

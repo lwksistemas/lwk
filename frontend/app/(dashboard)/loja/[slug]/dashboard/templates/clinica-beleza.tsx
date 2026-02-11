@@ -102,10 +102,10 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user_type');
-      localStorage.removeItem('loja_slug');
+      sessionStorage.removeItem('access_token');
+      sessionStorage.removeItem('refresh_token');
+      sessionStorage.removeItem('user_type');
+      sessionStorage.removeItem('loja_slug');
       window.location.href = `/loja/${params.slug}/login`;
     }
   };

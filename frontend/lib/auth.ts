@@ -1,0 +1,224 @@
+/**
+ * Serviço de Autenticação
+ * Sistema multi-tenant com suporte a SuperAdmin, Suporte e Lojas
+ */
+
+import apiClient from './api-client';
+
+export type UserType = 'superadmin' | 'suporte' | 'loja';
+
+interface LoginCredentials {
+  username: string;
+  password: string;
+  cpf_cnpj?: string;
+}
+
+interface LoginResponse {
+  access: string;
+  refresh: string;
+  user_type: UserType;
+  loja_slug?: string;
+  precisa_trocar_senha?: boolean;
+}
+
+class AuthService {
+  private readonly TOKEN_KEY = 'access_token';
+  private readonly REFRESH_KEY = 'refresh_token';
+  private readonly USER_TYPE_KEY = 'user_type';
+  private readonly LOJA_SLUG_KEY = 'loja_slug';
+  private readonly INTERNAL_NAV_KEY = 'internal_navigation';
+
+  /**
+   * Realiza login no sistema
+   */
+  async login(
+    credentials: LoginCredentials,
+    userType: UserType,
+    slug?: string
+  ): Promise<LoginResponse> {
+    try {
+      let endpoint = '';
+      let payload: any = {
+        username: credentials.username,
+        password: credentials.password,
+      };
+
+      // Definir endpoint baseado no tipo de usuário
+      switch (userType) {
+        case 'superadmin':
+          endpoint = '/superadmin/usuarios/login/';
+          payload.cpf_cnpj = credentials.cpf_cnpj;
+          break;
+        case 'suporte':
+          endpoint = '/suporte/usuarios/login/';
+          payload.cpf_cnpj = credentials.cpf_cnpj;
+          break;
+        case 'loja':
+          if (!slug) {
+            throw new Error('Slug da loja é obrigatório');
+          }
+          endpoint = '/superadmin/lojas/login/';
+          payload.slug = slug;
+          payload.cpf_cnpj = credentials.cpf_cnpj;
+          break;
+        default:
+          throw new Error('Tipo de usuário inválido');
+      }
+
+      const response = await apiClient.post(endpoint, payload);
+      const data: LoginResponse = response.data;
+
+      // Salvar tokens e informações do usuário
+      this.setToken(data.access);
+      this.setRefreshToken(data.refresh);
+      this.setUserType(data.user_type);
+      
+      if (data.loja_slug) {
+        this.setLojaSlug(data.loja_slug);
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Erro no login:', error);
+      
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      } else if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('Erro ao fazer login. Tente novamente.');
+      }
+    }
+  }
+
+  /**
+   * Realiza logout do sistema
+   */
+  logout(): void {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_KEY);
+      localStorage.removeItem(this.USER_TYPE_KEY);
+      localStorage.removeItem(this.LOJA_SLUG_KEY);
+      localStorage.removeItem(this.INTERNAL_NAV_KEY);
+    }
+  }
+
+  /**
+   * Verifica se o usuário está autenticado
+   */
+  isAuthenticated(): boolean {
+    return !!this.getToken();
+  }
+
+  /**
+   * Obtém o token de acesso
+   */
+  getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  /**
+   * Define o token de acesso
+   */
+  setToken(token: string): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(this.TOKEN_KEY, token);
+    }
+  }
+
+  /**
+   * Obtém o refresh token
+   */
+  getRefreshToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(this.REFRESH_KEY);
+  }
+
+  /**
+   * Define o refresh token
+   */
+  setRefreshToken(token: string): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(this.REFRESH_KEY, token);
+    }
+  }
+
+  /**
+   * Obtém o tipo de usuário
+   */
+  getUserType(): UserType | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(this.USER_TYPE_KEY) as UserType | null;
+  }
+
+  /**
+   * Define o tipo de usuário
+   */
+  setUserType(userType: UserType): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(this.USER_TYPE_KEY, userType);
+    }
+  }
+
+  /**
+   * Obtém o slug da loja
+   */
+  getLojaSlug(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(this.LOJA_SLUG_KEY);
+  }
+
+  /**
+   * Define o slug da loja
+   */
+  setLojaSlug(slug: string): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(this.LOJA_SLUG_KEY, slug);
+    }
+  }
+
+  /**
+   * Verifica se é navegação interna (para evitar logout em redirects)
+   */
+  isInternalNavigation(): boolean {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(this.INTERNAL_NAV_KEY) === 'true';
+  }
+
+  /**
+   * Marca como navegação interna
+   */
+  markInternalNavigation(): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(this.INTERNAL_NAV_KEY, 'true');
+      // Remove após 2 segundos
+      setTimeout(() => {
+        localStorage.removeItem(this.INTERNAL_NAV_KEY);
+      }, 2000);
+    }
+  }
+}
+
+// Exportar instância única
+export const authService = new AuthService();
+
+// Exportar função helper para marcar navegação interna
+export const markInternalNavigation = () => authService.markInternalNavigation();
+
+// Exportar função helper para obter URL de login baseado no tipo de usuário
+export const getLoginUrl = (userType?: UserType, slug?: string): string => {
+  switch (userType) {
+    case 'superadmin':
+      return '/superadmin/login';
+    case 'suporte':
+      return '/suporte/login';
+    case 'loja':
+      return slug ? `/loja/${slug}/login` : '/';
+    default:
+      return '/';
+  }
+};

@@ -15,9 +15,6 @@ from .views import (
 app_name = 'clinica_beleza'
 
 urlpatterns = [
-    # Autenticação
-    path('auth/', include('clinica_beleza.auth_urls')),
-    
     # Dashboard
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     

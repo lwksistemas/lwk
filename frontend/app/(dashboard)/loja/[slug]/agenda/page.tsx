@@ -8,12 +8,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import ptBrLocale from "@fullcalendar/core/locales/pt-br";
-import { X, Plus, Calendar, Users, Sparkles } from "lucide-react";
+import dynamic from "next/dynamic";
+import { X, Plus } from "lucide-react";
+
+// Importar FullCalendar dinamicamente (client-side only)
+const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-full">Carregando calendário...</div>,
+});
 
 interface AgendaEvent {
   id: number;
@@ -68,8 +70,24 @@ export default function AgendaPage() {
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  
+  // Plugins do FullCalendar (carregados dinamicamente)
+  const [calendarPlugins, setCalendarPlugins] = useState<any[]>([]);
+  const [ptBrLocale, setPtBrLocale] = useState<any>(null);
 
   useEffect(() => {
+    // Carregar plugins do FullCalendar no client-side
+    const loadPlugins = async () => {
+      const dayGridPlugin = (await import("@fullcalendar/daygrid")).default;
+      const timeGridPlugin = (await import("@fullcalendar/timegrid")).default;
+      const interactionPlugin = (await import("@fullcalendar/interaction")).default;
+      const ptBr = (await import("@fullcalendar/core/locales/pt-br")).default;
+      
+      setCalendarPlugins([dayGridPlugin, timeGridPlugin, interactionPlugin]);
+      setPtBrLocale(ptBr);
+    };
+    
+    loadPlugins();
     carregarDados();
   }, [selectedProfessional]);
 
@@ -281,36 +299,38 @@ export default function AgendaPage() {
       {/* CALENDÁRIO */}
       <div className="flex-1 p-4 overflow-hidden">
         <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg h-full p-4">
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
-            locale={ptBrLocale}
-            editable
-            selectable
-            selectMirror
-            dayMaxEvents
-            weekends
-            events={eventos}
-            eventDrop={moverEvento}
-            eventResize={moverEvento}
-            eventClick={handleEventClick}
-            dateClick={handleDateClick}
-            height="100%"
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay",
-            }}
-            slotMinTime="07:00:00"
-            slotMaxTime="20:00:00"
-            allDaySlot={false}
-            slotDuration="00:30:00"
-            businessHours={{
-              daysOfWeek: [1, 2, 3, 4, 5, 6],
-              startTime: "08:00",
-              endTime: "18:00",
-            }}
-          />
+          {calendarPlugins.length > 0 && ptBrLocale && (
+            <FullCalendar
+              plugins={calendarPlugins}
+              initialView="timeGridWeek"
+              locale={ptBrLocale}
+              editable
+              selectable
+              selectMirror
+              dayMaxEvents
+              weekends
+              events={eventos}
+              eventDrop={moverEvento}
+              eventResize={moverEvento}
+              eventClick={handleEventClick}
+              dateClick={handleDateClick}
+              height="100%"
+              headerToolbar={{
+                left: "prev,next today",
+                center: "title",
+                right: "dayGridMonth,timeGridWeek,timeGridDay",
+              }}
+              slotMinTime="07:00:00"
+              slotMaxTime="20:00:00"
+              allDaySlot={false}
+              slotDuration="00:30:00"
+              businessHours={{
+                daysOfWeek: [1, 2, 3, 4, 5, 6],
+                startTime: "08:00",
+                endTime: "18:00",
+              }}
+            />
+          )}
         </div>
       </div>
 

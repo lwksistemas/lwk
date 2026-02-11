@@ -24,8 +24,6 @@ import {
   Wallet,
 } from "lucide-react";
 import { LojaInfo } from '@/types/dashboard';
-import { useAuth } from '@/hooks/useAuth';
-import ProtectedRoute from '@/components/ProtectedRoute';
 
 interface DashboardStats {
   appointments_today: number;
@@ -50,7 +48,6 @@ interface DashboardData {
 
 export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
   const params = useParams();
-  const { user, isAdmin, isRecepcao, isProfissional, logout } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -103,10 +100,19 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
   const appointments = data?.next_appointments || [];
 
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('loja_slug');
+      window.location.href = `/loja/${params.slug}/login`;
+    }
+  };
+
   return (
-    <ProtectedRoute>
-      <div className={darkMode ? "dark" : ""}>
-        <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:bg-gradient-to-br dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100">
+    <div className={darkMode ? "dark" : ""}>
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:bg-gradient-to-br dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100">
         
         {/* HEADER */}
         <header className="flex items-center justify-between p-4 shadow bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl sticky top-0 z-40">
@@ -174,20 +180,12 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
               <nav className="space-y-2">
                 <SidebarItem icon={<CalendarDays size={20} />} label="Agenda" onClick={() => window.location.href = `/loja/${params.slug}/agenda`} />
-                {(isAdmin || isRecepcao) && (
-                  <>
-                    <SidebarItem icon={<Users size={20} />} label="Pacientes" onClick={() => alert('Página de Pacientes em desenvolvimento')} />
-                    <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => alert('Página de Profissionais em desenvolvimento')} />
-                    <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => alert('Página de Procedimentos em desenvolvimento')} />
-                  </>
-                )}
-                {isAdmin && (
-                  <>
-                    <SidebarItem icon={<Wallet size={20} />} label="Financeiro" onClick={() => alert('Página de Financeiro em desenvolvimento')} />
-                    <SidebarItem icon={<Settings size={20} />} label="Configurações" onClick={() => alert('Página de Configurações em desenvolvimento')} />
-                    <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" onClick={() => alert('Página de Assinatura em desenvolvimento')} />
-                  </>
-                )}
+                <SidebarItem icon={<Users size={20} />} label="Pacientes" onClick={() => alert('Página de Pacientes em desenvolvimento')} />
+                <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => alert('Página de Profissionais em desenvolvimento')} />
+                <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => alert('Página de Procedimentos em desenvolvimento')} />
+                <SidebarItem icon={<Wallet size={20} />} label="Financeiro" onClick={() => alert('Página de Financeiro em desenvolvimento')} />
+                <SidebarItem icon={<Settings size={20} />} label="Configurações" onClick={() => alert('Página de Configurações em desenvolvimento')} />
+                <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" onClick={() => alert('Página de Assinatura em desenvolvimento')} />
                 <div className="pt-4 border-t dark:border-neutral-700">
                   <SidebarItem 
                     icon={<LogOut size={20} />} 
@@ -195,7 +193,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                     danger 
                     onClick={() => {
                       if (confirm('Deseja realmente sair?')) {
-                        logout();
+                        handleLogout();
                       }
                     }}
                   />
@@ -211,10 +209,10 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           {/* BEM-VINDA */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold">
-              Bem-vinda, {user?.first_name || user?.username || 'Usuário'}
+              Bem-vinda à Clínica da Beleza
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {user?.cargo_display} - Resumo da clínica hoje
+              Resumo da clínica hoje
             </p>
           </div>
 
@@ -316,7 +314,6 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
         </main>
       </div>
     </div>
-    </ProtectedRoute>
   );
 }
 

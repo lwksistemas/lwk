@@ -102,11 +102,11 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     <div className={darkMode ? "dark" : ""}>
       <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:bg-gradient-to-br dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100">
         
-        {/* HEADER MOBILE-FIRST */}
+        {/* HEADER */}
         <header className="flex items-center justify-between p-4 shadow bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl sticky top-0 z-40">
           <button 
             onClick={() => setSidebarOpen(true)} 
-            className="lg:hidden p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
           >
             <Menu className="w-6 h-6" />
           </button>
@@ -118,18 +118,35 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
             <h1 className="text-lg font-semibold hidden sm:block">Clínica da Beleza</h1>
           </div>
 
-          <button 
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-          >
-            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+              title={darkMode ? "Modo Claro" : "Modo Escuro"}
+            >
+              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            
+            <button 
+              className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+              title="Notificações"
+            >
+              <Bell className="w-5 h-5" />
+            </button>
+            
+            <button 
+              className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+              title="Configurações"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
         </header>
 
-        {/* SIDEBAR MOBILE */}
+        {/* SIDEBAR */}
         {sidebarOpen && (
           <div 
-            className="fixed inset-0 z-50 bg-black/50 lg:hidden" 
+            className="fixed inset-0 z-50 bg-black/50" 
             onClick={() => setSidebarOpen(false)}
           >
             <aside 
@@ -150,15 +167,25 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
               </div>
 
               <nav className="space-y-2">
-                <SidebarItem icon={<CalendarDays size={20} />} label="Agenda" />
-                <SidebarItem icon={<Users size={20} />} label="Pacientes" />
-                <SidebarItem icon={<Users size={20} />} label="Profissionais" />
-                <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" />
-                <SidebarItem icon={<Wallet size={20} />} label="Financeiro" />
-                <SidebarItem icon={<Settings size={20} />} label="Configurações" />
-                <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" />
+                <SidebarItem icon={<CalendarDays size={20} />} label="Agenda" onClick={() => alert('Página de Agenda em desenvolvimento')} />
+                <SidebarItem icon={<Users size={20} />} label="Pacientes" onClick={() => alert('Página de Pacientes em desenvolvimento')} />
+                <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => alert('Página de Profissionais em desenvolvimento')} />
+                <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => alert('Página de Procedimentos em desenvolvimento')} />
+                <SidebarItem icon={<Wallet size={20} />} label="Financeiro" onClick={() => alert('Página de Financeiro em desenvolvimento')} />
+                <SidebarItem icon={<Settings size={20} />} label="Configurações" onClick={() => alert('Página de Configurações em desenvolvimento')} />
+                <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" onClick={() => alert('Página de Assinatura em desenvolvimento')} />
                 <div className="pt-4 border-t dark:border-neutral-700">
-                  <SidebarItem icon={<LogOut size={20} />} label="Sair" danger />
+                  <SidebarItem 
+                    icon={<LogOut size={20} />} 
+                    label="Sair" 
+                    danger 
+                    onClick={() => {
+                      if (confirm('Deseja realmente sair?')) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/login';
+                      }
+                    }}
+                  />
                 </div>
               </nav>
             </aside>
@@ -248,10 +275,26 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
           {/* ATALHOS - GRID RESPONSIVO */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Shortcut label="Pacientes" icon={<Users />} />
-            <Shortcut label="Procedimentos" icon={<Sparkles />} />
-            <Shortcut label="Profissionais" icon={<Users />} />
-            <Shortcut label="Calendário" icon={<CalendarDays />} />
+            <Shortcut 
+              label="Pacientes" 
+              icon={<Users />} 
+              onClick={() => alert('Página de Pacientes em desenvolvimento')}
+            />
+            <Shortcut 
+              label="Procedimentos" 
+              icon={<Sparkles />} 
+              onClick={() => alert('Página de Procedimentos em desenvolvimento')}
+            />
+            <Shortcut 
+              label="Profissionais" 
+              icon={<Users />} 
+              onClick={() => alert('Página de Profissionais em desenvolvimento')}
+            />
+            <Shortcut 
+              label="Calendário" 
+              icon={<CalendarDays />} 
+              onClick={() => alert('Página de Calendário em desenvolvimento')}
+            />
           </section>
         </main>
       </div>
@@ -267,13 +310,16 @@ function SidebarItem({
   icon,
   label,
   danger = false,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   danger?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <div
+      onClick={onClick}
       className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
         danger
           ? "text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -411,9 +457,20 @@ function TableRow({
   );
 }
 
-function Shortcut({ icon, label }: { icon: React.ReactNode; label: string }) {
+function Shortcut({ 
+  icon, 
+  label,
+  onClick 
+}: { 
+  icon: React.ReactNode; 
+  label: string;
+  onClick?: () => void;
+}) {
   return (
-    <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer hover:shadow-md transition">
+    <div 
+      onClick={onClick}
+      className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer hover:shadow-md hover:scale-105 transition-all"
+    >
       <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300">
         {icon}
       </div>

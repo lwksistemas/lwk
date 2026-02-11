@@ -24,9 +24,6 @@ def verificar_estado():
         print(f"      - ID: {tipo_loja.id}")
         print(f"      - Nome: {tipo_loja.nome}")
         print(f"      - Slug: {tipo_loja.slug}")
-        print(f"      - Emoji: {tipo_loja.emoji}")
-        print(f"      - Cor Primária: {tipo_loja.cor_primaria}")
-        print(f"      - Cor Secundária: {tipo_loja.cor_secundaria}")
     except TipoLoja.DoesNotExist:
         print("   ❌ Tipo de loja NÃO encontrado!")
         return

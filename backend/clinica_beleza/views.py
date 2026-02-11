@@ -12,7 +12,7 @@ from .models import Patient, Professional, Procedure, Appointment, Payment
 from .serializers import (
     PatientSerializer, ProfessionalSerializer, ProcedureSerializer,
     AppointmentListSerializer, AppointmentDetailSerializer, AppointmentCreateSerializer,
-    PaymentSerializer
+    PaymentSerializer, AgendaEventSerializer
 )
 
 
@@ -217,3 +217,102 @@ class PaymentListView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AgendaView(APIView):
+    """
+    Agenda/Calendário - Retorna eventos no formato FullCalendar
+    GET /clinica-beleza/agenda/
+    Parâmetros:
+    - start: data inicial (YYYY-MM-DD)
+    - end: data final (YYYY-MM-DD)
+    - professional: ID do profissional (opcional)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Filtros
+        start_date = request.query_params.get('start')
+        end_date = request.query_params.get('end')
+        professional_id = request.query_params.get('professional')
+        
+        queryset = Appointment.objects.select_related('patient', 'professional', 'procedure')
+        
+        # Filtrar por período
+        if start_date:
+            queryset = queryset.filter(date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(date__lte=end_date)
+        
+        # Filtrar por profissional
+        if professional_id:
+            queryset = queryset.filter(professional_id=professional_id)
+        
+        # Excluir cancelados (opcional)
+        # queryset = queryset.exclude(status='CANCELLED')
+        
+        queryset = queryset.order_by('date')
+        
+        serializer = AgendaEventSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class AgendaUpdateView(APIView):
+    """
+    Atualizar data/hora do agendamento (drag & drop)
+    PATCH /clinica-beleza/agenda/<id>/update/
+    Body: { "date": "2024-02-11T14:30:00Z" }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            appointment = Appointment.objects.get(pk=pk)
+            
+            # Atualizar apenas a data
+            new_date = request.data.get('date')
+            if new_date:
+                appointment.date = new_date
+                appointment.save()
+                
+                serializer = AgendaEventSerializer(appointment)
+                return Response(serializer.data)
+            
+            return Response({'error': 'Data não fornecida'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Appointment.DoesNotExist:
+            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class AgendaCreateView(APIView):
+    """
+    Criar novo agendamento pela agenda
+    POST /clinica-beleza/agenda/create/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AppointmentCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            appointment = serializer.save()
+            # Retornar no formato da agenda
+            event_serializer = AgendaEventSerializer(appointment)
+            return Response(event_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AgendaDeleteView(APIView):
+    """
+    Deletar agendamento
+    DELETE /clinica-beleza/agenda/<id>/delete/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            appointment = Appointment.objects.get(pk=pk)
+            appointment.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Appointment.DoesNotExist:
+            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+

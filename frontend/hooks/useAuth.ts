@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { getUser, isAuthenticated, logout as authLogout, type User } from '@/lib/auth';
+import { isAuthenticated, getUser, logout as authLogout, type User } from '@/lib/clinica-auth';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);

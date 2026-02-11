@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { saveToken, saveUser, type LoginResponse } from "@/lib/auth";
+import { saveToken, saveUser, type LoginResponse } from "@/lib/clinica-auth";
 import { Lock, User, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {

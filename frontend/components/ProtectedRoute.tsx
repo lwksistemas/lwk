@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, getUser, type User } from "@/lib/auth";
+import { isAuthenticated, getUser, type User } from "@/lib/clinica-auth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

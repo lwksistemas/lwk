@@ -12,7 +12,7 @@ import dynamic from "next/dynamic";
 import { X, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { fetchWithAuth } from "@/lib/auth";
+import { fetchWithAuth } from "@/lib/clinica-auth";
 
 // Importar FullCalendar dinamicamente (client-side only)
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {

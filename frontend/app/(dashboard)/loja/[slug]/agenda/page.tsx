@@ -88,8 +88,13 @@ export default function AgendaPage() {
     };
     
     loadPlugins();
-    carregarDados();
-  }, [selectedProfessional]);
+  }, []);
+  
+  useEffect(() => {
+    if (calendarPlugins.length > 0) {
+      carregarDados();
+    }
+  }, [selectedProfessional, calendarPlugins]);
 
   const carregarDados = async () => {
     try {

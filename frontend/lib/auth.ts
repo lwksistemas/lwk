@@ -46,19 +46,19 @@ class AuthService {
       // Definir endpoint baseado no tipo de usuário
       switch (userType) {
         case 'superadmin':
-          endpoint = '/superadmin/usuarios/login/';
+          endpoint = '/auth/superadmin/login/';
           payload.cpf_cnpj = credentials.cpf_cnpj;
           break;
         case 'suporte':
-          endpoint = '/suporte/usuarios/login/';
+          endpoint = '/auth/suporte/login/';
           payload.cpf_cnpj = credentials.cpf_cnpj;
           break;
         case 'loja':
           if (!slug) {
             throw new Error('Slug da loja é obrigatório');
           }
-          endpoint = '/superadmin/lojas/login/';
-          payload.slug = slug;
+          endpoint = '/auth/loja/login/';
+          payload.loja_slug = slug;
           payload.cpf_cnpj = credentials.cpf_cnpj;
           break;
         default:

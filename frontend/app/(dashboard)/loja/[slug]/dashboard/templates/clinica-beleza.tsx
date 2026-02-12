@@ -180,10 +180,10 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
               <nav className="space-y-2">
                 <SidebarItem icon={<CalendarDays size={20} />} label="Agenda" onClick={() => window.location.href = `/loja/${params.slug}/agenda`} />
-                <SidebarItem icon={<Users size={20} />} label="Pacientes" onClick={() => alert('Página de Pacientes em desenvolvimento')} />
-                <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => alert('Página de Profissionais em desenvolvimento')} />
-                <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => alert('Página de Procedimentos em desenvolvimento')} />
-                <SidebarItem icon={<Wallet size={20} />} label="Financeiro" onClick={() => alert('Página de Financeiro em desenvolvimento')} />
+                <SidebarItem icon={<Users size={20} />} label="Pacientes" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/pacientes`} />
+                <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/profissionais`} />
+                <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`} />
+                <SidebarItem icon={<Wallet size={20} />} label="Financeiro" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/financeiro`} />
                 <SidebarItem icon={<Settings size={20} />} label="Configurações" onClick={() => alert('Página de Configurações em desenvolvimento')} />
                 <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" onClick={() => alert('Página de Assinatura em desenvolvimento')} />
                 <div className="pt-4 border-t dark:border-neutral-700">
@@ -291,19 +291,24 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           {/* ATALHOS - GRID RESPONSIVO */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Shortcut 
+              label="Financeiro" 
+              icon={<Wallet />} 
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/financeiro`}
+            />
+            <Shortcut 
               label="Pacientes" 
               icon={<Users />} 
-              onClick={() => alert('Página de Pacientes em desenvolvimento')}
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/pacientes`}
             />
             <Shortcut 
               label="Procedimentos" 
               icon={<Sparkles />} 
-              onClick={() => alert('Página de Procedimentos em desenvolvimento')}
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`}
             />
             <Shortcut 
               label="Profissionais" 
               icon={<Users />} 
-              onClick={() => alert('Página de Profissionais em desenvolvimento')}
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/profissionais`}
             />
             <Shortcut 
               label="Calendário" 

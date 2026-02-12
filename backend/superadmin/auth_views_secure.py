@@ -151,12 +151,13 @@ class SecureLoginView(APIView):
         # Criar sessão única
         session_id = SessionManager.create_session(user.id, access)
         
-        # Preparar resposta
+        # Preparar resposta (user_type e loja_slug no topo para o frontend)
         response_data = {
             'access': access,
             'refresh': str(refresh),
             'session_id': session_id,
             'session_timeout_minutes': SessionManager.SESSION_TIMEOUT_MINUTES,
+            'user_type': real_user_type,
             'user': {
                 'id': user.id,
                 'username': user.username,
@@ -187,6 +188,7 @@ class SecureLoginView(APIView):
                     'nome': loja.nome,
                     'tipo_loja': loja.tipo_loja.nome if loja.tipo_loja else None
                 }
+                response_data['loja_slug'] = loja.slug
                 response_data['precisa_trocar_senha'] = precisa_trocar_senha
         elif real_user_type == 'suporte':
             # Verificar senha provisória do suporte

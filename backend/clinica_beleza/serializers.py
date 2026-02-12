@@ -2,7 +2,7 @@
 Serializers para Clínica da Beleza
 """
 from rest_framework import serializers
-from .models import Patient, Professional, Procedure, Appointment, Payment
+from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario
 
 
 class PatientSerializer(serializers.ModelSerializer):
@@ -63,9 +63,13 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
-    """Serializer para Pagamentos"""
+    """Serializer para Pagamentos (financeiro da clínica)"""
     appointment_details = AppointmentListSerializer(source='appointment', read_only=True)
-    
+    paciente_nome = serializers.CharField(source='appointment.patient.name', read_only=True)
+    profissional_nome = serializers.CharField(source='appointment.professional.name', read_only=True)
+    procedimento_nome = serializers.CharField(source='appointment.procedure.name', read_only=True)
+    data_atendimento = serializers.DateTimeField(source='appointment.date', read_only=True)
+
     class Meta:
         model = Payment
         fields = '__all__'
@@ -132,4 +136,17 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     def get_textColor(self, obj):
         """Cor do texto (sempre branco)"""
         return '#ffffff'
+
+
+class BloqueioHorarioSerializer(serializers.ModelSerializer):
+    """Serializer para Bloqueio de Horário"""
+    professional_name = serializers.CharField(source='professional.name', read_only=True, default=None)
+
+    class Meta:
+        model = BloqueioHorario
+        fields = [
+            'id', 'professional', 'professional_name',
+            'data_inicio', 'data_fim', 'motivo', 'observacoes', 'criado_em',
+        ]
+        read_only_fields = ['criado_em']
 

@@ -69,36 +69,37 @@ class AuthService {
       const response = await apiClient.post(endpoint, payload);
       const data: LoginResponse = response.data;
 
+      // user_type/loja_slug podem vir no topo ou dentro de user/loja (compatível com backend antigo)
+      const responseUserType = data.user_type ?? (data as any).user?.user_type;
+      const lojaSlug = data.loja_slug ?? (data as any).loja?.slug;
+
       console.log('✅ Login bem-sucedido:', {
-        user_type: data.user_type,
-        loja_slug: data.loja_slug,
+        user_type: responseUserType,
+        loja_slug: lojaSlug,
         precisa_trocar_senha: data.precisa_trocar_senha
       });
 
       // Salvar tokens e informações do usuário no sessionStorage
       this.setToken(data.access);
       this.setRefreshToken(data.refresh);
-      this.setUserType(data.user_type);
-      
-      if (data.loja_slug) {
-        this.setLojaSlug(data.loja_slug);
-      }
+      if (responseUserType) this.setUserType(responseUserType);
+      if (lojaSlug) this.setLojaSlug(lojaSlug);
 
       // Salvar session_id se vier do backend
       if (typeof window !== 'undefined' && (data as any).session_id) {
         sessionStorage.setItem('session_id', (data as any).session_id);
       }
 
-      // Também salvar nos cookies para o middleware
-      if (typeof document !== 'undefined') {
+      // Também salvar nos cookies para o middleware (só se tiver responseUserType)
+      if (typeof document !== 'undefined' && responseUserType) {
         const cookieOptions = 'path=/; max-age=86400; SameSite=Lax'; // 24 horas
-        document.cookie = `user_type=${data.user_type}; ${cookieOptions}`;
-        if (data.loja_slug) {
-          document.cookie = `loja_slug=${data.loja_slug}; ${cookieOptions}`;
+        document.cookie = `user_type=${responseUserType}; ${cookieOptions}`;
+        if (lojaSlug) {
+          document.cookie = `loja_slug=${lojaSlug}; ${cookieOptions}`;
         }
         console.log('🍪 Cookies definidos:', {
-          user_type: data.user_type,
-          loja_slug: data.loja_slug
+          user_type: responseUserType,
+          loja_slug: lojaSlug
         });
       }
 

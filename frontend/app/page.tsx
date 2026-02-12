@@ -1,8 +1,27 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 
+const PWA_LOJA_SLUG_KEY = 'pwa_loja_slug';
+
+function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as { standalone?: boolean }).standalone === true
+  );
+}
+
 export default function Home() {
+  useEffect(() => {
+    if (!isStandalone()) return;
+    const slug = localStorage.getItem(PWA_LOJA_SLUG_KEY);
+    if (slug && slug.trim()) {
+      window.location.replace(`/loja/${slug.trim()}/login`);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-600">
       <div className="container mx-auto px-4 py-16">

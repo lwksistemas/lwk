@@ -2,14 +2,32 @@
 
 /**
  * Página de Agenda - Clínica da Beleza
- * Calendário fullscreen com drag & drop
+ * Calendário fullscreen com drag & drop + Bloqueio de Horários
  * Integrado com API Django
  */
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Lock } from "lucide-react";
+import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
+
+/** Token: prioriza sessionStorage (login loja) e fallback para localStorage */
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem("access_token") || localStorage.getItem("token");
+}
+
+/** Cores por status (padrão comercial: recepção) */
+const CORES_STATUS: Record<string, { bg: string; border: string }> = {
+  CONFIRMED: { bg: "#22c55e", border: "#16a34a" },   // 🟢 Confirmado
+  SCHEDULED: { bg: "#a855f7", border: "#9333ea" },    // 🟣 Agendado
+  PENDING: { bg: "#a855f7", border: "#9333ea" },      // 🟣 Pendente
+  IN_PROGRESS: { bg: "#3b82f6", border: "#2563eb" },  // Azul em atendimento
+  COMPLETED: { bg: "#6b7280", border: "#4b5563" },    // Cinza concluído
+  CANCELLED: { bg: "#6b7280", border: "#4b5563" },    // ⚫ Cancelado
+  NO_SHOW: { bg: "#6b7280", border: "#4b5563" },     // Cinza faltou
+};
 
 // Importar FullCalendar dinamicamente (client-side only)
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
@@ -57,6 +75,17 @@ interface Procedure {
   price: string;
 }
 
+interface BloqueioHorario {
+  id: number;
+  professional: number | null;
+  professional_name: string | null;
+  data_inicio: string;
+  data_fim: string;
+  motivo: string;
+  observacoes: string | null;
+  criado_em: string;
+}
+
 export default function AgendaPage() {
   const params = useParams();
   const [eventos, setEventos] = useState<AgendaEvent[]>([]);
@@ -71,6 +100,17 @@ export default function AgendaPage() {
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [bloqueios, setBloqueios] = useState<BloqueioHorario[]>([]);
+  const [showModalBloqueio, setShowModalBloqueio] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    patientId: "",
+    professionalId: "",
+    procedureId: "",
+    time: "09:00",
+    notes: "",
+  });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState("");
   
   // Plugins do FullCalendar (carregados dinamicamente)
   const [calendarPlugins, setCalendarPlugins] = useState<any[]>([]);
@@ -99,54 +139,80 @@ export default function AgendaPage() {
 
   const carregarDados = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const baseURL = process.env.NEXT_PUBLIC_API_URL;
+      const headers: HeadersInit = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
 
-      // Carregar eventos
+      // Carregar eventos (agendamentos)
       let url = `${baseURL}/clinica-beleza/agenda/`;
       if (selectedProfessional) {
         url += `?professional=${selectedProfessional}`;
       }
-
-      const resEventos = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
+      const resEventos = await fetch(url, { headers });
       if (resEventos.ok) {
         const data = await resEventos.json();
-        const eventosFormatados = data.map((e: any) => ({
-          id: String(e.id),
-          title: e.title,
-          start: e.start,
-          end: e.end,
-          backgroundColor: e.backgroundColor,
-          borderColor: e.borderColor,
-          textColor: e.textColor,
+        const eventosFormatados = data.map((e: any) => {
+          const cores = CORES_STATUS[e.status] || { bg: "#a855f7", border: "#9333ea" };
+          const titulo = [e.patient_name, e.procedure_name].filter(Boolean).join(" • ") || e.title || "Agendamento";
+          return {
+            id: String(e.id),
+            title: titulo,
+            start: e.start,
+            end: e.end,
+            backgroundColor: cores.bg,
+            borderColor: cores.border,
+            textColor: "#fff",
+            editable: e.status !== "CANCELLED",
+            extendedProps: {
+              dbId: e.id,
+              status: e.status,
+              patient_name: e.patient_name,
+              patient_phone: e.patient_phone,
+              professional_name: e.professional_name,
+              procedure_name: e.procedure_name,
+              procedure_duration: e.procedure_duration,
+              procedure_price: e.procedure_price,
+              notes: e.notes || "",
+              isBloqueio: false,
+            },
+          };
+        });
+
+        // Carregar bloqueios de horário
+        let bloqueiosUrl = `${baseURL}/clinica-beleza/bloqueios/`;
+        if (selectedProfessional) {
+          bloqueiosUrl += `?professional=${selectedProfessional}`;
+        }
+        const resBloqueios = await fetch(bloqueiosUrl, { headers });
+        let bloqueiosList: BloqueioHorario[] = [];
+        if (resBloqueios.ok) {
+          bloqueiosList = await resBloqueios.json();
+          setBloqueios(bloqueiosList);
+        }
+        const bloqueiosAsEvents = bloqueiosList.map((b: BloqueioHorario) => ({
+          id: `bloqueio-${b.id}`,
+          title: `🚫 ${b.motivo}`,
+          start: b.data_inicio,
+          end: b.data_fim,
+          backgroundColor: "#b91c1c",
+          borderColor: "#991b1b",
+          textColor: "#fff",
+          editable: false,
           extendedProps: {
-            dbId: e.id,
-            status: e.status,
-            patient_name: e.patient_name,
-            patient_phone: e.patient_phone,
-            professional_name: e.professional_name,
-            procedure_name: e.procedure_name,
-            procedure_duration: e.procedure_duration,
-            procedure_price: e.procedure_price,
-            notes: e.notes || "",
+            isBloqueio: true,
+            bloqueioId: b.id,
+            motivo: b.motivo,
+            professional_name: b.professional_name || "Todos",
           },
         }));
-        setEventos(eventosFormatados);
+        setEventos([...eventosFormatados, ...bloqueiosAsEvents]);
       }
 
       // Carregar profissionais
-      const resProfessionals = await fetch(`${baseURL}/clinica-beleza/professionals/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const resProfessionals = await fetch(`${baseURL}/clinica-beleza/professionals/`, { headers });
 
       if (resProfessionals.ok) {
         const data = await resProfessionals.json();
@@ -154,12 +220,7 @@ export default function AgendaPage() {
       }
 
       // Carregar pacientes
-      const resPatients = await fetch(`${baseURL}/clinica-beleza/patients/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const resPatients = await fetch(`${baseURL}/clinica-beleza/patients/`, { headers });
 
       if (resPatients.ok) {
         const data = await resPatients.json();
@@ -167,12 +228,7 @@ export default function AgendaPage() {
       }
 
       // Carregar procedimentos
-      const resProcedures = await fetch(`${baseURL}/clinica-beleza/procedures/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const resProcedures = await fetch(`${baseURL}/clinica-beleza/procedures/`, { headers });
 
       if (resProcedures.ok) {
         const data = await resProcedures.json();
@@ -187,11 +243,12 @@ export default function AgendaPage() {
   };
 
   const moverEvento = async (info: any) => {
+    if (info.event.extendedProps?.isBloqueio) return;
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
-      await fetch(`${baseURL}/clinica-beleza/agenda/${info.event.id}/update/`, {
+      const res = await fetch(`${baseURL}/clinica-beleza/agenda/${info.event.id}/update/`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -202,15 +259,26 @@ export default function AgendaPage() {
         }),
       });
 
-      // Recarregar eventos
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const msg = data.error || "Não foi possível mover. Horário pode estar bloqueado.";
+        alert(msg);
+        info.revert();
+        return;
+      }
+
       carregarDados();
     } catch (error) {
       console.error("Erro ao mover evento:", error);
+      alert("Erro ao mover evento. Tente novamente.");
       info.revert();
     }
   };
 
   const handleEventClick = (info: any) => {
+    if (info.event.extendedProps?.isBloqueio) {
+      return; // Bloqueios não abrem modal de detalhe (só na tela de Bloquear horário)
+    }
     setSelectedEvent({
       id: info.event.id,
       title: info.event.title,
@@ -224,8 +292,31 @@ export default function AgendaPage() {
     setShowModal(true);
   };
 
+  /** Verifica se o horário está bloqueado (bloqueio geral ou do profissional selecionado). */
+  const conflitoComBloqueio = (date: Date): boolean => {
+    return bloqueios.some((b) => {
+      const dentro = date >= new Date(b.data_inicio) && date <= new Date(b.data_fim);
+      if (!dentro) return false;
+      if (!b.professional) return true; // bloqueio geral
+      return selectedProfessional === String(b.professional);
+    });
+  };
+
   const handleDateClick = (info: any) => {
-    setSelectedDate(info.date);
+    const date = info.date as Date;
+    if (conflitoComBloqueio(date)) {
+      alert("Horário bloqueado. Escolha outro horário ou gerencie bloqueios no botão \"Bloquear horário\".");
+      return;
+    }
+    setSelectedDate(date);
+    setCreateForm({
+      patientId: "",
+      professionalId: "",
+      procedureId: "",
+      time: date.getHours().toString().padStart(2, "0") + ":" + date.getMinutes().toString().padStart(2, "0"),
+      notes: "",
+    });
+    setCreateError("");
     setShowCreateModal(true);
   };
 
@@ -235,7 +326,7 @@ export default function AgendaPage() {
     if (!confirm("Deseja realmente deletar este agendamento?")) return;
 
     try {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
       await fetch(`${baseURL}/clinica-beleza/agenda/${selectedEvent.extendedProps.dbId}/delete/`, {
@@ -294,6 +385,15 @@ export default function AgendaPage() {
           </select>
 
           <button
+            onClick={() => setShowModalBloqueio(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+            title="Bloquear horário"
+          >
+            <Lock size={20} />
+            <span className="hidden sm:inline">Bloquear horário</span>
+          </button>
+
+          <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
@@ -303,8 +403,25 @@ export default function AgendaPage() {
         </div>
       </div>
 
+      {/* Legenda de status */}
+      <div className="px-4 py-2 flex flex-wrap items-center gap-4 text-sm bg-white/50 rounded-lg mx-4 mb-2">
+        <span className="font-medium text-gray-600">Status:</span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-[#22c55e]" aria-hidden />
+          Confirmado
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-[#a855f7]" aria-hidden />
+          Agendado
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-[#6b7280]" aria-hidden />
+          Cancelado
+        </span>
+      </div>
+
       {/* CALENDÁRIO */}
-      <div className="flex-1 p-4 overflow-hidden">
+      <div className="flex-1 p-4 overflow-hidden min-h-0">
         <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg h-full p-4">
           {calendarPlugins.length > 0 && ptBrLocale && (
             <FullCalendar
@@ -312,20 +429,21 @@ export default function AgendaPage() {
               initialView="timeGridWeek"
               locale={ptBrLocale}
               editable
+              eventStartEditable={true}
+              eventDurationEditable={false}
               selectable
               selectMirror
               dayMaxEvents
               weekends
               events={eventos}
               eventDrop={moverEvento}
-              eventResize={moverEvento}
               eventClick={handleEventClick}
               dateClick={handleDateClick}
               height="100%"
               headerToolbar={{
                 left: "prev,next today",
                 center: "title",
-                right: "dayGridMonth,timeGridWeek,timeGridDay",
+                right: "timeGridDay,timeGridWeek,dayGridMonth",
               }}
               slotMinTime="07:00:00"
               slotMaxTime="20:00:00"
@@ -419,11 +537,11 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* MODAL DE CRIAR (Placeholder) */}
+      {/* MODAL NOVO AGENDAMENTO */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex justify-between items-start mb-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b">
               <h2 className="text-xl font-bold text-gray-800">Novo Agendamento</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -432,20 +550,153 @@ export default function AgendaPage() {
                 <X size={20} />
               </button>
             </div>
-
-            <p className="text-center text-gray-600 py-8">
-              Formulário de criação em desenvolvimento...
-            </p>
-
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+            <form
+              className="p-4 space-y-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!createForm.patientId || !createForm.professionalId || !createForm.procedureId) {
+                  setCreateError("Selecione paciente, profissional e procedimento.");
+                  return;
+                }
+                if (!selectedDate) {
+                  setCreateError("Data não definida.");
+                  return;
+                }
+                const [h, m] = createForm.time.split(":").map(Number);
+                const date = new Date(selectedDate);
+                date.setHours(h, m, 0, 0);
+                setCreateLoading(true);
+                setCreateError("");
+                try {
+                  const token = getAuthToken();
+                  const baseURL = process.env.NEXT_PUBLIC_API_URL;
+                  const res = await fetch(`${baseURL}/clinica-beleza/agenda/create/`, {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      date: date.toISOString(),
+                      status: "SCHEDULED",
+                      patient: parseInt(createForm.patientId, 10),
+                      professional: parseInt(createForm.professionalId, 10),
+                      procedure: parseInt(createForm.procedureId, 10),
+                      notes: createForm.notes.trim() || null,
+                    }),
+                  });
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || "Erro ao criar agendamento");
+                  }
+                  setShowCreateModal(false);
+                  setCreateForm({ patientId: "", professionalId: "", procedureId: "", time: "09:00", notes: "" });
+                  carregarDados();
+                } catch (err: unknown) {
+                  setCreateError(err instanceof Error ? err.message : "Erro ao criar agendamento");
+                } finally {
+                  setCreateLoading(false);
+                }
+              }}
             >
-              Fechar
-            </button>
+              {createError && (
+                <div className="p-2 rounded bg-red-50 text-red-700 text-sm">{createError}</div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                <p className="text-gray-800 font-medium">
+                  {selectedDate ? selectedDate.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }) : "—"}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Horário</label>
+                <input
+                  type="time"
+                  value={createForm.time}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, time: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Paciente *</label>
+                <select
+                  value={createForm.patientId}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, patientId: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg bg-white"
+                  required
+                >
+                  <option value="">Selecione o paciente</option>
+                  {patients.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Profissional *</label>
+                <select
+                  value={createForm.professionalId}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, professionalId: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg bg-white"
+                  required
+                >
+                  <option value="">Selecione o profissional</option>
+                  {professionals.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Procedimento *</label>
+                <select
+                  value={createForm.procedureId}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, procedureId: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg bg-white"
+                  required
+                >
+                  <option value="">Selecione o procedimento</option>
+                  {procedures.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.duration} min)</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <textarea
+                  value={createForm.notes}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, notes: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 border rounded-lg resize-none"
+                  placeholder="Opcional"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  className="flex-1 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {createLoading ? "Agendando..." : "Agendar"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* Modal Bloqueio de Horários */}
+      <ModalBloqueioHorario
+        isOpen={showModalBloqueio}
+        onClose={() => setShowModalBloqueio(false)}
+        onSuccess={() => carregarDados()}
+        professionals={professionals}
+      />
     </div>
   );
 }

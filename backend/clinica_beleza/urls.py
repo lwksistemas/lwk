@@ -5,11 +5,13 @@ from django.urls import path, include
 from .views import (
     DashboardView,
     AppointmentListView, AppointmentDetailView,
-    PatientListView,
-    ProfessionalListView,
-    ProcedureListView,
-    PaymentListView,
-    AgendaView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView
+    PatientListView, PatientDetailView,
+    ProfessionalListView, ProfessionalDetailView,
+    ProcedureListView, ProcedureDetailView,
+    PaymentListView, PaymentDetailView,
+    FinanceiroResumoView,
+    AgendaView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
+    BloqueioHorarioListView, BloqueioHorarioDetailView,
 )
 
 app_name = 'clinica_beleza'
@@ -24,19 +26,27 @@ urlpatterns = [
     
     # Pacientes
     path('patients/', PatientListView.as_view(), name='patients-list'),
+    path('patients/<int:pk>/', PatientDetailView.as_view(), name='patients-detail'),
     
     # Profissionais
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),
+    path('professionals/<int:pk>/', ProfessionalDetailView.as_view(), name='professionals-detail'),
     
     # Procedimentos
     path('procedures/', ProcedureListView.as_view(), name='procedures-list'),
+    path('procedures/<int:pk>/', ProcedureDetailView.as_view(), name='procedures-detail'),
     
-    # Pagamentos
+    # Pagamentos / Financeiro
     path('payments/', PaymentListView.as_view(), name='payments-list'),
+    path('payments/<int:pk>/', PaymentDetailView.as_view(), name='payments-detail'),
+    path('financeiro/resumo/', FinanceiroResumoView.as_view(), name='financeiro-resumo'),
     
     # Agenda/Calendário
     path('agenda/', AgendaView.as_view(), name='agenda'),
     path('agenda/create/', AgendaCreateView.as_view(), name='agenda-create'),
     path('agenda/<int:pk>/update/', AgendaUpdateView.as_view(), name='agenda-update'),
     path('agenda/<int:pk>/delete/', AgendaDeleteView.as_view(), name='agenda-delete'),
+    # Bloqueio de Horários
+    path('bloqueios/', BloqueioHorarioListView.as_view(), name='bloqueios-list'),
+    path('bloqueios/<int:pk>/', BloqueioHorarioDetailView.as_view(), name='bloqueios-detail'),
 ]

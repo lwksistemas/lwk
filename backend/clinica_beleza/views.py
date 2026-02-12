@@ -6,13 +6,13 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.utils.timezone import now
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Q, Sum
 from datetime import timedelta
-from .models import Patient, Professional, Procedure, Appointment, Payment
+from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario
 from .serializers import (
     PatientSerializer, ProfessionalSerializer, ProcedureSerializer,
     AppointmentListSerializer, AppointmentDetailSerializer, AppointmentCreateSerializer,
-    PaymentSerializer, AgendaEventSerializer
+    PaymentSerializer, AgendaEventSerializer, BloqueioHorarioSerializer
 )
 
 
@@ -144,8 +144,11 @@ class PatientListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        patients = Patient.objects.filter(active=True).order_by('name')
-        serializer = PatientSerializer(patients, many=True)
+        active_only = request.query_params.get('active', 'true').lower() == 'true'
+        queryset = Patient.objects.all().order_by('name')
+        if active_only:
+            queryset = queryset.filter(active=True)
+        serializer = PatientSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def post(self, request):
@@ -154,6 +157,38 @@ class PatientListView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PatientDetailView(APIView):
+    """GET /clinica-beleza/patients/<id>/  PUT  DELETE"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            obj = Patient.objects.get(pk=pk)
+            return Response(PatientSerializer(obj).data)
+        except Patient.DoesNotExist:
+            return Response({'error': 'Paciente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, pk):
+        try:
+            obj = Patient.objects.get(pk=pk)
+            serializer = PatientSerializer(obj, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Patient.DoesNotExist:
+            return Response({'error': 'Paciente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        try:
+            obj = Patient.objects.get(pk=pk)
+            obj.active = False
+            obj.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Patient.DoesNotExist:
+            return Response({'error': 'Paciente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class ProfessionalListView(APIView):
@@ -165,8 +200,11 @@ class ProfessionalListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        professionals = Professional.objects.filter(active=True).order_by('name')
-        serializer = ProfessionalSerializer(professionals, many=True)
+        active_only = request.query_params.get('active', 'true').lower() == 'true'
+        queryset = Professional.objects.all().order_by('name')
+        if active_only:
+            queryset = queryset.filter(active=True)
+        serializer = ProfessionalSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def post(self, request):
@@ -175,6 +213,38 @@ class ProfessionalListView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProfessionalDetailView(APIView):
+    """GET /clinica-beleza/professionals/<id>/  PUT  DELETE"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            obj = Professional.objects.get(pk=pk)
+            return Response(ProfessionalSerializer(obj).data)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, pk):
+        try:
+            obj = Professional.objects.get(pk=pk)
+            serializer = ProfessionalSerializer(obj, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        try:
+            obj = Professional.objects.get(pk=pk)
+            obj.active = False
+            obj.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class ProcedureListView(APIView):
@@ -186,8 +256,11 @@ class ProcedureListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        procedures = Procedure.objects.filter(active=True).order_by('name')
-        serializer = ProcedureSerializer(procedures, many=True)
+        active_only = request.query_params.get('active', 'true').lower() == 'true'
+        queryset = Procedure.objects.all().order_by('name')
+        if active_only:
+            queryset = queryset.filter(active=True)
+        serializer = ProcedureSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def post(self, request):
@@ -198,17 +271,60 @@ class ProcedureListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ProcedureDetailView(APIView):
+    """GET /clinica-beleza/procedures/<id>/  PUT  DELETE"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            obj = Procedure.objects.get(pk=pk)
+            return Response(ProcedureSerializer(obj).data)
+        except Procedure.DoesNotExist:
+            return Response({'error': 'Procedimento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, pk):
+        try:
+            obj = Procedure.objects.get(pk=pk)
+            serializer = ProcedureSerializer(obj, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Procedure.DoesNotExist:
+            return Response({'error': 'Procedimento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        try:
+            obj = Procedure.objects.get(pk=pk)
+            obj.active = False
+            obj.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Procedure.DoesNotExist:
+            return Response({'error': 'Procedimento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
 class PaymentListView(APIView):
     """
-    Listagem e criação de pagamentos
-    GET /clinica-beleza/payments/
+    Listagem e criação de pagamentos (financeiro da clínica)
+    GET /clinica-beleza/payments/?status=PAID&date=2024-01-15&professional=1
     POST /clinica-beleza/payments/
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        payments = Payment.objects.select_related('appointment').order_by('-created_at')
-        serializer = PaymentSerializer(payments, many=True)
+        queryset = Payment.objects.select_related(
+            'appointment', 'appointment__patient', 'appointment__professional', 'appointment__procedure'
+        ).order_by('-created_at')
+        status_filter = request.query_params.get('status')
+        date_filter = request.query_params.get('date')
+        professional_id = request.query_params.get('professional')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if date_filter:
+            queryset = queryset.filter(payment_date__date=date_filter)
+        if professional_id:
+            queryset = queryset.filter(appointment__professional_id=professional_id)
+        serializer = PaymentSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def post(self, request):
@@ -217,6 +333,84 @@ class PaymentListView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PaymentDetailView(APIView):
+    """
+    Detalhe, atualização e exclusão de pagamento
+    GET /clinica-beleza/payments/<id>/
+    PUT /clinica-beleza/payments/<id>/
+    DELETE /clinica-beleza/payments/<id>/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            payment = Payment.objects.select_related(
+                'appointment', 'appointment__patient', 'appointment__professional', 'appointment__procedure'
+            ).get(pk=pk)
+            serializer = PaymentSerializer(payment)
+            return Response(serializer.data)
+        except Payment.DoesNotExist:
+            return Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, pk):
+        try:
+            payment = Payment.objects.get(pk=pk)
+            serializer = PaymentSerializer(payment, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Payment.DoesNotExist:
+            return Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        try:
+            payment = Payment.objects.get(pk=pk)
+            payment.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Payment.DoesNotExist:
+            return Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class FinanceiroResumoView(APIView):
+    """
+    Resumo financeiro: caixa diário, total mês, contas a receber
+    GET /clinica-beleza/financeiro/resumo/?mes=2024-01
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = now().date()
+        first_day_month = today.replace(day=1)
+        # Caixa diário: total pago hoje
+        caixa_diario = Payment.objects.filter(
+            status='PAID',
+            payment_date__date=today
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        # Total do mês (pago)
+        total_mes = Payment.objects.filter(
+            status='PAID',
+            payment_date__date__gte=first_day_month,
+            payment_date__date__lte=today
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        # Contas a receber (pendente)
+        contas_a_receber = Payment.objects.filter(
+            status='PENDING'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        # Total comissões do mês (pagos)
+        comissao_mes = Payment.objects.filter(
+            status='PAID',
+            payment_date__date__gte=first_day_month,
+            payment_date__date__lte=today
+        ).aggregate(total=Sum('comissao_valor'))['total'] or 0
+        return Response({
+            'caixa_diario': float(caixa_diario),
+            'total_mes': float(total_mes),
+            'contas_a_receber': float(contas_a_receber),
+            'comissao_mes': float(comissao_mes),
+        })
 
 
 class AgendaView(APIView):
@@ -259,7 +453,8 @@ class AgendaView(APIView):
 
 class AgendaUpdateView(APIView):
     """
-    Atualizar data/hora do agendamento (drag & drop)
+    Atualizar data/hora do agendamento (drag & drop).
+    Respeita bloqueios: não permite soltar em horário bloqueado.
     PATCH /clinica-beleza/agenda/<id>/update/
     Body: { "date": "2024-02-11T14:30:00Z" }
     """
@@ -267,19 +462,36 @@ class AgendaUpdateView(APIView):
 
     def patch(self, request, pk):
         try:
-            appointment = Appointment.objects.get(pk=pk)
-            
-            # Atualizar apenas a data
+            appointment = Appointment.objects.select_related('procedure', 'professional').get(pk=pk)
             new_date = request.data.get('date')
-            if new_date:
-                appointment.date = new_date
-                appointment.save()
-                
-                serializer = AgendaEventSerializer(appointment)
-                return Response(serializer.data)
-            
-            return Response({'error': 'Data não fornecida'}, status=status.HTTP_400_BAD_REQUEST)
-            
+            if not new_date:
+                return Response({'error': 'Data não fornecida'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if hasattr(new_date, 'isoformat'):
+                date_start = new_date
+            elif isinstance(new_date, str):
+                from django.utils.dateparse import parse_datetime
+                date_start = parse_datetime(new_date) or now()
+            else:
+                date_start = new_date
+
+            date_end = date_start + timedelta(minutes=appointment.procedure.duration)
+            professional_id = appointment.professional_id
+            bloqueios = BloqueioHorario.objects.filter(
+                Q(professional_id=professional_id) | Q(professional_id__isnull=True)
+            )
+            if _bloqueio_impede_agendamento(date_start, date_end, professional_id, bloqueios):
+                return Response(
+                    {'error': 'Horário bloqueado. Escolha outro horário.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            appointment.date = date_start
+            appointment.save()
+
+            serializer = AgendaEventSerializer(appointment)
+            return Response(serializer.data)
+
         except Appointment.DoesNotExist:
             return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -294,8 +506,21 @@ class AgendaCreateView(APIView):
     def post(self, request):
         serializer = AppointmentCreateSerializer(data=request.data)
         if serializer.is_valid():
+            data = serializer.validated_data
+            date_start = data['date']
+            # Fim = início + duração do procedimento
+            from datetime import timedelta
+            date_end = date_start + timedelta(minutes=data['procedure'].duration)
+            professional_id = data['professional'].id
+            bloqueios = BloqueioHorario.objects.filter(
+                Q(professional_id=professional_id) | Q(professional_id__isnull=True)
+            )
+            if _bloqueio_impede_agendamento(date_start, date_end, professional_id, bloqueios):
+                return Response(
+                    {'error': 'Horário bloqueado. Escolha outro horário ou profissional.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             appointment = serializer.save()
-            # Retornar no formato da agenda
             event_serializer = AgendaEventSerializer(appointment)
             return Response(event_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -315,4 +540,88 @@ class AgendaDeleteView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Appointment.DoesNotExist:
             return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# ---------------------------------------------------------------------------
+# Bloqueio de Horários (almoço, férias, manutenção, evento)
+# ---------------------------------------------------------------------------
+
+def _bloqueio_impede_agendamento(data_inicio, data_fim, professional_id, bloqueios_queryset):
+    """Verifica se algum bloqueio impede o agendamento no intervalo [data_inicio, data_fim] para o profissional."""
+    for b in bloqueios_queryset:
+        # Bloqueio geral (sem profissional) ou do mesmo profissional
+        if b.professional_id is None or b.professional_id == professional_id:
+            # Conflito se os intervalos se sobrepõem
+            if data_inicio < b.data_fim and data_fim > b.data_inicio:
+                return True
+    return False
+
+
+class BloqueioHorarioListView(APIView):
+    """
+    Listar e criar bloqueios de horário
+    GET /clinica-beleza/bloqueios/?start=YYYY-MM-DD&end=YYYY-MM-DD&professional=<id>
+    POST /clinica-beleza/bloqueios/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        start = request.query_params.get('start')
+        end = request.query_params.get('end')
+        professional_id = request.query_params.get('professional')
+        queryset = BloqueioHorario.objects.all().select_related('professional').order_by('-data_inicio')
+        if start:
+            queryset = queryset.filter(data_fim__gte=start)
+        if end:
+            queryset = queryset.filter(data_inicio__lte=end)
+        if professional_id:
+            queryset = queryset.filter(
+                Q(professional_id=professional_id) | Q(professional_id__isnull=True)
+            )
+        serializer = BloqueioHorarioSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = BloqueioHorarioSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BloqueioHorarioDetailView(APIView):
+    """
+    Detalhar, atualizar e excluir bloqueio
+    GET /clinica-beleza/bloqueios/<id>/
+    PUT /clinica-beleza/bloqueios/<id>/
+    DELETE /clinica-beleza/bloqueios/<id>/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            obj = BloqueioHorario.objects.select_related('professional').get(pk=pk)
+            serializer = BloqueioHorarioSerializer(obj)
+            return Response(serializer.data)
+        except BloqueioHorario.DoesNotExist:
+            return Response({'error': 'Bloqueio não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, pk):
+        try:
+            obj = BloqueioHorario.objects.get(pk=pk)
+            serializer = BloqueioHorarioSerializer(obj, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except BloqueioHorario.DoesNotExist:
+            return Response({'error': 'Bloqueio não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        try:
+            obj = BloqueioHorario.objects.get(pk=pk)
+            obj.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except BloqueioHorario.DoesNotExist:
+            return Response({'error': 'Bloqueio não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 

@@ -30,21 +30,19 @@ export default function LojaLoginDinamicoPage() {
   const [loadingInfo, setLoadingInfo] = useState(true);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
-  // Limpar sessões antigas ao carregar a página de login
+  // Limpar sessões antigas e salvar slug para PWA reabrir na loja certa
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      if (slug) localStorage.setItem('pwa_loja_slug', slug);
       // Limpar sessionStorage
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');
       sessionStorage.removeItem('loja_slug');
       sessionStorage.removeItem('session_id');
-      
-      // Limpar cookies
       document.cookie = 'user_type=; path=/; max-age=0';
       document.cookie = 'loja_slug=; path=/; max-age=0';
     }
-    
     loadLojaInfo();
   }, [slug]);
 

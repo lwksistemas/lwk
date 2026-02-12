@@ -2,6 +2,7 @@
 Models para Clínica da Beleza
 Sistema completo de gestão de clínica estética
 """
+from decimal import Decimal
 from django.db import models
 from django.contrib.auth import get_user_model
 
@@ -102,6 +103,35 @@ class Appointment(models.Model):
         return f"{self.patient.name} - {self.procedure.name} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
 
+class BloqueioHorario(models.Model):
+    """
+    Bloqueio de horário na agenda (almoço, férias, manutenção, evento).
+    profissional=None = bloqueio geral (todos os profissionais).
+    """
+    professional = models.ForeignKey(
+        Professional,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name="Profissional",
+        help_text="Deixe vazio para bloqueio geral (todos)",
+    )
+    data_inicio = models.DateTimeField(verbose_name="Início")
+    data_fim = models.DateTimeField(verbose_name="Fim")
+    motivo = models.CharField(max_length=100, verbose_name="Motivo")
+    observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+
+    class Meta:
+        app_label = "clinica_beleza"
+        verbose_name = "Bloqueio de Horário"
+        verbose_name_plural = "Bloqueios de Horário"
+        ordering = ["-data_inicio"]
+
+    def __str__(self):
+        return f"{self.motivo} ({self.data_inicio} - {self.data_fim})"
+
+
 class Payment(models.Model):
     """Pagamentos"""
     PAYMENT_METHOD_CHOICES = (
@@ -124,6 +154,8 @@ class Payment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING', verbose_name="Status")
     payment_date = models.DateTimeField(blank=True, null=True, verbose_name="Data do Pagamento")
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    comissao_percentual = models.PositiveSmallIntegerField(default=0, verbose_name="Comissão %")
+    comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Comissão R$")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
@@ -132,6 +164,11 @@ class Payment(models.Model):
         verbose_name = "Pagamento"
         verbose_name_plural = "Pagamentos"
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if self.amount is not None and self.comissao_percentual is not None:
+            self.comissao_valor = (self.amount * self.comissao_percentual / 100).quantize(Decimal('0.01'))
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Pagamento {self.id} - R$ {self.amount}"

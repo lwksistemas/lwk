@@ -3,6 +3,7 @@ import { logger } from './logger';
 import { getLoginUrl } from './auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
 
 const SESSION_CODES = [
   'DIFFERENT_SESSION', 'NO_SESSION', 'TIMEOUT',
@@ -68,7 +69,7 @@ async function handle401(
 
   if (errorCode && SESSION_CODES.includes(errorCode as (typeof SESSION_CODES)[number])) {
     logger.critical('Sessão inválida:', errorCode);
-    const loginUrl = getLoginUrl();
+    const loginUrl = getLoginUrlForRedirect();
     clearSessionAndRedirect(
       loginUrl,
       typeof errorMessage === 'string' ? errorMessage : 'Sua sessão expirou. Faça login novamente.'
@@ -83,11 +84,11 @@ async function handle401(
       const refreshToken = sessionStorage.getItem('refresh_token');
       const accessToken = sessionStorage.getItem('access_token');
       if (!refreshToken) {
-        clearSessionAndRedirect(getLoginUrl());
+        clearSessionAndRedirect(getLoginUrlForRedirect());
         return Promise.reject(error);
       }
       const response = await axios.post(
-        `${API_URL}/api/auth/token/refresh/`,
+        `${API_BASE}/auth/token/refresh/`,
         { refresh: refreshToken },
         { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }
       );
@@ -105,17 +106,25 @@ async function handle401(
       if (errCode === 'DIFFERENT_SESSION' || errCode === 'NO_SESSION') {
         alert(errMessage || 'Sua sessão foi encerrada. Faça login novamente.');
       }
-      clearSessionAndRedirect(getLoginUrl());
+      clearSessionAndRedirect(getLoginUrlForRedirect());
       return Promise.reject(refreshError);
     }
   }
   return Promise.reject(error);
 }
 
+/** URL de login para redirecionar após logout/401 (usa storage antes de limpar). */
+function getLoginUrlForRedirect(): string {
+  if (typeof window === 'undefined') return '/';
+  const userType = sessionStorage.getItem('user_type');
+  const lojaSlug = sessionStorage.getItem('loja_slug');
+  return getLoginUrl(userType as 'superadmin' | 'suporte' | 'loja' | undefined, lojaSlug || undefined);
+}
+
 /** Cria instância base (baseURL, timeout, JSON). */
 function createApiInstance(): AxiosInstance {
   return axios.create({
-    baseURL: `${API_URL}/api`,
+    baseURL: API_BASE,
     headers: { 'Content-Type': 'application/json' },
     timeout: 20000,
   });
@@ -172,7 +181,7 @@ export function startHeartbeat() {
       const e = err as { response?: { status?: number } };
       if (e.response?.status === 401) {
         stopHeartbeat();
-        clearSessionAndRedirect(getLoginUrl());
+        clearSessionAndRedirect(getLoginUrlForRedirect());
       }
     }
   }, 5 * 60 * 1000);

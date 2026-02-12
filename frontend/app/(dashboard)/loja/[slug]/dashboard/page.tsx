@@ -317,13 +317,20 @@ function DashboardGenerico({ loja }: { loja: LojaInfo }) {
       <h2 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
         Dashboard - {loja.tipo_loja_nome}
       </h2>
-      <div className="bg-white p-6 rounded-lg shadow text-center">
+      <div className="bg-white p-6 rounded-lg shadow text-center mb-6">
         <p className="text-gray-600 mb-4">
           Dashboard específico para {loja.tipo_loja_nome} em desenvolvimento
         </p>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 mb-6">
           Em breve você terá acesso a funcionalidades personalizadas para seu tipo de negócio
         </p>
+        <a
+          href={`/loja/${loja.slug}/assinatura`}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white hover:opacity-90 transition-opacity"
+          style={{ backgroundColor: loja.cor_primaria || '#6366f1' }}
+        >
+          Pagar Assinatura (Boleto / PIX)
+        </a>
       </div>
     </div>
   );

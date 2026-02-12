@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   Wallet,
+  ChevronDown,
 } from "lucide-react";
 import { LojaInfo } from '@/types/dashboard';
 
@@ -52,6 +53,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -127,7 +129,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
             <h1 className="text-lg font-semibold hidden sm:block">Clínica da Beleza</h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
             <button 
               onClick={() => setDarkMode(!darkMode)}
               className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
@@ -135,20 +137,60 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
             >
               {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            
             <button 
               className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
               title="Notificações"
             >
               <Bell className="w-5 h-5" />
             </button>
-            
-            <button 
-              className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-              title="Configurações"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
+                className="flex items-center gap-1 p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+                title="Menu"
+              >
+                <div className="w-8 h-8 rounded-full bg-pink-300 dark:bg-pink-800 flex items-center justify-center text-sm">
+                  👤
+                </div>
+                <ChevronDown className="w-4 h-4 hidden sm:block" />
+              </button>
+              {headerMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setHeaderMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-56 py-1 bg-white dark:bg-neutral-800 rounded-xl shadow-lg border dark:border-neutral-700">
+                    <a
+                      href={`/loja/${params.slug}/assinatura`}
+                      className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-neutral-700 text-orange-600 dark:text-orange-400"
+                      onClick={() => setHeaderMenuOpen(false)}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      Pagar Assinatura
+                    </a>
+                    <button
+                      onClick={() => { setDarkMode(!darkMode); setHeaderMenuOpen(false); }}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-neutral-700 text-left"
+                    >
+                      <Moon className="w-4 h-4 text-purple-600" />
+                      Modo Escuro
+                    </button>
+                    <button
+                      onClick={() => { alert('Página de Configurações em desenvolvimento'); setHeaderMenuOpen(false); }}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-neutral-700 text-left"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Configurações Gerais
+                    </button>
+                    <button
+                      onClick={() => { setHeaderMenuOpen(false); if (confirm('Deseja realmente sair?')) handleLogout(); }}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 text-left"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sair
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
@@ -182,7 +224,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                 <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`} />
                 <SidebarItem icon={<Wallet size={20} />} label="Financeiro" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/financeiro`} />
                 <SidebarItem icon={<Settings size={20} />} label="Configurações" onClick={() => alert('Página de Configurações em desenvolvimento')} />
-                <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" onClick={() => alert('Página de Assinatura em desenvolvimento')} />
+                <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" onClick={() => window.location.href = `/loja/${params.slug}/assinatura`} />
                 <div className="pt-4 border-t dark:border-neutral-700">
                   <SidebarItem 
                     icon={<LogOut size={20} />} 
@@ -216,19 +258,19 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           {/* CARDS DE ESTATÍSTICAS - GRID RESPONSIVO */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <StatCard
-              icon={<CalendarDays />}
+              icon={<CalendarDays className="w-7 h-7" size={28} />}
               title="Agendamentos"
               value={stats.appointments_today.toString()}
               subtitle="Hoje"
             />
             <StatCard
-              icon={<Users />}
+              icon={<Users className="w-7 h-7" size={28} />}
               title="Pacientes"
               value={stats.patients_total.toString()}
               subtitle="Ativos"
             />
             <StatCard
-              icon={<Sparkles />}
+              icon={<Sparkles className="w-7 h-7" size={28} />}
               title="Procedimentos"
               value={stats.procedures_total.toString()}
               subtitle="Ativos"
@@ -285,31 +327,26 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
             )}
           </section>
 
-          {/* ATALHOS - GRID RESPONSIVO */}
+          {/* ATALHOS - GRID RESPONSIVO (Financeiro só no menu lateral) */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Shortcut 
-              label="Financeiro" 
-              icon={<Wallet />} 
-              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/financeiro`}
-            />
-            <Shortcut 
               label="Pacientes" 
-              icon={<Users />} 
+              icon={<Users className="w-7 h-7" size={28} />} 
               onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/pacientes`}
             />
             <Shortcut 
               label="Procedimentos" 
-              icon={<Sparkles />} 
+              icon={<Sparkles className="w-7 h-7" size={28} />} 
               onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`}
             />
             <Shortcut 
               label="Profissionais" 
-              icon={<Users />} 
+              icon={<Users className="w-7 h-7" size={28} />} 
               onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/profissionais`}
             />
             <Shortcut 
               label="Calendário" 
-              icon={<CalendarDays />} 
+              icon={<CalendarDays className="w-7 h-7" size={28} />} 
               onClick={() => window.location.href = `/loja/${params.slug}/agenda`}
             />
           </section>
@@ -362,7 +399,7 @@ function StatCard({
 }) {
   return (
     <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 flex items-center gap-4">
-      <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300">
+      <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 [&_svg]:w-7 [&_svg]:h-7 [&_svg]:shrink-0">
         {icon}
       </div>
       <div>
@@ -488,7 +525,7 @@ function Shortcut({
       onClick={onClick}
       className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer hover:shadow-md hover:scale-105 transition-all"
     >
-      <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300">
+      <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 [&_svg]:w-7 [&_svg]:h-7 [&_svg]:shrink-0">
         {icon}
       </div>
       <p className="text-sm font-medium text-center">{label}</p>

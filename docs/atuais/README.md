@@ -57,6 +57,17 @@ eu ex# 📚 Documentação Atual - LWK Sistemas
 - [SETUP.md](../../SETUP.md) - Guia de instalação e configuração
 - [INICIO_RAPIDO.md](../../INICIO_RAPIDO.md) - Início rápido para desenvolvedores
 
+### Nova loja – criar tabelas (obrigatório)
+Após criar uma nova loja no sistema, é necessário rodar o comando que cria o schema e as tabelas isoladas no PostgreSQL. **Sem isso, a loja não salva dados** (agendamentos, pacientes, etc.).
+
+**Produção (Heroku):**
+```bash
+heroku run "python backend/manage.py setup_loja_schema SLUG_DA_LOJA" --app lwksistemas
+```
+Exemplo: `setup_loja_schema teste-5889`
+
+**Local:** `python backend/manage.py setup_loja_schema SLUG_DA_LOJA`
+
 ### Refatorações
 - [REFATORACAO_PROFISSIONAIS_FUNCIONARIOS.md](../../REFATORACAO_PROFISSIONAIS_FUNCIONARIOS.md)
 - [REFATORACAO_BOAS_PRATICAS.md](../../REFATORACAO_BOAS_PRATICAS.md)

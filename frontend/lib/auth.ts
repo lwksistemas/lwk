@@ -45,23 +45,23 @@ class AuthService {
       };
 
       // Definir endpoint baseado no tipo de usuário
-      switch (userType) {
-        case 'superadmin':
-          endpoint = '/auth/superadmin/login/';
+    switch (userType) {
+      case 'superadmin':
+        endpoint = '/auth/superadmin/login/';
           payload.cpf_cnpj = credentials.cpf_cnpj;
-          break;
-        case 'suporte':
-          endpoint = '/auth/suporte/login/';
+        break;
+      case 'suporte':
+        endpoint = '/auth/suporte/login/';
           payload.cpf_cnpj = credentials.cpf_cnpj;
-          break;
-        case 'loja':
+        break;
+      case 'loja':
           if (!slug) {
             throw new Error('Slug da loja é obrigatório');
           }
-          endpoint = '/auth/loja/login/';
+        endpoint = '/auth/loja/login/';
           payload.loja_slug = slug;
           payload.cpf_cnpj = credentials.cpf_cnpj;
-          break;
+        break;
         default:
           throw new Error('Tipo de usuário inválido');
       }
@@ -129,6 +129,7 @@ class AuthService {
       sessionStorage.removeItem(this.USER_TYPE_KEY);
       sessionStorage.removeItem(this.LOJA_SLUG_KEY);
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
+      localStorage.removeItem('token');
       
       // Limpar cookies também
       if (typeof document !== 'undefined') {
@@ -154,11 +155,12 @@ class AuthService {
   }
 
   /**
-   * Define o token de acesso
+   * Define o token de acesso (sessionStorage + localStorage para abas novas)
    */
   setToken(token: string): void {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(this.TOKEN_KEY, token);
+      localStorage.setItem('token', token);
     }
   }
 

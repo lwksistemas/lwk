@@ -10,6 +10,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 
 const FORMA_PAGAMENTO: Record<string, string> = {
   CASH: "Dinheiro",
@@ -65,6 +67,7 @@ export default function FinanceiroClinicaPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [professionalFilter, setProfessionalFilter] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("");
+  useClinicaBelezaDark();
 
   const loadResumo = async () => {
     try {
@@ -123,24 +126,25 @@ export default function FinanceiroClinicaPage() {
     loadPayments();
   }, [statusFilter, professionalFilter, dateFilter]);
 
+  useClinicaBelezaDark();
   const totalLista = payments.reduce((s, p) => s + (p.status === "PAID" ? Number(p.amount) : 0), 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push(`/loja/${slug}/dashboard`)}
-              className="p-2 hover:bg-white/80 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/80 dark:hover:bg-neutral-700 rounded-lg transition-colors"
               aria-label="Voltar"
             >
-              <ArrowLeft size={24} />
+              <ArrowLeft size={24} className="text-gray-800 dark:text-gray-200" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Financeiro da Clínica</h1>
-              <p className="text-sm text-gray-500">Caixa, contas a receber e comissões</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Financeiro da Clínica</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Caixa, contas a receber e comissões</p>
             </div>
           </div>
           <button
@@ -161,39 +165,39 @@ export default function FinanceiroClinicaPage() {
           <>
             {/* Cards resumo */}
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-xl shadow-md p-4 border border-green-100">
-                <div className="flex items-center gap-2 text-green-700 mb-1">
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-md p-4 border border-green-100 dark:border-green-900/50">
+                <div className="flex items-center gap-2 text-green-700 dark:text-green-400 mb-1">
                   <Wallet size={20} />
                   <span className="text-sm font-medium">Caixa hoje</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   R$ {(resumo?.caixa_diario ?? 0).toFixed(2)}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-4 border border-purple-100">
-                <div className="flex items-center gap-2 text-purple-700 mb-1">
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-md p-4 border border-purple-100 dark:border-purple-900/50">
+                <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400 mb-1">
                   <DollarSign size={20} />
                   <span className="text-sm font-medium">Total mês</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   R$ {(resumo?.total_mes ?? 0).toFixed(2)}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-4 border border-amber-100">
-                <div className="flex items-center gap-2 text-amber-700 mb-1">
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-md p-4 border border-amber-100 dark:border-amber-900/50">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-1">
                   <Calendar size={20} />
                   <span className="text-sm font-medium">A receber</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   R$ {(resumo?.contas_a_receber ?? 0).toFixed(2)}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-4 border border-blue-100">
-                <div className="flex items-center gap-2 text-blue-700 mb-1">
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-md p-4 border border-blue-100 dark:border-blue-900/50">
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 mb-1">
                   <TrendingUp size={20} />
                   <span className="text-sm font-medium">Comissão mês</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   R$ {(resumo?.comissao_mes ?? 0).toFixed(2)}
                 </p>
               </div>
@@ -205,13 +209,13 @@ export default function FinanceiroClinicaPage() {
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm"
                 title="Filtrar por data do pagamento"
               />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm"
               >
                 <option value="">Todos os status</option>
                 <option value="PAID">Pago</option>
@@ -221,7 +225,7 @@ export default function FinanceiroClinicaPage() {
               <select
                 value={professionalFilter}
                 onChange={(e) => setProfessionalFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm"
               >
                 <option value="">Todos os profissionais</option>
                 {professionals.map((p) => (
@@ -233,25 +237,25 @@ export default function FinanceiroClinicaPage() {
             </div>
 
             {/* Tabela */}
-            <section className="bg-white rounded-xl shadow-md overflow-hidden">
+            <section className="bg-white dark:bg-neutral-800 rounded-xl shadow-md overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-200 dark:border-neutral-600">
                     <tr>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Data</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Paciente</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Profissional</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Procedimento</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700">Valor</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Pagamento</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700">Comissão</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Data</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Paciente</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Profissional</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Procedimento</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Valor</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Pagamento</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Comissão</th>
                     </tr>
                   </thead>
                   <tbody>
                     {payments.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-gray-500">
+                        <td colSpan={8} className="py-8 text-center text-gray-500 dark:text-gray-400">
                           Nenhum lançamento encontrado
                         </td>
                       </tr>
@@ -259,9 +263,9 @@ export default function FinanceiroClinicaPage() {
                       payments.map((p) => (
                         <tr
                           key={p.id}
-                          className="border-b border-gray-100 hover:bg-gray-50/50"
+                          className="border-b border-gray-100 dark:border-neutral-700 hover:bg-gray-50/50 dark:hover:bg-neutral-700/50"
                         >
-                          <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                          <td className="py-3 px-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                             {p.data_atendimento
                               ? new Date(p.data_atendimento).toLocaleDateString("pt-BR", {
                                   day: "2-digit",
@@ -272,29 +276,29 @@ export default function FinanceiroClinicaPage() {
                                 })
                               : "—"}
                           </td>
-                          <td className="py-3 px-4">{p.paciente_nome || "—"}</td>
-                          <td className="py-3 px-4">{p.profissional_nome || "—"}</td>
-                          <td className="py-3 px-4">{p.procedimento_nome || "—"}</td>
-                          <td className="py-3 px-4 text-right font-medium">
+                          <td className="py-3 px-4 text-gray-800 dark:text-gray-200">{p.paciente_nome || "—"}</td>
+                          <td className="py-3 px-4 text-gray-800 dark:text-gray-200">{p.profissional_nome || "—"}</td>
+                          <td className="py-3 px-4 text-gray-800 dark:text-gray-200">{p.procedimento_nome || "—"}</td>
+                          <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-gray-100">
                             R$ {Number(p.amount).toFixed(2)}
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
                             {FORMA_PAGAMENTO[p.payment_method] || p.payment_method}
                           </td>
                           <td className="py-3 px-4">
                             <span
                               className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                                 p.status === "PAID"
-                                  ? "bg-green-100 text-green-800"
+                                  ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300"
                                   : p.status === "PENDING"
-                                    ? "bg-amber-100 text-amber-800"
-                                    : "bg-gray-100 text-gray-600"
+                                    ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300"
+                                    : "bg-gray-100 dark:bg-neutral-600 text-gray-600 dark:text-gray-300"
                               }`}
                             >
                               {STATUS_LABEL[p.status] || p.status}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right text-gray-600">
+                          <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">
                             R$ {Number(p.comissao_valor || 0).toFixed(2)}
                             {p.comissao_percentual ? ` (${p.comissao_percentual}%)` : ""}
                           </td>
@@ -307,7 +311,7 @@ export default function FinanceiroClinicaPage() {
             </section>
 
             {payments.length > 0 && (
-              <p className="mt-3 text-sm text-gray-500">
+              <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
                 Total na lista (pagos): R$ {totalLista.toFixed(2)} • {payments.length} lançamento(s)
               </p>
             )}

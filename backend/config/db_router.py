@@ -16,15 +16,16 @@ class MultiTenantRouter:
     # Apps que usam o banco de suporte
     suporte_apps = {'suporte'}
     
-    # Apps que usam bancos de loja
+    # Apps que usam bancos de loja (schema isolado por loja)
     loja_apps = {
-        'stores', 
-        'products', 
-        'clinica_estetica', 
-        'cabeleireiro', 
-        'crm_vendas', 
-        'ecommerce', 
-        'restaurante', 
+        'stores',
+        'products',
+        'clinica_estetica',
+        'clinica_beleza',  # Clínica da Beleza - tabelas isoladas por schema
+        'cabeleireiro',
+        'crm_vendas',
+        'ecommerce',
+        'restaurante',
         'servicos'
     }
     

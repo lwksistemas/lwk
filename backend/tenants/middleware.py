@@ -297,6 +297,15 @@ class TenantMiddleware:
                 if is_funcionario_restaurante:
                     return True
                 
+                # Verificar se é profissional/usuário da Clínica da Beleza (ProfissionalUsuario)
+                from superadmin.models import ProfissionalUsuario
+                is_profissional_loja = ProfissionalUsuario.objects.filter(
+                    user=request.user,
+                    loja=loja
+                ).exists()
+                if is_profissional_loja:
+                    return True
+                
                 # Verificar se é funcionário (Serviços)
                 # Nota: Serviços não usa LojaIsolationMixin, então não tem loja_id
                 # Vamos pular essa verificação por enquanto

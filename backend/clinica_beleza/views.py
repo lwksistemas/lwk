@@ -515,11 +515,14 @@ class AgendaCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
         serializer = AppointmentCreateSerializer(data=request.data)
-        if serializer.is_valid():
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
             data = serializer.validated_data
             date_start = data['date']
-            # Fim = início + duração do procedimento
             from datetime import timedelta
             date_end = date_start + timedelta(minutes=data['procedure'].duration)
             professional_id = data['professional'].id
@@ -534,7 +537,12 @@ class AgendaCreateView(APIView):
             appointment = serializer.save()
             event_serializer = AgendaEventSerializer(appointment)
             return Response(event_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception("Erro ao criar agendamento: %s", e)
+            return Response(
+                {'error': 'Erro ao salvar agendamento. Verifique se a loja está configurada e tente novamente.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class AgendaDeleteView(APIView):

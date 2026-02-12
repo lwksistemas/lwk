@@ -28,8 +28,8 @@ class Command(BaseCommand):
             self.stdout.write(f"\n{'='*60}")
             self.stdout.write(f"Loja: {loja.nome} (ID: {loja.id})")
             self.stdout.write(f"Database: {loja.database_name}")
-            
-            schema_name = f"loja_{loja.id}"
+            # Schema no PostgreSQL = database_name (ex: loja_teste_5889), alinhado ao TenantMiddleware
+            schema_name = loja.database_name.replace('-', '_')
             
             # Adicionar banco às configurações se não existir
             if loja.database_name not in settings.DATABASES:
@@ -56,6 +56,7 @@ class Command(BaseCommand):
             # Apps específicos por tipo de loja
             tipo_apps = {
                 'clinica-de-estetica': ['clinica_estetica'],
+                'clinica-da-beleza': ['clinica_beleza'],
                 'crm-vendas': ['crm_vendas'],
                 'e-commerce': ['ecommerce'],
                 'restaurante': ['restaurante'],

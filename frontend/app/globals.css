@@ -122,6 +122,16 @@
   animation: glow 2s ease-in-out infinite;
 }
 
+/* Ícones do dashboard - animação suave contínua */
+@keyframes icon-float {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.08) translateY(-2px); }
+}
+
+.animate-icon-float {
+  animation: icon-float 2.5s ease-in-out infinite;
+}
+
 /* Skeleton shimmer */
 @keyframes shimmer {
   0% { background-position: -200% 0; }

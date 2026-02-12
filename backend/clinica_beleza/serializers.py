@@ -41,6 +41,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
             from django.utils.crypto import get_random_string
             from django.core.mail import send_mail
             from django.conf import settings
+            from django.db import IntegrityError
             from superadmin.models import Loja, ProfissionalUsuario
             from tenants.middleware import get_current_loja_id
 
@@ -53,10 +54,22 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                     raise serializers.ValidationError({'loja': 'Contexto de loja não encontrado.'})
 
                 if User.objects.using(default_db).filter(username=email).exists():
+                    # Verificar se já é profissional desta loja (mesmo e-mail = mesmo user)
+                    existing = ProfissionalUsuario.objects.using(default_db).filter(
+                        user__username=email,
+                        loja_id=loja_id,
+                    ).exists()
+                    if existing:
+                        professional.delete()
+                        raise serializers.ValidationError({
+                            'email': 'Este e-mail já possui acesso a esta loja. Use outro ou cadastre sem "Criar acesso".'
+                        })
                     professional.delete()
                     raise serializers.ValidationError({
-                        'email': 'Já existe um usuário com este e-mail. Use outro ou não marque "Criar acesso".'
+                        'email': 'Já existe um usuário com este e-mail no sistema. Use outro ou não marque "Criar acesso".'
                     })
+
+                loja = Loja.objects.using(default_db).get(id=loja_id)
 
                 senha_provisoria = get_random_string(8)
                 user = User.objects.using(default_db).create_user(
@@ -65,7 +78,6 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                     password=senha_provisoria,
                     first_name=name or '',
                 )
-                loja = Loja.objects.using(default_db).get(id=loja_id)
                 ProfissionalUsuario.objects.using(default_db).create(
                     user=user,
                     loja=loja,
@@ -96,6 +108,18 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                     logger.warning('Envio de e-mail ao criar profissional falhou: %s', mail_err)
             except serializers.ValidationError:
                 raise
+            except Loja.DoesNotExist:
+                professional.delete()
+                logger.warning('Loja id=%s não encontrada ao criar acesso', loja_id)
+                raise serializers.ValidationError({
+                    'loja': 'Loja não encontrada. Tente novamente ou cadastre sem "Criar acesso".'
+                })
+            except IntegrityError as e:
+                professional.delete()
+                logger.warning('IntegrityError ao criar ProfissionalUsuario: %s', e)
+                raise serializers.ValidationError({
+                    'email': 'Este e-mail já possui acesso a esta loja ou há conflito de dados. Cadastre sem "Criar acesso" ou use outro e-mail.'
+                })
             except Exception as e:
                 professional.delete()
                 logger.exception('Erro ao criar acesso do profissional: %s', e)

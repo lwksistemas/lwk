@@ -8,7 +8,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Image from "next/image";
 import {
   CalendarDays,
   Users,
@@ -25,6 +24,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { LojaInfo } from '@/types/dashboard';
+import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
 
 interface DashboardStats {
   appointments_today: number;
@@ -52,8 +52,9 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useClinicaBelezaDark();
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -79,12 +80,10 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
   if (loading) {
     return (
-      <div className={darkMode ? "dark" : ""}>
-        <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:bg-gradient-to-br dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 p-8 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-300">Carregando dashboard...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:bg-gradient-to-br dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 p-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Carregando dashboard...</p>
         </div>
       </div>
     );
@@ -110,8 +109,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
   };
 
   return (
-    <div className={darkMode ? "dark" : ""}>
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:bg-gradient-to-br dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:bg-gradient-to-br dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100">
         
         {/* HEADER */}
         <header className="flex items-center justify-between p-4 shadow bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl sticky top-0 z-40">
@@ -126,26 +124,38 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
             <div className="w-10 h-10 rounded-full bg-pink-200 dark:bg-pink-900 flex items-center justify-center text-xl">
               💆‍♀️
             </div>
-            <h1 className="text-lg font-semibold hidden sm:block">Clínica da Beleza</h1>
+            <h1 className="text-lg font-semibold hidden sm:block">{loja.nome}</h1>
           </div>
 
           <div className="flex items-center gap-2 relative">
-            <button 
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-              title={darkMode ? "Modo Claro" : "Modo Escuro"}
-            >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-            <button 
-              className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-              title="Notificações"
-            >
-              <Bell className="w-5 h-5" />
-            </button>
+            {/* Notificações - dropdown ao clicar */}
             <div className="relative">
               <button 
-                onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
+                onClick={() => { setNotificationsOpen(!notificationsOpen); setHeaderMenuOpen(false); }}
+                className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors relative"
+                title="Notificações"
+              >
+                <Bell className="w-5 h-5" />
+              </button>
+              {notificationsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-72 max-h-80 bg-white dark:bg-neutral-800 rounded-xl shadow-lg border dark:border-neutral-700 py-2 animate-scale-in overflow-hidden flex flex-col">
+                    <div className="px-4 py-2 border-b dark:border-neutral-700">
+                      <h3 className="font-semibold text-sm">Notificações</h3>
+                    </div>
+                    <div className="overflow-y-auto flex-1 p-4">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
+                        Nenhuma notificação no momento.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="relative">
+              <button 
+                onClick={() => { setHeaderMenuOpen(!headerMenuOpen); setNotificationsOpen(false); }}
                 className="flex items-center gap-1 p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
                 title="Menu"
               >
@@ -170,8 +180,8 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                       onClick={() => { setDarkMode(!darkMode); setHeaderMenuOpen(false); }}
                       className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-neutral-700 text-left"
                     >
-                      <Moon className="w-4 h-4 text-purple-600" />
-                      Modo Escuro
+                      {darkMode ? <Sun className="w-4 h-4 text-purple-600" /> : <Moon className="w-4 h-4 text-purple-600" />}
+                      {darkMode ? "Modo Claro" : "Modo Escuro"}
                     </button>
                     <button
                       onClick={() => { alert('Página de Configurações em desenvolvimento'); setHeaderMenuOpen(false); }}
@@ -248,7 +258,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           {/* BEM-VINDA */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold">
-              Bem-vinda à Clínica da Beleza
+              Bem-vinda à {loja.nome}
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Resumo da clínica hoje
@@ -256,7 +266,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           </div>
 
           {/* CARDS DE ESTATÍSTICAS - GRID RESPONSIVO */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <StatCard
               icon={<CalendarDays className="w-7 h-7" size={28} />}
               title="Agendamentos"
@@ -328,7 +338,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           </section>
 
           {/* ATALHOS - GRID RESPONSIVO (Financeiro só no menu lateral) */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Shortcut 
               label="Pacientes" 
               icon={<Users className="w-7 h-7" size={28} />} 
@@ -352,7 +362,6 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           </section>
         </main>
       </div>
-    </div>
   );
 }
 
@@ -386,6 +395,25 @@ function SidebarItem({
   );
 }
 
+/** Avatar com iniciais (evita 400 do next/image com domínios externos) */
+function AvatarPlaceholder({ name, size = 32 }: { name: string; size?: number }) {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .map((s) => s[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+  return (
+    <div
+      className="rounded-full bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-200 flex items-center justify-center font-semibold shrink-0"
+      style={{ width: size, height: size, fontSize: Math.max(10, size * 0.4) }}
+    >
+      {initials || "?"}
+    </div>
+  );
+}
+
 function StatCard({
   icon,
   title,
@@ -398,8 +426,8 @@ function StatCard({
   subtitle: string;
 }) {
   return (
-    <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 flex items-center gap-4">
-      <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 [&_svg]:w-7 [&_svg]:h-7 [&_svg]:shrink-0">
+    <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 flex items-center gap-4 group">
+      <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 [&_svg]:w-7 [&_svg]:h-7 [&_svg]:shrink-0 animate-icon-float group-hover:scale-110 transition-transform duration-300">
         {icon}
       </div>
       <div>
@@ -439,13 +467,7 @@ function AppointmentCard({
     <div className="bg-white dark:bg-neutral-800 p-4 rounded-xl shadow flex justify-between items-start">
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-2">
-          <Image 
-            src="https://i.pravatar.cc/32" 
-            alt="" 
-            width={32} 
-            height={32} 
-            className="rounded-full" 
-          />
+          <AvatarPlaceholder name={patient_name} size={32} />
           <div>
             <p className="font-semibold text-sm">{patient_name}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{procedure_name}</p>
@@ -491,13 +513,7 @@ function TableRow({
     <tr className="border-b dark:border-neutral-700 last:border-none">
       <td className="py-4 font-medium">{time}</td>
       <td className="py-4 flex items-center gap-2">
-        <Image 
-          src="https://i.pravatar.cc/32" 
-          alt="" 
-          width={32} 
-          height={32} 
-          className="rounded-full" 
-        />
+        <AvatarPlaceholder name={patient_name} size={32} />
         {patient_name}
       </td>
       <td className="py-4">{procedure_name}</td>
@@ -523,9 +539,9 @@ function Shortcut({
   return (
     <div 
       onClick={onClick}
-      className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer hover:shadow-md hover:scale-105 transition-all"
+      className="group bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer hover:shadow-md hover:scale-105 transition-all"
     >
-      <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 [&_svg]:w-7 [&_svg]:h-7 [&_svg]:shrink-0">
+      <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 [&_svg]:w-7 [&_svg]:h-7 [&_svg]:shrink-0 animate-icon-float group-hover:scale-110 transition-transform duration-300">
         {icon}
       </div>
       <p className="text-sm font-medium text-center">{label}</p>

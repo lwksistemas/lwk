@@ -18,9 +18,11 @@ export function getApiBaseUrl(): string {
 export function getClinicaBelezaHeaders(): HeadersInit {
   const token = getAuthToken();
   const headers: HeadersInit = {
-    Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
+  if (token) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  }
   if (typeof window !== "undefined") {
     let lojaId = sessionStorage.getItem("current_loja_id");
     let lojaSlug = sessionStorage.getItem("loja_slug");

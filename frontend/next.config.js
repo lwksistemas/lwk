@@ -12,11 +12,14 @@ const nextConfig = {
   // Otimizações de performance
   compress: true,
   
-  // Otimizar imagens
+  // Otimizar imagens (remotePatterns para Next 14+)
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'i.pravatar.cc'],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'i.pravatar.cc', pathname: '/**' },
+    ],
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60,  // ✅ OTIMIZAÇÃO: Cache de imagens
+    minimumCacheTTL: 60,
   },
   
   // Otimizar compilação

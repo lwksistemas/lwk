@@ -14,20 +14,6 @@ export default function SuperAdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
-  useEffect(() => {
-    const userType = authService.getUserType();
-    const lojaSlug = authService.getLojaSlug();
-    
-    if (userType && userType !== 'superadmin') {
-      
-      if (userType === 'suporte') {
-        router.push('/suporte/dashboard');
-      } else if (userType === 'loja' && lojaSlug) {
-        router.push(`/loja/${lojaSlug}/dashboard`);
-      }
-    }
-  }, [router]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

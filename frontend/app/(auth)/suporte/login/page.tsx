@@ -14,22 +14,6 @@ export default function SuporteLoginPage() {
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
-  // Verificar se usuário já está logado como outro tipo
-  useEffect(() => {
-    const userType = authService.getUserType();
-    const lojaSlug = authService.getLojaSlug();
-    
-    if (userType && userType !== 'suporte') {
-      
-      // Redirecionar para o dashboard correto
-      if (userType === 'superadmin') {
-        router.push('/superadmin/dashboard');
-      } else if (userType === 'loja' && lojaSlug) {
-        router.push(`/loja/${lojaSlug}/dashboard`);
-      }
-    }
-  }, [router]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

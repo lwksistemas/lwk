@@ -30,13 +30,12 @@ export function middleware(request: NextRequest) {
   // GRUPO 1: SUPER ADMIN
   // ========================================
   if (pathname.startsWith('/superadmin')) {
+    // Permitir acesso à página de login sempre (sem verificar cookies)
     if (pathname === '/superadmin/login') {
-      if (userType && userType !== 'superadmin') {
-        return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
-      }
       return NextResponse.next();
     }
     
+    // Para outras páginas, verificar se é superadmin
     if (userType && userType !== 'superadmin') {
       return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
     }
@@ -48,13 +47,12 @@ export function middleware(request: NextRequest) {
   // GRUPO 2: SUPORTE
   // ========================================
   if (pathname.startsWith('/suporte')) {
+    // Permitir acesso à página de login sempre (sem verificar cookies)
     if (pathname === '/suporte/login') {
-      if (userType && userType !== 'suporte') {
-        return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
-      }
       return NextResponse.next();
     }
     
+    // Para outras páginas, verificar se é suporte
     if (userType && userType !== 'suporte') {
       return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
     }
@@ -69,11 +67,8 @@ export function middleware(request: NextRequest) {
     const slugMatch = pathname.match(/^\/loja\/([^\/]+)/);
     const requestedSlug = slugMatch ? slugMatch[1] : null;
     
-    // Rota de login da loja
+    // Permitir acesso à página de login sempre (sem verificar cookies)
     if (pathname.match(/^\/loja\/[^\/]+\/login$/)) {
-      if (userType && userType !== 'loja') {
-        return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
-      }
       return NextResponse.next();
     }
     
@@ -87,10 +82,12 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/', request.url));
     }
     
+    // Para outras páginas de loja, verificar se é loja
     if (userType && userType !== 'loja') {
       return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
     }
     
+    // Se for loja mas tentando acessar outra loja
     if (userType === 'loja' && lojaSlug && requestedSlug && requestedSlug !== lojaSlug) {
       return NextResponse.redirect(new URL(`/loja/${lojaSlug}/dashboard`, request.url));
     }

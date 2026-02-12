@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     'restaurante',  # App de restaurante
     'servicos',  # App de serviços
     'cabeleireiro.apps.CabeleireiroConfig',  # App de cabeleireiro/salão de beleza
-    'clinica_beleza.apps.ClinicaBelezaConfig',  # App de clínica da beleza
+    'clinica_beleza',  # App de clínica da beleza
 ]
 
 MIDDLEWARE = [

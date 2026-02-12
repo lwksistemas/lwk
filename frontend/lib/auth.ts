@@ -1,6 +1,7 @@
 /**
  * Serviço de Autenticação
  * Sistema multi-tenant com suporte a SuperAdmin, Suporte e Lojas
+ * Versão: 2.0 - Corrigido para usar sessionStorage e cookies
  */
 
 import apiClient from './api-client';

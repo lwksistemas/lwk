@@ -25,6 +25,8 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     )
 
     def create(self, validated_data):
+        import logging
+        logger = logging.getLogger(__name__)
         criar_acesso = validated_data.pop('criar_acesso', False)
         perfil = validated_data.pop('perfil', 'profissional')
         if perfil not in ('profissional', 'recepcao'):
@@ -43,54 +45,63 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
             from tenants.middleware import get_current_loja_id
 
             User = get_user_model()
-            # User/Loja/ProfissionalUsuario ficam no schema public (default)
             default_db = 'default'
-            loja_id = get_current_loja_id()
-            if not loja_id:
-                raise serializers.ValidationError({'loja': 'Contexto de loja não encontrado.'})
-
-            if User.objects.using(default_db).filter(username=email).exists():
-                professional.delete()
-                raise serializers.ValidationError({
-                    'email': 'Já existe um usuário com este e-mail. Use outro ou não marque "Criar acesso".'
-                })
-
-            senha_provisoria = get_random_string(8)
-            user = User.objects.using(default_db).create_user(
-                username=email,
-                email=email,
-                password=senha_provisoria,
-                first_name=name or '',
-            )
-            loja = Loja.objects.using(default_db).get(id=loja_id)
-            ProfissionalUsuario.objects.using(default_db).create(
-                user=user,
-                loja=loja,
-                professional_id=professional.id,
-                perfil=perfil,
-                precisa_trocar_senha=True,
-            )
-
-            site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
-            login_url = f"{site_url}/loja/{loja.slug}/login"
-            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
             try:
-                send_mail(
-                    subject='Acesso ao sistema - Clínica da Beleza',
-                    message=(
-                        f"Olá, {name or 'Profissional'}!\n\n"
-                        f"Seu acesso ao sistema foi criado.\n\n"
-                        f"Login: {email}\n"
-                        f"Senha provisória: {senha_provisoria}\n\n"
-                        f"Acesse: {login_url}\n\n"
-                        f"Por segurança, altere sua senha no primeiro acesso."
-                    ),
-                    from_email=from_email,
-                    recipient_list=[email],
-                    fail_silently=True,
+                loja_id = get_current_loja_id()
+                if not loja_id:
+                    professional.delete()
+                    raise serializers.ValidationError({'loja': 'Contexto de loja não encontrado.'})
+
+                if User.objects.using(default_db).filter(username=email).exists():
+                    professional.delete()
+                    raise serializers.ValidationError({
+                        'email': 'Já existe um usuário com este e-mail. Use outro ou não marque "Criar acesso".'
+                    })
+
+                senha_provisoria = get_random_string(8)
+                user = User.objects.using(default_db).create_user(
+                    username=email,
+                    email=email,
+                    password=senha_provisoria,
+                    first_name=name or '',
                 )
-            except Exception:
-                pass  # não falha a criação se o e-mail falhar
+                loja = Loja.objects.using(default_db).get(id=loja_id)
+                ProfissionalUsuario.objects.using(default_db).create(
+                    user=user,
+                    loja=loja,
+                    professional_id=professional.id,
+                    perfil=perfil,
+                    precisa_trocar_senha=True,
+                )
+
+                site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
+                login_url = f"{site_url}/loja/{loja.slug}/login"
+                from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
+                try:
+                    send_mail(
+                        subject='Acesso ao sistema - Clínica da Beleza',
+                        message=(
+                            f"Olá, {name or 'Profissional'}!\n\n"
+                            f"Seu acesso ao sistema foi criado.\n\n"
+                            f"Login: {email}\n"
+                            f"Senha provisória: {senha_provisoria}\n\n"
+                            f"Acesse: {login_url}\n\n"
+                            f"Por segurança, altere sua senha no primeiro acesso."
+                        ),
+                        from_email=from_email,
+                        recipient_list=[email],
+                        fail_silently=True,
+                    )
+                except Exception as mail_err:
+                    logger.warning('Envio de e-mail ao criar profissional falhou: %s', mail_err)
+            except serializers.ValidationError:
+                raise
+            except Exception as e:
+                professional.delete()
+                logger.exception('Erro ao criar acesso do profissional: %s', e)
+                raise serializers.ValidationError({
+                    'detail': 'Erro ao criar acesso. Tente novamente ou cadastre sem "Criar acesso".'
+                })
 
         return professional
 

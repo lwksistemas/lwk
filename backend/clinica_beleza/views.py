@@ -10,7 +10,8 @@ from django.db.models import Count, Q, Sum
 from datetime import timedelta
 from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario
 from .serializers import (
-    PatientSerializer, ProfessionalSerializer, ProcedureSerializer,
+    PatientSerializer, ProfessionalSerializer, ProfessionalCreateWithUserSerializer,
+    ProcedureSerializer,
     AppointmentListSerializer, AppointmentDetailSerializer, AppointmentCreateSerializer,
     PaymentSerializer, AgendaEventSerializer, BloqueioHorarioSerializer
 )
@@ -208,6 +209,16 @@ class ProfessionalListView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        criar_acesso = request.data.get('criar_acesso') and request.data.get('email')
+        if criar_acesso:
+            serializer = ProfessionalCreateWithUserSerializer(data=request.data)
+            if serializer.is_valid():
+                professional = serializer.save()
+                return Response(
+                    ProfessionalSerializer(professional).data,
+                    status=status.HTTP_201_CREATED,
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         serializer = ProfessionalSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()

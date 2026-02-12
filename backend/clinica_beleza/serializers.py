@@ -5,6 +5,84 @@ from rest_framework import serializers
 from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario
 
 
+class ProfessionalCreateWithUserSerializer(serializers.Serializer):
+    """
+    Cria profissional e usuário de acesso (senha provisória enviada por e-mail).
+    Campos: name, email (obrigatório para criar acesso), specialty, phone (opcional), criar_acesso (bool).
+    """
+    name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    specialty = serializers.CharField(max_length=150)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    criar_acesso = serializers.BooleanField(default=False, write_only=True)
+
+    def create(self, validated_data):
+        criar_acesso = validated_data.pop('criar_acesso', False)
+        email = validated_data.get('email')
+        name = validated_data.get('name')
+
+        professional = Professional.objects.create(**validated_data)
+
+        if criar_acesso:
+            from django.contrib.auth import get_user_model
+            from django.utils.crypto import get_random_string
+            from django.core.mail import send_mail
+            from django.conf import settings
+            from superadmin.models import Loja, ProfissionalUsuario
+            from tenants.middleware import get_current_loja_id
+
+            User = get_user_model()
+            # User/Loja/ProfissionalUsuario ficam no schema public (default)
+            default_db = 'default'
+            loja_id = get_current_loja_id()
+            if not loja_id:
+                raise serializers.ValidationError({'loja': 'Contexto de loja não encontrado.'})
+
+            if User.objects.using(default_db).filter(username=email).exists():
+                professional.delete()
+                raise serializers.ValidationError({
+                    'email': 'Já existe um usuário com este e-mail. Use outro ou não marque "Criar acesso".'
+                })
+
+            senha_provisoria = get_random_string(8)
+            user = User.objects.using(default_db).create_user(
+                username=email,
+                email=email,
+                password=senha_provisoria,
+                first_name=name or '',
+            )
+            loja = Loja.objects.using(default_db).get(id=loja_id)
+            ProfissionalUsuario.objects.using(default_db).create(
+                user=user,
+                loja=loja,
+                professional_id=professional.id,
+                precisa_trocar_senha=True,
+            )
+
+            site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
+            login_url = f"{site_url}/loja/{loja.slug}/login"
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+            try:
+                send_mail(
+                    subject='Acesso ao sistema - Clínica da Beleza',
+                    message=(
+                        f"Olá, {name or 'Profissional'}!\n\n"
+                        f"Seu acesso ao sistema foi criado.\n\n"
+                        f"Login: {email}\n"
+                        f"Senha provisória: {senha_provisoria}\n\n"
+                        f"Acesse: {login_url}\n\n"
+                        f"Por segurança, altere sua senha no primeiro acesso."
+                    ),
+                    from_email=from_email,
+                    recipient_list=[email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass  # não falha a criação se o e-mail falhar
+
+        return professional
+
+
 class PatientSerializer(serializers.ModelSerializer):
     """Serializer para Pacientes"""
     class Meta:

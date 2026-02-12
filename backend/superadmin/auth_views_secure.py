@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from superadmin.session_manager import SessionManager
-from superadmin.models import Loja, UsuarioSistema
+from superadmin.models import Loja, UsuarioSistema, ProfissionalUsuario
 import logging
 
 logger = logging.getLogger(__name__)
@@ -90,8 +90,8 @@ class SecureLoginView(APIView):
             except UsuarioSistema.DoesNotExist:
                 pass
         
-        # Identificar tipo real do usuário
-        real_user_type = self._get_user_type(user)
+        # Identificar tipo real do usuário (para loja, considerar também profissional)
+        real_user_type = self._get_user_type(user, loja_slug=loja_slug)
         
         # Validar se o tipo corresponde ao endpoint
         if user_type and real_user_type != user_type:
@@ -106,15 +106,20 @@ class SecureLoginView(APIView):
                 'endpoint_correto': self._get_correct_endpoint(real_user_type)
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Se for loja, validar slug
+        # Se for loja, validar slug e obter loja (owner ou profissional)
         if real_user_type == 'loja':
             loja = Loja.objects.filter(owner=user, is_active=True).first()
+            if not loja and loja_slug:
+                pu = ProfissionalUsuario.objects.filter(
+                    user=user, loja__slug=loja_slug, loja__is_active=True
+                ).select_related('loja').first()
+                if pu:
+                    loja = pu.loja
             if not loja:
                 return Response({
                     'error': 'Usuário não possui loja ativa',
                     'code': 'NO_ACTIVE_STORE'
                 }, status=status.HTTP_403_FORBIDDEN)
-            
             if loja_slug and loja.slug != loja_slug:
                 logger.critical(f"🚨 VIOLAÇÃO: Usuário {username} tentou login na loja errada")
                 return Response({
@@ -171,17 +176,24 @@ class SecureLoginView(APIView):
         precisa_trocar_senha = False
         if real_user_type == 'loja':
             loja = Loja.objects.filter(owner=user, is_active=True).first()
+            if not loja and loja_slug:
+                pu = ProfissionalUsuario.objects.filter(
+                    user=user, loja__slug=loja_slug, loja__is_active=True
+                ).select_related('loja').first()
+                if pu:
+                    loja = pu.loja
+                    response_data['precisa_trocar_senha'] = pu.precisa_trocar_senha
+                    response_data['professional_id'] = pu.professional_id
+                    response_data['is_professional'] = True
             if loja:
-                # Verificar se tem senha provisória e não foi alterada
-                precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
-                
-                # LOG DETALHADO para debug
-                logger.info(f"🔍 DEBUG SENHA - Loja: {loja.slug}")
-                logger.info(f"   - senha_provisoria existe: {bool(loja.senha_provisoria)}")
-                logger.info(f"   - senha_provisoria valor: {loja.senha_provisoria[:3] + '***' if loja.senha_provisoria else 'VAZIO'}")
-                logger.info(f"   - senha_foi_alterada: {loja.senha_foi_alterada}")
-                logger.info(f"   - precisa_trocar_senha: {precisa_trocar_senha}")
-                
+                if not response_data.get('is_professional'):
+                    # Owner: verificar senha provisória da loja
+                    precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
+                    logger.info(f"🔍 DEBUG SENHA - Loja: {loja.slug}")
+                    logger.info(f"   - senha_provisoria existe: {bool(loja.senha_provisoria)}")
+                    logger.info(f"   - senha_provisoria valor: {loja.senha_provisoria[:3] + '***' if loja.senha_provisoria else 'VAZIO'}")
+                    logger.info(f"   - senha_foi_alterada: {loja.senha_foi_alterada}")
+                    logger.info(f"   - precisa_trocar_senha: {precisa_trocar_senha}")
                 response_data['loja'] = {
                     'id': loja.id,
                     'slug': loja.slug,
@@ -189,7 +201,9 @@ class SecureLoginView(APIView):
                     'tipo_loja': loja.tipo_loja.nome if loja.tipo_loja else None
                 }
                 response_data['loja_slug'] = loja.slug
-                response_data['precisa_trocar_senha'] = precisa_trocar_senha
+                if 'precisa_trocar_senha' not in response_data:
+                    precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
+                    response_data['precisa_trocar_senha'] = precisa_trocar_senha
         elif real_user_type == 'suporte':
             # Verificar senha provisória do suporte
             try:
@@ -225,8 +239,8 @@ class SecureLoginView(APIView):
         
         return Response(response_data, status=status.HTTP_200_OK)
     
-    def _get_user_type(self, user):
-        """Identifica o tipo de usuário"""
+    def _get_user_type(self, user, loja_slug=None):
+        """Identifica o tipo de usuário. Para login loja, loja_slug permite reconhecer profissional."""
         if user.is_superuser:
             return 'superadmin'
         
@@ -234,14 +248,23 @@ class SecureLoginView(APIView):
             usuario_sistema = UsuarioSistema.objects.filter(user=user, is_active=True).first()
             if usuario_sistema:
                 return usuario_sistema.tipo
-        except:
+        except Exception:
             pass
         
         try:
             if Loja.objects.filter(owner=user, is_active=True).exists():
                 return 'loja'
-        except:
+        except Exception:
             pass
+        
+        if loja_slug:
+            try:
+                if ProfissionalUsuario.objects.filter(
+                    user=user, loja__slug=loja_slug, loja__is_active=True
+                ).exists():
+                    return 'loja'
+            except Exception:
+                pass
         
         return 'unknown'
     

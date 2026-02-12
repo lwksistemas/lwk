@@ -31,6 +31,7 @@ export default function ProfissionaisPage() {
     specialty: "",
     phone: "",
     email: "",
+    criar_acesso: false,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -55,7 +56,7 @@ export default function ProfissionaisPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", specialty: "", phone: "", email: "" });
+    setForm({ name: "", specialty: "", phone: "", email: "", criar_acesso: false });
     setError("");
     setShowModal(true);
   };
@@ -67,6 +68,7 @@ export default function ProfissionaisPage() {
       specialty: p.specialty || "",
       phone: p.phone || "",
       email: p.email || "",
+      criar_acesso: false,
     });
     setError("");
     setShowModal(true);
@@ -81,20 +83,28 @@ export default function ProfissionaisPage() {
       setError("Especialidade é obrigatória.");
       return;
     }
+    const criarAcesso = Boolean(form.criar_acesso);
+    if (criarAcesso && !form.email.trim()) {
+      setError("E-mail é obrigatório para criar acesso e enviar senha.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
-      const body = {
+      const body: Record<string, unknown> = {
         name: form.name.trim(),
         specialty: form.specialty.trim(),
         phone: form.phone.trim() || null,
         email: form.email.trim() || null,
         active: true,
       };
+      if (!editing && criarAcesso) {
+        body.criar_acesso = true;
+      }
       if (editing) {
         const res = await clinicaBelezaFetch(`/professionals/${editing.id}/`, {
           method: "PUT",
-          body: JSON.stringify(body),
+          body: JSON.stringify({ ...body, criar_acesso: undefined }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -107,11 +117,14 @@ export default function ProfissionaisPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.name?.[0] || err.detail || "Erro ao cadastrar");
+          throw new Error(err.email?.[0] || err.name?.[0] || err.detail || "Erro ao cadastrar");
         }
       }
       setShowModal(false);
       load();
+      if (!editing && criarAcesso) {
+        alert("Profissional criado! A senha foi enviada por e-mail.");
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erro ao salvar");
     } finally {
@@ -257,6 +270,19 @@ export default function ProfissionaisPage() {
                   placeholder="email@exemplo.com"
                 />
               </div>
+              {!editing && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.criar_acesso}
+                    onChange={(e) => setForm((f) => ({ ...f, criar_acesso: e.target.checked }))}
+                    className="rounded border-gray-300 text-purple-600"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Criar acesso e enviar senha por e-mail
+                  </span>
+                </label>
+              )}
             </div>
             <div className="flex gap-2 p-4 border-t">
               <button

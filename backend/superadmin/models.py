@@ -448,6 +448,29 @@ class UsuarioSistema(models.Model):
         return f"{self.user.username} ({self.get_tipo_display()})"
 
 
+class ProfissionalUsuario(models.Model):
+    """
+    Vínculo User (Django auth, schema public) <-> Professional (clinica_beleza, schema tenant).
+    Permite que o profissional faça login em /loja/{slug}/login com o mesmo fluxo da loja.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='profissional_lojas')
+    loja = models.ForeignKey(Loja, on_delete=models.CASCADE, related_name='profissionais_usuarios')
+    professional_id = models.PositiveIntegerField(help_text='ID do Professional no schema da loja')
+    precisa_trocar_senha = models.BooleanField(default=True, help_text='Obrigar troca de senha no primeiro acesso')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Profissional (acesso)'
+        verbose_name_plural = 'Profissionais (acesso)'
+        unique_together = [['user', 'loja']]
+        indexes = [
+            models.Index(fields=['user', 'loja'], name='prof_usuario_loja_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} -> loja {self.loja.slug} (prof_id={self.professional_id})"
+
+
 class HistoricoAcessoGlobal(models.Model):
     """
     Histórico global de acessos e ações de TODOS os usuários do sistema

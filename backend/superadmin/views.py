@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja,
-    PagamentoLoja, UsuarioSistema, ViolacaoSeguranca
+    PagamentoLoja, UsuarioSistema, ViolacaoSeguranca, ProfissionalUsuario
 )
 from .serializers import (
     TipoLojaSerializer, PlanoAssinaturaSerializer, LojaSerializer,
@@ -39,9 +39,13 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
             return True
         
         # Verificar se é o proprietário da loja
-        if hasattr(obj, 'owner'):
-            return request.user == obj.owner
-        
+        if hasattr(obj, 'owner') and request.user == obj.owner:
+            return True
+        # Profissional (Clínica da Beleza): pode acessar a loja para trocar senha
+        if hasattr(obj, 'id') and getattr(view, 'action', None) == 'alterar_senha_primeiro_acesso':
+            if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():
+                return True
+
         return False
 
 
@@ -244,60 +248,71 @@ class LojaViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def alterar_senha_primeiro_acesso(self, request, pk=None):
-        """Permite ao proprietário alterar a senha no primeiro acesso (apenas proprietário ou superadmin)"""
-        # Verificar se está autenticado
+        """
+        Altera senha no primeiro acesso: proprietário da loja ou profissional (Clínica da Beleza).
+        Proprietário: atualiza senha do User e loja.senha_foi_alterada.
+        Profissional: atualiza senha do User e ProfissionalUsuario.precisa_trocar_senha = False.
+        """
         if not request.user or not request.user.is_authenticated:
             return Response(
                 {'error': 'Autenticação necessária'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        
-        loja = self.get_object()
-        
-        # Verificar se o usuário é o proprietário
-        if request.user != loja.owner:
-            return Response(
-                {'error': 'Apenas o proprietário pode alterar a senha'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Verificar se já alterou a senha
-        if loja.senha_foi_alterada:
-            return Response(
-                {'error': 'A senha já foi alterada anteriormente'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+
         nova_senha = request.data.get('nova_senha')
         confirmar_senha = request.data.get('confirmar_senha')
-        
         if not nova_senha or not confirmar_senha:
             return Response(
                 {'error': 'Nova senha e confirmação são obrigatórias'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
         if nova_senha != confirmar_senha:
             return Response(
                 {'error': 'As senhas não coincidem'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
         if len(nova_senha) < 6:
             return Response(
                 {'error': 'A senha deve ter no mínimo 6 caracteres'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Alterar senha do usuário
-        user = loja.owner
+
+        loja = self.get_object()
+        user = request.user
+
+        # Caso 1: proprietário da loja
+        if user == loja.owner:
+            if loja.senha_foi_alterada:
+                return Response(
+                    {'error': 'A senha já foi alterada anteriormente'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.set_password(nova_senha)
+            user.save()
+            loja.senha_foi_alterada = True
+            loja.save()
+            return Response({
+                'message': 'Senha alterada com sucesso!',
+                'loja': loja.nome
+            })
+
+        # Caso 2: profissional (ProfissionalUsuario) da Clínica da Beleza
+        try:
+            pu = ProfissionalUsuario.objects.get(user=user, loja=loja)
+        except ProfissionalUsuario.DoesNotExist:
+            return Response(
+                {'error': 'Apenas o proprietário ou um profissional desta loja pode alterar a senha aqui'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if not pu.precisa_trocar_senha:
+            return Response(
+                {'error': 'A senha já foi alterada anteriormente'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         user.set_password(nova_senha)
         user.save()
-        
-        # Marcar que a senha foi alterada
-        loja.senha_foi_alterada = True
-        loja.save()
-        
+        pu.precisa_trocar_senha = False
+        pu.save(update_fields=['precisa_trocar_senha'])
         return Response({
             'message': 'Senha alterada com sucesso!',
             'loja': loja.nome

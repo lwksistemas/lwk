@@ -8,16 +8,27 @@ from .models import Patient, Professional, Procedure, Appointment, Payment, Bloq
 class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     """
     Cria profissional e usuário de acesso (senha provisória enviada por e-mail).
-    Campos: name, email (obrigatório para criar acesso), specialty, phone (opcional), criar_acesso (bool).
+    Campos: name, email (obrigatório para criar acesso), specialty, phone (opcional),
+    criar_acesso (bool), perfil (profissional | recepcao) quando criar_acesso=True.
     """
     name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     specialty = serializers.CharField(max_length=150)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     criar_acesso = serializers.BooleanField(default=False, write_only=True)
+    perfil = serializers.ChoiceField(
+        choices=['profissional', 'recepcao'],
+        default='profissional',
+        required=False,
+        write_only=True,
+        help_text='profissional = só agenda própria; recepcao = acesso completo',
+    )
 
     def create(self, validated_data):
         criar_acesso = validated_data.pop('criar_acesso', False)
+        perfil = validated_data.pop('perfil', 'profissional')
+        if perfil not in ('profissional', 'recepcao'):
+            perfil = 'profissional'
         email = validated_data.get('email')
         name = validated_data.get('name')
 
@@ -56,6 +67,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                 user=user,
                 loja=loja,
                 professional_id=professional.id,
+                perfil=perfil,
                 precisa_trocar_senha=True,
             )
 

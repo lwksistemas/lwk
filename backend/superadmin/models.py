@@ -452,10 +452,24 @@ class ProfissionalUsuario(models.Model):
     """
     Vínculo User (Django auth, schema public) <-> Professional (clinica_beleza, schema tenant).
     Permite que o profissional faça login em /loja/{slug}/login com o mesmo fluxo da loja.
+    perfil define o que o usuário pode acessar: profissional (só própria agenda) ou recepção (acesso completo).
     """
+    PERFIL_PROFISSIONAL = 'profissional'
+    PERFIL_RECEPCAO = 'recepcao'
+    PERFIL_CHOICES = [
+        (PERFIL_PROFISSIONAL, 'Profissional (só agenda e bloqueios próprios)'),
+        (PERFIL_RECEPCAO, 'Recepção (acesso completo: agenda, cadastros, financeiro)'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='profissional_lojas')
     loja = models.ForeignKey(Loja, on_delete=models.CASCADE, related_name='profissionais_usuarios')
     professional_id = models.PositiveIntegerField(help_text='ID do Professional no schema da loja')
+    perfil = models.CharField(
+        max_length=20,
+        choices=PERFIL_CHOICES,
+        default=PERFIL_PROFISSIONAL,
+        help_text='Profissional: só agenda própria. Recepção: acesso completo.',
+    )
     precisa_trocar_senha = models.BooleanField(default=True, help_text='Obrigar troca de senha no primeiro acesso')
     created_at = models.DateTimeField(auto_now_add=True)
 

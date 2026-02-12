@@ -32,6 +32,7 @@ export default function ProfissionaisPage() {
     phone: "",
     email: "",
     criar_acesso: false,
+    perfil: "profissional" as "profissional" | "recepcao",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +57,7 @@ export default function ProfissionaisPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", specialty: "", phone: "", email: "", criar_acesso: false });
+    setForm({ name: "", specialty: "", phone: "", email: "", criar_acesso: false, perfil: "profissional" });
     setError("");
     setShowModal(true);
   };
@@ -69,6 +70,7 @@ export default function ProfissionaisPage() {
       phone: p.phone || "",
       email: p.email || "",
       criar_acesso: false,
+      perfil: "profissional",
     });
     setError("");
     setShowModal(true);
@@ -100,6 +102,7 @@ export default function ProfissionaisPage() {
       };
       if (!editing && criarAcesso) {
         body.criar_acesso = true;
+        body.perfil = form.perfil;
       }
       if (editing) {
         const res = await clinicaBelezaFetch(`/professionals/${editing.id}/`, {
@@ -271,17 +274,38 @@ export default function ProfissionaisPage() {
                 />
               </div>
               {!editing && (
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.criar_acesso}
-                    onChange={(e) => setForm((f) => ({ ...f, criar_acesso: e.target.checked }))}
-                    className="rounded border-gray-300 text-purple-600"
-                  />
-                  <span className="text-sm text-gray-700">
-                    Criar acesso e enviar senha por e-mail
-                  </span>
-                </label>
+                <>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.criar_acesso}
+                      onChange={(e) => setForm((f) => ({ ...f, criar_acesso: e.target.checked }))}
+                      className="rounded border-gray-300 text-purple-600"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Criar acesso e enviar senha por e-mail
+                    </span>
+                  </label>
+                  {form.criar_acesso && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Perfil de acesso (opcional — padrão: Profissional)
+                      </label>
+                      <select
+                        value={form.perfil}
+                        onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as "profissional" | "recepcao" }))}
+                        className="w-full px-3 py-2 border rounded-lg bg-white"
+                      >
+                        <option value="profissional">
+                          Profissional (só agenda e bloqueios próprios)
+                        </option>
+                        <option value="recepcao">
+                          Recepção (acesso completo: agenda, cadastros, financeiro)
+                        </option>
+                      </select>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="flex gap-2 p-4 border-t">

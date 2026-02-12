@@ -14,6 +14,22 @@ export default function SuperAdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
+  // Limpar sessões antigas ao carregar a página de login
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Limpar sessionStorage
+      sessionStorage.removeItem('access_token');
+      sessionStorage.removeItem('refresh_token');
+      sessionStorage.removeItem('user_type');
+      sessionStorage.removeItem('loja_slug');
+      sessionStorage.removeItem('session_id');
+      
+      // Limpar cookies
+      document.cookie = 'user_type=; path=/; max-age=0';
+      document.cookie = 'loja_slug=; path=/; max-age=0';
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

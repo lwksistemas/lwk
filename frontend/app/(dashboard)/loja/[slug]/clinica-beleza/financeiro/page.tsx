@@ -11,7 +11,6 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
-import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 
 const FORMA_PAGAMENTO: Record<string, string> = {
   CASH: "Dinheiro",
@@ -126,7 +125,6 @@ export default function FinanceiroClinicaPage() {
     loadPayments();
   }, [statusFilter, professionalFilter, dateFilter]);
 
-  useClinicaBelezaDark();
   const totalLista = payments.reduce((s, p) => s + (p.status === "PAID" ? Number(p.amount) : 0), 0);
 
   return (

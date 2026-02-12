@@ -68,13 +68,21 @@ class AuthService {
       const response = await apiClient.post(endpoint, payload);
       const data: LoginResponse = response.data;
 
-      // Salvar tokens e informações do usuário
+      // Salvar tokens e informações do usuário no sessionStorage
       this.setToken(data.access);
       this.setRefreshToken(data.refresh);
       this.setUserType(data.user_type);
       
       if (data.loja_slug) {
         this.setLojaSlug(data.loja_slug);
+      }
+
+      // Também salvar nos cookies para o middleware
+      if (typeof document !== 'undefined') {
+        document.cookie = `user_type=${data.user_type}; path=/; max-age=86400`; // 24 horas
+        if (data.loja_slug) {
+          document.cookie = `loja_slug=${data.loja_slug}; path=/; max-age=86400`;
+        }
       }
 
       return data;
@@ -103,6 +111,12 @@ class AuthService {
       sessionStorage.removeItem(this.USER_TYPE_KEY);
       sessionStorage.removeItem(this.LOJA_SLUG_KEY);
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
+      
+      // Limpar cookies também
+      if (typeof document !== 'undefined') {
+        document.cookie = 'user_type=; path=/; max-age=0';
+        document.cookie = 'loja_slug=; path=/; max-age=0';
+      }
     }
   }
 

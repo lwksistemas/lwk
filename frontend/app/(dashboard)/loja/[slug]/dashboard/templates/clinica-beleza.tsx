@@ -59,12 +59,9 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
   const fetchDashboardData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/clinica-beleza/dashboard/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import('@/lib/clinica-beleza-api');
+      const response = await fetch(`${getClinicaBelezaBaseUrl()}/dashboard/`, {
+        headers: getClinicaBelezaHeaders(),
       });
 
       if (response.ok) {

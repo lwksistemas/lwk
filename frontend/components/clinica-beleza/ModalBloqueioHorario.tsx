@@ -17,10 +17,6 @@ const TIPOS_BLOQUEIO = [
   { value: "", label: "✏️ Outro (digite abaixo)" },
 ] as const;
 
-function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return sessionStorage.getItem("access_token") || localStorage.getItem("token");
-}
 
 function formatDateTimeLocal(d: Date): string {
   const y = d.getFullYear();
@@ -96,8 +92,9 @@ export function ModalBloqueioHorario({
     setErro("");
 
     try {
-      const token = getAuthToken();
-      const baseURL = process.env.NEXT_PUBLIC_API_URL;
+      const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import("@/lib/clinica-beleza-api");
+      const baseURL = getClinicaBelezaBaseUrl();
+      const headers = getClinicaBelezaHeaders();
       const body: Record<string, unknown> = {
         data_inicio: new Date(dataInicio).toISOString(),
         data_fim: new Date(dataFim).toISOString(),
@@ -106,12 +103,9 @@ export function ModalBloqueioHorario({
       if (observacoes.trim()) body.observacoes = observacoes.trim();
       if (professionalId) body.professional = parseInt(professionalId, 10);
 
-      const res = await fetch(`${baseURL}/clinica-beleza/bloqueios/`, {
+      const res = await fetch(`${baseURL}/bloqueios/`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(body),
       });
 

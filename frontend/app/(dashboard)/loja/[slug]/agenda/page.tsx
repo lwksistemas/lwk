@@ -11,12 +11,7 @@ import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { X, Plus, Lock } from "lucide-react";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
-
-/** Token: prioriza sessionStorage (login loja) e fallback para localStorage */
-function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return sessionStorage.getItem("access_token") || localStorage.getItem("token");
-}
+import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "@/lib/clinica-beleza-api";
 
 /** Cores por status (padrão comercial: recepção) */
 const CORES_STATUS: Record<string, { bg: string; border: string }> = {
@@ -139,15 +134,11 @@ export default function AgendaPage() {
 
   const carregarDados = async () => {
     try {
-      const token = getAuthToken();
-      const baseURL = process.env.NEXT_PUBLIC_API_URL;
-      const headers: HeadersInit = {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      };
+      const baseURL = getClinicaBelezaBaseUrl();
+      const headers = getClinicaBelezaHeaders();
 
       // Carregar eventos (agendamentos)
-      let url = `${baseURL}/clinica-beleza/agenda/`;
+      let url = `${baseURL}/agenda/`;
       if (selectedProfessional) {
         url += `?professional=${selectedProfessional}`;
       }
@@ -182,7 +173,7 @@ export default function AgendaPage() {
         });
 
         // Carregar bloqueios de horário
-        let bloqueiosUrl = `${baseURL}/clinica-beleza/bloqueios/`;
+        let bloqueiosUrl = `${baseURL}/bloqueios/`;
         if (selectedProfessional) {
           bloqueiosUrl += `?professional=${selectedProfessional}`;
         }
@@ -212,7 +203,7 @@ export default function AgendaPage() {
       }
 
       // Carregar profissionais
-      const resProfessionals = await fetch(`${baseURL}/clinica-beleza/professionals/`, { headers });
+      const resProfessionals = await fetch(`${baseURL}/professionals/`, { headers });
 
       if (resProfessionals.ok) {
         const data = await resProfessionals.json();
@@ -220,7 +211,7 @@ export default function AgendaPage() {
       }
 
       // Carregar pacientes
-      const resPatients = await fetch(`${baseURL}/clinica-beleza/patients/`, { headers });
+      const resPatients = await fetch(`${baseURL}/patients/`, { headers });
 
       if (resPatients.ok) {
         const data = await resPatients.json();
@@ -228,7 +219,7 @@ export default function AgendaPage() {
       }
 
       // Carregar procedimentos
-      const resProcedures = await fetch(`${baseURL}/clinica-beleza/procedures/`, { headers });
+      const resProcedures = await fetch(`${baseURL}/procedures/`, { headers });
 
       if (resProcedures.ok) {
         const data = await resProcedures.json();
@@ -245,15 +236,11 @@ export default function AgendaPage() {
   const moverEvento = async (info: any) => {
     if (info.event.extendedProps?.isBloqueio) return;
     try {
-      const token = getAuthToken();
-      const baseURL = process.env.NEXT_PUBLIC_API_URL;
-
-      const res = await fetch(`${baseURL}/clinica-beleza/agenda/${info.event.id}/update/`, {
+      const baseURL = getClinicaBelezaBaseUrl();
+      const headers = getClinicaBelezaHeaders();
+      const res = await fetch(`${baseURL}/agenda/${info.event.id}/update/`, {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           date: info.event.start.toISOString(),
         }),
@@ -326,14 +313,11 @@ export default function AgendaPage() {
     if (!confirm("Deseja realmente deletar este agendamento?")) return;
 
     try {
-      const token = getAuthToken();
-      const baseURL = process.env.NEXT_PUBLIC_API_URL;
-
-      await fetch(`${baseURL}/clinica-beleza/agenda/${selectedEvent.extendedProps.dbId}/delete/`, {
+      const baseURL = getClinicaBelezaBaseUrl();
+      const headers = getClinicaBelezaHeaders();
+      await fetch(`${baseURL}/agenda/${selectedEvent.extendedProps.dbId}/delete/`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
       });
 
       setShowModal(false);
@@ -568,14 +552,11 @@ export default function AgendaPage() {
                 setCreateLoading(true);
                 setCreateError("");
                 try {
-                  const token = getAuthToken();
-                  const baseURL = process.env.NEXT_PUBLIC_API_URL;
-                  const res = await fetch(`${baseURL}/clinica-beleza/agenda/create/`, {
+                  const baseURL = getClinicaBelezaBaseUrl();
+                  const headers = getClinicaBelezaHeaders();
+                  const res = await fetch(`${baseURL}/agenda/create/`, {
                     method: "POST",
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                      "Content-Type": "application/json",
-                    },
+                    headers,
                     body: JSON.stringify({
                       date: date.toISOString(),
                       status: "SCHEDULED",

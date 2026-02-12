@@ -69,6 +69,12 @@ class AuthService {
       const response = await apiClient.post(endpoint, payload);
       const data: LoginResponse = response.data;
 
+      console.log('✅ Login bem-sucedido:', {
+        user_type: data.user_type,
+        loja_slug: data.loja_slug,
+        precisa_trocar_senha: data.precisa_trocar_senha
+      });
+
       // Salvar tokens e informações do usuário no sessionStorage
       this.setToken(data.access);
       this.setRefreshToken(data.refresh);
@@ -78,12 +84,22 @@ class AuthService {
         this.setLojaSlug(data.loja_slug);
       }
 
+      // Salvar session_id se vier do backend
+      if (typeof window !== 'undefined' && (data as any).session_id) {
+        sessionStorage.setItem('session_id', (data as any).session_id);
+      }
+
       // Também salvar nos cookies para o middleware
       if (typeof document !== 'undefined') {
-        document.cookie = `user_type=${data.user_type}; path=/; max-age=86400`; // 24 horas
+        const cookieOptions = 'path=/; max-age=86400; SameSite=Lax'; // 24 horas
+        document.cookie = `user_type=${data.user_type}; ${cookieOptions}`;
         if (data.loja_slug) {
-          document.cookie = `loja_slug=${data.loja_slug}; path=/; max-age=86400`;
+          document.cookie = `loja_slug=${data.loja_slug}; ${cookieOptions}`;
         }
+        console.log('🍪 Cookies definidos:', {
+          user_type: data.user_type,
+          loja_slug: data.loja_slug
+        });
       }
 
       return data;

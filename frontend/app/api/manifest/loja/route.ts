@@ -35,17 +35,19 @@ export async function GET(request: NextRequest) {
     const nome = loja.nome?.trim() || 'Loja';
     const shortName = nome.length > 20 ? nome.slice(0, 17) + '…' : nome;
     const themeColor = loja.cor_primaria?.trim() || '#ec4899';
+    const slugTrim = slug.trim();
 
+    // Nome do app = nome da loja (como aparece ao instalar). Início direto na página de login da loja.
     const manifest = {
-      name: `${nome} - LWK Sistemas`,
+      name: nome,
       short_name: shortName,
       description: `Gestão ${loja.tipo_loja_nome || 'da loja'} - ${nome}`,
-      start_url: '/',
+      start_url: `/loja/${slugTrim}/login`,
       display: 'standalone',
       background_color: '#ffffff',
       theme_color: themeColor,
       orientation: 'portrait-primary',
-      scope: '/',
+      scope: `/loja/${slugTrim}/`,
       icons: [
         { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
         { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },

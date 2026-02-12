@@ -56,11 +56,11 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
   const { loading, loadingData, stats, data, reload, error } = useDashboardData<EstatisticasClinica, Agendamento>({
     endpoint: '/clinica/agendamentos/dashboard/',
     initialStats: {
-      agendamentos_hoje: 0,
-      agendamentos_mes: 0,
-      clientes_ativos: 0,
-      procedimentos_ativos: 0,
-      receita_mensal: 0
+    agendamentos_hoje: 0,
+    agendamentos_mes: 0,
+    clientes_ativos: 0,
+    procedimentos_ativos: 0,
+    receita_mensal: 0
     },
     initialData: [],
     transformResponse: (responseData) => {
@@ -148,7 +148,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
             Não foi possível carregar os dados do dashboard. Verifique sua conexão e tente novamente.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
+          <button
               onClick={() => {
                 sessionStorage.clear();
                 window.location.href = `/loja/${loja.slug}/login`;
@@ -162,8 +162,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
               className="px-6 py-3 min-h-[44px] bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors btn-press"
             >
               Recarregar Página
-            </button>
-          </div>
+          </button>
+        </div>
         </div>
       </div>
     );
@@ -185,7 +185,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                 <p className="text-xs sm:text-sm opacity-90">{loja.tipo_loja_nome}</p>
               </div>
               <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                <button
+          <button 
                   onClick={() => router.push(`/loja/${loja.slug}/suporte`)}
                   className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
                   title="Ver meus chamados de suporte"
@@ -194,8 +194,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                   <span>Chamados</span>
-                </button>
-                <button
+          </button>
+          <button 
                   onClick={() => {
                     const html = document.documentElement;
                     const isDark = html.classList.contains('dark');
@@ -214,8 +214,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
                   <span className="hidden sm:inline">Tema</span>
-                </button>
-                <button
+          </button>
+          <button 
                   onClick={() => setShowCalendario(false)}
                   className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
                   title="Voltar ao dashboard"
@@ -224,8 +224,8 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
                   <span className="hidden sm:inline">Voltar</span>
-                </button>
-                <button
+          </button>
+          <button 
                   onClick={() => {
                     sessionStorage.clear();
                     router.push(`/loja/${loja.slug}/login`);
@@ -233,17 +233,17 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                   className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-red-600 hover:bg-red-700 rounded-md transition-colors text-sm active:scale-95"
                 >
                   Sair
-                </button>
-              </div>
-            </div>
-          </div>
+          </button>
+        </div>
+        </div>
+      </div>
         </nav>
 
         {/* Conteúdo do Calendário - ocupa o resto da tela */}
         <div className="flex-1 overflow-auto px-2 sm:px-4 lg:px-8 py-6">
           <CalendarioAgendamentos loja={loja} />
-        </div>
-      </div>
+            </div>
+            </div>
     );
   }
 
@@ -263,14 +263,14 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       <div className="fixed inset-0 bg-white dark:bg-gray-900 z-50 flex flex-col">
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4 flex justify-between items-center shadow-sm">
-          <div>
+            <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
               📋 Todos os Agendamentos
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               {data.length} agendamento{data.length !== 1 ? 's' : ''} encontrado{data.length !== 1 ? 's' : ''}
-            </p>
-          </div>
+              </p>
+            </div>
           <button
             onClick={() => setShowListaCompleta(false)}
             className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
@@ -291,9 +291,9 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                 onStatusChange={handleStatusChange}
               />
             ))}
+            </div>
+            </div>
           </div>
-        </div>
-      </div>
     );
   }
 
@@ -318,13 +318,13 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           <ActionButton onClick={handleConfiguracoes} color="#6B7280" icon="⚙️" label="Configurações" />
           <ActionButton onClick={handleRelatorios} color="#059669" icon="📈" label="Relatórios" />
         </div>
-        
+
         <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 text-center">
             💡 <strong>Dashboard Clínica de Estética</strong> - Clique nas ações para gerenciar sua clínica
-          </p>
-        </div>
-      </div>
+              </p>
+            </div>
+            </div>
 
       {/* Estatísticas */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
@@ -339,14 +339,14 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Próximos Agendamentos</h3>
           <div className="flex gap-2">
-            <button
+          <button
               onClick={handleVerTodos}
               className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg border-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all btn-press shadow-md text-gray-700 dark:text-gray-300"
               style={{ borderColor: loja.cor_primaria }}
               title="Ver todos os agendamentos em lista"
             >
               📋 Ver Todos
-            </button>
+          </button>
             <button
               onClick={handleNovoAgendamento}
               className="text-xs sm:text-sm px-3 sm:px-4 py-2 min-h-[40px] rounded-lg text-white hover:opacity-90 transition-all btn-press shadow-md"
@@ -371,7 +371,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           <div className="space-y-4">
             {data.slice(0, 10).map((agendamento) => (
               <AgendamentoCard 
-                key={agendamento.id} 
+                key={agendamento.id}
                 agendamento={agendamento} 
                 cor={loja.cor_primaria}
                 onDelete={handleDeleteAgendamento}
@@ -387,7 +387,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                 >
                   Ver mais {data.length - 10} agendamentos
                 </button>
-              </div>
+                  </div>
             )}
           </div>
         )}
@@ -397,7 +397,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
       <Suspense fallback={<ModalLoadingFallback />}>
         {modals.cliente && (
           <ModalClientes 
-            loja={loja}
+          loja={loja}
             onClose={() => closeModal('cliente')}
             onSuccess={() => {
               reload();
@@ -408,14 +408,14 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
         {modals.profissional && (
           <ModalProfissionais 
-            loja={loja}
+          loja={loja}
             onClose={() => closeModal('profissional')}
-          />
-        )}
+        />
+      )}
 
         {modals.procedimentos && (
           <ModalProcedimentos 
-            loja={loja}
+          loja={loja}
             onClose={() => closeModal('procedimentos')}
             onSuccess={() => {
               reload();
@@ -426,35 +426,35 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
 
         {modals.protocolos && (
           <ModalProtocolos 
-            loja={loja}
+          loja={loja}
             onClose={() => closeModal('protocolos')}
-          />
-        )}
+        />
+      )}
 
         {modals.anamnese && (
           <ModalAnamnese 
-            loja={loja}
+          loja={loja}
             onClose={() => closeModal('anamnese')}
-          />
-        )}
+        />
+      )}
 
         {modals.assinatura && (
           <ConfiguracoesModal 
-            loja={loja}
+          loja={loja}
             onClose={() => closeModal('assinatura')}
-          />
-        )}
+        />
+      )}
 
         {modals.configuracoes && (
-          <ModalConfiguracoes 
-            loja={loja}
+        <ModalConfiguracoes 
+          loja={loja}
             onClose={() => closeModal('configuracoes')}
-          />
-        )}
+        />
+      )}
 
         {modals.funcionarios && (
-          <ModalFuncionarios 
-            loja={loja}
+        <ModalFuncionarios 
+          loja={loja}
             onClose={() => closeModal('funcionarios')}
           />
         )}
@@ -466,14 +466,14 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           />
         )}
       </Suspense>
-    </div>
-  );
-}
+      </div>
+    );
+  }
 
 // Componente de botão de ação rápida - Modernizado e Responsivo
 function ActionButton({ onClick, color, icon, label }: { onClick: () => void; color: string; icon: string; label: string }) {
   return (
-    <button 
+            <button
       onClick={onClick}
       className="group p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl text-white font-semibold 
                  transition-all duration-200 transform hover:scale-105 active:scale-95
@@ -486,8 +486,8 @@ function ActionButton({ onClick, color, icon, label }: { onClick: () => void; co
       <div className="relative flex flex-col items-center justify-center h-full">
         <div className="text-xl sm:text-2xl md:text-3xl mb-1 sm:mb-2 transform group-hover:scale-110 transition-transform duration-200">{icon}</div>
         <div className="text-[10px] sm:text-xs md:text-sm leading-tight text-center">{label}</div>
-      </div>
-    </button>
+          </div>
+                    </button>
   );
 }
 
@@ -504,9 +504,9 @@ function StatCard({ title, value, icon, cor, trend }: { title: string; value: st
           {trend && (
             <span className="text-[10px] sm:text-xs text-green-500 dark:text-green-400 font-medium mt-1 inline-block">
               {trend} vs mês anterior
-            </span>
-          )}
-        </div>
+                  </span>
+            )}
+          </div>
         <div 
           className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0
                      transform group-hover:scale-110 transition-transform duration-200"
@@ -550,7 +550,7 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
     setShowStatusMenu(false);
   };
 
-  return (
+    return (
     <div 
       className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl 
                     hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 
@@ -563,13 +563,13 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
           style={{ backgroundColor: cor }}
         >
           {agendamento.cliente_nome.charAt(0)}
-        </div>
+                    </div>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">{agendamento.cliente_nome}</p>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{agendamento.procedimento_nome}</p>
           <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 truncate">Prof: {agendamento.profissional_nome}</p>
-        </div>
-      </div>
+                    </div>
+                  </div>
       
       <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
         <div className="sm:text-right">
@@ -581,18 +581,18 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
         
         {/* Status com menu dropdown - SEMPRE VISÍVEL */}
         <div className="relative">
-          <button
+              <button
             onClick={() => setShowStatusMenu(!showStatusMenu)}
             className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full font-medium whitespace-nowrap ${status.bg} ${status.text} hover:opacity-80 transition-opacity`}
             title="Clique para alterar status"
           >
             {status.label}
-          </button>
+              </button>
           
           {showStatusMenu && (
             <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 min-w-[140px]">
               {Object.entries(statusConfig).map(([key, config]) => (
-                <button
+            <button
                   key={key}
                   onClick={() => handleStatusChange(key)}
                   className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg ${
@@ -600,14 +600,14 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
                   }`}
                 >
                   {config.label}
-                </button>
-              ))}
-            </div>
-          )}
+            </button>
+            ))}
+          </div>
+        )}
         </div>
 
         {/* Botão Excluir - SEMPRE VISÍVEL */}
-        <button
+              <button
           onClick={handleDelete}
           className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors active:scale-95 flex-shrink-0"
           title="Excluir agendamento"
@@ -615,11 +615,11 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
-        </button>
+              </button>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 // Componente de estado vazio - Responsivo
 function EmptyState({ message, subMessage, actionLabel, onAction, cor }: { 
@@ -633,16 +633,16 @@ function EmptyState({ message, subMessage, actionLabel, onAction, cor }: {
     <div className="text-center py-8 sm:py-12 px-4">
       <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
         <span className="text-2xl sm:text-3xl">📅</span>
-      </div>
+          </div>
       <p className="text-base sm:text-lg mb-1 sm:mb-2 text-gray-700 dark:text-gray-300">{message}</p>
       <p className="text-xs sm:text-sm mb-4 text-gray-500 dark:text-gray-500">{subMessage}</p>
-      <button
+                  <button
         onClick={onAction}
         className="px-4 sm:px-6 py-2.5 sm:py-3 min-h-[44px] rounded-xl text-white hover:opacity-90 transition-all btn-press shadow-lg text-sm sm:text-base active:scale-95"
         style={{ backgroundColor: cor }}
-      >
+                  >
         {actionLabel}
-      </button>
+                  </button>
     </div>
   );
 }

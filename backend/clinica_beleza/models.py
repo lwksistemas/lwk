@@ -5,11 +5,12 @@ Sistema completo de gestão de clínica estética
 from decimal import Decimal
 from django.db import models
 from django.contrib.auth import get_user_model
+from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 User = get_user_model()
 
 
-class Patient(models.Model):
+class Patient(LojaIsolationMixin, models.Model):
     """Pacientes da clínica"""
     name = models.CharField(max_length=150, verbose_name="Nome")
     phone = models.CharField(max_length=20, verbose_name="Telefone")
@@ -21,6 +22,8 @@ class Patient(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
     active = models.BooleanField(default=True, verbose_name="Ativo")
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         app_label = 'clinica_beleza'
@@ -32,7 +35,7 @@ class Patient(models.Model):
         return self.name
 
 
-class Professional(models.Model):
+class Professional(LojaIsolationMixin, models.Model):
     """Profissionais da clínica"""
     name = models.CharField(max_length=150, verbose_name="Nome")
     specialty = models.CharField(max_length=150, verbose_name="Especialidade")
@@ -41,6 +44,8 @@ class Professional(models.Model):
     active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         app_label = 'clinica_beleza'
@@ -52,7 +57,7 @@ class Professional(models.Model):
         return f"{self.name} - {self.specialty}"
 
 
-class Procedure(models.Model):
+class Procedure(LojaIsolationMixin, models.Model):
     """Procedimentos/Serviços oferecidos"""
     name = models.CharField(max_length=150, verbose_name="Nome")
     description = models.TextField(blank=True, null=True, verbose_name="Descrição")
@@ -61,6 +66,8 @@ class Procedure(models.Model):
     active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         app_label = 'clinica_beleza'
@@ -72,7 +79,7 @@ class Procedure(models.Model):
         return self.name
 
 
-class Appointment(models.Model):
+class Appointment(LojaIsolationMixin, models.Model):
     """Agendamentos"""
     STATUS_CHOICES = (
         ('CONFIRMED', 'Confirmado'),
@@ -92,6 +99,8 @@ class Appointment(models.Model):
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         app_label = 'clinica_beleza'
@@ -103,7 +112,7 @@ class Appointment(models.Model):
         return f"{self.patient.name} - {self.procedure.name} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
 
-class BloqueioHorario(models.Model):
+class BloqueioHorario(LojaIsolationMixin, models.Model):
     """
     Bloqueio de horário na agenda (almoço, férias, manutenção, evento).
     profissional=None = bloqueio geral (todos os profissionais).
@@ -121,6 +130,8 @@ class BloqueioHorario(models.Model):
     motivo = models.CharField(max_length=100, verbose_name="Motivo")
     observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
     criado_em = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         app_label = "clinica_beleza"
@@ -132,7 +143,7 @@ class BloqueioHorario(models.Model):
         return f"{self.motivo} ({self.data_inicio} - {self.data_fim})"
 
 
-class Payment(models.Model):
+class Payment(LojaIsolationMixin, models.Model):
     """Pagamentos"""
     PAYMENT_METHOD_CHOICES = (
         ('CASH', 'Dinheiro'),
@@ -158,6 +169,8 @@ class Payment(models.Model):
     comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Comissão R$")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         app_label = 'clinica_beleza'

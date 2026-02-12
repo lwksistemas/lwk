@@ -36,15 +36,23 @@ export default function SuperAdminLoginPage() {
     setLoading(true);
 
     try {
+      console.log('🔐 [SuperAdmin] Iniciando login...', { username: credentials.username });
       const loginResponse = await authService.login(credentials, 'superadmin');
       
+      console.log('✅ [SuperAdmin] Login bem-sucedido:', loginResponse);
+      
       if (loginResponse.precisa_trocar_senha === true) {
-        window.location.href = '/superadmin/trocar-senha';
+        console.log('🔄 [SuperAdmin] Redirecionando para trocar senha...');
+        window.location.replace('/superadmin/trocar-senha');
         return;
       }
       
-      window.location.href = '/superadmin/dashboard';
+      console.log('🚀 [SuperAdmin] Redirecionando para dashboard...');
+      // Aguardar um pouco para garantir que os cookies foram setados
+      await new Promise(resolve => setTimeout(resolve, 100));
+      window.location.replace('/superadmin/dashboard');
     } catch (err: any) {
+      console.error('❌ [SuperAdmin] Erro no login:', err);
       setError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoading(false);

@@ -36,16 +36,24 @@ export default function SuporteLoginPage() {
     setLoading(true);
 
     try {
+      console.log('🔐 [Suporte] Iniciando login...', { username: credentials.username });
       const loginResponse = await authService.login(credentials, 'suporte');
+      
+      console.log('✅ [Suporte] Login bem-sucedido:', loginResponse);
       
       // Verificar se precisa trocar senha
       if (loginResponse.precisa_trocar_senha === true) {
-        window.location.href = '/suporte/trocar-senha';
+        console.log('🔄 [Suporte] Redirecionando para trocar senha...');
+        window.location.replace('/suporte/trocar-senha');
         return;
       }
-      window.location.href = '/suporte/dashboard';
+      
+      console.log('🚀 [Suporte] Redirecionando para dashboard...');
+      // Aguardar um pouco para garantir que os cookies foram setados
+      await new Promise(resolve => setTimeout(resolve, 100));
+      window.location.replace('/suporte/dashboard');
     } catch (err: any) {
-      console.error('❌ Erro no login:', err);
+      console.error('❌ [Suporte] Erro no login:', err);
       setError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoading(false);

@@ -134,21 +134,21 @@ class PatientSerializer(serializers.ModelSerializer):
     """Serializer para Pacientes"""
     class Meta:
         model = Patient
-        fields = '__all__'
+        exclude = ['loja_id']  # loja_id é preenchido automaticamente
 
 
 class ProfessionalSerializer(serializers.ModelSerializer):
     """Serializer para Profissionais"""
     class Meta:
         model = Professional
-        fields = '__all__'
+        exclude = ['loja_id']  # loja_id é preenchido automaticamente
 
 
 class ProcedureSerializer(serializers.ModelSerializer):
     """Serializer para Procedimentos"""
     class Meta:
         model = Procedure
-        fields = '__all__'
+        exclude = ['loja_id']  # loja_id é preenchido automaticamente
 
 
 class AppointmentListSerializer(serializers.ModelSerializer):
@@ -177,7 +177,7 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Appointment
-        fields = '__all__'
+        exclude = ['loja_id']  # loja_id é preenchido automaticamente
 
 
 class AppointmentCreateSerializer(serializers.ModelSerializer):
@@ -197,7 +197,7 @@ class PaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Payment
-        fields = '__all__'
+        exclude = ['loja_id']  # loja_id é preenchido automaticamente
 
 
 class AgendaEventSerializer(serializers.ModelSerializer):

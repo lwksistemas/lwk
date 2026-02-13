@@ -17,7 +17,7 @@ def fix_clinica_beleza_schema(loja_id):
     """Adiciona coluna loja_id nas tabelas da Clínica da Beleza"""
     try:
         loja = Loja.objects.get(id=loja_id)
-        schema_name = loja.schema_name
+        schema_name = loja.db_name  # Nome do schema PostgreSQL
         
         print(f"🔧 Corrigindo schema: {schema_name} (loja_id={loja_id})")
         
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         print("Uso: python fix_clinica_beleza_schema.py <loja_id>")
         print("\nLojas disponíveis:")
         for loja in Loja.objects.filter(tipo_loja='clinica_beleza', is_active=True):
-            print(f"  - ID: {loja.id}, Slug: {loja.slug}, Schema: {loja.schema_name}")
+            print(f"  - ID: {loja.id}, Slug: {loja.slug}, Schema: {loja.db_name}")
         sys.exit(1)
     
     loja_id = int(sys.argv[1])

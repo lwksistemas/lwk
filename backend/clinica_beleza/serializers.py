@@ -72,7 +72,8 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                 loja = Loja.objects.using(default_db).get(id=loja_id)
 
                 senha_provisoria = get_random_string(8)
-                user = User.objects.using(default_db).create_user(
+                # Criar usuário no banco default (não usar .using() com create_user)
+                user = User.objects.db_manager(default_db).create_user(
                     username=email,
                     email=email,
                     password=senha_provisoria,

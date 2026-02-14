@@ -90,11 +90,8 @@ class SecurityDetector:
             # Extrair IPs únicos
             ips = list(logs.values_list('ip_address', flat=True).distinct())
             
-            # Buscar usuário
-            try:
-                user = User.objects.get(email=login['usuario_email'])
-            except User.DoesNotExist:
-                user = None
+            # Buscar usuário (pode haver mais de um com mesmo email em cenários multi-tenant)
+            user = User.objects.filter(email=login['usuario_email']).first()
             
             # Criar violação
             violacao = self._create_violation(
@@ -165,11 +162,8 @@ class SecurityDetector:
             # Extrair IPs únicos
             ips = list(logs.values_list('ip_address', flat=True).distinct())
             
-            # Buscar usuário
-            try:
-                user = User.objects.get(email=action['usuario_email'])
-            except User.DoesNotExist:
-                user = None
+            # Buscar usuário (pode haver mais de um com mesmo email em cenários multi-tenant)
+            user = User.objects.filter(email=action['usuario_email']).first()
             
             # Criar violação
             violacao = self._create_violation(
@@ -244,11 +238,8 @@ class SecurityDetector:
             # Extrair lojas acessadas
             lojas = list(logs.values_list('loja_nome', flat=True).distinct())
             
-            # Buscar usuário
-            try:
-                user = User.objects.get(email=access['usuario_email'])
-            except User.DoesNotExist:
-                user = None
+            # Buscar usuário (pode haver mais de um com mesmo email em cenários multi-tenant)
+            user = User.objects.filter(email=access['usuario_email']).first()
             
             # Criar violação
             violacao = self._create_violation(
@@ -352,11 +343,8 @@ class SecurityDetector:
             # Buscar logs do usuário
             logs = suspicious_access.filter(usuario_email=usuario_email)
             
-            # Buscar usuário
-            try:
-                user = User.objects.get(email=usuario_email)
-            except User.DoesNotExist:
-                user = None
+            # Buscar usuário (pode haver mais de um com mesmo email em cenários multi-tenant)
+            user = User.objects.filter(email=usuario_email).first()
             
             # Extrair URLs acessadas
             urls = list(logs.values_list('url', flat=True).distinct())
@@ -433,11 +421,8 @@ class SecurityDetector:
             # Extrair recursos excluídos
             recursos = list(logs.values_list('recurso', flat=True).distinct())
             
-            # Buscar usuário
-            try:
-                user = User.objects.get(email=deletion['usuario_email'])
-            except User.DoesNotExist:
-                user = None
+            # Buscar usuário (pode haver mais de um com mesmo email em cenários multi-tenant)
+            user = User.objects.filter(email=deletion['usuario_email']).first()
             
             # Criar violação
             violacao = self._create_violation(
@@ -507,11 +492,8 @@ class SecurityDetector:
             # Extrair IPs únicos
             ips = list(logs.values_list('ip_address', flat=True).distinct())
             
-            # Buscar usuário
-            try:
-                user = User.objects.get(email=user_data['usuario_email'])
-            except User.DoesNotExist:
-                user = None
+            # Buscar usuário (pode haver mais de um com mesmo email em cenários multi-tenant)
+            user = User.objects.filter(email=user_data['usuario_email']).first()
             
             # Criar violação (baixa criticidade)
             violacao = self._create_violation(

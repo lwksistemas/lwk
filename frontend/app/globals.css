@@ -250,3 +250,47 @@
 .dark .fc-timegrid-event {
   border-color: rgba(255,255,255,0.2);
 }
+
+/* ========== FULLCALENDAR MOBILE (Agenda - celular) ========== */
+@media (max-width: 639px) {
+  .fc-agenda-mobile .fc-toolbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  .fc-agenda-mobile .fc-toolbar-chunk {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .fc-agenda-mobile .fc-toolbar-title {
+    font-size: 0.95rem;
+    margin: 0 0.25rem;
+  }
+  .fc-agenda-mobile .fc-button {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  .fc-agenda-mobile .fc-timegrid-slot {
+    min-height: 2.5rem; /* mais fácil tocar nos horários */
+  }
+  .fc-agenda-mobile .fc-timegrid-slot-label {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.35rem;
+  }
+  .fc-agenda-mobile .fc-timegrid-event {
+    min-height: 2rem;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.35rem;
+  }
+  .fc-agenda-mobile .fc-col-header-cell-cushion {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.25rem;
+  }
+  .fc-agenda-mobile .fc-scrollgrid {
+    font-size: 0.8rem;
+  }
+  .fc-agenda-mobile .fc-timegrid-axis-cushion {
+    font-size: 0.7rem;
+  }
+}

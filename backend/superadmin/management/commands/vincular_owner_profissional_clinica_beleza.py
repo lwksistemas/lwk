@@ -54,6 +54,7 @@ class Command(BaseCommand):
             'OPTIONS': {'options': f'-c search_path={schema_name},public'},
             'ATOMIC_REQUESTS': False,
             'CONN_MAX_AGE': 600,
+            'TIME_ZONE': None,
         }
         return True
 

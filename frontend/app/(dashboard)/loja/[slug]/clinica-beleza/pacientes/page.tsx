@@ -10,6 +10,8 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Trash2, X, Moon, Sun } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
+import { buscarPacientesOffline, salvarPacientesOffline } from "@/lib/offline-db";
 
 interface Patient {
   id: number;
@@ -46,10 +48,18 @@ export default function PacientesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await clinicaBelezaFetch("/patients/");
-      const data = await res.json();
-      if (res.ok) setList(Array.isArray(data) ? data : []);
-      else setList([]);
+      if (!navigator.onLine) {
+        const data = await buscarPacientesOffline();
+        setList(Array.isArray(data) ? (data as Patient[]) : []);
+      } else {
+        const res = await clinicaBelezaFetch("/patients/");
+        const data = await res.json();
+        if (res.ok) {
+          const arr = Array.isArray(data) ? data : [];
+          setList(arr);
+          await salvarPacientesOffline(arr);
+        } else setList([]);
+      }
     } catch {
       setList([]);
     } finally {
@@ -152,24 +162,27 @@ export default function PacientesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-4 mb-6">
           <button
             onClick={() => router.push(`/loja/${slug}/dashboard`)}
             className="p-2 hover:bg-white/80 dark:hover:bg-neutral-700 rounded-lg"
           >
             <ArrowLeft size={24} className="text-gray-800 dark:text-gray-200" />
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Pacientes</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Cadastro de pacientes da clínica</p>
           </div>
-          <button
-            onClick={openNew}
-            className="ml-auto flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-          >
-            <Plus size={20} />
-            Novo Paciente
-          </button>
+          <div className="flex items-center gap-2">
+            <OfflineIndicator />
+            <button
+              onClick={openNew}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              <Plus size={20} />
+              Novo Paciente
+            </button>
+          </div>
         </div>
 
         {loading ? (

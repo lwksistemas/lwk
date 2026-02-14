@@ -11,6 +11,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 
 const FORMA_PAGAMENTO: Record<string, string> = {
   CASH: "Dinheiro",
@@ -144,6 +145,7 @@ export default function FinanceiroClinicaPage() {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Financeiro da Clínica</h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">Caixa, contas a receber e comissões</p>
             </div>
+            <OfflineIndicator />
           </div>
           <button
             onClick={() => loadAll()}

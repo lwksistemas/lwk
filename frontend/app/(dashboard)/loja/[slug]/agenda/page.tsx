@@ -13,7 +13,20 @@ import Link from "next/link";
 import { X, Plus, Lock, Moon, Sun, ArrowLeft } from "lucide-react";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
+import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "@/lib/clinica-beleza-api";
+import {
+  salvarPacientesOffline,
+  buscarPacientesOffline,
+  salvarProfissionaisOffline,
+  buscarProfissionaisOffline,
+  salvarProcedimentosOffline,
+  buscarProcedimentosOffline,
+  salvarAgendamentosOffline,
+  buscarAgendamentosOffline,
+  adicionarNaFilaSync,
+} from "@/lib/offline-db";
+import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
 
 /** Cores por status (padrão comercial: recepção) */
 const CORES_STATUS: Record<string, { bg: string; border: string }> = {
@@ -186,98 +199,124 @@ export default function AgendaPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // Após sync da fila (registrado no layout da loja), recarregar dados para refletir agendamentos enviados
+  useEffect(() => {
+    const handler = () => carregarDados();
+    window.addEventListener("offline-sync-done", handler);
+    return () => window.removeEventListener("offline-sync-done", handler);
+  }, []);
+
+  const formatarEvento = (e: any) => {
+    const cores = CORES_STATUS[e.status] || { bg: "#a855f7", border: "#9333ea" };
+    const titulo = [e.patient_name, e.procedure_name].filter(Boolean).join(" • ") || e.title || "Agendamento";
+    return {
+      id: String(e.id),
+      title: titulo,
+      start: e.start,
+      end: e.end,
+      backgroundColor: cores.bg,
+      borderColor: cores.border,
+      textColor: "#fff",
+      editable: e.status !== "CANCELLED",
+      extendedProps: {
+        dbId: e.id,
+        status: e.status,
+        patient_name: e.patient_name,
+        patient_phone: e.patient_phone,
+        professional_name: e.professional_name,
+        procedure_name: e.procedure_name,
+        procedure_duration: e.procedure_duration,
+        procedure_price: e.procedure_price,
+        notes: e.notes || "",
+        isBloqueio: false,
+      },
+    };
+  };
+
   const carregarDados = async () => {
     try {
       const baseURL = getClinicaBelezaBaseUrl();
       const headers = getClinicaBelezaHeaders();
+      const online = typeof navigator !== "undefined" && navigator.onLine;
 
-      // Carregar eventos (agendamentos)
-      let url = `${baseURL}/agenda/`;
-      if (selectedProfessional) {
-        url += `?professional=${selectedProfessional}`;
-      }
-      const resEventos = await fetch(url, { headers });
-      if (resEventos.ok) {
-        const data = await resEventos.json();
-        const eventosFormatados = data.map((e: any) => {
-          const cores = CORES_STATUS[e.status] || { bg: "#a855f7", border: "#9333ea" };
-          const titulo = [e.patient_name, e.procedure_name].filter(Boolean).join(" • ") || e.title || "Agendamento";
-          return {
-            id: String(e.id),
-            title: titulo,
-            start: e.start,
-            end: e.end,
-            backgroundColor: cores.bg,
-            borderColor: cores.border,
+      if (online) {
+        // --- ONLINE: buscar da API e salvar no IndexedDB para uso offline
+        let url = `${baseURL}/agenda/`;
+        if (selectedProfessional) url += `?professional=${selectedProfessional}`;
+        const resEventos = await fetch(url, { headers });
+        if (resEventos.ok) {
+          const data = await resEventos.json();
+          await salvarAgendamentosOffline(data);
+          const eventosFormatados = data.map((e: any) => formatarEvento(e));
+
+          let bloqueiosUrl = `${baseURL}/bloqueios/`;
+          if (selectedProfessional) bloqueiosUrl += `?professional=${selectedProfessional}`;
+          const resBloqueios = await fetch(bloqueiosUrl, { headers });
+          let bloqueiosList: BloqueioHorario[] = [];
+          if (resBloqueios.ok) {
+            bloqueiosList = await resBloqueios.json();
+            setBloqueios(bloqueiosList);
+          }
+          const bloqueiosAsEvents = bloqueiosList.map((b: BloqueioHorario) => ({
+            id: `bloqueio-${b.id}`,
+            title: `🚫 ${b.motivo}`,
+            start: b.data_inicio,
+            end: b.data_fim,
+            backgroundColor: "#b91c1c",
+            borderColor: "#991b1b",
             textColor: "#fff",
-            editable: e.status !== "CANCELLED",
+            editable: false,
             extendedProps: {
-              dbId: e.id,
-              status: e.status,
-              patient_name: e.patient_name,
-              patient_phone: e.patient_phone,
-              professional_name: e.professional_name,
-              procedure_name: e.procedure_name,
-              procedure_duration: e.procedure_duration,
-              procedure_price: e.procedure_price,
-              notes: e.notes || "",
-              isBloqueio: false,
+              isBloqueio: true,
+              bloqueioId: b.id,
+              motivo: b.motivo,
+              professional_name: b.professional_name || "Todos",
             },
-          };
-        });
-
-        // Carregar bloqueios de horário
-        let bloqueiosUrl = `${baseURL}/bloqueios/`;
-        if (selectedProfessional) {
-          bloqueiosUrl += `?professional=${selectedProfessional}`;
+          }));
+          setEventos([...eventosFormatados, ...bloqueiosAsEvents]);
         }
-        const resBloqueios = await fetch(bloqueiosUrl, { headers });
-        let bloqueiosList: BloqueioHorario[] = [];
-        if (resBloqueios.ok) {
-          bloqueiosList = await resBloqueios.json();
-          setBloqueios(bloqueiosList);
+
+        const resProfessionals = await fetch(`${baseURL}/professionals/`, { headers });
+        if (resProfessionals.ok) {
+          const data = await resProfessionals.json();
+          setProfessionals(data);
+          await salvarProfissionaisOffline(data);
         }
-        const bloqueiosAsEvents = bloqueiosList.map((b: BloqueioHorario) => ({
-          id: `bloqueio-${b.id}`,
-          title: `🚫 ${b.motivo}`,
-          start: b.data_inicio,
-          end: b.data_fim,
-          backgroundColor: "#b91c1c",
-          borderColor: "#991b1b",
-          textColor: "#fff",
-          editable: false,
-          extendedProps: {
-            isBloqueio: true,
-            bloqueioId: b.id,
-            motivo: b.motivo,
-            professional_name: b.professional_name || "Todos",
-          },
-        }));
-        setEventos([...eventosFormatados, ...bloqueiosAsEvents]);
-      }
 
-      // Carregar profissionais
-      const resProfessionals = await fetch(`${baseURL}/professionals/`, { headers });
+        const resPatients = await fetch(`${baseURL}/patients/`, { headers });
+        if (resPatients.ok) {
+          const data = await resPatients.json();
+          setPatients(data);
+          await salvarPacientesOffline(data);
+        }
 
-      if (resProfessionals.ok) {
-        const data = await resProfessionals.json();
-        setProfessionals(data);
-      }
-
-      // Carregar pacientes
-      const resPatients = await fetch(`${baseURL}/patients/`, { headers });
-
-      if (resPatients.ok) {
-        const data = await resPatients.json();
-        setPatients(data);
-      }
-
-      // Carregar procedimentos
-      const resProcedures = await fetch(`${baseURL}/procedures/`, { headers });
-
-      if (resProcedures.ok) {
-        const data = await resProcedures.json();
-        setProcedures(data);
+        const resProcedures = await fetch(`${baseURL}/procedures/`, { headers });
+        if (resProcedures.ok) {
+          const data = await resProcedures.json();
+          setProcedures(data);
+          await salvarProcedimentosOffline(data);
+        }
+      } else {
+        // --- OFFLINE: ler do IndexedDB
+        const [agendaRaw, profs, pacs, procs] = await Promise.all([
+          buscarAgendamentosOffline(),
+          buscarProfissionaisOffline(),
+          buscarPacientesOffline(),
+          buscarProcedimentosOffline(),
+        ]);
+        if (Array.isArray(profs)) setProfessionals(profs as Professional[]);
+        if (Array.isArray(pacs)) setPatients(pacs as Patient[]);
+        if (Array.isArray(procs)) setProcedures(procs as Procedure[]);
+        if (Array.isArray(agendaRaw) && agendaRaw.length > 0) {
+          let list = agendaRaw as any[];
+          if (selectedProfessional) {
+            list = list.filter((e: any) => String(e.professional) === selectedProfessional);
+          }
+          const eventosFormatados = list.map((e: any) => formatarEvento(e));
+          setEventos(eventosFormatados);
+        } else {
+          setEventos([]);
+        }
       }
 
       setLoading(false);
@@ -474,6 +513,7 @@ export default function AgendaPage() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap justify-end">
+          <OfflineIndicator />
           <button
             type="button"
             onClick={() => setDarkMode(!darkMode)}
@@ -714,20 +754,61 @@ export default function AgendaPage() {
                 date.setHours(h, m, 0, 0);
                 setCreateLoading(true);
                 setCreateError("");
+                const payload = {
+                  date: date.toISOString(),
+                  status: "SCHEDULED",
+                  patient: parseInt(createForm.patientId, 10),
+                  professional: parseInt(createForm.professionalId, 10),
+                  procedure: parseInt(createForm.procedureId, 10),
+                  notes: createForm.notes.trim() || null,
+                };
                 try {
+                  if (!navigator.onLine) {
+                    await adicionarNaFilaSync({ tipo: "agendamento", payload });
+                    notificarFilaAtualizada();
+                    const patient = patients.find((p) => p.id === parseInt(createForm.patientId, 10));
+                    const professional = professionals.find((p) => p.id === parseInt(createForm.professionalId, 10));
+                    const procedure = procedures.find((p) => p.id === parseInt(createForm.procedureId, 10));
+                    const titulo = [patient?.name, procedure?.name].filter(Boolean).join(" • ") || "Agendamento (offline)";
+                    const tempId = `offline-${Date.now()}`;
+                    const endDate = new Date(date);
+                    endDate.setMinutes(endDate.getMinutes() + (procedure?.duration ?? 30));
+                    setEventos((prev) => [
+                      ...prev,
+                      {
+                        id: tempId,
+                        title: titulo,
+                        start: date.toISOString(),
+                        end: endDate.toISOString(),
+                        backgroundColor: "#a855f7",
+                        borderColor: "#9333ea",
+                        textColor: "#fff",
+                        editable: false,
+                        extendedProps: {
+                          dbId: tempId,
+                          status: "SCHEDULED",
+                          patient_name: patient?.name ?? "",
+                          patient_phone: "",
+                          professional_name: professional?.name ?? "",
+                          procedure_name: procedure?.name ?? "",
+                          procedure_duration: procedure?.duration ?? 30,
+                          procedure_price: procedure?.price ?? "",
+                          notes: createForm.notes.trim() || "",
+                          isBloqueio: false,
+                        },
+                      },
+                    ]);
+                    setShowCreateModal(false);
+                    setCreateForm({ patientId: "", professionalId: "", procedureId: "", time: "09:00", notes: "" });
+                    setCreateLoading(false);
+                    return;
+                  }
                   const baseURL = getClinicaBelezaBaseUrl();
                   const headers = getClinicaBelezaHeaders();
                   const res = await fetch(`${baseURL}/agenda/create/`, {
                     method: "POST",
                     headers,
-                    body: JSON.stringify({
-                      date: date.toISOString(),
-                      status: "SCHEDULED",
-                      patient: parseInt(createForm.patientId, 10),
-                      professional: parseInt(createForm.professionalId, 10),
-                      procedure: parseInt(createForm.procedureId, 10),
-                      notes: createForm.notes.trim() || null,
-                    }),
+                    body: JSON.stringify(payload),
                   });
                   if (!res.ok) {
                     const data = await res.json().catch(() => ({}));

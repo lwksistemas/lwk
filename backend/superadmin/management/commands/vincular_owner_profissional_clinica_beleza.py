@@ -104,14 +104,39 @@ class Command(BaseCommand):
             try:
                 from clinica_beleza.models import Professional
                 owner_name = (owner.get_full_name() or owner.username or '').strip() or owner.username
-                prof = Professional.objects.using(loja.database_name).create(
-                    name=owner_name,
-                    email=owner.email or '',
-                    phone='',
-                    specialty='Administrador',
-                    active=True,
-                    loja_id=loja.id,
-                )
+                try:
+                    prof = Professional.objects.using(loja.database_name).create(
+                        name=owner_name,
+                        email=owner.email or '',
+                        phone='',
+                        specialty='Administrador',
+                        active=True,
+                        loja_id=loja.id,
+                    )
+                except Exception as e_create:
+                    if 'loja_id' in str(e_create) and 'does not exist' in str(e_create):
+                        # Schema antigo sem coluna loja_id: adicionar via SQL no schema da loja
+                        from django.db import connections
+                        conn = connections[loja.database_name]
+                        with conn.cursor() as cursor:
+                            cursor.execute(
+                                'ALTER TABLE clinica_beleza_professional '
+                                'ADD COLUMN IF NOT EXISTS loja_id INTEGER NOT NULL DEFAULT 0'
+                            )
+                            cursor.execute(
+                                'CREATE INDEX IF NOT EXISTS clinica_bel_loja_id_prof_idx '
+                                'ON clinica_beleza_professional (loja_id)'
+                            )
+                        prof = Professional.objects.using(loja.database_name).create(
+                            name=owner_name,
+                            email=owner.email or '',
+                            phone='',
+                            specialty='Administrador',
+                            active=True,
+                            loja_id=loja.id,
+                        )
+                    else:
+                        raise
                 ProfissionalUsuario.objects.create(
                     user=owner,
                     loja=loja,

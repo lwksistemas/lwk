@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'superadmin',
     'asaas_integration',  # Integração com Asaas
     'clinica_estetica',
+    'clinica_beleza.apps.ClinicaBelezaConfig',  # Clínica da Beleza (agenda, profissionais, etc.)
     'crm_vendas',
     'ecommerce',
     'restaurante',

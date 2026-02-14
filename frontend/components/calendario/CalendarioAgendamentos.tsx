@@ -26,10 +26,12 @@ const getStatusColor = (status: string): string => {
       return '#10B981'; // Verde
     case 'em_atendimento':
       return '#10B981'; // Verde (mesmo que confirmado)
+    case 'concluido':
+      return '#10B981'; // Verde
     case 'faltou':
-      return '#EF4444'; // Vermelho
+      return '#A855F7'; // Roxo/Púrpura
     case 'cancelado':
-      return '#9CA3AF'; // Cinza
+      return '#F59E0B'; // Laranja/Âmbar
     default:
       return '#6B7280'; // Cinza padrão
   }

@@ -40,9 +40,9 @@ const getStatusColor = (status: string): string => {
     case 'concluido':
       return '#10B981';
     case 'faltou':
-      return '#EF4444';
+      return '#A855F7';
     case 'cancelado':
-      return '#9CA3AF';
+      return '#F59E0B';
     default:
       return '#6B7280';
   }

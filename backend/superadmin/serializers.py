@@ -233,7 +233,7 @@ class LojaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loja
         fields = '__all__'
-        read_only_fields = ['database_name', 'database_created', 'login_page_url', 'senha_provisoria']
+        read_only_fields = ['database_name', 'database_created', 'login_page_url', 'senha_provisoria', 'owner', 'owner_telefone']
 
 
 class LojaCreateSerializer(serializers.ModelSerializer):
@@ -242,6 +242,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
     owner_username = serializers.CharField(write_only=True, help_text='Nome de acesso (login) à loja')
     owner_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     owner_email = serializers.EmailField(write_only=True)
+    owner_telefone = serializers.CharField(write_only=True, required=False, allow_blank=True, help_text='Telefone do administrador')
     dia_vencimento = serializers.IntegerField(write_only=True, default=10, min_value=1, max_value=28)
     
     class Meta:
@@ -250,7 +251,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             'nome', 'slug', 'descricao', 'cpf_cnpj',
             'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
             'tipo_loja', 'plano', 'tipo_assinatura',
-            'owner_full_name', 'owner_username', 'owner_password', 'owner_email', 'dia_vencimento',
+            'owner_full_name', 'owner_username', 'owner_password', 'owner_email', 'owner_telefone', 'dia_vencimento',
             'logo', 'cor_primaria', 'cor_secundaria', 'dominio_customizado'
         ]
     
@@ -269,6 +270,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             owner_username = validated_data.pop('owner_username')
             owner_password = validated_data.pop('owner_password', None)
             owner_email = validated_data.pop('owner_email')
+            owner_telefone = (validated_data.pop('owner_telefone', '') or '').strip()
             dia_vencimento = validated_data.pop('dia_vencimento', 10)
             # Nome completo -> first_name e last_name (primeira palavra = first_name, resto = last_name)
             parts = owner_full_name.split(None, 1) if owner_full_name else []
@@ -301,6 +303,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                         raise serializers.ValidationError({'slug': f'Já existe uma loja com o slug "{slug_sanitizado}". Escolha outro.'})
                     validated_data['slug'] = slug_sanitizado
             validated_data['owner'] = owner
+            validated_data['owner_telefone'] = owner_telefone
             validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
             validated_data['senha_foi_alterada'] = False  # Garantir que precisa trocar no primeiro login
             

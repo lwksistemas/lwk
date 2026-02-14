@@ -27,6 +27,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     owner_username: '',
     owner_password: '',
     owner_email: '',
+    owner_telefone: '',
   });
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdLoja, setCreatedLoja] = useState<any>(null);
@@ -757,6 +758,20 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="admin@loja.com"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Telefone do administrador
+                </label>
+                <input
+                  type="tel"
+                  name="owner_telefone"
+                  value={formData.owner_telefone}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="(00) 00000-0000"
                 />
               </div>
             </div>

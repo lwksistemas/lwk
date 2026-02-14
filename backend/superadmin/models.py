@@ -161,8 +161,9 @@ class Loja(models.Model):
     ]
     tipo_assinatura = models.CharField(max_length=10, choices=TIPO_ASSINATURA_CHOICES, default='mensal')
     
-    # Proprietário
+    # Proprietário (administrador da loja — não editável nem excluível após criação)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lojas_owned')
+    owner_telefone = models.CharField(max_length=20, blank=True, help_text='Telefone do administrador da loja')
     
     # Senha provisória (para mostrar ao super admin)
     senha_provisoria = models.CharField(max_length=50, blank=True, help_text='Senha provisória gerada automaticamente')

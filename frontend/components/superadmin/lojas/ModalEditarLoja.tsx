@@ -11,6 +11,7 @@ interface Loja {
   plano_nome: string;
   owner_username: string;
   owner_email: string;
+  owner_telefone?: string;
   is_active: boolean;
   is_trial: boolean;
   database_created: boolean;
@@ -102,14 +103,15 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
             </div>
           </div>
 
-          {/* Informações Somente Leitura */}
+          {/* Informações Somente Leitura — administrador da loja não pode ser editado nem excluído */}
           <div>
             <h4 className="text-lg font-semibold mb-3 text-gray-700">Informações (Somente Leitura)</h4>
             <div className="bg-gray-50 p-4 rounded-md space-y-2 text-sm">
               <p><strong>Slug:</strong> {loja.slug}</p>
               <p><strong>Tipo:</strong> {loja.tipo_loja_nome}</p>
               <p><strong>Plano:</strong> {loja.plano_nome}</p>
-              <p><strong>Proprietário:</strong> {loja.owner_username} ({loja.owner_email})</p>
+              <p><strong>Usuário Administrador da Loja:</strong> {loja.owner_username} ({loja.owner_email}){loja.owner_telefone ? ` · Tel: ${loja.owner_telefone}` : ''}</p>
+              <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded mt-1">O administrador vinculado à loja não pode ser editado nem excluído.</p>
               <p><strong>Banco Criado:</strong> {loja.database_created ? '✅ Sim' : '❌ Não'}</p>
               <p><strong>URL Login:</strong> <a href={loja.login_page_url} target="_blank" className="text-purple-600 hover:underline">{loja.login_page_url}</a></p>
             </div>

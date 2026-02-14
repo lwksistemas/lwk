@@ -14,6 +14,7 @@ interface Loja {
   plano_nome: string;
   owner_username: string;
   owner_email: string;
+  owner_telefone?: string;
   senha_provisoria: string;
   is_active: boolean;
   is_trial: boolean;
@@ -81,6 +82,7 @@ export default function GerenciarLojasPage() {
     login_page_url: string;
     owner_username: string;
     owner_email: string;
+    owner_telefone?: string;
   } | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(false);
 
@@ -298,6 +300,7 @@ export default function GerenciarLojasPage() {
                           <div className="font-medium text-gray-900">{loja.nome}</div>
                           <div className="text-sm text-gray-500">{loja.owner_username}</div>
                           <div className="text-xs text-gray-400">{loja.owner_email}</div>
+                          {loja.owner_telefone ? <div className="text-xs text-gray-400">Tel: {loja.owner_telefone}</div> : null}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm">{loja.tipo_loja_nome}</td>
@@ -475,6 +478,7 @@ export default function GerenciarLojasPage() {
                   <div className="pt-2 border-t border-gray-200">
                     <span className="font-semibold text-gray-500 block mb-1">Usuário / E-mail</span>
                     <p className="text-gray-900">{lojaInfo.owner_username} — {lojaInfo.owner_email}</p>
+                    {lojaInfo.owner_telefone ? <p className="text-gray-600 text-sm mt-1">Tel: {lojaInfo.owner_telefone}</p> : null}
                   </div>
                 </div>
               ) : null}

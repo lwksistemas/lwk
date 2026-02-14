@@ -9,7 +9,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { X, Plus, Lock, Moon, Sun } from "lucide-react";
+import Link from "next/link";
+import { X, Plus, Lock, Moon, Sun, ArrowLeft } from "lucide-react";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
 import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "@/lib/clinica-beleza-api";
@@ -100,6 +101,9 @@ export default function AgendaPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [bloqueios, setBloqueios] = useState<BloqueioHorario[]>([]);
   const [showModalBloqueio, setShowModalBloqueio] = useState(false);
+  const [selectedBloqueio, setSelectedBloqueio] = useState<{ id: number; motivo: string; professional_name: string } | null>(null);
+  const [deletingBloqueio, setDeletingBloqueio] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [createForm, setCreateForm] = useState({
     patientId: "",
     professionalId: "",
@@ -305,7 +309,12 @@ export default function AgendaPage() {
 
   const handleEventClick = (info: any) => {
     if (info.event.extendedProps?.isBloqueio) {
-      return; // Bloqueios não abrem modal de detalhe (só na tela de Bloquear horário)
+      setSelectedBloqueio({
+        id: info.event.extendedProps.bloqueioId,
+        motivo: info.event.extendedProps.motivo || info.event.title,
+        professional_name: info.event.extendedProps.professional_name || "Todos",
+      });
+      return;
     }
     setSelectedEvent({
       id: info.event.id,
@@ -356,16 +365,69 @@ export default function AgendaPage() {
     try {
       const baseURL = getClinicaBelezaBaseUrl();
       const headers = getClinicaBelezaHeaders();
-      await fetch(`${baseURL}/agenda/${selectedEvent.extendedProps.dbId}/delete/`, {
+      const res = await fetch(`${baseURL}/agenda/${selectedEvent.extendedProps.dbId}/delete/`, {
         method: "DELETE",
         headers,
       });
-
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erro ao deletar agendamento");
+      }
       setShowModal(false);
       setSelectedEvent(null);
       carregarDados();
     } catch (error) {
       console.error("Erro ao deletar evento:", error);
+      alert(error instanceof Error ? error.message : "Erro ao deletar agendamento.");
+    }
+  };
+
+  const excluirBloqueio = async () => {
+    if (!selectedBloqueio) return;
+    if (!confirm(`Excluir o bloqueio "${selectedBloqueio.motivo}"?`)) return;
+    setDeletingBloqueio(true);
+    try {
+      const baseURL = getClinicaBelezaBaseUrl();
+      const headers = getClinicaBelezaHeaders();
+      const res = await fetch(`${baseURL}/bloqueios/${selectedBloqueio.id}/`, { method: "DELETE", headers });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erro ao excluir bloqueio");
+      }
+      setSelectedBloqueio(null);
+      carregarDados();
+    } catch (error) {
+      console.error("Erro ao excluir bloqueio:", error);
+      alert(error instanceof Error ? error.message : "Erro ao excluir bloqueio.");
+    } finally {
+      setDeletingBloqueio(false);
+    }
+  };
+
+  const atualizarStatusAgendamento = async (novoStatus: string) => {
+    if (!selectedEvent) return;
+    setUpdatingStatus(true);
+    try {
+      const baseURL = getClinicaBelezaBaseUrl();
+      const headers = getClinicaBelezaHeaders();
+      const res = await fetch(`${baseURL}/agenda/${selectedEvent.extendedProps.dbId}/update/`, {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: novoStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erro ao atualizar status");
+      }
+      setSelectedEvent((prev) =>
+        prev ? { ...prev, extendedProps: { ...prev.extendedProps, status: novoStatus } } : null
+      );
+      carregarDados();
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+      alert(error instanceof Error ? error.message : "Erro ao atualizar status.");
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -385,6 +447,14 @@ export default function AgendaPage() {
       {/* HEADER */}
       <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl shadow-sm p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <Link
+            href={`/loja/${slug}/dashboard`}
+            className="flex items-center gap-2 p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-neutral-700 transition-colors text-gray-700 dark:text-gray-300 font-medium"
+            aria-label="Voltar ao dashboard"
+          >
+            <ArrowLeft className="w-5 h-5 shrink-0" />
+            <span className="hidden sm:inline">Voltar</span>
+          </Link>
           <div className="w-10 h-10 rounded-full bg-pink-200 dark:bg-pink-900 flex items-center justify-center text-xl">
             💆‍♀️
           </div>
@@ -493,15 +563,50 @@ export default function AgendaPage() {
         </div>
       </div>
 
+      {/* MODAL DETALHES BLOQUEIO - Excluir */}
+      {selectedBloqueio && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Bloqueio de horário</h2>
+              <button
+                onClick={() => setSelectedBloqueio(null)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-2">{selectedBloqueio.motivo}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-500">Profissional: {selectedBloqueio.professional_name}</p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={excluirBloqueio}
+                disabled={deletingBloqueio}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deletingBloqueio ? "Excluindo..." : "Excluir bloqueio"}
+              </button>
+              <button
+                onClick={() => setSelectedBloqueio(null)}
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-neutral-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-500"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL DE DETALHES */}
       {showModal && selectedEvent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Detalhes do Agendamento</h2>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Detalhes do Agendamento</h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg transition-colors"
               >
                 <X size={20} />
               </button>
@@ -509,46 +614,54 @@ export default function AgendaPage() {
 
             <div className="space-y-3">
               <div>
-                <p className="text-sm text-gray-500">Paciente</p>
-                <p className="font-semibold">{selectedEvent.extendedProps.patient_name}</p>
-                <p className="text-sm text-gray-600">{selectedEvent.extendedProps.patient_phone}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Paciente</p>
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedEvent.extendedProps.patient_name}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{selectedEvent.extendedProps.patient_phone}</p>
               </div>
 
               <div>
-                <p className="text-sm text-gray-500">Procedimento</p>
-                <p className="font-semibold">{selectedEvent.extendedProps.procedure_name}</p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Procedimento</p>
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedEvent.extendedProps.procedure_name}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {selectedEvent.extendedProps.procedure_duration} min - R${" "}
                   {selectedEvent.extendedProps.procedure_price}
                 </p>
               </div>
 
               <div>
-                <p className="text-sm text-gray-500">Profissional</p>
-                <p className="font-semibold">{selectedEvent.extendedProps.professional_name}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Profissional</p>
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedEvent.extendedProps.professional_name}</p>
               </div>
 
               <div>
-                <p className="text-sm text-gray-500">Data e Hora</p>
-                <p className="font-semibold">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Data e Hora</p>
+                <p className="font-semibold text-gray-900 dark:text-gray-100">
                   {new Date(selectedEvent.start).toLocaleString("pt-BR")}
                 </p>
               </div>
 
               <div>
-                <p className="text-sm text-gray-500">Status</p>
-                <span
-                  className="inline-block px-3 py-1 rounded-full text-xs font-medium"
-                  style={{ backgroundColor: selectedEvent.backgroundColor, color: "#fff" }}
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Status {updatingStatus && <span className="text-xs">(salvando…)</span>}</p>
+                <select
+                  value={selectedEvent.extendedProps.status}
+                  onChange={(e) => atualizarStatusAgendamento(e.target.value)}
+                  disabled={updatingStatus}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-70"
                 >
-                  {selectedEvent.extendedProps.status}
-                </span>
+                  <option value="SCHEDULED">Agendado</option>
+                  <option value="CONFIRMED">Confirmado</option>
+                  <option value="PENDING">Pendente</option>
+                  <option value="IN_PROGRESS">Em Atendimento</option>
+                  <option value="COMPLETED">Concluído</option>
+                  <option value="CANCELLED">Cancelado</option>
+                  <option value="NO_SHOW">Faltou</option>
+                </select>
               </div>
 
               {selectedEvent.extendedProps.notes && (
                 <div>
-                  <p className="text-sm text-gray-500">Observações</p>
-                  <p className="text-sm">{selectedEvent.extendedProps.notes}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Observações</p>
+                  <p className="text-sm text-gray-800 dark:text-gray-200">{selectedEvent.extendedProps.notes}</p>
                 </div>
               )}
             </div>
@@ -562,7 +675,7 @@ export default function AgendaPage() {
               </button>
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-neutral-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-500 transition-colors"
               >
                 Fechar
               </button>
@@ -574,12 +687,12 @@ export default function AgendaPage() {
       {/* MODAL NOVO AGENDAMENTO */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-xl font-bold text-gray-800">Novo Agendamento</h2>
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b dark:border-neutral-700">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Novo Agendamento</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg transition-colors"
               >
                 <X size={20} />
               </button>
@@ -631,29 +744,29 @@ export default function AgendaPage() {
               }}
             >
               {createError && (
-                <div className="p-2 rounded bg-red-50 text-red-700 text-sm">{createError}</div>
+                <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">{createError}</div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                <p className="text-gray-800 font-medium">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label>
+                <p className="text-gray-800 dark:text-gray-200 font-medium">
                   {selectedDate ? selectedDate.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }) : "—"}
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Horário</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Horário</label>
                 <input
                   type="time"
                   value={createForm.time}
                   onChange={(e) => setCreateForm((f) => ({ ...f, time: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Paciente *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paciente *</label>
                 <select
                   value={createForm.patientId}
                   onChange={(e) => setCreateForm((f) => ({ ...f, patientId: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg bg-white"
+                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
                   required
                 >
                   <option value="">Selecione o paciente</option>
@@ -663,11 +776,11 @@ export default function AgendaPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Profissional *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
                 <select
                   value={createForm.professionalId}
                   onChange={(e) => setCreateForm((f) => ({ ...f, professionalId: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg bg-white"
+                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
                   required
                 >
                   <option value="">Selecione o profissional</option>
@@ -677,11 +790,11 @@ export default function AgendaPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Procedimento *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Procedimento *</label>
                 <select
                   value={createForm.procedureId}
                   onChange={(e) => setCreateForm((f) => ({ ...f, procedureId: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg bg-white"
+                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
                   required
                 >
                   <option value="">Selecione o procedimento</option>
@@ -691,12 +804,12 @@ export default function AgendaPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
                 <textarea
                   value={createForm.notes}
                   onChange={(e) => setCreateForm((f) => ({ ...f, notes: e.target.value }))}
                   rows={2}
-                  className="w-full px-3 py-2 border rounded-lg resize-none"
+                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 resize-none"
                   placeholder="Opcional"
                 />
               </div>
@@ -704,7 +817,7 @@ export default function AgendaPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
+                  className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300"
                 >
                   Cancelar
                 </button>

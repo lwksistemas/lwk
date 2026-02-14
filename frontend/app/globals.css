@@ -200,3 +200,53 @@
 .glass {
   @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm;
 }
+
+/* ========== FULLCALENDAR MODO ESCURO (Clínica da Beleza - Agenda) ========== */
+.dark .fc,
+.dark .fc-theme-standard td,
+.dark .fc-theme-standard th,
+.dark .fc-scrollgrid {
+  border-color: rgb(64 64 64);
+}
+.dark .fc-theme-standard .fc-scrollgrid {
+  background: rgb(38 38 38);
+}
+.dark .fc-col-header-cell,
+.dark .fc-timegrid-slot,
+.dark .fc-timegrid-axis,
+.dark .fc-daygrid-day-frame {
+  background: rgb(38 38 38);
+  color: rgb(229 229 229);
+}
+.dark .fc-day-today {
+  background: rgb(55 65 81 / 0.5);
+}
+.dark .fc-timegrid-slot-label,
+.dark .fc-timegrid-axis-cushion,
+.dark .fc-col-header-cell-cushion {
+  color: rgb(212 212 212);
+}
+.dark .fc-button {
+  background: rgb(64 64 64);
+  border-color: rgb(82 82 82);
+  color: rgb(229 229 229);
+}
+.dark .fc-button:hover {
+  background: rgb(82 82 82);
+}
+.dark .fc-button-primary:not(:disabled).fc-button-active,
+.dark .fc-button-primary:not(:disabled):active {
+  background: rgb(107 114 128);
+}
+.dark .fc-toolbar-title {
+  color: rgb(243 244 246);
+}
+.dark .fc-event {
+  border-color: rgba(255,255,255,0.3);
+}
+.dark .fc-daygrid-day-number {
+  color: rgb(212 212 212);
+}
+.dark .fc-timegrid-event {
+  border-color: rgba(255,255,255,0.2);
+}

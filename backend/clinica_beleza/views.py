@@ -464,10 +464,9 @@ class AgendaView(APIView):
 
 class AgendaUpdateView(APIView):
     """
-    Atualizar data/hora do agendamento (drag & drop).
-    Respeita bloqueios: não permite soltar em horário bloqueado.
+    Atualizar data/hora e/ou status do agendamento.
     PATCH /clinica-beleza/agenda/<id>/update/
-    Body: { "date": "2024-02-11T14:30:00Z" }
+    Body: { "date": "2024-02-11T14:30:00Z" }  ou  { "status": "CONFIRMED" }  ou ambos.
     """
     permission_classes = [IsAuthenticated]
 
@@ -475,31 +474,42 @@ class AgendaUpdateView(APIView):
         try:
             appointment = Appointment.objects.select_related('procedure', 'professional').get(pk=pk)
             new_date = request.data.get('date')
-            if not new_date:
-                return Response({'error': 'Data não fornecida'}, status=status.HTTP_400_BAD_REQUEST)
+            new_status = request.data.get('status')
 
-            if hasattr(new_date, 'isoformat'):
-                date_start = new_date
-            elif isinstance(new_date, str):
-                from django.utils.dateparse import parse_datetime
-                date_start = parse_datetime(new_date) or now()
-            else:
-                date_start = new_date
+            if new_date is not None:
+                if hasattr(new_date, 'isoformat'):
+                    date_start = new_date
+                elif isinstance(new_date, str):
+                    from django.utils.dateparse import parse_datetime
+                    date_start = parse_datetime(new_date) or now()
+                else:
+                    date_start = new_date
 
-            date_end = date_start + timedelta(minutes=appointment.procedure.duration)
-            professional_id = appointment.professional_id
-            bloqueios = BloqueioHorario.objects.filter(
-                Q(professional_id=professional_id) | Q(professional_id__isnull=True)
-            )
-            if _bloqueio_impede_agendamento(date_start, date_end, professional_id, bloqueios):
-                return Response(
-                    {'error': 'Horário bloqueado. Escolha outro horário.'},
-                    status=status.HTTP_400_BAD_REQUEST
+                date_end = date_start + timedelta(minutes=appointment.procedure.duration)
+                professional_id = appointment.professional_id
+                bloqueios = BloqueioHorario.objects.filter(
+                    Q(professional_id=professional_id) | Q(professional_id__isnull=True)
                 )
+                if _bloqueio_impede_agendamento(date_start, date_end, professional_id, bloqueios):
+                    return Response(
+                        {'error': 'Horário bloqueado. Escolha outro horário.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                appointment.date = date_start
 
-            appointment.date = date_start
+            if new_status is not None:
+                valid = dict(Appointment.STATUS_CHOICES).keys()
+                if new_status not in valid:
+                    return Response(
+                        {'error': f'Status inválido. Use: {", ".join(valid)}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                appointment.status = new_status
+
+            if new_date is None and new_status is None:
+                return Response({'error': 'Envie date e/ou status'}, status=status.HTTP_400_BAD_REQUEST)
+
             appointment.save()
-
             serializer = AgendaEventSerializer(appointment)
             return Response(serializer.data)
 

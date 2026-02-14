@@ -253,6 +253,26 @@
 
 /* ========== FULLCALENDAR MOBILE (Agenda - celular) ========== */
 @media (max-width: 639px) {
+  .dark .fc-agenda-mobile .fc-timegrid-slot,
+  .dark .fc-agenda-mobile .fc-timegrid-axis,
+  .dark .fc-agenda-mobile .fc-col-header-cell,
+  .dark .fc-agenda-mobile .fc-daygrid-day-frame {
+    background: rgb(38 38 38);
+    color: rgb(229 229 229);
+  }
+  .dark .fc-agenda-mobile .fc-timegrid-slot-label,
+  .dark .fc-agenda-mobile .fc-timegrid-axis-cushion,
+  .dark .fc-agenda-mobile .fc-col-header-cell-cushion {
+    color: rgb(212 212 212);
+  }
+  .dark .fc-agenda-mobile .fc-toolbar-title {
+    color: rgb(243 244 246);
+  }
+  .dark .fc-agenda-mobile .fc-button {
+    background: rgb(64 64 64);
+    border-color: rgb(82 82 82);
+    color: rgb(229 229 229);
+  }
   .fc-agenda-mobile .fc-toolbar {
     flex-direction: row;
     flex-wrap: wrap;

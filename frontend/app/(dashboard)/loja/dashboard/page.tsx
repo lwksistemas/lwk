@@ -61,7 +61,7 @@ function LojaDashboardContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <nav className="bg-green-900 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -85,74 +85,74 @@ function LojaDashboardContent() {
         <div className="px-4 py-6 sm:px-0">
           {/* Estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Total de Produtos</h3>
-              <p className="text-3xl font-bold text-green-600 mt-2">{products.length}</p>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total de Produtos</h3>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">{products.length}</p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Estoque Total</h3>
-              <p className="text-3xl font-bold text-blue-600 mt-2">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Estoque Total</h3>
+              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">
                 {products.reduce((acc, p) => acc + p.stock, 0)}
               </p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Valor Total</h3>
-              <p className="text-3xl font-bold text-purple-600 mt-2">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Valor Total</h3>
+              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2">
                 R$ {products.reduce((acc, p) => acc + (parseFloat(p.price) * p.stock), 0).toFixed(2)}
               </p>
             </div>
           </div>
 
           {/* Produtos */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Produtos</h3>
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+            <div className="px-6 py-4 border-b dark:border-gray-600 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Produtos</h3>
               <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
                 + Novo Produto
               </button>
             </div>
             <div className="p-6">
               {loading ? (
-                <p className="text-center text-gray-500">Carregando...</p>
+                <p className="text-center text-gray-500 dark:text-gray-400">Carregando...</p>
               ) : products.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-500 mb-4">Nenhum produto cadastrado</p>
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">Nenhum produto cadastrado</p>
                   <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
                     Cadastrar Primeiro Produto
                   </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
                     <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                           Nome
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                           Preço
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                           Estoque
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                           Ações
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                       {products.map((product) => (
                         <tr key={product.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">{product.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">{product.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">
                             R$ {parseFloat(product.price).toFixed(2)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">{product.stock}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">{product.stock}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <button className="text-blue-600 hover:text-blue-800 mr-3">
+                            <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mr-3">
                               Editar
                             </button>
-                            <button className="text-red-600 hover:text-red-800">
+                            <button className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300">
                               Excluir
                             </button>
                           </td>
@@ -172,7 +172,7 @@ function LojaDashboardContent() {
 
 export default function LojaDashboardPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Carregando...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">Carregando...</div>}>
       <LojaDashboardContent />
     </Suspense>
   );

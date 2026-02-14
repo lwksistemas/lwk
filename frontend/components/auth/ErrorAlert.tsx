@@ -10,12 +10,12 @@ export default function ErrorAlert({ message, onClose }: ErrorAlertProps) {
 
   return (
     <div 
-      className="bg-red-50 border border-red-200 text-red-700 p-3 rounded text-sm flex items-start justify-between"
+      className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 p-3 rounded text-sm flex items-start justify-between"
       role="alert"
     >
       <div className="flex items-start">
         <svg 
-          className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" 
+          className="h-5 w-5 text-red-400 dark:text-red-500 mr-2 flex-shrink-0 mt-0.5" 
           fill="none" 
           viewBox="0 0 24 24" 
           stroke="currentColor"
@@ -32,7 +32,7 @@ export default function ErrorAlert({ message, onClose }: ErrorAlertProps) {
       {onClose && (
         <button
           onClick={onClose}
-          className="ml-3 flex-shrink-0 text-red-400 hover:text-red-600 focus:outline-none"
+          className="ml-3 flex-shrink-0 text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 focus:outline-none"
           aria-label="Fechar alerta"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

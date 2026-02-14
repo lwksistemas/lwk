@@ -272,7 +272,7 @@ export default function CalendarioCabeleireiro({ loja, onNovoAgendamento }: { lo
                               <p className="text-sm text-gray-600 dark:text-gray-400">
                                 {agendamento.servico_nome}
                               </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 com {agendamento.profissional_nome}
                               </p>
                             </div>

@@ -112,8 +112,16 @@ class HistoricoAcessoMiddleware:
         
         # Extrair informações do usuário
         user = request.user if hasattr(request, 'user') and not isinstance(request.user, AnonymousUser) else None
-        usuario_email = user.email if user else 'Anônimo'
-        usuario_nome = user.get_full_name() or user.username if user else 'Anônimo'
+        if user:
+            usuario_email = user.email or ''
+            usuario_nome = user.get_full_name() or user.username or ''
+        elif request.path.startswith('/api/asaas/'):
+            # Webhook e chamadas da API Asaas: identificar como sistema, não Anônimo
+            usuario_email = 'api@asaas.sistema'
+            usuario_nome = 'API Asaas'
+        else:
+            usuario_email = 'Anônimo'
+            usuario_nome = 'Anônimo'
         
         # Extrair informações da loja (se aplicável)
         loja = None

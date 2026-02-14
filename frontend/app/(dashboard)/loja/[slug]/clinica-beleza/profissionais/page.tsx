@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Trash2, X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
@@ -21,11 +21,19 @@ interface Professional {
   phone: string | null;
   email: string | null;
   active: boolean;
+  is_administrador_vinculado?: boolean;
+}
+
+interface LojaOwnerInfo {
+  owner_username: string;
+  owner_email: string;
+  owner_telefone: string;
 }
 
 export default function ProfissionaisPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
   const [list, setList] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +49,25 @@ export default function ProfissionaisPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [lojaOwnerInfo, setLojaOwnerInfo] = useState<LojaOwnerInfo | null>(null);
   useClinicaBelezaDark();
+
+  const loadLojaInfo = async () => {
+    if (!navigator.onLine) return;
+    try {
+      const res = await clinicaBelezaFetch("/loja-info/");
+      if (res.ok) {
+        const data = await res.json();
+        setLojaOwnerInfo({
+          owner_username: data.owner_username ?? "",
+          owner_email: data.owner_email ?? "",
+          owner_telefone: data.owner_telefone ?? "",
+        });
+      }
+    } catch {
+      setLojaOwnerInfo(null);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -67,7 +93,12 @@ export default function ProfissionaisPage() {
 
   useEffect(() => {
     load();
+    loadLojaInfo();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("novo") === "1") openNew();
+  }, [searchParams]);
 
   const openNew = () => {
     setEditing(null);
@@ -175,6 +206,13 @@ export default function ProfissionaisPage() {
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Profissionais</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Cadastro de profissionais da clínica</p>
+            {lojaOwnerInfo && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Usuário administrador da loja: <strong>{lojaOwnerInfo.owner_username}</strong> ({lojaOwnerInfo.owner_email})
+                {lojaOwnerInfo.owner_telefone ? ` · Tel: ${lojaOwnerInfo.owner_telefone}` : ""}
+                <span className="block text-amber-700 dark:text-amber-400 mt-0.5">O administrador vinculado à loja não pode ser editado nem excluído.</span>
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <OfflineIndicator />
@@ -214,20 +252,28 @@ export default function ProfissionaisPage() {
                       <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{p.phone || "—"}</td>
                       <td className="p-3">
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
-                            title="Editar"
-                          >
-                            <Pencil size={18} />
-                          </button>
-                          <button
-                            onClick={() => exclude(p)}
-                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                            title="Desativar"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {p.is_administrador_vinculado ? (
+                            <span className="text-xs text-amber-700 dark:text-amber-400" title="O administrador da loja não pode ser editado nem excluído">
+                              Administrador (somente leitura)
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => openEdit(p)}
+                                className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
+                                title="Editar"
+                              >
+                                <Pencil size={18} />
+                              </button>
+                              <button
+                                onClick={() => exclude(p)}
+                                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                title="Desativar"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

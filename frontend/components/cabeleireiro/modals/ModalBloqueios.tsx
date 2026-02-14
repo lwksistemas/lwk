@@ -250,7 +250,7 @@ export function ModalBloqueios({ loja, onClose }: { loja: LojaInfo; onClose: () 
                       📅 {new Date(bloqueio.data_inicio).toLocaleDateString('pt-BR')} até {new Date(bloqueio.data_fim).toLocaleDateString('pt-BR')}
                     </p>
                     {bloqueio.observacoes && (
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {bloqueio.observacoes}
                       </p>
                     )}

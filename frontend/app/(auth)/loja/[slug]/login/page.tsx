@@ -146,15 +146,15 @@ export default function LojaLoginDinamicoPage() {
   if (!lojaInfo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-900 to-red-700 p-4">
-        <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white rounded-lg shadow-2xl">
+        <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl">
           <div className="text-center">
             <div className="mx-auto h-16 w-16 bg-red-600 rounded-full flex items-center justify-center mb-4">
               <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Loja não encontrada</h2>
-            <p className="text-sm sm:text-base text-gray-600 mb-6">A loja "{slug}" não existe ou não está ativa.</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">Loja não encontrada</h2>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-6">A loja "{slug}" não existe ou não está ativa.</p>
             <Link
               href="/"
               className="inline-block px-6 py-3 min-h-[44px] bg-red-600 text-white rounded-md hover:bg-red-700 active:scale-95 transition-transform"
@@ -178,7 +178,7 @@ export default function LojaLoginDinamicoPage() {
         background: `linear-gradient(to bottom right, ${corPrimaria}, ${corSecundaria})`
       }}
     >
-      <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white rounded-lg shadow-2xl">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl">
         {/* Header */}
         <div>
           <div 
@@ -193,13 +193,13 @@ export default function LojaLoginDinamicoPage() {
               </svg>
             )}
           </div>
-          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-bold text-gray-900">
+          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             {lojaInfo.nome}
           </h2>
-          <p className="mt-1 sm:mt-2 text-center text-sm sm:text-base text-gray-600">
+          <p className="mt-1 sm:mt-2 text-center text-sm sm:text-base text-gray-600 dark:text-gray-300">
             {lojaInfo.tipo_loja_nome}
           </p>
-          <p className="text-center text-xs sm:text-sm text-gray-500 mt-1">
+          <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
             Portal da Loja
           </p>
         </div>
@@ -211,7 +211,7 @@ export default function LojaLoginDinamicoPage() {
           <div className="space-y-4">
             {/* Username */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Usuário
               </label>
               <input
@@ -219,7 +219,7 @@ export default function LojaLoginDinamicoPage() {
                 type="text"
                 required
                 autoComplete="username"
-                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors"
+                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-0 dark:focus:ring-offset-gray-800 transition-colors"
                 value={credentials.username}
                 onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                 placeholder="Digite seu usuário"
@@ -229,7 +229,7 @@ export default function LojaLoginDinamicoPage() {
             
             {/* CPF/CNPJ - SEMPRE obrigatório para maior segurança */}
             <div>
-              <label htmlFor="cpf_cnpj" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="cpf_cnpj" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 CPF/CNPJ
               </label>
               <input
@@ -237,7 +237,7 @@ export default function LojaLoginDinamicoPage() {
                 type="text"
                 required
                 autoComplete="off"
-                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors"
+                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-0 dark:focus:ring-offset-gray-800 transition-colors"
                 value={credentials.cpf_cnpj}
                 onChange={handleCpfCnpjChange}
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"

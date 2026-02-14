@@ -54,6 +54,7 @@ const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'
 export default function AuditoriaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [periodo, setPeriodo] = useState('7');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
@@ -77,6 +78,7 @@ export default function AuditoriaPage() {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Construir query params
       const params = new URLSearchParams();
@@ -109,14 +111,22 @@ export default function AuditoriaPage() {
         apiClient.get(`/superadmin/estatisticas-auditoria/taxa_sucesso/?${queryString}`),
       ]);
       
-      setAcoesPorDia(acoesDiaRes.data.acoes || []);
-      setAcoesPorTipo(acoesTipoRes.data.acoes || []);
-      setLojasAtivas(lojasRes.data.lojas?.map((l: any) => ({ nome: l.loja_nome, total: l.total })) || []);
-      setUsuariosAtivos(usuariosRes.data.usuarios?.map((u: any) => ({ nome: u.usuario_nome, total: u.total })) || []);
-      setHorariosPico(horariosRes.data.horarios?.map((h: any) => ({ hora: h.hora, total: h.total })) || []);
-      setTaxaSucesso(taxaRes.data);
-    } catch (error) {
-      console.error('Erro ao carregar dados de auditoria:', error);
+      // Aceitar formato novo (objeto com chaves) ou antigo (array direto)
+      const d = (r: { data: any }) => r.data;
+      setAcoesPorDia(Array.isArray(d(acoesDiaRes)) ? (d(acoesDiaRes) as any[]).map((x: any) => ({ periodo: x.periodo || x.dia, total: x.total ?? x.count ?? 0, sucessos: x.sucessos ?? x.total ?? x.count ?? 0, erros: x.erros ?? 0 })) : (d(acoesDiaRes).acoes || []));
+      setAcoesPorTipo(Array.isArray(d(acoesTipoRes)) ? (d(acoesTipoRes) as any[]).map((x: any) => ({ acao: x.acao, total: x.total ?? x.count ?? 0 })) : (d(acoesTipoRes).acoes || []));
+      const lojasRaw = d(lojasRes).lojas ?? d(lojasRes);
+      setLojasAtivas(Array.isArray(lojasRaw) ? lojasRaw.map((l: any) => ({ nome: l.loja_nome ?? l.nome, total: l.total ?? l.count ?? 0 })) : []);
+      const usuariosRaw = d(usuariosRes).usuarios ?? d(usuariosRes);
+      setUsuariosAtivos(Array.isArray(usuariosRaw) ? usuariosRaw.map((u: any) => ({ nome: u.usuario_nome ?? u.nome, total: u.total ?? u.count ?? 0 })) : []);
+      const horariosRaw = d(horariosRes).horarios ?? d(horariosRes);
+      setHorariosPico(Array.isArray(horariosRaw) ? horariosRaw.map((h: any) => ({ hora: h.hora, total: h.total ?? h.count ?? 0 })) : []);
+      const taxa = d(taxaRes);
+      setTaxaSucesso(taxa ? { total: taxa.total ?? 0, sucessos: taxa.sucessos ?? 0, erros: taxa.erros ?? taxa.falhas ?? 0, taxa_sucesso: taxa.taxa_sucesso ?? 0 } : null);
+    } catch (err: any) {
+      console.error('Erro ao carregar dados de auditoria:', err);
+      const msg = err?.response?.data?.detail || err?.response?.status === 403 ? 'Sem permissão para ver auditoria.' : err?.message || 'Falha ao carregar dados. Tente novamente.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -130,21 +140,41 @@ export default function AuditoriaPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Carregando dados de auditoria...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-xl text-gray-900 dark:text-gray-100">Carregando dados de auditoria...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4 bg-gray-50 dark:bg-gray-900">
+        <p className="text-xl text-red-600 dark:text-red-400">{error}</p>
+        <button
+          onClick={() => { setError(null); loadData(); }}
+          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+        >
+          Tentar novamente
+        </button>
+        <button
+          onClick={() => router.push('/superadmin/dashboard')}
+          className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+        >
+          Voltar ao dashboard
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white shadow">
+      <div className="bg-white dark:bg-gray-800 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">📊 Dashboard de Auditoria</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">📊 Dashboard de Auditoria</h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Análise de atividades e métricas do sistema
               </p>
             </div>
@@ -160,15 +190,15 @@ export default function AuditoriaPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Seletor de Período */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h3 className="text-lg font-semibold mb-4">Período de Análise</h3>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Período de Análise</h3>
           <div className="flex flex-wrap gap-4">
             <button
               onClick={() => handlePeriodoChange('7')}
               className={`px-4 py-2 rounded-md transition-colors ${
                 periodo === '7' && !dataInicio
                   ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500'
               }`}
             >
               Últimos 7 dias
@@ -178,7 +208,7 @@ export default function AuditoriaPage() {
               className={`px-4 py-2 rounded-md transition-colors ${
                 periodo === '30' && !dataInicio
                   ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500'
               }`}
             >
               Últimos 30 dias
@@ -188,7 +218,7 @@ export default function AuditoriaPage() {
               className={`px-4 py-2 rounded-md transition-colors ${
                 periodo === '90' && !dataInicio
                   ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500'
               }`}
             >
               Últimos 90 dias
@@ -199,14 +229,14 @@ export default function AuditoriaPage() {
                 type="date"
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
-              <span className="text-gray-500">até</span>
+              <span className="text-gray-500 dark:text-gray-400">até</span>
               <input
                 type="date"
                 value={dataFim}
                 onChange={(e) => setDataFim(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
           </div>
@@ -214,32 +244,32 @@ export default function AuditoriaPage() {
 
         {/* Taxa de Sucesso */}
         {taxaSucesso && (
-          <div className="bg-white p-6 rounded-lg shadow mb-6">
-            <h3 className="text-lg font-semibold mb-4">Taxa de Sucesso</h3>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Taxa de Sucesso</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
-                <p className="text-4xl font-bold text-purple-600">
+                <p className="text-4xl font-bold text-purple-600 dark:text-purple-400">
                   {taxaSucesso.taxa_sucesso.toFixed(1)}%
                 </p>
-                <p className="text-sm text-gray-500 mt-2">Taxa de Sucesso</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Taxa de Sucesso</p>
               </div>
               <div className="text-center">
-                <p className="text-4xl font-bold text-blue-600">{taxaSucesso.total}</p>
-                <p className="text-sm text-gray-500 mt-2">Total de Ações</p>
+                <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">{taxaSucesso.total}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Total de Ações</p>
               </div>
               <div className="text-center">
-                <p className="text-4xl font-bold text-green-600">{taxaSucesso.sucessos}</p>
-                <p className="text-sm text-gray-500 mt-2">Sucessos</p>
+                <p className="text-4xl font-bold text-green-600 dark:text-green-400">{taxaSucesso.sucessos}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Sucessos</p>
               </div>
               <div className="text-center">
-                <p className="text-4xl font-bold text-red-600">{taxaSucesso.erros}</p>
-                <p className="text-sm text-gray-500 mt-2">Erros</p>
+                <p className="text-4xl font-bold text-red-600 dark:text-red-400">{taxaSucesso.erros}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Erros</p>
               </div>
             </div>
             
             {/* Barra de progresso */}
             <div className="mt-6">
-              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+              <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-4 overflow-hidden">
                 <div
                   className="bg-green-600 h-4 transition-all duration-500"
                   style={{ width: `${taxaSucesso.taxa_sucesso}%` }}
@@ -250,8 +280,8 @@ export default function AuditoriaPage() {
         )}
 
         {/* Gráfico de Ações por Dia */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h3 className="text-lg font-semibold mb-4">Ações por Dia</h3>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Ações por Dia</h3>
           {acoesPorDia.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={acoesPorDia}>
@@ -266,15 +296,15 @@ export default function AuditoriaPage() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-center text-gray-500 py-8">Nenhum dado disponível</p>
+            <p className="text-center text-gray-500 dark:text-gray-400 py-8">Nenhum dado disponível</p>
           )}
         </div>
 
         {/* Grid de 2 colunas */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Gráfico de Ações por Tipo */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Ações por Tipo</h3>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Ações por Tipo</h3>
             {acoesPorTipo.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>

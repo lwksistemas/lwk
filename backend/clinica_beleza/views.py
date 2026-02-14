@@ -15,6 +15,57 @@ from .serializers import (
     AppointmentListSerializer, AppointmentDetailSerializer, AppointmentCreateSerializer,
     PaymentSerializer, AgendaEventSerializer, BloqueioHorarioSerializer
 )
+from tenants.middleware import get_current_loja_id
+
+
+def _get_owner_professional_id():
+    """ID do Professional (schema tenant) vinculado ao owner da loja atual. None se não houver."""
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return None
+    try:
+        from superadmin.models import Loja, ProfissionalUsuario
+        loja = Loja.objects.using('default').get(id=loja_id)
+        pu = ProfissionalUsuario.objects.using('default').filter(
+            loja_id=loja_id, user_id=loja.owner_id
+        ).first()
+        return pu.professional_id if pu else None
+    except Exception:
+        return None
+
+
+def _get_loja_owner_info():
+    """Dados do administrador da loja atual: username, email, telefone. None se não houver contexto."""
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return None
+    try:
+        from superadmin.models import Loja
+        loja = Loja.objects.using('default').select_related('owner').get(id=loja_id)
+        return {
+            'owner_username': loja.owner.username,
+            'owner_email': loja.owner.email or '',
+            'owner_telefone': getattr(loja, 'owner_telefone', '') or '',
+        }
+    except Exception:
+        return None
+
+
+class LojaInfoView(APIView):
+    """
+    Informações da loja atual (administrador) para exibir na interface.
+    GET /clinica-beleza/loja-info/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        info = _get_loja_owner_info()
+        if info is None:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(info)
 
 
 class DashboardView(APIView):
@@ -205,39 +256,62 @@ class ProfessionalListView(APIView):
         queryset = Professional.objects.all().order_by('name')
         if active_only:
             queryset = queryset.filter(active=True)
-        serializer = ProfessionalSerializer(queryset, many=True)
+        owner_professional_id = _get_owner_professional_id()
+        serializer = ProfessionalSerializer(
+            queryset, many=True,
+            context={'owner_professional_id': owner_professional_id}
+        )
         return Response(serializer.data)
 
     def post(self, request):
-        criar_acesso = request.data.get('criar_acesso') and request.data.get('email')
+        import logging
+        log = logging.getLogger(__name__)
+        data = dict(request.data)
+        # Normalizar email/phone vazios para None (evita 400 em ProfessionalSerializer)
+        if data.get('email') == '':
+            data['email'] = None
+        if data.get('phone') == '':
+            data['phone'] = None
+        criar_acesso = data.get('criar_acesso') and data.get('email')
         if criar_acesso:
-            serializer = ProfessionalCreateWithUserSerializer(data=request.data)
+            serializer = ProfessionalCreateWithUserSerializer(data=data)
             if serializer.is_valid():
                 professional = serializer.save()
                 return Response(
                     ProfessionalSerializer(professional).data,
                     status=status.HTTP_201_CREATED,
                 )
+            log.warning('POST professionals (criar_acesso): validation errors %s', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        serializer = ProfessionalSerializer(data=request.data)
+        serializer = ProfessionalSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        log.warning('POST professionals: validation errors %s', serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProfessionalDetailView(APIView):
-    """GET /clinica-beleza/professionals/<id>/  PUT  DELETE"""
+    """GET /clinica-beleza/professionals/<id>/  PUT  DELETE. O administrador vinculado à loja não pode ser editado nem excluído."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         try:
             obj = Professional.objects.get(pk=pk)
-            return Response(ProfessionalSerializer(obj).data)
+            owner_professional_id = _get_owner_professional_id()
+            return Response(ProfessionalSerializer(
+                obj, context={'owner_professional_id': owner_professional_id}
+            ).data)
         except Professional.DoesNotExist:
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, pk):
+        owner_professional_id = _get_owner_professional_id()
+        if owner_professional_id is not None and int(pk) == owner_professional_id:
+            return Response(
+                {'error': 'O administrador vinculado à loja não pode ser editado.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         try:
             obj = Professional.objects.get(pk=pk)
             serializer = ProfessionalSerializer(obj, data=request.data, partial=True)
@@ -249,6 +323,12 @@ class ProfessionalDetailView(APIView):
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
     def delete(self, request, pk):
+        owner_professional_id = _get_owner_professional_id()
+        if owner_professional_id is not None and int(pk) == owner_professional_id:
+            return Response(
+                {'error': 'O administrador vinculado à loja não pode ser excluído.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         try:
             obj = Professional.objects.get(pk=pk)
             obj.active = False

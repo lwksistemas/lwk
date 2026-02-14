@@ -533,10 +533,10 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
                       <h5 className="font-semibold text-lg mb-1 text-gray-900 dark:text-white">{consulta.cliente_nome}</h5>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{consulta.procedimento_nome}</p>
                       <div className="space-y-1">
-                        <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                           📅 {consulta.agendamento_data} às {consulta.agendamento_horario}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                           👨‍⚕️ {consulta.profissional_nome}
                         </p>
                         {consulta.total_evolucoes > 0 && (

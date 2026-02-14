@@ -102,7 +102,7 @@ function AgendaTimeline({
 }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-gray-500 text-lg">
+      <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400 text-lg">
         Carregando agenda…
       </div>
     );
@@ -149,12 +149,32 @@ function AgendaTimeline({
   );
 }
 
+/** Fullscreen automático: em tablet (≤1024px) e sem PWA, tenta tela cheia (cara de app). */
+function useTabletFullscreen() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+    if (isStandalone) return;
+    if (window.innerWidth > 1024) return;
+    const enter = () => {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    };
+    const t = setTimeout(enter, 500);
+    return () => clearTimeout(t);
+  }, []);
+}
+
 export default function TabletAgendaPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
   const { data, loading, error, refetch } = useAgendaHoje();
   const [lastActivity, setLastActivity] = useState(Date.now());
+
+  useTabletFullscreen();
 
   // Logout por inatividade
   useEffect(() => {
@@ -193,6 +213,22 @@ export default function TabletAgendaPage() {
             className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
           >
             Ver agenda completa
+          </Link>
+        </div>
+
+        {/* Cadastros rápidos para recepção */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <Link
+            href={`/loja/${slug}/clinica-beleza/pacientes?novo=1`}
+            className="flex-1 min-w-[140px] py-3 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm text-center font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+          >
+            👤 Novo paciente
+          </Link>
+          <Link
+            href={`/loja/${slug}/clinica-beleza/profissionais?novo=1`}
+            className="flex-1 min-w-[140px] py-3 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm text-center font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+          >
+            🧑‍⚕️ Novo profissional
           </Link>
         </div>
 

@@ -267,7 +267,7 @@ function EmptyState({ message, subMessage, actionLabel, onAction, cor, icon = 'ð
         <span className="text-2xl sm:text-3xl">{icon}</span>
       </div>
       <p className="text-base sm:text-lg mb-1 sm:mb-2 text-gray-700 dark:text-gray-300">{message}</p>
-      <p className="text-xs sm:text-sm mb-4 text-gray-500 dark:text-gray-500">{subMessage}</p>
+      <p className="text-xs sm:text-sm mb-4 text-gray-500 dark:text-gray-400">{subMessage}</p>
       <button
         onClick={onAction}
         className="px-4 sm:px-6 py-2.5 sm:py-3 min-h-[44px] rounded-xl text-white hover:opacity-90 transition-all btn-press shadow-lg text-sm sm:text-base active:scale-95"

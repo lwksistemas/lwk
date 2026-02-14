@@ -34,7 +34,7 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
                 {isAdmin && <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">👤 Administrador</span>}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">{item.email} • {item.telefone}</p>
-              {item.cargo && <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{item.cargo}</p>}
+              {item.cargo && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.cargo}</p>}
             </div>
             <div className="flex gap-2">
               {isAdmin ? (

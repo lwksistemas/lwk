@@ -95,6 +95,9 @@ class LojaViewSet(viewsets.ModelViewSet):
         # Permitir acesso público aos endpoints info_publica e debug_auth
         if self.action in ['info_publica', 'debug_auth']:
             return []
+        # Heartbeat: qualquer usuário autenticado (superadmin ou loja) para monitor de sessão
+        if self.action == 'heartbeat':
+            return [permissions.IsAuthenticated()]
         return super().get_permissions()
     
     def get_queryset(self):
@@ -1904,47 +1907,56 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     @cached_stat(ttl=300, key_prefix='acoes_por_dia')
     def acoes_por_dia(self, request):
         """
-        Gráfico de ações por dia (últimos N dias)
+        Gráfico de ações por dia (últimos N dias ou data_inicio/data_fim)
         
-        GET /api/superadmin/estatisticas-auditoria/acoes_por_dia/?dias=30
+        GET /api/superadmin/estatisticas-auditoria/acoes_por_dia/?data_inicio=2024-01-01&data_fim=2024-01-31
         
-        Query params:
-        - dias: Número de dias (padrão: 30)
-        
-        Response:
-        [
-            {"dia": "2024-01-15", "count": 150},
-            {"dia": "2024-01-16", "count": 200},
-            ...
-        ]
+        Response: { "acoes": [ {"periodo": "2024-01-15", "total": 150, "sucessos": 140, "erros": 10}, ... ] }
         """
         from .models import HistoricoAcessoGlobal
         from django.db.models.functions import TruncDate
-        from django.db.models import Count
+        from django.db.models import Count, Q
         from datetime import timedelta
         from django.utils import timezone
         
-        dias = int(request.query_params.get('dias', 30))
-        data_inicio = timezone.now() - timedelta(days=dias)
+        data_inicio_param = request.query_params.get('data_inicio')
+        data_fim_param = request.query_params.get('data_fim')
+        if data_inicio_param and data_fim_param:
+            try:
+                from datetime import datetime
+                data_inicio = timezone.make_aware(datetime.strptime(data_inicio_param, '%Y-%m-%d'))
+                data_fim = timezone.make_aware(datetime.strptime(data_fim_param + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
+            except (ValueError, TypeError):
+                dias = 30
+                data_inicio = timezone.now() - timedelta(days=dias)
+                data_fim = timezone.now()
+        else:
+            dias = int(request.query_params.get('dias', 30))
+            data_inicio = timezone.now() - timedelta(days=dias)
+            data_fim = timezone.now()
         
-        acoes = HistoricoAcessoGlobal.objects.filter(
-            created_at__gte=data_inicio
-        ).annotate(
+        qs = HistoricoAcessoGlobal.objects.filter(
+            created_at__gte=data_inicio,
+            created_at__lte=data_fim
+        )
+        acoes = qs.annotate(
             dia=TruncDate('created_at')
         ).values('dia').annotate(
-            count=Count('id')
+            total=Count('id'),
+            sucessos=Count('id', filter=Q(sucesso=True)),
+            erros=Count('id', filter=Q(sucesso=False))
         ).order_by('dia')
         
-        # Formatar datas
         resultado = [
             {
-                'dia': item['dia'].strftime('%Y-%m-%d'),
-                'count': item['count']
+                'periodo': item['dia'].strftime('%Y-%m-%d'),
+                'total': item['total'],
+                'sucessos': item['sucessos'],
+                'erros': item['erros']
             }
             for item in acoes
         ]
-        
-        return Response(resultado)
+        return Response({'acoes': resultado})
     
     @action(detail=False, methods=['get'])
     @cached_stat(ttl=300, key_prefix='acoes_por_tipo')
@@ -1966,10 +1978,10 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
         from django.db.models import Count
         
         acoes = HistoricoAcessoGlobal.objects.values('acao').annotate(
-            count=Count('id')
-        ).order_by('-count')
+            total=Count('id')
+        ).order_by('-total')
         
-        return Response(list(acoes))
+        return Response({'acoes': list(acoes)})
     
     @action(detail=False, methods=['get'])
     @cached_stat(ttl=300, key_prefix='lojas_mais_ativas')
@@ -1997,10 +2009,12 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
         lojas = HistoricoAcessoGlobal.objects.exclude(
             loja__isnull=True
         ).values('loja_id', 'loja_nome').annotate(
-            count=Count('id')
-        ).order_by('-count')[:limit]
+            total=Count('id')
+        ).order_by('-total')[:limit]
         
-        return Response(list(lojas))
+        return Response({
+            'lojas': [{'loja_nome': item['loja_nome'], 'total': item['total']} for item in lojas]
+        })
     
     @action(detail=False, methods=['get'])
     @cached_stat(ttl=300, key_prefix='usuarios_mais_ativos')
@@ -2027,10 +2041,12 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
         usuarios = HistoricoAcessoGlobal.objects.values(
             'usuario_email', 'usuario_nome'
         ).annotate(
-            count=Count('id')
-        ).order_by('-count')[:limit]
+            total=Count('id')
+        ).order_by('-total')[:limit]
         
-        return Response(list(usuarios))
+        return Response({
+            'usuarios': [{'usuario_nome': item['usuario_nome'], 'total': item['total']} for item in usuarios]
+        })
     
     @action(detail=False, methods=['get'])
     @cached_stat(ttl=300, key_prefix='horarios_pico')
@@ -2055,10 +2071,12 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
         acoes = HistoricoAcessoGlobal.objects.annotate(
             hora=ExtractHour('created_at')
         ).values('hora').annotate(
-            count=Count('id')
+            total=Count('id')
         ).order_by('hora')
         
-        return Response(list(acoes))
+        return Response({
+            'horarios': [{'hora': item['hora'], 'total': item['total']} for item in acoes]
+        })
     
     @action(detail=False, methods=['get'])
     @cached_stat(ttl=300, key_prefix='taxa_sucesso')
@@ -2088,5 +2106,6 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
             'total': total,
             'sucessos': sucessos,
             'falhas': falhas,
+            'erros': falhas,  # frontend usa "erros"
             'taxa_sucesso': round(taxa_sucesso, 2)
         })

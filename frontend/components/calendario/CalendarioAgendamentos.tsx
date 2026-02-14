@@ -465,7 +465,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                               <p className="font-semibold text-gray-900 dark:text-white">{agendamento.cliente_nome}</p>
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">{agendamento.procedimento_nome}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-500">Prof: {agendamento.profissional_nome}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Prof: {agendamento.profissional_nome}</p>
                             <p className="text-xs font-medium mt-1" style={{ color: getStatusColor(agendamento.status) }}>
                               {getStatusText(agendamento.status)}
                             </p>
@@ -536,7 +536,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                     ) : (
                       <button
                         onClick={() => handleNovoAgendamento(formatarData(dataAtual), horario)}
-                        className="w-full p-2 text-left text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 rounded border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+                        className="w-full p-2 text-left text-gray-400 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                       >
                         + Agendar
                       </button>
@@ -890,8 +890,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
 
       {/* Visualização do Calendário */}
       {loading ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <div className="text-gray-500">Carregando agendamentos...</div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+          <div className="text-gray-500 dark:text-gray-400">Carregando agendamentos...</div>
         </div>
       ) : (
         renderizarVisualizacao()
@@ -1377,7 +1377,7 @@ function ModalBloqueio({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Deixe em branco para bloquear para todos
               </p>
             </div>

@@ -143,10 +143,22 @@ class PatientSerializer(serializers.ModelSerializer):
 
 
 class ProfessionalSerializer(serializers.ModelSerializer):
-    """Serializer para Profissionais"""
+    """Serializer para Profissionais. Inclui is_administrador_vinculado quando context['owner_professional_id'] é passado."""
+    is_administrador_vinculado = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Professional
         exclude = ['loja_id']  # loja_id é preenchido automaticamente
+        extra_kwargs = {
+            'email': {'required': False, 'allow_blank': True},
+            'phone': {'required': False, 'allow_blank': True},
+        }
+
+    def get_is_administrador_vinculado(self, obj):
+        owner_professional_id = self.context.get('owner_professional_id')
+        if owner_professional_id is None:
+            return False
+        return obj.id == owner_professional_id
 
 
 class ProcedureSerializer(serializers.ModelSerializer):

@@ -125,6 +125,9 @@ class SuperAdminSecurityMiddleware:
                                     'code': 'INTERNAL_ERROR'
                                 }, status=500)
                 
+                # Heartbeat: qualquer usuário autenticado (superadmin ou loja) para monitor de sessão única
+                elif request.path.rstrip('/').endswith('heartbeat'):
+                    pass  # View usa IsAuthenticated
                 # Para outras rotas do superadmin, exigir superuser
                 elif not request.user.is_superuser:
                     logger.critical(f"VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} tentou acessar {request.path}")

@@ -34,7 +34,7 @@ export default function PasswordInput({
   return (
     <div className={className}>
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           {label}
         </label>
       )}
@@ -46,11 +46,11 @@ export default function PasswordInput({
           autoComplete={autoComplete}
           className={`
             block w-full px-3 py-3 sm:py-2.5 pr-12 min-h-[44px] 
-            text-base sm:text-sm text-gray-900 placeholder:text-gray-400 
-            border rounded-md bg-white 
-            focus:outline-none focus:ring-2 focus:ring-offset-0 
+            text-base sm:text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 
+            border rounded-md bg-white dark:bg-gray-700 
+            focus:outline-none focus:ring-2 focus:ring-offset-0 dark:focus:ring-offset-gray-800 
             transition-colors
-            ${error ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500'}
+            ${error ? 'border-red-300 dark:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-purple-500'}
           `}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -61,7 +61,7 @@ export default function PasswordInput({
         <button
           type="button"
           onClick={togglePasswordVisibility}
-          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 focus:outline-none focus:text-gray-700"
+          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none"
           aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
           tabIndex={-1}
         >
@@ -78,7 +78,7 @@ export default function PasswordInput({
         </button>
       </div>
       {error && (
-        <p id={`${id}-error`} className="mt-1 text-sm text-red-600" role="alert">
+        <p id={`${id}-error`} className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
           {error}
         </p>
       )}

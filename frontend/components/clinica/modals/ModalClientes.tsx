@@ -233,7 +233,7 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
                     <p className="font-semibold text-lg text-gray-900 dark:text-white">{cliente.nome}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{cliente.email} • {cliente.telefone}</p>
                     {cliente.cidade && cliente.estado && (
-                      <p className="text-xs text-gray-500 dark:text-gray-500">{cliente.cidade}, {cliente.estado}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{cliente.cidade}, {cliente.estado}</p>
                     )}
                   </div>
                 </div>

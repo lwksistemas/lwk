@@ -199,7 +199,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
                   <h4 className="font-semibold text-lg text-gray-900 dark:text-white">{protocolo.nome}</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Procedimento: {protocolo.procedimento_nome}</p>
                   <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{protocolo.descricao}</p>
-                  <div className="text-xs text-gray-500 dark:text-gray-500">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     <span className="mr-4">⏱️ {protocolo.tempo_estimado} min</span>
                     {protocolo.created_at && (
                       <span>📅 Criado em {new Date(protocolo.created_at).toLocaleDateString('pt-BR')}</span>

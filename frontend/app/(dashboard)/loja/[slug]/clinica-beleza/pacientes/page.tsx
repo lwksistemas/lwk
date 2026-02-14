@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Trash2, X, Moon, Sun } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
@@ -28,6 +28,7 @@ interface Patient {
 export default function PacientesPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
   const [list, setList] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +71,10 @@ export default function PacientesPage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("novo") === "1") openNew();
+  }, [searchParams]);
 
   const openNew = () => {
     setEditing(null);

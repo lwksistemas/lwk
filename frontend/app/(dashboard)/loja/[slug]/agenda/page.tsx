@@ -703,7 +703,7 @@ export default function AgendaPage() {
               </button>
             </div>
             <p className="text-gray-600 dark:text-gray-400 mb-2">{selectedBloqueio.motivo}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500">Profissional: {selectedBloqueio.professional_name}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Profissional: {selectedBloqueio.professional_name}</p>
             <div className="mt-6 flex gap-3">
               <button
                 type="button"

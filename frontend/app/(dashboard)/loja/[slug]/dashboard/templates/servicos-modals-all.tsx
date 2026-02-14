@@ -444,7 +444,7 @@ export function ModalOrdensServico({ loja, onClose }: { loja: LojaInfo; onClose:
             <p className="font-semibold text-gray-900 dark:text-white">{item.cliente_nome}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{item.servico_nome}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{item.profissional_nome || 'Sem profissional'}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{item.descricao_problema}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.descricao_problema}</p>
             <div className="flex gap-2 mt-2">
               <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>
                 Total: R$ {Number(item.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -517,7 +517,7 @@ export function ModalOrcamentos({ loja, onClose }: { loja: LojaInfo; onClose: ()
             </div>
             <p className="font-semibold text-gray-900 dark:text-white">{item.cliente_nome}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{item.servico_nome}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{item.descricao}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.descricao}</p>
             <div className="flex gap-3 mt-2">
               <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>
                 R$ {Number(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -562,7 +562,7 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
                 {isAdmin && <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">👤 Administrador</span>}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">{item.email} • {item.telefone}</p>
-              {item.cargo && <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{item.cargo}</p>}
+              {item.cargo && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.cargo}</p>}
             </div>
             <div className="flex gap-2">
               {isAdmin ? (

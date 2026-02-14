@@ -567,7 +567,7 @@ function AgendamentoCard({ agendamento, cor, onDelete, onStatusChange }: {
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">{agendamento.cliente_nome}</p>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{agendamento.procedimento_nome}</p>
-          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-500 truncate">Prof: {agendamento.profissional_nome}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">Prof: {agendamento.profissional_nome}</p>
                     </div>
                   </div>
       
@@ -635,7 +635,7 @@ function EmptyState({ message, subMessage, actionLabel, onAction, cor }: {
         <span className="text-2xl sm:text-3xl">📅</span>
           </div>
       <p className="text-base sm:text-lg mb-1 sm:mb-2 text-gray-700 dark:text-gray-300">{message}</p>
-      <p className="text-xs sm:text-sm mb-4 text-gray-500 dark:text-gray-500">{subMessage}</p>
+      <p className="text-xs sm:text-sm mb-4 text-gray-500 dark:text-gray-400">{subMessage}</p>
                   <button
         onClick={onAction}
         className="px-4 sm:px-6 py-2.5 sm:py-3 min-h-[44px] rounded-xl text-white hover:opacity-90 transition-all btn-press shadow-lg text-sm sm:text-base active:scale-95"

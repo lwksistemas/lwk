@@ -71,7 +71,7 @@ export function ModalOrcamentos({ loja, onClose }: { loja: LojaInfo; onClose: ()
             </div>
             <p className="font-semibold text-gray-900 dark:text-white">{item.cliente_nome}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{item.servico_nome}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{item.descricao}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.descricao}</p>
             <div className="flex gap-3 mt-2">
               <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>
                 R$ {Number(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

@@ -246,7 +246,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Qtd: {venda.quantidade} • {formasPagamento.find(f => f.value === venda.forma_pagamento)?.label}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(venda.data_venda).toLocaleString('pt-BR')}
                     </p>
                   </div>

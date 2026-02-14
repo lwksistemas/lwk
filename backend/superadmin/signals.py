@@ -173,7 +173,7 @@ def delete_all_loja_data(sender, instance, **kwargs):
             logger.info(f"   ✅ {proc_count} procedimentos deletados")
             
         elif tipo_loja_nome == 'CRM Vendas':
-            from crm_vendas.models import Vendedor, Cliente, Lead
+            from crm_vendas.models import Vendedor, Cliente, Lead, Venda, Pipeline, Produto
             
             # Vendedores
             vend_count = Vendedor.objects.all_without_filter().filter(loja_id=loja_id).count()
@@ -190,27 +190,121 @@ def delete_all_loja_data(sender, instance, **kwargs):
             Lead.objects.all_without_filter().filter(loja_id=loja_id).delete()
             logger.info(f"   ✅ {lead_count} leads deletados")
             
-        elif tipo_loja_nome == 'Restaurante':
-            from restaurante.models import Funcionario
-            
-            # Funcionários (se tiver o manager correto)
+            # Vendas, Pipeline e Produtos (evitar órfãos)
             try:
-                func_count = Funcionario.objects.filter(loja_id=loja_id).count()
-                Funcionario.objects.filter(loja_id=loja_id).delete()
-                logger.info(f"   ✅ {func_count} funcionários deletados")
+                venda_count = Venda.objects.all_without_filter().filter(loja_id=loja_id).count()
+                Venda.objects.all_without_filter().filter(loja_id=loja_id).delete()
+                logger.info(f"   ✅ {venda_count} vendas deletadas")
             except Exception as e:
-                logger.warning(f"   ⚠️ Erro ao deletar funcionários de restaurante: {e}")
+                logger.warning(f"   ⚠️ Erro ao deletar vendas CRM: {e}")
+            try:
+                pipe_count = Pipeline.objects.all_without_filter().filter(loja_id=loja_id).count()
+                Pipeline.objects.all_without_filter().filter(loja_id=loja_id).delete()
+                logger.info(f"   ✅ {pipe_count} etapas pipeline deletadas")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Erro ao deletar pipeline: {e}")
+            try:
+                prod_count = Produto.objects.all_without_filter().filter(loja_id=loja_id).count()
+                Produto.objects.all_without_filter().filter(loja_id=loja_id).delete()
+                logger.info(f"   ✅ {prod_count} produtos CRM deletados")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Erro ao deletar produtos CRM: {e}")
+            
+        elif tipo_loja_nome == 'Restaurante':
+            from restaurante.models import (
+                Funcionario, Reserva, Pedido, ItemCardapio, Categoria, Mesa, Cliente,
+                Fornecedor, NotaFiscalEntrada, EstoqueItem, MovimentoEstoque, RegistroPesoBalança
+            )
+            
+            def _delete_restaurante(model, nome):
+                try:
+                    if hasattr(model.objects, 'all_without_filter'):
+                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
+                    else:
+                        qs = model.objects.filter(loja_id=loja_id)
+                    count = qs.count()
+                    qs.delete()
+                    logger.info(f"   ✅ {count} {nome} deletados")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Erro ao deletar {nome}: {e}")
+            
+            # Ordem: dependentes primeiro. MovimentoEstoque/RegistroPesoBalança referenciam EstoqueItem (PROTECT)
+            _delete_restaurante(Reserva, 'reservas')
+            _delete_restaurante(Pedido, 'pedidos')
+            _delete_restaurante(ItemCardapio, 'itens cardápio')
+            _delete_restaurante(Categoria, 'categorias')
+            _delete_restaurante(Mesa, 'mesas')
+            _delete_restaurante(Cliente, 'clientes')
+            _delete_restaurante(Funcionario, 'funcionários')
+            _delete_restaurante(Fornecedor, 'fornecedores')
+            _delete_restaurante(NotaFiscalEntrada, 'notas fiscais')
+            # Movimentos e registros de peso antes de EstoqueItem (FK PROTECT)
+            try:
+                mov_count = MovimentoEstoque.objects.filter(estoque_item__loja_id=loja_id).count()
+                MovimentoEstoque.objects.filter(estoque_item__loja_id=loja_id).delete()
+                logger.info(f"   ✅ {mov_count} movimentos de estoque deletados")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Erro ao deletar movimentos estoque: {e}")
+            try:
+                reg_count = RegistroPesoBalança.objects.filter(estoque_item__loja_id=loja_id).count()
+                RegistroPesoBalança.objects.filter(estoque_item__loja_id=loja_id).delete()
+                logger.info(f"   ✅ {reg_count} registros peso deletados")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Erro ao deletar registros peso: {e}")
+            _delete_restaurante(EstoqueItem, 'itens estoque')
             
         elif tipo_loja_nome == 'Serviços':
-            from servicos.models import Funcionario
+            from servicos.models import Funcionario, Servico, Profissional, Agendamento, OrdemServico, Orcamento, Cliente, Categoria
             
-            # Funcionários (se tiver o manager correto)
-            try:
-                func_count = Funcionario.objects.filter(loja_id=loja_id).count()
-                Funcionario.objects.filter(loja_id=loja_id).delete()
-                logger.info(f"   ✅ {func_count} funcionários deletados")
-            except Exception as e:
-                logger.warning(f"   ⚠️ Erro ao deletar funcionários de serviços: {e}")
+            def _delete_servicos(model, nome):
+                try:
+                    if hasattr(model.objects, 'all_without_filter'):
+                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
+                    else:
+                        qs = model.objects.filter(loja_id=loja_id)
+                    count = qs.count()
+                    qs.delete()
+                    logger.info(f"   ✅ {count} {nome} deletados")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Erro ao deletar {nome} (Serviços): {e}")
+            
+            _delete_servicos(Agendamento, 'agendamentos')
+            _delete_servicos(OrdemServico, 'ordens de serviço')
+            _delete_servicos(Orcamento, 'orçamentos')
+            _delete_servicos(Servico, 'serviços')  # antes de Categoria (FK)
+            _delete_servicos(Profissional, 'profissionais')
+            _delete_servicos(Cliente, 'clientes')
+            _delete_servicos(Categoria, 'categorias')
+            _delete_servicos(Funcionario, 'funcionários')
+            
+        elif tipo_loja_nome == 'Cabeleireiro':
+            # Dados do Cabeleireiro podem estar no schema (DROP abaixo) ou no default
+            from cabeleireiro.models import (
+                Cliente, Profissional, Servico, Agendamento, Produto, Venda,
+                Funcionario, HorarioFuncionamento, BloqueioAgenda
+            )
+            
+            def _delete_cabeleireiro(model, nome):
+                try:
+                    if hasattr(model.objects, 'all_without_filter'):
+                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
+                    else:
+                        qs = model.objects.filter(loja_id=loja_id)
+                    count = qs.count()
+                    qs.delete()
+                    logger.info(f"   ✅ {count} {nome} (Cabeleireiro) deletados")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Erro ao deletar {nome} Cabeleireiro: {e}")
+            
+            _delete_cabeleireiro(BloqueioAgenda, 'bloqueios agenda')
+            _delete_cabeleireiro(Agendamento, 'agendamentos')
+            _delete_cabeleireiro(Venda, 'vendas')
+            _delete_cabeleireiro(Funcionario, 'funcionários')
+            _delete_cabeleireiro(HorarioFuncionamento, 'horários')
+            _delete_cabeleireiro(Produto, 'produtos')
+            _delete_cabeleireiro(Servico, 'serviços')
+            _delete_cabeleireiro(Profissional, 'profissionais')
+            _delete_cabeleireiro(Cliente, 'clientes')
         
         # NOTA: A exclusão do owner é feita na views.py após a exclusão da loja
         # para evitar TransactionManagementError

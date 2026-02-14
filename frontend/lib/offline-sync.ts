@@ -17,7 +17,6 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
   let erros = 0;
 
   try {
-    const db = await getOfflineDB();
     const pendentes = await obterFilaSync();
 
     for (const item of pendentes) {

@@ -10,7 +10,8 @@ const SESSION_CODES = [
   'SESSION_CONFLICT', 'SESSION_TIMEOUT',
 ] as const;
 
-function clearSessionAndRedirect(loginUrl: string, message?: string) {
+/** Limpa tokens/sessão e redireciona para login. Exportado para uso em fetch() (ex.: clinica-beleza). */
+export function clearSessionAndRedirect(loginUrl: string, message?: string) {
   sessionStorage.removeItem('access_token');
   sessionStorage.removeItem('refresh_token');
   sessionStorage.removeItem('user_type');
@@ -21,6 +22,14 @@ function clearSessionAndRedirect(loginUrl: string, message?: string) {
   document.cookie = 'loja_slug=; path=/; max-age=0';
   if (message && typeof window !== 'undefined') alert(message);
   if (typeof window !== 'undefined') window.location.href = loginUrl;
+}
+
+/** URL de login para redirecionar (usa storage antes de limpar). Exportado para uso em fetch(). */
+export function getLoginUrlForRedirect(): string {
+  if (typeof window === 'undefined') return '/';
+  const userType = sessionStorage.getItem('user_type');
+  const lojaSlug = sessionStorage.getItem('loja_slug');
+  return getLoginUrl(userType as 'superadmin' | 'suporte' | 'loja' | undefined, lojaSlug || undefined);
 }
 
 /** Adiciona X-Loja-ID / X-Tenant-Slug e Authorization em todas as requisições de loja. */
@@ -111,14 +120,6 @@ async function handle401(
     }
   }
   return Promise.reject(error);
-}
-
-/** URL de login para redirecionar após logout/401 (usa storage antes de limpar). */
-function getLoginUrlForRedirect(): string {
-  if (typeof window === 'undefined') return '/';
-  const userType = sessionStorage.getItem('user_type');
-  const lojaSlug = sessionStorage.getItem('loja_slug');
-  return getLoginUrl(userType as 'superadmin' | 'suporte' | 'loja' | undefined, lojaSlug || undefined);
 }
 
 /** Cria instância base (baseURL, timeout, JSON). */

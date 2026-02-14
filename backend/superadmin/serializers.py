@@ -400,6 +400,37 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                         except Exception as e:
                             print(f"   ⚠️ {app}: {e}")
                     print(f"✅ Tabelas criadas no schema '{schema_name}' via migrations")
+
+                    # Cadastro automático do owner como profissional (Clínica da Beleza), logo após migrations
+                    tipo_loja_nome = loja.tipo_loja.nome if loja.tipo_loja else ''
+                    if tipo_loja_nome == 'Clínica da Beleza':
+                        try:
+                            from clinica_beleza.models import Professional
+                            from superadmin.models import ProfissionalUsuario
+                            if not ProfissionalUsuario.objects.filter(loja=loja, user=owner).exists():
+                                owner_name = (owner_first_name + (' ' + owner_last_name if owner_last_name else '')).strip() or owner_username
+                                prof = Professional.objects.using(loja.database_name).create(
+                                    name=owner_name,
+                                    email=owner_email,
+                                    phone='',
+                                    specialty='Administrador',
+                                    active=True,
+                                    loja_id=loja.id,
+                                )
+                                ProfissionalUsuario.objects.create(
+                                    user=owner,
+                                    loja=loja,
+                                    professional_id=prof.id,
+                                    perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+                                    precisa_trocar_senha=False,
+                                )
+                                print(f"✅ Profissional admin (Clínica da Beleza) criado e vinculado para {owner_email}")
+                            else:
+                                print(f"   Profissional admin já existente para {owner_email}")
+                        except Exception as e_prof:
+                            print(f"⚠️ Erro ao cadastrar owner como profissional (Clínica da Beleza): {e_prof}")
+                            import traceback
+                            traceback.print_exc()
                 except Exception as e:
                     print(f"⚠️ Erro ao rodar migrations: {e}")
                     import traceback
@@ -458,15 +489,12 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             # Se precisar dos dados do Asaas imediatamente após criar a loja,
             # consulte LojaAssinatura.objects.get(loja_slug=loja.slug)
             
-            # 👤 CRIAR FUNCIONÁRIO ADMIN AUTOMATICAMENTE
+            # 👤 CRIAR FUNCIONÁRIO / PROFISSIONAL ADMIN AUTOMATICAMENTE
             try:
-                # Importar o model de Funcionario do tipo de loja correto
                 tipo_loja_nome = loja.tipo_loja.nome if loja.tipo_loja else ''
                 
                 if tipo_loja_nome == 'Clínica de Estética':
                     from clinica_estetica.models import Funcionario
-                    
-                    # Criar funcionário admin
                     Funcionario.objects.create(
                         loja_id=loja.id,
                         nome=owner_first_name + (' ' + owner_last_name if owner_last_name else ''),
@@ -477,9 +505,41 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                         is_active=True
                     )
                     print(f"✅ Funcionário admin criado para {owner_email}")
+
+                elif tipo_loja_nome == 'Clínica da Beleza':
+                    # Fallback: cadastro já foi feito acima (dentro do bloco de schema). Só tenta de novo se ainda não existir.
+                    from superadmin.models import ProfissionalUsuario
+                    if ProfissionalUsuario.objects.filter(loja=loja, user=owner).exists():
+                        print(f"   Profissional admin (Clínica da Beleza) já vinculado para {owner_email}")
+                    elif getattr(loja, 'database_name', None) and loja.database_created:
+                        from clinica_beleza.models import Professional
+                        try:
+                            owner_name = (owner_first_name + (' ' + owner_last_name if owner_last_name else '')).strip() or owner_username
+                            prof = Professional.objects.using(loja.database_name).create(
+                                name=owner_name,
+                                email=owner_email,
+                                phone='',
+                                specialty='Administrador',
+                                active=True,
+                                loja_id=loja.id,
+                            )
+                            ProfissionalUsuario.objects.create(
+                                user=owner,
+                                loja=loja,
+                                professional_id=prof.id,
+                                perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+                                precisa_trocar_senha=False,
+                            )
+                            print(f"✅ Profissional admin (Clínica da Beleza) criado e vinculado para {owner_email}")
+                        except Exception as e2:
+                            print(f"⚠️ Fallback Clínica da Beleza: {e2}")
+                    else:
+                        print(f"⚠️ Clínica da Beleza: schema ainda não criado; use o comando vincular_owner_profissional_clinica_beleza depois.")
                     
             except Exception as e:
-                print(f"⚠️ Erro ao criar funcionário admin: {e}")
+                print(f"⚠️ Erro ao criar funcionário/profissional admin: {e}")
+                import traceback
+                traceback.print_exc()
                 # Não falhar a criação da loja por causa do funcionário
         
             # Enviar email com senha provisória

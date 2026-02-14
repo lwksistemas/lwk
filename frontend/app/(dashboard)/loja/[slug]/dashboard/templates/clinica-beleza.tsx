@@ -22,6 +22,7 @@ import {
   X,
   Wallet,
   ChevronDown,
+  Tablet,
 } from "lucide-react";
 import { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
@@ -229,6 +230,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
               <nav className="space-y-2">
                 <SidebarItem icon={<CalendarDays size={20} />} label="Agenda" onClick={() => window.location.href = `/loja/${params.slug}/agenda`} />
+                <SidebarItem icon={<Tablet size={20} />} label="Modo Tablet (Recepção)" onClick={() => window.location.href = `/loja/${params.slug}/tablet`} />
                 <SidebarItem icon={<Users size={20} />} label="Pacientes" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/pacientes`} />
                 <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/profissionais`} />
                 <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`} />

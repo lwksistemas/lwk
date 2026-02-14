@@ -76,6 +76,14 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
             # E-commerce não tem modelo de funcionário
             logger.info(f"E-commerce não possui modelo de funcionário. Loja: {instance.nome}")
             return
+
+        elif tipo_loja_nome == 'Clínica da Beleza':
+            # Owner é vinculado como Professional + ProfissionalUsuario (recepção) no serializer,
+            # após a criação do schema e das tabelas clinica_beleza.
+            logger.info(
+                f"Clínica da Beleza: owner {owner.username} será vinculado como administrador no cadastro de profissionais (serializer)"
+            )
+            return
             
         else:
             logger.warning(f"Tipo de loja não reconhecido: {tipo_loja_nome}")

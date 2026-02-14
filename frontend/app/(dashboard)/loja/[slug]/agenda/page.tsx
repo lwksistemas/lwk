@@ -7,14 +7,15 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { X, Plus, Lock, Moon, Sun, ArrowLeft } from "lucide-react";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
+import { ModalConflitoAgenda, type ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
-import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "@/lib/clinica-beleza-api";
+import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import {
   salvarPacientesOffline,
   buscarPacientesOffline,
@@ -28,16 +29,19 @@ import {
 } from "@/lib/offline-db";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
 
-/** Cores por status (padrão comercial: recepção) */
+/** Cores por status (uma cor diferente para cada; concluído e faltou bem distintas) */
 const CORES_STATUS: Record<string, { bg: string; border: string }> = {
-  CONFIRMED: { bg: "#22c55e", border: "#16a34a" },   // 🟢 Confirmado
   SCHEDULED: { bg: "#a855f7", border: "#9333ea" },    // 🟣 Agendado
-  PENDING: { bg: "#a855f7", border: "#9333ea" },      // 🟣 Pendente
-  IN_PROGRESS: { bg: "#3b82f6", border: "#2563eb" },  // Azul em atendimento
-  COMPLETED: { bg: "#6b7280", border: "#4b5563" },    // Cinza concluído
-  CANCELLED: { bg: "#6b7280", border: "#4b5563" },    // ⚫ Cancelado
-  NO_SHOW: { bg: "#6b7280", border: "#4b5563" },     // Cinza faltou
+  CONFIRMED: { bg: "#22c55e", border: "#16a34a" },    // 🟢 Confirmado
+  PENDING: { bg: "#f59e0b", border: "#d97706" },      // 🟠 Pendente
+  IN_PROGRESS: { bg: "#3b82f6", border: "#2563eb" },  // 🔵 Em atendimento
+  COMPLETED: { bg: "#0d9488", border: "#0f766e" },   // 🩵 Concluído (teal)
+  CANCELLED: { bg: "#dc2626", border: "#b91c1c" },   // 🔴 Cancelado
+  NO_SHOW: { bg: "#b45309", border: "#92400e" },      // 🟤 Faltou (âmbar escuro)
 };
+
+/** Cor do evento de bloqueio de horário (distinta do vermelho cancelado) */
+const COR_BLOQUEIO = { bg: "#4f46e5", border: "#4338ca" }; // Índigo
 
 // Importar FullCalendar dinamicamente (client-side only)
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
@@ -54,7 +58,7 @@ interface AgendaEvent {
   borderColor: string;
   textColor: string;
   extendedProps: {
-    dbId: number;
+    dbId: number | string;
     status: string;
     patient_name: string;
     patient_phone: string;
@@ -63,6 +67,8 @@ interface AgendaEvent {
     procedure_duration: number;
     procedure_price: string;
     notes: string;
+    version?: number;
+    updated_at?: string;
   };
 }
 
@@ -98,6 +104,7 @@ interface BloqueioHorario {
 
 export default function AgendaPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
   const [lojaNome, setLojaNome] = useState<string>("");
   const [eventos, setEventos] = useState<AgendaEvent[]>([]);
@@ -117,6 +124,8 @@ export default function AgendaPage() {
   const [selectedBloqueio, setSelectedBloqueio] = useState<{ id: number; motivo: string; professional_name: string } | null>(null);
   const [deletingBloqueio, setDeletingBloqueio] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [conflictData, setConflictData] = useState<(ConflitoAgendaData & { appointmentId: number; payloadForResolve: { status?: string; date?: string } }) | null>(null);
+  const [conflictResolving, setConflictResolving] = useState(false);
   const [createForm, setCreateForm] = useState({
     patientId: "",
     professionalId: "",
@@ -132,6 +141,14 @@ export default function AgendaPage() {
   const [ptBrLocale, setPtBrLocale] = useState<any>(null);
   const [darkMode, setDarkMode] = useClinicaBelezaDark();
   const [isMobile, setIsMobile] = useState(false);
+
+  // Abrir modal "Novo Agendamento" quando vier da tela tablet (link + Novo com ?novo=1)
+  useEffect(() => {
+    if (searchParams.get("novo") === "1") {
+      setSelectedDate(new Date());
+      setShowCreateModal(true);
+    }
+  }, [searchParams]);
 
   // Redirecionar para login se não houver token (evita 401 em bloqueios, agenda, etc.)
   useEffect(() => {
@@ -229,29 +246,27 @@ export default function AgendaPage() {
         procedure_price: e.procedure_price,
         notes: e.notes || "",
         isBloqueio: false,
+        version: e.version ?? 1,
+        updated_at: e.updated_at ?? undefined,
       },
     };
   };
 
   const carregarDados = async () => {
     try {
-      const baseURL = getClinicaBelezaBaseUrl();
-      const headers = getClinicaBelezaHeaders();
       const online = typeof navigator !== "undefined" && navigator.onLine;
 
       if (online) {
-        // --- ONLINE: buscar da API e salvar no IndexedDB para uso offline
-        let url = `${baseURL}/agenda/`;
-        if (selectedProfessional) url += `?professional=${selectedProfessional}`;
-        const resEventos = await fetch(url, { headers });
+        // --- ONLINE: buscar da API e salvar no IndexedDB para uso offline (clinicaBelezaFetch trata 401 sessão única)
+        const agendaPath = selectedProfessional ? `/agenda/?professional=${selectedProfessional}` : "/agenda/";
+        const resEventos = await clinicaBelezaFetch(agendaPath);
         if (resEventos.ok) {
           const data = await resEventos.json();
           await salvarAgendamentosOffline(data);
           const eventosFormatados = data.map((e: any) => formatarEvento(e));
 
-          let bloqueiosUrl = `${baseURL}/bloqueios/`;
-          if (selectedProfessional) bloqueiosUrl += `?professional=${selectedProfessional}`;
-          const resBloqueios = await fetch(bloqueiosUrl, { headers });
+          const bloqueiosPath = selectedProfessional ? `/bloqueios/?professional=${selectedProfessional}` : "/bloqueios/";
+          const resBloqueios = await clinicaBelezaFetch(bloqueiosPath);
           let bloqueiosList: BloqueioHorario[] = [];
           if (resBloqueios.ok) {
             bloqueiosList = await resBloqueios.json();
@@ -262,8 +277,8 @@ export default function AgendaPage() {
             title: `🚫 ${b.motivo}`,
             start: b.data_inicio,
             end: b.data_fim,
-            backgroundColor: "#b91c1c",
-            borderColor: "#991b1b",
+            backgroundColor: COR_BLOQUEIO.bg,
+            borderColor: COR_BLOQUEIO.border,
             textColor: "#fff",
             editable: false,
             extendedProps: {
@@ -276,21 +291,21 @@ export default function AgendaPage() {
           setEventos([...eventosFormatados, ...bloqueiosAsEvents]);
         }
 
-        const resProfessionals = await fetch(`${baseURL}/professionals/`, { headers });
+        const resProfessionals = await clinicaBelezaFetch("/professionals/");
         if (resProfessionals.ok) {
           const data = await resProfessionals.json();
           setProfessionals(data);
           await salvarProfissionaisOffline(data);
         }
 
-        const resPatients = await fetch(`${baseURL}/patients/`, { headers });
+        const resPatients = await clinicaBelezaFetch("/patients/");
         if (resPatients.ok) {
           const data = await resPatients.json();
           setPatients(data);
           await salvarPacientesOffline(data);
         }
 
-        const resProcedures = await fetch(`${baseURL}/procedures/`, { headers });
+        const resProcedures = await clinicaBelezaFetch("/procedures/");
         if (resProcedures.ok) {
           const data = await resProcedures.json();
           setProcedures(data);
@@ -328,19 +343,34 @@ export default function AgendaPage() {
 
   const moverEvento = async (info: any) => {
     if (info.event.extendedProps?.isBloqueio) return;
+    const version = info.event.extendedProps?.version;
+    const updated_at = info.event.extendedProps?.updated_at;
+    const body: { date: string; version?: number; updated_at?: string } = {
+      date: info.event.start.toISOString(),
+    };
+    if (version != null) body.version = version;
+    if (updated_at) body.updated_at = updated_at;
     try {
       const baseURL = getClinicaBelezaBaseUrl();
       const headers = getClinicaBelezaHeaders();
       const res = await fetch(`${baseURL}/agenda/${info.event.id}/update/`, {
         method: "PATCH",
-        headers,
-        body: JSON.stringify({
-          date: info.event.start.toISOString(),
-        }),
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
-
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.conflict) {
+        info.revert();
+        setConflictData({
+          server: data.server,
+          local: data.local,
+          resolution_hint: data.resolution_hint,
+          appointmentId: Number(info.event.id),
+          payloadForResolve: { date: info.event.start.toISOString() },
+        });
+        return;
+      }
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         const msg = data.error || "Não foi possível mover. Horário pode estar bloqueado.";
         alert(msg);
         info.revert();
@@ -407,13 +437,17 @@ export default function AgendaPage() {
 
   const deletarEvento = async () => {
     if (!selectedEvent) return;
-
+    const dbId = selectedEvent.extendedProps.dbId;
+    if (typeof dbId === "string" && dbId.startsWith("offline-")) {
+      alert("Agendamento criado offline. Aguarde a sincronização para excluir.");
+      return;
+    }
     if (!confirm("Deseja realmente deletar este agendamento?")) return;
 
     try {
       const baseURL = getClinicaBelezaBaseUrl();
       const headers = getClinicaBelezaHeaders();
-      const res = await fetch(`${baseURL}/agenda/${selectedEvent.extendedProps.dbId}/delete/`, {
+      const res = await fetch(`${baseURL}/agenda/${dbId}/delete/`, {
         method: "DELETE",
         headers,
       });
@@ -454,19 +488,36 @@ export default function AgendaPage() {
 
   const atualizarStatusAgendamento = async (novoStatus: string) => {
     if (!selectedEvent) return;
+    const dbId = selectedEvent.extendedProps.dbId;
+    if (typeof dbId === "string" && dbId.startsWith("offline-")) {
+      alert("Agendamento criado offline. Aguarde a sincronização para alterar status.");
+      return;
+    }
     setUpdatingStatus(true);
     try {
       const baseURL = getClinicaBelezaBaseUrl();
       const headers = getClinicaBelezaHeaders();
-      const res = await fetch(`${baseURL}/agenda/${selectedEvent.extendedProps.dbId}/update/`, {
+      const body: { status: string; version?: number; updated_at?: string } = { status: novoStatus };
+      if (selectedEvent.extendedProps.version != null) body.version = selectedEvent.extendedProps.version;
+      if (selectedEvent.extendedProps.updated_at) body.updated_at = selectedEvent.extendedProps.updated_at;
+      const res = await fetch(`${baseURL}/agenda/${dbId}/update/`, {
         method: "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ status: novoStatus }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Erro ao atualizar status");
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.conflict) {
+        setConflictData({
+          server: data.server,
+          local: data.local,
+          resolution_hint: data.resolution_hint,
+          appointmentId: Number(dbId),
+          payloadForResolve: { status: novoStatus },
+        });
+        setUpdatingStatus(false);
+        return;
       }
+      if (!res.ok) throw new Error(data.error || "Erro ao atualizar status");
       setSelectedEvent((prev) =>
         prev ? { ...prev, extendedProps: { ...prev.extendedProps, status: novoStatus } } : null
       );
@@ -476,6 +527,41 @@ export default function AgendaPage() {
       alert(error instanceof Error ? error.message : "Erro ao atualizar status.");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleConflitoUseServer = () => {
+    setConflictData(null);
+    setShowModal(false);
+    carregarDados();
+  };
+
+  const handleConflitoUseLocal = async () => {
+    if (!conflictData) return;
+    setConflictResolving(true);
+    try {
+      const baseURL = getClinicaBelezaBaseUrl();
+      const headers = getClinicaBelezaHeaders();
+      const res = await fetch(`${baseURL}/agenda/${conflictData.appointmentId}/update/`, {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...conflictData.payloadForResolve,
+          resolve_use_local: true,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erro ao aplicar sua versão");
+      }
+      setConflictData(null);
+      setShowModal(false);
+      carregarDados();
+    } catch (e) {
+      console.error("Erro ao resolver conflito:", e);
+      alert(e instanceof Error ? e.message : "Erro ao aplicar sua versão.");
+    } finally {
+      setConflictResolving(false);
     }
   };
 
@@ -682,20 +768,30 @@ export default function AgendaPage() {
 
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Status {updatingStatus && <span className="text-xs">(salvando…)</span>}</p>
-                <select
-                  value={selectedEvent.extendedProps.status}
-                  onChange={(e) => atualizarStatusAgendamento(e.target.value)}
-                  disabled={updatingStatus}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-70"
-                >
-                  <option value="SCHEDULED">Agendado</option>
-                  <option value="CONFIRMED">Confirmado</option>
-                  <option value="PENDING">Pendente</option>
-                  <option value="IN_PROGRESS">Em Atendimento</option>
-                  <option value="COMPLETED">Concluído</option>
-                  <option value="CANCELLED">Cancelado</option>
-                  <option value="NO_SHOW">Faltou</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="shrink-0 w-3 h-3 rounded-full border-2 border-gray-900/10"
+                    style={{
+                      backgroundColor: CORES_STATUS[selectedEvent.extendedProps.status]?.bg ?? "#a855f7",
+                      borderColor: CORES_STATUS[selectedEvent.extendedProps.status]?.border ?? "#9333ea",
+                    }}
+                    aria-hidden
+                  />
+                  <select
+                    value={selectedEvent.extendedProps.status}
+                    onChange={(e) => atualizarStatusAgendamento(e.target.value)}
+                    disabled={updatingStatus}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-70"
+                  >
+                    <option value="SCHEDULED">🟣 Agendado</option>
+                    <option value="CONFIRMED">🟢 Confirmado</option>
+                    <option value="PENDING">🟠 Pendente</option>
+                    <option value="IN_PROGRESS">🔵 Em Atendimento</option>
+                    <option value="COMPLETED">⚫ Concluído</option>
+                    <option value="CANCELLED">🔴 Cancelado</option>
+                    <option value="NO_SHOW">⬜ Faltou</option>
+                  </select>
+                </div>
               </div>
 
               {selectedEvent.extendedProps.notes && (
@@ -921,6 +1017,16 @@ export default function AgendaPage() {
         onClose={() => setShowModalBloqueio(false)}
         onSuccess={() => carregarDados()}
         professionals={professionals}
+      />
+
+      {/* Modal Conflito de Sincronização */}
+      <ModalConflitoAgenda
+        open={conflictData != null}
+        onClose={() => setConflictData(null)}
+        data={conflictData}
+        onUseServer={handleConflitoUseServer}
+        onUseLocal={handleConflitoUseLocal}
+        resolving={conflictResolving}
       />
     </div>
   );

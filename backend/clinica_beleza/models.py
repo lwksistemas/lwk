@@ -99,7 +99,10 @@ class Appointment(LojaIsolationMixin, models.Model):
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
-    
+    # Sincronização offline: version para detectar conflitos; updated_by_id = ID do user (schema public)
+    version = models.PositiveIntegerField(default=1, verbose_name="Versão")
+    updated_by_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="Atualizado por (user id)")
+
     objects = LojaIsolationManager()
 
     class Meta:

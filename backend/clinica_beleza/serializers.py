@@ -17,11 +17,14 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     criar_acesso = serializers.BooleanField(default=False, write_only=True)
     perfil = serializers.ChoiceField(
-        choices=['profissional', 'recepcao'],
+        choices=[
+            'administrador', 'profissional', 'recepcao', 'recepcionista',
+            'caixa', 'limpeza', 'estoque',
+        ],
         default='profissional',
         required=False,
         write_only=True,
-        help_text='profissional = só agenda própria; recepcao = acesso completo',
+        help_text='Perfil de acesso: administrador, profissional, recepcionista, caixa, limpeza, estoque',
     )
 
     def create(self, validated_data):
@@ -29,7 +32,8 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         logger = logging.getLogger(__name__)
         criar_acesso = validated_data.pop('criar_acesso', False)
         perfil = validated_data.pop('perfil', 'profissional')
-        if perfil not in ('profissional', 'recepcao'):
+        valid_perfis = ('administrador', 'profissional', 'recepcao', 'recepcionista', 'caixa', 'limpeza', 'estoque')
+        if perfil not in valid_perfis:
             perfil = 'profissional'
         email = validated_data.get('email')
         name = validated_data.get('name')
@@ -222,6 +226,11 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     procedure_duration = serializers.IntegerField(source='procedure.duration', read_only=True)
     procedure_price = serializers.DecimalField(source='procedure.price', max_digits=10, decimal_places=2, read_only=True)
     
+    # Sincronização offline: version e updated_at para detecção de conflito
+    version = serializers.IntegerField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+    updated_by_id = serializers.IntegerField(read_only=True, allow_null=True)
+
     class Meta:
         model = Appointment
         fields = [
@@ -230,7 +239,8 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             'status', 'notes',
             'patient', 'patient_name', 'patient_phone',
             'professional', 'professional_name', 'professional_id',
-            'procedure', 'procedure_name', 'procedure_duration', 'procedure_price'
+            'procedure', 'procedure_name', 'procedure_duration', 'procedure_price',
+            'version', 'updated_at', 'updated_by_id',
         ]
     
     def get_title(self, obj):

@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.utils.timezone import now
 from django.db.models import Count, Q, Sum
-from datetime import timedelta
+from datetime import timedelta, date
 from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario
 from .serializers import (
     PatientSerializer, ProfessionalSerializer, ProfessionalCreateWithUserSerializer,
@@ -462,19 +462,87 @@ class AgendaView(APIView):
         return Response(serializer.data)
 
 
+class AgendaHojeView(APIView):
+    """
+    Agenda do dia para modo tablet (recepção).
+    GET /clinica-beleza/agenda/hoje/
+    Retorna apenas agendamentos de hoje, ordenados por horário.
+    Acesso: qualquer usuário autenticado da loja (admin, recepção, profissional).
+    Para restringir só a recepção/admin: use permission_classes = [IsRecepcaoOrAdmin].
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        hoje = now().date()
+        queryset = (
+            Appointment.objects
+            .select_related('patient', 'professional', 'procedure')
+            .filter(date__date=hoje)
+            .order_by('date')
+        )
+        serializer = AgendaEventSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+
 class AgendaUpdateView(APIView):
     """
     Atualizar data/hora e/ou status do agendamento.
     PATCH /clinica-beleza/agenda/<id>/update/
-    Body: { "date": "2024-02-11T14:30:00Z" }  ou  { "status": "CONFIRMED" }  ou ambos.
+    Body: { "date": "...", "status": "CONFIRMED", "version": 1 }.
+    Se version for enviado e for diferente da versão no servidor → 409 Conflict
+    com { "conflict": true, "server": {...}, "local": {...} }.
+    Para forçar aplicação da versão local (após usuário escolher "Usar minha versão"):
+    envie resolve_use_local: true no body.
     """
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
+        import logging
+        logger = logging.getLogger(__name__)
         try:
             appointment = Appointment.objects.select_related('procedure', 'professional').get(pk=pk)
             new_date = request.data.get('date')
             new_status = request.data.get('status')
+            local_version = request.data.get('version')
+            resolve_use_local = request.data.get('resolve_use_local') is True
+
+            # Conflito de sincronização: cliente envia version; se diferente do servidor → 409
+            if local_version is not None and not resolve_use_local:
+                if appointment.version != local_version:
+                    logger.info(
+                        "Conflito de sincronização agendamento id=%s: servidor version=%s, local version=%s",
+                        pk, appointment.version, local_version
+                    )
+                    server_data = AgendaEventSerializer(appointment).data
+                    local_payload = {
+                        'id': appointment.id,
+                        'version': local_version,
+                        'date': request.data.get('date'),
+                        'status': request.data.get('status'),
+                        'updated_at': request.data.get('updated_at'),
+                    }
+                    # Regras de prioridade para hint na resolução (frontend pode sugerir ação)
+                    resolution_hint = None
+                    if appointment.status == 'CANCELLED':
+                        resolution_hint = 'server_cancelled'  # Cancelamento sempre vence
+                    elif appointment.updated_at and request.data.get('updated_at'):
+                        try:
+                            from django.utils.dateparse import parse_datetime
+                            server_ts = appointment.updated_at
+                            local_ts = parse_datetime(request.data.get('updated_at'))
+                            if local_ts and server_ts and local_ts > server_ts:
+                                resolution_hint = 'local_newer'  # Alteração mais recente vence
+                        except Exception:
+                            pass
+                    return Response(
+                        {
+                            'conflict': True,
+                            'server': server_data,
+                            'local': local_payload,
+                            'resolution_hint': resolution_hint,
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
 
             if new_date is not None:
                 if hasattr(new_date, 'isoformat'):
@@ -506,10 +574,18 @@ class AgendaUpdateView(APIView):
                     )
                 appointment.status = new_status
 
-            if new_date is None and new_status is None:
+            if new_date is None and new_status is None and not resolve_use_local:
                 return Response({'error': 'Envie date e/ou status'}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Versionamento e auditoria
+            appointment.version = (appointment.version or 1) + 1
+            appointment.updated_by_id = getattr(request.user, 'id', None)
             appointment.save()
+
+            logger.info(
+                "Agendamento id=%s atualizado: version=%s updated_by_id=%s",
+                appointment.id, appointment.version, appointment.updated_by_id
+            )
             serializer = AgendaEventSerializer(appointment)
             return Response(serializer.data)
 

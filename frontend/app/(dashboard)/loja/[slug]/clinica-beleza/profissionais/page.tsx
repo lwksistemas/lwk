@@ -12,6 +12,8 @@ import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { buscarProfissionaisOffline, salvarProfissionaisOffline } from "@/lib/offline-db";
 
+type PerfilAcesso = "administrador" | "profissional" | "recepcionista" | "caixa" | "limpeza" | "estoque";
+
 interface Professional {
   id: number;
   name: string;
@@ -35,7 +37,7 @@ export default function ProfissionaisPage() {
     phone: "",
     email: "",
     criar_acesso: false,
-    perfil: "profissional" as "profissional" | "recepcao",
+    perfil: "profissional" as PerfilAcesso,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -309,15 +311,15 @@ export default function ProfissionaisPage() {
                       </label>
                       <select
                         value={form.perfil}
-                        onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as "profissional" | "recepcao" }))}
+                        onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as PerfilAcesso }))}
                         className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
                       >
-                        <option value="profissional">
-                          Profissional (só agenda e bloqueios próprios)
-                        </option>
-                        <option value="recepcao">
-                          Recepção (acesso completo: agenda, cadastros, financeiro)
-                        </option>
+                        <option value="administrador">Administrador</option>
+                        <option value="profissional">Profissional (só agenda e bloqueios próprios)</option>
+                        <option value="recepcionista">Recepcionista</option>
+                        <option value="caixa">Caixa</option>
+                        <option value="limpeza">Limpeza</option>
+                        <option value="estoque">Estoque</option>
                       </select>
                     </div>
                   )}

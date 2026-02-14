@@ -10,7 +10,7 @@ from .views import (
     ProcedureListView, ProcedureDetailView,
     PaymentListView, PaymentDetailView,
     FinanceiroResumoView,
-    AgendaView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
+    AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
 )
 
@@ -43,6 +43,7 @@ urlpatterns = [
     
     # Agenda/Calendário
     path('agenda/', AgendaView.as_view(), name='agenda'),
+    path('agenda/hoje/', AgendaHojeView.as_view(), name='agenda-hoje'),
     path('agenda/create/', AgendaCreateView.as_view(), name='agenda-create'),
     path('agenda/<int:pk>/update/', AgendaUpdateView.as_view(), name='agenda-update'),
     path('agenda/<int:pk>/delete/', AgendaDeleteView.as_view(), name='agenda-delete'),

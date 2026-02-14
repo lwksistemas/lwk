@@ -294,3 +294,20 @@
     font-size: 0.7rem;
   }
 }
+
+/* ========== MODO TABLET (RECEPÇÃO) ========== */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tablet-mode {
+    font-size: 18px;
+  }
+  .tablet-mode .tablet-text {
+    font-size: 1rem;
+  }
+  .tablet-mode h1.tablet-text,
+  .tablet-mode .text-2xl.tablet-text {
+    font-size: 1.5rem;
+  }
+  .tablet-mode .text-xl.tablet-text {
+    font-size: 1.25rem;
+  }
+}

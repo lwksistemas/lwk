@@ -452,13 +452,23 @@ class ProfissionalUsuario(models.Model):
     """
     Vínculo User (Django auth, schema public) <-> Professional (clinica_beleza, schema tenant).
     Permite que o profissional faça login em /loja/{slug}/login com o mesmo fluxo da loja.
-    perfil define o que o usuário pode acessar: profissional (só própria agenda) ou recepção (acesso completo).
+    perfil define o tipo de acesso: administrador, profissional, recepcionista, caixa, limpeza, estoque.
     """
+    PERFIL_ADMINISTRADOR = 'administrador'
     PERFIL_PROFISSIONAL = 'profissional'
-    PERFIL_RECEPCAO = 'recepcao'
+    PERFIL_RECEPCAO = 'recepcao'  # legado; equivalente a recepcionista
+    PERFIL_RECEPCIONISTA = 'recepcionista'
+    PERFIL_CAIXA = 'caixa'
+    PERFIL_LIMPEZA = 'limpeza'
+    PERFIL_ESTOQUE = 'estoque'
     PERFIL_CHOICES = [
+        (PERFIL_ADMINISTRADOR, 'Administrador'),
         (PERFIL_PROFISSIONAL, 'Profissional (só agenda e bloqueios próprios)'),
-        (PERFIL_RECEPCAO, 'Recepção (acesso completo: agenda, cadastros, financeiro)'),
+        (PERFIL_RECEPCAO, 'Recepção (acesso completo)'),  # legado
+        (PERFIL_RECEPCIONISTA, 'Recepcionista'),
+        (PERFIL_CAIXA, 'Caixa'),
+        (PERFIL_LIMPEZA, 'Limpeza'),
+        (PERFIL_ESTOQUE, 'Estoque'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='profissional_lojas')
@@ -468,7 +478,7 @@ class ProfissionalUsuario(models.Model):
         max_length=20,
         choices=PERFIL_CHOICES,
         default=PERFIL_PROFISSIONAL,
-        help_text='Profissional: só agenda própria. Recepção: acesso completo.',
+        help_text='Tipo de acesso: administrador, profissional, recepcionista, caixa, limpeza, estoque.',
     )
     precisa_trocar_senha = models.BooleanField(default=True, help_text='Obrigar troca de senha no primeiro acesso')
     created_at = models.DateTimeField(auto_now_add=True)

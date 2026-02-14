@@ -93,6 +93,14 @@ class Command(BaseCommand):
             if not self._ensure_database_in_settings(loja):
                 continue
 
+            # Garantir que o schema tem as migrations (ex.: loja_id) aplicadas
+            try:
+                from django.core.management import call_command
+                for app in ['stores', 'products', 'clinica_beleza']:
+                    call_command('migrate', app, '--database', loja.database_name, verbosity=0)
+            except Exception as e_mig:
+                self.stdout.write(self.style.WARNING(f'   Migrations: {e_mig}'))
+
             try:
                 from clinica_beleza.models import Professional
                 owner_name = (owner.get_full_name() or owner.username or '').strip() or owner.username

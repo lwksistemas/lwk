@@ -53,7 +53,9 @@ class Command(BaseCommand):
             **default_db,
             'OPTIONS': {'options': f'-c search_path={schema_name},public'},
             'ATOMIC_REQUESTS': False,
+            'AUTOCOMMIT': True,
             'CONN_MAX_AGE': 600,
+            'CONN_HEALTH_CHECKS': True,
             'TIME_ZONE': None,
         }
         return True

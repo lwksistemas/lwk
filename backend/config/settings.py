@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'cabeleireiro.apps.CabeleireiroConfig',  # App de cabeleireiro/salão de beleza
     'clinica_beleza.apps.ClinicaBelezaConfig',  # App de clínica da beleza
     'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
+    'push.apps.PushConfig',  # Push notifications (VAPID)
 ]
 
 MIDDLEWARE = [
@@ -309,3 +310,7 @@ Q_CLUSTER = {
     'max_attempts': 3,  # Tentar até 3 vezes em caso de falha
     'retry': 360,  # Aguardar 360s (6min) antes de retentar (deve ser > timeout)
 }
+
+# Push Notifications (VAPID) - chave privada no backend; chave pública no frontend (NEXT_PUBLIC_VAPID_PUBLIC_KEY)
+VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
+VAPID_CLAIM_MAILTO = config('VAPID_CLAIM_MAILTO', default='mailto:admin@lwksistemas.com.br')

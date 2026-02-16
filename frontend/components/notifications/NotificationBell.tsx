@@ -1,7 +1,9 @@
 'use client';
 
-import { Bell } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, Smartphone } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
+import { registerPush } from '@/services/push';
 
 interface NotificationBellProps {
   open: boolean;
@@ -11,6 +13,22 @@ interface NotificationBellProps {
 
 export function NotificationBell({ open, onOpenChange, className = '' }: NotificationBellProps) {
   const { notifications, unreadCount, read, loading } = useNotifications();
+  const [pushEnabling, setPushEnabling] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  async function handleEnablePush() {
+    if (pushEnabling || pushEnabled) return;
+    setPushEnabling(true);
+    try {
+      const ok = await registerPush();
+      if (ok) setPushEnabled(true);
+      else alert('Não foi possível ativar. Verifique se permitiu notificações no navegador.');
+    } catch {
+      alert('Erro ao ativar notificações no celular.');
+    } finally {
+      setPushEnabling(false);
+    }
+  }
 
   return (
     <div className={`relative ${className}`}>
@@ -50,6 +68,19 @@ export function NotificationBell({ open, onOpenChange, className = '' }: Notific
                 Notificações
               </h3>
             </div>
+            {typeof window !== 'undefined' && 'Notification' in window && !pushEnabled && (
+              <div className="px-4 py-2 border-b dark:border-neutral-700 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleEnablePush}
+                  disabled={pushEnabling}
+                  className="flex items-center gap-2 w-full text-left text-sm text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
+                >
+                  <Smartphone className="w-4 h-4 shrink-0" />
+                  {pushEnabling ? 'Ativando…' : 'Ativar notificações no celular'}
+                </button>
+              </div>
+            )}
             <div className="overflow-y-auto flex-1 min-h-0">
               {loading && notifications.length === 0 ? (
                 <p className="p-4 text-sm text-gray-500 dark:text-gray-400 text-center">

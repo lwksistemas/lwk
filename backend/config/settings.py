@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'servicos',  # App de serviços
     'cabeleireiro.apps.CabeleireiroConfig',  # App de cabeleireiro/salão de beleza
     'clinica_beleza.apps.ClinicaBelezaConfig',  # App de clínica da beleza
+    'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
 ]
 
 MIDDLEWARE = [

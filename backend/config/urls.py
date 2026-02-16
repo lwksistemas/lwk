@@ -31,6 +31,7 @@ def api_root(request):
             'servicos': '/api/servicos/',
             'cabeleireiro': '/api/cabeleireiro/',
             'clinica_beleza': '/api/clinica-beleza/',
+            'notificacoes': '/api/notificacoes/',
         },
         'documentacao': 'Sistema Multi-Tenant para gestão de lojas',
         'schema': '/api/schema/',
@@ -63,4 +64,5 @@ urlpatterns = [
     path('api/servicos/', include('servicos.urls')),
     path('api/cabeleireiro/', include('cabeleireiro.urls')),
     path('api/clinica-beleza/', include('clinica_beleza.urls')),
+    path('api/notificacoes/', include('notificacoes.urls')),
 ]

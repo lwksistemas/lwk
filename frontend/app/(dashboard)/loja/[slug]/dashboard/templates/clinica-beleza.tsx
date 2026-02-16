@@ -17,7 +17,6 @@ import {
   Settings,
   CreditCard,
   LogOut,
-  Bell,
   Menu,
   X,
   Wallet,
@@ -25,6 +24,7 @@ import {
 } from "lucide-react";
 import { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface DashboardStats {
   appointments_today: number;
@@ -128,31 +128,10 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           </div>
 
           <div className="flex items-center gap-2 relative">
-            {/* Notificações - dropdown ao clicar */}
-            <div className="relative">
-              <button 
-                onClick={() => { setNotificationsOpen(!notificationsOpen); setHeaderMenuOpen(false); }}
-                className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors relative"
-                title="Notificações"
-              >
-                <Bell className="w-5 h-5" />
-              </button>
-              {notificationsOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 w-72 max-h-80 bg-white dark:bg-neutral-800 rounded-xl shadow-lg border dark:border-neutral-700 py-2 animate-scale-in overflow-hidden flex flex-col">
-                    <div className="px-4 py-2 border-b dark:border-neutral-700">
-                      <h3 className="font-semibold text-sm">Notificações</h3>
-                    </div>
-                    <div className="overflow-y-auto flex-1 p-4">
-                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-                        Nenhuma notificação no momento.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            <NotificationBell
+              open={notificationsOpen}
+              onOpenChange={setNotificationsOpen}
+            />
             <div className="relative">
               <button 
                 onClick={() => { setHeaderMenuOpen(!headerMenuOpen); setNotificationsOpen(false); }}

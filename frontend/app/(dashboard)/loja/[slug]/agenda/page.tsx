@@ -142,7 +142,7 @@ export default function AgendaPage() {
   const [darkMode, setDarkMode] = useClinicaBelezaDark();
   const [isMobile, setIsMobile] = useState(false);
 
-  // Abrir modal "Novo Agendamento" quando vier da tela tablet (link + Novo com ?novo=1)
+  // Abrir modal "Novo Agendamento" quando ?novo=1 na URL
   useEffect(() => {
     if (searchParams.get("novo") === "1") {
       setSelectedDate(new Date());

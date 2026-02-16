@@ -1,6 +1,6 @@
 """
 Permissões para API Clínica da Beleza.
-Modo tablet (recepção): apenas admin (owner) ou usuário com perfil recepção.
+Recepção: apenas admin (owner) ou usuário com perfil recepção.
 """
 from rest_framework.permissions import BasePermission
 
@@ -24,7 +24,7 @@ def _get_loja_from_request(request):
 
 class IsRecepcaoOrAdmin(BasePermission):
     """
-    Permite acesso ao modo tablet (agenda/hoje) e áreas de recepção:
+    Permite acesso à agenda e áreas de recepção:
     - Dono da loja (owner)
     - ProfissionalUsuario com perfil administrador, recepcionista ou recepcao (legado)
     """

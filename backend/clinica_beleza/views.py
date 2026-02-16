@@ -544,7 +544,7 @@ class AgendaView(APIView):
 
 class AgendaHojeView(APIView):
     """
-    Agenda do dia para modo tablet (recepção).
+    Agenda do dia (recepção).
     GET /clinica-beleza/agenda/hoje/
     Retorna apenas agendamentos de hoje, ordenados por horário.
     Acesso: qualquer usuário autenticado da loja (admin, recepção, profissional).

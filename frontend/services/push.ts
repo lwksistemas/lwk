@@ -20,7 +20,7 @@ export async function registerPush(token?: string): Promise<boolean> {
 
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
     });
 
     const payload = subscription.toJSON ? subscription.toJSON() : {

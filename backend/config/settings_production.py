@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'servicos',
     'cabeleireiro',  # App de cabeleireiro/salão de beleza
     'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
+    'push.apps.PushConfig',  # Push notifications (VAPID)
 ]
 
 # MIDDLEWARE

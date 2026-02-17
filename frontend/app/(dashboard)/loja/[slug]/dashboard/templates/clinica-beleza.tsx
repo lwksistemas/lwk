@@ -62,7 +62,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     enviar_lembrete_2h: boolean;
     enviar_cobranca: boolean;
   } | null>(null);
-  const [whatsappPhoneInfo, setWhatsappPhoneInfo] = useState<{ owner_telefone: string; whatsapp_numero: string }>({ owner_telefone: '', whatsapp_numero: '' });
+  const [whatsappNumero, setWhatsappNumero] = useState('');
   const [whatsappConfigSaving, setWhatsappConfigSaving] = useState(false);
 
   useEffect(() => {
@@ -81,17 +81,14 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           enviar_lembrete_2h: !!data.enviar_lembrete_2h,
           enviar_cobranca: !!data.enviar_cobranca,
         });
-        setWhatsappPhoneInfo({
-          owner_telefone: data.owner_telefone ?? '',
-          whatsapp_numero: data.whatsapp_numero ?? '',
-        });
+        setWhatsappNumero((data.whatsapp_numero ?? '').toString());
       } else {
         setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
-        setWhatsappPhoneInfo({ owner_telefone: '', whatsapp_numero: '' });
+        setWhatsappNumero('');
       }
     } catch {
       setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
-      setWhatsappPhoneInfo({ owner_telefone: '', whatsapp_numero: '' });
+      setWhatsappNumero('');
     }
   };
 
@@ -100,12 +97,15 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     setWhatsappConfigSaving(true);
     try {
       const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import('@/lib/clinica-beleza-api');
+      const body: Record<string, unknown> = { ...whatsappConfig, whatsapp_numero: whatsappNumero };
       const res = await fetch(`${getClinicaBelezaBaseUrl()}/whatsapp-config/`, {
         method: 'PATCH',
         headers: getClinicaBelezaHeaders(),
-        body: JSON.stringify(whatsappConfig),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
+        const data = await res.json();
+        setWhatsappNumero((data.whatsapp_numero ?? '').toString());
         alert('Configurações WhatsApp salvas.');
         setConfigOpen(false);
       } else alert('Erro ao salvar.');
@@ -303,26 +303,22 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                   <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <span>💬</span> WhatsApp
                   </h4>
-                  {/* Sincronização telefone da loja: exibe número do admin e número usado no envio */}
-                  {(whatsappPhoneInfo.owner_telefone || whatsappPhoneInfo.whatsapp_numero) && (
-                    <div className="rounded-lg bg-gray-50 dark:bg-neutral-700/50 p-3 text-sm space-y-1">
-                      {whatsappPhoneInfo.owner_telefone && (
-                        <p className="text-gray-700 dark:text-gray-300">
-                          <span className="font-medium">Telefone da loja (administrador):</span>{' '}
-                          {whatsappPhoneInfo.owner_telefone}
-                        </p>
-                      )}
-                      {whatsappPhoneInfo.whatsapp_numero && (
-                        <p className="text-gray-700 dark:text-gray-300">
-                          <span className="font-medium">Número para envio WhatsApp:</span>{' '}
-                          {whatsappPhoneInfo.whatsapp_numero}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        O número de envio é sincronizado com o telefone do administrador (definido no Superadmin). Para alterar, edite a loja no painel Superadmin.
-                      </p>
-                    </div>
-                  )}
+                  {/* Sincronização WhatsApp: número da loja configurável no menu Configurações */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Número WhatsApp da loja
+                    </label>
+                    <input
+                      type="text"
+                      value={whatsappNumero}
+                      onChange={e => setWhatsappNumero(e.target.value)}
+                      placeholder="Ex: 5511999999999 (DDD + número)"
+                      className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Número usado para envio de confirmações e lembretes. Defina e salve aqui nas Configurações.
+                    </p>
+                  </div>
                   {whatsappConfig === null ? (
                     <p className="text-sm text-gray-500">Carregando...</p>
                   ) : (

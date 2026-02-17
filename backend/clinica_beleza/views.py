@@ -903,21 +903,15 @@ class WhatsAppConfigView(APIView):
         from superadmin.models import Loja
         try:
             loja = Loja.objects.using('default').get(id=loja_id)
-            owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip()
-            config, created = WhatsAppConfig.objects.using('default').get_or_create(
+            config, _ = WhatsAppConfig.objects.using('default').get_or_create(
                 loja=loja,
                 defaults={
                     'enviar_confirmacao': True,
                     'enviar_lembrete_24h': True,
                     'enviar_lembrete_2h': True,
                     'enviar_cobranca': True,
-                    'whatsapp_numero': owner_tel or '',
                 }
             )
-            # Sincronização: se whatsapp_numero está vazio e a loja tem owner_telefone, copia uma vez
-            if not created and not (config.whatsapp_numero or '').strip() and owner_tel:
-                config.whatsapp_numero = owner_tel
-                config.save(update_fields=['whatsapp_numero', 'updated_at'])
             return config
         except Exception:
             return None
@@ -929,14 +923,11 @@ class WhatsAppConfigView(APIView):
                 {'error': 'Contexto de loja não encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        loja = config.loja
-        owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
         return Response({
             'enviar_confirmacao': config.enviar_confirmacao,
             'enviar_lembrete_24h': config.enviar_lembrete_24h,
             'enviar_lembrete_2h': config.enviar_lembrete_2h,
             'enviar_cobranca': config.enviar_cobranca,
-            'owner_telefone': owner_telefone,
             'whatsapp_numero': (config.whatsapp_numero or '').strip(),
         })
 
@@ -947,14 +938,20 @@ class WhatsAppConfigView(APIView):
                 {'error': 'Contexto de loja não encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        update_fields = ['updated_at']
         for key in ('enviar_confirmacao', 'enviar_lembrete_24h', 'enviar_lembrete_2h', 'enviar_cobranca'):
             if key in request.data:
                 setattr(config, key, bool(request.data[key]))
-        config.save(update_fields=['enviar_confirmacao', 'enviar_lembrete_24h', 'enviar_lembrete_2h', 'enviar_cobranca', 'updated_at'])
+                update_fields.append(key)
+        if 'whatsapp_numero' in request.data:
+            config.whatsapp_numero = (request.data.get('whatsapp_numero') or '').strip()[:20]
+            update_fields.append('whatsapp_numero')
+        config.save(update_fields=update_fields)
         return Response({
             'enviar_confirmacao': config.enviar_confirmacao,
             'enviar_lembrete_24h': config.enviar_lembrete_24h,
             'enviar_lembrete_2h': config.enviar_lembrete_2h,
             'enviar_cobranca': config.enviar_cobranca,
+            'whatsapp_numero': (config.whatsapp_numero or '').strip(),
         })
 

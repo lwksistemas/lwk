@@ -9,10 +9,32 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
+def _ensure_loja_db(loja):
+    """Garante que o banco da loja está em DATABASES (para workers sem request)."""
+    from django.conf import settings
+    db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", loja.id)}'.replace('-', '_')
+    if db_name not in settings.DATABASES:
+        try:
+            import os
+            import dj_database_url
+            url = os.environ.get('DATABASE_URL')
+            if url:
+                default_db = dj_database_url.config(default=url, conn_max_age=600)
+                schema = db_name.replace('-', '_')
+                settings.DATABASES[db_name] = {
+                    **default_db,
+                    'OPTIONS': {'options': f'-c search_path={schema},public'},
+                }
+        except Exception:
+            pass
+    return db_name
+
+
 def _get_whatsapp_config(loja):
-    """Retorna WhatsAppConfig da loja ou None (usa defaults se não existir)."""
+    """Retorna WhatsAppConfig da loja ou None. Chamar com contexto tenant já setado (tabela isolada por loja)."""
+    from whatsapp.models import WhatsAppConfig
     try:
-        return loja.whatsapp_config
+        return WhatsAppConfig.objects.filter(loja=loja).first()
     except Exception:
         return None
 
@@ -32,11 +54,13 @@ def send_lembretes_24h_whatsapp():
     enviados = 0
     for loja in lojas:
         try:
+            from tenants.middleware import set_current_loja_id, set_current_tenant_db
+            db_name = _ensure_loja_db(loja)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
             config = _get_whatsapp_config(loja)
             if config and not config.enviar_lembrete_24h:
                 continue
-            set_current_loja_id(loja.id)
-            set_current_tenant_db(loja.database_name)
             # Agendamentos de amanhã (status confirmado/agendado)
             qs = Appointment.objects.filter(
                 date__date=amanha,
@@ -74,11 +98,14 @@ def send_lembretes_2h_whatsapp():
     enviados = 0
     for loja in lojas:
         try:
+            from tenants.middleware import set_current_loja_id, set_current_tenant_db
+            db_name = _ensure_loja_db(loja)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
             config = _get_whatsapp_config(loja)
             if config and not config.enviar_lembrete_2h:
                 continue
-            set_current_loja_id(loja.id)
-            set_current_tenant_db(loja.database_name)
+            # Agendamentos na janela 2h
             qs = Appointment.objects.filter(
                 date__gte=inicio,
                 date__lte=fim,

@@ -699,7 +699,7 @@ class AgendaUpdateView(APIView):
                     if loja_id and getattr(appointment.patient, 'allow_whatsapp', True):
                         loja = Loja.objects.using('default').filter(id=loja_id).first()
                         if loja:
-                            config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.using('default').filter(loja=loja).first()
+                            config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
                             if config and config.enviar_confirmacao:
                                 from whatsapp.services import enviar_confirmacao_agendamento
                                 enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
@@ -922,7 +922,8 @@ class WhatsAppConfigView(APIView):
         try:
             loja = Loja.objects.using('default').get(id=loja_id)
             owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip()
-            config, created = WhatsAppConfig.objects.using('default').get_or_create(
+            # Banco do tenant (cada loja tem sua tabela whatsapp_whatsappconfig no próprio schema)
+            config, created = WhatsAppConfig.objects.get_or_create(
                 loja=loja,
                 defaults={
                     'enviar_confirmacao': True,

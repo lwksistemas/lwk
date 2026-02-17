@@ -96,11 +96,11 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     if (!whatsappConfig) return;
     setWhatsappConfigSaving(true);
     try {
-      const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import('@/lib/clinica-beleza-api');
+      const { clinicaBelezaFetch } = await import('@/lib/clinica-beleza-api');
       const body: Record<string, unknown> = { ...whatsappConfig, whatsapp_numero: whatsappNumero };
-      const res = await fetch(`${getClinicaBelezaBaseUrl()}/whatsapp-config/`, {
+      const res = await clinicaBelezaFetch('/whatsapp-config/', {
         method: 'PATCH',
-        headers: getClinicaBelezaHeaders(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       if (res.ok) {
@@ -108,9 +108,21 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
         setWhatsappNumero((data.whatsapp_numero ?? '').toString());
         alert('Configurações WhatsApp salvas.');
         setConfigOpen(false);
-      } else alert('Erro ao salvar.');
-    } catch {
-      alert('Erro ao salvar.');
+      } else {
+        let msg = `Erro ao salvar (${res.status}).`;
+        try {
+          const err = await res.json();
+          if (err?.error) msg = err.error;
+          else if (err?.detail) msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+        } catch {
+          const text = await res.text();
+          if (text) msg = text.slice(0, 200);
+        }
+        alert(msg);
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message === 'SESSION_ENDED') return;
+      alert('Erro ao salvar. Tente novamente.');
     } finally {
       setWhatsappConfigSaving(false);
     }

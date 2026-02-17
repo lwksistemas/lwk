@@ -7,8 +7,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.utils.timezone import now
 from django.db.models import Count, Q, Sum
+from django.core.exceptions import ValidationError
 from datetime import timedelta, date
 from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario
+from rules.base import MotorRegras
 from .serializers import (
     PatientSerializer, ProfessionalSerializer, ProfessionalCreateWithUserSerializer,
     ProcedureSerializer,
@@ -643,6 +645,21 @@ class AgendaUpdateView(APIView):
                         {'error': 'Horário bloqueado. Escolha outro horário.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
+                # Motor de regras: conflito de horário (mesmo profissional)
+                try:
+                    motor = MotorRegras()
+                    motor.executar(
+                        evento="AGENDAMENTO_ATUALIZADO",
+                        contexto={
+                            "profissional": appointment.professional,
+                            "date": date_start,
+                            "date_end": date_end,
+                            "appointment_id": appointment.id,
+                        },
+                    )
+                except ValidationError as e:
+                    msg = e.messages[0] if getattr(e, "messages", None) else str(e)
+                    return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
                 appointment.date = date_start
 
             if new_status is not None:
@@ -661,6 +678,17 @@ class AgendaUpdateView(APIView):
             appointment.version = (appointment.version or 1) + 1
             appointment.updated_by_id = getattr(request.user, 'id', None)
             appointment.save()
+
+            # Motor de regras: ao finalizar atendimento, gera lançamento financeiro (Payment pendente)
+            if new_status == 'COMPLETED':
+                try:
+                    motor = MotorRegras()
+                    motor.executar(
+                        evento="AGENDAMENTO_FINALIZADO",
+                        contexto={"appointment": appointment},
+                    )
+                except Exception:
+                    pass  # não falha a atualização
 
             # WhatsApp: enviar confirmação quando status passar a CONFIRMED (respeita config da loja)
             if new_status == 'CONFIRMED':
@@ -716,9 +744,41 @@ class AgendaCreateView(APIView):
                     {'error': 'Horário bloqueado. Escolha outro horário ou profissional.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            # Motor de regras: validar conflito antes de salvar
+            motor = MotorRegras()
+            try:
+                motor.executar(
+                    evento="AGENDAMENTO_CRIADO",
+                    contexto={
+                        "profissional": data["professional"],
+                        "date": date_start,
+                        "date_end": date_end,
+                        "appointment_id": None,
+                    },
+                )
+            except ValidationError as e:
+                msg = e.messages[0] if getattr(e, "messages", None) else str(e)
+                return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
             appointment = serializer.save()
+            # Regras pós-criação: notificação ao profissional
+            try:
+                motor.executar(
+                    evento="AGENDAMENTO_CRIADO",
+                    contexto={
+                        "profissional": appointment.professional,
+                        "date": appointment.date,
+                        "date_end": appointment.date + timedelta(minutes=appointment.procedure.duration),
+                        "appointment_id": appointment.id,
+                        "appointment": appointment,
+                    },
+                )
+            except Exception:
+                pass  # não falha a criação
             event_serializer = AgendaEventSerializer(appointment)
             return Response(event_serializer.data, status=status.HTTP_201_CREATED)
+        except ValidationError as e:
+            msg = e.messages[0] if getattr(e, "messages", None) else str(e)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("Erro ao criar agendamento: %s", e)
             return Response(

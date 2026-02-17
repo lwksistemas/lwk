@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
     'push.apps.PushConfig',  # Push notifications (VAPID)
     'whatsapp.apps.WhatsappConfig',  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
+    'rules.apps.RulesConfig',  # Motor de regras automáticas - ETAPA 5
 ]
 
 MIDDLEWARE = [

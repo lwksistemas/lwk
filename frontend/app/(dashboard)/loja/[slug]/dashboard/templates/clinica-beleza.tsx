@@ -63,6 +63,10 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     enviar_cobranca: boolean;
   } | null>(null);
   const [whatsappNumero, setWhatsappNumero] = useState('');
+  const [whatsappAtivo, setWhatsappAtivo] = useState(false);
+  const [whatsappPhoneId, setWhatsappPhoneId] = useState('');
+  const [whatsappToken, setWhatsappToken] = useState('');
+  const [whatsappTokenSet, setWhatsappTokenSet] = useState(false);
   const [whatsappConfigSaving, setWhatsappConfigSaving] = useState(false);
 
   useEffect(() => {
@@ -91,13 +95,23 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           enviar_cobranca: !!data.enviar_cobranca,
         });
         setWhatsappNumero((data.whatsapp_numero ?? '').toString());
+        setWhatsappAtivo(!!data.whatsapp_ativo);
+        setWhatsappPhoneId((data.whatsapp_phone_id ?? '').toString());
+        setWhatsappTokenSet(!!data.whatsapp_token_set);
+        setWhatsappToken('');
       } else {
         setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
         setWhatsappNumero('');
+        setWhatsappAtivo(false);
+        setWhatsappPhoneId('');
+        setWhatsappTokenSet(false);
       }
     } catch {
       setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
       setWhatsappNumero('');
+      setWhatsappAtivo(false);
+      setWhatsappPhoneId('');
+      setWhatsappTokenSet(false);
     }
   };
 
@@ -106,7 +120,13 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     setWhatsappConfigSaving(true);
     try {
       const { getClinicaBelezaBaseUrl } = await import('@/lib/clinica-beleza-api');
-      const body: Record<string, unknown> = { ...whatsappConfig, whatsapp_numero: whatsappNumero };
+      const body: Record<string, unknown> = {
+        ...whatsappConfig,
+        whatsapp_numero: whatsappNumero,
+        whatsapp_ativo: whatsappAtivo,
+        whatsapp_phone_id: whatsappPhoneId.trim() || '',
+        ...(whatsappToken.trim() ? { whatsapp_token: whatsappToken.trim() } : {}),
+      };
       const res = await fetch(`${getClinicaBelezaBaseUrl()}/whatsapp-config/`, {
         method: 'PATCH',
         headers: getHeadersComTenant(),
@@ -119,6 +139,10 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
       if (res.ok) {
         const data = await res.json();
         setWhatsappNumero((data.whatsapp_numero ?? '').toString());
+        setWhatsappAtivo(!!data.whatsapp_ativo);
+        setWhatsappPhoneId((data.whatsapp_phone_id ?? '').toString());
+        setWhatsappTokenSet(!!data.whatsapp_token_set);
+        setWhatsappToken('');
         alert('Configurações WhatsApp salvas.');
         setConfigOpen(false);
       } else {
@@ -329,22 +353,49 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                     <span>💬</span> WhatsApp
                   </h4>
 
-                  {/* Status: número configurado ou não */}
-                  <div className="rounded-lg border border-gray-200 dark:border-neutral-600 bg-gray-50 dark:bg-neutral-700/50 px-3 py-2">
-                    <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Status</p>
-                    <p className="text-sm text-gray-800 dark:text-gray-200">
-                      {(whatsappNumero || '').trim() ? (
-                        <>✅ Número da loja configurado — envio de confirmações e lembretes ativo para quem permitir.</>
-                      ) : (
-                        <>⚠️ Informe o número da loja abaixo para ativar envio de confirmações e lembretes por WhatsApp.</>
+                  {/* Integração API Meta: cada clínica configura na sua tela */}
+                  <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/20 px-3 py-2 space-y-3">
+                    <p className="text-xs font-medium text-purple-800 dark:text-purple-200">Integração WhatsApp Business (Meta)</p>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={whatsappAtivo}
+                        onChange={e => setWhatsappAtivo(e.target.checked)}
+                        className="rounded border-gray-300 dark:border-neutral-600 text-purple-600"
+                      />
+                      <span className="text-sm text-gray-800 dark:text-gray-200">WhatsApp ativo — usar esta integração para enviar mensagens</span>
+                    </label>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone Number ID (Meta)</label>
+                      <input
+                        type="text"
+                        value={whatsappPhoneId}
+                        onChange={e => setWhatsappPhoneId(e.target.value)}
+                        placeholder="Ex: 123456789012345"
+                        className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Em developers.facebook.com → seu app → WhatsApp → API Setup</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Token de acesso (Meta)</label>
+                      <input
+                        type="password"
+                        value={whatsappToken}
+                        onChange={e => setWhatsappToken(e.target.value)}
+                        placeholder={whatsappTokenSet ? "Deixe em branco para não alterar" : "Cole o token permanente da API"}
+                        className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
+                        autoComplete="off"
+                      />
+                      {whatsappTokenSet && !whatsappToken && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">Token já configurado</p>
                       )}
-                    </p>
+                    </div>
                   </div>
 
-                  {/* Sincronização WhatsApp: número da loja configurável no menu Configurações */}
+                  {/* Número da loja (exibição / identificação) */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Número WhatsApp da loja
+                      Número WhatsApp da loja (ex.: para exibir aos pacientes)
                     </label>
                     <input
                       type="text"
@@ -353,11 +404,21 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                       placeholder="Ex: 5511999999999 (DDD + número)"
                       className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Número usado para envio de confirmações e lembretes. Defina e salve aqui nas Configurações.
-                    </p>
-                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                      Para as mensagens serem enviadas de fato, a API do WhatsApp Business (Meta) precisa estar configurada no servidor (Phone ID e Token). Se nada chegar ao paciente, entre em contato com o suporte.
+                  </div>
+
+                  {/* Status */}
+                  <div className="rounded-lg border border-gray-200 dark:border-neutral-600 bg-gray-50 dark:bg-neutral-700/50 px-3 py-2">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Status</p>
+                    <p className="text-sm text-gray-800 dark:text-gray-200">
+                      {whatsappAtivo && (whatsappPhoneId || '').trim() && whatsappTokenSet ? (
+                        <>✅ Integração ativa — mensagens podem ser enviadas.</>
+                      ) : whatsappAtivo && ((whatsappPhoneId || '').trim() || whatsappTokenSet) ? (
+                        <>⚠️ Preencha Phone ID e Token e marque &quot;WhatsApp ativo&quot; para enviar.</>
+                      ) : (whatsappNumero || '').trim() ? (
+                        <>Número da loja definido. Ative a integração acima para enviar confirmações e lembretes.</>
+                      ) : (
+                        <>Configure o número e a integração (Phone ID + Token) para enviar mensagens.</>
+                      )}
                     </p>
                   </div>
 

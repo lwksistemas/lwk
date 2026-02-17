@@ -780,16 +780,31 @@ class AgendaCreateView(APIView):
                     from whatsapp.models import WhatsAppConfig
                     from superadmin.models import Loja
                     loja_id = get_current_loja_id()
-                    if loja_id:
+                    patient_phone = getattr(appointment.patient, 'phone', None) or ''
+                    if not (patient_phone and str(patient_phone).strip()):
+                        logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — paciente sem telefone", appointment.id)
+                    elif not loja_id:
+                        logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — contexto de loja ausente", appointment.id)
+                    else:
                         loja = Loja.objects.using('default').filter(id=loja_id).first()
-                        if loja:
+                        if not loja:
+                            logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — loja não encontrada", appointment.id)
+                        else:
                             config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
-                            if config and config.enviar_confirmacao and getattr(appointment.patient, 'phone', None):
+                            if not config:
+                                logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — config da loja não encontrada", appointment.id)
+                            elif not config.enviar_confirmacao:
+                                logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — opção 'enviar confirmação' desligada nas Configurações", appointment.id)
+                            else:
                                 from whatsapp.services import enviar_confirmacao_agendamento
                                 if enviar_confirmacao_agendamento(appointment, user=request.user, config=config):
                                     logger.info("WhatsApp confirmação enviada ao criar agendamento id=%s", appointment.id)
                                 else:
-                                    logger.info("WhatsApp confirmação não enviada (config/API não disponível) agendamento id=%s", appointment.id)
+                                    logger.info(
+                                        "WhatsApp: confirmação não enviada ao criar agendamento id=%s — "
+                                        "API do WhatsApp Business (Meta) não configurada. Configure Phone ID e Token nas variáveis do servidor ou na integração.",
+                                        appointment.id,
+                                    )
                 except Exception as e:
                     logger.warning("WhatsApp confirmação ao criar agendamento %s: %s", appointment.id, e)
             event_serializer = AgendaEventSerializer(appointment)
@@ -968,6 +983,7 @@ class WhatsAppConfigView(APIView):
             )
         loja = config.loja
         owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
+        # API Meta: expor para a clínica configurar no frontend (token nunca retornado em texto)
         return Response({
             'enviar_confirmacao': config.enviar_confirmacao,
             'enviar_lembrete_24h': config.enviar_lembrete_24h,
@@ -975,6 +991,9 @@ class WhatsAppConfigView(APIView):
             'enviar_cobranca': config.enviar_cobranca,
             'owner_telefone': owner_telefone,
             'whatsapp_numero': (config.whatsapp_numero or '').strip(),
+            'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
+            'whatsapp_phone_id': (getattr(config, 'whatsapp_phone_id', None) or '').strip(),
+            'whatsapp_token_set': bool((getattr(config, 'whatsapp_token', None) or '').strip()),
         })
 
     def patch(self, request):
@@ -992,6 +1011,15 @@ class WhatsAppConfigView(APIView):
         if 'whatsapp_numero' in request.data:
             config.whatsapp_numero = (request.data.get('whatsapp_numero') or '').strip()[:20]
             update_fields.append('whatsapp_numero')
+        if 'whatsapp_ativo' in request.data:
+            config.whatsapp_ativo = bool(request.data['whatsapp_ativo'])
+            update_fields.append('whatsapp_ativo')
+        if 'whatsapp_phone_id' in request.data:
+            config.whatsapp_phone_id = (request.data.get('whatsapp_phone_id') or '').strip()[:64]
+            update_fields.append('whatsapp_phone_id')
+        if 'whatsapp_token' in request.data:
+            config.whatsapp_token = (request.data.get('whatsapp_token') or '').strip()[:512]
+            update_fields.append('whatsapp_token')
         config.save(update_fields=update_fields)
         loja = config.loja
         owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
@@ -1002,5 +1030,8 @@ class WhatsAppConfigView(APIView):
             'enviar_cobranca': config.enviar_cobranca,
             'owner_telefone': owner_telefone,
             'whatsapp_numero': (config.whatsapp_numero or '').strip(),
+            'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
+            'whatsapp_phone_id': (config.whatsapp_phone_id or '').strip(),
+            'whatsapp_token_set': bool((config.whatsapp_token or '').strip()),
         })
 

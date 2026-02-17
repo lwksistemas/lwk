@@ -69,10 +69,20 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     fetchDashboardData();
   }, []);
 
+  const getHeadersComTenant = (): Record<string, string> => {
+    const base = (typeof window !== 'undefined' && (sessionStorage.getItem('access_token') || localStorage.getItem('token')))
+      ? { Authorization: `Bearer ${sessionStorage.getItem('access_token') || localStorage.getItem('token')}` }
+      : {};
+    const h: Record<string, string> = { 'Content-Type': 'application/json', ...base };
+    if (loja?.id) h['X-Loja-ID'] = String(loja.id);
+    else if (loja?.slug) h['X-Tenant-Slug'] = loja.slug;
+    return h;
+  };
+
   const loadWhatsAppConfig = async () => {
     try {
-      const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import('@/lib/clinica-beleza-api');
-      const res = await fetch(`${getClinicaBelezaBaseUrl()}/whatsapp-config/`, { headers: getClinicaBelezaHeaders() });
+      const { getClinicaBelezaBaseUrl } = await import('@/lib/clinica-beleza-api');
+      const res = await fetch(`${getClinicaBelezaBaseUrl()}/whatsapp-config/`, { headers: getHeadersComTenant() });
       if (res.ok) {
         const data = await res.json();
         setWhatsappConfig({
@@ -96,13 +106,17 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     if (!whatsappConfig) return;
     setWhatsappConfigSaving(true);
     try {
-      const { clinicaBelezaFetch } = await import('@/lib/clinica-beleza-api');
+      const { getClinicaBelezaBaseUrl } = await import('@/lib/clinica-beleza-api');
       const body: Record<string, unknown> = { ...whatsappConfig, whatsapp_numero: whatsappNumero };
-      const res = await clinicaBelezaFetch('/whatsapp-config/', {
+      const res = await fetch(`${getClinicaBelezaBaseUrl()}/whatsapp-config/`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeadersComTenant(),
         body: JSON.stringify(body),
       });
+      if (res.status === 401) {
+        const { handle401SessionResponse } = await import('@/lib/clinica-beleza-api');
+        if (await handle401SessionResponse(res)) return;
+      }
       if (res.ok) {
         const data = await res.json();
         setWhatsappNumero((data.whatsapp_numero ?? '').toString());

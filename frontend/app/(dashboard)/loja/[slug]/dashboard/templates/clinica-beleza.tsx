@@ -62,6 +62,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     enviar_lembrete_2h: boolean;
     enviar_cobranca: boolean;
   } | null>(null);
+  const [whatsappPhoneInfo, setWhatsappPhoneInfo] = useState<{ owner_telefone: string; whatsapp_numero: string }>({ owner_telefone: '', whatsapp_numero: '' });
   const [whatsappConfigSaving, setWhatsappConfigSaving] = useState(false);
 
   useEffect(() => {
@@ -80,9 +81,17 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           enviar_lembrete_2h: !!data.enviar_lembrete_2h,
           enviar_cobranca: !!data.enviar_cobranca,
         });
-      } else setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
+        setWhatsappPhoneInfo({
+          owner_telefone: data.owner_telefone ?? '',
+          whatsapp_numero: data.whatsapp_numero ?? '',
+        });
+      } else {
+        setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
+        setWhatsappPhoneInfo({ owner_telefone: '', whatsapp_numero: '' });
+      }
     } catch {
       setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
+      setWhatsappPhoneInfo({ owner_telefone: '', whatsapp_numero: '' });
     }
   };
 
@@ -294,6 +303,26 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                   <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <span>💬</span> WhatsApp
                   </h4>
+                  {/* Sincronização telefone da loja: exibe número do admin e número usado no envio */}
+                  {(whatsappPhoneInfo.owner_telefone || whatsappPhoneInfo.whatsapp_numero) && (
+                    <div className="rounded-lg bg-gray-50 dark:bg-neutral-700/50 p-3 text-sm space-y-1">
+                      {whatsappPhoneInfo.owner_telefone && (
+                        <p className="text-gray-700 dark:text-gray-300">
+                          <span className="font-medium">Telefone da loja (administrador):</span>{' '}
+                          {whatsappPhoneInfo.owner_telefone}
+                        </p>
+                      )}
+                      {whatsappPhoneInfo.whatsapp_numero && (
+                        <p className="text-gray-700 dark:text-gray-300">
+                          <span className="font-medium">Número para envio WhatsApp:</span>{' '}
+                          {whatsappPhoneInfo.whatsapp_numero}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        O número de envio é sincronizado com o telefone do administrador (definido no Superadmin). Para alterar, edite a loja no painel Superadmin.
+                      </p>
+                    </div>
+                  )}
                   {whatsappConfig === null ? (
                     <p className="text-sm text-gray-500">Carregando...</p>
                   ) : (

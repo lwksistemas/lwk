@@ -13,6 +13,28 @@ import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { buscarPacientesOffline, salvarPacientesOffline } from "@/lib/offline-db";
 
+/** Monta mensagem legível a partir de serializer.errors (400) da API */
+function formatApiValidationErrors(err: Record<string, unknown>): string {
+  if (err?.detail && typeof err.detail === "string") return err.detail;
+  const msgs: string[] = [];
+  const labels: Record<string, string> = {
+    name: "Nome",
+    phone: "Telefone",
+    email: "E-mail",
+    cpf: "CPF",
+    birth_date: "Data de Nascimento",
+    address: "Endereço",
+    notes: "Observações",
+  };
+  for (const [key, val] of Object.entries(err)) {
+    if (Array.isArray(val) && val.length) {
+      const label = labels[key] || key;
+      msgs.push(`${label}: ${val[0]}`);
+    }
+  }
+  return msgs.length ? msgs.join(". ") : "";
+}
+
 interface Patient {
   id: number;
   name: string;
@@ -136,7 +158,7 @@ export default function PacientesPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.name?.[0] || err.detail || "Erro ao atualizar");
+          throw new Error(formatApiValidationErrors(err) || "Erro ao atualizar");
         }
       } else {
         const res = await clinicaBelezaFetch("/patients/", {
@@ -145,12 +167,13 @@ export default function PacientesPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.name?.[0] || err.detail || "Erro ao cadastrar");
+          throw new Error(formatApiValidationErrors(err) || "Erro ao cadastrar");
         }
       }
       setShowModal(false);
       load();
     } catch (e: unknown) {
+      if (e instanceof Error && e.message === "SESSION_ENDED") return;
       setError(e instanceof Error ? e.message : "Erro ao salvar");
     } finally {
       setSaving(false);

@@ -92,6 +92,12 @@ export async function clinicaBelezaFetch(
   if (response.status === 401) {
     const handled = await handle401SessionResponse(response);
     if (handled) throw new Error("SESSION_ENDED");
+    // Token expirado ou inválido (sem código de sessão): mensagem amigável e redirect
+    clearSessionAndRedirect(
+      getLoginUrlForRedirect(),
+      "Sessão expirada ou token inválido. Faça login novamente."
+    );
+    throw new Error("SESSION_ENDED");
   }
   return response;
 }

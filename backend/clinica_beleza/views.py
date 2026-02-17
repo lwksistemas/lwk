@@ -774,6 +774,24 @@ class AgendaCreateView(APIView):
                 )
             except Exception:
                 pass  # não falha a criação
+            # WhatsApp: enviar confirmação ao criar agendamento (status CONFIRMED ou SCHEDULED)
+            if appointment.status in ('CONFIRMED', 'SCHEDULED') and getattr(appointment.patient, 'allow_whatsapp', True):
+                try:
+                    from whatsapp.models import WhatsAppConfig
+                    from superadmin.models import Loja
+                    loja_id = get_current_loja_id()
+                    if loja_id:
+                        loja = Loja.objects.using('default').filter(id=loja_id).first()
+                        if loja:
+                            config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
+                            if config and config.enviar_confirmacao and getattr(appointment.patient, 'phone', None):
+                                from whatsapp.services import enviar_confirmacao_agendamento
+                                if enviar_confirmacao_agendamento(appointment, user=request.user, config=config):
+                                    logger.info("WhatsApp confirmação enviada ao criar agendamento id=%s", appointment.id)
+                                else:
+                                    logger.info("WhatsApp confirmação não enviada (config/API não disponível) agendamento id=%s", appointment.id)
+                except Exception as e:
+                    logger.warning("WhatsApp confirmação ao criar agendamento %s: %s", appointment.id, e)
             event_serializer = AgendaEventSerializer(appointment)
             return Response(event_serializer.data, status=status.HTTP_201_CREATED)
         except ValidationError as e:

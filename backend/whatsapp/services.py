@@ -53,7 +53,10 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
         token = token or getattr(settings, 'WHATSAPP_TOKEN', None)
 
     if not phone_id or not token:
-        logger.warning("WhatsApp: phone_id/token não configurados para esta loja nem globalmente")
+        logger.warning(
+            "WhatsApp: phone_id/token não configurados (loja nem WHATSAPP_PHONE_ID/WHATSAPP_TOKEN). "
+            "Configure a API do WhatsApp Business (Meta) para enviar mensagens."
+        )
         WhatsAppLog.objects.create(
             loja=loja,
             user=user,

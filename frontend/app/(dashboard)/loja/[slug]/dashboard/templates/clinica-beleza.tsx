@@ -356,6 +356,9 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       Número usado para envio de confirmações e lembretes. Defina e salve aqui nas Configurações.
                     </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      Para as mensagens serem enviadas de fato, a API do WhatsApp Business (Meta) precisa estar configurada no servidor (Phone ID e Token). Se nada chegar ao paciente, entre em contato com o suporte.
+                    </p>
                   </div>
 
                   <div className="rounded-lg border border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-900/20 px-3 py-2">

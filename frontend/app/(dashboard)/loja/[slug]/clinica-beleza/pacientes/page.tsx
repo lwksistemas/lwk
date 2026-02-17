@@ -23,6 +23,7 @@ interface Patient {
   address: string | null;
   notes: string | null;
   active: boolean;
+  allow_whatsapp?: boolean;
 }
 
 export default function PacientesPage() {
@@ -42,6 +43,7 @@ export default function PacientesPage() {
     birth_date: "",
     address: "",
     notes: "",
+    allow_whatsapp: true,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -86,6 +88,7 @@ export default function PacientesPage() {
       birth_date: "",
       address: "",
       notes: "",
+      allow_whatsapp: true,
     });
     setError("");
     setShowModal(true);
@@ -101,6 +104,7 @@ export default function PacientesPage() {
       birth_date: p.birth_date ? p.birth_date.slice(0, 10) : "",
       address: p.address || "",
       notes: p.notes || "",
+      allow_whatsapp: p.allow_whatsapp !== false,
     });
     setError("");
     setShowModal(true);
@@ -123,6 +127,7 @@ export default function PacientesPage() {
         address: form.address.trim() || null,
         notes: form.notes.trim() || null,
         active: true,
+        allow_whatsapp: form.allow_whatsapp,
       };
       if (editing) {
         const res = await clinicaBelezaFetch(`/patients/${editing.id}/`, {
@@ -321,6 +326,17 @@ export default function PacientesPage() {
                   placeholder="Observações"
                 />
               </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.allow_whatsapp}
+                  onChange={(e) => setForm((f) => ({ ...f, allow_whatsapp: e.target.checked }))}
+                  className="rounded border-gray-300 dark:border-neutral-600 text-purple-600"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Permitir WhatsApp (lembretes e cobranças) — LGPD: o paciente pode optar por não receber
+                </span>
+              </label>
             </div>
             <div className="flex gap-2 p-4 border-t dark:border-neutral-600">
               <button

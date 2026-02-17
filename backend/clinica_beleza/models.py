@@ -22,6 +22,11 @@ class Patient(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
     active = models.BooleanField(default=True, verbose_name="Ativo")
+    allow_whatsapp = models.BooleanField(
+        default=True,
+        verbose_name="Permitir WhatsApp",
+        help_text="Se desmarcado, o paciente não recebe mensagens por WhatsApp (LGPD).",
+    )
     
     objects = LojaIsolationManager()
 

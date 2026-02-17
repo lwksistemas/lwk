@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'clinica_beleza.apps.ClinicaBelezaConfig',  # App de clínica da beleza
     'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
     'push.apps.PushConfig',  # Push notifications (VAPID)
+    'whatsapp.apps.WhatsappConfig',  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
 ]
 
 MIDDLEWARE = [
@@ -314,3 +315,8 @@ Q_CLUSTER = {
 # Push Notifications (VAPID) - chave privada no backend; chave pública no frontend (NEXT_PUBLIC_VAPID_PUBLIC_KEY)
 VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
 VAPID_CLAIM_MAILTO = config('VAPID_CLAIM_MAILTO', default='mailto:admin@lwksistemas.com.br')
+
+# WhatsApp oficial (Meta Cloud API) - ETAPA 4
+WHATSAPP_API_URL = config('WHATSAPP_API_URL', default='https://graph.facebook.com/v19.0')
+WHATSAPP_PHONE_ID = config('WHATSAPP_PHONE_ID', default='')
+WHATSAPP_TOKEN = config('WHATSAPP_TOKEN', default='')

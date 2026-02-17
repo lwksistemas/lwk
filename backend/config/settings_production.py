@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'cabeleireiro',  # App de cabeleireiro/salão de beleza
     'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
     'push.apps.PushConfig',  # Push notifications (VAPID)
+    'whatsapp.apps.WhatsappConfig',  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
 ]
 
 # MIDDLEWARE

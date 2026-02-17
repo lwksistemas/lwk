@@ -44,4 +44,12 @@ def notify(
             send_push(user=user, title=titulo, body=mensagem, url=url)
         except Exception:
             pass  # Push é best-effort; não falha a notificação in-app
+    if canal == 'whatsapp':
+        try:
+            telefone = (metadata or {}).get('telefone')
+            if telefone:
+                from whatsapp.services import send_whatsapp
+                send_whatsapp(telefone=telefone, mensagem=mensagem, user=user)
+        except Exception:
+            pass  # WhatsApp é best-effort; não falha a notificação in-app
     return notif

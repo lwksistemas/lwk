@@ -580,7 +580,7 @@ class AgendaUpdateView(APIView):
         import logging
         logger = logging.getLogger(__name__)
         try:
-            appointment = Appointment.objects.select_related('procedure', 'professional').get(pk=pk)
+            appointment = Appointment.objects.select_related('procedure', 'professional', 'patient').get(pk=pk)
             new_date = request.data.get('date')
             new_status = request.data.get('status')
             local_version = request.data.get('version')
@@ -661,6 +661,22 @@ class AgendaUpdateView(APIView):
             appointment.version = (appointment.version or 1) + 1
             appointment.updated_by_id = getattr(request.user, 'id', None)
             appointment.save()
+
+            # WhatsApp: enviar confirmação quando status passar a CONFIRMED (respeita config da loja)
+            if new_status == 'CONFIRMED':
+                try:
+                    from whatsapp.models import WhatsAppConfig
+                    from superadmin.models import Loja
+                    loja_id = get_current_loja_id()
+                    if loja_id and getattr(appointment.patient, 'allow_whatsapp', True):
+                        loja = Loja.objects.using('default').filter(id=loja_id).first()
+                        if loja:
+                            config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.using('default').filter(loja=loja).first()
+                            if config and config.enviar_confirmacao:
+                                from whatsapp.services import enviar_confirmacao_agendamento
+                                enviar_confirmacao_agendamento(appointment, user=request.user)
+                except Exception as e:
+                    logger.warning("WhatsApp confirmação agendamento %s: %s", pk, e)
 
             logger.info(
                 "Agendamento id=%s atualizado: version=%s updated_by_id=%s",
@@ -809,4 +825,66 @@ class BloqueioHorarioDetailView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except BloqueioHorario.DoesNotExist:
             return Response({'error': 'Bloqueio não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class WhatsAppConfigView(APIView):
+    """
+    Configuração WhatsApp da loja (ETAPA 4).
+    GET /clinica-beleza/whatsapp-config/  → retorna flags
+    PATCH /clinica-beleza/whatsapp-config/ → atualiza flags
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_config(self):
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return None
+        from whatsapp.models import WhatsAppConfig
+        from superadmin.models import Loja
+        try:
+            loja = Loja.objects.using('default').get(id=loja_id)
+            config, _ = WhatsAppConfig.objects.using('default').get_or_create(
+                loja=loja,
+                defaults={
+                    'enviar_confirmacao': True,
+                    'enviar_lembrete_24h': True,
+                    'enviar_lembrete_2h': True,
+                    'enviar_cobranca': True,
+                }
+            )
+            return config
+        except Exception:
+            return None
+
+    def get(self, request):
+        config = self._get_config()
+        if config is None:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return Response({
+            'enviar_confirmacao': config.enviar_confirmacao,
+            'enviar_lembrete_24h': config.enviar_lembrete_24h,
+            'enviar_lembrete_2h': config.enviar_lembrete_2h,
+            'enviar_cobranca': config.enviar_cobranca,
+        })
+
+    def patch(self, request):
+        config = self._get_config()
+        if config is None:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        for key in ('enviar_confirmacao', 'enviar_lembrete_24h', 'enviar_lembrete_2h', 'enviar_cobranca'):
+            if key in request.data:
+                setattr(config, key, bool(request.data[key]))
+        config.save(update_fields=['enviar_confirmacao', 'enviar_lembrete_24h', 'enviar_lembrete_2h', 'enviar_cobranca', 'updated_at'])
+        return Response({
+            'enviar_confirmacao': config.enviar_confirmacao,
+            'enviar_lembrete_24h': config.enviar_lembrete_24h,
+            'enviar_lembrete_2h': config.enviar_lembrete_2h,
+            'enviar_cobranca': config.enviar_cobranca,
+        })
 

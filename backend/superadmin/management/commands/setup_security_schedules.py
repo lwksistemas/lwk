@@ -126,6 +126,41 @@ class Command(BaseCommand):
                 )
             )
         
+        # 5. WhatsApp: lembretes 24h antes (diariamente às 8h)
+        schedule, created = Schedule.objects.update_or_create(
+            name='whatsapp_lembretes_24h',
+            defaults={
+                'func': 'whatsapp.tasks.send_lembretes_24h_whatsapp',
+                'schedule_type': Schedule.DAILY,
+                'repeats': -1,
+            }
+        )
+        if created:
+            schedules_criados += 1
+        else:
+            schedules_atualizados += 1
+        self.stdout.write(
+            self.style.SUCCESS(f'✅ Schedule: {schedule.name} (diário)')
+        )
+        
+        # 6. WhatsApp: lembretes 2h antes (a cada 30 min)
+        schedule, created = Schedule.objects.update_or_create(
+            name='whatsapp_lembretes_2h',
+            defaults={
+                'func': 'whatsapp.tasks.send_lembretes_2h_whatsapp',
+                'schedule_type': Schedule.MINUTES,
+                'minutes': 30,
+                'repeats': -1,
+            }
+        )
+        if created:
+            schedules_criados += 1
+        else:
+            schedules_atualizados += 1
+        self.stdout.write(
+            self.style.SUCCESS(f'✅ Schedule: {schedule.name} (a cada 30 min)')
+        )
+        
         # Resumo
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('=' * 60))

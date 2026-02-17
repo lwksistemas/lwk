@@ -55,10 +55,57 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
   const [darkMode, setDarkMode] = useClinicaBelezaDark();
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [whatsappConfig, setWhatsappConfig] = useState<{
+    enviar_confirmacao: boolean;
+    enviar_lembrete_24h: boolean;
+    enviar_lembrete_2h: boolean;
+    enviar_cobranca: boolean;
+  } | null>(null);
+  const [whatsappConfigSaving, setWhatsappConfigSaving] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const loadWhatsAppConfig = async () => {
+    try {
+      const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import('@/lib/clinica-beleza-api');
+      const res = await fetch(`${getClinicaBelezaBaseUrl()}/whatsapp-config/`, { headers: getClinicaBelezaHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setWhatsappConfig({
+          enviar_confirmacao: !!data.enviar_confirmacao,
+          enviar_lembrete_24h: !!data.enviar_lembrete_24h,
+          enviar_lembrete_2h: !!data.enviar_lembrete_2h,
+          enviar_cobranca: !!data.enviar_cobranca,
+        });
+      } else setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
+    } catch {
+      setWhatsappConfig({ enviar_confirmacao: true, enviar_lembrete_24h: true, enviar_lembrete_2h: true, enviar_cobranca: true });
+    }
+  };
+
+  const saveWhatsAppConfig = async () => {
+    if (!whatsappConfig) return;
+    setWhatsappConfigSaving(true);
+    try {
+      const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import('@/lib/clinica-beleza-api');
+      const res = await fetch(`${getClinicaBelezaBaseUrl()}/whatsapp-config/`, {
+        method: 'PATCH',
+        headers: getClinicaBelezaHeaders(),
+        body: JSON.stringify(whatsappConfig),
+      });
+      if (res.ok) {
+        alert('Configurações WhatsApp salvas.');
+        setConfigOpen(false);
+      } else alert('Erro ao salvar.');
+    } catch {
+      alert('Erro ao salvar.');
+    } finally {
+      setWhatsappConfigSaving(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -163,11 +210,11 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                       {darkMode ? "Modo Claro" : "Modo Escuro"}
                     </button>
                     <button
-                      onClick={() => { alert('Página de Configurações em desenvolvimento'); setHeaderMenuOpen(false); }}
+                      onClick={() => { setConfigOpen(true); setHeaderMenuOpen(false); loadWhatsAppConfig(); }}
                       className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-neutral-700 text-left"
                     >
                       <Settings className="w-4 h-4" />
-                      Configurações Gerais
+                      Configurações
                     </button>
                     <button
                       onClick={() => { setHeaderMenuOpen(false); if (confirm('Deseja realmente sair?')) handleLogout(); }}
@@ -212,7 +259,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                 <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/profissionais`} />
                 <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`} />
                 <SidebarItem icon={<Wallet size={20} />} label="Financeiro" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/financeiro`} />
-                <SidebarItem icon={<Settings size={20} />} label="Configurações" onClick={() => alert('Página de Configurações em desenvolvimento')} />
+                <SidebarItem icon={<Settings size={20} />} label="Configurações" onClick={() => { setConfigOpen(true); setSidebarOpen(false); loadWhatsAppConfig(); }} />
                 <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" onClick={() => window.location.href = `/loja/${params.slug}/assinatura`} />
                 <div className="pt-4 border-t dark:border-neutral-700">
                   <SidebarItem 
@@ -229,6 +276,55 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
               </nav>
             </aside>
           </div>
+        )}
+
+        {/* Modal Configurações (WhatsApp) */}
+        {configOpen && (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setConfigOpen(false)} />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-md border dark:border-neutral-700" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b dark:border-neutral-700 flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Configurações</h3>
+                  <button type="button" onClick={() => setConfigOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-4 space-y-4">
+                  <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                    <span>💬</span> WhatsApp
+                  </h4>
+                  {whatsappConfig === null ? (
+                    <p className="text-sm text-gray-500">Carregando...</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={whatsappConfig.enviar_confirmacao} onChange={e => setWhatsappConfig(c => c ? { ...c, enviar_confirmacao: e.target.checked } : c)} className="rounded border-gray-300 dark:border-neutral-600 text-purple-600" />
+                        <span className="text-sm">Enviar confirmação de agendamento</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={whatsappConfig.enviar_lembrete_24h} onChange={e => setWhatsappConfig(c => c ? { ...c, enviar_lembrete_24h: e.target.checked } : c)} className="rounded border-gray-300 dark:border-neutral-600 text-purple-600" />
+                        <span className="text-sm">Enviar lembrete 24h antes</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={whatsappConfig.enviar_lembrete_2h} onChange={e => setWhatsappConfig(c => c ? { ...c, enviar_lembrete_2h: e.target.checked } : c)} className="rounded border-gray-300 dark:border-neutral-600 text-purple-600" />
+                        <span className="text-sm">Enviar lembrete 2h antes</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={whatsappConfig.enviar_cobranca} onChange={e => setWhatsappConfig(c => c ? { ...c, enviar_cobranca: e.target.checked } : c)} className="rounded border-gray-300 dark:border-neutral-600 text-purple-600" />
+                        <span className="text-sm">Enviar cobrança (financeiro)</span>
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Opt-out por paciente: no cadastro de Pacientes, desmarque &quot;Permitir WhatsApp&quot; para quem não deseja receber.</p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 border-t dark:border-neutral-700 flex justify-end gap-2">
+                  <button type="button" onClick={() => setConfigOpen(false)} className="px-4 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700">Cancelar</button>
+                  <button type="button" onClick={saveWhatsAppConfig} disabled={whatsappConfigSaving || whatsappConfig === null} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">{whatsappConfigSaving ? 'Salvando...' : 'Salvar'}</button>
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         {/* CONTENT */}

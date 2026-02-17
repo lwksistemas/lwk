@@ -13,6 +13,7 @@ from .views import (
     FinanceiroResumoView,
     AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
+    WhatsAppConfigView,
 )
 
 app_name = 'clinica_beleza'
@@ -53,4 +54,6 @@ urlpatterns = [
     # Bloqueio de Horários
     path('bloqueios/', BloqueioHorarioListView.as_view(), name='bloqueios-list'),
     path('bloqueios/<int:pk>/', BloqueioHorarioDetailView.as_view(), name='bloqueios-detail'),
+    # Configuração WhatsApp (ETAPA 4)
+    path('whatsapp-config/', WhatsAppConfigView.as_view(), name='whatsapp-config'),
 ]

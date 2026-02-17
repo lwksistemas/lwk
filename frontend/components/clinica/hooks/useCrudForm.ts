@@ -140,13 +140,15 @@ export function useCrudForm<T extends Record<string, unknown>>({
       
       let errorMessage = '❌ Erro ao salvar';
       if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { data?: Record<string, unknown> } };
+        const axiosError = err as { response?: { data?: Record<string, unknown> & { error?: string; detail?: string } } };
         if (axiosError.response?.data) {
           const errorData = axiosError.response.data;
           if (typeof errorData === 'object') {
-            const errorFields = Object.keys(errorData);
-            if (errorFields.length > 0) {
-              errorMessage += `\nCampos com erro: ${errorFields.join(', ')}`;
+            const msg = errorData.error ?? errorData.detail;
+            if (typeof msg === 'string') {
+              errorMessage = `❌ ${msg}`;
+            } else if (Object.keys(errorData).length > 0) {
+              errorMessage += `\nCampos com erro: ${Object.keys(errorData).join(', ')}`;
             }
           }
         }

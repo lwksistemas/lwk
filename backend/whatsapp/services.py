@@ -21,15 +21,19 @@ def _normalize_phone(telefone):
     return None
 
 
-def send_whatsapp(telefone, mensagem, user=None):
+def send_whatsapp(telefone, mensagem, user=None, config=None):
     """
     Envia mensagem de texto via WhatsApp Cloud API.
-    Registra em WhatsAppLog (auditoria). Retorna True se enviou com sucesso.
+    Se config (WhatsAppConfig da loja) for passado e estiver ativo, usa número/token da loja.
+    Caso contrário usa variáveis globais WHATSAPP_PHONE_ID/WHATSAPP_TOKEN (fallback).
+    Registra em WhatsAppLog (auditoria por loja). Retorna True se enviou com sucesso.
     """
     phone = _normalize_phone(telefone)
+    loja = config.loja if config else None
     if not phone:
         logger.warning("WhatsApp: telefone inválido ou vazio: %s", telefone)
         WhatsAppLog.objects.create(
+            loja=loja,
             user=user,
             telefone=telefone or '',
             mensagem=mensagem[:500],
@@ -39,12 +43,19 @@ def send_whatsapp(telefone, mensagem, user=None):
         return False
 
     api_url = getattr(settings, 'WHATSAPP_API_URL', None) or 'https://graph.facebook.com/v19.0'
-    phone_id = getattr(settings, 'WHATSAPP_PHONE_ID', None)
-    token = getattr(settings, 'WHATSAPP_TOKEN', None)
+    phone_id = None
+    token = None
+    if config and getattr(config, 'whatsapp_ativo', False):
+        phone_id = (getattr(config, 'whatsapp_phone_id', None) or '').strip()
+        token = (getattr(config, 'whatsapp_token', None) or '').strip()
+    if not phone_id or not token:
+        phone_id = phone_id or getattr(settings, 'WHATSAPP_PHONE_ID', None)
+        token = token or getattr(settings, 'WHATSAPP_TOKEN', None)
 
     if not phone_id or not token:
-        logger.warning("WhatsApp: WHATSAPP_PHONE_ID ou WHATSAPP_TOKEN não configurados")
+        logger.warning("WhatsApp: phone_id/token não configurados para esta loja nem globalmente")
         WhatsAppLog.objects.create(
+            loja=loja,
             user=user,
             telefone=phone,
             mensagem=mensagem[:500],
@@ -71,6 +82,7 @@ def send_whatsapp(telefone, mensagem, user=None):
     except Exception as e:
         logger.exception("WhatsApp: erro de requisição")
         WhatsAppLog.objects.create(
+            loja=loja,
             user=user,
             telefone=phone,
             mensagem=mensagem[:500],
@@ -81,6 +93,7 @@ def send_whatsapp(telefone, mensagem, user=None):
 
     ok = response.ok and (data.get('messages') or not data.get('error'))
     WhatsAppLog.objects.create(
+        loja=loja,
         user=user,
         telefone=phone,
         mensagem=mensagem[:500],
@@ -131,31 +144,31 @@ def msg_cobranca(paciente, valor):
 
 # --- Integração com agendamentos (chamar ao confirmar / lembrete / cobrança) ---
 
-def enviar_confirmacao_agendamento(agendamento, user=None):
+def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
     """
     Envia confirmação por WhatsApp ao paciente.
-    Chamar quando o agendamento for confirmado.
+    Chamar quando o agendamento for confirmado. Passar config da loja para usar número/token da clínica.
     """
     phone = getattr(agendamento.patient, 'phone', None)
     if not phone:
         return False
     msg = msg_confirmacao(agendamento)
-    return send_whatsapp(telefone=phone, mensagem=msg, user=user)
+    return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
 
 
-def enviar_lembrete_agendamento(agendamento, user=None):
-    """Envia lembrete por WhatsApp (ex.: dia do atendimento)."""
+def enviar_lembrete_agendamento(agendamento, user=None, config=None):
+    """Envia lembrete por WhatsApp (ex.: dia do atendimento). Passar config da loja."""
     phone = getattr(agendamento.patient, 'phone', None)
     if not phone:
         return False
     msg = msg_lembrete(agendamento)
-    return send_whatsapp(telefone=phone, mensagem=msg, user=user)
+    return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
 
 
-def enviar_cobranca_whatsapp(paciente, valor, user=None):
-    """Envia mensagem de cobrança por WhatsApp."""
+def enviar_cobranca_whatsapp(paciente, valor, user=None, config=None):
+    """Envia mensagem de cobrança por WhatsApp. Passar config da loja."""
     phone = getattr(paciente, 'phone', None)
     if not phone:
         return False
     msg = msg_cobranca(paciente, valor)
-    return send_whatsapp(telefone=phone, mensagem=msg, user=user)
+    return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)

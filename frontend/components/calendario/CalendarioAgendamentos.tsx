@@ -382,9 +382,11 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
       await clinicaApiClient.delete(`/clinica/agendamentos/${agendamento.id}/`);
       alert('✅ Agendamento excluído com sucesso!');
       carregarAgendamentos();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao excluir agendamento:', error);
-      alert('❌ Erro ao excluir agendamento');
+      const msg = (error as { response?: { data?: { error?: string; detail?: string } } })?.response?.data?.error
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      alert(msg ? `❌ ${msg}` : '❌ Erro ao excluir agendamento');
     }
   };
 
@@ -393,9 +395,11 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
       await clinicaApiClient.patch(`/clinica/agendamentos/${agendamento.id}/`, { status: novoStatus });
       alert('✅ Status atualizado com sucesso!');
       carregarAgendamentos();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao atualizar status:', error);
-      alert('❌ Erro ao atualizar status');
+      const msg = (error as { response?: { data?: { error?: string; detail?: string } } })?.response?.data?.error
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      alert(msg ? `❌ ${msg}` : '❌ Erro ao atualizar status');
     }
   };
 
@@ -1044,9 +1048,13 @@ function ModalAgendamento({
       }
       
       onSuccess();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao salvar agendamento:', error);
-      alert('❌ Erro ao salvar agendamento');
+      const msg =
+        (error as { response?: { data?: { error?: string; detail?: string } } })?.response?.data?.error ||
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (error instanceof Error ? error.message : null);
+      alert(msg ? `❌ ${msg}` : '❌ Erro ao salvar agendamento');
     } finally {
       setLoading(false);
     }

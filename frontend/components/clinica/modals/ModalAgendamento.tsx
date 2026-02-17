@@ -130,9 +130,11 @@ export function ModalAgendamento({ loja, onClose, onSuccess }: ModalAgendamentoP
       alert('✅ Agendamento criado com sucesso!');
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao criar agendamento:', error);
-      alert('❌ Erro ao criar agendamento');
+      const msg = (error as { response?: { data?: { error?: string; detail?: string } } })?.response?.data?.error
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      alert(msg ? `❌ ${msg}` : '❌ Erro ao criar agendamento');
     } finally {
       setLoading(false);
     }

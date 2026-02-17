@@ -702,7 +702,7 @@ class AgendaUpdateView(APIView):
                             config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.using('default').filter(loja=loja).first()
                             if config and config.enviar_confirmacao:
                                 from whatsapp.services import enviar_confirmacao_agendamento
-                                enviar_confirmacao_agendamento(appointment, user=request.user)
+                                enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
                 except Exception as e:
                     logger.warning("WhatsApp confirmação agendamento %s: %s", pk, e)
 

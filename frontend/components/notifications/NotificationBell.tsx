@@ -22,7 +22,12 @@ export function NotificationBell({ open, onOpenChange, className = '' }: Notific
     try {
       const ok = await registerPush();
       if (ok) setPushEnabled(true);
-      else alert('Não foi possível ativar. Verifique se permitiu notificações no navegador.');
+      else {
+        const dica = typeof navigator !== 'undefined' && /Chrome|Edge/i.test(navigator.userAgent)
+          ? '\n\nDica: clique no ícone de cadeado/info na barra de endereço → Configurações do site → Notificações → Permitir.'
+          : '\n\nDica: nas configurações do navegador, permita notificações para este site.';
+        alert('Não foi possível ativar. Verifique se permitiu notificações no navegador.' + dica);
+      }
     } catch {
       alert('Erro ao ativar notificações no celular.');
     } finally {

@@ -328,6 +328,19 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                   <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                     <span>💬</span> WhatsApp
                   </h4>
+
+                  {/* Status: número configurado ou não */}
+                  <div className="rounded-lg border border-gray-200 dark:border-neutral-600 bg-gray-50 dark:bg-neutral-700/50 px-3 py-2">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Status</p>
+                    <p className="text-sm text-gray-800 dark:text-gray-200">
+                      {(whatsappNumero || '').trim() ? (
+                        <>✅ Número da loja configurado — envio de confirmações e lembretes ativo para quem permitir.</>
+                      ) : (
+                        <>⚠️ Informe o número da loja abaixo para ativar envio de confirmações e lembretes por WhatsApp.</>
+                      )}
+                    </p>
+                  </div>
+
                   {/* Sincronização WhatsApp: número da loja configurável no menu Configurações */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -342,6 +355,13 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       Número usado para envio de confirmações e lembretes. Defina e salve aqui nas Configurações.
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-900/20 px-3 py-2">
+                    <p className="text-xs font-medium text-blue-800 dark:text-blue-200 mb-1">Onde as mensagens são enviadas?</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      O sistema envia mensagens <strong>automaticamente</strong> aos pacientes: confirmação ao confirmar agendamento, lembretes 24h e 2h antes, e cobrança (financeiro). Quem recebe: apenas pacientes com &quot;Permitir WhatsApp&quot; marcado em <strong>Pacientes</strong> (menu lateral → Pacientes). Não há tela para enviar mensagem manual; tudo é automático conforme as opções abaixo.
                     </p>
                   </div>
                   {whatsappConfig === null ? (

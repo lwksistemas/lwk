@@ -388,7 +388,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                     base_apps = ['stores', 'products']
                     tipo_apps = {
                         'clinica-de-estetica': ['clinica_estetica'],
-                        'clinica-da-beleza': ['clinica_beleza'],
+                        'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
                         'crm-vendas': ['crm_vendas'],
                         'e-commerce': ['ecommerce'],
                         'restaurante': ['restaurante'],

@@ -12,7 +12,7 @@ import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { buscarProfissionaisOffline, salvarProfissionaisOffline } from "@/lib/offline-db";
 
-type PerfilAcesso = "administrador" | "profissional" | "recepcionista" | "caixa" | "limpeza" | "estoque";
+type PerfilAcesso = "administrador" | "profissional" | "recepcao";
 
 interface Professional {
   id: number;
@@ -339,6 +339,23 @@ export default function ProfissionaisPage() {
               </div>
               {!editing && (
                 <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Tipo do profissional (permissões)
+                    </label>
+                    <select
+                      value={form.perfil}
+                      onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as PerfilAcesso }))}
+                      className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="administrador">Administrador</option>
+                      <option value="profissional">Profissional</option>
+                      <option value="recepcao">Recepção</option>
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Define as permissões de acesso ao sistema, se criar login abaixo.
+                    </p>
+                  </div>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -347,28 +364,9 @@ export default function ProfissionaisPage() {
                       className="rounded border-gray-300 dark:border-neutral-600 text-purple-600"
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300">
-                      Criar acesso e enviar senha por e-mail
+                      Criar acesso e enviar senha por e-mail (usará o tipo acima como permissão)
                     </span>
                   </label>
-                  {form.criar_acesso && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Perfil de acesso (opcional — padrão: Profissional)
-                      </label>
-                      <select
-                        value={form.perfil}
-                        onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as PerfilAcesso }))}
-                        className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                      >
-                        <option value="administrador">Administrador</option>
-                        <option value="profissional">Profissional (só agenda e bloqueios próprios)</option>
-                        <option value="recepcionista">Recepcionista</option>
-                        <option value="caixa">Caixa</option>
-                        <option value="limpeza">Limpeza</option>
-                        <option value="estoque">Estoque</option>
-                      </select>
-                    </div>
-                  )}
                 </>
               )}
             </div>

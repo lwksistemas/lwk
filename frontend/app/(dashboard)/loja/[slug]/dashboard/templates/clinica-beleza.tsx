@@ -22,6 +22,7 @@ import {
   Wallet,
   ChevronDown,
   Megaphone,
+  Headphones,
 } from "lucide-react";
 import { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
@@ -238,6 +239,14 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
               open={notificationsOpen}
               onOpenChange={setNotificationsOpen}
             />
+            <a
+              href={`/loja/${params.slug}/suporte`}
+              className="p-2 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg transition-colors flex items-center gap-1.5 text-gray-700 dark:text-gray-200"
+              title="Suporte - Meus chamados"
+            >
+              <Headphones className="w-5 h-5" />
+              <span className="hidden sm:inline text-sm font-medium">Suporte</span>
+            </a>
             <div className="relative">
               <button 
                 onClick={() => { setHeaderMenuOpen(!headerMenuOpen); setNotificationsOpen(false); }}

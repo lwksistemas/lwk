@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import ModalChamado from '@/components/suporte/ModalChamado';
 
 interface Resposta {
   id: number;
@@ -37,8 +38,10 @@ export default function SuporteHistoricoPage() {
   const [loading, setLoading] = useState(true);
   const [chamadoSelecionado, setChamadoSelecionado] = useState<Chamado | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalNovoChamadoAberto, setModalNovoChamadoAberto] = useState(false);
   const [resposta, setResposta] = useState('');
   const [enviandoResposta, setEnviandoResposta] = useState(false);
+  const [lojaNome, setLojaNome] = useState<string>('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -48,6 +51,10 @@ export default function SuporteHistoricoPage() {
         return;
       }
       loadChamados();
+      // Carregar nome da loja para o modal de novo chamado
+      apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`).then((r) => {
+        if (r.data?.nome) setLojaNome(r.data.nome);
+      }).catch(() => {});
     }
   }, [router, slug]);
 
@@ -130,17 +137,29 @@ export default function SuporteHistoricoPage() {
       {/* Header */}
       <nav className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
+          <div className="flex flex-col sm:flex-row justify-between min-h-16 py-3 sm:py-0 gap-3 sm:gap-0 sm:items-center">
             <div>
-              <h1 className="text-2xl font-bold">Meus Chamados de Suporte</h1>
+              <h1 className="text-xl sm:text-2xl font-bold">Meus Chamados de Suporte</h1>
               <p className="text-blue-100 text-sm">Histórico e acompanhamento</p>
             </div>
-            <button
-              onClick={() => router.push(`/loja/${slug}/dashboard`)}
-              className="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-md transition-colors"
-            >
-              Voltar ao Dashboard
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setModalNovoChamadoAberto(true)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center gap-2 font-medium"
+                title="Abrir novo chamado"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Abrir chamado
+              </button>
+              <button
+                onClick={() => router.push(`/loja/${slug}/dashboard`)}
+                className="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-md transition-colors"
+              >
+                Voltar ao Dashboard
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -188,7 +207,7 @@ export default function SuporteHistoricoPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                   <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum chamado encontrado</p>
-                  <p className="text-sm text-gray-400 dark:text-gray-400 mt-2">Use o botão flutuante para abrir um novo chamado</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-400 mt-2">Clique em &quot;Abrir chamado&quot; no topo da página para criar um novo</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -368,6 +387,19 @@ export default function SuporteHistoricoPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Abrir Novo Chamado */}
+      {modalNovoChamadoAberto && (
+        <ModalChamado
+          aberto={modalNovoChamadoAberto}
+          onFechar={() => {
+            setModalNovoChamadoAberto(false);
+            loadChamados();
+          }}
+          lojaSlug={slug}
+          lojaNome={lojaNome || undefined}
+        />
       )}
     </div>
   );

@@ -73,7 +73,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [loja?.id, loja?.slug]);
 
   const getHeadersComTenant = (): Record<string, string> => {
     const token = typeof window !== 'undefined' ? (sessionStorage.getItem('access_token') || localStorage.getItem('token')) : null;
@@ -170,16 +170,32 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
   const fetchDashboardData = async () => {
     try {
       const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import('@/lib/clinica-beleza-api');
+      const headers = getClinicaBelezaHeaders() as Record<string, string>;
+      if (loja?.id && !headers['X-Loja-ID']) {
+        headers['X-Loja-ID'] = String(loja.id);
+      }
+      if (loja?.slug && !headers['X-Loja-ID'] && !headers['X-Tenant-Slug']) {
+        headers['X-Tenant-Slug'] = loja.slug;
+      }
       const response = await fetch(`${getClinicaBelezaBaseUrl()}/dashboard/`, {
-        headers: getClinicaBelezaHeaders(),
+        headers,
       });
 
       if (response.ok) {
         const result = await response.json();
         setData(result);
+      } else {
+        setData({
+          statistics: { appointments_today: 0, patients_total: 0, procedures_total: 0, revenue_month: 0 },
+          next_appointments: [],
+        });
       }
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
+      setData({
+        statistics: { appointments_today: 0, patients_total: 0, procedures_total: 0, revenue_month: 0 },
+        next_appointments: [],
+      });
     } finally {
       setLoading(false);
     }

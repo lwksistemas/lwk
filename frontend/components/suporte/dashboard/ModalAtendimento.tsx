@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import apiClient from '@/lib/api-client';
 
 interface Resposta {
   id: number;
@@ -76,6 +77,30 @@ export function ModalAtendimento({
 }: ModalAtendimentoProps) {
   const [resposta, setResposta] = useState('');
   const [enviandoResposta, setEnviandoResposta] = useState(false);
+  const [detalhesAberto, setDetalhesAberto] = useState(false);
+  const [detalhes, setDetalhes] = useState<{
+    erros_backend: Array<{ created_at: string | null; url: string; metodo_http: string; erro: string; usuario_email: string }>;
+    erros_frontend: Array<{ created_at: string | null; mensagem: string; stack: string; url: string; user_agent: string }>;
+  } | null>(null);
+  const [detalhesLoading, setDetalhesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !chamado || !detalhesAberto) return;
+    let cancelled = false;
+    setDetalhesLoading(true);
+    apiClient
+      .get(`/suporte/chamados/${chamado.id}/detalhes-contexto/`)
+      .then((res) => {
+        if (!cancelled) setDetalhes(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setDetalhes({ erros_backend: [], erros_frontend: [] });
+      })
+      .finally(() => {
+        if (!cancelled) setDetalhesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen, chamado?.id, detalhesAberto]);
 
   if (!isOpen || !chamado) return null;
 
@@ -157,6 +182,74 @@ export function ModalAtendimento({
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <p className="text-gray-900 whitespace-pre-wrap">{chamado.descricao}</p>
             </div>
+          </div>
+
+          {/* Detalhes técnicos (erros backend + frontend da loja) */}
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => setDetalhesAberto(!detalhesAberto)}
+              className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600"
+            >
+              {detalhesAberto ? '▼' : '▶'} Detalhes técnicos (erros da loja)
+            </button>
+            {detalhesAberto && (
+              <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                {detalhesLoading ? (
+                  <p className="text-gray-500 text-sm">Carregando...</p>
+                ) : detalhes ? (
+                  <>
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-600 uppercase mb-2">
+                        Erros no backend (últimas falhas da loja)
+                      </h4>
+                      {detalhes.erros_backend.length === 0 ? (
+                        <p className="text-gray-500 text-sm">Nenhum erro recente.</p>
+                      ) : (
+                        <ul className="space-y-2 max-h-48 overflow-y-auto">
+                          {detalhes.erros_backend.map((e, i) => (
+                            <li key={i} className="text-sm border-l-2 border-red-300 pl-2 py-1 bg-red-50/50">
+                              <span className="text-gray-500">
+                                {e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : ''} — {e.metodo_http} {e.url}
+                              </span>
+                              <p className="text-gray-800 font-mono text-xs break-all">{e.erro}</p>
+                              {e.usuario_email && (
+                                <p className="text-gray-500 text-xs">Usuário: {e.usuario_email}</p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-600 uppercase mb-2">
+                        Erros no navegador / frontend (Vercel)
+                      </h4>
+                      {detalhes.erros_frontend.length === 0 ? (
+                        <p className="text-gray-500 text-sm">Nenhum erro reportado.</p>
+                      ) : (
+                        <ul className="space-y-2 max-h-48 overflow-y-auto">
+                          {detalhes.erros_frontend.map((e, i) => (
+                            <li key={i} className="text-sm border-l-2 border-amber-300 pl-2 py-1 bg-amber-50/50">
+                              <span className="text-gray-500">
+                                {e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : ''}
+                              </span>
+                              <p className="text-gray-800 font-mono text-xs">{e.mensagem}</p>
+                              {e.url && <p className="text-gray-500 text-xs">URL: {e.url}</p>}
+                              {e.stack && (
+                                <pre className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-all max-h-24 overflow-y-auto">
+                                  {e.stack}
+                                </pre>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            )}
           </div>
 
           {/* Ações Rápidas */}

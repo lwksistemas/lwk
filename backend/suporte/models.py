@@ -53,6 +53,9 @@ class Chamado(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     resolvido_em = models.DateTimeField(null=True, blank=True)
     
+    # Detalhes técnicos: erros do navegador, URL, user agent (enviados pela loja ao abrir o chamado)
+    detalhes_tecnicos = models.TextField(blank=True, default='')
+    
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'Chamado'
@@ -60,6 +63,24 @@ class Chamado(models.Model):
     
     def __str__(self):
         return f"#{self.id} - {self.titulo} ({self.loja_nome})"
+
+
+class ErroFrontend(models.Model):
+    """
+    Erros de frontend/navegador reportados pela loja (sessão única por loja).
+    Usado no painel 'Detalhes' do suporte para ver falhas da loja sem consultar Heroku/Vercel.
+    """
+    loja_slug = models.CharField(max_length=100, db_index=True)
+    mensagem = models.CharField(max_length=500)
+    stack = models.TextField(blank=True, default='')
+    url = models.CharField(max_length=500, blank=True, default='')
+    user_agent = models.CharField(max_length=500, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Erro frontend'
+        verbose_name_plural = 'Erros frontend'
 
 
 class RespostaChamado(models.Model):

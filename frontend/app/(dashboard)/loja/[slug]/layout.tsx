@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import RouteGuard from '@/components/RouteGuard';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
 import { registrarSincronizacaoAoVoltarOnline } from '@/lib/offline-sync';
+import CapturaErrosNavegador from '@/components/suporte/CapturaErrosNavegador';
 
 const PWA_LOJA_SLUG_KEY = 'pwa_loja_slug';
 
@@ -33,6 +34,7 @@ export default function LojaLayout({
   
   return (
     <RouteGuard allowedUserType="loja" requiredSlug={slug}>
+      <CapturaErrosNavegador />
       {children}
     </RouteGuard>
   );

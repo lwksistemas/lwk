@@ -18,6 +18,7 @@ class ChamadoSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descricao', 'tipo', 'status', 'prioridade',
             'loja_slug', 'loja_nome', 'usuario_nome', 'usuario_email',
             'atendente', 'atendente_nome', 'respostas',
+            'detalhes_tecnicos',
             'created_at', 'updated_at', 'resolvido_em'
         ]
         read_only_fields = ['created_at', 'updated_at']

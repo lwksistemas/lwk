@@ -474,40 +474,36 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
 
         {/* CONTENT */}
         <main className="p-4 md:p-6 lg:p-8">
-          
-          {/* BEM-VINDA */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold">
-              Bem-vinda à {loja.nome}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Resumo da clínica hoje
-            </p>
-          </div>
-
-          {/* CARDS DE ESTATÍSTICAS - GRID RESPONSIVO */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard
-              icon={<CalendarDays className="w-7 h-7" size={28} />}
-              title="Agendamentos"
-              value={stats.appointments_today.toString()}
-              subtitle="Hoje"
+          {/* ATALHOS - BOTÕES NO TOPO */}
+          <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
+            <Shortcut 
+              label="Pacientes" 
+              icon={<Users className="w-7 h-7" size={28} />} 
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/pacientes`}
             />
-            <StatCard
-              icon={<Users className="w-7 h-7" size={28} />}
-              title="Pacientes"
-              value={stats.patients_total.toString()}
-              subtitle="Ativos"
+            <Shortcut 
+              label="Procedimentos" 
+              icon={<Sparkles className="w-7 h-7" size={28} />} 
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`}
             />
-            <StatCard
-              icon={<Sparkles className="w-7 h-7" size={28} />}
-              title="Procedimentos"
-              value={stats.procedures_total.toString()}
-              subtitle="Ativos"
+            <Shortcut 
+              label="Profissionais" 
+              icon={<Users className="w-7 h-7" size={28} />} 
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/profissionais`}
+            />
+            <Shortcut 
+              label="Agenda" 
+              icon={<CalendarDays className="w-7 h-7" size={28} />} 
+              onClick={() => window.location.href = `/loja/${params.slug}/agenda`}
+            />
+            <Shortcut 
+              label="Campanhas de Promoções" 
+              icon={<Megaphone className="w-7 h-7" size={28} />} 
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/campanhas`}
             />
           </section>
 
-          {/* PRÓXIMOS ATENDIMENTOS - MOBILE FRIENDLY */}
+          {/* PRÓXIMOS ATENDIMENTOS - ABAIXO DOS BOTÕES */}
           <section className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
               <h2 className="text-lg font-semibold">Próximos Atendimentos</h2>
@@ -555,35 +551,6 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                 </div>
               </>
             )}
-          </section>
-
-          {/* ATALHOS - GRID RESPONSIVO (Financeiro só no menu lateral) */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Shortcut 
-              label="Pacientes" 
-              icon={<Users className="w-7 h-7" size={28} />} 
-              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/pacientes`}
-            />
-            <Shortcut 
-              label="Procedimentos" 
-              icon={<Sparkles className="w-7 h-7" size={28} />} 
-              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`}
-            />
-            <Shortcut 
-              label="Profissionais" 
-              icon={<Users className="w-7 h-7" size={28} />} 
-              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/profissionais`}
-            />
-            <Shortcut 
-              label="Calendário" 
-              icon={<CalendarDays className="w-7 h-7" size={28} />} 
-              onClick={() => window.location.href = `/loja/${params.slug}/agenda`}
-            />
-            <Shortcut 
-              label="Campanhas" 
-              icon={<Megaphone className="w-7 h-7" size={28} />} 
-              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/campanhas`}
-            />
           </section>
         </main>
       </div>

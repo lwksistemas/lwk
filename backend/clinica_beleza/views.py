@@ -9,7 +9,7 @@ from django.utils.timezone import now
 from django.db.models import Count, Q, Sum
 from django.core.exceptions import ValidationError
 from datetime import timedelta, date
-from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario
+from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario, CampanhaPromocao
 from rules.base import MotorRegras
 from .serializers import (
     PatientSerializer, ProfessionalSerializer, ProfessionalCreateWithUserSerializer,
@@ -836,6 +836,47 @@ class AgendaDeleteView(APIView):
             return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
 
+class AgendaReenviarMensagemView(APIView):
+    """
+    Reenviar mensagem de confirmação WhatsApp ao paciente do agendamento.
+    POST /clinica-beleza/agenda/<id>/reenviar-mensagem/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        import logging
+        logger = logging.getLogger(__name__)
+        try:
+            appointment = Appointment.objects.get(pk=pk)
+        except Appointment.DoesNotExist:
+            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        if not getattr(appointment.patient, 'allow_whatsapp', True):
+            return Response({'sent': False, 'message': 'Paciente não permite receber WhatsApp.'}, status=status.HTTP_200_OK)
+        if not (getattr(appointment.patient, 'phone', None) or '').strip():
+            return Response({'sent': False, 'message': 'Paciente sem telefone cadastrado.'}, status=status.HTTP_200_OK)
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response({'sent': False, 'message': 'Contexto de loja não encontrado.'}, status=status.HTTP_200_OK)
+        from whatsapp.models import WhatsAppConfig
+        from superadmin.models import Loja
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if not loja:
+            return Response({'sent': False, 'message': 'Loja não encontrada.'}, status=status.HTTP_200_OK)
+        config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
+        if not config or not config.enviar_confirmacao:
+            return Response({'sent': False, 'message': 'Envio de confirmação desativado nas Configurações.'}, status=status.HTTP_200_OK)
+        from whatsapp.services import enviar_confirmacao_agendamento
+        try:
+            ok = enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
+            if ok:
+                logger.info("WhatsApp reenvio confirmação agendamento id=%s", pk)
+                return Response({'sent': True, 'message': 'Mensagem reenviada com sucesso.'})
+            return Response({'sent': False, 'message': 'Não foi possível enviar (verifique a integração WhatsApp nas Configurações).'})
+        except Exception as e:
+            logger.warning("WhatsApp reenvio agendamento %s: %s", pk, e)
+            return Response({'sent': False, 'message': f'Erro ao enviar: {str(e)}'})
+
+
 # ---------------------------------------------------------------------------
 # Bloqueio de Horários (almoço, férias, manutenção, evento)
 # ---------------------------------------------------------------------------
@@ -1034,4 +1075,154 @@ class WhatsAppConfigView(APIView):
             'whatsapp_phone_id': (config.whatsapp_phone_id or '').strip(),
             'whatsapp_token_set': bool((config.whatsapp_token or '').strip()),
         })
+
+
+# ---------------------------------------------------------------------------
+# Campanhas de promoções (envio em massa WhatsApp)
+# ---------------------------------------------------------------------------
+
+class CampanhaPromocaoListView(APIView):
+    """GET /clinica-beleza/campanhas/  POST /clinica-beleza/campanhas/"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        campanhas = CampanhaPromocao.objects.all().order_by('-created_at')
+        data = [{
+            'id': c.id,
+            'titulo': c.titulo,
+            'mensagem': c.mensagem,
+            'data_inicio': c.data_inicio.isoformat() if c.data_inicio else None,
+            'data_fim': c.data_fim.isoformat() if c.data_fim else None,
+            'ativa': c.ativa,
+            'enviada_em': c.enviada_em.isoformat() if c.enviada_em else None,
+            'total_enviados': c.total_enviados,
+            'created_at': c.created_at.isoformat() if c.created_at else None,
+        } for c in campanhas]
+        return Response(data)
+
+    def post(self, request):
+        titulo = (request.data.get('titulo') or '').strip()[:200]
+        mensagem = (request.data.get('mensagem') or '').strip()
+        if not titulo or not mensagem:
+            return Response({'error': 'Título e mensagem são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
+        data_inicio = request.data.get('data_inicio')
+        data_fim = request.data.get('data_fim')
+        from django.utils.dateparse import parse_date
+        campanha = CampanhaPromocao.objects.create(
+            titulo=titulo,
+            mensagem=mensagem,
+            data_inicio=parse_date(data_inicio) if data_inicio else None,
+            data_fim=parse_date(data_fim) if data_fim else None,
+            ativa=bool(request.data.get('ativa', True)),
+        )
+        return Response({
+            'id': campanha.id,
+            'titulo': campanha.titulo,
+            'mensagem': campanha.mensagem,
+            'data_inicio': campanha.data_inicio.isoformat() if campanha.data_inicio else None,
+            'data_fim': campanha.data_fim.isoformat() if campanha.data_fim else None,
+            'ativa': campanha.ativa,
+            'enviada_em': None,
+            'total_enviados': 0,
+            'created_at': campanha.created_at.isoformat(),
+        }, status=status.HTTP_201_CREATED)
+
+
+class CampanhaPromocaoDetailView(APIView):
+    """GET /clinica-beleza/campanhas/<id>/  PUT  DELETE"""
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        return CampanhaPromocao.objects.get(pk=pk)
+
+    def get(self, request, pk):
+        try:
+            c = self.get_object(pk)
+        except CampanhaPromocao.DoesNotExist:
+            return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({
+            'id': c.id, 'titulo': c.titulo, 'mensagem': c.mensagem,
+            'data_inicio': c.data_inicio.isoformat() if c.data_inicio else None,
+            'data_fim': c.data_fim.isoformat() if c.data_fim else None,
+            'ativa': c.ativa,
+            'enviada_em': c.enviada_em.isoformat() if c.enviada_em else None,
+            'total_enviados': c.total_enviados,
+            'created_at': c.created_at.isoformat() if c.created_at else None,
+        })
+
+    def put(self, request, pk):
+        try:
+            c = self.get_object(pk)
+        except CampanhaPromocao.DoesNotExist:
+            return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        if 'titulo' in request.data:
+            c.titulo = (request.data.get('titulo') or '').strip()[:200]
+        if 'mensagem' in request.data:
+            c.mensagem = (request.data.get('mensagem') or '').strip()
+        if 'data_inicio' in request.data:
+            from django.utils.dateparse import parse_date
+            c.data_inicio = parse_date(request.data['data_inicio']) if request.data.get('data_inicio') else None
+        if 'data_fim' in request.data:
+            from django.utils.dateparse import parse_date
+            c.data_fim = parse_date(request.data['data_fim']) if request.data.get('data_fim') else None
+        if 'ativa' in request.data:
+            c.ativa = bool(request.data['ativa'])
+        c.save()
+        return Response({
+            'id': c.id, 'titulo': c.titulo, 'mensagem': c.mensagem,
+            'data_inicio': c.data_inicio.isoformat() if c.data_inicio else None,
+            'data_fim': c.data_fim.isoformat() if c.data_fim else None,
+            'ativa': c.ativa,
+            'enviada_em': c.enviada_em.isoformat() if c.enviada_em else None,
+            'total_enviados': c.total_enviados,
+            'created_at': c.created_at.isoformat() if c.created_at else None,
+        })
+
+    def delete(self, request, pk):
+        try:
+            c = self.get_object(pk)
+            c.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except CampanhaPromocao.DoesNotExist:
+            return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class CampanhaPromocaoEnviarView(APIView):
+    """POST /clinica-beleza/campanhas/<id>/enviar/ — envia a mensagem da campanha para todos os pacientes com allow_whatsapp e telefone."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        import logging
+        from django.utils import timezone
+        logger = logging.getLogger(__name__)
+        try:
+            campanha = CampanhaPromocao.objects.get(pk=pk)
+        except CampanhaPromocao.DoesNotExist:
+            return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_400_BAD_REQUEST)
+        from whatsapp.models import WhatsAppConfig
+        from superadmin.models import Loja
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if not loja:
+            return Response({'error': 'Loja não encontrada'}, status=status.HTTP_400_BAD_REQUEST)
+        config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
+        if not config or not getattr(config, 'whatsapp_ativo', False):
+            return Response({'error': 'WhatsApp não está ativo. Configure em Configurações.'}, status=status.HTTP_400_BAD_REQUEST)
+        from whatsapp.services import send_whatsapp
+        pacientes = Patient.objects.filter(active=True, allow_whatsapp=True).exclude(phone__isnull=True).exclude(phone='')
+        enviados = 0
+        for p in pacientes:
+            if not (getattr(p, 'phone', None) or '').strip():
+                continue
+            try:
+                if send_whatsapp(telefone=p.phone, mensagem=campanha.mensagem, user=request.user, config=config):
+                    enviados += 1
+            except Exception as e:
+                logger.warning("Campanha %s paciente %s: %s", pk, p.id, e)
+        campanha.enviada_em = timezone.now()
+        campanha.total_enviados = enviados
+        campanha.save(update_fields=['enviada_em', 'total_enviados', 'updated_at'])
+        return Response({'sent': enviados, 'total_recipients': pacientes.count(), 'message': f'Mensagem enviada para {enviados} paciente(s).'})
 

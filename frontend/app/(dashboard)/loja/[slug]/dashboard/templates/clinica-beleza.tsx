@@ -21,6 +21,7 @@ import {
   X,
   Wallet,
   ChevronDown,
+  Megaphone,
 } from "lucide-react";
 import { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
@@ -317,6 +318,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
                 <SidebarItem icon={<Users size={20} />} label="Profissionais" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/profissionais`} />
                 <SidebarItem icon={<Sparkles size={20} />} label="Procedimentos" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/procedimentos`} />
                 <SidebarItem icon={<Wallet size={20} />} label="Financeiro" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/financeiro`} />
+                <SidebarItem icon={<Megaphone size={20} />} label="Campanhas" onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/campanhas`} />
                 <SidebarItem icon={<Settings size={20} />} label="Configurações" onClick={() => { setConfigOpen(true); setSidebarOpen(false); loadWhatsAppConfig(); }} />
                 <SidebarItem icon={<CreditCard size={20} />} label="Assinatura" onClick={() => window.location.href = `/loja/${params.slug}/assinatura`} />
                 <div className="pt-4 border-t dark:border-neutral-700">
@@ -567,6 +569,11 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
               label="Calendário" 
               icon={<CalendarDays className="w-7 h-7" size={28} />} 
               onClick={() => window.location.href = `/loja/${params.slug}/agenda`}
+            />
+            <Shortcut 
+              label="Campanhas" 
+              icon={<Megaphone className="w-7 h-7" size={28} />} 
+              onClick={() => window.location.href = `/loja/${params.slug}/clinica-beleza/campanhas`}
             />
           </section>
         </main>

@@ -193,3 +193,27 @@ class Payment(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"Pagamento {self.id} - R$ {self.amount}"
+
+
+class CampanhaPromocao(LojaIsolationMixin, models.Model):
+    """Campanha de promoção: mensagem enviada em massa aos pacientes via WhatsApp."""
+    titulo = models.CharField(max_length=200, verbose_name="Título da campanha")
+    mensagem = models.TextField(verbose_name="Mensagem (enviada por WhatsApp)")
+    data_inicio = models.DateField(blank=True, null=True, verbose_name="Vigência início")
+    data_fim = models.DateField(blank=True, null=True, verbose_name="Vigência fim")
+    ativa = models.BooleanField(default=True, verbose_name="Ativa")
+    enviada_em = models.DateTimeField(blank=True, null=True, verbose_name="Enviada em")
+    total_enviados = models.PositiveIntegerField(default=0, verbose_name="Total de mensagens enviadas")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        verbose_name = "Campanha de promoção"
+        verbose_name_plural = "Campanhas de promoções"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.titulo

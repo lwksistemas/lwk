@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { X, Plus, Lock, Moon, Sun, ArrowLeft } from "lucide-react";
+import { X, Plus, Lock, Moon, Sun, ArrowLeft, MessageCircle } from "lucide-react";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
 import { ModalConflitoAgenda, type ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
@@ -124,6 +124,8 @@ export default function AgendaPage() {
   const [selectedBloqueio, setSelectedBloqueio] = useState<{ id: number; motivo: string; professional_name: string } | null>(null);
   const [deletingBloqueio, setDeletingBloqueio] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
+  const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
   const [conflictData, setConflictData] = useState<(ConflitoAgendaData & { appointmentId: number; payloadForResolve: { status?: string; date?: string } }) | null>(null);
   const [conflictResolving, setConflictResolving] = useState(false);
   const [createForm, setCreateForm] = useState({
@@ -536,6 +538,33 @@ export default function AgendaPage() {
     carregarDados();
   };
 
+  const reenviarMensagemWhatsApp = async () => {
+    if (!selectedEvent) return;
+    const dbId = selectedEvent.extendedProps.dbId;
+    if (typeof dbId === "string" && dbId.startsWith("offline-")) {
+      alert("Agendamento offline. Sincronize antes de reenviar mensagem.");
+      return;
+    }
+    setReenviandoMensagem(true);
+    try {
+      const baseURL = getClinicaBelezaBaseUrl();
+      const headers = getClinicaBelezaHeaders();
+      const res = await clinicaBelezaFetch(`/agenda/${dbId}/reenviar-mensagem/`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (data.sent) {
+        alert("Mensagem reenviada com sucesso para o paciente.");
+      } else {
+        alert(data.message || "Não foi possível reenviar a mensagem.");
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message === "SESSION_ENDED") return;
+      console.error("Erro ao reenviar mensagem:", e);
+      alert("Erro ao reenviar mensagem. Tente novamente.");
+    } finally {
+      setReenviandoMensagem(false);
+    }
+  };
+
   const handleConflitoUseLocal = async () => {
     if (!conflictData) return;
     setConflictResolving(true);
@@ -802,7 +831,22 @@ export default function AgendaPage() {
               )}
             </div>
 
-            <div className="mt-6 flex gap-3">
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={reenviarMensagemWhatsApp}
+                disabled={reenviandoMensagem || !selectedEvent.extendedProps.patient_phone}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Reenviar confirmação por WhatsApp ao paciente"
+              >
+                <MessageCircle size={18} />
+                {reenviandoMensagem ? "Enviando…" : "Reenviar mensagem WhatsApp"}
+              </button>
+              {!selectedEvent.extendedProps.patient_phone && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">Paciente sem telefone; não é possível reenviar.</p>
+              )}
+            </div>
+            <div className="mt-4 flex gap-3">
               <button
                 onClick={deletarEvento}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"

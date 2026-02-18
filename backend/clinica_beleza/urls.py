@@ -12,8 +12,10 @@ from .views import (
     PaymentListView, PaymentDetailView,
     FinanceiroResumoView,
     AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
+    AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
     WhatsAppConfigView,
+    CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )
 
 app_name = 'clinica_beleza'
@@ -51,9 +53,14 @@ urlpatterns = [
     path('agenda/create/', AgendaCreateView.as_view(), name='agenda-create'),
     path('agenda/<int:pk>/update/', AgendaUpdateView.as_view(), name='agenda-update'),
     path('agenda/<int:pk>/delete/', AgendaDeleteView.as_view(), name='agenda-delete'),
+    path('agenda/<int:pk>/reenviar-mensagem/', AgendaReenviarMensagemView.as_view(), name='agenda-reenviar-mensagem'),
     # Bloqueio de Horários
     path('bloqueios/', BloqueioHorarioListView.as_view(), name='bloqueios-list'),
     path('bloqueios/<int:pk>/', BloqueioHorarioDetailView.as_view(), name='bloqueios-detail'),
     # Configuração WhatsApp (ETAPA 4)
     path('whatsapp-config/', WhatsAppConfigView.as_view(), name='whatsapp-config'),
+    # Campanhas de promoções
+    path('campanhas/', CampanhaPromocaoListView.as_view(), name='campanhas-list'),
+    path('campanhas/<int:pk>/', CampanhaPromocaoDetailView.as_view(), name='campanhas-detail'),
+    path('campanhas/<int:pk>/enviar/', CampanhaPromocaoEnviarView.as_view(), name='campanhas-enviar'),
 ]

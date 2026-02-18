@@ -153,4 +153,12 @@ export async function removerItemFilaSync(key: number): Promise<void> {
   await database.delete("fila_sync", key);
 }
 
+/** Atualiza o payload de um item da fila (ex.: edição de paciente ainda pendente de sync). */
+export async function atualizarItemFilaSync(key: number, payload: FilaSyncItem["payload"]): Promise<void> {
+  const database = await getDB();
+  const item = await database.get("fila_sync", key);
+  if (!item) return;
+  await database.put("fila_sync", { ...item, payload });
+}
+
 export { getLojaSlug };

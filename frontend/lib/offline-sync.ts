@@ -39,7 +39,35 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
           await removerItemFilaSync(key);
           enviados++;
         }
-        // Futuro: item.tipo === "paciente" | "profissional" | "procedimento"
+
+        if (item.tipo === "paciente") {
+          const baseURL = getClinicaBelezaBaseUrl();
+          const headers = getClinicaBelezaHeaders();
+          const payload = item.payload as { action: "create" | "update"; id?: number; body: Record<string, unknown> };
+          if (payload.action === "create") {
+            const res = await fetch(`${baseURL}/patients/`, {
+              method: "POST",
+              headers,
+              body: JSON.stringify(payload.body),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(typeof data.detail === "string" ? data.detail : data.error || `Erro ${res.status}`);
+            }
+          } else if (payload.action === "update" && payload.id != null) {
+            const res = await fetch(`${baseURL}/patients/${payload.id}/`, {
+              method: "PUT",
+              headers,
+              body: JSON.stringify(payload.body),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(typeof data.detail === "string" ? data.detail : data.error || `Erro ${res.status}`);
+            }
+          }
+          await removerItemFilaSync(key);
+          enviados++;
+        }
       } catch (e) {
         console.warn("[offline-sync] Erro ao enviar item da fila:", e);
         erros++;

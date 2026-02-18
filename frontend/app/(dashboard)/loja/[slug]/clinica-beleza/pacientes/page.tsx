@@ -11,7 +11,7 @@ import { ArrowLeft, Plus, Pencil, Trash2, X, Moon, Sun } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
-import { buscarPacientesOffline, salvarPacientesOffline } from "@/lib/offline-db";
+import { buscarPacientesOffline, salvarPacientesOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 
 /** Monta mensagem legível a partir de serializer.errors (400) da API */
 function formatApiValidationErrors(err: Record<string, unknown>): string {
@@ -100,6 +100,12 @@ export default function PacientesPage() {
     if (searchParams.get("novo") === "1") openNew();
   }, [searchParams]);
 
+  useEffect(() => {
+    const onSyncDone = () => load();
+    window.addEventListener("offline-sync-done", onSyncDone);
+    return () => window.removeEventListener("offline-sync-done", onSyncDone);
+  }, []);
+
   const openNew = () => {
     setEditing(null);
     setForm({
@@ -139,18 +145,71 @@ export default function PacientesPage() {
     }
     setSaving(true);
     setError("");
+    const body = {
+      name: form.name.trim(),
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
+      cpf: form.cpf.trim() || null,
+      birth_date: form.birth_date || null,
+      address: form.address.trim() || null,
+      notes: form.notes.trim() || null,
+      active: true,
+      allow_whatsapp: form.allow_whatsapp,
+    };
+
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+    if (isOffline) {
+      try {
+        const lojaSlug = getLojaSlug();
+        const editingIsPendente = editing && editing.id < 0;
+        if (editing && !editingIsPendente) {
+          await adicionarNaFilaSync({
+            tipo: "paciente",
+            payload: { action: "update", id: editing.id, body },
+            lojaSlug,
+          });
+          const updatedList = list.map((p) =>
+            p.id === editing.id ? { ...p, ...body, email: body.email ?? p.email, phone: body.phone ?? p.phone } : p
+          );
+          setList(updatedList);
+          await salvarPacientesOffline(updatedList);
+        } else {
+          // Novo paciente ou edição de paciente ainda pendente de sync: enfileirar como create
+          await adicionarNaFilaSync({
+            tipo: "paciente",
+            payload: { action: "create", body },
+            lojaSlug,
+          });
+          const tempId = -Date.now();
+          const newPatient: Patient = {
+            id: tempId,
+            name: body.name,
+            phone: body.phone ?? "",
+            email: body.email ?? null,
+            cpf: body.cpf ?? null,
+            birth_date: body.birth_date ?? null,
+            address: body.address ?? null,
+            notes: body.notes ?? null,
+            active: true,
+            allow_whatsapp: body.allow_whatsapp ?? true,
+          };
+          const updatedList = [newPatient, ...list];
+          setList(updatedList);
+          await salvarPacientesOffline(updatedList);
+        }
+        setShowModal(false);
+        setSaving(false);
+        alert("Salvo offline. O paciente será sincronizado quando você estiver online.");
+        return;
+      } catch (e) {
+        setError("Erro ao salvar localmente. Tente novamente.");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
-      const body = {
-        name: form.name.trim(),
-        phone: form.phone.trim() || null,
-        email: form.email.trim() || null,
-        cpf: form.cpf.trim() || null,
-        birth_date: form.birth_date || null,
-        address: form.address.trim() || null,
-        notes: form.notes.trim() || null,
-        active: true,
-        allow_whatsapp: form.allow_whatsapp,
-      };
       if (editing) {
         const res = await clinicaBelezaFetch(`/patients/${editing.id}/`, {
           method: "PUT",
@@ -174,7 +233,49 @@ export default function PacientesPage() {
       load();
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "SESSION_ENDED") return;
-      setError(e instanceof Error ? e.message : "Erro ao salvar");
+      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      const isNetworkError = msg.toLowerCase().includes("fetch") || msg === "Failed to fetch";
+      if (isNetworkError) {
+        try {
+          const lojaSlug = getLojaSlug();
+          if (editing && editing.id > 0) {
+            await adicionarNaFilaSync({
+              tipo: "paciente",
+              payload: { action: "update", id: editing.id, body },
+              lojaSlug,
+            });
+            const updatedList = list.map((p) =>
+              p.id === editing.id ? { ...p, ...body, email: body.email ?? p.email, phone: body.phone ?? p.phone } : p
+            );
+            setList(updatedList);
+            await salvarPacientesOffline(updatedList);
+          } else {
+            await adicionarNaFilaSync({ tipo: "paciente", payload: { action: "create", body }, lojaSlug });
+            const tempId = -Date.now();
+            const newPatient: Patient = {
+              id: tempId,
+              name: body.name,
+              phone: body.phone ?? "",
+              email: body.email ?? null,
+              cpf: body.cpf ?? null,
+              birth_date: body.birth_date ?? null,
+              address: body.address ?? null,
+              notes: body.notes ?? null,
+              active: true,
+              allow_whatsapp: body.allow_whatsapp ?? true,
+            };
+            const updatedList = [newPatient, ...list];
+            setList(updatedList);
+            await salvarPacientesOffline(updatedList);
+          }
+          setShowModal(false);
+          alert("Sem conexão. Paciente salvo offline e será sincronizado quando você estiver online.");
+        } catch {
+          setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
+        }
+      } else {
+        setError(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -237,31 +338,43 @@ export default function PacientesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {activeList.map((p) => (
-                    <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
-                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{p.name}</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">{p.phone || "—"}</td>
-                      <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{p.email || "—"}</td>
-                      <td className="p-3">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
-                            title="Editar"
-                          >
-                            <Pencil size={18} />
-                          </button>
-                          <button
-                            onClick={() => exclude(p)}
-                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                            title="Desativar"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {activeList.map((p) => {
+                    const isPendenteSync = p.id < 0;
+                    return (
+                      <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
+                        <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
+                          {p.name}
+                          {isPendenteSync && (
+                            <span className="ml-2 text-xs text-amber-600 dark:text-amber-400" title="Será sincronizado quando estiver online">
+                              (offline)
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-gray-700 dark:text-gray-300">{p.phone || "—"}</td>
+                        <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{p.email || "—"}</td>
+                        <td className="p-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openEdit(p)}
+                              className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
+                              title="Editar"
+                            >
+                              <Pencil size={18} />
+                            </button>
+                            {!isPendenteSync && (
+                              <button
+                                onClick={() => exclude(p)}
+                                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                title="Desativar"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

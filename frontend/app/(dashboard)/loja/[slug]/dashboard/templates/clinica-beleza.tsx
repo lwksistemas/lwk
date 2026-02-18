@@ -70,9 +70,29 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
   const [whatsappToken, setWhatsappToken] = useState('');
   const [whatsappTokenSet, setWhatsappTokenSet] = useState(false);
   const [whatsappConfigSaving, setWhatsappConfigSaving] = useState(false);
+  const [filterPeriod, setFilterPeriod] = useState<'hoje' | 'semana'>('hoje');
+  const [filterProfessionalId, setFilterProfessionalId] = useState<string>('');
+  const [professionals, setProfessionals] = useState<Array<{ id: number; name: string }>>([]);
 
   useEffect(() => {
     fetchDashboardData();
+  }, [loja?.id, loja?.slug, filterPeriod, filterProfessionalId]);
+
+  useEffect(() => {
+    if (!loja?.id && !loja?.slug) return;
+    const loadProfessionals = async () => {
+      try {
+        const { getClinicaBelezaBaseUrl } = await import('@/lib/clinica-beleza-api');
+        const res = await fetch(`${getClinicaBelezaBaseUrl()}/professionals/`, { headers: getHeadersComTenant() });
+        if (res.ok) {
+          const arr = await res.json();
+          setProfessionals(Array.isArray(arr) ? arr.map((p: { id: number; name: string }) => ({ id: p.id, name: p.name })) : []);
+        }
+      } catch {
+        setProfessionals([]);
+      }
+    };
+    loadProfessionals();
   }, [loja?.id, loja?.slug]);
 
   const getHeadersComTenant = (): Record<string, string> => {
@@ -177,9 +197,11 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
       if (loja?.slug && !headers['X-Loja-ID'] && !headers['X-Tenant-Slug']) {
         headers['X-Tenant-Slug'] = loja.slug;
       }
-      const response = await fetch(`${getClinicaBelezaBaseUrl()}/dashboard/`, {
-        headers,
-      });
+      const params = new URLSearchParams();
+      params.set('period', filterPeriod);
+      if (filterProfessionalId) params.set('professional', filterProfessionalId);
+      const url = `${getClinicaBelezaBaseUrl()}/dashboard/${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url, { headers });
 
       if (response.ok) {
         const result = await response.json();
@@ -523,19 +545,32 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
           <section className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-2xl shadow p-4 md:p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
               <h2 className="text-lg font-semibold">Próximos Atendimentos</h2>
-              <div className="flex gap-2">
-                <select className="border dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-700">
-                  <option>Hoje</option>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={filterPeriod}
+                  onChange={(e) => setFilterPeriod(e.target.value as 'hoje' | 'semana')}
+                  className="border dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="hoje">Hoje</option>
+                  <option value="semana">Esta semana</option>
                 </select>
-                <select className="border dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-700">
-                  <option>Todos</option>
+                <select
+                  value={filterProfessionalId}
+                  onChange={(e) => setFilterProfessionalId(e.target.value)}
+                  className="border dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 min-w-[140px]"
+                >
+                  <option value="">Todos os profissionais</option>
+                  {professionals.map((p) => (
+                    <option key={p.id} value={String(p.id)}>{p.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
 
             {appointments.length === 0 ? (
               <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                Nenhum agendamento para hoje
+                {filterPeriod === 'hoje' ? 'Nenhum agendamento para hoje' : 'Nenhum agendamento nesta semana'}
+                {filterProfessionalId ? ' para este profissional.' : '.'}
               </div>
             ) : (
               <>

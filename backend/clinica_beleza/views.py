@@ -97,11 +97,26 @@ class DashboardView(APIView):
             payment_date__lte=today
         ).aggregate(total=Sum('amount'))['total'] or 0
         
-        # Próximos agendamentos (hoje)
+        # Filtros para Próximos Atendimentos: period (hoje|semana), professional (id)
+        period = (request.query_params.get('period') or 'hoje').strip().lower()
+        professional_id = request.query_params.get('professional')
+        start_date = today
+        end_date = today
+        if period == 'semana':
+            end_date = today + timedelta(days=6)
+        limit = 50 if period == 'semana' else 30
+        
         next_appointments = Appointment.objects.filter(
-            date__date=today,
+            date__date__gte=start_date,
+            date__date__lte=end_date,
             status__in=['SCHEDULED', 'CONFIRMED']
-        ).select_related('patient', 'professional', 'procedure').order_by('date')[:5]
+        ).select_related('patient', 'professional', 'procedure').order_by('date')
+        if professional_id:
+            try:
+                next_appointments = next_appointments.filter(professional_id=int(professional_id))
+            except (ValueError, TypeError):
+                pass
+        next_appointments = next_appointments[:limit]
         
         return Response({
             'statistics': {

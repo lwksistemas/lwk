@@ -196,7 +196,11 @@ class Payment(LojaIsolationMixin, models.Model):
 
 
 class CampanhaPromocao(LojaIsolationMixin, models.Model):
-    """Campanha de promoção: mensagem enviada em massa aos pacientes via WhatsApp."""
+    """
+    Campanha de promoção: mensagem enviada em massa aos pacientes via WhatsApp.
+    Tabela isolada por loja: cada loja tem sua própria tabela no schema (loja_*).
+    Router: clinica_beleza está em loja_apps; migrate_all_lojas aplica em cada schema.
+    """
     titulo = models.CharField(max_length=200, verbose_name="Título da campanha")
     mensagem = models.TextField(verbose_name="Mensagem (enviada por WhatsApp)")
     data_inicio = models.DateField(blank=True, null=True, verbose_name="Vigência início")

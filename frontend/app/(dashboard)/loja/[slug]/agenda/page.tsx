@@ -856,7 +856,7 @@ export default function AgendaPage() {
                 onClick={() => setShowModal(false)}
                 className="flex-1 px-4 py-2 bg-gray-200 dark:bg-neutral-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-500 transition-colors"
               >
-                Fechar
+                Salvar
               </button>
             </div>
           </div>

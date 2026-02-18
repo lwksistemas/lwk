@@ -112,6 +112,8 @@ class ChamadoViewSet(viewsets.ModelViewSet):
             'loja_slug': loja_slug,
             'erros_backend': erros_backend,
             'erros_frontend': erros_frontend,
+            'periodo_exibido': 'Últimos 50 erros de cada tipo (backend e frontend), do mais recente ao mais antigo.',
+            'limite_por_tipo': 50,
         })
 
 

@@ -81,6 +81,8 @@ export function ModalAtendimento({
   const [detalhes, setDetalhes] = useState<{
     erros_backend: Array<{ created_at: string | null; url: string; metodo_http: string; erro: string; usuario_email: string }>;
     erros_frontend: Array<{ created_at: string | null; mensagem: string; stack: string; url: string; user_agent: string }>;
+    periodo_exibido?: string;
+    limite_por_tipo?: number;
   } | null>(null);
   const [detalhesLoading, setDetalhesLoading] = useState(false);
 
@@ -94,7 +96,12 @@ export function ModalAtendimento({
         if (!cancelled) setDetalhes(res.data);
       })
       .catch(() => {
-        if (!cancelled) setDetalhes({ erros_backend: [], erros_frontend: [] });
+        if (!cancelled) setDetalhes({
+          erros_backend: [],
+          erros_frontend: [],
+          periodo_exibido: 'Não foi possível carregar.',
+          limite_por_tipo: 50,
+        });
       })
       .finally(() => {
         if (!cancelled) setDetalhesLoading(false);
@@ -118,7 +125,7 @@ export function ModalAtendimento({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl min-h-[85vh] max-h-[95vh] flex flex-col">
         {/* Header */}
         <div className="bg-blue-900 text-white px-6 py-4 rounded-t-lg">
           <div className="flex justify-between items-start">
@@ -137,8 +144,8 @@ export function ModalAtendimento({
           </div>
         </div>
 
-        {/* Conteúdo */}
-        <div className="p-6">
+        {/* Conteúdo - área rolável em tela grande */}
+        <div className="p-6 overflow-y-auto flex-1">
           {/* Informações do Chamado */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
@@ -199,52 +206,70 @@ export function ModalAtendimento({
                   <p className="text-gray-500 text-sm">Carregando...</p>
                 ) : detalhes ? (
                   <>
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-600 uppercase mb-2">
-                        Erros no backend (últimas falhas da loja)
+                    {/* Quando é exibido: período/limite */}
+                    {detalhes.periodo_exibido && (
+                      <div className="text-xs text-gray-500 bg-white/80 rounded px-3 py-2 border border-gray-200">
+                        <span className="font-medium text-gray-600">Quando é exibido:</span>{' '}
+                        {detalhes.periodo_exibido}
+                        {detalhes.limite_por_tipo != null && (
+                          <span> (máx. {detalhes.limite_por_tipo} por tipo)</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Backend: cor vermelha */}
+                    <div className="rounded-lg border-2 border-red-200 bg-red-50/70 overflow-hidden">
+                      <h4 className="text-xs font-semibold uppercase px-3 py-2 bg-red-100 text-red-800 border-b border-red-200">
+                        🔴 Erros no backend (Heroku / API)
                       </h4>
-                      {detalhes.erros_backend.length === 0 ? (
-                        <p className="text-gray-500 text-sm">Nenhum erro recente.</p>
-                      ) : (
-                        <ul className="space-y-2 max-h-48 overflow-y-auto">
-                          {detalhes.erros_backend.map((e, i) => (
-                            <li key={i} className="text-sm border-l-2 border-red-300 pl-2 py-1 bg-red-50/50">
-                              <span className="text-gray-500">
-                                {e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : ''} — {e.metodo_http} {e.url}
-                              </span>
-                              <p className="text-gray-800 font-mono text-xs break-all">{e.erro}</p>
-                              {e.usuario_email && (
-                                <p className="text-gray-500 text-xs">Usuário: {e.usuario_email}</p>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      <div className="p-3">
+                        {detalhes.erros_backend.length === 0 ? (
+                          <p className="text-gray-500 text-sm">Nenhum erro recente.</p>
+                        ) : (
+                          <ul className="space-y-2 max-h-48 overflow-y-auto">
+                            {detalhes.erros_backend.map((e, i) => (
+                              <li key={i} className="text-sm border-l-4 border-red-500 pl-2 py-1.5 bg-white rounded pr-2">
+                                <span className="text-gray-500 text-xs block">
+                                  {e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : ''} — {e.metodo_http} {e.url}
+                                </span>
+                                <p className="text-red-900 font-mono text-xs break-all mt-0.5">{e.erro}</p>
+                                {e.usuario_email && (
+                                  <p className="text-gray-500 text-xs">Usuário: {e.usuario_email}</p>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-600 uppercase mb-2">
-                        Erros no navegador / frontend (Vercel)
+
+                    {/* Frontend: cor azul/laranja para diferenciar */}
+                    <div className="rounded-lg border-2 border-amber-300 bg-amber-50/70 overflow-hidden">
+                      <h4 className="text-xs font-semibold uppercase px-3 py-2 bg-amber-100 text-amber-900 border-b border-amber-200">
+                        🟠 Erros no navegador / frontend (Vercel)
                       </h4>
-                      {detalhes.erros_frontend.length === 0 ? (
-                        <p className="text-gray-500 text-sm">Nenhum erro reportado.</p>
-                      ) : (
-                        <ul className="space-y-2 max-h-48 overflow-y-auto">
-                          {detalhes.erros_frontend.map((e, i) => (
-                            <li key={i} className="text-sm border-l-2 border-amber-300 pl-2 py-1 bg-amber-50/50">
-                              <span className="text-gray-500">
-                                {e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : ''}
-                              </span>
-                              <p className="text-gray-800 font-mono text-xs">{e.mensagem}</p>
-                              {e.url && <p className="text-gray-500 text-xs">URL: {e.url}</p>}
-                              {e.stack && (
-                                <pre className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-all max-h-24 overflow-y-auto">
-                                  {e.stack}
-                                </pre>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      <div className="p-3">
+                        {detalhes.erros_frontend.length === 0 ? (
+                          <p className="text-gray-500 text-sm">Nenhum erro reportado pelo navegador da loja.</p>
+                        ) : (
+                          <ul className="space-y-2 max-h-48 overflow-y-auto">
+                            {detalhes.erros_frontend.map((e, i) => (
+                              <li key={i} className="text-sm border-l-4 border-amber-500 pl-2 py-1.5 bg-white rounded pr-2">
+                                <span className="text-gray-500 text-xs block">
+                                  {e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : ''}
+                                </span>
+                                <p className="text-amber-900 font-mono text-xs mt-0.5">{e.mensagem}</p>
+                                {e.url && <p className="text-gray-500 text-xs">URL: {e.url}</p>}
+                                {e.stack && (
+                                  <pre className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-all max-h-24 overflow-y-auto bg-gray-50 p-1 rounded">
+                                    {e.stack}
+                                  </pre>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     </div>
                   </>
                 ) : null}

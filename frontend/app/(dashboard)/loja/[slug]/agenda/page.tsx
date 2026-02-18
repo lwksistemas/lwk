@@ -125,7 +125,6 @@ export default function AgendaPage() {
   const [deletingBloqueio, setDeletingBloqueio] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
-  const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
   const [conflictData, setConflictData] = useState<(ConflitoAgendaData & { appointmentId: number; payloadForResolve: { status?: string; date?: string } }) | null>(null);
   const [conflictResolving, setConflictResolving] = useState(false);
   const [createForm, setCreateForm] = useState({

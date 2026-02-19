@@ -46,6 +46,20 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             console.error(`❌ [offline-sync] Resposta de erro (${res.status}):`, data);
+            
+            // Se for erro 400 (validação), pode ser ID inválido - remover da fila
+            if (res.status === 400) {
+              const errorMsg = data.error || JSON.stringify(data);
+              console.warn(`⚠️ [offline-sync] Erro de validação (400), removendo da fila: ${errorMsg}`);
+              await removerItemFilaSync(key);
+              erros++;
+              // Mostrar erro específico ao usuário
+              if (typeof window !== "undefined") {
+                alert(`❌ Agendamento não pôde ser sincronizado:\n\n${errorMsg}\n\nO item foi removido da fila.`);
+              }
+              continue;
+            }
+            
             throw new Error(data.error || `Erro ${res.status}`);
           }
           await removerItemFilaSync(key);
@@ -65,6 +79,12 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
             });
             if (!res.ok) {
               const data = await res.json().catch(() => ({}));
+              if (res.status === 400) {
+                console.warn(`⚠️ [offline-sync] Erro de validação paciente (400), removendo da fila`);
+                await removerItemFilaSync(key);
+                erros++;
+                continue;
+              }
               throw new Error(typeof data.detail === "string" ? data.detail : data.error || `Erro ${res.status}`);
             }
           } else if (payload.action === "update" && payload.id != null) {
@@ -75,6 +95,12 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
             });
             if (!res.ok) {
               const data = await res.json().catch(() => ({}));
+              if (res.status === 400 || res.status === 404) {
+                console.warn(`⚠️ [offline-sync] Erro paciente (${res.status}), removendo da fila`);
+                await removerItemFilaSync(key);
+                erros++;
+                continue;
+              }
               throw new Error(typeof data.detail === "string" ? data.detail : data.error || `Erro ${res.status}`);
             }
           }

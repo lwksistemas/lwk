@@ -8,6 +8,7 @@ from .views import (
     AppointmentListView, AppointmentDetailView,
     PatientListView, PatientDetailView,
     ProfessionalListView, ProfessionalDetailView,
+    HorarioTrabalhoProfissionalView,
     ProcedureListView, ProcedureDetailView,
     PaymentListView, PaymentDetailView,
     FinanceiroResumoView,
@@ -37,6 +38,7 @@ urlpatterns = [
     # Profissionais
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),
     path('professionals/<int:pk>/', ProfessionalDetailView.as_view(), name='professionals-detail'),
+    path('professionals/<int:pk>/horarios-trabalho/', HorarioTrabalhoProfissionalView.as_view(), name='horarios-trabalho'),
     
     # Procedimentos
     path('procedures/', ProcedureListView.as_view(), name='procedures-list'),

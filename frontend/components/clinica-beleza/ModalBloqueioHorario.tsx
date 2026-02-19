@@ -64,14 +64,16 @@ export function ModalBloqueioHorario({
     if (!isOpen) return;
     setErro("");
     const now = new Date();
-    const inicio = dataInicioSugerida || now;
-    const fim = new Date(inicio.getTime() + 60 * 60 * 1000); // +1h
-    setDataInicio(formatDateTimeLocal(inicio));
-    setDataFim(formatDateTimeLocal(fim));
+    const base = dataInicioSugerida || now;
     setTipoSelecionado(TIPOS_BLOQUEIO[0].value);
     setMotivoOutro("");
     setProfessionalId("");
     setObservacoes("");
+    // Padrão "Horário de almoço": 12:00 às 14:00 no dia selecionado
+    const inicio = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 12, 0, 0);
+    const fim = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 14, 0, 0);
+    setDataInicio(formatDateTimeLocal(inicio));
+    setDataFim(formatDateTimeLocal(fim));
   }, [isOpen, dataInicioSugerida]);
 
   const salvar = async () => {
@@ -87,7 +89,6 @@ export function ModalBloqueioHorario({
       setErro("Informe o motivo (tipo ou outro).");
       return;
     }
-
     setLoading(true);
     setErro("");
 
@@ -95,9 +96,12 @@ export function ModalBloqueioHorario({
       const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import("@/lib/clinica-beleza-api");
       const baseURL = getClinicaBelezaBaseUrl();
       const headers = getClinicaBelezaHeaders();
+      const inicioDate = dataInicio.includes("T") ? new Date(dataInicio) : new Date(`${dataInicio}T12:00:00`);
+      const fimDate = dataFim.includes("T") ? new Date(dataFim) : new Date(`${dataFim}T14:00:00`);
+
       const body: Record<string, unknown> = {
-        data_inicio: new Date(dataInicio).toISOString(),
-        data_fim: new Date(dataFim).toISOString(),
+        data_inicio: inicioDate.toISOString(),
+        data_fim: fimDate.toISOString(),
         motivo: motivoFinal.trim(),
       };
       if (observacoes.trim()) body.observacoes = observacoes.trim();
@@ -111,9 +115,9 @@ export function ModalBloqueioHorario({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || data.motivo || data.error || `Erro ${res.status}`);
+        const msg = data.error || data.detail || data.motivo || (Array.isArray(data.data_inicio) ? data.data_inicio[0] : null) || (Array.isArray(data.data_fim) ? data.data_fim[0] : null) || `Erro ${res.status}`;
+        throw new Error(typeof msg === "string" ? msg : "Erro ao criar bloqueio.");
       }
-
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -223,6 +227,10 @@ export function ModalBloqueioHorario({
               className="w-full px-3 py-2.5 min-h-[44px] border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Use início e fim para um único bloqueio (pode ser um horário no dia ou vários dias seguidos).
+          </p>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

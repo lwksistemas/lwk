@@ -11,7 +11,6 @@ import DashboardRestaurante from './templates/restaurante';
 import DashboardServicos from './templates/servicos';
 import DashboardCabeleireiro from './templates/dashboard-cabeleireiro-novo';
 import DashboardClinicaBeleza from './templates/clinica-beleza';
-// v577 - Adicionado Dashboard Clínica da Beleza
 
 interface LojaInfo {
   id: number;
@@ -37,10 +36,7 @@ export default function LojaDashboardDinamicoPage() {
   // Forçar reload se vier de cache (bfcache)
   useEffect(() => {
     const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        console.log('⚠️ Página carregada do cache (bfcache) - forçando reload');
-        window.location.reload();
-      }
+      if (event.persisted) window.location.reload();
     };
     
     window.addEventListener('pageshow', handlePageShow);
@@ -240,7 +236,6 @@ function renderDashboardPorTipo(loja: LojaInfo) {
   
   // Dashboard específico para Clínica da Beleza
   if (tipoSlug.includes('clinica') && tipoSlug.includes('beleza')) {
-    console.log('✅ CARREGANDO DASHBOARD CLÍNICA DA BELEZA');
     return <DashboardClinicaBeleza loja={loja} />;
   }
   
@@ -269,9 +264,8 @@ function renderDashboardPorTipo(loja: LojaInfo) {
     return <DashboardServicos loja={loja} />;
   }
   
-  // Dashboard específico para Cabeleireiro (v561 - FORÇADO)
+  // Dashboard específico para Cabeleireiro
   if (tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia')) {
-    console.log('✅✅✅ CARREGANDO DASHBOARD CABELEIREIRO v561 - NOVO ✅✅✅');
     return <DashboardCabeleireiro loja={loja} />;
   }
   

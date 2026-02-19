@@ -162,6 +162,58 @@ class BloqueioHorario(LojaIsolationMixin, models.Model):
         return f"{self.motivo} ({self.data_inicio} - {self.data_fim})"
 
 
+class HorarioTrabalhoProfissional(LojaIsolationMixin, models.Model):
+    """
+    Dias e horários de trabalho por profissional.
+    Um registro por dia da semana em que o profissional trabalha (ex.: Seg 08:00-18:00).
+    """
+    DIAS_SEMANA = [
+        (0, 'Segunda-feira'),
+        (1, 'Terça-feira'),
+        (2, 'Quarta-feira'),
+        (3, 'Quinta-feira'),
+        (4, 'Sexta-feira'),
+        (5, 'Sábado'),
+        (6, 'Domingo'),
+    ]
+    professional = models.ForeignKey(
+        Professional,
+        on_delete=models.CASCADE,
+        related_name='horarios_trabalho',
+        verbose_name="Profissional",
+    )
+    dia_semana = models.IntegerField(choices=DIAS_SEMANA, verbose_name="Dia da semana")
+    hora_entrada = models.TimeField(verbose_name="Entrada")
+    hora_saida = models.TimeField(verbose_name="Saída")
+    intervalo_inicio = models.TimeField(
+        blank=True, null=True,
+        verbose_name="Início intervalo (ex.: almoço)",
+        help_text="Opcional",
+    )
+    intervalo_fim = models.TimeField(
+        blank=True, null=True,
+        verbose_name="Fim intervalo",
+        help_text="Opcional",
+    )
+    ativo = models.BooleanField(default=True, verbose_name="Ativo")
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        verbose_name = "Horário de trabalho (profissional)"
+        verbose_name_plural = "Horários de trabalho (profissionais)"
+        ordering = ['professional', 'dia_semana']
+        unique_together = [['professional', 'dia_semana']]
+        indexes = [
+            models.Index(fields=['professional', 'dia_semana']),
+            models.Index(fields=['loja_id', 'professional']),
+        ]
+
+    def __str__(self):
+        return f"{self.professional.name} - {self.get_dia_semana_display()}: {self.hora_entrada}-{self.hora_saida}"
+
+
 class Payment(LojaIsolationMixin, models.Model):
     """Pagamentos"""
     PAYMENT_METHOD_CHOICES = (

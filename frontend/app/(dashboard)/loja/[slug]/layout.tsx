@@ -31,6 +31,27 @@ export default function LojaLayout({
       localStorage.setItem(PWA_LOJA_SLUG_KEY, slug.trim());
     }
   }, [slug]);
+
+  // Usar manifest da loja nas páginas /loja/[slug] para que "Adicionar à tela de início" no iPhone/Android
+  // instale um app que abre direto no login desta loja
+  useEffect(() => {
+    if (!slug?.trim()) return;
+    const manifestUrl = `/api/manifest/loja?slug=${encodeURIComponent(slug.trim())}`;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'manifest';
+      document.head.appendChild(link);
+    }
+    if (link.getAttribute('href') !== manifestUrl) {
+      link.setAttribute('href', manifestUrl);
+    }
+    return () => {
+      // Ao sair da loja, restaurar manifest padrão
+      link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+      if (link) link.setAttribute('href', '/manifest.json');
+    };
+  }, [slug]);
   
   return (
     <RouteGuard allowedUserType="loja" requiredSlug={slug}>

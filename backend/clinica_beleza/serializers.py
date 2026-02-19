@@ -2,7 +2,7 @@
 Serializers para Clínica da Beleza
 """
 from rest_framework import serializers
-from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario
+from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional
 
 
 class ProfessionalCreateWithUserSerializer(serializers.Serializer):
@@ -151,9 +151,23 @@ class PatientSerializer(serializers.ModelSerializer):
         }
 
 
+class HorarioTrabalhoProfissionalSerializer(serializers.ModelSerializer):
+    """Dias e horários de trabalho por profissional."""
+    dia_semana_display = serializers.CharField(source='get_dia_semana_display', read_only=True)
+
+    class Meta:
+        model = HorarioTrabalhoProfissional
+        fields = [
+            'id', 'professional', 'dia_semana', 'dia_semana_display',
+            'hora_entrada', 'hora_saida', 'intervalo_inicio', 'intervalo_fim', 'ativo',
+        ]
+        read_only_fields = ['professional']
+
+
 class ProfessionalSerializer(serializers.ModelSerializer):
     """Serializer para Profissionais. Inclui is_administrador_vinculado quando context['owner_professional_id'] é passado."""
     is_administrador_vinculado = serializers.SerializerMethodField(read_only=True)
+    horarios_trabalho = HorarioTrabalhoProfissionalSerializer(many=True, read_only=True, required=False)
 
     class Meta:
         model = Professional

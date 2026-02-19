@@ -6,7 +6,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Plus, Pencil, Trash2, X } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, X, Clock } from "lucide-react";
+import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
@@ -50,6 +51,7 @@ export default function ProfissionaisPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [lojaOwnerInfo, setLojaOwnerInfo] = useState<LojaOwnerInfo | null>(null);
+  const [horariosProfessional, setHorariosProfessional] = useState<Professional | null>(null);
   useClinicaBelezaDark();
 
   const loadLojaInfo = async () => {
@@ -350,7 +352,7 @@ export default function ProfissionaisPage() {
                     <th className="text-left p-3">Nome</th>
                     <th className="text-left p-3">Especialidade</th>
                     <th className="text-left p-3 hidden md:table-cell">Telefone</th>
-                    <th className="w-24 p-3">Ações</th>
+                    <th className="w-40 p-3">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -367,6 +369,13 @@ export default function ProfissionaisPage() {
                             </span>
                           ) : (
                             <>
+                              <button
+                                onClick={() => setHorariosProfessional(p)}
+                                className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
+                                title="Dias e horários de trabalho"
+                              >
+                                <Clock size={18} />
+                              </button>
                               <button
                                 onClick={() => openEdit(p)}
                                 className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
@@ -496,6 +505,15 @@ export default function ProfissionaisPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {horariosProfessional && (
+        <ModalHorariosTrabalho
+          professionalId={horariosProfessional.id}
+          professionalName={horariosProfessional.name}
+          onClose={() => setHorariosProfessional(null)}
+          onSaved={() => load()}
+        />
       )}
     </div>
   );

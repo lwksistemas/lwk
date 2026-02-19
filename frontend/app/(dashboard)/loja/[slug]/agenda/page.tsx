@@ -26,6 +26,7 @@ import {
   salvarAgendamentosOffline,
   buscarAgendamentosOffline,
   adicionarNaFilaSync,
+  obterFilaSync,
 } from "@/lib/offline-db";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
 
@@ -221,8 +222,8 @@ export default function AgendaPage() {
   useEffect(() => {
     const handler = () => {
       console.log("🔄 [agenda] Sincronização concluída, recarregando dados...");
-      // Aguardar um pouco para garantir que o backend processou
-      setTimeout(() => carregarDados(), 500);
+      // Delay para o backend persistir e a lista GET /agenda/ trazer o novo agendamento
+      setTimeout(() => carregarDados(), 1200);
     };
     window.addEventListener("offline-sync-done", handler);
     return () => window.removeEventListener("offline-sync-done", handler);
@@ -263,35 +264,76 @@ export default function AgendaPage() {
       const online = typeof navigator !== "undefined" && navigator.onLine;
 
       if (online) {
-        // --- ONLINE: buscar da API e salvar no IndexedDB para uso offline (clinicaBelezaFetch trata 401 sessão única)
+        // --- ONLINE: buscar da API e salvar no IndexedDB; mesclar agendamentos pendentes da fila para não sumirem
         const agendaPath = selectedProfessional ? `/agenda/?professional=${selectedProfessional}` : "/agenda/";
-        const resEventos = await clinicaBelezaFetch(agendaPath);
+        const bloqueiosPath = selectedProfessional ? `/bloqueios/?professional=${selectedProfessional}` : "/bloqueios/";
+        const [resEventos, resBloqueios, resProfessionals, resPatients, resProcedures] = await Promise.all([
+          clinicaBelezaFetch(agendaPath),
+          clinicaBelezaFetch(bloqueiosPath),
+          clinicaBelezaFetch("/professionals/"),
+          clinicaBelezaFetch("/patients/"),
+          clinicaBelezaFetch("/procedures/"),
+        ]);
+
+        const profs: Professional[] = resProfessionals.ok ? await resProfessionals.json() : [];
+        const pacs: Patient[] = resPatients.ok ? await resPatients.json() : [];
+        const procs: Procedure[] = resProcedures.ok ? await resProcedures.json() : [];
+        if (profs.length) {
+          setProfessionals(profs);
+          await salvarProfissionaisOffline(profs);
+        }
+        if (pacs.length) {
+          setPatients(pacs);
+          await salvarPacientesOffline(pacs);
+        }
+        if (procs.length) {
+          setProcedures(procs);
+          await salvarProcedimentosOffline(procs);
+        }
+
+        let eventosFormatados: any[] = [];
+        let bloqueiosAsEvents: any[] = [];
         if (resEventos.ok) {
           const data = await resEventos.json();
           await salvarAgendamentosOffline(data);
-          const eventosFormatados = data.map((e: any) => formatarEvento(e));
-
-          const bloqueiosPath = selectedProfessional ? `/bloqueios/?professional=${selectedProfessional}` : "/bloqueios/";
-          const resBloqueios = await clinicaBelezaFetch(bloqueiosPath);
-          let bloqueiosList: BloqueioHorario[] = [];
-          if (resBloqueios.ok) {
-            bloqueiosList = await resBloqueios.json();
-            console.log("📋 [agenda] Bloqueios recebidos da API:", bloqueiosList);
-            setBloqueios(bloqueiosList);
-          }
-          const bloqueiosAsEvents = bloqueiosList.map((b: BloqueioHorario) => {
-            console.log(`🚫 [agenda] Formatando bloqueio #${b.id}:`, {
-              motivo: b.motivo,
-              data_inicio: b.data_inicio,
-              data_fim: b.data_fim,
-              professional: b.professional_name || "Todos"
-            });
+          eventosFormatados = data.map((e: any) => formatarEvento(e));
+        }
+        let bloqueiosList: BloqueioHorario[] = [];
+        if (resBloqueios.ok) {
+          bloqueiosList = await resBloqueios.json();
+          setBloqueios(bloqueiosList);
+          bloqueiosAsEvents = bloqueiosList.map((b: BloqueioHorario) => {
+            const rawStart = b.data_inicio ?? "";
+            const rawEnd = b.data_fim ?? "";
+            let startStr: string;
+            let endStr: string;
+            const motivoLower = (b.motivo ?? "").toLowerCase();
+            const isAlmoco = motivoLower.includes("almoço") || motivoLower.includes("almoco");
+            if (typeof rawStart === "string" && rawStart.includes("T") && typeof rawEnd === "string" && rawEnd.includes("T")) {
+              const startDate = new Date(rawStart);
+              const endDate = new Date(rawEnd);
+              const durationHours = (endDate.getTime() - startDate.getTime()) / (60 * 60 * 1000);
+              if (isAlmoco || durationHours > 3.5) {
+                const y = startDate.getFullYear();
+                const m = String(startDate.getMonth() + 1).padStart(2, "0");
+                const d = String(startDate.getDate()).padStart(2, "0");
+                startStr = `${y}-${m}-${d}T12:00:00`;
+                endStr = `${y}-${m}-${d}T14:00:00`;
+              } else {
+                startStr = rawStart;
+                endStr = rawEnd;
+              }
+            } else {
+              const datePart = rawStart ? String(rawStart).slice(0, 10) : "";
+              startStr = datePart ? `${datePart}T12:00:00` : "";
+              endStr = datePart ? `${datePart}T14:00:00` : "";
+            }
             return {
               id: `bloqueio-${b.id}`,
               title: `🚫 ${b.motivo}`,
-              start: b.data_inicio,
-              end: b.data_fim,
-              allDay: false, // Forçar que não é evento de dia inteiro
+              start: startStr,
+              end: endStr,
+              allDay: false,
               backgroundColor: COR_BLOQUEIO.bg,
               borderColor: COR_BLOQUEIO.border,
               textColor: "#fff",
@@ -304,30 +346,46 @@ export default function AgendaPage() {
               },
             };
           });
-          console.log("✅ [agenda] Eventos de bloqueio formatados:", bloqueiosAsEvents);
-          setEventos([...eventosFormatados, ...bloqueiosAsEvents]);
         }
 
-        const resProfessionals = await clinicaBelezaFetch("/professionals/");
-        if (resProfessionals.ok) {
-          const data = await resProfessionals.json();
-          setProfessionals(data);
-          await salvarProfissionaisOffline(data);
-        }
+        // Mesclar agendamentos ainda na fila de sync (criados offline) para não sumirem ao recarregar
+        const fila = await obterFilaSync();
+        const pendentesAgenda = fila.filter((f) => f.tipo === "agendamento") as Array<{ id: number; payload: { date?: string; status?: string; patient?: number; professional?: number; procedure?: number; notes?: string | null } }>;
+        const pendingEvents = pendentesAgenda.map((item) => {
+          const p = item.payload;
+          const date = p.date ? new Date(p.date) : new Date();
+          const patient = pacs.find((x) => x.id === p.patient);
+          const procedure = procs.find((x) => x.id === p.procedure);
+          const professional = profs.find((x) => x.id === p.professional);
+          const duration = procedure?.duration ?? 30;
+          const endDate = new Date(date);
+          endDate.setMinutes(endDate.getMinutes() + duration);
+          const titulo = [patient?.name, procedure?.name].filter(Boolean).join(" • ") || "Agendamento (pendente sync)";
+          return {
+            id: `offline-${item.id}`,
+            title: titulo,
+            start: date.toISOString(),
+            end: endDate.toISOString(),
+            backgroundColor: "#a855f7",
+            borderColor: "#9333ea",
+            textColor: "#fff",
+            editable: false,
+            extendedProps: {
+              dbId: `offline-${item.id}`,
+              status: p.status || "SCHEDULED",
+              patient_name: patient?.name ?? "",
+              patient_phone: "",
+              professional_name: professional?.name ?? "",
+              procedure_name: procedure?.name ?? "",
+              procedure_duration: duration,
+              procedure_price: procedure?.price ?? "",
+              notes: p.notes ?? "",
+              isBloqueio: false,
+            },
+          };
+        });
 
-        const resPatients = await clinicaBelezaFetch("/patients/");
-        if (resPatients.ok) {
-          const data = await resPatients.json();
-          setPatients(data);
-          await salvarPacientesOffline(data);
-        }
-
-        const resProcedures = await clinicaBelezaFetch("/procedures/");
-        if (resProcedures.ok) {
-          const data = await resProcedures.json();
-          setProcedures(data);
-          await salvarProcedimentosOffline(data);
-        }
+        setEventos([...eventosFormatados, ...bloqueiosAsEvents, ...pendingEvents]);
       } else {
         // --- OFFLINE: ler do IndexedDB
         const [agendaRaw, profs, pacs, procs] = await Promise.all([

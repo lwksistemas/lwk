@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useOnline } from "@/hooks/useOnline";
 import { useSyncPending, notificarFilaAtualizada } from "@/hooks/useSyncPending";
 import { limparFilaSync, obterFilaSync } from "@/lib/offline-db";
-import { Trash2, Info } from "lucide-react";
+import { sincronizarFila } from "@/lib/offline-sync";
+import { Trash2, Info, RefreshCw } from "lucide-react";
 
 /**
  * Indicador de status offline/online e fila de sincronização.
@@ -14,6 +15,7 @@ export function OfflineIndicator() {
   const online = useOnline();
   const pendingCount = useSyncPending();
   const [clearing, setClearing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [queueItems, setQueueItems] = useState<any[]>([]);
 
@@ -32,6 +34,35 @@ export function OfflineIndicator() {
       alert("Erro ao limpar fila. Tente novamente.");
     } finally {
       setClearing(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    if (!online) {
+      alert("Você está offline. Conecte-se à internet para sincronizar.");
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      console.log("🔄 [offline] Sincronização manual iniciada...");
+      const { enviados, erros } = await sincronizarFila();
+      console.log(`✅ [offline] Sincronização manual concluída: ${enviados} enviados, ${erros} erros`);
+      
+      if (enviados > 0) {
+        notificarFilaAtualizada();
+        window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
+        alert(`✅ Sincronização concluída!\n\n${enviados} ${enviados === 1 ? 'item sincronizado' : 'itens sincronizados'} com sucesso.`);
+      } else if (erros > 0) {
+        alert(`⚠️ Sincronização concluída com erros.\n\n${erros} ${erros === 1 ? 'item falhou' : 'itens falharam'}.\n\nVerifique o console (F12) para detalhes.`);
+      } else {
+        alert("ℹ️ Nenhum item para sincronizar.");
+      }
+    } catch (error) {
+      console.error("❌ [offline] Erro na sincronização manual:", error);
+      alert("Erro ao sincronizar. Verifique o console (F12) para detalhes.");
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -65,6 +96,16 @@ export function OfflineIndicator() {
             <span className="text-xs px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300">
               {pendingCount} na fila
             </span>
+            {online && (
+              <button
+                onClick={handleSyncNow}
+                disabled={syncing}
+                className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors disabled:opacity-50"
+                title="Sincronizar agora"
+              >
+                <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+              </button>
+            )}
             <button
               onClick={handleShowQueue}
               className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"

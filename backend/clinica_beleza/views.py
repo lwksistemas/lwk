@@ -10,13 +10,14 @@ from django.db.models import Count, Q, Sum
 from django.core.exceptions import ValidationError
 from django.core.cache import cache
 from datetime import timedelta, date
-from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario, CampanhaPromocao
+from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario, CampanhaPromocao, HorarioTrabalhoProfissional
 from rules.base import MotorRegras
 from .serializers import (
     PatientSerializer, ProfessionalSerializer, ProfessionalCreateWithUserSerializer,
     ProcedureSerializer,
     AppointmentListSerializer, AppointmentDetailSerializer, AppointmentCreateSerializer,
-    PaymentSerializer, AgendaEventSerializer, BloqueioHorarioSerializer
+    PaymentSerializer, AgendaEventSerializer, BloqueioHorarioSerializer,
+    HorarioTrabalhoProfissionalSerializer,
 )
 from tenants.middleware import get_current_loja_id
 from .utils import LojaContextHelper
@@ -396,6 +397,49 @@ class ProfessionalDetailView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Professional.DoesNotExist:
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class HorarioTrabalhoProfissionalView(APIView):
+    """
+    Dias e horários de trabalho do profissional.
+    GET /clinica-beleza/professionals/<id>/horarios-trabalho/  → lista
+    PUT /clinica-beleza/professionals/<id>/horarios-trabalho/  → substitui todos (body: lista de { dia_semana, hora_entrada, hora_saida, intervalo_inicio?, intervalo_fim?, ativo? })
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            professional = Professional.objects.get(pk=pk)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        queryset = HorarioTrabalhoProfissional.objects.filter(professional_id=pk).order_by('dia_semana')
+        serializer = HorarioTrabalhoProfissionalSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        try:
+            professional = Professional.objects.get(pk=pk)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        if not isinstance(request.data, list):
+            return Response(
+                {'error': 'Envie uma lista de horários. Ex.: [{"dia_semana": 0, "hora_entrada": "08:00", "hora_saida": "18:00", "ativo": true}]'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # Remover horários atuais e criar os novos
+        HorarioTrabalhoProfissional.objects.filter(professional_id=pk).delete()
+        created = []
+        for item in request.data:
+            item = dict(item)
+            item['professional'] = pk
+            serializer = HorarioTrabalhoProfissionalSerializer(data=item)
+            if serializer.is_valid():
+                obj = serializer.save()
+                created.append(HorarioTrabalhoProfissionalSerializer(obj).data)
+            else:
+                HorarioTrabalhoProfissional.objects.filter(professional_id=pk).delete()
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(created, status=status.HTTP_200_OK)
 
 
 class ProcedureListView(APIView):
@@ -953,10 +997,18 @@ class BloqueioHorarioListView(APIView):
 
     def post(self, request):
         serializer = BloqueioHorarioSerializer(data=request.data)
-        if serializer.is_valid():
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception("Erro ao criar BloqueioHorario: %s", e)
+            return Response(
+                {'error': 'Erro ao salvar bloqueio. Verifique data/hora e tente novamente.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class BloqueioHorarioDetailView(APIView):

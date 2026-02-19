@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Dashboard Clínica da Beleza v579
- * Mobile-First com menu hamburger e modo escuro
- * Design moderno com glassmorphism e gradiente rosa/lilás
+ * Dashboard Clínica da Beleza
+ * Sistema para gestão de clínicas de estética e beleza: agendamentos, procedimentos, pacientes e pagamentos.
+ * Mobile-first, menu hamburger, modo escuro, glassmorphism.
  */
 
 import { useEffect, useState } from 'react';
@@ -27,6 +27,7 @@ import {
 import { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { getClinicaBelezaHeadersWithLoja } from '@/lib/clinica-beleza-api';
 
 interface DashboardStats {
   appointments_today: number;
@@ -95,14 +96,7 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
     loadProfessionals();
   }, [loja?.id, loja?.slug]);
 
-  const getHeadersComTenant = (): Record<string, string> => {
-    const token = typeof window !== 'undefined' ? (sessionStorage.getItem('access_token') || localStorage.getItem('token')) : null;
-    const h: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) h['Authorization'] = `Bearer ${token}`;
-    if (loja?.id) h['X-Loja-ID'] = String(loja.id);
-    else if (loja?.slug) h['X-Tenant-Slug'] = loja.slug;
-    return h;
-  };
+  const getHeadersComTenant = (): Record<string, string> => getClinicaBelezaHeadersWithLoja(loja);
 
   const loadWhatsAppConfig = async () => {
     try {

@@ -236,6 +236,7 @@ export default function AgendaPage() {
       title: titulo,
       start: e.start,
       end: e.end,
+      allDay: false, // Forçar que não é evento de dia inteiro
       backgroundColor: cores.bg,
       borderColor: cores.border,
       textColor: "#fff",
@@ -275,24 +276,35 @@ export default function AgendaPage() {
           let bloqueiosList: BloqueioHorario[] = [];
           if (resBloqueios.ok) {
             bloqueiosList = await resBloqueios.json();
+            console.log("📋 [agenda] Bloqueios recebidos da API:", bloqueiosList);
             setBloqueios(bloqueiosList);
           }
-          const bloqueiosAsEvents = bloqueiosList.map((b: BloqueioHorario) => ({
-            id: `bloqueio-${b.id}`,
-            title: `🚫 ${b.motivo}`,
-            start: b.data_inicio,
-            end: b.data_fim,
-            backgroundColor: COR_BLOQUEIO.bg,
-            borderColor: COR_BLOQUEIO.border,
-            textColor: "#fff",
-            editable: false,
-            extendedProps: {
-              isBloqueio: true,
-              bloqueioId: b.id,
+          const bloqueiosAsEvents = bloqueiosList.map((b: BloqueioHorario) => {
+            console.log(`🚫 [agenda] Formatando bloqueio #${b.id}:`, {
               motivo: b.motivo,
-              professional_name: b.professional_name || "Todos",
-            },
-          }));
+              data_inicio: b.data_inicio,
+              data_fim: b.data_fim,
+              professional: b.professional_name || "Todos"
+            });
+            return {
+              id: `bloqueio-${b.id}`,
+              title: `🚫 ${b.motivo}`,
+              start: b.data_inicio,
+              end: b.data_fim,
+              allDay: false, // Forçar que não é evento de dia inteiro
+              backgroundColor: COR_BLOQUEIO.bg,
+              borderColor: COR_BLOQUEIO.border,
+              textColor: "#fff",
+              editable: false,
+              extendedProps: {
+                isBloqueio: true,
+                bloqueioId: b.id,
+                motivo: b.motivo,
+                professional_name: b.professional_name || "Todos",
+              },
+            };
+          });
+          console.log("✅ [agenda] Eventos de bloqueio formatados:", bloqueiosAsEvents);
           setEventos([...eventosFormatados, ...bloqueiosAsEvents]);
         }
 

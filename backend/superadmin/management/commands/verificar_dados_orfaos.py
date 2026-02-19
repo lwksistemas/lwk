@@ -10,52 +10,7 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connection
 from superadmin.models import Loja
-
-
-# (tabela, coluna de loja) - banco default, coluna loja_id
-TABELAS_LOJA_ID = [
-    ('superadmin_financeiroloja', 'loja_id'),
-    ('superadmin_pagamentoloja', 'loja_id'),
-    ('superadmin_profissionalusuario', 'loja_id'),
-    ('clinica_funcionarios', 'loja_id'),
-    ('clinica_clientes', 'loja_id'),
-    ('clinica_agendamentos', 'loja_id'),
-    ('clinica_profissionais', 'loja_id'),
-    ('clinica_procedimentos', 'loja_id'),
-    ('crm_vendedores', 'loja_id'),
-    ('crm_clientes', 'loja_id'),
-    ('crm_leads', 'loja_id'),
-    ('crm_vendas', 'loja_id'),
-    ('crm_pipeline', 'loja_id'),
-    ('crm_produtos', 'loja_id'),
-    ('restaurante_categorias', 'loja_id'),
-    ('restaurante_cardapio', 'loja_id'),
-    ('restaurante_mesas', 'loja_id'),
-    ('restaurante_clientes', 'loja_id'),
-    ('restaurante_reservas', 'loja_id'),
-    ('restaurante_pedidos', 'loja_id'),
-    ('restaurante_fornecedores', 'loja_id'),
-    ('restaurante_notas_fiscais', 'loja_id'),
-    ('restaurante_estoque_itens', 'loja_id'),
-    ('restaurante_funcionarios', 'loja_id'),
-    ('servicos_funcionarios', 'loja_id'),
-    ('servicos_servicos', 'loja_id'),
-    ('servicos_profissionais', 'loja_id'),
-    ('servicos_agendamentos', 'loja_id'),
-    ('servicos_ordem_servico', 'loja_id'),
-    ('servicos_orcamentos', 'loja_id'),
-    ('servicos_clientes', 'loja_id'),
-    ('servicos_categorias', 'loja_id'),
-    ('cabeleireiro_clientes', 'loja_id'),
-    ('cabeleireiro_profissionais', 'loja_id'),
-    ('cabeleireiro_servicos', 'loja_id'),
-    ('cabeleireiro_agendamentos', 'loja_id'),
-    ('cabeleireiro_produtos', 'loja_id'),
-    ('cabeleireiro_vendas', 'loja_id'),
-    ('cabeleireiro_funcionarios', 'loja_id'),
-    ('cabeleireiro_horariofuncionamento', 'loja_id'),
-    ('cabeleireiro_bloqueioagenda', 'loja_id'),
-]
+from superadmin.orfaos_config import TABELAS_LOJA_ID
 
 
 class Command(BaseCommand):

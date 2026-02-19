@@ -143,6 +143,16 @@ def delete_all_loja_data(sender, instance, **kwargs):
         return
     
     try:
+        # 0. Remover LojaAssinatura por slug (evita órfãos se loja for excluída fora da API)
+        try:
+            from asaas_integration.models import LojaAssinatura
+            n = LojaAssinatura.objects.filter(loja_slug=instance.slug).count()
+            LojaAssinatura.objects.filter(loja_slug=instance.slug).delete()
+            if n:
+                logger.info(f"   ✅ {n} assinatura(s) Asaas (loja_slug) removida(s)")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro ao remover LojaAssinatura por slug: {e}")
+        
         # 1. Deletar funcionários/vendedores baseado no tipo de loja
         if tipo_loja_nome == 'Clínica de Estética':
             from clinica_estetica.models import Funcionario, Cliente, Agendamento, Profissional, Procedimento
@@ -363,6 +373,24 @@ def delete_all_loja_data(sender, instance, **kwargs):
             import traceback
             logger.error(traceback.format_exc())
             # Não interrompe a exclusão da loja, apenas loga o erro
+        
+        # 5. Rede de segurança: limpar qualquer tabela do default com loja_id (evita órfãos)
+        try:
+            from django.db import connection
+            from superadmin.orfaos_config import TABELAS_LOJA_ID
+            with connection.cursor() as cursor:
+                for tabela, coluna in TABELAS_LOJA_ID:
+                    try:
+                        cursor.execute(
+                            f'DELETE FROM {tabela} WHERE {coluna} = %s',
+                            [loja_id]
+                        )
+                        if cursor.rowcount:
+                            logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
+                    except Exception as e:
+                        logger.warning(f"   ⚠️ Safety net {tabela}: {e}")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro na rede de segurança TABELAS_LOJA_ID: {e}")
         
         logger.info(f"✅ Exclusão em cascata concluída para loja: {loja_nome}")
         

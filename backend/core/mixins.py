@@ -124,6 +124,13 @@ class LojaIsolationMixin(models.Model):
                 'loja_id': f'Você não pode criar/editar dados de outra loja'
             })
         
+        # Evitar dados órfãos: garantir que a loja existe no banco default
+        from superadmin.models import Loja
+        if not Loja.objects.using('default').filter(id=self.loja_id).exists():
+            raise ValidationError({
+                'loja_id': 'Loja não existe. Não é permitido criar registro para loja inexistente.'
+            })
+        
         super().save(*args, **kwargs)
     
     def delete(self, *args, **kwargs):

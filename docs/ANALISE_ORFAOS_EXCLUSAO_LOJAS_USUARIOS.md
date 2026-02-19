@@ -103,7 +103,19 @@ Não há vínculos órfãos nesse fluxo.
   - **asaas_integration**: `show_orphaned_data`, `cleanup_orphaned_asaas`, `cleanup_orphaned_data`.  
 - Foi adicionada verificação de **assinaturas órfãs** (loja_slug sem loja) no comando `verificar_dados_orfaos`, para centralizar a checagem.
 
-### 4.3 Recomendações de uso
+### 4.3 Prevenção a novos órfãos (implementado)
+
+- **Rede de segurança na exclusão da loja** (`superadmin/signals.py`):  
+  Após a limpeza por tipo de loja, o signal executa uma passagem genérica em todas as tabelas listadas em `superadmin/orfaos_config.TABELAS_LOJA_ID`, removendo qualquer linha com `loja_id` da loja excluída. Assim, nenhuma tabela nova com `loja_id` no default fica esquecida, desde que seja incluída em `orfaos_config.py`.  
+  O signal também remove `LojaAssinatura` por `loja_slug` no início, para cobrir exclusões feitas fora da API (ex.: shell).
+
+- **Lista única de tabelas** (`superadmin/orfaos_config.py`):  
+  `TABELAS_LOJA_ID` é usada pelo comando `verificar_dados_orfaos` e pelo signal de exclusão. Ao adicionar um novo app/tabela com `loja_id` no banco default, basta incluir em `orfaos_config.py` para que a verificação e a limpeza na exclusão da loja fiquem corretas.
+
+- **Validação na criação** (`core/mixins.py` – `LojaIsolationMixin.save()`):  
+  Antes de salvar, o mixin verifica se a loja existe (`Loja.objects.using('default').filter(id=self.loja_id).exists()`). Caso não exista, levanta `ValidationError`, evitando criar registros órfãos.
+
+### 4.4 Recomendações de uso
 
 - Rodar periodicamente:  
   `python manage.py verificar_dados_orfaos`  

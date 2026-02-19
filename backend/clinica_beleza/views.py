@@ -53,6 +53,37 @@ def _get_loja_owner_info():
         return None
 
 
+def _get_whatsapp_config_for_loja(loja_id=None, request=None):
+    """
+    Retorna (config, loja) para a loja atual, ou (None, None).
+    Usado para envio de confirmação/lembrete WhatsApp. Se loja_id não for passado, usa get_current_loja_id()
+    e opcionalmente request (headers X-Loja-ID / X-Tenant-Slug) como fallback.
+    """
+    lid = loja_id or get_current_loja_id()
+    if not lid and request:
+        try:
+            lid = request.headers.get('X-Loja-ID')
+            if lid:
+                lid = int(lid)
+        except (ValueError, TypeError):
+            lid = None
+        if not lid and request.headers.get('X-Tenant-Slug'):
+            from superadmin.models import Loja
+            loja = Loja.objects.using('default').filter(slug__iexact=request.headers.get('X-Tenant-Slug').strip()).first()
+            if loja:
+                lid = loja.id
+    if not lid:
+        return None, None
+    try:
+        from superadmin.models import Loja
+        from whatsapp.models import WhatsAppConfig
+        loja = Loja.objects.using('default').get(id=lid)
+        config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
+        return config, loja
+    except Exception:
+        return None, None
+
+
 class LojaInfoView(APIView):
     """
     Informações da loja atual (administrador) para exibir na interface.
@@ -285,10 +316,15 @@ class ProfessionalListView(APIView):
         log = logging.getLogger(__name__)
         data = dict(request.data)
         # Normalizar email/phone vazios para None (evita 400 em ProfessionalSerializer)
-        if data.get('email') == '':
-            data['email'] = None
-        if data.get('phone') == '':
-            data['phone'] = None
+        def _empty_to_none(v):
+            if v is None:
+                return None
+            if isinstance(v, str) and (v.strip() == '' or v.strip().lower() == 'null'):
+                return None
+            return v
+        for key in ('email', 'phone'):
+            if key in data:
+                data[key] = _empty_to_none(data[key])
         criar_acesso = data.get('criar_acesso') and data.get('email')
         if criar_acesso:
             serializer = ProfessionalCreateWithUserSerializer(data=data)
@@ -708,16 +744,11 @@ class AgendaUpdateView(APIView):
             # WhatsApp: enviar confirmação quando status passar a CONFIRMED (respeita config da loja)
             if new_status == 'CONFIRMED':
                 try:
-                    from whatsapp.models import WhatsAppConfig
-                    from superadmin.models import Loja
-                    loja_id = get_current_loja_id()
-                    if loja_id and getattr(appointment.patient, 'allow_whatsapp', True):
-                        loja = Loja.objects.using('default').filter(id=loja_id).first()
-                        if loja:
-                            config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
-                            if config and config.enviar_confirmacao:
-                                from whatsapp.services import enviar_confirmacao_agendamento
-                                enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
+                    if getattr(appointment.patient, 'allow_whatsapp', True):
+                        config, _ = _get_whatsapp_config_for_loja(request=request)
+                        if config and config.enviar_confirmacao:
+                            from whatsapp.services import enviar_confirmacao_agendamento
+                            enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
                 except Exception as e:
                     logger.warning("WhatsApp confirmação agendamento %s: %s", pk, e)
 
@@ -792,34 +823,24 @@ class AgendaCreateView(APIView):
             # WhatsApp: enviar confirmação ao criar agendamento (status CONFIRMED ou SCHEDULED)
             if appointment.status in ('CONFIRMED', 'SCHEDULED') and getattr(appointment.patient, 'allow_whatsapp', True):
                 try:
-                    from whatsapp.models import WhatsAppConfig
-                    from superadmin.models import Loja
-                    loja_id = get_current_loja_id()
                     patient_phone = getattr(appointment.patient, 'phone', None) or ''
                     if not (patient_phone and str(patient_phone).strip()):
                         logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — paciente sem telefone", appointment.id)
-                    elif not loja_id:
-                        logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — contexto de loja ausente", appointment.id)
                     else:
-                        loja = Loja.objects.using('default').filter(id=loja_id).first()
-                        if not loja:
-                            logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — loja não encontrada", appointment.id)
+                        config, _ = _get_whatsapp_config_for_loja(request=request)
+                        if not config:
+                            logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — contexto/config loja ausente", appointment.id)
+                        elif not config.enviar_confirmacao:
+                            logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — opção desligada nas Configurações", appointment.id)
                         else:
-                            config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
-                            if not config:
-                                logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — config da loja não encontrada", appointment.id)
-                            elif not config.enviar_confirmacao:
-                                logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — opção 'enviar confirmação' desligada nas Configurações", appointment.id)
+                            from whatsapp.services import enviar_confirmacao_agendamento
+                            if enviar_confirmacao_agendamento(appointment, user=request.user, config=config):
+                                logger.info("WhatsApp confirmação enviada ao criar agendamento id=%s", appointment.id)
                             else:
-                                from whatsapp.services import enviar_confirmacao_agendamento
-                                if enviar_confirmacao_agendamento(appointment, user=request.user, config=config):
-                                    logger.info("WhatsApp confirmação enviada ao criar agendamento id=%s", appointment.id)
-                                else:
-                                    logger.info(
-                                        "WhatsApp: confirmação não enviada ao criar agendamento id=%s — "
-                                        "API do WhatsApp Business (Meta) não configurada. Configure Phone ID e Token nas variáveis do servidor ou na integração.",
-                                        appointment.id,
-                                    )
+                                logger.info(
+                                    "WhatsApp: confirmação não enviada ao criar agendamento id=%s — API Meta não configurada.",
+                                    appointment.id,
+                                )
                 except Exception as e:
                     logger.warning("WhatsApp confirmação ao criar agendamento %s: %s", appointment.id, e)
             event_serializer = AgendaEventSerializer(appointment)
@@ -869,15 +890,7 @@ class AgendaReenviarMensagemView(APIView):
             return Response({'sent': False, 'message': 'Paciente não permite receber WhatsApp.'}, status=status.HTTP_200_OK)
         if not (getattr(appointment.patient, 'phone', None) or '').strip():
             return Response({'sent': False, 'message': 'Paciente sem telefone cadastrado.'}, status=status.HTTP_200_OK)
-        loja_id = get_current_loja_id()
-        if not loja_id:
-            return Response({'sent': False, 'message': 'Contexto de loja não encontrado.'}, status=status.HTTP_200_OK)
-        from whatsapp.models import WhatsAppConfig
-        from superadmin.models import Loja
-        loja = Loja.objects.using('default').filter(id=loja_id).first()
-        if not loja:
-            return Response({'sent': False, 'message': 'Loja não encontrada.'}, status=status.HTTP_200_OK)
-        config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
+        config, _ = _get_whatsapp_config_for_loja(request=request)
         if not config or not config.enviar_confirmacao:
             return Response({'sent': False, 'message': 'Envio de confirmação desativado nas Configurações.'}, status=status.HTTP_200_OK)
         from whatsapp.services import enviar_confirmacao_agendamento
@@ -1214,15 +1227,7 @@ class CampanhaPromocaoEnviarView(APIView):
             campanha = CampanhaPromocao.objects.get(pk=pk)
         except CampanhaPromocao.DoesNotExist:
             return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
-        loja_id = get_current_loja_id()
-        if not loja_id:
-            return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_400_BAD_REQUEST)
-        from whatsapp.models import WhatsAppConfig
-        from superadmin.models import Loja
-        loja = Loja.objects.using('default').filter(id=loja_id).first()
-        if not loja:
-            return Response({'error': 'Loja não encontrada'}, status=status.HTTP_400_BAD_REQUEST)
-        config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
+        config, _ = _get_whatsapp_config_for_loja(request=request)
         if not config or not getattr(config, 'whatsapp_ativo', False):
             return Response({'error': 'WhatsApp não está ativo. Configure em Configurações.'}, status=status.HTTP_400_BAD_REQUEST)
         from whatsapp.services import send_whatsapp

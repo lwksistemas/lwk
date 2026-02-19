@@ -219,7 +219,11 @@ export default function AgendaPage() {
 
   // Após sync da fila (registrado no layout da loja), recarregar dados para refletir agendamentos enviados
   useEffect(() => {
-    const handler = () => carregarDados();
+    const handler = () => {
+      console.log("🔄 [agenda] Sincronização concluída, recarregando dados...");
+      // Aguardar um pouco para garantir que o backend processou
+      setTimeout(() => carregarDados(), 500);
+    };
     window.addEventListener("offline-sync-done", handler);
     return () => window.removeEventListener("offline-sync-done", handler);
   }, []);

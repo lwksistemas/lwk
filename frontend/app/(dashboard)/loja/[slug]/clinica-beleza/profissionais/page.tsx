@@ -10,7 +10,7 @@ import { ArrowLeft, Plus, Pencil, Trash2, X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
-import { buscarProfissionaisOffline, salvarProfissionaisOffline } from "@/lib/offline-db";
+import { buscarProfissionaisOffline, salvarProfissionaisOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 
 type PerfilAcesso = "administrador" | "profissional" | "recepcao";
 
@@ -97,6 +97,18 @@ export default function ProfissionaisPage() {
   }, []);
 
   useEffect(() => {
+    const onSyncDone = () => {
+      console.log("🔄 [profissionais] Sincronização concluída, recarregando dados...");
+      if (navigator.onLine) {
+        // Aguardar um pouco para garantir que o backend processou
+        setTimeout(() => load(), 500);
+      }
+    };
+    window.addEventListener("offline-sync-done", onSyncDone);
+    return () => window.removeEventListener("offline-sync-done", onSyncDone);
+  }, []);
+
+  useEffect(() => {
     if (searchParams.get("novo") === "1") openNew();
   }, [searchParams]);
 
@@ -137,26 +149,79 @@ export default function ProfissionaisPage() {
     }
     setSaving(true);
     setError("");
-    try {
-      const body: Record<string, unknown> = {
-        name: form.name.trim(),
-        specialty: form.specialty.trim(),
-        phone: form.phone.trim() || null,
-        email: form.email.trim() || null,
-        active: true,
-      };
-      if (!editing && criarAcesso) {
-        body.criar_acesso = true;
-        body.perfil = form.perfil;
+    const body: Record<string, unknown> = {
+      name: form.name.trim(),
+      specialty: form.specialty.trim(),
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
+      active: true,
+    };
+    if (!editing && criarAcesso) {
+      body.criar_acesso = true;
+      body.perfil = form.perfil;
+    }
+
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    if (isOffline) {
+      try {
+        const lojaSlug = getLojaSlug();
+        const editingIsPendente = editing && editing.id < 0;
+        if (editing && !editingIsPendente) {
+          await adicionarNaFilaSync({
+            tipo: "profissional",
+            payload: { action: "update", id: editing.id, body: { ...body, criar_acesso: undefined } },
+            lojaSlug,
+          });
+          const updatedList = list.map((p) =>
+            p.id === editing.id
+              ? { ...p, name: String(body.name), specialty: String(body.specialty), phone: (body.phone as string) ?? p.phone, email: (body.email as string) ?? p.email }
+              : p
+          );
+          setList(updatedList);
+          await salvarProfissionaisOffline(updatedList);
+        } else {
+          await adicionarNaFilaSync({
+            tipo: "profissional",
+            payload: { action: "create", body },
+            lojaSlug,
+          });
+          const tempId = -Date.now();
+          const newProf: Professional = {
+            id: tempId,
+            name: String(body.name),
+            specialty: String(body.specialty),
+            phone: (body.phone as string) ?? null,
+            email: (body.email as string) ?? null,
+            active: true,
+          };
+          const updatedList = [newProf, ...list];
+          setList(updatedList);
+          await salvarProfissionaisOffline(updatedList);
+        }
+        setShowModal(false);
+        alert("Salvo offline. O profissional será sincronizado quando você estiver online.");
+      } catch {
+        setError("Erro ao salvar localmente. Tente novamente.");
       }
+      setSaving(false);
+      return;
+    }
+
+    try {
       if (editing) {
         const res = await clinicaBelezaFetch(`/professionals/${editing.id}/`, {
           method: "PUT",
           body: JSON.stringify({ ...body, criar_acesso: undefined }),
         });
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.name?.[0] || err.detail || "Erro ao atualizar");
+          const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+          const messages: string[] = [];
+          if (typeof err.detail === "string") messages.push(err.detail);
+          else if (Array.isArray(err.detail)) messages.push(...(err.detail as string[]));
+          for (const v of Object.values(err)) {
+            if (Array.isArray(v) && v.every((x) => typeof x === "string")) messages.push(...(v as string[]));
+          }
+          throw new Error(messages.length ? messages.join(". ") : "Erro ao atualizar");
         }
       } else {
         const res = await clinicaBelezaFetch("/professionals/", {
@@ -164,8 +229,14 @@ export default function ProfissionaisPage() {
           body: JSON.stringify(body),
         });
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.email?.[0] || err.name?.[0] || err.detail || "Erro ao cadastrar");
+          const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+          const messages: string[] = [];
+          if (typeof err.detail === "string") messages.push(err.detail);
+          else if (Array.isArray(err.detail)) messages.push(...(err.detail as string[]));
+          for (const v of Object.values(err)) {
+            if (Array.isArray(v) && v.every((x) => typeof x === "string")) messages.push(...(v as string[]));
+          }
+          throw new Error(messages.length ? messages.join(". ") : "Erro ao cadastrar");
         }
       }
       setShowModal(false);
@@ -174,7 +245,47 @@ export default function ProfissionaisPage() {
         alert("Profissional criado! A senha foi enviada por e-mail.");
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erro ao salvar");
+      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      const isNetworkError = msg.toLowerCase().includes("fetch") || msg === "Failed to fetch";
+      if (isNetworkError) {
+        try {
+          const lojaSlug = getLojaSlug();
+          if (editing && editing.id > 0) {
+            await adicionarNaFilaSync({
+              tipo: "profissional",
+              payload: { action: "update", id: editing.id, body: { ...body, criar_acesso: undefined } },
+              lojaSlug,
+            });
+            const updatedList = list.map((p) =>
+              p.id === editing.id
+                ? { ...p, name: String(body.name), specialty: String(body.specialty), phone: (body.phone as string) ?? p.phone, email: (body.email as string) ?? p.email }
+                : p
+            );
+            setList(updatedList);
+            await salvarProfissionaisOffline(updatedList);
+          } else {
+            await adicionarNaFilaSync({ tipo: "profissional", payload: { action: "create", body }, lojaSlug });
+            const tempId = -Date.now();
+            const newProf: Professional = {
+              id: tempId,
+              name: String(body.name),
+              specialty: String(body.specialty),
+              phone: (body.phone as string) ?? null,
+              email: (body.email as string) ?? null,
+              active: true,
+            };
+            const updatedList = [newProf, ...list];
+            setList(updatedList);
+            await salvarProfissionaisOffline(updatedList);
+          }
+          setShowModal(false);
+          alert("Sem conexão. Profissional salvo offline e será sincronizado quando você estiver online.");
+        } catch {
+          setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
+        }
+      } else {
+        setError(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -208,9 +319,7 @@ export default function ProfissionaisPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Cadastro de profissionais da clínica</p>
             {lojaOwnerInfo && (
               <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                Usuário administrador da loja: <strong>{lojaOwnerInfo.owner_username}</strong> ({lojaOwnerInfo.owner_email})
-                {lojaOwnerInfo.owner_telefone ? ` · Tel: ${lojaOwnerInfo.owner_telefone}` : ""}
-                <span className="block text-amber-700 dark:text-amber-400 mt-0.5">O administrador vinculado à loja não pode ser editado nem excluído.</span>
+                <span className="text-amber-700 dark:text-amber-400">O administrador da loja aparece na tabela abaixo (linha &quot;Administrador - somente leitura&quot;) e não pode ser editado nem excluído.</span>
               </p>
             )}
           </div>

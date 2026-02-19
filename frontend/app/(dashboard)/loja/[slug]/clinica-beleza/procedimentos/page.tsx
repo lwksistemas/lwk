@@ -9,7 +9,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Trash2, X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
-import { buscarProcedimentosOffline, salvarProcedimentosOffline } from "@/lib/offline-db";
+import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 
 interface Procedure {
@@ -65,6 +65,18 @@ export default function ProcedimentosPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const onSyncDone = () => {
+      console.log("🔄 [procedimentos] Sincronização concluída, recarregando dados...");
+      if (navigator.onLine) {
+        // Aguardar um pouco para garantir que o backend processou
+        setTimeout(() => load(), 500);
+      }
+    };
+    window.addEventListener("offline-sync-done", onSyncDone);
+    return () => window.removeEventListener("offline-sync-done", onSyncDone);
+  }, []);
+
   const openNew = () => {
     setEditing(null);
     setForm({ name: "", description: "", price: "", duration: "30" });
@@ -101,14 +113,56 @@ export default function ProcedimentosPage() {
     }
     setSaving(true);
     setError("");
+    const body = {
+      name: form.name.trim(),
+      description: form.description.trim() || null,
+      price: price.toFixed(2),
+      duration,
+      active: true,
+    };
+
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    if (isOffline) {
+      try {
+        const lojaSlug = getLojaSlug();
+        if (editing && editing.id > 0) {
+          await adicionarNaFilaSync({
+            tipo: "procedimento",
+            payload: { action: "update", id: editing.id, body },
+            lojaSlug,
+          });
+          const updatedList = list.map((p) =>
+            p.id === editing.id
+              ? { ...p, name: body.name, description: body.description, price: body.price, duration: body.duration }
+              : p
+          );
+          setList(updatedList);
+          await salvarProcedimentosOffline(updatedList);
+        } else {
+          await adicionarNaFilaSync({ tipo: "procedimento", payload: { action: "create", body }, lojaSlug });
+          const tempId = -Date.now();
+          const newProc: Procedure = {
+            id: tempId,
+            name: body.name,
+            description: body.description,
+            price: body.price,
+            duration: body.duration,
+            active: true,
+          };
+          const updatedList = [newProc, ...list];
+          setList(updatedList);
+          await salvarProcedimentosOffline(updatedList);
+        }
+        setShowModal(false);
+        alert("Salvo offline. O procedimento será sincronizado quando você estiver online.");
+      } catch {
+        setError("Erro ao salvar localmente. Tente novamente.");
+      }
+      setSaving(false);
+      return;
+    }
+
     try {
-      const body = {
-        name: form.name.trim(),
-        description: form.description.trim() || null,
-        price: price.toFixed(2),
-        duration,
-        active: true,
-      };
       if (editing) {
         const res = await clinicaBelezaFetch(`/procedures/${editing.id}/`, {
           method: "PUT",
@@ -131,7 +185,47 @@ export default function ProcedimentosPage() {
       setShowModal(false);
       load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erro ao salvar");
+      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      const isNetworkError = msg.toLowerCase().includes("fetch") || msg === "Failed to fetch";
+      if (isNetworkError) {
+        try {
+          const lojaSlug = getLojaSlug();
+          if (editing && editing.id > 0) {
+            await adicionarNaFilaSync({
+              tipo: "procedimento",
+              payload: { action: "update", id: editing.id, body },
+              lojaSlug,
+            });
+            const updatedList = list.map((p) =>
+              p.id === editing.id
+                ? { ...p, name: body.name, description: body.description, price: body.price, duration: body.duration }
+                : p
+            );
+            setList(updatedList);
+            await salvarProcedimentosOffline(updatedList);
+          } else {
+            await adicionarNaFilaSync({ tipo: "procedimento", payload: { action: "create", body }, lojaSlug });
+            const tempId = -Date.now();
+            const newProc: Procedure = {
+              id: tempId,
+              name: body.name,
+              description: body.description,
+              price: body.price,
+              duration: body.duration,
+              active: true,
+            };
+            const updatedList = [newProc, ...list];
+            setList(updatedList);
+            await salvarProcedimentosOffline(updatedList);
+          }
+          setShowModal(false);
+          alert("Sem conexão. Procedimento salvo offline e será sincronizado quando você estiver online.");
+        } catch {
+          setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
+        }
+      } else {
+        setError(msg);
+      }
     } finally {
       setSaving(false);
     }

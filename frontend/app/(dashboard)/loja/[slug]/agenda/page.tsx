@@ -409,27 +409,18 @@ export default function AgendaPage() {
             const rawEnd = b.data_fim ?? "";
             let startStr: string;
             let endStr: string;
-            const motivoLower = (b.motivo ?? "").toLowerCase();
-            const isAlmoco = motivoLower.includes("almoço") || motivoLower.includes("almoco");
+            
+            // Sempre usar os horários originais do bloqueio
             if (typeof rawStart === "string" && rawStart.includes("T") && typeof rawEnd === "string" && rawEnd.includes("T")) {
-              const startDate = new Date(rawStart);
-              const endDate = new Date(rawEnd);
-              const durationHours = (endDate.getTime() - startDate.getTime()) / (60 * 60 * 1000);
-              if (isAlmoco || durationHours > 3.5) {
-                const y = startDate.getFullYear();
-                const m = String(startDate.getMonth() + 1).padStart(2, "0");
-                const d = String(startDate.getDate()).padStart(2, "0");
-                startStr = `${y}-${m}-${d}T12:00:00`;
-                endStr = `${y}-${m}-${d}T14:00:00`;
-              } else {
-                startStr = rawStart;
-                endStr = rawEnd;
-              }
+              startStr = rawStart;
+              endStr = rawEnd;
             } else {
+              // Fallback se não tiver horário (improvável)
               const datePart = rawStart ? String(rawStart).slice(0, 10) : "";
-              startStr = datePart ? `${datePart}T12:00:00` : "";
-              endStr = datePart ? `${datePart}T14:00:00` : "";
+              startStr = datePart ? `${datePart}T00:00:00` : "";
+              endStr = datePart ? `${datePart}T23:59:59` : "";
             }
+            
             return {
               id: `bloqueio-${b.id}`,
               title: `🚫 ${b.motivo}`,

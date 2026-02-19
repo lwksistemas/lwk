@@ -314,17 +314,38 @@ class ProfessionalListView(APIView):
     def post(self, request):
         import logging
         log = logging.getLogger(__name__)
-        data = dict(request.data)
-        # Normalizar email/phone vazios para None (evita 400 em ProfessionalSerializer)
+        raw = request.data
+        if not isinstance(raw, dict) and hasattr(raw, 'items'):
+            raw = dict(raw)
+        if not isinstance(raw, dict):
+            raw = {}
+
         def _empty_to_none(v):
+            if v is None:
+                return None
+            if isinstance(v, list):
+                v = v[0] if len(v) == 1 else None
             if v is None:
                 return None
             if isinstance(v, str) and (v.strip() == '' or v.strip().lower() == 'null'):
                 return None
             return v
+
+        data = {}
+        for k, v in raw.items():
+            if isinstance(v, list) and len(v) == 1:
+                v = v[0]
+            data[k] = v
+
         for key in ('email', 'phone'):
             if key in data:
                 data[key] = _empty_to_none(data[key])
+
+        # name/specialty: strip e não enviar string vazia (evita "blank" no serializer)
+        for key in ('name', 'specialty'):
+            if key in data and isinstance(data[key], str):
+                data[key] = (data[key] or '').strip() or None
+
         criar_acesso = data.get('criar_acesso') and data.get('email')
         if criar_acesso:
             serializer = ProfessionalCreateWithUserSerializer(data=data)
@@ -336,7 +357,19 @@ class ProfessionalListView(APIView):
                 )
             log.warning('POST professionals (criar_acesso): validation errors %s', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        serializer = ProfessionalSerializer(data=data)
+
+        # Apenas campos do model Professional; active como booleano
+        active_val = data.get('active', True)
+        if isinstance(active_val, str):
+            active_val = active_val.strip().lower() in ('1', 'true', 'yes', 'on')
+        payload = {
+            'name': data.get('name') or '',
+            'specialty': data.get('specialty') or '',
+            'phone': data.get('phone'),
+            'email': data.get('email'),
+            'active': bool(active_val),
+        }
+        serializer = ProfessionalSerializer(data=payload)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)

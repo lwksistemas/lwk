@@ -252,9 +252,23 @@ export default function ProfissionaisPage() {
           const messages: string[] = [];
           if (typeof err.detail === "string") messages.push(err.detail);
           else if (Array.isArray(err.detail)) messages.push(...(err.detail as string[]));
-          for (const v of Object.values(err)) {
-            if (Array.isArray(v) && v.every((x) => typeof x === "string")) messages.push(...(v as string[]));
+          
+          // Processar erros de campos específicos (como email)
+          for (const [key, v] of Object.entries(err)) {
+            if (key === 'email' && Array.isArray(v)) {
+              // Melhorar mensagem de erro de email duplicado
+              const emailErrors = (v as string[]).map(msg => {
+                if (msg.includes('Já existe') || msg.includes('já existe')) {
+                  return `${msg}\n\nSoluções:\n• Desmarque "Criar acesso" para cadastrar sem login\n• Use um email diferente\n• Deixe o campo email vazio`;
+                }
+                return msg;
+              });
+              messages.push(...emailErrors);
+            } else if (Array.isArray(v) && v.every((x) => typeof x === "string")) {
+              messages.push(...(v as string[]));
+            }
           }
+          
           const errorMsg = messages.length ? messages.join(". ") : "Erro ao cadastrar";
           console.log('❌ Mensagem de erro formatada:', errorMsg);
           throw new Error(errorMsg);
@@ -445,7 +459,14 @@ export default function ProfissionaisPage() {
             </div>
             <div className="p-4 space-y-3">
               {error && (
-                <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">{error}</div>
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <div className="flex items-start gap-2">
+                    <span className="text-red-600 dark:text-red-400 text-lg">⚠️</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-800 dark:text-red-300 whitespace-pre-line">{error}</p>
+                    </div>
+                  </div>
+                </div>
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>

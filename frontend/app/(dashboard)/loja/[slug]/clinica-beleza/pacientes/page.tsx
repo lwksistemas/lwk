@@ -82,6 +82,8 @@ export default function PacientesPage() {
         if (res.ok) {
           const arr = Array.isArray(data) ? data : [];
           setList(arr);
+          // Salvar dados da API, substituindo completamente os dados offline
+          // Isso remove pacientes temporários (IDs negativos) que já foram sincronizados
           await salvarPacientesOffline(arr);
         } else setList([]);
       }
@@ -101,7 +103,13 @@ export default function PacientesPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    const onSyncDone = () => load();
+    const onSyncDone = async () => {
+      console.log("🔄 [pacientes] Sincronização concluída, recarregando dados...");
+      if (navigator.onLine) {
+        // Aguardar um pouco para garantir que o backend processou
+        setTimeout(() => load(), 500);
+      }
+    };
     window.addEventListener("offline-sync-done", onSyncDone);
     return () => window.removeEventListener("offline-sync-done", onSyncDone);
   }, []);

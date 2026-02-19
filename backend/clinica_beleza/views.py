@@ -254,9 +254,18 @@ class ProfessionalListView(APIView):
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
+        with_schedule = request.query_params.get('with_schedule', 'false').lower() == 'true'
+        
         queryset = Professional.objects.all().order_by('name')
         if active_only:
             queryset = queryset.filter(active=True)
+        
+        # Filtrar apenas profissionais com horários de trabalho configurados
+        if with_schedule:
+            queryset = queryset.filter(
+                id__in=HorarioTrabalhoProfissional.objects.filter(ativo=True).values_list('professional_id', flat=True).distinct()
+            )
+        
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
         serializer = ProfessionalSerializer(
             queryset, many=True,

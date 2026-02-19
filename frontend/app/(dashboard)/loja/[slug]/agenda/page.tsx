@@ -374,7 +374,7 @@ export default function AgendaPage() {
         const [resEventos, resBloqueios, resProfessionals, resPatients, resProcedures] = await Promise.all([
           clinicaBelezaFetch(agendaPath),
           clinicaBelezaFetch(bloqueiosPath),
-          clinicaBelezaFetch("/professionals/"),
+          clinicaBelezaFetch("/professionals/?with_schedule=true"), // Apenas profissionais com horários configurados
           clinicaBelezaFetch("/patients/"),
           clinicaBelezaFetch("/procedures/"),
         ]);
@@ -382,10 +382,12 @@ export default function AgendaPage() {
         const profs: Professional[] = resProfessionals.ok ? await resProfessionals.json() : [];
         const pacs: Patient[] = resPatients.ok ? await resPatients.json() : [];
         const procs: Procedure[] = resProcedures.ok ? await resProcedures.json() : [];
+        
         if (profs.length) {
           setProfessionals(profs);
           await salvarProfissionaisOffline(profs);
         }
+        
         if (pacs.length) {
           setPatients(pacs);
           await salvarPacientesOffline(pacs);

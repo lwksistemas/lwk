@@ -83,7 +83,8 @@ class TenantMiddleware:
                         import os
                         DATABASE_URL = os.environ.get('DATABASE_URL')
                         if DATABASE_URL and db_name not in settings.DATABASES:
-                            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+                            # CONN_MAX_AGE=0 para tenant: fecha conexão ao fim do request e evita "too many connections" no Postgres
+                            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
                             # ✅ Usar database_name da loja (ex: loja_salao_000172) ao invés de loja_{id}
                             schema_name = db_name.replace('-', '_')
                             settings.DATABASES[db_name] = {
@@ -93,8 +94,8 @@ class TenantMiddleware:
                                 },
                                 'ATOMIC_REQUESTS': False,
                                 'AUTOCOMMIT': True,
-                                'CONN_MAX_AGE': 600,
-                                'CONN_HEALTH_CHECKS': True,
+                                'CONN_MAX_AGE': 0,
+                                'CONN_HEALTH_CHECKS': False,
                                 'TIME_ZONE': None,
                             }
                             logger.debug(f"✅ [TenantMiddleware] Banco '{db_name}' configurado com schema '{schema_name}'")

@@ -19,11 +19,14 @@ def _ensure_loja_db(loja):
             import dj_database_url
             url = os.environ.get('DATABASE_URL')
             if url:
-                default_db = dj_database_url.config(default=url, conn_max_age=600)
+                # conn_max_age=0 para não acumular conexões no worker (evitar "too many connections")
+                default_db = dj_database_url.config(default=url, conn_max_age=0)
                 schema = db_name.replace('-', '_')
                 settings.DATABASES[db_name] = {
                     **default_db,
                     'OPTIONS': {'options': f'-c search_path={schema},public'},
+                    'CONN_MAX_AGE': 0,
+                    'CONN_HEALTH_CHECKS': False,
                 }
         except Exception:
             pass

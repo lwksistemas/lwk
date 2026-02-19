@@ -365,7 +365,8 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 
                 DATABASE_URL = os.environ.get('DATABASE_URL')
                 if DATABASE_URL:
-                    default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+                    # CONN_MAX_AGE=0 para não acumular conexões (evitar "too many connections" no Postgres)
+                    default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
                     settings.DATABASES[loja.database_name] = {
                         **default_db,
                         'OPTIONS': {
@@ -373,8 +374,8 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                         },
                         'ATOMIC_REQUESTS': False,
                         'AUTOCOMMIT': True,
-                        'CONN_MAX_AGE': 600,
-                        'CONN_HEALTH_CHECKS': True,
+                        'CONN_MAX_AGE': 0,
+                        'CONN_HEALTH_CHECKS': False,
                         'TIME_ZONE': None,
                     }
                     print(f"✅ Configuração de banco adicionada para '{loja.database_name}'")
@@ -415,7 +416,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                                 prof = Professional.objects.using(loja.database_name).create(
                                     name=owner_name,
                                     email=owner_email,
-                                    phone='',
+                                    phone=owner_telefone or '',
                                     specialty='Administrador',
                                     active=True,
                                     loja_id=loja.id,
@@ -521,7 +522,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                             prof = Professional.objects.using(loja.database_name).create(
                                 name=owner_name,
                                 email=owner_email,
-                                phone='',
+                                phone=getattr(loja, 'owner_telefone', '') or '',
                                 specialty='Administrador',
                                 active=True,
                                 loja_id=loja.id,

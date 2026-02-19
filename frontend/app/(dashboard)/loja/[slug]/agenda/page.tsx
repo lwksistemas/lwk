@@ -79,6 +79,16 @@ interface Professional {
   specialty: string;
 }
 
+interface HorarioTrabalho {
+  id: number;
+  dia_semana: number;
+  hora_entrada: string;
+  hora_saida: string;
+  intervalo_inicio: string | null;
+  intervalo_fim: string | null;
+  ativo: boolean;
+}
+
 interface Patient {
   id: number;
   name: string;
@@ -112,6 +122,7 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(true);
   const [selectedProfessional, setSelectedProfessional] = useState<string>("");
   const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [horariosTrabalho, setHorariosTrabalho] = useState<HorarioTrabalho[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<AgendaEvent | null>(null);
   
@@ -210,6 +221,28 @@ export default function AgendaPage() {
     }
   }, [selectedProfessional, calendarPlugins]);
 
+  // Carregar horários de trabalho quando selecionar profissional
+  useEffect(() => {
+    const carregarHorarios = async () => {
+      if (!selectedProfessional) {
+        setHorariosTrabalho([]);
+        return;
+      }
+      try {
+        const res = await clinicaBelezaFetch(`/professionals/${selectedProfessional}/horarios-trabalho/`);
+        if (res.ok) {
+          const data = await res.json();
+          setHorariosTrabalho(Array.isArray(data) ? data : []);
+        } else {
+          setHorariosTrabalho([]);
+        }
+      } catch {
+        setHorariosTrabalho([]);
+      }
+    };
+    carregarHorarios();
+  }, [selectedProfessional]);
+
   // Layout responsivo: no celular usar view do dia e toolbar compacta
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 640);
@@ -235,6 +268,64 @@ export default function AgendaPage() {
     return {
       id: String(e.id),
       title: titulo,
+      start: e.start,
+      end: e.end,
+      allDay: false,
+      backgroundColor: cores.bg,
+      borderColor: cores.border,
+      textColor: "#fff",
+      editable: e.status !== "CANCELLED",
+      extendedProps: {
+        dbId: e.id,
+        status: e.status,
+        patient_name: e.patient_name,
+        patient_phone: e.patient_phone,
+        professional_name: e.professional_name,
+        procedure_name: e.procedure_name,
+        procedure_duration: e.procedure_duration,
+        procedure_price: e.procedure_price,
+        notes: e.notes,
+        version: e.version,
+        updated_at: e.updated_at,
+      },
+    };
+  };
+
+  // Converter horários de trabalho para formato businessHours do FullCalendar
+  const getBusinessHours = () => {
+    if (!selectedProfessional || horariosTrabalho.length === 0) {
+      // Padrão: segunda a sábado, 8h às 18h
+      return {
+        daysOfWeek: [1, 2, 3, 4, 5, 6],
+        startTime: "08:00",
+        endTime: "18:00",
+      };
+    }
+
+    // Converter horários de trabalho para formato do FullCalendar
+    return horariosTrabalho
+      .filter((h) => h.ativo)
+      .map((h) => ({
+        daysOfWeek: [h.dia_semana === 6 ? 0 : h.dia_semana + 1], // FullCalendar: 0=domingo, 1=segunda
+        startTime: h.hora_entrada.slice(0, 5),
+        endTime: h.hora_saida.slice(0, 5),
+      }));
+  };
+
+  // Obter dias ocultos (dias que o profissional NÃO trabalha)
+  const getHiddenDays = () => {
+    if (!selectedProfessional || horariosTrabalho.length === 0) {
+      return [0]; // Ocultar apenas domingo por padrão
+    }
+
+    const diasAtivos = horariosTrabalho
+      .filter((h) => h.ativo)
+      .map((h) => (h.dia_semana === 6 ? 0 : h.dia_semana + 1));
+
+    // Retornar dias que NÃO estão na lista de dias ativos
+    const todosDias = [0, 1, 2, 3, 4, 5, 6];
+    return todosDias.filter((dia) => !diasAtivos.includes(dia));
+  };
       start: e.start,
       end: e.end,
       allDay: false, // Forçar que não é evento de dia inteiro
@@ -781,11 +872,8 @@ export default function AgendaPage() {
               slotMaxTime="20:00:00"
               allDaySlot={false}
               slotDuration="00:30:00"
-              businessHours={{
-                daysOfWeek: [1, 2, 3, 4, 5, 6],
-                startTime: "08:00",
-                endTime: "18:00",
-              }}
+              businessHours={getBusinessHours()}
+              hiddenDays={getHiddenDays()}
             />
           )}
         </div>

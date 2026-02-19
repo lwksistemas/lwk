@@ -8,6 +8,7 @@ from rest_framework import status
 from django.utils.timezone import now
 from django.db.models import Count, Q, Sum
 from django.core.exceptions import ValidationError
+from django.core.cache import cache
 from datetime import timedelta, date
 from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario, CampanhaPromocao
 from rules.base import MotorRegras
@@ -18,70 +19,7 @@ from .serializers import (
     PaymentSerializer, AgendaEventSerializer, BloqueioHorarioSerializer
 )
 from tenants.middleware import get_current_loja_id
-
-
-def _get_owner_professional_id():
-    """ID do Professional (schema tenant) vinculado ao owner da loja atual. None se não houver."""
-    loja_id = get_current_loja_id()
-    if not loja_id:
-        return None
-    try:
-        from superadmin.models import Loja, ProfissionalUsuario
-        loja = Loja.objects.using('default').get(id=loja_id)
-        pu = ProfissionalUsuario.objects.using('default').filter(
-            loja_id=loja_id, user_id=loja.owner_id
-        ).first()
-        return pu.professional_id if pu else None
-    except Exception:
-        return None
-
-
-def _get_loja_owner_info():
-    """Dados do administrador da loja atual: username, email, telefone. None se não houver contexto."""
-    loja_id = get_current_loja_id()
-    if not loja_id:
-        return None
-    try:
-        from superadmin.models import Loja
-        loja = Loja.objects.using('default').select_related('owner').get(id=loja_id)
-        return {
-            'owner_username': loja.owner.username,
-            'owner_email': loja.owner.email or '',
-            'owner_telefone': getattr(loja, 'owner_telefone', '') or '',
-        }
-    except Exception:
-        return None
-
-
-def _get_whatsapp_config_for_loja(loja_id=None, request=None):
-    """
-    Retorna (config, loja) para a loja atual, ou (None, None).
-    Usado para envio de confirmação/lembrete WhatsApp. Se loja_id não for passado, usa get_current_loja_id()
-    e opcionalmente request (headers X-Loja-ID / X-Tenant-Slug) como fallback.
-    """
-    lid = loja_id or get_current_loja_id()
-    if not lid and request:
-        try:
-            lid = request.headers.get('X-Loja-ID')
-            if lid:
-                lid = int(lid)
-        except (ValueError, TypeError):
-            lid = None
-        if not lid and request.headers.get('X-Tenant-Slug'):
-            from superadmin.models import Loja
-            loja = Loja.objects.using('default').filter(slug__iexact=request.headers.get('X-Tenant-Slug').strip()).first()
-            if loja:
-                lid = loja.id
-    if not lid:
-        return None, None
-    try:
-        from superadmin.models import Loja
-        from whatsapp.models import WhatsAppConfig
-        loja = Loja.objects.using('default').get(id=lid)
-        config = getattr(loja, 'whatsapp_config', None) or WhatsAppConfig.objects.filter(loja=loja).first()
-        return config, loja
-    except Exception:
-        return None, None
+from .utils import LojaContextHelper
 
 
 class LojaInfoView(APIView):
@@ -92,7 +30,7 @@ class LojaInfoView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        info = _get_loja_owner_info()
+        info = LojaContextHelper.get_loja_owner_info()
         if info is None:
             return Response(
                 {'error': 'Contexto de loja não encontrado'},
@@ -109,7 +47,18 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        loja_id = get_current_loja_id()
         today = now().date()
+        
+        # Filtros para cache key
+        period = (request.query_params.get('period') or 'hoje').strip().lower()
+        professional_id = request.query_params.get('professional')
+        cache_key = f'clinica_beleza_dashboard_{loja_id}_{today}_{period}_{professional_id or "all"}'
+        
+        # Tentar buscar do cache (5 minutos)
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data)
         
         # Estatísticas do dia
         appointments_today = Appointment.objects.filter(date__date=today).count()
@@ -128,28 +77,26 @@ class DashboardView(APIView):
             payment_date__lte=today
         ).aggregate(total=Sum('amount'))['total'] or 0
         
-        # Filtros para Próximos Atendimentos: period (hoje|semana), professional (id)
-        period = (request.query_params.get('period') or 'hoje').strip().lower()
-        professional_id = request.query_params.get('professional')
+        # Próximos Atendimentos
         start_date = today
-        end_date = today
-        if period == 'semana':
-            end_date = today + timedelta(days=6)
-        limit = 50 if period == 'semana' else 30
+        end_date = today if period == 'hoje' else today + timedelta(days=6)
+        limit = 30 if period == 'hoje' else 50
         
         next_appointments = Appointment.objects.filter(
             date__date__gte=start_date,
             date__date__lte=end_date,
             status__in=['SCHEDULED', 'CONFIRMED']
         ).select_related('patient', 'professional', 'procedure').order_by('date')
+        
         if professional_id:
             try:
                 next_appointments = next_appointments.filter(professional_id=int(professional_id))
             except (ValueError, TypeError):
                 pass
+        
         next_appointments = next_appointments[:limit]
         
-        return Response({
+        data = {
             'statistics': {
                 'appointments_today': appointments_today,
                 'patients_total': patients_total,
@@ -157,7 +104,12 @@ class DashboardView(APIView):
                 'revenue_month': float(revenue_month)
             },
             'next_appointments': AppointmentListSerializer(next_appointments, many=True).data
-        })
+        }
+        
+        # Salvar no cache por 5 minutos
+        cache.set(cache_key, data, 300)
+        
+        return Response(data)
 
 
 class AppointmentListView(APIView):
@@ -304,7 +256,7 @@ class ProfessionalListView(APIView):
         queryset = Professional.objects.all().order_by('name')
         if active_only:
             queryset = queryset.filter(active=True)
-        owner_professional_id = _get_owner_professional_id()
+        owner_professional_id = LojaContextHelper.get_owner_professional_id()
         serializer = ProfessionalSerializer(
             queryset, many=True,
             context={'owner_professional_id': owner_professional_id}
@@ -313,12 +265,14 @@ class ProfessionalListView(APIView):
 
     def post(self, request):
         import logging
+        import json
         log = logging.getLogger(__name__)
         raw = request.data
         if not isinstance(raw, dict) and hasattr(raw, 'items'):
             raw = dict(raw)
         if not isinstance(raw, dict):
             raw = {}
+        log.warning('POST professionals raw keys=%s', list(raw.keys()))
 
         def _empty_to_none(v):
             if v is None:
@@ -358,13 +312,32 @@ class ProfessionalListView(APIView):
             log.warning('POST professionals (criar_acesso): validation errors %s', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        # Validação antecipada para mensagem clara
+        def _str_val(key):
+            v = data.get(key)
+            if isinstance(v, list):
+                v = v[0] if v else ''
+            return (v or '').strip() if isinstance(v, str) else ''
+        name_val = _str_val('name')
+        specialty_val = _str_val('specialty')
+        if not name_val or not specialty_val:
+            missing = []
+            if not name_val:
+                missing.append('nome')
+            if not specialty_val:
+                missing.append('especialidade')
+            return Response(
+                {'detail': f'Preencha {", ".join(missing)}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Apenas campos do model Professional; active como booleano
         active_val = data.get('active', True)
         if isinstance(active_val, str):
             active_val = active_val.strip().lower() in ('1', 'true', 'yes', 'on')
         payload = {
-            'name': data.get('name') or '',
-            'specialty': data.get('specialty') or '',
+            'name': name_val,
+            'specialty': specialty_val,
             'phone': data.get('phone'),
             'email': data.get('email'),
             'active': bool(active_val),
@@ -373,7 +346,8 @@ class ProfessionalListView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        log.warning('POST professionals: validation errors %s', serializer.errors)
+        err_msg = json.dumps(serializer.errors, ensure_ascii=False)
+        log.warning('POST professionals 400 payload=%s errors=%s', payload, err_msg)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -384,7 +358,7 @@ class ProfessionalDetailView(APIView):
     def get(self, request, pk):
         try:
             obj = Professional.objects.get(pk=pk)
-            owner_professional_id = _get_owner_professional_id()
+            owner_professional_id = LojaContextHelper.get_owner_professional_id()
             return Response(ProfessionalSerializer(
                 obj, context={'owner_professional_id': owner_professional_id}
             ).data)
@@ -392,7 +366,7 @@ class ProfessionalDetailView(APIView):
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, pk):
-        owner_professional_id = _get_owner_professional_id()
+        owner_professional_id = LojaContextHelper.get_owner_professional_id()
         if owner_professional_id is not None and int(pk) == owner_professional_id:
             return Response(
                 {'error': 'O administrador vinculado à loja não pode ser editado.'},
@@ -409,7 +383,7 @@ class ProfessionalDetailView(APIView):
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
     def delete(self, request, pk):
-        owner_professional_id = _get_owner_professional_id()
+        owner_professional_id = LojaContextHelper.get_owner_professional_id()
         if owner_professional_id is not None and int(pk) == owner_professional_id:
             return Response(
                 {'error': 'O administrador vinculado à loja não pode ser excluído.'},
@@ -778,7 +752,7 @@ class AgendaUpdateView(APIView):
             if new_status == 'CONFIRMED':
                 try:
                     if getattr(appointment.patient, 'allow_whatsapp', True):
-                        config, _ = _get_whatsapp_config_for_loja(request=request)
+                        config, _ = LojaContextHelper.get_whatsapp_config(request=request)
                         if config and config.enviar_confirmacao:
                             from whatsapp.services import enviar_confirmacao_agendamento
                             enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
@@ -860,7 +834,7 @@ class AgendaCreateView(APIView):
                     if not (patient_phone and str(patient_phone).strip()):
                         logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — paciente sem telefone", appointment.id)
                     else:
-                        config, _ = _get_whatsapp_config_for_loja(request=request)
+                        config, _ = LojaContextHelper.get_whatsapp_config(request=request)
                         if not config:
                             logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — contexto/config loja ausente", appointment.id)
                         elif not config.enviar_confirmacao:
@@ -923,7 +897,7 @@ class AgendaReenviarMensagemView(APIView):
             return Response({'sent': False, 'message': 'Paciente não permite receber WhatsApp.'}, status=status.HTTP_200_OK)
         if not (getattr(appointment.patient, 'phone', None) or '').strip():
             return Response({'sent': False, 'message': 'Paciente sem telefone cadastrado.'}, status=status.HTTP_200_OK)
-        config, _ = _get_whatsapp_config_for_loja(request=request)
+        config, _ = LojaContextHelper.get_whatsapp_config(request=request)
         if not config or not config.enviar_confirmacao:
             return Response({'sent': False, 'message': 'Envio de confirmação desativado nas Configurações.'}, status=status.HTTP_200_OK)
         from whatsapp.services import enviar_confirmacao_agendamento
@@ -1260,7 +1234,7 @@ class CampanhaPromocaoEnviarView(APIView):
             campanha = CampanhaPromocao.objects.get(pk=pk)
         except CampanhaPromocao.DoesNotExist:
             return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
-        config, _ = _get_whatsapp_config_for_loja(request=request)
+        config, _ = LojaContextHelper.get_whatsapp_config(request=request)
         if not config or not getattr(config, 'whatsapp_ativo', False):
             return Response({'error': 'WhatsApp não está ativo. Configure em Configurações.'}, status=status.HTTP_400_BAD_REQUEST)
         from whatsapp.services import send_whatsapp

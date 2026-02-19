@@ -115,6 +115,12 @@ class Appointment(LojaIsolationMixin, models.Model):
         verbose_name = "Agendamento"
         verbose_name_plural = "Agendamentos"
         ordering = ['-date']
+        indexes = [
+            models.Index(fields=['date', 'status']),
+            models.Index(fields=['professional', 'date']),
+            models.Index(fields=['patient', 'date']),
+            models.Index(fields=['loja_id', 'date']),
+        ]
 
     def __str__(self):
         return f"{self.patient.name} - {self.procedure.name} - {self.date.strftime('%d/%m/%Y %H:%M')}"
@@ -146,6 +152,11 @@ class BloqueioHorario(LojaIsolationMixin, models.Model):
         verbose_name = "Bloqueio de Horário"
         verbose_name_plural = "Bloqueios de Horário"
         ordering = ["-data_inicio"]
+        indexes = [
+            models.Index(fields=['data_inicio', 'data_fim']),
+            models.Index(fields=['professional', 'data_inicio']),
+            models.Index(fields=['loja_id', 'data_inicio']),
+        ]
 
     def __str__(self):
         return f"{self.motivo} ({self.data_inicio} - {self.data_fim})"
@@ -185,6 +196,11 @@ class Payment(LojaIsolationMixin, models.Model):
         verbose_name = "Pagamento"
         verbose_name_plural = "Pagamentos"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'payment_date']),
+            models.Index(fields=['appointment', 'status']),
+            models.Index(fields=['loja_id', 'payment_date']),
+        ]
 
     def save(self, *args, **kwargs):
         if self.amount is not None and self.comissao_percentual is not None:

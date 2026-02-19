@@ -4,7 +4,7 @@
  */
 
 import { obterFilaSync, removerItemFilaSync } from "./offline-db";
-import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "./clinica-beleza-api";
+import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders, clinicaBelezaFetch } from "./clinica-beleza-api";
 
 let syncInProgress = false;
 
@@ -35,36 +35,40 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
       try {
         if (item.tipo === "agendamento") {
           const baseURL = getClinicaBelezaBaseUrl();
-          const headers = getClinicaBelezaHeaders();
           console.log(`📤 [offline-sync] Enviando agendamento para ${baseURL}/agenda/create/`);
           console.log(`📦 [offline-sync] Payload:`, item.payload);
-          const res = await fetch(`${baseURL}/agenda/create/`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify(item.payload),
-          });
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            console.error(`❌ [offline-sync] Resposta de erro (${res.status}):`, data);
-            
-            // Se for erro 400 (validação), pode ser ID inválido - remover da fila
-            if (res.status === 400) {
-              const errorMsg = data.error || JSON.stringify(data);
-              console.warn(`⚠️ [offline-sync] Erro de validação (400), removendo da fila: ${errorMsg}`);
-              await removerItemFilaSync(key);
-              erros++;
-              // Mostrar erro específico ao usuário
-              if (typeof window !== "undefined") {
-                alert(`❌ Agendamento não pôde ser sincronizado:\n\n${errorMsg}\n\nO item foi removido da fila.`);
+          try {
+            const res = await clinicaBelezaFetch("/agenda/create/", {
+              method: "POST",
+              body: JSON.stringify(item.payload),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              console.error(`❌ [offline-sync] Resposta de erro (${res.status}):`, data);
+              if (res.status === 400) {
+                const errorMsg = data.error || JSON.stringify(data);
+                console.warn(`⚠️ [offline-sync] Erro de validação (400), mantendo na fila para retry: ${errorMsg}`);
+                erros++;
+                if (typeof window !== "undefined") {
+                  alert(`❌ Agendamento não pôde ser sincronizado:\n\n${errorMsg}\n\nO item permanece na fila. Corrija (ex.: outro horário) e clique em 🔄 Sincronizar agora.`);
+                }
+                continue;
               }
-              continue;
+              throw new Error(data.error || `Erro ${res.status}`);
             }
-            
-            throw new Error(data.error || `Erro ${res.status}`);
+            await removerItemFilaSync(key);
+            console.log(`✅ [offline-sync] Agendamento sincronizado com sucesso`);
+            enviados++;
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg === "SESSION_ENDED" || msg.includes("401") || msg.includes("sessão")) {
+              console.warn(`⚠️ [offline-sync] Sessão expirada ao sincronizar agendamento. Faça login novamente.`);
+              if (typeof window !== "undefined") {
+                alert("Sessão expirada. Faça login novamente para sincronizar o agendamento pendente.");
+              }
+            }
+            throw e;
           }
-          await removerItemFilaSync(key);
-          console.log(`✅ [offline-sync] Agendamento sincronizado com sucesso`);
-          enviados++;
         }
 
         if (item.tipo === "paciente") {

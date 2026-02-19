@@ -1,25 +1,38 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+
+/** Obtém loja_slug no momento do envio: params, sessionStorage ou pathname. */
+function getLojaSlugAtSendTime(): string {
+  if (typeof window === 'undefined') return '';
+  const fromSession = sessionStorage.getItem('loja_slug');
+  if (fromSession?.trim()) return fromSession.trim();
+  const match = window.location.pathname.match(/^\/loja\/([^/]+)(\/|$)/);
+  if (match?.[1]) return match[1];
+  return '';
+}
 
 /**
  * Captura erros do navegador (window.onerror, unhandledrejection) e envia
- * para o backend por loja (sessão única). Usado no painel "Detalhes" do suporte.
- * Não sobrecarrega: só envia quando ocorre um erro.
+ * para o backend por loja. Usado no painel "Detalhes" do suporte.
+ * Só envia quando há erro; loja_slug é obtido na hora (params, session ou URL).
  */
 export default function CapturaErrosNavegador() {
   const params = useParams();
-  const slug = (params?.slug as string) || '';
+  const pathname = usePathname();
+  const slugFromParams = (params?.slug as string) || '';
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !slug) return;
-
-    const lojaSlug = slug || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('loja_slug') : null) || '';
+    if (typeof window === 'undefined') return;
+    // Só capturar quando estiver em uma rota de loja (/loja/[slug]/...)
+    if (!pathname?.startsWith('/loja/')) return;
 
     const enviar = (mensagem: string, stack?: string, url?: string) => {
-      if (!mensagem) return;
+      if (!mensagem?.trim()) return;
+      const lojaSlug = slugFromParams.trim() || getLojaSlugAtSendTime();
+      if (!lojaSlug) return; // evita enviar como "sistema" quando estamos numa loja
       const payload = {
         mensagem: mensagem.slice(0, 500),
         stack: (stack || '').slice(0, 5000),
@@ -47,7 +60,7 @@ export default function CapturaErrosNavegador() {
       window.removeEventListener('error', onError);
       window.removeEventListener('unhandledrejection', onRejection);
     };
-  }, [slug]);
+  }, [pathname, slugFromParams]);
 
   return null;
 }

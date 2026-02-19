@@ -1,14 +1,21 @@
 """
-Script para criar Planos de Assinatura para Clínica da Beleza
+Script para criar Planos de Assinatura para Clínica da Beleza.
+Execute a partir da pasta backend: python scripts_arquivo_clinica_beleza/criar_planos_clinica_beleza.py
 """
 import os
-import django
+import sys
+from decimal import Decimal
+
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_backend_dir = os.path.dirname(_script_dir)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+import django
 django.setup()
 
 from superadmin.models import TipoLoja, PlanoAssinatura
-from decimal import Decimal
 
 def criar_planos_clinica_beleza():
     print("💎 Criando Planos de Assinatura para Clínica da Beleza...")
@@ -19,7 +26,7 @@ def criar_planos_clinica_beleza():
         print(f"✅ Tipo de loja encontrado: {tipo_clinica.nome}")
     except TipoLoja.DoesNotExist:
         print("❌ Tipo de loja 'Clínica da Beleza' não encontrado!")
-        print("Execute primeiro: python criar_tipo_loja_clinica_beleza.py")
+        print("Execute primeiro: python scripts_arquivo_clinica_beleza/criar_tipo_loja_clinica_beleza.py")
         return
     
     # Limpar planos existentes para este tipo de loja (opcional)

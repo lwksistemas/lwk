@@ -1,13 +1,17 @@
 """
-Script para adicionar coluna loja_id nas tabelas da Clínica da Beleza
+Script para adicionar coluna loja_id nas tabelas da Clínica da Beleza (one-off).
+Uso: cd backend && python scripts_arquivo_clinica_beleza/fix_clinica_beleza_schema.py <loja_id>
 """
 import os
-import django
 import sys
 
-# Setup Django
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_backend_dir = os.path.dirname(_script_dir)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+import django
 django.setup()
 
 from django.db import connection
@@ -17,15 +21,13 @@ def fix_clinica_beleza_schema(loja_id):
     """Adiciona coluna loja_id nas tabelas da Clínica da Beleza"""
     try:
         loja = Loja.objects.get(id=loja_id)
-        schema_name = loja.database_name  # Nome do schema PostgreSQL
+        schema_name = loja.database_name
         
         print(f"🔧 Corrigindo schema: {schema_name} (loja_id={loja_id})")
         
         with connection.cursor() as cursor:
-            # Setar o schema
             cursor.execute(f"SET search_path TO {schema_name}")
             
-            # Lista de tabelas para adicionar loja_id
             tables = [
                 'clinica_beleza_patient',
                 'clinica_beleza_professional',
@@ -36,7 +38,6 @@ def fix_clinica_beleza_schema(loja_id):
             ]
             
             for table in tables:
-                # Verificar se a coluna já existe
                 cursor.execute(f"""
                     SELECT column_name 
                     FROM information_schema.columns 
@@ -49,21 +50,17 @@ def fix_clinica_beleza_schema(loja_id):
                     print(f"  ✅ {table}: loja_id já existe")
                     continue
                 
-                # Adicionar coluna loja_id
                 print(f"  ➕ {table}: adicionando loja_id...")
                 cursor.execute(f"""
                     ALTER TABLE {schema_name}.{table} 
                     ADD COLUMN loja_id INTEGER NOT NULL DEFAULT {loja_id}
                 """)
                 
-                # Criar índice
-                print(f"  📊 {table}: criando índice...")
                 index_name = f"{table}_loja_id_idx"
                 cursor.execute(f"""
                     CREATE INDEX IF NOT EXISTS {index_name} 
                     ON {schema_name}.{table} (loja_id)
                 """)
-                
                 print(f"  ✅ {table}: concluído")
             
             print(f"✅ Schema {schema_name} corrigido com sucesso!")
@@ -77,9 +74,9 @@ def fix_clinica_beleza_schema(loja_id):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print("Uso: python fix_clinica_beleza_schema.py <loja_id>")
+        print("Uso: python scripts_arquivo_clinica_beleza/fix_clinica_beleza_schema.py <loja_id>")
         print("\nLojas disponíveis:")
-        for loja in Loja.objects.filter(tipo_loja__slug='clinica_beleza', is_active=True):
+        for loja in Loja.objects.filter(tipo_loja__slug='clinica-da-beleza'):
             print(f"  - ID: {loja.id}, Slug: {loja.slug}, Schema: {loja.database_name}")
         sys.exit(1)
     

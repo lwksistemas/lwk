@@ -1,11 +1,18 @@
 """
-Script para configurar Clínica da Beleza em produção (Heroku)
-Cria as tabelas manualmente via SQL
+Script para configurar Clínica da Beleza em produção (Heroku) – cria tabelas manualmente via SQL.
+Hoje o fluxo normal é via migrations. Use apenas se necessário.
+Execute a partir da pasta backend: python scripts_arquivo_clinica_beleza/setup_clinica_beleza_producao.py
 """
 import os
-import django
+import sys
+
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_backend_dir = os.path.dirname(_script_dir)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+import django
 django.setup()
 
 from django.db import connection
@@ -14,7 +21,6 @@ def criar_tabelas_clinica_beleza():
     print("🏥 Criando tabelas da Clínica da Beleza no Heroku...")
     
     with connection.cursor() as cursor:
-        # Criar tabela Patient
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS clinica_beleza_patient (
                 id SERIAL PRIMARY KEY,
@@ -32,7 +38,6 @@ def criar_tabelas_clinica_beleza():
         """)
         print("✅ Tabela clinica_beleza_patient criada")
         
-        # Criar tabela Professional
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS clinica_beleza_professional (
                 id SERIAL PRIMARY KEY,
@@ -47,7 +52,6 @@ def criar_tabelas_clinica_beleza():
         """)
         print("✅ Tabela clinica_beleza_professional criada")
         
-        # Criar tabela Procedure
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS clinica_beleza_procedure (
                 id SERIAL PRIMARY KEY,
@@ -62,7 +66,6 @@ def criar_tabelas_clinica_beleza():
         """)
         print("✅ Tabela clinica_beleza_procedure criada")
         
-        # Criar tabela Appointment
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS clinica_beleza_appointment (
                 id SERIAL PRIMARY KEY,
@@ -78,7 +81,6 @@ def criar_tabelas_clinica_beleza():
         """)
         print("✅ Tabela clinica_beleza_appointment criada")
         
-        # Criar tabela Payment
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS clinica_beleza_payment (
                 id SERIAL PRIMARY KEY,
@@ -94,7 +96,6 @@ def criar_tabelas_clinica_beleza():
         """)
         print("✅ Tabela clinica_beleza_payment criada")
         
-        # Registrar migração
         cursor.execute("""
             INSERT INTO django_migrations (app, name, applied)
             VALUES ('clinica_beleza', '0001_initial', NOW())
@@ -103,7 +104,6 @@ def criar_tabelas_clinica_beleza():
         print("✅ Migração registrada")
     
     print("\n✨ Tabelas criadas com sucesso!")
-    print("📝 Agora você pode executar: python criar_dados_clinica_beleza.py")
 
 if __name__ == '__main__':
     criar_tabelas_clinica_beleza()

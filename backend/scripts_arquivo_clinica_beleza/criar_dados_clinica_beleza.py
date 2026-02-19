@@ -1,11 +1,18 @@
 """
-Script para criar dados de teste para Clínica da Beleza
+Script para criar dados de teste para Clínica da Beleza (banco default).
+Execute a partir da pasta backend. Cuidado em produção.
 """
 import os
-import django
+import sys
 from datetime import datetime, timedelta
 
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_backend_dir = os.path.dirname(_script_dir)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+import django
 django.setup()
 
 from clinica_beleza.models import Patient, Professional, Procedure, Appointment, Payment
@@ -140,7 +147,6 @@ def criar_dados_teste():
     hoje = datetime.now()
     agendamentos = []
     
-    # Agendamentos de hoje
     horarios_hoje = [
         (9, 0, 'CONFIRMED'),
         (10, 30, 'CONFIRMED'),
@@ -161,7 +167,6 @@ def criar_dados_teste():
         )
         agendamentos.append(agendamento)
     
-    # Agendamentos futuros
     for dia in range(1, 8):
         data_futura = hoje + timedelta(days=dia)
         for hora in [9, 11, 14, 16]:

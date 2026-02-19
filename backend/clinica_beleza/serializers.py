@@ -14,7 +14,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     specialty = serializers.CharField(max_length=150)
-    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
     criar_acesso = serializers.BooleanField(default=False, write_only=True)
     perfil = serializers.ChoiceField(
         choices=[
@@ -136,10 +136,19 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
 
 
 class PatientSerializer(serializers.ModelSerializer):
-    """Serializer para Pacientes"""
+    """Serializer para Pacientes. Aceita phone opcional e birth_date em YYYY-MM-DD ou DD/MM/YYYY."""
+    phone = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
+    birth_date = serializers.DateField(required=False, allow_null=True, input_formats=['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'])
+
     class Meta:
         model = Patient
         exclude = ['loja_id']  # loja_id é preenchido automaticamente
+        extra_kwargs = {
+            'email': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'cpf': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'address': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'notes': {'required': False, 'allow_blank': True, 'allow_null': True},
+        }
 
 
 class ProfessionalSerializer(serializers.ModelSerializer):
@@ -150,8 +159,8 @@ class ProfessionalSerializer(serializers.ModelSerializer):
         model = Professional
         exclude = ['loja_id']  # loja_id é preenchido automaticamente
         extra_kwargs = {
-            'email': {'required': False, 'allow_blank': True},
-            'phone': {'required': False, 'allow_blank': True},
+            'email': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'phone': {'required': False, 'allow_blank': True, 'allow_null': True},
         }
 
     def get_is_administrador_vinculado(self, obj):

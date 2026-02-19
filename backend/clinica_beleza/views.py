@@ -431,10 +431,9 @@ class HorarioTrabalhoProfissionalView(APIView):
         created = []
         for item in request.data:
             item = dict(item)
-            item['professional'] = pk
             serializer = HorarioTrabalhoProfissionalSerializer(data=item)
             if serializer.is_valid():
-                obj = serializer.save()
+                obj = serializer.save(professional=professional)
                 created.append(HorarioTrabalhoProfissionalSerializer(obj).data)
             else:
                 HorarioTrabalhoProfissional.objects.filter(professional_id=pk).delete()

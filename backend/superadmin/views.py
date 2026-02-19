@@ -824,10 +824,21 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
     
     def destroy(self, request, *args, **kwargs):
-        """Exclusão completa do usuário (UsuarioSistema + User do Django)"""
+        """Exclusão completa do usuário (UsuarioSistema + User do Django). Não permite excluir se for owner de alguma loja."""
         usuario_sistema = self.get_object()
         user_django = usuario_sistema.user
         username = user_django.username
+
+        # Evitar órfãos e exclusão acidental: não excluir usuário que é dono de loja
+        lojas_owned = Loja.objects.filter(owner=user_django).exists()
+        if lojas_owned:
+            return Response(
+                {
+                    'error': 'Não é possível excluir usuário que é proprietário de uma ou mais lojas. Exclua as lojas primeiro ou transfira a propriedade.',
+                    'username': username,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         try:
             with transaction.atomic():

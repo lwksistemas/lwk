@@ -248,13 +248,16 @@ export default function ProfissionaisPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({})) as Record<string, unknown>;
+          console.log('❌ Erro ao criar profissional:', err);
           const messages: string[] = [];
           if (typeof err.detail === "string") messages.push(err.detail);
           else if (Array.isArray(err.detail)) messages.push(...(err.detail as string[]));
           for (const v of Object.values(err)) {
             if (Array.isArray(v) && v.every((x) => typeof x === "string")) messages.push(...(v as string[]));
           }
-          throw new Error(messages.length ? messages.join(". ") : "Erro ao cadastrar");
+          const errorMsg = messages.length ? messages.join(". ") : "Erro ao cadastrar";
+          console.log('❌ Mensagem de erro formatada:', errorMsg);
+          throw new Error(errorMsg);
         }
       }
       setShowModal(false);

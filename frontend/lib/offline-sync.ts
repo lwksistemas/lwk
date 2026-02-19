@@ -189,44 +189,84 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
 }
 
 let registered = false;
+let wasOffline = false;
+
+async function executarSincronizacaoAutomatica(): Promise<void> {
+  const pendentes = await obterFilaSync();
+  if (pendentes.length === 0) return;
+
+  console.log("🌐 [offline-sync] Conexão detectada. Sincronização automática...");
+  await new Promise((r) => setTimeout(r, 800));
+
+  const { enviados, erros } = await sincronizarFila();
+  console.log(`✅ [offline-sync] Sincronização automática: ${enviados} enviados, ${erros} erros`);
+
+  if (enviados > 0) {
+    window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      new Notification("Sincronização concluída", {
+        body: `${enviados} ${enviados === 1 ? "item foi sincronizado" : "itens foram sincronizados"} com sucesso!`,
+        icon: "/icon-192x192.png",
+      });
+    }
+  }
+  if (erros > 0) {
+    window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
+    if (typeof window !== "undefined") {
+      alert(
+        `⚠️ Atenção: ${erros} ${erros === 1 ? "item falhou" : "itens falharam"} ao sincronizar.\n\nVerifique o console (F12) ou use o botão 🗑️ para limpar a fila.`
+      );
+    }
+  }
+}
 
 export function registrarSincronizacaoAoVoltarOnline(): void {
   if (typeof window === "undefined" || registered) return;
   registered = true;
+  wasOffline = !navigator.onLine;
 
-  window.addEventListener("online", async () => {
-    console.log("🌐 [offline-sync] Internet voltou! Iniciando sincronização...");
-    
-    // Aguardar um pouco para garantir que a conexão está estável
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const { enviados, erros } = await sincronizarFila();
-    
-    console.log(`✅ [offline-sync] Sincronização concluída: ${enviados} enviados, ${erros} erros`);
-    
-    if (enviados > 0) {
-      // Notificar que a sincronização foi concluída
-      window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
-      
-      // Mostrar notificação ao usuário
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-        new Notification("Sincronização concluída", {
-          body: `${enviados} ${enviados === 1 ? 'item foi sincronizado' : 'itens foram sincronizados'} com sucesso!`,
-          icon: "/icon-192x192.png",
-        });
-      }
-    }
-    
-    if (erros > 0) {
-      console.warn(`⚠️ [offline-sync] ${erros} ${erros === 1 ? 'erro ocorreu' : 'erros ocorreram'} durante a sincronização`);
-      
-      // Mostrar alerta ao usuário sobre erros
-      if (typeof window !== "undefined") {
-        alert(`⚠️ Atenção: ${erros} ${erros === 1 ? 'item falhou' : 'itens falharam'} ao sincronizar.\n\nVerifique o console (F12) para mais detalhes ou use o botão 🗑️ para limpar a fila.`);
-      }
-      
-      // Disparar evento mesmo com erros para atualizar a interface
-      window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
-    }
+  // 1) Evento "online" do navegador (quando a internet volta)
+  window.addEventListener("online", () => {
+    console.log("🌐 [offline-sync] Evento online disparado. Iniciando sincronização automática...");
+    executarSincronizacaoAutomatica();
+    wasOffline = false;
   });
+
+  // 2) Ao voltar para a aba (útil quando "online" não dispara, ex.: alguns mobile/PWA)
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (!navigator.onLine) return;
+    obterFilaSync().then((pendentes) => {
+      if (pendentes.length > 0) {
+        console.log("🌐 [offline-sync] Aba ativa e online com itens na fila. Sincronizando...");
+        executarSincronizacaoAutomatica();
+      }
+    });
+  });
+
+  // 3) Verificação periódica quando há itens na fila (fallback para navegadores que não disparam "online")
+  const INTERVALO_MS = 15000; // 15 segundos
+  setInterval(async () => {
+    if (!navigator.onLine) {
+      wasOffline = true;
+      return;
+    }
+    const pendentes = await obterFilaSync();
+    if (pendentes.length === 0) return;
+    if (wasOffline) {
+      wasOffline = false;
+      console.log("🌐 [offline-sync] Conexão detectada (verificação periódica). Sincronizando...");
+      executarSincronizacaoAutomatica();
+    }
+  }, INTERVALO_MS);
+
+  // Se já está online e tem itens na fila ao carregar a página, sincronizar
+  if (navigator.onLine) {
+    obterFilaSync().then((pendentes) => {
+      if (pendentes.length > 0) {
+        console.log("🌐 [offline-sync] Página carregada online com itens na fila. Sincronizando...");
+        executarSincronizacaoAutomatica();
+      }
+    });
+  }
 }

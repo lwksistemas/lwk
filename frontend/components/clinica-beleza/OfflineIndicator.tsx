@@ -93,7 +93,10 @@ export function OfflineIndicator() {
         </span>
         {pendingCount > 0 && (
           <>
-            <span className="text-xs px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300">
+            <span
+              className="text-xs px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300"
+              title={online ? "Sincronização automática ativa. Clique no ícone para enviar agora." : "Será sincronizado automaticamente quando voltar a internet."}
+            >
               {pendingCount} na fila
             </span>
             {online && (
@@ -169,7 +172,10 @@ export function OfflineIndicator() {
                 </div>
               )}
             </div>
-            <div className="sticky bottom-0 bg-gray-50 dark:bg-neutral-700/50 px-6 py-4 border-t border-gray-200 dark:border-neutral-700">
+            <div className="sticky bottom-0 bg-gray-50 dark:bg-neutral-700/50 px-6 py-4 border-t border-gray-200 dark:border-neutral-700 space-y-1">
+              <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                ✓ Sincronização automática: ao voltar a internet (ou ao abrir a aba), os itens são enviados sozinhos.
+              </p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 💡 Dica: Abra o Console (F12) para ver logs detalhados de sincronização
               </p>

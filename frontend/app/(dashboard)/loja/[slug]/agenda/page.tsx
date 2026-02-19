@@ -326,29 +326,6 @@ export default function AgendaPage() {
     const todosDias = [0, 1, 2, 3, 4, 5, 6];
     return todosDias.filter((dia) => !diasAtivos.includes(dia));
   };
-      start: e.start,
-      end: e.end,
-      allDay: false, // Forçar que não é evento de dia inteiro
-      backgroundColor: cores.bg,
-      borderColor: cores.border,
-      textColor: "#fff",
-      editable: e.status !== "CANCELLED",
-      extendedProps: {
-        dbId: e.id,
-        status: e.status,
-        patient_name: e.patient_name,
-        patient_phone: e.patient_phone,
-        professional_name: e.professional_name,
-        procedure_name: e.procedure_name,
-        procedure_duration: e.procedure_duration,
-        procedure_price: e.procedure_price,
-        notes: e.notes || "",
-        isBloqueio: false,
-        version: e.version ?? 1,
-        updated_at: e.updated_at ?? undefined,
-      },
-    };
-  };
 
   const carregarDados = async () => {
     try {

@@ -327,6 +327,37 @@ export default function AgendaPage() {
     return todosDias.filter((dia) => !diasAtivos.includes(dia));
   };
 
+  // Obter horário mínimo e máximo baseado nos horários de trabalho
+  const getSlotMinTime = () => {
+    if (!selectedProfessional || horariosTrabalho.length === 0) {
+      return "07:00:00";
+    }
+    const horariosAtivos = horariosTrabalho.filter((h) => h.ativo);
+    if (horariosAtivos.length === 0) return "07:00:00";
+    
+    const menorHorario = horariosAtivos.reduce((min, h) => {
+      const hora = h.hora_entrada.slice(0, 5);
+      return hora < min ? hora : min;
+    }, "23:59");
+    
+    return menorHorario + ":00";
+  };
+
+  const getSlotMaxTime = () => {
+    if (!selectedProfessional || horariosTrabalho.length === 0) {
+      return "20:00:00";
+    }
+    const horariosAtivos = horariosTrabalho.filter((h) => h.ativo);
+    if (horariosAtivos.length === 0) return "20:00:00";
+    
+    const maiorHorario = horariosAtivos.reduce((max, h) => {
+      const hora = h.hora_saida.slice(0, 5);
+      return hora > max ? hora : max;
+    }, "00:00");
+    
+    return maiorHorario + ":00";
+  };
+
   const carregarDados = async () => {
     try {
       const online = typeof navigator !== "undefined" && navigator.onLine;
@@ -416,6 +447,47 @@ export default function AgendaPage() {
           });
         }
 
+        // Criar eventos de intervalo (almoço) baseados nos horários de trabalho
+        const intervalosAsEvents: any[] = [];
+        if (selectedProfessional && horariosTrabalho.length > 0) {
+          const hoje = new Date();
+          const diasParaMostrar = 30; // Mostrar intervalos para os próximos 30 dias
+          
+          for (let i = 0; i < diasParaMostrar; i++) {
+            const data = new Date(hoje);
+            data.setDate(hoje.getDate() + i);
+            const diaSemana = data.getDay(); // 0=domingo, 1=segunda, etc.
+            
+            // Converter dia da semana do JS para o formato do backend (0=segunda, 6=domingo)
+            const diaBackend = diaSemana === 0 ? 6 : diaSemana - 1;
+            
+            // Buscar horário de trabalho para este dia
+            const horario = horariosTrabalho.find(h => h.ativo && h.dia_semana === diaBackend);
+            
+            if (horario && horario.intervalo_inicio && horario.intervalo_fim) {
+              const y = data.getFullYear();
+              const m = String(data.getMonth() + 1).padStart(2, "0");
+              const d = String(data.getDate()).padStart(2, "0");
+              
+              intervalosAsEvents.push({
+                id: `intervalo-${selectedProfessional}-${y}${m}${d}`,
+                title: "🍽️ Intervalo",
+                start: `${y}-${m}-${d}T${horario.intervalo_inicio.slice(0, 5)}:00`,
+                end: `${y}-${m}-${d}T${horario.intervalo_fim.slice(0, 5)}:00`,
+                allDay: false,
+                backgroundColor: "#f59e0b",
+                borderColor: "#d97706",
+                textColor: "#fff",
+                editable: false,
+                extendedProps: {
+                  isIntervalo: true,
+                  professional_name: professionals.find(p => p.id === Number(selectedProfessional))?.name || "Profissional",
+                },
+              });
+            }
+          }
+        }
+
         // Mesclar agendamentos ainda na fila de sync (criados offline) para não sumirem ao recarregar
         const fila = await obterFilaSync();
         const pendentesAgenda = fila.filter((f) => f.tipo === "agendamento") as Array<{ id: number; payload: { date?: string; status?: string; patient?: number; professional?: number; procedure?: number; notes?: string | null } }>;
@@ -453,7 +525,7 @@ export default function AgendaPage() {
           };
         });
 
-        setEventos([...eventosFormatados, ...bloqueiosAsEvents, ...pendingEvents]);
+        setEventos([...eventosFormatados, ...bloqueiosAsEvents, ...intervalosAsEvents, ...pendingEvents]);
       } else {
         // --- OFFLINE: ler do IndexedDB
         const [agendaRaw, profs, pacs, procs] = await Promise.all([
@@ -465,15 +537,53 @@ export default function AgendaPage() {
         if (Array.isArray(profs)) setProfessionals(profs as Professional[]);
         if (Array.isArray(pacs)) setPatients(pacs as Patient[]);
         if (Array.isArray(procs)) setProcedures(procs as Procedure[]);
+        
+        // Criar eventos de intervalo mesmo offline
+        const intervalosAsEvents: any[] = [];
+        if (selectedProfessional && horariosTrabalho.length > 0) {
+          const hoje = new Date();
+          const diasParaMostrar = 30;
+          
+          for (let i = 0; i < diasParaMostrar; i++) {
+            const data = new Date(hoje);
+            data.setDate(hoje.getDate() + i);
+            const diaSemana = data.getDay();
+            const diaBackend = diaSemana === 0 ? 6 : diaSemana - 1;
+            const horario = horariosTrabalho.find(h => h.ativo && h.dia_semana === diaBackend);
+            
+            if (horario && horario.intervalo_inicio && horario.intervalo_fim) {
+              const y = data.getFullYear();
+              const m = String(data.getMonth() + 1).padStart(2, "0");
+              const d = String(data.getDate()).padStart(2, "0");
+              
+              intervalosAsEvents.push({
+                id: `intervalo-${selectedProfessional}-${y}${m}${d}`,
+                title: "🍽️ Intervalo",
+                start: `${y}-${m}-${d}T${horario.intervalo_inicio.slice(0, 5)}:00`,
+                end: `${y}-${m}-${d}T${horario.intervalo_fim.slice(0, 5)}:00`,
+                allDay: false,
+                backgroundColor: "#f59e0b",
+                borderColor: "#d97706",
+                textColor: "#fff",
+                editable: false,
+                extendedProps: {
+                  isIntervalo: true,
+                  professional_name: (profs as Professional[]).find(p => p.id === Number(selectedProfessional))?.name || "Profissional",
+                },
+              });
+            }
+          }
+        }
+        
         if (Array.isArray(agendaRaw) && agendaRaw.length > 0) {
           let list = agendaRaw as any[];
           if (selectedProfessional) {
             list = list.filter((e: any) => String(e.professional) === selectedProfessional);
           }
           const eventosFormatados = list.map((e: any) => formatarEvento(e));
-          setEventos(eventosFormatados);
+          setEventos([...eventosFormatados, ...intervalosAsEvents]);
         } else {
-          setEventos([]);
+          setEventos(intervalosAsEvents);
         }
       }
 
@@ -529,6 +639,11 @@ export default function AgendaPage() {
   };
 
   const handleEventClick = (info: any) => {
+    // Não permitir clicar em intervalos
+    if (info.event.extendedProps?.isIntervalo) {
+      return;
+    }
+    
     if (info.event.extendedProps?.isBloqueio) {
       setSelectedBloqueio({
         id: info.event.extendedProps.bloqueioId,
@@ -815,6 +930,7 @@ export default function AgendaPage() {
         <span className="font-medium text-gray-600 dark:text-gray-400">Status:</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#22c55e]" aria-hidden />Confirmado</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#a855f7]" aria-hidden />Agendado</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#f59e0b]" aria-hidden />Intervalo</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
       </div>
 
@@ -823,7 +939,7 @@ export default function AgendaPage() {
         <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-lg h-full p-2 sm:p-4 fc-agenda-mobile">
           {calendarPlugins.length > 0 && ptBrLocale && (
             <FullCalendar
-              key={isMobile ? "mobile" : "desktop"}
+              key={`${isMobile ? "mobile" : "desktop"}-${selectedProfessional}-${horariosTrabalho.length}`}
               plugins={calendarPlugins}
               initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
               locale={ptBrLocale}
@@ -845,8 +961,8 @@ export default function AgendaPage() {
                   : { left: "prev,next today", center: "title", right: "timeGridDay,timeGridWeek,dayGridMonth" }
               }
               buttonText={isMobile ? { today: "Hoje" } : undefined}
-              slotMinTime="07:00:00"
-              slotMaxTime="20:00:00"
+              slotMinTime={getSlotMinTime()}
+              slotMaxTime={getSlotMaxTime()}
               allDaySlot={false}
               slotDuration="00:30:00"
               businessHours={getBusinessHours()}

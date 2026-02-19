@@ -232,11 +232,14 @@ export default function AgendaPage() {
         const res = await clinicaBelezaFetch(`/professionals/${selectedProfessional}/horarios-trabalho/`);
         if (res.ok) {
           const data = await res.json();
+          console.log('📅 Horários de trabalho carregados:', data);
           setHorariosTrabalho(Array.isArray(data) ? data : []);
         } else {
+          console.error('❌ Erro ao carregar horários:', res.status);
           setHorariosTrabalho([]);
         }
-      } catch {
+      } catch (err) {
+        console.error('❌ Erro ao carregar horários:', err);
         setHorariosTrabalho([]);
       }
     };
@@ -450,6 +453,9 @@ export default function AgendaPage() {
         // Criar eventos de intervalo (almoço) baseados nos horários de trabalho
         const intervalosAsEvents: any[] = [];
         if (selectedProfessional && horariosTrabalho.length > 0) {
+          console.log('🍽️ Criando intervalos para profissional:', selectedProfessional);
+          console.log('📋 Horários disponíveis:', horariosTrabalho);
+          
           const hoje = new Date();
           const diasParaMostrar = 30; // Mostrar intervalos para os próximos 30 dias
           
@@ -469,7 +475,7 @@ export default function AgendaPage() {
               const m = String(data.getMonth() + 1).padStart(2, "0");
               const d = String(data.getDate()).padStart(2, "0");
               
-              intervalosAsEvents.push({
+              const intervalo = {
                 id: `intervalo-${selectedProfessional}-${y}${m}${d}`,
                 title: "🍽️ Intervalo",
                 start: `${y}-${m}-${d}T${horario.intervalo_inicio.slice(0, 5)}:00`,
@@ -483,9 +489,14 @@ export default function AgendaPage() {
                   isIntervalo: true,
                   professional_name: professionals.find(p => p.id === Number(selectedProfessional))?.name || "Profissional",
                 },
-              });
+              };
+              
+              console.log(`✅ Intervalo criado para ${y}-${m}-${d}:`, intervalo);
+              intervalosAsEvents.push(intervalo);
             }
           }
+          
+          console.log(`📊 Total de intervalos criados: ${intervalosAsEvents.length}`);
         }
 
         // Mesclar agendamentos ainda na fila de sync (criados offline) para não sumirem ao recarregar

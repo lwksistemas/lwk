@@ -1,5 +1,6 @@
 """
-Verifica dados órfãos após exclusão de lojas (registros com loja_id de loja inexistente).
+Verifica dados órfãos após exclusão de lojas (registros com loja_id de loja inexistente)
+e assinaturas Asaas com loja_slug inexistente.
 
 Uso:
   python manage.py verificar_dados_orfaos              # só listar
@@ -11,7 +12,7 @@ from django.db import connection
 from superadmin.models import Loja
 
 
-# (tabela, coluna de loja)
+# (tabela, coluna de loja) - banco default, coluna loja_id
 TABELAS_LOJA_ID = [
     ('superadmin_financeiroloja', 'loja_id'),
     ('superadmin_pagamentoloja', 'loja_id'),
@@ -58,7 +59,7 @@ TABELAS_LOJA_ID = [
 
 
 class Command(BaseCommand):
-    help = 'Verifica e opcionalmente remove dados órfãos (loja_id sem loja correspondente)'
+    help = 'Verifica e opcionalmente remove dados órfãos (loja_id ou loja_slug sem loja correspondente)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -99,6 +100,23 @@ class Command(BaseCommand):
                     # Tabela pode não existir (ex: app não migrado)
                     pass
 
+        # Verificar assinaturas Asaas órfãs (loja_slug sem loja correspondente)
+        try:
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM loja_assinatura
+                    WHERE loja_slug IS NOT NULL AND loja_slug != ''
+                    AND loja_slug NOT IN (SELECT slug FROM superadmin_loja)
+                    """
+                )
+                assinaturas_orfaos = cur.fetchone()[0]
+                if assinaturas_orfaos > 0:
+                    total_orfaos += assinaturas_orfaos
+                    detalhes.append(('loja_assinatura (loja_slug órfão)', assinaturas_orfaos))
+        except Exception:
+            pass
+
         if not detalhes:
             self.stdout.write(self.style.SUCCESS('Nenhum dado órfão encontrado.'))
             return
@@ -114,7 +132,23 @@ class Command(BaseCommand):
                 return
             self.stdout.write(self.style.WARNING('Removendo órfãos...'))
             with connection.cursor() as cursor:
-                for tabela, coluna in TABELAS_LOJA_ID:
+                for item in detalhes:
+                    tabela, count = item
+                    if tabela == 'loja_assinatura (loja_slug órfão)':
+                        try:
+                            cursor.execute(
+                                """
+                                DELETE FROM loja_assinatura
+                                WHERE loja_slug IS NOT NULL AND loja_slug != ''
+                                AND loja_slug NOT IN (SELECT slug FROM superadmin_loja)
+                                """
+                            )
+                            if cursor.rowcount > 0:
+                                self.stdout.write(self.style.SUCCESS(f'  loja_assinatura: {cursor.rowcount} removidos'))
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f'  loja_assinatura: {e}'))
+                        continue
+                    coluna = 'loja_id'
                     try:
                         cursor.execute(
                             f'DELETE FROM {tabela} WHERE {coluna} IS NOT NULL AND {coluna} NOT IN (SELECT id FROM superadmin_loja)'

@@ -232,7 +232,7 @@ export default function AgendaPage() {
         const res = await clinicaBelezaFetch(`/professionals/${selectedProfessional}/horarios-trabalho/`);
         if (res.ok) {
           const data = await res.json();
-          console.log('📅 Horários de trabalho carregados:', data);
+          console.log('📅 Horários de trabalho carregados (RAW):', JSON.stringify(data, null, 2));
           setHorariosTrabalho(Array.isArray(data) ? data : []);
         } else {
           console.error('❌ Erro ao carregar horários:', res.status);
@@ -305,14 +305,30 @@ export default function AgendaPage() {
       };
     }
 
+    console.log('🏢 Calculando businessHours com horários:', JSON.stringify(horariosTrabalho, null, 2));
+
     // Converter horários de trabalho para formato do FullCalendar
-    return horariosTrabalho
+    const businessHours = horariosTrabalho
       .filter((h) => h.ativo)
-      .map((h) => ({
-        daysOfWeek: [h.dia_semana === 6 ? 0 : h.dia_semana + 1], // FullCalendar: 0=domingo, 1=segunda
-        startTime: h.hora_entrada.slice(0, 5),
-        endTime: h.hora_saida.slice(0, 5),
-      }));
+      .map((h) => {
+        // FullCalendar: 0=domingo, 1=segunda
+        // Backend: 0=segunda, 6=domingo
+        const fcDay = h.dia_semana === 6 ? 0 : h.dia_semana + 1;
+        
+        const startTime = typeof h.hora_entrada === 'string' ? h.hora_entrada.slice(0, 5) : '08:00';
+        const endTime = typeof h.hora_saida === 'string' ? h.hora_saida.slice(0, 5) : '18:00';
+        
+        console.log(`  Dia backend ${h.dia_semana} → FC day ${fcDay}: ${startTime} - ${endTime}`);
+        
+        return {
+          daysOfWeek: [fcDay],
+          startTime,
+          endTime,
+        };
+      });
+    
+    console.log('🏢 BusinessHours final:', JSON.stringify(businessHours, null, 2));
+    return businessHours;
   };
 
   // Obter dias ocultos (dias que o profissional NÃO trabalha)
@@ -327,7 +343,12 @@ export default function AgendaPage() {
 
     // Retornar dias que NÃO estão na lista de dias ativos
     const todosDias = [0, 1, 2, 3, 4, 5, 6];
-    return todosDias.filter((dia) => !diasAtivos.includes(dia));
+    const diasOcultos = todosDias.filter((dia) => !diasAtivos.includes(dia));
+    
+    console.log('🚫 Dias ativos (FC):', diasAtivos);
+    console.log('🚫 Dias ocultos (FC):', diasOcultos);
+    
+    return diasOcultos;
   };
 
   // Obter horário mínimo e máximo baseado nos horários de trabalho
@@ -339,7 +360,7 @@ export default function AgendaPage() {
     if (horariosAtivos.length === 0) return "07:00:00";
     
     const menorHorario = horariosAtivos.reduce((min, h) => {
-      const hora = h.hora_entrada.slice(0, 5);
+      const hora = typeof h.hora_entrada === 'string' ? h.hora_entrada.slice(0, 5) : '07:00';
       return hora < min ? hora : min;
     }, "23:59");
     
@@ -355,7 +376,7 @@ export default function AgendaPage() {
     if (horariosAtivos.length === 0) return "20:00:00";
     
     const maiorHorario = horariosAtivos.reduce((max, h) => {
-      const hora = h.hora_saida.slice(0, 5);
+      const hora = typeof h.hora_saida === 'string' ? h.hora_saida.slice(0, 5) : '20:00';
       return hora > max ? hora : max;
     }, "00:00");
     
@@ -449,7 +470,7 @@ export default function AgendaPage() {
         const intervalosAsEvents: any[] = [];
         if (selectedProfessional && horariosTrabalho.length > 0) {
           console.log('🍽️ Criando intervalos para profissional:', selectedProfessional);
-          console.log('📋 Horários disponíveis:', horariosTrabalho);
+          console.log('📋 Horários disponíveis:', JSON.stringify(horariosTrabalho, null, 2));
           
           const hoje = new Date();
           const diasParaMostrar = 30; // Mostrar intervalos para os próximos 30 dias
@@ -462,40 +483,52 @@ export default function AgendaPage() {
             // Converter dia da semana do JS para o formato do backend (0=segunda, 6=domingo)
             const diaBackend = diaSemana === 0 ? 6 : diaSemana - 1;
             
+            console.log(`📅 Data: ${data.toLocaleDateString('pt-BR')}, JS day: ${diaSemana}, Backend day: ${diaBackend}`);
+            
             // Buscar horário de trabalho para este dia
             const horario = horariosTrabalho.find(h => h.ativo && h.dia_semana === diaBackend);
             
-            if (horario && horario.intervalo_inicio && horario.intervalo_fim) {
-              const y = data.getFullYear();
-              const m = String(data.getMonth() + 1).padStart(2, "0");
-              const d = String(data.getDate()).padStart(2, "0");
+            if (horario) {
+              console.log(`✅ Horário encontrado para dia ${diaBackend}:`, JSON.stringify(horario, null, 2));
               
-              // Garantir que os horários estão no formato correto (HH:MM)
-              const intervaloInicio = typeof horario.intervalo_inicio === 'string' 
-                ? horario.intervalo_inicio.slice(0, 5) 
-                : '12:00';
-              const intervaloFim = typeof horario.intervalo_fim === 'string' 
-                ? horario.intervalo_fim.slice(0, 5) 
-                : '13:00';
-              
-              const intervalo = {
-                id: `intervalo-${selectedProfessional}-${y}${m}${d}`,
-                title: "🍽️ Intervalo",
-                start: `${y}-${m}-${d}T${intervaloInicio}:00`,
-                end: `${y}-${m}-${d}T${intervaloFim}:00`,
-                allDay: false,
-                backgroundColor: "#f59e0b",
-                borderColor: "#d97706",
-                textColor: "#fff",
-                editable: false,
-                extendedProps: {
-                  isIntervalo: true,
-                  professional_name: professionals.find(p => p.id === Number(selectedProfessional))?.name || "Profissional",
-                },
-              };
-              
-              console.log(`✅ Intervalo criado para ${y}-${m}-${d}:`, intervalo);
-              intervalosAsEvents.push(intervalo);
+              if (horario.intervalo_inicio && horario.intervalo_fim) {
+                const y = data.getFullYear();
+                const m = String(data.getMonth() + 1).padStart(2, "0");
+                const d = String(data.getDate()).padStart(2, "0");
+                
+                // Garantir que os horários estão no formato correto (HH:MM)
+                const intervaloInicio = typeof horario.intervalo_inicio === 'string' 
+                  ? horario.intervalo_inicio.slice(0, 5) 
+                  : '12:00';
+                const intervaloFim = typeof horario.intervalo_fim === 'string' 
+                  ? horario.intervalo_fim.slice(0, 5) 
+                  : '13:00';
+                
+                console.log(`⏰ Intervalo: ${intervaloInicio} - ${intervaloFim}`);
+                
+                const intervalo = {
+                  id: `intervalo-${selectedProfessional}-${y}${m}${d}`,
+                  title: "🍽️ Intervalo",
+                  start: `${y}-${m}-${d}T${intervaloInicio}:00`,
+                  end: `${y}-${m}-${d}T${intervaloFim}:00`,
+                  allDay: false,
+                  backgroundColor: "#f59e0b",
+                  borderColor: "#d97706",
+                  textColor: "#fff",
+                  editable: false,
+                  extendedProps: {
+                    isIntervalo: true,
+                    professional_name: professionals.find(p => p.id === Number(selectedProfessional))?.name || "Profissional",
+                  },
+                };
+                
+                console.log(`✅ Intervalo criado para ${y}-${m}-${d}:`, intervalo);
+                intervalosAsEvents.push(intervalo);
+              } else {
+                console.log(`⚠️ Horário sem intervalo configurado para dia ${diaBackend}`);
+              }
+            } else {
+              console.log(`❌ Nenhum horário encontrado para dia ${diaBackend}`);
             }
           }
           
@@ -539,7 +572,13 @@ export default function AgendaPage() {
           };
         });
 
-        setEventos([...eventosFormatados, ...bloqueiosAsEvents, ...intervalosAsEvents, ...pendingEvents]);
+        const todosEventos = [...eventosFormatados, ...bloqueiosAsEvents, ...intervalosAsEvents, ...pendingEvents];
+        console.log(`📊 Total de eventos no calendário: ${todosEventos.length}`);
+        console.log(`  - Agendamentos: ${eventosFormatados.length}`);
+        console.log(`  - Bloqueios: ${bloqueiosAsEvents.length}`);
+        console.log(`  - Intervalos: ${intervalosAsEvents.length}`);
+        console.log(`  - Pendentes: ${pendingEvents.length}`);
+        setEventos(todosEventos);
       } else {
         // --- OFFLINE: ler do IndexedDB
         const [agendaRaw, profs, pacs, procs] = await Promise.all([
@@ -603,8 +642,11 @@ export default function AgendaPage() {
             list = list.filter((e: any) => String(e.professional) === selectedProfessional);
           }
           const eventosFormatados = list.map((e: any) => formatarEvento(e));
-          setEventos([...eventosFormatados, ...intervalosAsEvents]);
+          const todosEventos = [...eventosFormatados, ...intervalosAsEvents];
+          console.log(`📊 [OFFLINE] Total de eventos: ${todosEventos.length} (${eventosFormatados.length} agendamentos + ${intervalosAsEvents.length} intervalos)`);
+          setEventos(todosEventos);
         } else {
+          console.log(`📊 [OFFLINE] Total de eventos: ${intervalosAsEvents.length} (apenas intervalos)`);
           setEventos(intervalosAsEvents);
         }
       }

@@ -319,7 +319,7 @@ class ProfessionalListView(APIView):
                     ProfessionalSerializer(professional).data,
                     status=status.HTTP_201_CREATED,
                 )
-            log.warning('POST professionals (criar_acesso): validation errors %s', serializer.errors)
+            log.error('❌ POST professionals (criar_acesso): validation errors %s', json.dumps(serializer.errors, ensure_ascii=False))
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         # Validação antecipada para mensagem clara
@@ -357,7 +357,7 @@ class ProfessionalListView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         err_msg = json.dumps(serializer.errors, ensure_ascii=False)
-        log.warning('POST professionals 400 payload=%s errors=%s', payload, err_msg)
+        log.error('❌ POST professionals 400 payload=%s errors=%s', payload, err_msg)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

@@ -171,6 +171,21 @@ export default function PacientesPage() {
       try {
         const lojaSlug = getLojaSlug();
         const editingIsPendente = editing && editing.id < 0;
+        
+        // Verificar se já existe na lista local (evitar duplicação)
+        if (!editing || editingIsPendente) {
+          const jaExisteLocal = list.some(p => 
+            p.name.toLowerCase() === form.name.trim().toLowerCase() && 
+            (form.phone.trim() ? p.phone === form.phone.trim() : true)
+          );
+          
+          if (jaExisteLocal) {
+            setError("Este paciente já foi adicionado. Aguarde a sincronização.");
+            setSaving(false);
+            return;
+          }
+        }
+        
         if (editing && !editingIsPendente) {
           await adicionarNaFilaSync({
             tipo: "paciente",
@@ -211,6 +226,7 @@ export default function PacientesPage() {
         alert("Salvo offline. O paciente será sincronizado quando você estiver online.");
         return;
       } catch (e) {
+        console.error("Erro ao salvar offline:", e);
         setError("Erro ao salvar localmente. Tente novamente.");
         setSaving(false);
         return;
@@ -246,6 +262,16 @@ export default function PacientesPage() {
       if (isNetworkError) {
         try {
           const lojaSlug = getLojaSlug();
+          
+          // Verificar se já existe na lista local (evitar duplicação)
+          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => p.name.toLowerCase() === form.name.trim().toLowerCase());
+          
+          if (jaExisteLocal && !editing) {
+            setError("Este paciente já foi adicionado offline. Aguarde a sincronização.");
+            setSaving(false);
+            return;
+          }
+          
           if (editing && editing.id > 0) {
             await adicionarNaFilaSync({
               tipo: "paciente",
@@ -278,7 +304,8 @@ export default function PacientesPage() {
           }
           setShowModal(false);
           alert("Sem conexão. Paciente salvo offline e será sincronizado quando você estiver online.");
-        } catch {
+        } catch (err) {
+          console.error("Erro ao salvar offline:", err);
           setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
         }
       } else {

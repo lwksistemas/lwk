@@ -125,6 +125,20 @@ export default function ProcedimentosPage() {
     if (isOffline) {
       try {
         const lojaSlug = getLojaSlug();
+        
+        // Verificar se já existe na lista local (evitar duplicação)
+        if (!editing || (editing && editing.id < 0)) {
+          const jaExisteLocal = list.some(p => 
+            p.name.toLowerCase() === form.name.trim().toLowerCase()
+          );
+          
+          if (jaExisteLocal) {
+            setError("Este procedimento já foi adicionado. Aguarde a sincronização.");
+            setSaving(false);
+            return;
+          }
+        }
+        
         if (editing && editing.id > 0) {
           await adicionarNaFilaSync({
             tipo: "procedimento",
@@ -155,7 +169,8 @@ export default function ProcedimentosPage() {
         }
         setShowModal(false);
         alert("Salvo offline. O procedimento será sincronizado quando você estiver online.");
-      } catch {
+      } catch (err) {
+        console.error("Erro ao salvar offline:", err);
         setError("Erro ao salvar localmente. Tente novamente.");
       }
       setSaving(false);
@@ -190,6 +205,16 @@ export default function ProcedimentosPage() {
       if (isNetworkError) {
         try {
           const lojaSlug = getLojaSlug();
+          
+          // Verificar se já existe na lista local (evitar duplicação)
+          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => p.name.toLowerCase() === form.name.trim().toLowerCase());
+          
+          if (jaExisteLocal && !editing) {
+            setError("Este procedimento já foi adicionado offline. Aguarde a sincronização.");
+            setSaving(false);
+            return;
+          }
+          
           if (editing && editing.id > 0) {
             await adicionarNaFilaSync({
               tipo: "procedimento",
@@ -220,7 +245,8 @@ export default function ProcedimentosPage() {
           }
           setShowModal(false);
           alert("Sem conexão. Procedimento salvo offline e será sincronizado quando você estiver online.");
-        } catch {
+        } catch (err) {
+          console.error("Erro ao salvar offline:", err);
           setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
         }
       } else {

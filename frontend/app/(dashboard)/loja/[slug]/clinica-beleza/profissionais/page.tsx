@@ -168,6 +168,21 @@ export default function ProfissionaisPage() {
       try {
         const lojaSlug = getLojaSlug();
         const editingIsPendente = editing && editing.id < 0;
+        
+        // Verificar se já existe na lista local (evitar duplicação)
+        if (!editing || editingIsPendente) {
+          const jaExisteLocal = list.some(p => 
+            p.name.toLowerCase() === form.name.trim().toLowerCase() && 
+            p.specialty.toLowerCase() === form.specialty.trim().toLowerCase()
+          );
+          
+          if (jaExisteLocal) {
+            setError("Este profissional já foi adicionado. Aguarde a sincronização.");
+            setSaving(false);
+            return;
+          }
+        }
+        
         if (editing && !editingIsPendente) {
           await adicionarNaFilaSync({
             tipo: "profissional",
@@ -202,7 +217,8 @@ export default function ProfissionaisPage() {
         }
         setShowModal(false);
         alert("Salvo offline. O profissional será sincronizado quando você estiver online.");
-      } catch {
+      } catch (err) {
+        console.error("Erro ao salvar offline:", err);
         setError("Erro ao salvar localmente. Tente novamente.");
       }
       setSaving(false);
@@ -252,6 +268,15 @@ export default function ProfissionaisPage() {
       if (isNetworkError) {
         try {
           const lojaSlug = getLojaSlug();
+          // Verificar se já existe na lista local (evitar duplicação)
+          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => p.name === form.name.trim() && p.specialty === form.specialty.trim());
+          
+          if (jaExisteLocal && !editing) {
+            setError("Este profissional já foi adicionado offline. Aguarde a sincronização.");
+            setSaving(false);
+            return;
+          }
+          
           if (editing && editing.id > 0) {
             await adicionarNaFilaSync({
               tipo: "profissional",
@@ -282,7 +307,8 @@ export default function ProfissionaisPage() {
           }
           setShowModal(false);
           alert("Sem conexão. Profissional salvo offline e será sincronizado quando você estiver online.");
-        } catch {
+        } catch (err) {
+          console.error("Erro ao salvar offline:", err);
           setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
         }
       } else {

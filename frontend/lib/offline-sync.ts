@@ -36,6 +36,8 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
         if (item.tipo === "agendamento") {
           const baseURL = getClinicaBelezaBaseUrl();
           const headers = getClinicaBelezaHeaders();
+          console.log(`📤 [offline-sync] Enviando agendamento para ${baseURL}/agenda/create/`);
+          console.log(`📦 [offline-sync] Payload:`, item.payload);
           const res = await fetch(`${baseURL}/agenda/create/`, {
             method: "POST",
             headers,
@@ -43,6 +45,7 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
           });
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
+            console.error(`❌ [offline-sync] Resposta de erro (${res.status}):`, data);
             throw new Error(data.error || `Erro ${res.status}`);
           }
           await removerItemFilaSync(key);
@@ -173,7 +176,7 @@ export function registrarSincronizacaoAoVoltarOnline(): void {
     
     if (enviados > 0) {
       // Notificar que a sincronização foi concluída
-      window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados } }));
+      window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
       
       // Mostrar notificação ao usuário
       if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
@@ -186,6 +189,14 @@ export function registrarSincronizacaoAoVoltarOnline(): void {
     
     if (erros > 0) {
       console.warn(`⚠️ [offline-sync] ${erros} ${erros === 1 ? 'erro ocorreu' : 'erros ocorreram'} durante a sincronização`);
+      
+      // Mostrar alerta ao usuário sobre erros
+      if (typeof window !== "undefined") {
+        alert(`⚠️ Atenção: ${erros} ${erros === 1 ? 'item falhou' : 'itens falharam'} ao sincronizar.\n\nVerifique o console (F12) para mais detalhes ou use o botão 🗑️ para limpar a fila.`);
+      }
+      
+      // Disparar evento mesmo com erros para atualizar a interface
+      window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
     }
   });
 }

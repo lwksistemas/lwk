@@ -343,6 +343,7 @@ export default function AgendaPage() {
       return hora < min ? hora : min;
     }, "23:59");
     
+    console.log('⏰ Horário mínimo calculado:', menorHorario);
     return menorHorario + ":00";
   };
 
@@ -358,6 +359,7 @@ export default function AgendaPage() {
       return hora > max ? hora : max;
     }, "00:00");
     
+    console.log('⏰ Horário máximo calculado:', maiorHorario);
     return maiorHorario + ":00";
   };
 
@@ -466,11 +468,19 @@ export default function AgendaPage() {
               const m = String(data.getMonth() + 1).padStart(2, "0");
               const d = String(data.getDate()).padStart(2, "0");
               
+              // Garantir que os horários estão no formato correto (HH:MM)
+              const intervaloInicio = typeof horario.intervalo_inicio === 'string' 
+                ? horario.intervalo_inicio.slice(0, 5) 
+                : '12:00';
+              const intervaloFim = typeof horario.intervalo_fim === 'string' 
+                ? horario.intervalo_fim.slice(0, 5) 
+                : '13:00';
+              
               const intervalo = {
                 id: `intervalo-${selectedProfessional}-${y}${m}${d}`,
                 title: "🍽️ Intervalo",
-                start: `${y}-${m}-${d}T${horario.intervalo_inicio.slice(0, 5)}:00`,
-                end: `${y}-${m}-${d}T${horario.intervalo_fim.slice(0, 5)}:00`,
+                start: `${y}-${m}-${d}T${intervaloInicio}:00`,
+                end: `${y}-${m}-${d}T${intervaloFim}:00`,
                 allDay: false,
                 backgroundColor: "#f59e0b",
                 borderColor: "#d97706",
@@ -558,11 +568,19 @@ export default function AgendaPage() {
               const m = String(data.getMonth() + 1).padStart(2, "0");
               const d = String(data.getDate()).padStart(2, "0");
               
+              // Garantir que os horários estão no formato correto (HH:MM)
+              const intervaloInicio = typeof horario.intervalo_inicio === 'string' 
+                ? horario.intervalo_inicio.slice(0, 5) 
+                : '12:00';
+              const intervaloFim = typeof horario.intervalo_fim === 'string' 
+                ? horario.intervalo_fim.slice(0, 5) 
+                : '13:00';
+              
               intervalosAsEvents.push({
                 id: `intervalo-${selectedProfessional}-${y}${m}${d}`,
                 title: "🍽️ Intervalo",
-                start: `${y}-${m}-${d}T${horario.intervalo_inicio.slice(0, 5)}:00`,
-                end: `${y}-${m}-${d}T${horario.intervalo_fim.slice(0, 5)}:00`,
+                start: `${y}-${m}-${d}T${intervaloInicio}:00`,
+                end: `${y}-${m}-${d}T${intervaloFim}:00`,
                 allDay: false,
                 backgroundColor: "#f59e0b",
                 borderColor: "#d97706",

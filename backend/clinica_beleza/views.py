@@ -392,9 +392,30 @@ class ProfessionalDetailView(APIView):
             )
         try:
             obj = Professional.objects.get(pk=pk)
+            
+            # Excluir agendamentos futuros deste profissional
+            from django.utils import timezone
+            agora = timezone.now()
+            agendamentos_futuros = Appointment.objects.filter(
+                professional=obj,
+                date__gte=agora
+            )
+            count_agendamentos = agendamentos_futuros.count()
+            agendamentos_futuros.delete()
+            
+            # Excluir horários de trabalho
+            HorarioTrabalhoProfissional.objects.filter(professional=obj).delete()
+            
+            # Excluir bloqueios específicos deste profissional
+            BloqueioHorario.objects.filter(professional=obj).delete()
+            
+            # Marcar profissional como inativo
             obj.active = False
             obj.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+            return Response({
+                'message': f'Profissional desativado com sucesso. {count_agendamentos} agendamento(s) futuro(s) foram excluídos.'
+            }, status=status.HTTP_200_OK)
         except Professional.DoesNotExist:
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 

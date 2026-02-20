@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface ModalNovaCobrancaProps {
   assinatura: {
@@ -103,7 +104,7 @@ export function ModalNovaCobranca({ assinatura, onClose, onConfirm, loading }: M
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Valor da Cobrança:</span>
               <span className="text-lg font-bold text-purple-600">
-                R$ {parseFloat(assinatura.plano_valor).toFixed(2)}
+                {formatCurrency(assinatura.plano_valor)}
               </span>
             </div>
           </div>

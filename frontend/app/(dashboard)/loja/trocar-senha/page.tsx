@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
@@ -17,11 +17,7 @@ export default function TrocarSenhaLojaPage() {
   });
   const [erro, setErro] = useState('');
 
-  useEffect(() => {
-    loadLojaInfo();
-  }, []);
-
-  const loadLojaInfo = async () => {
+  const loadLojaInfo = useCallback(async () => {
     try {
       const slug = authService.getLojaSlug();
       if (!slug) {
@@ -30,7 +26,6 @@ export default function TrocarSenhaLojaPage() {
         return;
       }
       setLojaSlug(slug);
-
       const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       setLojaId(response.data.id);
     } catch (error) {
@@ -40,7 +35,11 @@ export default function TrocarSenhaLojaPage() {
     } finally {
       setLoadingInfo(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    loadLojaInfo();
+  }, [loadLojaInfo]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({

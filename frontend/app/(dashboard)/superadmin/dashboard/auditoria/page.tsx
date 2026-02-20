@@ -73,6 +73,8 @@ export default function AuditoriaPage() {
       return;
     }
     loadData();
+    // loadData omitido: definido abaixo, usa periodo/dataInicio/dataFim
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, periodo, dataInicio, dataFim]);
 
   const loadData = async () => {

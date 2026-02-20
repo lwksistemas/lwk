@@ -6,7 +6,7 @@ import apiClient from '@/lib/api-client';
 import { extractArrayData, formatApiError } from '@/lib/api-helpers';
 import { ResumoCard } from '@/components/financeiro/ResumoCard';
 import { TransacaoItem } from '@/components/financeiro/TransacaoItem';
-import { FORMAS_PAGAMENTO, STATUS_OPTIONS } from '@/lib/financeiro-helpers';
+import { formatCurrency, FORMAS_PAGAMENTO, STATUS_OPTIONS } from '@/lib/financeiro-helpers';
 import type { Categoria, Transacao, ResumoFinanceiro, TransacaoFormData, TabFinanceiro } from '@/types/financeiro';
 
 interface LojaInfo {
@@ -46,6 +46,7 @@ export function ModalFinanceiro({ loja, onClose }: ModalFinanceiroProps) {
   // Carregar dados ao montar e ao trocar de tab
   useEffect(() => {
     carregarDados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   /**
@@ -388,7 +389,7 @@ export function ModalFinanceiro({ loja, onClose }: ModalFinanceiroProps) {
                 {resumo.transacoes_atrasadas > 0 && (
                   <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                     <p className="text-red-800 dark:text-red-300 font-medium">
-                      ⚠️ {resumo.transacoes_atrasadas} transação(ões) atrasada(s) - Total: R$ {resumo.valor_atrasado.toFixed(2)}
+                      ⚠️ {resumo.transacoes_atrasadas} transação(ões) atrasada(s) - Total: {formatCurrency(resumo.valor_atrasado)}
                     </p>
                   </div>
                 )}

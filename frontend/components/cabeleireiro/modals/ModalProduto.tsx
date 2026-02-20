@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
 
 interface Produto {
@@ -50,6 +51,7 @@ export function ModalProduto({ loja, onClose }: { loja: LojaInfo; onClose: () =>
 
   useEffect(() => {
     carregarProdutos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const carregarProdutos = async () => {
@@ -290,7 +292,7 @@ export function ModalProduto({ loja, onClose }: { loja: LojaInfo; onClose: () =>
                       {produto.marca && ` • ${produto.marca}`}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      💰 R$ {Number(produto.preco_venda).toFixed(2)} • 📦 Estoque: {produto.estoque_atual}
+                      💰 {formatCurrency(produto.preco_venda)} • 📦 Estoque: {produto.estoque_atual}
                     </p>
                   </div>
                   <div className="flex gap-2">

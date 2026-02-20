@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { LojaInfo } from '@/types/dashboard';
 
 export function ModalPipeline({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
@@ -29,7 +30,7 @@ export function ModalPipeline({ loja, onClose }: { loja: LojaInfo; onClose: () =
           </div>
           <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <p className="text-sm text-gray-600 dark:text-gray-400">Valor Total</p>
-            <p className="text-2xl font-bold dark:text-white">R$ {totalValor.toLocaleString('pt-BR')}</p>
+            <p className="text-2xl font-bold dark:text-white">{formatCurrency(totalValor)}</p>
           </div>
           <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
             <p className="text-sm text-gray-600 dark:text-gray-400">Taxa Conversão</p>
@@ -37,7 +38,7 @@ export function ModalPipeline({ loja, onClose }: { loja: LojaInfo; onClose: () =
           </div>
           <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
             <p className="text-sm text-gray-600 dark:text-gray-400">Ticket Médio</p>
-            <p className="text-2xl font-bold dark:text-white">R$ {Math.round(totalValor / totalLeads).toLocaleString('pt-BR')}</p>
+            <p className="text-2xl font-bold dark:text-white">{formatCurrency(Math.round(totalValor / totalLeads))}</p>
           </div>
         </div>
 
@@ -51,7 +52,7 @@ export function ModalPipeline({ loja, onClose }: { loja: LojaInfo; onClose: () =
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600 dark:text-gray-400">{etapa.leads} leads</p>
-                  <p className="font-bold dark:text-white">R$ {etapa.valor.toLocaleString('pt-BR')}</p>
+                  <p className="font-bold dark:text-white">{formatCurrency(etapa.valor)}</p>
                 </div>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">

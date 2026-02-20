@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { formatDateTime } from '@/lib/financeiro-helpers';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import ModalChamado from '@/components/suporte/ModalChamado';
 
@@ -291,13 +292,13 @@ export default function SuporteHistoricoPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Criado em</label>
                   <p className="text-gray-900 dark:text-gray-100">
-                    {new Date(chamadoSelecionado.created_at).toLocaleString('pt-BR')}
+                    {formatDateTime(chamadoSelecionado.created_at)}
                   </p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Última atualização</label>
                   <p className="text-gray-900 dark:text-gray-100">
-                    {new Date(chamadoSelecionado.updated_at).toLocaleString('pt-BR')}
+                    {formatDateTime(chamadoSelecionado.updated_at)}
                   </p>
                 </div>
               </div>
@@ -335,7 +336,7 @@ export default function SuporteHistoricoPage() {
                             )}
                           </div>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(resposta.created_at).toLocaleString('pt-BR')}
+                            {formatDateTime(resposta.created_at)}
                           </span>
                         </div>
                         <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{resposta.mensagem}</p>

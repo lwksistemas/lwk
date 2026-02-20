@@ -15,7 +15,10 @@ export function ModalFuncionarios({ loja, onClose }: { loja: LojaInfo; onClose: 
     nome: '', email: '', telefone: '', cargo: '', data_admissao: ''
   });
 
-  useEffect(() => { loadFuncionarios(); }, []);
+  useEffect(() => {
+    loadFuncionarios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadFuncionarios = async () => {
     try {

@@ -33,6 +33,7 @@ export function ModalBloqueios({ loja, onClose }: { loja: LojaInfo; onClose: () 
 
   useEffect(() => {
     carregarDados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const carregarDados = async () => {

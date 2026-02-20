@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { useToast } from '@/components/ui/Toast';
 
 interface LojaInfo {
@@ -339,7 +340,7 @@ export function ModalServicos({ loja, onClose }: { loja: LojaInfo; onClose: () =
           <div className="flex-1">
             <p className="font-semibold text-lg text-gray-900 dark:text-white">{item.nome}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{item.descricao}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">R$ {Number(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} • {item.duracao_estimada} min</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{formatCurrency(item.preco)} • {item.duracao_estimada} min</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => handleEditar(item)} className="px-3 py-2 text-sm text-white rounded-lg hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>
@@ -447,7 +448,7 @@ export function ModalOrdensServico({ loja, onClose }: { loja: LojaInfo; onClose:
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.descricao_problema}</p>
             <div className="flex gap-2 mt-2">
               <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>
-                Total: R$ {Number(item.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                Total: {formatCurrency(item.valor_total)}
               </span>
               {item.data_previsao && <span className="text-xs text-gray-500">Previsão: {item.data_previsao}</span>}
             </div>
@@ -520,7 +521,7 @@ export function ModalOrcamentos({ loja, onClose }: { loja: LojaInfo; onClose: ()
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.descricao}</p>
             <div className="flex gap-3 mt-2">
               <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>
-                R$ {Number(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatCurrency(item.valor)}
               </span>
               <span className="text-xs text-gray-500">Validade: {item.validade}</span>
             </div>

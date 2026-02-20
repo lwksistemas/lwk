@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
@@ -43,10 +43,29 @@ export default function LojaDashboardDinamicoPage() {
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
+  const verificarECarregarLoja = useCallback(async () => {
+    try {
+      setLoading(true);
+      const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
+      const data = lojaResponse.data;
+      if (data?.id && typeof window !== 'undefined') {
+        sessionStorage.setItem('current_loja_id', String(data.id));
+        if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
+      }
+      setLojaInfo(data);
+    } catch (error: unknown) {
+      console.error('Erro ao carregar loja:', error);
+      const ax = error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response : undefined;
+      if (ax?.status === 401) router.push(`/loja/${slug}/login`);
+    } finally {
+      setLoading(false);
+    }
+  }, [slug, router]);
+
   useEffect(() => {
     if (!ready || !isLoja) return;
     verificarECarregarLoja();
-  }, [ready, isLoja, slug]);
+  }, [ready, isLoja, slug, verificarECarregarLoja]);
 
   useEffect(() => {
     if (ready && !isLoja) router.push(loginPath);
@@ -58,30 +77,6 @@ export default function LojaDashboardDinamicoPage() {
     const t = setTimeout(() => setLoadingLento(true), 8000);
     return () => clearTimeout(t);
   }, [loading]);
-
-  const verificarECarregarLoja = async () => {
-    try {
-      setLoading(true);
-      
-      // Carregar informações da loja
-      const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      const data = lojaResponse.data;
-      // ✅ Definir current_loja_id e loja_slug ANTES de renderizar (APIs da clínica usam X-Loja-ID; loja_slug é fallback no mobile)
-      if (data?.id && typeof window !== 'undefined') {
-        sessionStorage.setItem('current_loja_id', String(data.id));
-        if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
-      }
-      setLojaInfo(data);
-      
-    } catch (error: any) {
-      console.error('Erro ao carregar loja:', error);
-      if (error.response?.status === 401) {
-        router.push(`/loja/${slug}/login`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (ready && !isLoja) return null;
 

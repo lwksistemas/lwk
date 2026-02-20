@@ -1,5 +1,6 @@
 'use client';
 import { ensureArray } from '@/lib/array-helpers';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 import { useState, useEffect, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
@@ -190,7 +191,7 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
               </div>
               <div className="flex items-center space-x-4">
                 <div className="text-right">
-                  <p className="font-bold text-lg" style={{ color: loja.cor_primaria }}>R$ {proc.preco}</p>
+                  <p className="font-bold text-lg" style={{ color: loja.cor_primaria }}>{formatCurrency(proc.preco)}</p>
                 </div>
                 <div className="flex space-x-2">
                   <button onClick={() => handleEdit(proc)} className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600">

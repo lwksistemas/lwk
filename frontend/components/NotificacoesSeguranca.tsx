@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { formatDateTime } from '@/lib/financeiro-helpers';
 
 interface Violacao {
   id: number;
@@ -26,12 +27,13 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
   // Polling a cada 30 segundos
   useEffect(() => {
     verificarNovasViolacoes();
-    
     const interval = setInterval(() => {
       verificarNovasViolacoes();
-    }, 30000); // 30 segundos
+    }, 30000);
 
     return () => clearInterval(interval);
+    // verificarNovasViolacoes omitido: definido abaixo, evita loop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ultimaVerificacao]);
 
   const verificarNovasViolacoes = async () => {
@@ -258,7 +260,7 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
                       
                       <div className="flex items-center justify-between text-xs text-gray-500">
                         <span>{violacao.usuario_nome}</span>
-                        <span>{new Date(violacao.created_at).toLocaleString('pt-BR')}</span>
+                        <span>{formatDateTime(violacao.created_at)}</span>
                       </div>
                       
                       <a

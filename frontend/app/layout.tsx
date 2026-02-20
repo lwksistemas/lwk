@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -6,11 +6,14 @@ import { InstallPWA } from "@/components/pwa/InstallPWA";
 
 const inter = Inter({ subsets: ["latin"] });
 
+export const viewport: Viewport = {
+  themeColor: "#ec4899",
+};
+
 export const metadata: Metadata = {
   title: "LWK Sistemas - Gestão de Lojas",
   description: "Sistema de gestão multi-loja: clínica estética, agenda, financeiro",
   manifest: "/manifest.json",
-  themeColor: "#ec4899",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -34,7 +37,6 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="theme-color" content="#ec4899" />
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />

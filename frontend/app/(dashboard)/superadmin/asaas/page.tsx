@@ -74,11 +74,12 @@ export default function AsaasConfigPage() {
   const [showApiKey, setShowApiKey] = useState(false)
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
 
-  // Carregar configurações
+  // Carregar configurações (execução única ao montar)
   useEffect(() => {
     loadConfig()
     loadStats()
     checkStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const API_BASE_URL = process.env.NODE_ENV === 'production' 

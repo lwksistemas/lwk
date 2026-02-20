@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
@@ -58,6 +58,20 @@ export default function RelatoriosPage() {
   const [dataFim, setDataFim] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
 
+  const carregarLoja = useCallback(async () => {
+    try {
+      setLoading(true);
+      const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
+      setLojaInfo(lojaResponse.data);
+    } catch (error: unknown) {
+      console.error('Erro ao carregar loja:', error);
+      const ax = error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response : undefined;
+      if (ax?.status === 401) router.push(loginPath);
+    } finally {
+      setLoading(false);
+    }
+  }, [slug, loginPath, router]);
+
   useEffect(() => {
     if (ready && !isLoja) {
       router.push(loginPath);
@@ -69,22 +83,9 @@ export default function RelatoriosPage() {
     const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     setDataInicio(primeiroDia.toISOString().split('T')[0]);
     setDataFim(hoje.toISOString().split('T')[0]);
-  }, [ready, isLoja, loginPath, slug, router]);
+  }, [ready, isLoja, loginPath, slug, router, carregarLoja]);
 
   if (ready && !isLoja) return null;
-
-  const carregarLoja = async () => {
-    try {
-      setLoading(true);
-      const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      setLojaInfo(lojaResponse.data);
-    } catch (error: any) {
-      console.error('Erro ao carregar loja:', error);
-      if (error.response?.status === 401) router.push(loginPath);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleVoltar = () => router.push(`/loja/${slug}/dashboard`);
 

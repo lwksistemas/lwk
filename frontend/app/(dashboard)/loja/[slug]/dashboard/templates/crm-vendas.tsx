@@ -9,6 +9,7 @@ import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Ske
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
 import { LojaInfo, EstatisticasCRM, Lead } from '@/types/dashboard';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { ORIGENS_CRM, STATUS_LEAD } from '@/constants/status';
 import { ModalLead, ModalCliente, ModalProduto, ModalPipeline, ModalFuncionarios } from '@/components/crm-vendas/modals';
 
@@ -142,7 +143,7 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
         <StatCard title="Leads Ativos" value={estatisticas.leads_ativos} icon="👥" cor={loja.cor_primaria} />
         <StatCard title="Negociações" value={estatisticas.negociacoes} icon="🤝" cor={loja.cor_primaria} />
         <StatCard title="Vendas Mês" value={estatisticas.vendas_mes} icon="📈" cor={loja.cor_primaria} />
-        <StatCard title="Receita" value={`R$ ${Number(estatisticas.receita).toLocaleString('pt-BR')}`} icon="💰" cor={loja.cor_primaria} />
+        <StatCard title="Receita" value={formatCurrency(estatisticas.receita)} icon="💰" cor={loja.cor_primaria} />
       </div>
 
       {/* Leads Recentes */}
@@ -245,7 +246,7 @@ function LeadCard({ lead, cor }: { lead: Lead; cor: string }) {
       </div>
       <div className="flex sm:flex-col items-center sm:items-end gap-2">
         <p className="font-bold text-base sm:text-lg" style={{ color: cor }}>
-          R$ {valor.toLocaleString('pt-BR')}
+          {formatCurrency(valor)}
         </p>
         <span className="text-xs text-gray-600 dark:text-gray-400">{statusLabel}</span>
       </div>
@@ -316,6 +317,7 @@ function ModalNovoLead({ loja, onClose, onSuccess }: { loja: LojaInfo; onClose: 
 
   useEffect(() => {
     loadLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -509,7 +511,7 @@ function ModalNovoLead({ loja, onClose, onSuccess }: { loja: LojaInfo; onClose: 
                   <p className="text-sm text-gray-600 dark:text-gray-400">{lead.telefone} • {ORIGENS_CRM.find(o => o.value === lead.origem)?.label ?? lead.origem}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">{getStatusLabel(lead.status)}</span>
-                    <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>R$ {Number(lead.valor_estimado).toLocaleString('pt-BR')}</span>
+                    <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>{formatCurrency(lead.valor_estimado)}</span>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
@@ -569,6 +571,7 @@ function ModalNovoCliente({ loja, onClose }: { loja: LojaInfo; onClose: () => vo
 
   useEffect(() => {
     loadClientes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

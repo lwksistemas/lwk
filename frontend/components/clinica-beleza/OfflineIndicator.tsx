@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useOnline } from "@/hooks/useOnline";
 import { useSyncPending, notificarFilaAtualizada } from "@/hooks/useSyncPending";
+import { formatDateTime } from "@/lib/financeiro-helpers";
 import { limparFilaSync, obterFilaSync } from "@/lib/offline-db";
 import { sincronizarFila } from "@/lib/offline-sync";
 import { Trash2, Info, RefreshCw } from "lucide-react";
@@ -165,7 +166,7 @@ export function OfflineIndicator() {
                         {JSON.stringify(item.payload, null, 2)}
                       </pre>
                       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        Criado: {new Date(item.createdAt).toLocaleString('pt-BR')}
+                        Criado: {formatDateTime(item.createdAt)}
                       </div>
                     </div>
                   ))}

@@ -6,6 +6,7 @@
  */
 
 import { X, Server, Smartphone, AlertTriangle } from "lucide-react";
+import { formatDateTime } from "@/lib/financeiro-helpers";
 
 const STATUS_LABEL: Record<string, string> = {
   SCHEDULED: "Agendado",
@@ -16,19 +17,6 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: "Cancelado",
   NO_SHOW: "Faltou",
 };
-
-function formatDateTime(s: string | null | undefined): string {
-  if (!s) return "—";
-  try {
-    const d = new Date(s);
-    return d.toLocaleString("pt-BR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  } catch {
-    return String(s);
-  }
-}
 
 export interface ConflitoAgendaData {
   server: {

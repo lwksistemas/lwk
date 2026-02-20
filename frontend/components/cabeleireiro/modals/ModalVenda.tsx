@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
+import { formatCurrency, formatDateTime } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
 
 interface Venda {
@@ -43,6 +44,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
 
   useEffect(() => {
     carregarDados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const carregarDados = async () => {
@@ -129,7 +131,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                 <option value="">Selecione um produto</option>
                 {produtos.map(produto => (
                   <option key={produto.id} value={produto.id}>
-                    {produto.nome} - R$ {Number(produto.preco_venda).toFixed(2)} (Estoque: {produto.estoque_atual})
+                    {produto.nome} - {formatCurrency(produto.preco_venda)} (Estoque: {produto.estoque_atual})
                   </option>
                 ))}
               </select>
@@ -193,7 +195,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Valor Total:</p>
                 <p className="text-2xl font-bold" style={{ color: loja.cor_primaria }}>
-                  R$ {valorTotal}
+                  {formatCurrency(valorTotal)}
                 </p>
               </div>
             )}
@@ -247,12 +249,12 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
                       Qtd: {venda.quantidade} • {formasPagamento.find(f => f.value === venda.forma_pagamento)?.label}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(venda.data_venda).toLocaleString('pt-BR')}
+                      {formatDateTime(venda.data_venda)}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-bold" style={{ color: loja.cor_primaria }}>
-                      R$ {Number(venda.valor_total).toFixed(2)}
+                      {formatCurrency(venda.valor_total)}
                     </p>
                   </div>
                 </div>

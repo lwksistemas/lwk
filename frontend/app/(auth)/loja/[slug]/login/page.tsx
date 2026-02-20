@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
@@ -30,11 +31,30 @@ export default function LojaLoginDinamicoPage() {
   const [loadingInfo, setLoadingInfo] = useState(true);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
+  const loadLojaInfo = useCallback(async () => {
+    try {
+      setLoadingInfo(true);
+      const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
+      setLojaInfo(response.data);
+    } catch (err: unknown) {
+      console.error('Erro ao carregar informações da loja:', err);
+      const status = err && typeof err === 'object' && 'response' in err && typeof (err as { response?: { status?: number } }).response?.status === 'number'
+        ? (err as { response: { status: number } }).response.status
+        : null;
+      if (status === 404) {
+        setError('Loja não encontrada');
+      } else {
+        setError('Erro ao carregar informações da loja');
+      }
+    } finally {
+      setLoadingInfo(false);
+    }
+  }, [slug]);
+
   // Limpar sessões antigas e salvar slug para PWA reabrir na loja certa
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (slug) localStorage.setItem('pwa_loja_slug', slug);
-      // Limpar sessionStorage
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');
@@ -44,24 +64,7 @@ export default function LojaLoginDinamicoPage() {
       document.cookie = 'loja_slug=; path=/; max-age=0';
     }
     loadLojaInfo();
-  }, [slug]);
-
-  const loadLojaInfo = async () => {
-    try {
-      setLoadingInfo(true);
-      const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      setLojaInfo(response.data);
-    } catch (err: any) {
-      console.error('Erro ao carregar informações da loja:', err);
-      if (err.response?.status === 404) {
-        setError('Loja não encontrada');
-      } else {
-        setError('Erro ao carregar informações da loja');
-      }
-    } finally {
-      setLoadingInfo(false);
-    }
-  };
+  }, [slug, loadLojaInfo]);
 
   // Função para formatar CPF/CNPJ automaticamente
   const formatarCpfCnpj = (valor: string) => {
@@ -186,7 +189,14 @@ export default function LojaLoginDinamicoPage() {
             style={{ backgroundColor: corPrimaria }}
           >
             {lojaInfo.logo ? (
-              <img src={lojaInfo.logo} alt={lojaInfo.nome} className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover" />
+              <Image
+                src={lojaInfo.logo}
+                alt={lojaInfo.nome}
+                width={48}
+                height={48}
+                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover"
+                unoptimized
+              />
             ) : (
               <svg className="h-8 w-8 sm:h-10 sm:w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />

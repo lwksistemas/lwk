@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import apiClient from '@/lib/api-client';
 import { extractArrayData, formatApiError } from '@/lib/api-helpers';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface LojaInfo {
   id: number;
@@ -256,7 +257,7 @@ export function ModalAgendamentos({
                 >
                   <option value="">Selecione...</option>
                   {servicos.map(s => (
-                    <option key={s.id} value={s.id}>{s.nome} - R$ {parseFloat(s.preco).toFixed(2)}</option>
+                    <option key={s.id} value={s.id}>{s.nome} - {formatCurrency(s.preco)}</option>
                   ))}
                 </select>
               </div>
@@ -408,7 +409,7 @@ export function ModalAgendamentos({
                       📅 {new Date(agendamento.data + 'T00:00:00').toLocaleDateString('pt-BR')} às {agendamento.horario}
                     </p>
                     <p className="text-sm font-semibold" style={{ color: loja.cor_primaria }}>
-                      💰 R$ {typeof agendamento.valor === 'number' ? agendamento.valor.toFixed(2) : parseFloat(agendamento.valor).toFixed(2)}
+                      💰 {formatCurrency(agendamento.valor)}
                     </p>
                     {agendamento.observacoes && (
                       <p className="text-xs text-gray-500 mt-1">📝 {agendamento.observacoes}</p>

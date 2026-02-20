@@ -77,6 +77,8 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
 
   useEffect(() => {
     fetchDashboardData();
+    // fetchDashboardData omitido: definido abaixo, evita loop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loja?.id, loja?.slug, filterPeriod, filterProfessionalId]);
 
   useEffect(() => {
@@ -94,6 +96,8 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
       }
     };
     loadProfessionals();
+    // getHeadersComTenant omitido: definido abaixo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loja?.id, loja?.slug]);
 
   const getHeadersComTenant = (): Record<string, string> => getClinicaBelezaHeadersWithLoja(loja);

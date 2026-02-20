@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
@@ -120,10 +121,14 @@ export default function FinanceiroClinicaPage() {
 
   useEffect(() => {
     loadAll();
+    // loadAll/loadPayments omitidos: execução única ao montar e ao mudar filtros
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     loadPayments();
+    // loadPayments omitido: depende de vários estados; reexecutar só quando filtros mudam
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, professionalFilter, dateFilter]);
 
   const totalLista = payments.reduce((s, p) => s + (p.status === "PAID" ? Number(p.amount) : 0), 0);
@@ -171,7 +176,7 @@ export default function FinanceiroClinicaPage() {
                   <span className="text-sm font-medium">Caixa hoje</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  R$ {(resumo?.caixa_diario ?? 0).toFixed(2)}
+                  {formatCurrency(resumo?.caixa_diario ?? 0)}
                 </p>
               </div>
               <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-md p-4 border border-purple-100 dark:border-purple-900/50">
@@ -180,7 +185,7 @@ export default function FinanceiroClinicaPage() {
                   <span className="text-sm font-medium">Total mês</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  R$ {(resumo?.total_mes ?? 0).toFixed(2)}
+                  {formatCurrency(resumo?.total_mes ?? 0)}
                 </p>
               </div>
               <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-md p-4 border border-amber-100 dark:border-amber-900/50">
@@ -189,7 +194,7 @@ export default function FinanceiroClinicaPage() {
                   <span className="text-sm font-medium">A receber</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  R$ {(resumo?.contas_a_receber ?? 0).toFixed(2)}
+                  {formatCurrency(resumo?.contas_a_receber ?? 0)}
                 </p>
               </div>
               <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-md p-4 border border-blue-100 dark:border-blue-900/50">
@@ -198,7 +203,7 @@ export default function FinanceiroClinicaPage() {
                   <span className="text-sm font-medium">Comissão mês</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  R$ {(resumo?.comissao_mes ?? 0).toFixed(2)}
+                  {formatCurrency(resumo?.comissao_mes ?? 0)}
                 </p>
               </div>
             </section>
@@ -280,7 +285,7 @@ export default function FinanceiroClinicaPage() {
                           <td className="py-3 px-4 text-gray-800 dark:text-gray-200">{p.profissional_nome || "—"}</td>
                           <td className="py-3 px-4 text-gray-800 dark:text-gray-200">{p.procedimento_nome || "—"}</td>
                           <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-gray-100">
-                            R$ {Number(p.amount).toFixed(2)}
+                            {formatCurrency(p.amount)}
                           </td>
                           <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
                             {FORMA_PAGAMENTO[p.payment_method] || p.payment_method}
@@ -299,7 +304,7 @@ export default function FinanceiroClinicaPage() {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">
-                            R$ {Number(p.comissao_valor || 0).toFixed(2)}
+                            {formatCurrency(p.comissao_valor || 0)}
                             {p.comissao_percentual ? ` (${p.comissao_percentual}%)` : ""}
                           </td>
                         </tr>
@@ -312,7 +317,7 @@ export default function FinanceiroClinicaPage() {
 
             {payments.length > 0 && (
               <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                Total na lista (pagos): R$ {totalLista.toFixed(2)} • {payments.length} lançamento(s)
+                Total na lista (pagos): {formatCurrency(totalLista)} • {payments.length} lançamento(s)
               </p>
             )}
           </>

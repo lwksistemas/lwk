@@ -281,23 +281,34 @@ class SecurityIsolationMiddleware:
         return any(path.startswith(route) for route in store_routes)
     
     def _extract_store_slug(self, request):
-        """Extrai o slug da loja da requisição"""
-        # 1. Tentar do header
-        store_slug = request.headers.get('X-Store-Slug')
+        """
+        Extrai o slug da loja da requisição.
+        Compatível com o frontend: X-Tenant-Slug, X-Loja-ID (resolve para slug), X-Store-Slug, query e path.
+        """
+        # 1. Headers (frontend envia X-Tenant-Slug e X-Loja-ID)
+        store_slug = (
+            request.headers.get('X-Store-Slug')
+            or request.headers.get('X-Tenant-Slug')
+        )
         if store_slug:
-            return store_slug
-        
-        # 2. Tentar do parâmetro de query
-        store_slug = request.GET.get('store')
+            return store_slug.strip()
+        loja_id = request.headers.get('X-Loja-ID')
+        if loja_id:
+            try:
+                from superadmin.models import Loja
+                loja = Loja.objects.filter(id=int(loja_id), is_active=True).first()
+                if loja:
+                    return loja.slug
+            except (ValueError, TypeError):
+                pass
+        # 2. Query
+        store_slug = request.GET.get('store') or request.GET.get('tenant')
         if store_slug:
-            return store_slug
-        
-        # 3. Tentar extrair da URL
-        # Exemplo: /api/clinica/loja/felix/consultas/
+            return store_slug.strip()
+        # 3. Path: /api/.../loja/{slug}/...
         path_parts = request.path.split('/')
         if 'loja' in path_parts:
             loja_index = path_parts.index('loja')
             if loja_index + 1 < len(path_parts):
                 return path_parts[loja_index + 1]
-        
         return None

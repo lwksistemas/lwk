@@ -8,6 +8,7 @@ import { useModals } from '@/hooks/useModals';
 import { LojaInfo } from '@/types/dashboard';
 import { ModalClientes, ModalServicos, ModalAgendamentos, ModalFuncionarios } from '@/components/cabeleireiro/modals';
 import { DashboardHeader, StatCard, AppointmentsTable, ShortcutCard } from '@/components/cabeleireiro/dashboard';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { getRolePermissions, canView, UserRole } from '@/lib/roles-cabeleireiro';
 
 interface AgendamentoCabeleireiro {
@@ -78,7 +79,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
     },
     { 
       title: "Faturamento", 
-      value: `R$ ${stats.receita_mensal.toLocaleString('pt-BR')}`, 
+      value: formatCurrency(stats.receita_mensal), 
       subtitle: "Este mês", 
       icon: Wallet, 
       color: "bg-blue-100 text-blue-600",

@@ -60,6 +60,7 @@ export function ModalAgendamentos({ loja, onClose, onSuccess }: { loja: LojaInfo
 
   useEffect(() => {
     loadDados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadDados = async () => {
@@ -272,6 +273,7 @@ export function ModalClientes({ loja, onClose }: { loja: LojaInfo; onClose: () =
 
   useEffect(() => {
     loadClientes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadClientes = async () => {

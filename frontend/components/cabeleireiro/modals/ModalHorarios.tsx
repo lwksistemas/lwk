@@ -40,6 +40,7 @@ export function ModalHorarios({ loja, onClose }: { loja: LojaInfo; onClose: () =
 
   useEffect(() => {
     carregarHorarios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const carregarHorarios = async () => {

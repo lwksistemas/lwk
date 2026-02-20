@@ -10,6 +10,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
 import { LojaInfo, EstatisticasClinica, Agendamento } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { clinicaApiClient } from '@/lib/api-client';
 
 // Lazy loading dos modais - carrega apenas quando necessário
@@ -325,7 +326,7 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
         <StatCard title="Agendamentos Hoje" value={stats.agendamentos_hoje} icon="📅" cor={loja.cor_primaria} trend="+12%" />
         <StatCard title="Clientes Ativos" value={stats.clientes_ativos} icon="👥" cor={loja.cor_primaria} />
         <StatCard title="Procedimentos" value={stats.procedimentos_ativos} icon="💆" cor={loja.cor_primaria} />
-        <StatCard title="Receita Mensal" value={`R$ ${stats.receita_mensal.toLocaleString('pt-BR')}`} icon="💰" cor={loja.cor_primaria} trend="+8%" />
+        <StatCard title="Receita Mensal" value={formatCurrency(stats.receita_mensal)} icon="💰" cor={loja.cor_primaria} trend="+8%" />
       </div>
 
       {/* Próximos Agendamentos */}

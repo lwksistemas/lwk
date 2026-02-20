@@ -7,6 +7,7 @@ import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import type { LojaInfo, EstatisticasRestaurante, Pedido } from './restaurante/types';
 import { ActionButton, StatCard, PedidoCard, EmptyState } from './restaurante/components/restaurante-shared';
 
@@ -166,7 +167,7 @@ export default function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
         <StatCard title="Pedidos Hoje" value={estatisticas.pedidos_hoje} icon="📦" cor={loja.cor_primaria} />
         <StatCard title="Mesas" value={estatisticas.mesas_ocupadas} icon="🪑" cor={loja.cor_primaria} />
         <StatCard title="Itens no Cardápio" value={estatisticas.cardapio} icon="📋" cor={loja.cor_primaria} />
-        <StatCard title="Faturamento Hoje" value={`R$ ${Number(estatisticas.faturamento).toLocaleString('pt-BR')}`} icon="💰" cor={loja.cor_primaria} />
+        <StatCard title="Faturamento Hoje" value={formatCurrency(estatisticas.faturamento)} icon="💰" cor={loja.cor_primaria} />
       </div>
 
       {/* Pedidos Recentes */}

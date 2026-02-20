@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import { formatDateTime } from '@/lib/financeiro-helpers';
 
 interface Resposta {
   id: number;
@@ -107,6 +108,8 @@ export function ModalAtendimento({
         if (!cancelled) setDetalhesLoading(false);
       });
     return () => { cancelled = true; };
+    // chamado omitido: usar chamado?.id evita reexecução quando o objeto muda sem mudar id
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, chamado?.id, detalhesAberto]);
 
   if (!isOpen || !chamado) return null;
@@ -178,7 +181,7 @@ export function ModalAtendimento({
             <div>
               <label className="text-sm font-medium text-gray-500">Criado em</label>
               <p className="text-gray-900">
-                {new Date(chamado.created_at).toLocaleString('pt-BR')}
+                {formatDateTime(chamado.created_at)}
               </p>
             </div>
           </div>
@@ -230,7 +233,7 @@ export function ModalAtendimento({
                             {detalhes.erros_backend.map((e, i) => (
                               <li key={i} className="text-sm border-l-4 border-red-500 pl-2 py-1.5 bg-white rounded pr-2">
                                 <span className="text-gray-500 text-xs block">
-                                  {e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : ''} — {e.metodo_http} {e.url}
+                                  {e.created_at ? formatDateTime(e.created_at) : ''} — {e.metodo_http} {e.url}
                                 </span>
                                 <p className="text-red-900 font-mono text-xs break-all mt-0.5">{e.erro}</p>
                                 {e.usuario_email && (
@@ -256,7 +259,7 @@ export function ModalAtendimento({
                             {detalhes.erros_frontend.map((e, i) => (
                               <li key={i} className="text-sm border-l-4 border-amber-500 pl-2 py-1.5 bg-white rounded pr-2">
                                 <span className="text-gray-500 text-xs block">
-                                  {e.created_at ? new Date(e.created_at).toLocaleString('pt-BR') : ''}
+                                  {e.created_at ? formatDateTime(e.created_at) : ''}
                                 </span>
                                 <p className="text-amber-900 font-mono text-xs mt-0.5">{e.mensagem}</p>
                                 {e.url && <p className="text-gray-500 text-xs">URL: {e.url}</p>}
@@ -322,7 +325,7 @@ export function ModalAtendimento({
                         )}
                       </div>
                       <span className="text-xs text-gray-500">
-                        {new Date(resp.created_at).toLocaleString('pt-BR')}
+                        {formatDateTime(resp.created_at)}
                       </span>
                     </div>
                     <p className="text-gray-900 whitespace-pre-wrap">{resp.mensagem}</p>

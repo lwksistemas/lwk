@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { CrudModal } from '../shared/CrudModal';
 import type { LojaInfo } from '../shared/CrudModal';
 
@@ -134,7 +135,7 @@ export function ConfiguracoesModal({ loja, onClose }: ConfiguracoesModalProps) {
                             {pagamento.is_paid ? '✓ Pago' : pagamento.is_overdue ? '⚠ Vencido' : '⏳ Pendente'}
                           </span>
                           <span className="text-lg font-bold" style={{ color: loja.cor_primaria }}>
-                            R$ {pagamento.valor.toFixed(2)}
+                            {formatCurrency(pagamento.valor)}
                           </span>
                         </div>
                         <div className="flex items-center space-x-4 text-sm text-gray-600">

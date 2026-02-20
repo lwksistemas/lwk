@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,23 +59,27 @@ export default function AssinaturaLojaPage() {
   const [error, setError] = useState<string | null>(null)
   const [atualizandoStatus, setAtualizandoStatus] = useState(false)
 
-  useEffect(() => {
-    carregarDados()
-  }, [slug])
-
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       const { data: dados } = await apiClient.get(`/superadmin/loja/${slug}/financeiro/`)
       setData(dados)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro:', err)
-      setError(err.response?.status === 403 ? 'Sem permissão para ver assinatura. Apenas o responsável pela loja pode acessar.' : (err.response?.data?.error || 'Erro de conexão'))
+      const ax = err && typeof err === 'object' && 'response' in err ? (err as { response?: { status?: number; data?: { error?: string } } }).response : undefined
+      const msg = ax?.status === 403
+        ? 'Sem permissão para ver assinatura. Apenas o responsável pela loja pode acessar.'
+        : (ax?.data?.error || 'Erro de conexão')
+      setError(msg)
     } finally {
       setLoading(false)
     }
-  }
+  }, [slug])
+
+  useEffect(() => {
+    carregarDados()
+  }, [carregarDados])
 
   const baixarBoleto = async (pagamentoId: number) => {
     try {
@@ -286,10 +291,13 @@ export default function AssinaturaLojaPage() {
                       <div className="text-center">
                         <h4 className="font-medium mb-2">QR Code PIX</h4>
                         <div className="bg-white p-4 rounded border inline-block">
-                          <img
+                          <Image
                             src={`data:image/png;base64,${data.financeiro.pix_qr_code}`}
                             alt="QR Code PIX"
+                            width={192}
+                            height={192}
                             className="w-32 h-32 sm:w-48 sm:h-48"
+                            unoptimized
                           />
                         </div>
                       </div>

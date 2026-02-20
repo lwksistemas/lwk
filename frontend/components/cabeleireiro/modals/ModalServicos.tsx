@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import apiClient from '@/lib/api-client';
 import { extractArrayData, formatApiError } from '@/lib/api-helpers';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface LojaInfo {
   id: number;
@@ -285,7 +286,7 @@ export function ModalServicos({ loja, onClose }: { loja: LojaInfo; onClose: () =
                       )}
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      ⏱️ {servico.duracao_minutos} min • 💰 R$ {parseFloat(servico.preco).toFixed(2)}
+                      ⏱️ {servico.duracao_minutos} min • 💰 {formatCurrency(servico.preco)}
                     </p>
                     {servico.descricao && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{servico.descricao}</p>

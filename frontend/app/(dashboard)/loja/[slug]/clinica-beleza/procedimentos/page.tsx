@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Trash2, X } from "lucide-react";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
@@ -319,7 +320,7 @@ export default function ProcedimentosPage() {
                     <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
                       <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{p.name}</td>
                       <td className="p-3 text-gray-700 dark:text-gray-300">{p.duration} min</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">R$ {Number(p.price).toFixed(2).replace(".", ",")}</td>
+                      <td className="p-3 text-gray-700 dark:text-gray-300">{formatCurrency(p.price)}</td>
                       <td className="p-3">
                         <div className="flex gap-2">
                           <button

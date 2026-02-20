@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/Toast';
 import { LojaInfo, Lead } from '@/types/dashboard';
 import { clinicaApiClient } from '@/lib/api-client';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { ORIGENS_CRM, STATUS_LEAD } from '@/constants/status';
 
 const INTERESSES_CRM = ['Produto A', 'Produto B', 'Serviço Premium', 'Consultoria', 'Outro'];
@@ -19,7 +20,10 @@ export function ModalLead({ loja, onClose, onSuccess }: { loja: LojaInfo; onClos
     origem: 'site', interesse: 'Produto A', valor_estimado: '', status: 'novo', observacoes: ''
   });
 
-  useEffect(() => { loadLeads(); }, []);
+  useEffect(() => {
+    loadLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadLeads = async () => {
     try {
@@ -193,7 +197,7 @@ export function ModalLead({ loja, onClose, onSuccess }: { loja: LojaInfo; onClos
                       <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-semibold rounded-full">
                         {STATUS_LEAD.find(s => s.value === lead.status)?.label}
                       </span>
-                      <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>R$ {Number(lead.valor_estimado).toLocaleString('pt-BR')}</span>
+                      <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>{formatCurrency(lead.valor_estimado)}</span>
                     </div>
                   </div>
                   <div className="flex gap-2">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import NotificacoesSeguranca from '@/components/NotificacoesSeguranca';
 import { ToastContainer, useToast } from '@/components/ToastNotificacao';
 
@@ -216,7 +217,7 @@ export default function SuperAdminDashboard() {
             />
             <StatCard
               label="Receita Mensal"
-              value={`R$ ${stats?.receita_mensal_estimada?.toFixed(2) || '0.00'}`}
+              value={formatCurrency(stats?.receita_mensal_estimada ?? 0)}
               color="text-blue-600"
             />
           </div>

@@ -219,6 +219,8 @@ export default function AgendaPage() {
     if (calendarPlugins.length > 0) {
       carregarDados();
     }
+    // carregarDados omitido de propósito: depende de muitos estados; reexecutar só quando profissional ou plugins mudam
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfessional, calendarPlugins]);
 
   // Carregar horários de trabalho quando selecionar profissional
@@ -258,11 +260,12 @@ export default function AgendaPage() {
   useEffect(() => {
     const handler = () => {
       console.log("🔄 [agenda] Sincronização concluída, recarregando dados...");
-      // Delay para o backend persistir e a lista GET /agenda/ trazer o novo agendamento
       setTimeout(() => carregarDados(), 1200);
     };
     window.addEventListener("offline-sync-done", handler);
     return () => window.removeEventListener("offline-sync-done", handler);
+    // carregarDados omitido: listener deve ser estável; handler chama a ref mais recente
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formatarEvento = (e: any) => {

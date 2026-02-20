@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { formatDateTime } from '@/lib/financeiro-helpers';
 
 interface Log {
   id: number;
@@ -440,7 +441,7 @@ export default function BuscaLogsPage() {
                   {logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm">
-                        {new Date(log.created_at).toLocaleString('pt-BR')}
+                        {formatDateTime(log.created_at)}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <div className="font-medium">{highlightText(log.usuario_nome, filtros.q)}</div>
@@ -510,7 +511,7 @@ export default function BuscaLogsPage() {
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Data/Hora</label>
-                  <p className="text-lg">{new Date(logSelecionado.created_at).toLocaleString('pt-BR')}</p>
+                  <p className="text-lg">{formatDateTime(logSelecionado.created_at)}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Status</label>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { ModalBase } from './ModalBase';
 
 interface LojaInfo {
@@ -45,7 +46,7 @@ export function ModalServicos({ loja, onClose }: { loja: LojaInfo; onClose: () =
           <div className="flex-1">
             <p className="font-semibold text-lg text-gray-900 dark:text-white">{item.nome}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{item.descricao}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">R$ {Number(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} • {item.duracao_estimada} min</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{formatCurrency(item.preco)} • {item.duracao_estimada} min</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => handleEditar(item)} className="px-3 py-2 text-sm text-white rounded-lg hover:opacity-90 min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>✏️ Editar</button>

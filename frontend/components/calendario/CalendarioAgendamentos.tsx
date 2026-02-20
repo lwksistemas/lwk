@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { ensureArray } from '@/lib/array-helpers';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface Agendamento {
   id: number;
@@ -186,10 +187,12 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
 
   useEffect(() => {
     carregarProfissionais();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     carregarAgendamentos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataAtual, visualizacao, profissionalSelecionado]);
 
   const carregarProfissionais = async () => {
@@ -1133,7 +1136,7 @@ function ModalAgendamento({
                 <option value="">Selecione um procedimento...</option>
                 {procedimentos.map(proc => (
                   <option key={proc.id} value={proc.id}>
-                    {proc.nome} - R$ {proc.preco}
+                    {proc.nome} - {formatCurrency(proc.preco)}
                   </option>
                 ))}
               </select>

@@ -10,7 +10,7 @@ Este documento descreve como o sistema garante que **uma loja nunca acesse dados
 
 - **Rotas por grupo:** Super Admin (`/api/superadmin/`), Suporte (`/api/suporte/`), Lojas (APIs por tipo: clinica, crm, etc.).
 - **Isolamento de loja:** Para rotas de loja, o middleware:
-  - Extrai o slug da loja da requisição (header `X-Store-Slug`, query `store` ou path `/api/.../loja/{slug}/...`).
+  - Extrai o slug da loja da requisição (headers **`X-Store-Slug`**, **`X-Tenant-Slug`** — enviados pelo frontend —, **`X-Loja-ID`** — resolvido para slug —, query `store`/`tenant` ou path `/api/.../loja/{slug}/...`).
   - Verifica se o **usuário autenticado é dono dessa loja** (`Loja.objects.filter(owner=request.user, is_active=True, slug=requested_store_slug).exists()`).
   - **Suporta múltiplas lojas por dono:** o usuário pode acessar qualquer uma das suas lojas; tentativa de acessar slug de loja que não é dele retorna `403 CROSS_STORE_ACCESS_DENIED`.
 - Super Admin **não** pode acessar rotas de loja (uso apenas do painel superadmin).

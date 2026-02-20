@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface Consulta {
   id: number;
@@ -767,7 +768,7 @@ function ConsultaDetalhes({
             </span>
           </div>
           <div>
-            <span className="font-medium">Valor:</span> R$ {consulta.valor_consulta}
+            <span className="font-medium">Valor:</span> {formatCurrency(consulta.valor_consulta)}
           </div>
           {consulta.duracao_minutos && (
             <div>

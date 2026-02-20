@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
@@ -600,12 +601,12 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                         <div className="text-center">
                           <h4 className="font-bold text-lg mb-2">{plano.nome}</h4>
                           <p className="text-2xl font-bold text-purple-600 mb-2">
-                            R$ {plano.preco_mensal}
+                            {formatCurrency(plano.preco_mensal)}
                           </p>
                           <p className="text-sm text-gray-600">por mês</p>
                           {plano.preco_anual && (
                             <p className="text-xs text-gray-500 mt-1">
-                              ou R$ {plano.preco_anual}/ano
+                              ou {formatCurrency(plano.preco_anual)}/ano
                             </p>
                           )}
                           <p className="text-xs text-gray-600 mt-2 line-clamp-2">
@@ -654,7 +655,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
               {valorAssinatura > 0 && (
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-purple-900">
-                    Valor da assinatura: <span className="text-xl">R$ {valorAssinatura}</span>
+                    Valor da assinatura: <span className="text-xl">{formatCurrency(valorAssinatura)}</span>
                     {formData.tipo_assinatura === 'anual' && ' (pagamento anual)'}
                   </p>
                   <p className="text-xs text-purple-700 mt-1">

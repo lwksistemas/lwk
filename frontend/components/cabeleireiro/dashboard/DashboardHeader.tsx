@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Bell, Mail } from "lucide-react";
 
 interface DashboardHeaderProps {
@@ -25,10 +26,13 @@ export function DashboardHeader({ userName, userAvatar }: DashboardHeaderProps) 
         <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-purple-600 transition-colors" />
         <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-purple-600 transition-colors hidden sm:block" />
         {userAvatar ? (
-          <img 
-            src={userAvatar} 
+          <Image
+            src={userAvatar}
             alt={userName}
+            width={40}
+            height={40}
             className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
+            unoptimized
           />
         ) : (
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white font-bold text-sm">

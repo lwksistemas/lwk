@@ -52,10 +52,10 @@ export default function AlertasPage() {
       return;
     }
     loadData();
-    
-    // Atualizar a cada 30 segundos
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
+    // loadData omitido: definido abaixo e usa filtros do estado
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, filtroStatus, filtroCriticidade, filtroTipo]);
 
   const loadData = async () => {

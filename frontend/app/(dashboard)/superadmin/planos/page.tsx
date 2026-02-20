@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { ModalNovoPlano } from '@/components/superadmin/planos';
 
 interface TipoLoja {
@@ -561,7 +562,7 @@ function NovoPlanoModal({
                   className="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-400 transition-all text-left"
                 >
                   <div className="font-semibold text-gray-900">{template.nome}</div>
-                  <div className="text-sm text-purple-600 mt-1">R$ {template.preco_mensal}/mês</div>
+                  <div className="text-sm text-purple-600 mt-1">{formatCurrency(template.preco_mensal)}/mês</div>
                   <div className="text-xs text-gray-500 mt-1">{template.max_usuarios} usuários</div>
                 </button>
               ))}
@@ -803,7 +804,7 @@ function NovoPlanoModal({
               <h4 className="text-xl font-bold text-gray-900 mb-2">{formData.nome || 'Nome do Plano'}</h4>
               <p className="text-gray-600 text-sm mb-4">{formData.descricao || 'Descrição...'}</p>
               <div className="text-3xl font-bold text-purple-600 mb-1">
-                R$ {formData.preco_mensal || '0,00'}
+                {formatCurrency(formData.preco_mensal || 0)}
               </div>
               <div className="text-sm text-gray-500">por mês</div>
               <div className="mt-4 text-sm text-gray-600">

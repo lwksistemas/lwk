@@ -7,6 +7,7 @@ import { useModals } from '@/hooks/useModals';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
 import { LojaInfo, EstatisticasServicos, Agendamento } from '@/types/dashboard';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { STATUS_AGENDAMENTO, STATUS_OS } from '@/constants/status';
 import { 
   ModalAgendamentos, 
@@ -101,7 +102,7 @@ export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
         <StatCard title="Agendamentos Hoje" value={stats.agendamentos_hoje} icon="📅" cor={loja.cor_primaria} />
         <StatCard title="Ordens Abertas" value={stats.ordens_abertas} icon="🔧" cor={loja.cor_primaria} />
         <StatCard title="Orçamentos Pendentes" value={stats.orcamentos_pendentes} icon="💰" cor={loja.cor_primaria} />
-        <StatCard title="Receita Mensal" value={`R$ ${Number(stats.receita_mensal).toLocaleString('pt-BR')}`} icon="💵" cor={loja.cor_primaria} />
+        <StatCard title="Receita Mensal" value={formatCurrency(stats.receita_mensal)} icon="💵" cor={loja.cor_primaria} />
       </div>
 
       {/* Agendamentos de Hoje */}
@@ -200,7 +201,7 @@ function AgendamentoCard({ agendamento, cor }: { agendamento: Agendamento; cor: 
       </div>
       <div className="flex sm:flex-col items-center sm:items-end gap-2">
         <p className="font-bold text-base sm:text-lg" style={{ color: cor }}>
-          R$ {Number(agendamento.valor).toLocaleString('pt-BR')}
+          {formatCurrency(agendamento.valor ?? 0)}
         </p>
         <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: `${statusInfo?.color}20`, color: statusInfo?.color }}>
           {statusInfo?.label}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import apiClient from '@/lib/api-client';
@@ -27,18 +27,7 @@ export default function AgendaCabeleireiroPage() {
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
 
-  useEffect(() => {
-    if (ready && !isLoja) {
-      router.push(loginPath);
-      return;
-    }
-    if (!ready || !isLoja) return;
-    carregarLoja();
-  }, [ready, isLoja, loginPath, slug, router]);
-
-  if (ready && !isLoja) return null;
-
-  const carregarLoja = async () => {
+  const carregarLoja = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
@@ -48,13 +37,25 @@ export default function AgendaCabeleireiroPage() {
         if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
       }
       setLojaInfo(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao carregar loja:', error);
-      if (error.response?.status === 401) router.push(loginPath);
+      const ax = error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response : undefined;
+      if (ax?.status === 401) router.push(loginPath);
     } finally {
       setLoading(false);
     }
-  };
+  }, [slug, loginPath, router]);
+
+  useEffect(() => {
+    if (ready && !isLoja) {
+      router.push(loginPath);
+      return;
+    }
+    if (!ready || !isLoja) return;
+    carregarLoja();
+  }, [ready, isLoja, loginPath, slug, router, carregarLoja]);
+
+  if (ready && !isLoja) return null;
 
   if (loading) {
     return (

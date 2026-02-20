@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -67,11 +68,7 @@ export default function FinanceiroLojaPage() {
     ? 'https://lwksistemas-38ad47519238.herokuapp.com' 
     : 'http://localhost:8000'
 
-  useEffect(() => {
-    carregarDados()
-  }, [slug])
-
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`${API_BASE_URL}/api/superadmin/loja/${slug}/financeiro/`, {
@@ -79,7 +76,6 @@ export default function FinanceiroLojaPage() {
           'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
-      
       if (response.ok) {
         const dados = await response.json()
         setData(dados)
@@ -92,7 +88,11 @@ export default function FinanceiroLojaPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [slug, API_BASE_URL])
+
+  useEffect(() => {
+    carregarDados()
+  }, [carregarDados])
 
   const baixarBoleto = async (pagamentoId: number) => {
     try {
@@ -366,10 +366,13 @@ export default function FinanceiroLojaPage() {
                     <div className="text-center">
                       <h4 className="font-medium mb-2 text-sm sm:text-base">QR Code</h4>
                       <div className="bg-white p-3 sm:p-4 rounded border inline-block">
-                        <img 
-                          src={`data:image/png;base64,${data.financeiro.pix_qr_code}`} 
+                        <Image
+                          src={`data:image/png;base64,${data.financeiro.pix_qr_code}`}
                           alt="QR Code PIX"
+                          width={192}
+                          height={192}
                           className="w-32 h-32 sm:w-48 sm:h-48"
+                          unoptimized
                         />
                       </div>
                     </div>

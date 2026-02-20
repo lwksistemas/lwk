@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { formatApiError } from '@/lib/api-errors';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/financeiro-helpers';
 import { useToast } from '@/components/ui/Toast';
 import type {
   LojaInfo,
@@ -246,7 +247,7 @@ export function ModalCardapio({ loja, onClose, onSuccess }: { loja: LojaInfo; on
               <div key={i.id} className="flex items-center justify-between p-3 border dark:border-gray-600 rounded-lg">
                 <div>
                   <span className="font-medium text-gray-900 dark:text-white">{i.nome}</span>
-                  <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">R$ {Number(i.preco).toLocaleString('pt-BR')}</span>
+                  <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">{formatCurrency(i.preco)}</span>
                   {!i.is_disponivel && <span className="ml-2 text-xs text-red-600">(indisponível)</span>}
                 </div>
                 <div className="flex gap-2">
@@ -526,7 +527,7 @@ export function ModalPedidos({ loja, onClose, onSuccess }: { loja: LojaInfo; onC
               <div className="flex flex-wrap gap-2 mb-2">
                 {itens.filter(i => i.is_disponivel).map(i => (
                   <button type="button" key={i.id} onClick={() => addItem(i)} className="px-3 py-2 rounded-lg border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm">
-                    {i.nome} — R$ {Number(i.preco).toLocaleString('pt-BR')}
+                    {i.nome} — {formatCurrency(i.preco)}
                   </button>
                 ))}
               </div>
@@ -537,7 +538,7 @@ export function ModalPedidos({ loja, onClose, onSuccess }: { loja: LojaInfo; onC
                     <li key={x.item_id} className="flex justify-between items-center">
                       <span>{item.nome} x{x.quantidade}</span>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">R$ {(Number(x.preco) * x.quantidade).toLocaleString('pt-BR')}</span>
+                        <span className="font-medium">{formatCurrency(Number(x.preco) * x.quantidade)}</span>
                         <button type="button" onClick={() => removeItem(x.item_id)} className="text-red-600 text-sm">Remover</button>
                       </div>
                     </li>
@@ -545,7 +546,7 @@ export function ModalPedidos({ loja, onClose, onSuccess }: { loja: LojaInfo; onC
                 })}
               </ul>
             </div>
-            <p className="font-bold text-lg">Total: R$ {totalPedido.toLocaleString('pt-BR')}</p>
+            <p className="font-bold text-lg">Total: {formatCurrency(totalPedido)}</p>
             <div className="flex gap-2 justify-end">
               <button type="button" onClick={() => setShowNovo(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg">Cancelar</button>
               <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-white min-h-[40px]" style={{ backgroundColor: loja.cor_primaria }}>{saving ? 'Salvando...' : 'Criar Pedido'}</button>
@@ -574,7 +575,7 @@ export function ModalPedidos({ loja, onClose, onSuccess }: { loja: LojaInfo; onC
                   <span className="font-medium text-gray-900 dark:text-white">#{p.id}</span>
                   <span className="ml-2 text-sm text-gray-500">{p.tipo} • {p.status}</span>
                 </div>
-                <span className="font-bold" style={{ color: loja.cor_primaria }}>R$ {Number(p.total).toLocaleString('pt-BR')}</span>
+                <span className="font-bold" style={{ color: loja.cor_primaria }}>{formatCurrency(p.total)}</span>
               </div>
             ))}
           </div>
@@ -621,7 +622,7 @@ export function ModalDelivery({ loja, onClose, onSuccess }: { loja: LojaInfo; on
                     <p className="font-bold text-gray-900 dark:text-white">Pedido #{p.id}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Status: {p.status}</p>
                     {p.endereco_entrega && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">📍 {p.endereco_entrega}</p>}
-                    <p className="text-sm font-semibold mt-1">R$ {Number(p.total).toLocaleString('pt-BR')}</p>
+                    <p className="text-sm font-semibold mt-1">{formatCurrency(p.total)}</p>
                   </div>
                 </div>
               </div>
@@ -712,7 +713,7 @@ export function ModalPDV({ loja, onClose, onSuccess }: { loja: LojaInfo; onClose
               <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto">
                 {itens.filter(i => i.is_disponivel).map(i => (
                   <button type="button" key={i.id} onClick={() => add(i)} className="px-3 py-2 rounded-lg border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-left text-sm">
-                    {i.nome} — R$ {Number(i.preco).toLocaleString('pt-BR')}
+                    {i.nome} — {formatCurrency(i.preco)}
                   </button>
                 ))}
               </div>
@@ -725,13 +726,13 @@ export function ModalPDV({ loja, onClose, onSuccess }: { loja: LojaInfo; onClose
                 <li key={x.item.id} className="flex justify-between items-center">
                   <span>{x.item.nome} x{x.qtd}</span>
                   <div className="flex items-center gap-2">
-                    <span>R$ {(Number(x.item.preco) * x.qtd).toLocaleString('pt-BR')}</span>
+                    <span>{formatCurrency(Number(x.item.preco) * x.qtd)}</span>
                     <button type="button" onClick={() => remove(x.item.id)} className="text-red-600 text-sm">Remover</button>
                   </div>
                 </li>
               ))}
             </ul>
-            <p className="font-bold text-lg mb-2">Total: R$ {total.toLocaleString('pt-BR')}</p>
+            <p className="font-bold text-lg mb-2">Total: {formatCurrency(total)}</p>
             <button onClick={finalizar} disabled={carrinho.length === 0} className="w-full py-3 rounded-lg text-white font-bold min-h-[44px] disabled:opacity-50" style={{ backgroundColor: loja.cor_primaria }}>Finalizar venda</button>
           </div>
         </div>
@@ -819,9 +820,6 @@ export function ModalNotaFiscal({ loja, onClose }: { loja: LojaInfo; onClose: ()
     }
   };
 
-  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
-  const formatMoney = (v: string) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full shadow-xl my-4">
@@ -898,7 +896,7 @@ export function ModalNotaFiscal({ loja, onClose }: { loja: LojaInfo; onClose: ()
                       <span className="font-semibold text-gray-900 dark:text-white">NF {n.numero}</span>
                       <span className="text-gray-600 dark:text-gray-400 ml-2">— {n.fornecedor_nome || 'Fornecedor'}</span>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Emissão: {formatDate(n.data_emissao)} · Entrada: {formatDate(n.data_entrada)} · {formatMoney(n.valor_total)}
+                        Emissão: {formatDate(n.data_emissao)} · Entrada: {formatDate(n.data_entrada)} · {formatCurrency(n.valor_total)}
                         {n.xml_file && <span className="ml-2">📎 XML</span>}
                         {n.aplicado_estoque && <span className="ml-2 text-green-600 dark:text-green-400">✓ Estoque</span>}
                       </div>
@@ -1288,7 +1286,7 @@ export function ModalBalanca({ loja, onClose }: { loja: LojaInfo; onClose: () =>
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Últimos registros</p>
                 <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 max-h-32 overflow-y-auto">
                   {registros.slice(0, 10).map(r => (
-                    <li key={r.id}>{r.estoque_item_nome || 'Item'}: {r.peso_kg} kg {r.adicionar_ao_estoque && '(entrada)'} — {new Date(r.created_at).toLocaleString('pt-BR')}</li>
+                    <li key={r.id}>{r.estoque_item_nome || 'Item'}: {r.peso_kg} kg {r.adicionar_ao_estoque && '(entrada)'} — {formatDateTime(r.created_at)}</li>
                   ))}
                 </ul>
               </div>

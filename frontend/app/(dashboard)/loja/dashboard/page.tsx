@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 
 interface Product {
@@ -88,7 +89,7 @@ function LojaDashboardContent() {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
               <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Valor Total</h3>
               <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2">
-                R$ {products.reduce((acc, p) => acc + (parseFloat(p.price) * p.stock), 0).toFixed(2)}
+                {formatCurrency(products.reduce((acc, p) => acc + (parseFloat(p.price) * p.stock), 0))}
               </p>
             </div>
           </div>
@@ -135,7 +136,7 @@ function LojaDashboardContent() {
                         <tr key={product.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">{product.name}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">
-                            R$ {parseFloat(product.price).toFixed(2)}
+                            {formatCurrency(product.price)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">{product.stock}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">

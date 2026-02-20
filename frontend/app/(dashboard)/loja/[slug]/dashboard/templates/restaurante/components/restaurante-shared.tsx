@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import type { Pedido } from '../types';
 
 export function ActionButton({
@@ -82,7 +83,7 @@ export function PedidoCard({ pedido, cor }: { pedido: Pedido; cor: string }) {
         </div>
       </div>
       <p className="font-bold text-base sm:text-lg" style={{ color: cor }}>
-        R$ {Number(pedido.total).toLocaleString('pt-BR')}
+        {formatCurrency(pedido.total)}
       </p>
     </div>
   );

@@ -70,6 +70,8 @@ export default function CalendarioCabeleireiro({ loja, onNovoAgendamento }: { lo
 
   useEffect(() => {
     carregarAgendamentos();
+    // carregarAgendamentos omitido: definido abaixo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataAtual, visualizacao]);
 
   const carregarAgendamentos = async () => {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { ModalBase } from './ModalBase';
 
 interface LojaInfo {
@@ -74,7 +75,7 @@ export function ModalOrcamentos({ loja, onClose }: { loja: LojaInfo; onClose: ()
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.descricao}</p>
             <div className="flex gap-3 mt-2">
               <span className="text-sm font-bold" style={{ color: loja.cor_primaria }}>
-                R$ {Number(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatCurrency(item.valor)}
               </span>
               <span className="text-xs text-gray-500">Validade: {item.validade}</span>
             </div>

@@ -18,7 +18,10 @@ export function ModalCliente({ loja, onClose }: { loja: LojaInfo; onClose: () =>
     endereco: '', cidade: '', estado: '', observacoes: ''
   });
 
-  useEffect(() => { loadClientes(); }, []);
+  useEffect(() => {
+    loadClientes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadClientes = async () => {
     try {

@@ -124,7 +124,15 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
     msg = (err.get('message') or err.get('error_user_msg') or '').strip()
     if not msg and isinstance(err.get('error_data'), dict):
         msg = (err['error_data'].get('details') or '').strip()
-    detail = msg or f"Erro da API Meta (código {code})" if code else "Resposta inesperada da API Meta."
+    # Mensagem amigável para erro de "lista de permitidos" (app em modo teste)
+    if msg and 'not in allowed list' in msg.lower():
+        detail = (
+            "O número do paciente não está na lista de números permitidos da Meta. "
+            "Com o app em modo de teste, só é possível enviar para números cadastrados. "
+            "Em developers.facebook.com → seu app → WhatsApp → API Setup, adicione o número do paciente em \"To\" (números de teste)."
+        )
+    else:
+        detail = msg or (f"Erro da API Meta (código {code})" if code else "Resposta inesperada da API Meta.")
     return False, detail
 
 

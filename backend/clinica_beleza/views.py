@@ -929,7 +929,8 @@ class AgendaCreateView(APIView):
                             logger.info("WhatsApp: confirmação não enviada ao criar agendamento id=%s — opção desligada nas Configurações", appointment.id)
                         else:
                             from whatsapp.services import enviar_confirmacao_agendamento
-                            if enviar_confirmacao_agendamento(appointment, user=request.user, config=config):
+                            ok, _ = enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
+                            if ok:
                                 logger.info("WhatsApp confirmação enviada ao criar agendamento id=%s", appointment.id)
                             else:
                                 logger.info(
@@ -990,11 +991,14 @@ class AgendaReenviarMensagemView(APIView):
             return Response({'sent': False, 'message': 'Envio de confirmação desativado nas Configurações.'}, status=status.HTTP_200_OK)
         from whatsapp.services import enviar_confirmacao_agendamento
         try:
-            ok = enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
+            ok, err_msg = enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
             if ok:
                 logger.info("WhatsApp reenvio confirmação agendamento id=%s", pk)
                 return Response({'sent': True, 'message': 'Mensagem reenviada com sucesso.'})
-            return Response({'sent': False, 'message': 'Não foi possível enviar (verifique a integração WhatsApp nas Configurações).'})
+            return Response({
+                'sent': False,
+                'message': err_msg or 'Não foi possível enviar (verifique a integração WhatsApp nas Configurações).',
+            })
         except Exception as e:
             logger.warning("WhatsApp reenvio agendamento %s: %s", pk, e)
             return Response({'sent': False, 'message': f'Erro ao enviar: {str(e)}'})
@@ -1340,7 +1344,8 @@ class CampanhaPromocaoEnviarView(APIView):
             if not (getattr(p, 'phone', None) or '').strip():
                 continue
             try:
-                if send_whatsapp(telefone=p.phone, mensagem=campanha.mensagem, user=request.user, config=config):
+                ok, _ = send_whatsapp(telefone=p.phone, mensagem=campanha.mensagem, user=request.user, config=config)
+                if ok:
                     enviados += 1
             except Exception as e:
                 logger.warning("Campanha %s paciente %s: %s", pk, p.id, e)

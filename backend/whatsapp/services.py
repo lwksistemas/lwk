@@ -12,13 +12,25 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_phone(telefone):
-    """Remove tudo que não for dígito; exige DDD (11 dígitos para celular)."""
+    """
+    Remove tudo que não for dígito. Retorna número em formato internacional (com código do país).
+    Meta Cloud API exige "to" com código do país, sem + (ex.: 5511999999999, 15551779791).
+    """
     if not telefone:
         return None
     digits = re.sub(r'\D', '', str(telefone))
-    if len(digits) >= 10:
-        return digits[-11:] if len(digits) > 11 else digits  # Brasil: 55 + DDD + 9 + 8 dígitos
-    return None
+    if len(digits) < 10:
+        return None
+    # Já tem código do país (12–15 dígitos): usar como está
+    if len(digits) >= 12:
+        return digits[:15]
+    # 11 dígitos: EUA (1 + 10) usar como está; Brasil (DDD + 9 dígitos) → adicionar 55
+    if len(digits) == 11:
+        return digits if digits.startswith('1') else ('55' + digits)
+    # 10 dígitos: assumir Brasil (DDD 2 + 8 dígitos)
+    if len(digits) == 10:
+        return '55' + digits
+    return digits[:15]
 
 
 def send_whatsapp(telefone, mensagem, user=None, config=None):
@@ -26,7 +38,8 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
     Envia mensagem de texto via WhatsApp Cloud API.
     Se config (WhatsAppConfig da loja) for passado e estiver ativo, usa número/token da loja.
     Caso contrário usa variáveis globais WHATSAPP_PHONE_ID/WHATSAPP_TOKEN (fallback).
-    Registra em WhatsAppLog (auditoria por loja). Retorna True se enviou com sucesso.
+    Registra em WhatsAppLog (auditoria por loja).
+    Retorna (True, None) se enviou com sucesso; (False, mensagem_erro) em caso de falha.
     """
     phone = _normalize_phone(telefone)
     loja = config.loja if config else None
@@ -40,7 +53,7 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
             status='falhou',
             response={'error': 'telefone_invalido'},
         )
-        return False
+        return False, "Telefone inválido ou incompleto (use DDD + número com código do país)."
 
     api_url = getattr(settings, 'WHATSAPP_API_URL', None) or 'https://graph.facebook.com/v19.0'
     phone_id = None
@@ -65,7 +78,7 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
             status='falhou',
             response={'error': 'config_missing'},
         )
-        return False
+        return False, "Phone Number ID e Token não configurados. Preencha em Configurações → WhatsApp."
 
     url = f"{api_url.rstrip('/')}/{phone_id}/messages"
     payload = {
@@ -92,7 +105,7 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
             status='falhou',
             response={'error': str(e)},
         )
-        return False
+        return False, f"Erro de conexão: {str(e)}"
 
     ok = response.ok and (data.get('messages') or not data.get('error'))
     WhatsAppLog.objects.create(
@@ -103,7 +116,16 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
         status='enviado' if ok else 'falhou',
         response=data,
     )
-    return ok
+    if ok:
+        return True, None
+    # Erro da API Meta: ex.: invalid phone_number_id, token expirado, recipient não elegível
+    err = data.get('error') or {}
+    code = err.get('code')
+    msg = (err.get('message') or err.get('error_user_msg') or '').strip()
+    if not msg and isinstance(err.get('error_data'), dict):
+        msg = (err['error_data'].get('details') or '').strip()
+    detail = msg or f"Erro da API Meta (código {code})" if code else "Resposta inesperada da API Meta."
+    return False, detail
 
 
 # --- Templates de mensagem (padrão clínica) ---
@@ -151,27 +173,28 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
     """
     Envia confirmação por WhatsApp ao paciente.
     Chamar quando o agendamento for confirmado. Passar config da loja para usar número/token da clínica.
+    Retorna (True, None) ou (False, mensagem_erro).
     """
     phone = getattr(agendamento.patient, 'phone', None)
     if not phone:
-        return False
+        return False, "Paciente sem telefone cadastrado."
     msg = msg_confirmacao(agendamento)
     return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
 
 
 def enviar_lembrete_agendamento(agendamento, user=None, config=None):
-    """Envia lembrete por WhatsApp (ex.: dia do atendimento). Passar config da loja."""
+    """Envia lembrete por WhatsApp (ex.: dia do atendimento). Passar config da loja. Retorna (ok, erro)."""
     phone = getattr(agendamento.patient, 'phone', None)
     if not phone:
-        return False
+        return False, "Paciente sem telefone cadastrado."
     msg = msg_lembrete(agendamento)
     return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
 
 
 def enviar_cobranca_whatsapp(paciente, valor, user=None, config=None):
-    """Envia mensagem de cobrança por WhatsApp. Passar config da loja."""
+    """Envia mensagem de cobrança por WhatsApp. Passar config da loja. Retorna (ok, erro)."""
     phone = getattr(paciente, 'phone', None)
     if not phone:
-        return False
+        return False, "Paciente sem telefone cadastrado."
     msg = msg_cobranca(paciente, valor)
     return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)

@@ -422,7 +422,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
                         placeholder="Ex: 123456789012345"
                         className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
                       />
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Em developers.facebook.com → seu app → WhatsApp → API Setup</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Em developers.facebook.com → seu app → WhatsApp → API Setup. Use o <strong>Phone number ID</strong> do número que envia (não o ID da conta WhatsApp Business).</p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Token de acesso (Meta)</label>

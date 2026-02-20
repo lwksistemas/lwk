@@ -73,7 +73,8 @@ def send_lembretes_24h_whatsapp():
                 if not getattr(ag.patient, 'allow_whatsapp', True):
                     continue
                 if getattr(ag.patient, 'phone', None):
-                    if enviar_lembrete_agendamento(ag, user=None, config=config):
+                    ok, _ = enviar_lembrete_agendamento(ag, user=None, config=config)
+                    if ok:
                         enviados += 1
         except Exception as e:
             logger.exception("WhatsApp lembrete 24h loja %s: %s", getattr(loja, 'slug', loja.id), e)
@@ -118,7 +119,8 @@ def send_lembretes_2h_whatsapp():
                 if not getattr(ag.patient, 'allow_whatsapp', True):
                     continue
                 if getattr(ag.patient, 'phone', None):
-                    if enviar_lembrete_agendamento(ag, user=None, config=config):
+                    ok, _ = enviar_lembrete_agendamento(ag, user=None, config=config)
+                    if ok:
                         enviados += 1
         except Exception as e:
             logger.exception("WhatsApp lembrete 2h loja %s: %s", getattr(loja, 'slug', loja.id), e)

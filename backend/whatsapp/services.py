@@ -21,15 +21,24 @@ def _normalize_phone(telefone):
     digits = re.sub(r'\D', '', str(telefone))
     if len(digits) < 10:
         return None
-    # Já tem código do país (12–15 dígitos): usar como está
+    # Já tem código do país (12–15 dígitos): usar como está (remover zero à esquerda após 55)
     if len(digits) >= 12:
-        return digits[:15]
+        out = digits[:15]
+        if out.startswith('55') and len(out) > 12 and out[2] == '0':
+            out = '55' + out[3:].lstrip('0')  # ex.: 55016981402966 → 5516981402966
+        return out
     # 11 dígitos: EUA (1 + 10) usar como está; Brasil (DDD + 9 dígitos) → adicionar 55
     if len(digits) == 11:
-        return digits if digits.startswith('1') else ('55' + digits)
+        if digits.startswith('1'):
+            return digits
+        # Remove zero à esquerda (ex.: 016981402966 → 5516981402966)
+        br = digits.lstrip('0')
+        if len(br) < 10:
+            return None
+        return '55' + br
     # 10 dígitos: assumir Brasil (DDD 2 + 8 dígitos)
     if len(digits) == 10:
-        return '55' + digits
+        return '55' + digits.lstrip('0') if digits.lstrip('0') else '55' + digits
     return digits[:15]
 
 

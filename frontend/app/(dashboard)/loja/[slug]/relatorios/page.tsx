@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { authService } from '@/lib/auth';
+import { useLojaAuth } from '@/hooks/useLojaAuth';
 
 interface LojaInfo {
   id: number;
@@ -49,7 +49,8 @@ export default function RelatoriosPage() {
   const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
-  
+  const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
+
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [periodoSelecionado, setPeriodoSelecionado] = useState('mes_atual');
@@ -58,22 +59,19 @@ export default function RelatoriosPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userType = authService.getUserType();
-      if (userType !== 'loja') {
-        router.push(`/loja/${slug}/login`);
-        return;
-      }
-
-      carregarLoja();
-      
-      // Definir datas padrão (mês atual)
-      const hoje = new Date();
-      const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-      setDataInicio(primeiroDia.toISOString().split('T')[0]);
-      setDataFim(hoje.toISOString().split('T')[0]);
+    if (ready && !isLoja) {
+      router.push(loginPath);
+      return;
     }
-  }, [router, slug]);
+    if (!ready || !isLoja) return;
+    carregarLoja();
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    setDataInicio(primeiroDia.toISOString().split('T')[0]);
+    setDataFim(hoje.toISOString().split('T')[0]);
+  }, [ready, isLoja, loginPath, slug, router]);
+
+  if (ready && !isLoja) return null;
 
   const carregarLoja = async () => {
     try {
@@ -82,22 +80,13 @@ export default function RelatoriosPage() {
       setLojaInfo(lojaResponse.data);
     } catch (error: any) {
       console.error('Erro ao carregar loja:', error);
-      if (error.response?.status === 401) {
-        router.push(`/loja/${slug}/login`);
-      }
+      if (error.response?.status === 401) router.push(loginPath);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVoltar = () => {
-    router.push(`/loja/${slug}/dashboard`);
-  };
-
-  const handleLogout = () => {
-    authService.logout();
-    router.push(`/loja/${slug}/login`);
-  };
+  const handleVoltar = () => router.push(`/loja/${slug}/dashboard`);
 
   const handleExportarExcel = () => {
     // Criar dados do relatório
@@ -201,7 +190,7 @@ export default function RelatoriosPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Erro ao carregar loja</h2>
           <button
-            onClick={() => router.push(`/loja/${slug}/login`)}
+            onClick={() => router.push(loginPath)}
             className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             Voltar para Login

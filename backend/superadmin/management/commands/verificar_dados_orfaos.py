@@ -86,24 +86,26 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING('DRY-RUN: nenhum registro foi removido.'))
                 return
             self.stdout.write(self.style.WARNING('Removendo órfãos...'))
+            detalhes_dict = dict(detalhes)
             with connection.cursor() as cursor:
-                for item in detalhes:
-                    tabela, count = item
-                    if tabela == 'loja_assinatura (loja_slug órfão)':
-                        try:
-                            cursor.execute(
-                                """
-                                DELETE FROM loja_assinatura
-                                WHERE loja_slug IS NOT NULL AND loja_slug != ''
-                                AND loja_slug NOT IN (SELECT slug FROM superadmin_loja)
-                                """
-                            )
-                            if cursor.rowcount > 0:
-                                self.stdout.write(self.style.SUCCESS(f'  loja_assinatura: {cursor.rowcount} removidos'))
-                        except Exception as e:
-                            self.stdout.write(self.style.ERROR(f'  loja_assinatura: {e}'))
+                # Caso especial: assinaturas por loja_slug (fora de TABELAS_LOJA_ID)
+                if 'loja_assinatura (loja_slug órfão)' in detalhes_dict:
+                    try:
+                        cursor.execute(
+                            """
+                            DELETE FROM loja_assinatura
+                            WHERE loja_slug IS NOT NULL AND loja_slug != ''
+                            AND loja_slug NOT IN (SELECT slug FROM superadmin_loja)
+                            """
+                        )
+                        if cursor.rowcount > 0:
+                            self.stdout.write(self.style.SUCCESS(f'  loja_assinatura: {cursor.rowcount} removidos'))
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f'  loja_assinatura: {e}'))
+                # Ordem de TABELAS_LOJA_ID para respeitar FKs (ex.: protocolos antes de procedimentos)
+                for tabela, coluna in TABELAS_LOJA_ID:
+                    if tabela not in detalhes_dict:
                         continue
-                    coluna = 'loja_id'
                     try:
                         cursor.execute(
                             f'DELETE FROM {tabela} WHERE {coluna} IS NOT NULL AND {coluna} NOT IN (SELECT id FROM superadmin_loja)'

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface Estatisticas {
   total_lojas: number;
@@ -84,14 +85,6 @@ export default function RelatoriosPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (value: number | string) => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(num || 0);
   };
 
   // Cálculos de relatórios

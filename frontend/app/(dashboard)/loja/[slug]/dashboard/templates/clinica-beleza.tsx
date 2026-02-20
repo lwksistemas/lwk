@@ -50,7 +50,7 @@ interface DashboardData {
   next_appointments: Appointment[];
 }
 
-export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
+export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaInfo; onLogout?: () => void }) {
   const params = useParams();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -238,7 +238,8 @@ export default function DashboardClinicaBeleza({ loja }: { loja: LojaInfo }) {
   const appointments = data?.next_appointments || [];
 
   const handleLogout = () => {
-    if (typeof window !== 'undefined') {
+    if (onLogout) onLogout();
+    else if (typeof window !== 'undefined') {
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');

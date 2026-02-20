@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { authService } from '@/lib/auth';
+import { useLojaAuth } from '@/hooks/useLojaAuth';
 
 interface Product {
   id: number;
@@ -16,27 +16,11 @@ interface Product {
 function LojaDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const slugFromQuery = searchParams.get('slug');
+  const { slug: lojaSlug, loginPath, handleLogout, isLoja, ready } = useLojaAuth(slugFromQuery);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lojaSlug, setLojaSlug] = useState('');
-  const [lojaNome, setLojaNome] = useState('');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userType = authService.getUserType();
-      if (userType !== 'loja') {
-        router.push('/loja/login');
-        return;
-      }
-
-      const slug = searchParams.get('slug') || authService.getLojaSlug() || '';
-      setLojaSlug(slug);
-      
-      if (slug) {
-        loadProducts(slug);
-      }
-    }
-  }, [router, searchParams]);
 
   const loadProducts = async (slug: string) => {
     try {
@@ -55,10 +39,16 @@ function LojaDashboardContent() {
     }
   };
 
-  const handleLogout = () => {
-    authService.logout();
-    router.push('/loja/login');
-  };
+  useEffect(() => {
+    if (!ready) return;
+    if (!isLoja) {
+      router.push(loginPath);
+      return;
+    }
+    if (lojaSlug) loadProducts(lojaSlug);
+  }, [ready, isLoja, loginPath, lojaSlug, router]);
+
+  if (ready && !isLoja) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -67,7 +57,7 @@ function LojaDashboardContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div>
-              <h1 className="text-2xl font-bold">{lojaNome || 'Minha Loja'}</h1>
+              <h1 className="text-2xl font-bold">Minha Loja</h1>
               <p className="text-green-200 text-sm">{lojaSlug}</p>
             </div>
             <button

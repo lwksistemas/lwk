@@ -203,27 +203,23 @@ class SecurityIsolationMiddleware:
             requested_store_slug = self._extract_store_slug(request)
             
             if requested_store_slug:
-                # Verificar se o usuário é proprietário desta loja
+                # Verificar se o usuário é proprietário DESTA loja (suporta múltiplas lojas por dono)
                 try:
                     from superadmin.models import Loja
-                    
-                    # Buscar loja do usuário
-                    user_store = Loja.objects.filter(owner=request.user, is_active=True).first()
-                    
-                    if not user_store:
-                        logger.error(f"❌ Usuário {request.user.username} não possui loja ativa")
+                    user_owns_this_store = Loja.objects.filter(
+                        owner=request.user, is_active=True, slug=requested_store_slug
+                    ).exists()
+                    if not user_owns_this_store:
+                        user_lojas_slugs = list(
+                            Loja.objects.filter(owner=request.user, is_active=True).values_list('slug', flat=True)
+                        )
+                        logger.critical(
+                            "🚨 VIOLAÇÃO CRÍTICA: Usuário %s (lojas: %s) tentou acessar loja: %s",
+                            request.user.username, user_lojas_slugs, requested_store_slug
+                        )
                         return JsonResponse({
-                            'error': 'Você não possui uma loja ativa',
-                            'code': 'NO_ACTIVE_STORE'
-                        }, status=403)
-                    
-                    # Verificar se está tentando acessar outra loja
-                    if user_store.slug != requested_store_slug:
-                        logger.critical(f"🚨 VIOLAÇÃO CRÍTICA: Usuário {request.user.username} (loja: {user_store.slug}) tentou acessar loja: {requested_store_slug}")
-                        return JsonResponse({
-                            'error': 'Acesso negado - Você só pode acessar sua própria loja',
+                            'error': 'Acesso negado - Você só pode acessar suas próprias lojas',
                             'code': 'CROSS_STORE_ACCESS_DENIED',
-                            'sua_loja': user_store.slug,
                             'loja_solicitada': requested_store_slug
                         }, status=403)
                     

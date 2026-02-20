@@ -56,3 +56,7 @@ htmlcov/
 # Backups e utilitários
 backup_dbs/
 utils/scripts_antigos/
+docs_backup/
+
+# Django collectstatic (gerado no deploy)
+backend/staticfiles/

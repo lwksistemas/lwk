@@ -21,6 +21,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react'
+import { formatCurrency, formatDateTime } from '@/lib/financeiro-helpers'
 
 interface AsaasConfig {
   api_key: string
@@ -217,18 +218,6 @@ export default function AsaasConfigPage() {
     }
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value)
-  }
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Nunca'
-    return new Date(dateString).toLocaleString('pt-BR')
-  }
-
   return (
     <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -407,7 +396,7 @@ export default function AsaasConfigPage() {
                 <RefreshCw className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-sm">{formatDate(config.last_sync)}</div>
+                <div className="text-sm">{formatDateTime(config.last_sync, 'Nunca')}</div>
               </CardContent>
             </Card>
           </div>
@@ -458,7 +447,7 @@ export default function AsaasConfigPage() {
                 <div className="flex justify-between">
                   <span>Última Verificação:</span>
                   <span className="text-sm text-muted-foreground">
-                    {formatDate(status.last_check)}
+                    {formatDateTime(status.last_check, 'Nunca')}
                   </span>
                 </div>
                 <div className="flex justify-between">

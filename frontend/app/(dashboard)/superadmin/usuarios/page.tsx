@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { formatDate } from '@/lib/financeiro-helpers';
 
 interface Usuario {
   id: number;
@@ -91,10 +92,6 @@ export default function UsuariosPage() {
       console.error('Erro ao excluir usuário:', error);
       alert(`❌ Erro: ${error.response?.data?.error || 'Erro ao excluir usuário'}`);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
   const getTipoColor = (tipo: string) => {

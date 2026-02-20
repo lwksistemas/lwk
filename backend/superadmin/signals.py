@@ -5,7 +5,7 @@ IMPORTANTE:
 1. Quando uma loja é CRIADA, cria automaticamente um funcionário para o admin
 2. Quando uma loja é EXCLUÍDA, deleta TODOS os dados relacionados (cascata)
 """
-from django.db.models.signals import post_save, pre_delete
+from django.db.models.signals import post_save, pre_delete, post_delete
 from django.dispatch import receiver
 import logging
 
@@ -287,6 +287,34 @@ def delete_all_loja_data(sender, instance, **kwargs):
             _delete_servicos(Categoria, 'categorias')
             _delete_servicos(Funcionario, 'funcionários')
             
+        elif tipo_loja_nome == 'Clínica da Beleza':
+            from django.db import transaction as tx
+            from clinica_beleza.models import (
+                Patient, Professional, Procedure, Appointment, BloqueioHorario,
+                HorarioTrabalhoProfissional, Payment, CampanhaPromocao
+            )
+            def _delete_clinica_beleza(model, nome):
+                try:
+                    with tx.atomic():
+                        if hasattr(model.objects, 'all_without_filter'):
+                            qs = model.objects.all_without_filter().filter(loja_id=loja_id)
+                        else:
+                            qs = model.objects.filter(loja_id=loja_id)
+                        count = qs.count()
+                        qs.delete()
+                        logger.info(f"   ✅ {count} {nome} (Clínica da Beleza) deletados")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Erro ao deletar {nome} Clínica da Beleza: {e}")
+            # Ordem: dependentes primeiro (Payment -> Appointment; BloqueioHorario, HorarioTrabalhoProfissional)
+            _delete_clinica_beleza(Payment, 'pagamentos')
+            _delete_clinica_beleza(Appointment, 'agendamentos')
+            _delete_clinica_beleza(BloqueioHorario, 'bloqueios horário')
+            _delete_clinica_beleza(HorarioTrabalhoProfissional, 'horários trabalho profissional')
+            _delete_clinica_beleza(CampanhaPromocao, 'campanhas promoção')
+            _delete_clinica_beleza(Procedure, 'procedimentos')
+            _delete_clinica_beleza(Professional, 'profissionais')
+            _delete_clinica_beleza(Patient, 'pacientes')
+            
         elif tipo_loja_nome == 'Cabeleireiro':
             # Dados do Cabeleireiro podem estar no schema (DROP abaixo) ou no default
             from cabeleireiro.models import (
@@ -375,20 +403,23 @@ def delete_all_loja_data(sender, instance, **kwargs):
             # Não interrompe a exclusão da loja, apenas loga o erro
         
         # 5. Rede de segurança: limpar qualquer tabela do default com loja_id (evita órfãos)
+        # Cada DELETE em um savepoint para que falha em uma tabela (ex.: não existe em public)
+        # não aborte a transação inteira (evita "current transaction is aborted")
         try:
-            from django.db import connection
+            from django.db import connection, transaction
             from superadmin.orfaos_config import TABELAS_LOJA_ID
-            with connection.cursor() as cursor:
-                for tabela, coluna in TABELAS_LOJA_ID:
-                    try:
-                        cursor.execute(
-                            f'DELETE FROM {tabela} WHERE {coluna} = %s',
-                            [loja_id]
-                        )
-                        if cursor.rowcount:
-                            logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
-                    except Exception as e:
-                        logger.warning(f"   ⚠️ Safety net {tabela}: {e}")
+            for tabela, coluna in TABELAS_LOJA_ID:
+                try:
+                    with transaction.atomic():
+                        with connection.cursor() as cursor:
+                            cursor.execute(
+                                f'DELETE FROM {tabela} WHERE {coluna} = %s',
+                                [loja_id]
+                            )
+                            if cursor.rowcount:
+                                logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Safety net {tabela}: {e}")
         except Exception as e:
             logger.warning(f"   ⚠️ Erro na rede de segurança TABELAS_LOJA_ID: {e}")
         
@@ -399,3 +430,34 @@ def delete_all_loja_data(sender, instance, **kwargs):
         import traceback
         logger.error(traceback.format_exc())
         # Não interrompe a exclusão da loja, apenas loga o erro
+
+
+@receiver(post_delete, sender='superadmin.Loja')
+def remove_owner_if_orphan(sender, instance, **kwargs):
+    """
+    Após excluir uma loja, remove o usuário proprietário se ele ficar órfão
+    (não for dono de mais nenhuma loja). Evita usuários órfãos que bloqueiam
+    criar nova loja com o mesmo login.
+    """
+    from django.contrib.auth.models import User
+    from superadmin.models import UserSession, ProfissionalUsuario
+
+    owner_id = getattr(instance, 'owner_id', None)
+    if not owner_id:
+        return
+    # Após o delete da loja, contar se o owner ainda tem outras lojas
+    from superadmin.models import Loja
+    if Loja.objects.filter(owner_id=owner_id).exists():
+        return
+    try:
+        user = User.objects.filter(id=owner_id).first()
+        if not user or user.is_superuser:
+            return
+        UserSession.objects.filter(user=user).delete()
+        ProfissionalUsuario.objects.filter(user=user).delete()
+        user.groups.clear()
+        user.user_permissions.clear()
+        user.delete()
+        logger.info(f"   ✅ Usuário órfão removido (owner da loja excluída): {user.username}")
+    except Exception as e:
+        logger.warning(f"   ⚠️ Erro ao remover owner órfão: {e}")

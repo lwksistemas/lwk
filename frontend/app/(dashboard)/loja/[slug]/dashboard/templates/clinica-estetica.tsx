@@ -37,7 +37,7 @@ function ModalLoadingFallback() {
   );
 }
 
-export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
+export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: LojaInfo; onLogout?: () => void }) {
   const router = useRouter();
   const toast = useToast();
 
@@ -149,10 +149,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
-              onClick={() => {
-                sessionStorage.clear();
-                window.location.href = `/loja/${loja.slug}/login`;
-              }}
+              onClick={() => (onLogout ? onLogout() : (sessionStorage.clear(), (window.location.href = `/loja/${loja.slug}/login`)))}
               className="px-6 py-3 min-h-[44px] bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors btn-press"
             >
               Fazer Login Novamente
@@ -226,10 +223,7 @@ export default function DashboardClinicaEstetica({ loja }: { loja: LojaInfo }) {
                   <span className="hidden sm:inline">Voltar</span>
           </button>
           <button 
-                  onClick={() => {
-                    sessionStorage.clear();
-                    router.push(`/loja/${loja.slug}/login`);
-                  }}
+                  onClick={() => (onLogout ? onLogout() : (sessionStorage.clear(), router.push(`/loja/${loja.slug}/login`)))}
                   className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-red-600 hover:bg-red-700 rounded-md transition-colors text-sm active:scale-95"
                 >
                   Sair

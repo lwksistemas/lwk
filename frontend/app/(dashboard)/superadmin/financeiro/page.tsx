@@ -6,6 +6,7 @@ import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { ModalNovaCobranca } from '@/components/superadmin/financeiro/ModalNovaCobranca';
 import { ModalConfirmarExclusao } from '@/components/superadmin/financeiro/ModalConfirmarExclusao';
+import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 
 interface AsaasPayment {
   id: number;
@@ -320,16 +321,6 @@ export default function FinanceiroPage() {
   };
 
   // Formatadores
-  const formatCurrency = (value: string | number) => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    const [year, month, day] = dateString.split('T')[0].split('-');
-    return `${day}/${month}/${year}`;
-  };
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {

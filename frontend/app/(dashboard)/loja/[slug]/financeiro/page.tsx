@@ -19,6 +19,7 @@ import {
   QrCode,
   Copy
 } from 'lucide-react'
+import { formatCurrency, formatDate } from '@/lib/financeiro-helpers'
 
 interface FinanceiroData {
   loja: {
@@ -171,19 +172,6 @@ export default function FinanceiroLojaPage() {
       case 'suspenso': return <AlertTriangle className="w-4 h-4" />
       default: return <Clock className="w-4 h-4" />
     }
-  }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value)
-  }
-
-  const formatDate = (dateString: string) => {
-    // Parse manual para evitar problema de timezone
-    const [year, month, day] = dateString.split('T')[0].split('-');
-    return `${day}/${month}/${year}`;
   }
 
   if (loading) {

@@ -4,20 +4,40 @@
  */
 
 /**
- * Formata valor para moeda brasileira
+ * Formata valor para moeda brasileira (aceita number ou string)
  */
-export const formatCurrency = (value: number): string => {
+export const formatCurrency = (value: number | string): string => {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (Number.isNaN(num)) return 'R$ 0,00';
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(value);
+  }).format(num);
 };
 
 /**
- * Formata data para padrão brasileiro
+ * Formata data para padrão brasileiro (dd/mm/yyyy).
+ * Usa apenas a parte da data (split T) para evitar problemas de timezone.
+ * @param fallback - texto quando date é null/undefined/vazio (default '-')
  */
-export const formatDate = (date: string): string => {
-  return new Date(date).toLocaleDateString('pt-BR');
+export const formatDate = (date: string | null | undefined, fallback = '-'): string => {
+  if (date == null || date === '') return fallback;
+  const part = String(date).split('T')[0];
+  const [year, month, day] = part.split('-');
+  if (!year || !month || !day) return fallback;
+  return `${day}/${month}/${year}`;
+};
+
+/**
+ * Formata data e hora para padrão brasileiro (dd/mm/yyyy, hh:mm)
+ */
+export const formatDateTime = (date: string | null | undefined, fallback = '-'): string => {
+  if (date == null || date === '') return fallback;
+  try {
+    return new Date(date).toLocaleString('pt-BR');
+  } catch {
+    return fallback;
+  }
 };
 
 /**

@@ -18,12 +18,12 @@ TABELAS_LOJA_ID = [
     ('clinica_clientes', 'loja_id'),
     ('clinica_agendamentos', 'loja_id'),
     ('clinica_profissionais', 'loja_id'),
-    ('clinica_procedimentos', 'loja_id'),
-    ('clinica_protocolos', 'loja_id'),
+    ('clinica_protocolos', 'loja_id'),   # antes de procedimentos (FK procedimento_id)
     ('clinica_consultas', 'loja_id'),
     ('clinica_evolucoes', 'loja_id'),
-    ('clinica_anamneses_templates', 'loja_id'),
+    ('clinica_anamneses_templates', 'loja_id'),  # antes de procedimentos (FK procedimento_id)
     ('clinica_anamneses', 'loja_id'),
+    ('clinica_procedimentos', 'loja_id'),
     ('clinica_horarios_funcionamento', 'loja_id'),
     ('clinica_bloqueios_agenda', 'loja_id'),
     ('clinica_historico_login', 'loja_id'),

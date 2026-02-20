@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { authService } from '@/lib/auth';
+import { useLojaAuth } from '@/hooks/useLojaAuth';
 import apiClient from '@/lib/api-client';
 import CalendarioCabeleireiro from '@/components/cabeleireiro/CalendarioCabeleireiro';
 import { ModalAgendamentos } from '@/components/cabeleireiro/modals';
@@ -21,40 +21,36 @@ export default function AgendaCabeleireiroPage() {
   const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
-  
+  const { loginPath, isLoja, ready } = useLojaAuth(slug);
+
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userType = authService.getUserType();
-      if (userType !== 'loja') {
-        router.push(`/loja/${slug}/login`);
-        return;
-      }
-
-      carregarLoja();
+    if (ready && !isLoja) {
+      router.push(loginPath);
+      return;
     }
-  }, [router, slug]);
+    if (!ready || !isLoja) return;
+    carregarLoja();
+  }, [ready, isLoja, loginPath, slug, router]);
+
+  if (ready && !isLoja) return null;
 
   const carregarLoja = async () => {
     try {
       setLoading(true);
       const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       const data = response.data;
-      
       if (data?.id && typeof window !== 'undefined') {
         sessionStorage.setItem('current_loja_id', String(data.id));
         if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
       }
-      
       setLojaInfo(data);
     } catch (error: any) {
       console.error('Erro ao carregar loja:', error);
-      if (error.response?.status === 401) {
-        router.push(`/loja/${slug}/login`);
-      }
+      if (error.response?.status === 401) router.push(loginPath);
     } finally {
       setLoading(false);
     }

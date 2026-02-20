@@ -1,7 +1,8 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from django.db.models import Count
-from superadmin.models import Loja
+from superadmin.models import Loja, UserSession, ProfissionalUsuario
+
 
 class Command(BaseCommand):
     help = 'Limpa usuários órfãos (que não são donos de nenhuma loja). Não remove superusers.'
@@ -70,16 +71,32 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(f"⚠️ Erro ao excluir tokens: {e}")
         
-        # Excluir sessões (se existirem)
+        # Excluir sessões
         try:
-            from superadmin.models import UserSession
             sessoes_count = UserSession.objects.filter(user__in=orfaos).count()
             if sessoes_count > 0:
                 self.stdout.write(f"🔐 Excluindo {sessoes_count} sessão(ões)...")
                 UserSession.objects.filter(user__in=orfaos).delete()
         except Exception as e:
             self.stdout.write(f"⚠️ Erro ao excluir sessões: {e}")
-        
+
+        # Excluir vínculos ProfissionalUsuario (evita órfãos e FK)
+        try:
+            prof_count = ProfissionalUsuario.objects.filter(user__in=orfaos).count()
+            if prof_count > 0:
+                self.stdout.write(f"👤 Excluindo {prof_count} vínculo(s) ProfissionalUsuario...")
+                ProfissionalUsuario.objects.filter(user__in=orfaos).delete()
+        except Exception as e:
+            self.stdout.write(f"⚠️ Erro ao excluir ProfissionalUsuario: {e}")
+
+        # Limpar groups e permissions antes do delete
+        for user in orfaos:
+            try:
+                user.groups.clear()
+                user.user_permissions.clear()
+            except Exception as e:
+                self.stdout.write(f"⚠️ Erro ao limpar permissões de {user.username}: {e}")
+
         # Excluir usuários
         count = orfaos.count()
         orfaos.delete()

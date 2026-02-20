@@ -493,6 +493,7 @@ Equipe de Suporte
                 loja.delete()
                 print(f"✅ Loja removida: {loja_nome}")
         except Exception as e:
+            transaction.set_rollback(True)  # evita "current transaction is aborted" em usos posteriores da conexão
             print(f"❌ Erro ao remover loja: {e}")
             return Response(
                 {'error': f'Erro ao remover loja: {str(e)}'},

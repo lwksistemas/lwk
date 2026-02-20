@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { authService } from '@/lib/auth';
+import { useLojaAuth } from '@/hooks/useLojaAuth';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import DashboardClinicaEstetica from './templates/clinica-estetica';
 import DashboardCRMVendas from './templates/crm-vendas';
@@ -27,7 +27,8 @@ export default function LojaDashboardDinamicoPage() {
   const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
-  
+  const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
+
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingLento, setLoadingLento] = useState(false);
@@ -38,22 +39,18 @@ export default function LojaDashboardDinamicoPage() {
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) window.location.reload();
     };
-    
     window.addEventListener('pageshow', handlePageShow);
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userType = authService.getUserType();
-      if (userType !== 'loja') {
-        router.push(`/loja/${slug}/login`);
-        return;
-      }
+    if (!ready || !isLoja) return;
+    verificarECarregarLoja();
+  }, [ready, isLoja, slug]);
 
-      verificarECarregarLoja();
-    }
-  }, [router, slug]);
+  useEffect(() => {
+    if (ready && !isLoja) router.push(loginPath);
+  }, [ready, isLoja, loginPath, router]);
 
   // Mostrar dica se o carregamento passar de 8s (ex.: cold start Heroku)
   useEffect(() => {
@@ -86,11 +83,7 @@ export default function LojaDashboardDinamicoPage() {
     }
   };
 
-  const handleLogout = () => {
-    authService.logout();
-    sessionStorage.removeItem('current_loja_id'); // Limpar loja_id
-    router.push(`/loja/${slug}/login`);
-  };
+  if (ready && !isLoja) return null;
 
   if (loading) {
     return (
@@ -137,7 +130,7 @@ export default function LojaDashboardDinamicoPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Para cabeleireiro e clínica da beleza, renderizar SEM header/container (layout próprio) */}
       {(isCabeleireiro || isClinicaBeleza) ? (
-        renderDashboardPorTipo(lojaInfo)
+        renderDashboardPorTipo(lojaInfo, handleLogout)
       ) : (
         <>
           {/* Header */}
@@ -212,7 +205,7 @@ export default function LojaDashboardDinamicoPage() {
       >
         <div className="py-2 sm:py-4">
           {/* Dashboard específico por tipo */}
-          {renderDashboardPorTipo(lojaInfo)}
+          {renderDashboardPorTipo(lojaInfo, handleLogout)}
         </div>
       </main>
 
@@ -231,45 +224,30 @@ export default function LojaDashboardDinamicoPage() {
   );
 }
 
-function renderDashboardPorTipo(loja: LojaInfo) {
+function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   const tipoSlug = loja.tipo_loja_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   
-  // Dashboard específico para Clínica da Beleza
   if (tipoSlug.includes('clinica') && tipoSlug.includes('beleza')) {
-    return <DashboardClinicaBeleza loja={loja} />;
+    return <DashboardClinicaBeleza loja={loja} onLogout={onLogout} />;
   }
-  
-  // Dashboard específico para Clínica de Estética
   if (tipoSlug.includes('clinica') && tipoSlug.includes('estetica')) {
-    return <DashboardClinicaEstetica loja={loja} />;
+    return <DashboardClinicaEstetica loja={loja} onLogout={onLogout} />;
   }
-  
-  // Dashboard específico para E-commerce
   if (tipoSlug.includes('commerce')) {
     return <DashboardEcommerce loja={loja} />;
   }
-  
-  // Dashboard específico para Restaurante
   if (tipoSlug.includes('restaurante')) {
     return <DashboardRestaurante loja={loja} />;
   }
-  
-  // Dashboard específico para CRM Vendas
   if (tipoSlug.includes('crm') || tipoSlug.includes('vendas')) {
     return <DashboardCRMVendas loja={loja} />;
   }
-  
-  // Dashboard específico para Serviços
   if (tipoSlug.includes('servicos') || tipoSlug.includes('servico')) {
     return <DashboardServicos loja={loja} />;
   }
-  
-  // Dashboard específico para Cabeleireiro
   if (tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia')) {
     return <DashboardCabeleireiro loja={loja} />;
   }
-  
-  // Dashboard genérico (fallback)
   return <DashboardGenerico loja={loja} />;
 }
 

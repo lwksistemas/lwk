@@ -19,6 +19,7 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import apiClient from '@/lib/api-client'
+import { formatCurrency, formatDate } from '@/lib/financeiro-helpers'
 
 interface AssinaturaData {
   loja: {
@@ -144,20 +145,6 @@ export default function AssinaturaLojaPage() {
       default:
         return <Clock className="w-4 h-4" />
     }
-  }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value)
-  }
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-'
-    const part = dateString.split('T')[0]
-    const [year, month, day] = part.split('-')
-    return `${day}/${month}/${year}`
   }
 
   if (loading) {

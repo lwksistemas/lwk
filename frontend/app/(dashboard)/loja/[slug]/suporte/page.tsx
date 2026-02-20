@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { authService } from '@/lib/auth';
+import { useLojaAuth } from '@/hooks/useLojaAuth';
 import ModalChamado from '@/components/suporte/ModalChamado';
 
 interface Resposta {
@@ -33,7 +33,8 @@ export default function SuporteHistoricoPage() {
   const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
-  
+  const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
+
   const [chamados, setChamados] = useState<Chamado[]>([]);
   const [loading, setLoading] = useState(true);
   const [chamadoSelecionado, setChamadoSelecionado] = useState<Chamado | null>(null);
@@ -44,19 +45,16 @@ export default function SuporteHistoricoPage() {
   const [lojaNome, setLojaNome] = useState<string>('');
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userType = authService.getUserType();
-      if (userType !== 'loja') {
-        router.push(`/loja/${slug}/login`);
-        return;
-      }
-      loadChamados();
-      // Carregar nome da loja para o modal de novo chamado
-      apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`).then((r) => {
-        if (r.data?.nome) setLojaNome(r.data.nome);
-      }).catch(() => {});
+    if (ready && !isLoja) {
+      router.push(loginPath);
+      return;
     }
-  }, [router, slug]);
+    if (!ready || !isLoja) return;
+    loadChamados();
+    apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`).then((r) => {
+      if (r.data?.nome) setLojaNome(r.data.nome);
+    }).catch(() => {});
+  }, [ready, isLoja, loginPath, slug, router]);
 
   const loadChamados = async () => {
     try {

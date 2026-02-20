@@ -1,5 +1,7 @@
 'use client';
 
+import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
+
 interface ModalConfirmarExclusaoProps {
   pagamento: {
     id: number;
@@ -14,19 +16,6 @@ interface ModalConfirmarExclusaoProps {
 }
 
 export function ModalConfirmarExclusao({ pagamento, onClose, onConfirm, loading }: ModalConfirmarExclusaoProps) {
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    const [year, month, day] = dateString.split('T')[0].split('-');
-    return `${day}/${month}/${year}`;
-  };
-
-  const formatCurrency = (value: string) => {
-    return parseFloat(value).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    });
-  };
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
+from django.db import IntegrityError
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, 
     PagamentoLoja, UsuarioSistema, HistoricoAcessoGlobal,
@@ -283,15 +284,48 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 alphabet = string.ascii_letters + string.digits + "!@#$%&*"
                 owner_password = ''.join(secrets.choice(alphabet) for _ in range(8))
         
-            # Criar usuário owner da loja
-            owner = User.objects.create_user(
-                username=owner_username,
-                email=owner_email,
-                password=owner_password,
-                first_name=owner_first_name,
-                last_name=owner_last_name,
-                is_staff=False  # CORREÇÃO: Usuários de loja NÃO devem ser staff
-            )
+            # Obter ou criar usuário owner: reutilizar usuário órfão (ex.: após exclusão de loja) para evitar duplicate key
+            owner = User.objects.filter(username=owner_username).first()
+            if owner:
+                if owner.lojas_owned.exists():
+                    raise serializers.ValidationError({
+                        'owner_username': f'O usuário "{owner_username}" já é dono de outra loja. Use outro nome de usuário.'
+                    })
+                # Usuário órfão: reutilizar e atualizar dados
+                owner.email = owner_email
+                owner.first_name = owner_first_name
+                owner.last_name = owner_last_name
+                owner.set_password(owner_password)
+                owner.is_staff = False
+                owner.save()
+            else:
+                try:
+                    owner = User.objects.create_user(
+                        username=owner_username,
+                        email=owner_email,
+                        password=owner_password,
+                        first_name=owner_first_name,
+                        last_name=owner_last_name,
+                        is_staff=False  # Usuários de loja NÃO devem ser staff
+                    )
+                except IntegrityError as e:
+                    if 'username' in str(e) or 'auth_user_username_key' in str(e):
+                        raise serializers.ValidationError({
+                            'owner_username': (
+                                f'Já existe um usuário com o login "{owner_username}". '
+                                'Para liberar esse login (usuário órfão), no servidor execute: '
+                                f'python manage.py verificar_usuario {owner_username} --remover '
+                                'ou python manage.py limpar_usuarios_orfaos --confirmar. '
+                                'Veja docs/LIMPAR_USUARIOS_ORFAOS.md. Ou use outro nome de usuário.'
+                            )
+                        })
+                    if 'email' in str(e) or 'auth_user_email_key' in str(e):
+                        raise serializers.ValidationError({
+                            'owner_email': f'Já existe um usuário com o e-mail "{owner_email}". Use outro e-mail ou limpe usuários órfãos (limpar_usuarios_orfaos --confirmar).'
+                        })
+                    raise serializers.ValidationError({
+                        'owner_username': 'Erro ao criar usuário (dados duplicados). Use outro nome de usuário ou e-mail.'
+                    })
             
             # Slug: usar o enviado pelo frontend se for válido e único; senão o model gera automaticamente
             slug_enviado = (validated_data.pop('slug', None) or '').strip()

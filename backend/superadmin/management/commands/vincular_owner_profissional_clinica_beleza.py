@@ -104,11 +104,12 @@ class Command(BaseCommand):
             try:
                 from clinica_beleza.models import Professional
                 owner_name = (owner.get_full_name() or owner.username or '').strip() or owner.username
+                owner_phone = (getattr(loja, 'owner_telefone', None) or '').strip()
                 try:
                     prof = Professional.objects.using(loja.database_name).create(
                         name=owner_name,
                         email=owner.email or '',
-                        phone='',
+                        phone=owner_phone,
                         specialty='Administrador',
                         active=True,
                         loja_id=loja.id,
@@ -130,7 +131,7 @@ class Command(BaseCommand):
                         prof = Professional.objects.using(loja.database_name).create(
                             name=owner_name,
                             email=owner.email or '',
-                            phone='',
+                            phone=owner_phone,
                             specialty='Administrador',
                             active=True,
                             loja_id=loja.id,

@@ -267,6 +267,9 @@ class ProfessionalListView(APIView):
             )
         
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
+        # Na agenda (with_schedule): administrador da loja não é profissional de atendimento — não aparece para agendamento
+        if with_schedule and owner_professional_id is not None:
+            queryset = queryset.exclude(id=owner_professional_id)
         serializer = ProfessionalSerializer(
             queryset, many=True,
             context={'owner_professional_id': owner_professional_id}

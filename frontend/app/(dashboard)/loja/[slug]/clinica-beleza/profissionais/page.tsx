@@ -236,8 +236,10 @@ export default function ProfissionaisPage() {
           const messages: string[] = [];
           if (typeof err.detail === "string") messages.push(err.detail);
           else if (Array.isArray(err.detail)) messages.push(...(err.detail as string[]));
-          for (const v of Object.values(err)) {
+          for (const [key, v] of Object.entries(err)) {
+            if (key === "detail") continue;
             if (Array.isArray(v) && v.every((x) => typeof x === "string")) messages.push(...(v as string[]));
+            else if (typeof v === "string" && v.trim()) messages.push(v.trim());
           }
           throw new Error(messages.length ? messages.join(". ") : "Erro ao atualizar");
         }
@@ -253,23 +255,29 @@ export default function ProfissionaisPage() {
           if (typeof err.detail === "string") messages.push(err.detail);
           else if (Array.isArray(err.detail)) messages.push(...(err.detail as string[]));
           
-          // Processar erros de campos específicos (como email)
+          // Processar erros de campos específicos (email, loja, etc.) — aceitar string ou array
           for (const [key, v] of Object.entries(err)) {
-            if (key === 'email' && Array.isArray(v)) {
-              // Melhorar mensagem de erro de email duplicado
-              const emailErrors = (v as string[]).map(msg => {
-                if (msg.includes('Já existe') || msg.includes('já existe')) {
-                  return `${msg}\n\nSoluções:\n• Desmarque "Criar acesso" para cadastrar sem login\n• Use um email diferente\n• Deixe o campo email vazio`;
-                }
-                return msg;
-              });
+            if (key === "detail") continue; // já tratado acima
+            if (key === "email" && Array.isArray(v)) {
+              const emailErrors = (v as string[]).map((msg) =>
+                msg.includes("Já existe") || msg.includes("já existe")
+                  ? `${msg}\n\nSoluções:\n• Desmarque "Criar acesso" para cadastrar sem login\n• Use um email diferente\n• Deixe o campo email vazio`
+                  : msg
+              );
               messages.push(...emailErrors);
             } else if (Array.isArray(v) && v.every((x) => typeof x === "string")) {
               messages.push(...(v as string[]));
+            } else if (typeof v === "string" && v.trim()) {
+              const s = v.trim();
+              if (key === "email" && (s.includes("Já existe") || s.includes("já existe"))) {
+                messages.push(`${s}\n\nSoluções:\n• Desmarque "Criar acesso" para cadastrar sem login\n• Use um email diferente\n• Ou use um e-mail que não esteja em uso no sistema`);
+              } else {
+                messages.push(s);
+              }
             }
           }
-          
-          const errorMsg = messages.length ? messages.join(". ") : "Erro ao cadastrar";
+
+          const errorMsg = messages.length ? messages.join("\n\n") : "Erro ao cadastrar";
           console.log('❌ Mensagem de erro formatada:', errorMsg);
           throw new Error(errorMsg);
         }

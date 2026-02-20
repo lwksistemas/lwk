@@ -654,12 +654,26 @@ Sistema Multi-Loja"""
                         fail_silently=True  # Não falhar se email não funcionar
                     )
                     
-                    print(f"✅ Email enviado para {owner_email} com senha provisória e dados de pagamento")
+                    logger.info(
+                        "Email senha provisória: enviado para %s (loja %s)",
+                        owner_email,
+                        getattr(loja, 'slug', loja.nome),
+                    )
                 else:
-                    print(f"⚠️ Email não configurado, senha provisória: {owner_password}")
+                    logger.warning(
+                        "Email senha provisória: não enviado (DEFAULT_FROM_EMAIL não configurado). Loja=%s, owner=%s",
+                        getattr(loja, 'slug', loja.nome),
+                        owner_email,
+                    )
                 
             except Exception as e:
-                print(f"⚠️ Erro ao enviar email: {e}")
+                logger.warning(
+                    "Email senha provisória: falha ao enviar para %s (loja %s): %s",
+                    owner_email,
+                    getattr(loja, 'slug', loja.nome),
+                    e,
+                    exc_info=True,
+                )
                 # Não falhar a criação da loja por causa do email
             
             # Adicionar senha provisória ao contexto para retorno

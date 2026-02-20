@@ -320,7 +320,19 @@ class ProfessionalListView(APIView):
                     status=status.HTTP_201_CREATED,
                 )
             log.error('❌ POST professionals (criar_acesso): validation errors %s', json.dumps(serializer.errors, ensure_ascii=False))
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Incluir "detail" com primeira mensagem para o frontend exibir
+            err_payload = dict(serializer.errors)
+            first_msg = None
+            for v in serializer.errors.values():
+                if isinstance(v, list) and v:
+                    first_msg = v[0]
+                    break
+                if isinstance(v, str) and v.strip():
+                    first_msg = v
+                    break
+            if first_msg:
+                err_payload['detail'] = first_msg
+            return Response(err_payload, status=status.HTTP_400_BAD_REQUEST)
 
         # Validação antecipada para mensagem clara
         def _str_val(key):

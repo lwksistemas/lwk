@@ -55,41 +55,56 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                 loja_id = get_current_loja_id()
                 if not loja_id:
                     professional.delete()
-                    raise serializers.ValidationError({'loja': 'Contexto de loja não encontrado.'})
-
-                if User.objects.using(default_db).filter(username=email).exists():
-                    # Verificar se já é profissional desta loja (mesmo e-mail = mesmo user)
-                    existing = ProfissionalUsuario.objects.using(default_db).filter(
-                        user__username=email,
-                        loja_id=loja_id,
-                    ).exists()
-                    if existing:
-                        professional.delete()
-                        raise serializers.ValidationError({
-                            'email': 'Este e-mail já possui acesso a esta loja. Use outro ou cadastre sem "Criar acesso".'
-                        })
-                    professional.delete()
-                    raise serializers.ValidationError({
-                        'email': 'Já existe um usuário com este e-mail no sistema. Use outro ou não marque "Criar acesso".'
-                    })
+                    msg = 'Contexto de loja não encontrado.'
+                    raise serializers.ValidationError({'loja': msg, 'detail': msg})
 
                 loja = Loja.objects.using(default_db).get(id=loja_id)
-
                 senha_provisoria = get_random_string(8)
-                # Criar usuário no banco default (não usar .using() com create_user)
-                user = User.objects.db_manager(default_db).create_user(
-                    username=email,
-                    email=email,
-                    password=senha_provisoria,
-                    first_name=name or '',
-                )
-                ProfissionalUsuario.objects.using(default_db).create(
-                    user=user,
-                    loja=loja,
-                    professional_id=professional.id,
-                    perfil=perfil,
-                    precisa_trocar_senha=True,
-                )
+                user = None
+
+                existing_user = User.objects.using(default_db).filter(username=email).first()
+                if existing_user:
+                    # Já é profissional DESTA loja -> não permitir duplicar
+                    if ProfissionalUsuario.objects.using(default_db).filter(
+                        user=existing_user,
+                        loja_id=loja_id,
+                    ).exists():
+                        professional.delete()
+                        msg = 'Este e-mail já possui acesso a esta loja. Use outro ou cadastre sem "Criar acesso".'
+                        raise serializers.ValidationError({'email': msg, 'detail': msg})
+                    # É proprietário de alguma loja -> não reutilizar
+                    if existing_user.lojas_owned.exists():
+                        professional.delete()
+                        msg = 'Já existe um usuário (proprietário de loja) com este e-mail. Use outro ou não marque "Criar acesso".'
+                        raise serializers.ValidationError({'email': msg, 'detail': msg})
+                    # Usuário órfão ou só em outras lojas: reutilizar e vincular a esta loja
+                    user = existing_user
+                    user.set_password(senha_provisoria)
+                    user.first_name = name or user.first_name or ''
+                    user.save(update_fields=['password', 'first_name'])
+                    ProfissionalUsuario.objects.using(default_db).create(
+                        user=user,
+                        loja=loja,
+                        professional_id=professional.id,
+                        perfil=perfil,
+                        precisa_trocar_senha=True,
+                    )
+                    logger.info('Usuário órfão reutilizado para acesso à loja: %s (email=%s)', loja_id, email)
+                else:
+                    # Novo usuário
+                    user = User.objects.db_manager(default_db).create_user(
+                        username=email,
+                        email=email,
+                        password=senha_provisoria,
+                        first_name=name or '',
+                    )
+                    ProfissionalUsuario.objects.using(default_db).create(
+                        user=user,
+                        loja=loja,
+                        professional_id=professional.id,
+                        perfil=perfil,
+                        precisa_trocar_senha=True,
+                    )
 
                 site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
                 login_url = f"{site_url}/loja/{loja.slug}/login"
@@ -116,21 +131,18 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
             except Loja.DoesNotExist:
                 professional.delete()
                 logger.warning('Loja id=%s não encontrada ao criar acesso', loja_id)
-                raise serializers.ValidationError({
-                    'loja': 'Loja não encontrada. Tente novamente ou cadastre sem "Criar acesso".'
-                })
+                msg = 'Loja não encontrada. Tente novamente ou cadastre sem "Criar acesso".'
+                raise serializers.ValidationError({'loja': msg, 'detail': msg})
             except IntegrityError as e:
                 professional.delete()
                 logger.warning('IntegrityError ao criar ProfissionalUsuario: %s', e)
-                raise serializers.ValidationError({
-                    'email': 'Este e-mail já possui acesso a esta loja ou há conflito de dados. Cadastre sem "Criar acesso" ou use outro e-mail.'
-                })
+                msg = 'Este e-mail já possui acesso a esta loja ou há conflito de dados. Cadastre sem "Criar acesso" ou use outro e-mail.'
+                raise serializers.ValidationError({'email': msg, 'detail': msg})
             except Exception as e:
                 professional.delete()
                 logger.exception('Erro ao criar acesso do profissional: %s', e)
-                raise serializers.ValidationError({
-                    'detail': 'Erro ao criar acesso. Tente novamente ou cadastre sem "Criar acesso".'
-                })
+                msg = 'Erro ao criar acesso. Tente novamente ou cadastre sem "Criar acesso".'
+                raise serializers.ValidationError({'detail': msg})
 
         return professional
 

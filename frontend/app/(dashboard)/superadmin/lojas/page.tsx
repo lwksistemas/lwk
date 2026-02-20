@@ -113,22 +113,6 @@ export default function GerenciarLojasPage() {
     }
   };
 
-  const mostrarSenha = (loja: Loja) => {
-    if (!loja.senha_provisoria) {
-      alert('❌ Esta loja não possui senha provisória cadastrada.');
-      return;
-    }
-
-    const mensagem = `🔐 DADOS DE ACESSO - ${loja.nome}\n\n` +
-      `• URL: http://localhost:3000${loja.login_page_url}\n` +
-      `• Usuário: ${loja.owner_username}\n` +
-      `• Email: ${loja.owner_email}\n` +
-      `• Senha Provisória: ${loja.senha_provisoria}\n\n` +
-      `⚠️ Esta senha foi enviada por email para o proprietário.`;
-    
-    alert(mensagem);
-  };
-
   const abrirInformacoesLoja = async (loja: Loja) => {
     setShowModalInfo(true);
     setLojaInfo(null);
@@ -335,25 +319,17 @@ export default function GerenciarLojasPage() {
                       </td>
                       <td className="px-6 py-4">
                         {loja.senha_provisoria ? (
-                          <div className="space-y-1">
-                            <button
-                              onClick={() => mostrarSenha(loja)}
-                              className="block text-xs text-purple-600 hover:text-purple-800"
-                              title="Ver dados de acesso"
-                            >
-                              🔐 Ver Senha
-                            </button>
-                            <button
-                              onClick={() => reenviarSenha(loja)}
-                              className="block text-xs text-blue-600 hover:text-blue-800"
-                              title="Reenviar senha por email"
-                            >
-                              📧 Reenviar
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => reenviarSenha(loja)}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                            title="Reenviar senha por email"
+                          >
+                            📧 Reenviar senha
+                          </button>
                         ) : (
                           <span className="text-xs text-gray-400">Sem senha provisória</span>
                         )}
+                        <p className="text-xs text-gray-500 mt-1">Senha em Informações da Loja</p>
                       </td>
                       <td className="px-6 py-4 text-sm space-x-2">
                         <button

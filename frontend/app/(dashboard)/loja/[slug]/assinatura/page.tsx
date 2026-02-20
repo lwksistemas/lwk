@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import apiClient from '@/lib/api-client'
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers'
+import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark'
 
 interface AssinaturaData {
   loja: {
@@ -53,6 +54,7 @@ interface AssinaturaData {
 export default function AssinaturaLojaPage() {
   const params = useParams()
   const slug = params.slug as string
+  useClinicaBelezaDark()
 
   const [data, setData] = useState<AssinaturaData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -152,9 +154,11 @@ export default function AssinaturaLojaPage() {
     }
   }
 
+  const pageWrapper = 'min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100'
+
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
+      <div className={`${pageWrapper} flex items-center justify-center p-6`}>
         <div className="flex items-center justify-center h-64">
           <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
@@ -164,7 +168,7 @@ export default function AssinaturaLojaPage() {
 
   if (error || !data) {
     return (
-      <div className="container mx-auto p-6">
+      <div className={`${pageWrapper} container mx-auto p-6`}>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error || 'Dados não encontrados'}</AlertDescription>
@@ -177,10 +181,10 @@ export default function AssinaturaLojaPage() {
   }
 
   return (
-    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+    <div className={`${pageWrapper} container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6`}>
       {/* Header */}
       <div className="flex flex-col gap-3">
-        <Button variant="ghost" size="sm" className="w-fit" asChild>
+        <Button variant="ghost" size="sm" className="w-fit dark:text-gray-200 dark:hover:bg-neutral-800" asChild>
           <Link href={`/loja/${slug}/dashboard`} className="flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
             Voltar ao dashboard
@@ -188,8 +192,8 @@ export default function AssinaturaLojaPage() {
         </Button>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Pagar Assinatura</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold dark:text-gray-100">Pagar Assinatura</h1>
+            <p className="text-sm text-muted-foreground dark:text-gray-400">
               {data.loja.nome} – {data.loja.plano} ({data.loja.tipo_assinatura})
             </p>
           </div>
@@ -219,39 +223,39 @@ export default function AssinaturaLojaPage() {
 
       {/* Valor e próxima cobrança */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card>
+        <Card className="dark:bg-neutral-800 dark:border-neutral-700">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Valor da assinatura</CardTitle>
+            <CardTitle className="text-base dark:text-gray-100">Valor da assinatura</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(data.financeiro.valor_mensalidade)}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-2xl font-bold dark:text-gray-100">{formatCurrency(data.financeiro.valor_mensalidade)}</p>
+            <p className="text-xs text-muted-foreground dark:text-gray-400">
               Vencimento todo dia {data.financeiro.dia_vencimento}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="dark:bg-neutral-800 dark:border-neutral-700">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Próxima cobrança</CardTitle>
+            <CardTitle className="text-base dark:text-gray-100">Próxima cobrança</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xl font-bold">{formatDate(data.financeiro.data_proxima_cobranca)}</p>
+            <p className="text-xl font-bold dark:text-gray-100">{formatDate(data.financeiro.data_proxima_cobranca)}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Boleto / PIX – igual à loja clínica de estética */}
       {data.financeiro.tem_asaas && (data.financeiro.boleto_url || data.financeiro.pix_copy_paste) ? (
-        <Card>
+        <Card className="dark:bg-neutral-800 dark:border-neutral-700">
           <CardHeader>
-            <CardTitle>Formas de pagamento</CardTitle>
-            <CardDescription>
+            <CardTitle className="dark:text-gray-100">Formas de pagamento</CardTitle>
+            <CardDescription className="dark:text-gray-400">
               Pague por boleto bancário ou PIX (API Asaas)
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue={data.financeiro.boleto_url ? 'boleto' : 'pix'}>
-              <TabsList className="w-full sm:w-auto">
+              <TabsList className="w-full sm:w-auto dark:bg-neutral-700">
                 {data.financeiro.boleto_url && (
                   <TabsTrigger value="boleto" className="flex-1 sm:flex-none">
                     Boleto
@@ -289,8 +293,8 @@ export default function AssinaturaLojaPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {data.financeiro.pix_qr_code && (
                       <div className="text-center">
-                        <h4 className="font-medium mb-2">QR Code PIX</h4>
-                        <div className="bg-white p-4 rounded border inline-block">
+                        <h4 className="font-medium mb-2 dark:text-gray-200">QR Code PIX</h4>
+                        <div className="bg-white dark:bg-neutral-700 p-4 rounded border dark:border-neutral-600 inline-block">
                           <Image
                             src={`data:image/png;base64,${data.financeiro.pix_qr_code}`}
                             alt="QR Code PIX"
@@ -303,8 +307,8 @@ export default function AssinaturaLojaPage() {
                       </div>
                     )}
                     <div>
-                      <h4 className="font-medium mb-2">Código PIX (copia e cola)</h4>
-                      <div className="bg-muted p-3 rounded text-sm font-mono break-all">
+                      <h4 className="font-medium mb-2 dark:text-gray-200">Código PIX (copia e cola)</h4>
+                      <div className="bg-muted dark:bg-neutral-700 p-3 rounded text-sm font-mono break-all dark:text-gray-200">
                         {data.financeiro.pix_copy_paste || '—'}
                       </div>
                       {data.financeiro.pix_copy_paste && (
@@ -321,9 +325,9 @@ export default function AssinaturaLojaPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="dark:bg-neutral-800 dark:border-neutral-700">
           <CardContent className="py-8">
-            <p className="text-center text-muted-foreground">
+            <p className="text-center text-muted-foreground dark:text-gray-400">
               Nenhum boleto ou PIX disponível no momento. Entre em contato com o suporte para
               regularizar sua assinatura.
             </p>
@@ -338,17 +342,17 @@ export default function AssinaturaLojaPage() {
 
       {/* Próximo pagamento (card extra quando há proximo_pagamento) */}
       {data.proximo_pagamento && (
-        <Card>
+        <Card className="dark:bg-neutral-800 dark:border-neutral-700">
           <CardHeader>
-            <CardTitle className="text-base">Próximo pagamento</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-base dark:text-gray-100">Próximo pagamento</CardTitle>
+            <CardDescription className="dark:text-gray-400">
               Vencimento: {formatDate(data.proximo_pagamento.data_vencimento)} – Ref.{' '}
               {formatDate(data.proximo_pagamento.referencia_mes)}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <p className="text-xl font-bold">{formatCurrency(data.proximo_pagamento.valor)}</p>
+              <p className="text-xl font-bold dark:text-gray-100">{formatCurrency(data.proximo_pagamento.valor)}</p>
               <div className="flex gap-2">
                 {data.proximo_pagamento.boleto_url && (
                   <Button

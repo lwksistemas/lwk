@@ -70,6 +70,8 @@ export default function PacientesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  useClinicaBelezaDark();
+
   const load = async () => {
     setLoading(true);
     try {

@@ -2,6 +2,7 @@ from rest_framework import status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from django.db.models import Sum, Q
 from django.utils import timezone
 from datetime import date, datetime, timedelta
@@ -11,13 +12,14 @@ from core.throttling import DashboardRateThrottle
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento, Funcionario,
     ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
-    HorarioFuncionamento, BloqueioAgenda, Consulta
+    HorarioFuncionamento, HorarioTrabalhoProfissional, BloqueioAgenda, Consulta
 )
 from .serializers import (
     ClienteSerializer, ProfissionalSerializer, ProcedimentoSerializer,
     AgendamentoSerializer, FuncionarioSerializer, ProtocoloProcedimentoSerializer,
     EvolucaoPacienteSerializer, AnamnesesTemplateSerializer, AnamneseSerializer,
-    HorarioFuncionamentoSerializer, BloqueioAgendaSerializer, ClienteBuscaSerializer,
+    HorarioFuncionamentoSerializer, HorarioTrabalhoProfissionalSerializer,
+    BloqueioAgendaSerializer, ClienteBuscaSerializer,
     ConsultaSerializer, HistoricoLoginSerializer, CategoriaFinanceiraSerializer,
     TransacaoSerializer
 )
@@ -60,6 +62,51 @@ class ProfissionalViewSet(BaseModelViewSet):
             queryset = queryset.filter(is_active=True)
         
         return queryset
+
+
+class HorarioTrabalhoProfissionalView(APIView):
+    """
+    Dias e horários de atendimento do profissional.
+    GET /api/clinica/profissionais/<id>/horarios-trabalho/  → lista
+    PUT /api/clinica/profissionais/<id>/horarios-trabalho/  → substitui todos
+    Body PUT: [{"dia_semana": 0, "hora_entrada": "08:00", "hora_saida": "18:00", "intervalo_inicio": null, "intervalo_fim": null, "ativo": true}]
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            profissional = Profissional.objects.get(pk=pk)
+        except Profissional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        queryset = HorarioTrabalhoProfissional.objects.filter(profissional_id=pk).order_by('dia_semana')
+        serializer = HorarioTrabalhoProfissionalSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        try:
+            profissional = Profissional.objects.get(pk=pk)
+        except Profissional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        if not isinstance(request.data, list):
+            return Response(
+                {'error': 'Envie uma lista de horários. Ex.: [{"dia_semana": 0, "hora_entrada": "08:00", "hora_saida": "18:00", "ativo": true}]'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        HorarioTrabalhoProfissional.objects.filter(profissional_id=pk).delete()
+        created = []
+        for item in request.data:
+            item = dict(item)
+            serializer = HorarioTrabalhoProfissionalSerializer(data=item)
+            if serializer.is_valid():
+                obj = serializer.save(profissional=profissional)
+                if not getattr(obj, 'loja_id', None) and getattr(profissional, 'loja_id', None):
+                    obj.loja_id = profissional.loja_id
+                    obj.save(update_fields=['loja_id'])
+                created.append(HorarioTrabalhoProfissionalSerializer(obj).data)
+            else:
+                HorarioTrabalhoProfissional.objects.filter(profissional_id=pk).delete()
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(created, status=status.HTTP_200_OK)
 
 
 class ProcedimentoViewSet(BaseModelViewSet):

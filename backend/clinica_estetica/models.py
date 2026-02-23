@@ -54,6 +54,54 @@ class Profissional(LojaIsolationMixin, models.Model):
         return f"{self.nome} - {self.especialidade}"
 
 
+class HorarioTrabalhoProfissional(LojaIsolationMixin, models.Model):
+    """
+    Dias e horários de atendimento do profissional.
+    Um registro por dia da semana em que o profissional atende (ex.: Seg 08:00-18:00).
+    """
+    DIAS_SEMANA = [
+        (0, 'Segunda-feira'),
+        (1, 'Terça-feira'),
+        (2, 'Quarta-feira'),
+        (3, 'Quinta-feira'),
+        (4, 'Sexta-feira'),
+        (5, 'Sábado'),
+        (6, 'Domingo'),
+    ]
+    profissional = models.ForeignKey(
+        Profissional,
+        on_delete=models.CASCADE,
+        related_name='horarios_trabalho',
+        verbose_name='Profissional',
+    )
+    dia_semana = models.IntegerField(choices=DIAS_SEMANA, verbose_name='Dia da semana')
+    hora_entrada = models.TimeField(verbose_name='Entrada')
+    hora_saida = models.TimeField(verbose_name='Saída')
+    intervalo_inicio = models.TimeField(
+        blank=True, null=True,
+        verbose_name='Início intervalo (ex.: almoço)',
+        help_text='Opcional',
+    )
+    intervalo_fim = models.TimeField(
+        blank=True, null=True,
+        verbose_name='Fim intervalo',
+        help_text='Opcional',
+    )
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'clinica_horarios_trabalho_profissional'
+        verbose_name = 'Horário de atendimento (profissional)'
+        verbose_name_plural = 'Horários de atendimento (profissionais)'
+        ordering = ['profissional', 'dia_semana']
+        unique_together = [['profissional', 'dia_semana']]
+
+    def __str__(self):
+        return f"{self.profissional.nome} - {self.get_dia_semana_display()}: {self.hora_entrada}-{self.hora_saida}"
+
+
 class Procedimento(LojaIsolationMixin, models.Model):
     """Procedimentos oferecidos pela clínica"""
     nome = models.CharField(max_length=200)

@@ -4,7 +4,7 @@ from .views import (
     TipoLojaViewSet, PlanoAssinaturaViewSet, LojaViewSet,
     FinanceiroLojaViewSet, PagamentoLojaViewSet, UsuarioSistemaViewSet,
     HistoricoAcessoGlobalViewSet, ViolacaoSegurancaViewSet, EstatisticasAuditoriaViewSet,
-    recuperar_senha_loja, mercadopago_config
+    recuperar_senha_loja, mercadopago_config, mercadopago_test, mercadopago_webhook
 )
 from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
@@ -38,5 +38,7 @@ urlpatterns = [
     path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),
     path('loja/<str:loja_slug>/financeiro/', dashboard_financeiro_loja, name='dashboard-financeiro-loja'),
     path('mercadopago-config/', mercadopago_config, name='mercadopago-config'),
+    path('mercadopago-config/test/', mercadopago_test, name='mercadopago-config-test'),
+    path('mercadopago-webhook/', mercadopago_webhook, name='mercadopago-webhook'),
     path('', include(router.urls)),
 ]

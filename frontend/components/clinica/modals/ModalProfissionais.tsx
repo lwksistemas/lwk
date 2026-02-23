@@ -6,6 +6,7 @@ import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 import { CrudModal } from '../shared/CrudModal';
 import { FormField } from '../shared/FormField';
+import { ModalHorariosTrabalho } from '../ModalHorariosTrabalho';
 import type { LojaInfo } from '../shared/CrudModal';
 
 interface Profissional {
@@ -49,6 +50,7 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
   const [editingProfissional, setEditingProfissional] = useState<Profissional | null>(null);
   const [formData, setFormData] = useState(initialFormData);
   const [submitting, setSubmitting] = useState(false);
+  const [horariosProfissional, setHorariosProfissional] = useState<Profissional | null>(null);
 
   const loadProfissionais = useCallback(async () => {
     try {
@@ -196,7 +198,14 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
                   </div>
                 </div>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setHorariosProfissional(profissional)}
+                  className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+                  title="Configurar dias e horários de atendimento"
+                >
+                  🕐 Horários
+                </button>
                 <button onClick={() => handleEdit(profissional)} className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600">
                   ✏️ Editar
                 </button>
@@ -219,6 +228,16 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
           </button>
         )}
       </div>
+
+      {horariosProfissional && (
+        <ModalHorariosTrabalho
+          profissionalId={horariosProfissional.id}
+          profissionalNome={horariosProfissional.nome}
+          corPrimaria={loja.cor_primaria}
+          onClose={() => setHorariosProfissional(null)}
+          onSaved={() => loadProfissionais()}
+        />
+      )}
     </CrudModal>
   );
 }

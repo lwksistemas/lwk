@@ -4,7 +4,7 @@ from .views import (
     ClienteViewSet, ProfissionalViewSet, ProcedimentoViewSet,
     AgendamentoViewSet, FuncionarioViewSet, ProtocoloProcedimentoViewSet,
     EvolucaoPacienteViewSet, AnamnesesTemplateViewSet, AnamneseViewSet,
-    HorarioFuncionamentoViewSet, BloqueioAgendaViewSet, ConsultaViewSet,
+    HorarioFuncionamentoViewSet, HorarioTrabalhoProfissionalView, BloqueioAgendaViewSet, ConsultaViewSet,
     HistoricoLoginViewSet, CategoriaFinanceiraViewSet, TransacaoViewSet,
     HistoricoAcessosLojaViewSet
 )
@@ -28,5 +28,6 @@ router.register(r'categorias-financeiras', CategoriaFinanceiraViewSet, basename=
 router.register(r'transacoes', TransacaoViewSet, basename='clinica-transacoes')
 
 urlpatterns = [
+    path('profissionais/<int:pk>/horarios-trabalho/', HorarioTrabalhoProfissionalView.as_view(), name='clinica-profissionais-horarios-trabalho'),
     path('', include(router.urls)),
 ]

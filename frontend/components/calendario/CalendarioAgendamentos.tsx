@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { clinicaApiClient } from '@/lib/api-client';
 import { ensureArray } from '@/lib/array-helpers';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { getStatusClinicaInfo, STATUS_AGENDAMENTO_CLINICA } from '@/constants/status';
 
 interface Agendamento {
   id: number;
@@ -19,66 +20,6 @@ interface Agendamento {
   observacoes?: string;
 }
 
-// Função para obter cor baseada no status do agendamento
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case 'agendado':
-      return '#3B82F6'; // Azul
-    case 'confirmado':
-      return '#10B981'; // Verde
-    case 'em_atendimento':
-      return '#10B981'; // Verde (mesmo que confirmado)
-    case 'concluido':
-      return '#10B981'; // Verde
-    case 'faltou':
-      return '#A855F7'; // Roxo/Púrpura
-    case 'cancelado':
-      return '#F59E0B'; // Laranja/Âmbar
-    default:
-      return '#6B7280'; // Cinza padrão
-  }
-};
-
-// Função para obter texto do status em português
-const getStatusText = (status: string): string => {
-  switch (status) {
-    case 'agendado':
-      return 'Agendado';
-    case 'confirmado':
-      return 'Confirmado';
-    case 'em_atendimento':
-      return 'Em Atendimento';
-    case 'concluido':
-      return 'Concluído';
-    case 'faltou':
-      return 'Faltou';
-    case 'cancelado':
-      return 'Cancelado';
-    default:
-      return status;
-  }
-};
-
-// Função para obter emoji do status
-const getStatusEmoji = (status: string): string => {
-  switch (status) {
-    case 'agendado':
-      return '🔵';
-    case 'confirmado':
-      return '🟢';
-    case 'em_atendimento':
-      return '🟢';
-    case 'concluido':
-      return '✅';
-    case 'faltou':
-      return '🔴';
-    case 'cancelado':
-      return '⚪';
-    default:
-      return '⚫';
-  }
-};
-
 // Componente de menu de status para agendamentos (portal + delay no fechamento para mobile)
 function MenuStatus({ 
   agendamento, 
@@ -91,15 +32,6 @@ function MenuStatus({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const openTimeRef = useRef<number>(0);
-
-  const statusOptions = [
-    { value: 'agendado', label: 'Agendado', color: '#3B82F6' },
-    { value: 'confirmado', label: 'Confirmado', color: '#10B981' },
-    { value: 'em_atendimento', label: 'Em Atendimento', color: '#10B981' },
-    { value: 'concluido', label: 'Concluído', color: '#10B981' },
-    { value: 'faltou', label: 'Faltou', color: '#EF4444' },
-    { value: 'cancelado', label: 'Cancelado', color: '#9CA3AF' },
-  ];
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -159,7 +91,7 @@ function MenuStatus({
             }}
             role="menu"
           >
-            {statusOptions.map((option) => (
+            {STATUS_AGENDAMENTO_CLINICA.map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -196,9 +128,19 @@ interface BloqueioAgenda {
   is_active?: boolean;
 }
 
+interface HorarioTrabalho {
+  dia_semana: number;
+  hora_entrada: string;
+  hora_saida: string;
+  intervalo_inicio?: string | null;
+  intervalo_fim?: string | null;
+  ativo?: boolean;
+}
+
 interface Profissional {
   id: number;
   nome: string;
+  horarios_trabalho?: HorarioTrabalho[];
 }
 
 interface LojaInfo {
@@ -275,6 +217,56 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     const [hh, mm] = t.split(':').map((v) => parseInt(v, 10));
     return (hh || 0) * 60 + (mm || 0);
   };
+
+  // Retorna os horários de exibição na semana: se o profissional tiver horarios_trabalho configurados, usa o intervalo coberto por eles; senão 08:00–19:00.
+  const getHorariosExibicaoSemana = (): string[] => {
+    const prof = profissionalSelecionado ? profissionais.find((p) => String(p.id) === profissionalSelecionado) : null;
+    const ht = prof?.horarios_trabalho?.filter((h) => h.ativo !== false);
+    if (!ht?.length) {
+      return Array.from({ length: 12 }, (_, i) => `${(i + 8).toString().padStart(2, '0')}:00`);
+    }
+    let minMin = 8 * 60;
+    let maxMin = 19 * 60;
+    ht.forEach((h) => {
+      const ent = timeToMinutes(h.hora_entrada) ?? 8 * 60;
+      const sai = timeToMinutes(h.hora_saida) ?? 18 * 60;
+      if (ent < minMin) minMin = ent;
+      if (sai > maxMin) maxMin = sai;
+    });
+    const slots: string[] = [];
+    for (let m = minMin; m <= maxMin; m += 30) {
+      const hh = Math.floor(m / 60);
+      const mm = m % 60;
+      slots.push(`${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`);
+    }
+    return slots.length ? slots : ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'];
+  };
+
+  // Verifica se o slot (ex.: "09:00") está dentro do horário de atendimento do profissional no dia da semana (backend: 0=Seg … 6=Dom).
+  const slotDentroDoHorarioProfissional = (diaSemanaBackend: number, horario: string): boolean => {
+    const prof = profissionalSelecionado ? profissionais.find((p) => String(p.id) === profissionalSelecionado) : null;
+    const ht = prof?.horarios_trabalho?.filter((h) => h.ativo !== false && h.dia_semana === diaSemanaBackend);
+    if (!ht?.length) return true;
+    const slotMin = timeToMinutes(horario) ?? 0;
+    for (const h of ht) {
+      const ent = timeToMinutes(h.hora_entrada) ?? 0;
+      const sai = timeToMinutes(h.hora_saida) ?? 24 * 60;
+      let ini = ent;
+      let fim = sai;
+      if (h.intervalo_inicio != null && h.intervalo_fim != null) {
+        const iIni = timeToMinutes(h.intervalo_inicio) ?? ent;
+        const iFim = timeToMinutes(h.intervalo_fim) ?? sai;
+        if (slotMin < iIni) fim = iIni;
+        else if (slotMin >= iFim) ini = iFim;
+        else continue;
+      }
+      if (slotMin >= ini && slotMin < fim) return true;
+    }
+    return false;
+  };
+
+  // Mapeia dia da semana JS (0=Dom, 1=Seg, …) para backend (0=Seg, …, 6=Dom).
+  const jsDayToBackend = (jsDay: number) => (jsDay + 6) % 7;
 
   const bloqueioDeveSerExibido = (bloqueio: BloqueioAgenda) => {
     // Se não tem profissional, é global - sempre exibir
@@ -474,7 +466,9 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   // Componente para visualização por dia
   const VisualizacaoDia = () => {
     const agendamentosDoDia = agendamentos.filter(ag => ag.data === formatarData(dataAtual));
-    const horarios = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+    const diaBackendDia = jsDayToBackend(dataAtual.getDay());
+    const horariosPadrao = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+    const horarios = horariosPadrao;
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
@@ -488,6 +482,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               const dataStr = formatarData(dataAtual);
               const bloqueio = getBloqueioAt(dataStr, horario);
               const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
+              const dentroHorarioDia = slotDentroDoHorarioProfissional(diaBackendDia, horario);
               
               return (
                 <div key={horario} className="flex items-stretch gap-2 sm:gap-4 border-b dark:border-gray-700 pb-2 min-h-[52px]">
@@ -499,21 +494,21 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                       <div 
                         className="p-2.5 sm:p-3 rounded-lg cursor-pointer hover:opacity-80 border-l-4 active:scale-[0.99]"
                         style={{ 
-                          backgroundColor: `${getStatusColor(agendamento.status)}20`, 
-                          borderLeftColor: getStatusColor(agendamento.status)
+backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}20`,
+                          borderLeftColor: getStatusClinicaInfo(agendamento.status).color
                         }}
                         onClick={() => handleEditarAgendamento(agendamento)}
                       >
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-base sm:text-lg">{getStatusEmoji(agendamento.status)}</span>
+                              <span className="text-base sm:text-lg">{getStatusClinicaInfo(agendamento.status).emoji}</span>
                               <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">{agendamento.cliente_nome}</p>
                             </div>
                             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{agendamento.procedimento_nome}</p>
                             <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">Prof: {agendamento.profissional_nome}</p>
-                            <p className="text-[10px] sm:text-xs font-medium mt-0.5" style={{ color: getStatusColor(agendamento.status) }}>
-                              {getStatusText(agendamento.status)}
+                            <p className="text-[10px] sm:text-xs font-medium mt-0.5" style={{ color: getStatusClinicaInfo(agendamento.status).color }}>
+                              {getStatusClinicaInfo(agendamento.status).label}
                             </p>
                           </div>
                           <div className="flex flex-shrink-0 gap-1 sm:space-x-2">
@@ -579,6 +574,13 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                           </div>
                         )}
                       </div>
+                    ) : !dentroHorarioDia ? (
+                      <div
+                        className="w-full p-2 text-left text-gray-400 dark:text-gray-500 rounded border border-dashed border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 text-sm"
+                        title="Fora do horário de atendimento do profissional"
+                      >
+                        — Fora do horário
+                      </div>
                     ) : (
                       <button
                         onClick={() => handleNovoAgendamento(formatarData(dataAtual), horario)}
@@ -602,7 +604,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     const { dataInicio } = calcularPeriodo();
     const inicioSemana = new Date(dataInicio);
     const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const horarios = Array.from({ length: 12 }, (_, i) => `${(i + 8).toString().padStart(2, '0')}:00`);
+    const horarios = getHorariosExibicaoSemana();
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto overflow-y-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -637,6 +639,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                 const dia = new Date(inicioSemana);
                 dia.setDate(inicioSemana.getDate() + i);
                 const dataStr = formatarData(dia);
+                const diaBackend = jsDayToBackend(dia.getDay());
+                const dentroHorario = slotDentroDoHorarioProfissional(diaBackend, horario);
                 
                 const agendamento = agendamentos.find(ag => 
                   ag.data === dataStr && ag.horario.startsWith(horario.split(':')[0])
@@ -650,14 +654,14 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                       <div
                         className="p-2 rounded text-xs cursor-pointer hover:opacity-80 border-l-2 relative"
                         style={{ 
-                          backgroundColor: `${getStatusColor(agendamento.status)}20`, 
-                          borderLeftColor: getStatusColor(agendamento.status)
+backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}20`,
+                          borderLeftColor: getStatusClinicaInfo(agendamento.status).color
                         }}
                         onClick={() => handleEditarAgendamento(agendamento)}
                       >
                         <div className="flex items-center justify-between gap-1 mb-1">
                           <div className="flex items-center gap-1 flex-1 min-w-0">
-                            <span>{getStatusEmoji(agendamento.status)}</span>
+                            <span>{getStatusClinicaInfo(agendamento.status).emoji}</span>
                             <div className="font-semibold truncate">{agendamento.cliente_nome}</div>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -680,8 +684,8 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                           </div>
                         </div>
                         <div className="truncate text-gray-600 dark:text-gray-400">{agendamento.procedimento_nome}</div>
-                        <div className="text-[10px] font-medium mt-1" style={{ color: getStatusColor(agendamento.status) }}>
-                          {getStatusText(agendamento.status)}
+                        <div className="text-[10px] font-medium mt-1" style={{ color: getStatusClinicaInfo(agendamento.status).color }}>
+                          {getStatusClinicaInfo(agendamento.status).label}
                         </div>
                       </div>
                     ) : bloqueio ? (
@@ -707,6 +711,13 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                           </button>
                         </div>
                         <div className="truncate">{bloqueio.titulo}</div>
+                      </div>
+                    ) : !dentroHorario ? (
+                      <div
+                        className="w-full h-full rounded bg-gray-100 dark:bg-gray-700/50 border border-dashed border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs"
+                        title="Fora do horário de atendimento do profissional"
+                      >
+                        —
                       </div>
                     ) : (
                       <button
@@ -797,15 +808,15 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                         key={agendamento.id}
                         className="text-xs p-1 rounded truncate cursor-pointer border-l-2"
                         style={{ 
-                          backgroundColor: `${getStatusColor(agendamento.status)}15`, 
-                          borderLeftColor: getStatusColor(agendamento.status)
+backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
+                          borderLeftColor: getStatusClinicaInfo(agendamento.status).color
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEditarAgendamento(agendamento);
                         }}
                       >
-                        <span className="mr-1">{getStatusEmoji(agendamento.status)}</span>
+                        <span className="mr-1">{getStatusClinicaInfo(agendamento.status).emoji}</span>
                         {agendamento.horario} {agendamento.cliente_nome}
                       </div>
                     ))}

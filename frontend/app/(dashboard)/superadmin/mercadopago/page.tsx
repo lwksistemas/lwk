@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle, XCircle, Settings, Eye, EyeOff, ArrowLeft, Key } from 'lucide-react'
+import { CheckCircle, XCircle, Settings, Eye, EyeOff, ArrowLeft, Key, PlayCircle } from 'lucide-react'
 
 declare global {
   interface Window {
@@ -41,6 +41,7 @@ export default function MercadoPagoConfigPage() {
   const [showToken, setShowToken] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [sdkReady, setSdkReady] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -78,6 +79,25 @@ export default function MercadoPagoConfigPage() {
       setMessage({ type: 'error', text: 'Erro ao carregar configuração. Verifique se está logado como superadmin.' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const testConnection = async () => {
+    setMessage(null)
+    setTesting(true)
+    try {
+      const { data } = await apiClient.get('/superadmin/mercadopago-config/test/')
+      if (data.success) {
+        setMessage({ type: 'success', text: data.message || 'Conexão com a API do Mercado Pago OK.' })
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Falha no teste.' })
+      }
+    } catch (err: unknown) {
+      const ax = err && typeof err === 'object' && 'response' in err ? (err as { response?: { data?: { error?: string } } }).response : undefined
+      const errorMsg = ax?.data?.error
+      setMessage({ type: 'error', text: typeof errorMsg === 'string' ? errorMsg : 'Erro ao testar conexão. Verifique o Access Token.' })
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -265,11 +285,23 @@ export default function MercadoPagoConfigPage() {
               Se marcado, ao criar uma nova loja o padrão será Mercado Pago; você ainda pode escolher Asaas no formulário de nova loja.
             </p>
 
-            <div className="pt-2 flex gap-2">
+            <div className="pt-2 flex flex-wrap gap-2">
               <Button type="submit" disabled={saving}>
                 {saving ? 'Salvando...' : 'Salvar configuração'}
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={testConnection}
+                disabled={testing || !config.access_token_set}
+              >
+                <PlayCircle className="w-4 h-4 mr-2" />
+                {testing ? 'Testando...' : 'Testar conexão com a API'}
+              </Button>
             </div>
+            <p className="text-xs text-gray-500">
+              O teste valida o Access Token e verifica se o boleto (bolbradesco) está disponível. Para o sistema atualizar a assinatura quando um boleto for pago, configure no Mercado Pago (Suas integrações → Webhooks) a URL do webhook: <strong>https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/mercadopago-webhook/</strong> e o evento <strong>payment</strong>.
+            </p>
           </form>
         </CardContent>
       </Card>

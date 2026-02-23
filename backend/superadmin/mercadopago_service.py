@@ -105,6 +105,60 @@ class MercadoPagoClient:
 
         return self._post_payment(payload)
 
+    def test_connection(self) -> Dict[str, Any]:
+        """
+        Testa a conexão com a API do Mercado Pago (valida o Access Token).
+        Usa GET /v1/payment_methods como health check.
+        """
+        try:
+            url = f"{MP_API_BASE}/v1/payment_methods"
+            resp = self.session.get(url, timeout=15)
+            if resp.status_code == 401:
+                return {"success": False, "error": "Access Token inválido ou expirado."}
+            if resp.status_code >= 400:
+                return {"success": False, "error": resp.text or f"HTTP {resp.status_code}"}
+            data = resp.json()
+            # Lista de métodos (bolbradesco = boleto está presente em produção)
+            methods = data if isinstance(data, list) else []
+            boleto_ok = any(
+                m.get("id") == MP_PAYMENT_METHOD_BOLETO
+                for m in (methods if isinstance(methods, list) else [])
+            )
+            return {
+                "success": True,
+                "message": "Conexão com a API do Mercado Pago OK. Boleto (bolbradesco) disponível."
+                if boleto_ok
+                else "Conexão com a API do Mercado Pago OK.",
+                "payment_methods_count": len(methods) if isinstance(methods, list) else 0,
+            }
+        except requests.exceptions.RequestException as e:
+            msg = getattr(e, "response", None)
+            if msg is not None and hasattr(msg, "text"):
+                try:
+                    err = msg.json()
+                    msg = err.get("message", msg.text)
+                except Exception:
+                    msg = msg.text
+            else:
+                msg = str(e)
+            logger.warning("Mercado Pago test_connection error: %s", msg)
+            return {"success": False, "error": msg}
+        except Exception as e:
+            logger.exception("Mercado Pago test_connection exception")
+            return {"success": False, "error": str(e)}
+
+    def get_payment(self, payment_id: str) -> Optional[Dict[str, Any]]:
+        """Obtém dados de um pagamento pela API do Mercado Pago."""
+        try:
+            url = f"{MP_API_BASE}/v1/payments/{payment_id}"
+            resp = self.session.get(url, timeout=15)
+            if resp.status_code != 200:
+                return None
+            return resp.json()
+        except Exception as e:
+            logger.warning("Erro ao obter pagamento MP %s: %s", payment_id, e)
+            return None
+
 
 class LojaMercadoPagoService:
     """Serviço para criar cobrança (boleto) de loja via Mercado Pago."""

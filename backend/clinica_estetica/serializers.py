@@ -3,7 +3,7 @@ from core.serializers import BaseLojaSerializer
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento, Funcionario,
     ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
-    HorarioFuncionamento, BloqueioAgenda, Consulta, HistoricoLogin,
+    HorarioFuncionamento, HorarioTrabalhoProfissional, BloqueioAgenda, Consulta, HistoricoLogin,
     CategoriaFinanceira, Transacao
 )
 
@@ -30,10 +30,23 @@ class ClienteSerializer(BaseLojaSerializer):
         return ultimo.data if ultimo else None
 
 
+class HorarioTrabalhoProfissionalSerializer(serializers.ModelSerializer):
+    """Dias e horários de atendimento do profissional."""
+    dia_semana_display = serializers.CharField(source='get_dia_semana_display', read_only=True)
+
+    class Meta:
+        model = HorarioTrabalhoProfissional
+        fields = [
+            'id', 'profissional', 'dia_semana', 'dia_semana_display',
+            'hora_entrada', 'hora_saida', 'intervalo_inicio', 'intervalo_fim', 'ativo',
+        ]
+        read_only_fields = ['profissional']
+
+
 class ProfissionalSerializer(BaseLojaSerializer):
     """Serializer de Profissional."""
-
     total_agendamentos = serializers.SerializerMethodField()
+    horarios_trabalho = HorarioTrabalhoProfissionalSerializer(many=True, read_only=True, required=False)
 
     class Meta:
         model = Profissional

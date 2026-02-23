@@ -5,6 +5,8 @@ from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.conf import settings
 from django.db import transaction, connection
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from pathlib import Path
 import logging
 
@@ -1081,6 +1083,65 @@ def mercadopago_config(request):
             'access_token_set': bool(config.access_token),
             'public_key': getattr(config, 'public_key', '') or '',
         })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def mercadopago_test(request):
+    """Testa a conexão com a API do Mercado Pago (valida Access Token e disponibilidade de boleto). Apenas superuser."""
+    if not request.user.is_superuser:
+        return Response({'detail': 'Sem permissão.'}, status=status.HTTP_403_FORBIDDEN)
+    config = MercadoPagoConfig.get_config()
+    if not config.access_token:
+        return Response(
+            {'success': False, 'error': 'Access Token não configurado. Salve o token nas configurações antes de testar.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    from .mercadopago_service import MercadoPagoClient
+    result = MercadoPagoClient(config.access_token).test_connection()
+    if result.get('success'):
+        return Response(result)
+    return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+@require_http_methods(['POST'])
+@api_view(['POST'])
+@permission_classes([])
+def mercadopago_webhook(request):
+    """
+    Webhook do Mercado Pago para notificações de pagamento.
+    Configurar no painel MP: URL = https://seu-dominio.com/api/superadmin/mercadopago-webhook/
+    Eventos: payment (pagamento atualizado). Ao receber approved, o sistema atualiza
+    PagamentoLoja e FinanceiroLoja e desbloqueia a loja.
+    """
+    try:
+        # MP envia JSON: type e data.id
+        body = request.data if isinstance(getattr(request, 'data', None), dict) else {}
+        if not body and request.body:
+            import json
+            try:
+                body = json.loads(request.body.decode('utf-8'))
+            except Exception:
+                body = {}
+        notification_type = body.get('type') or body.get('action')
+        data = body.get('data', body) or {}
+        payment_id = data.get('id') if isinstance(data, dict) else None
+        if not payment_id and isinstance(data, dict) and 'id' in data:
+            payment_id = data['id']
+        if not notification_type or not payment_id:
+            logger.info("Webhook MP ignorado: type=%s, data=%s", notification_type, body)
+            return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
+        if notification_type != 'payment':
+            return Response({'status': 'ignored', 'type': notification_type}, status=status.HTTP_200_OK)
+        from .sync_service import process_mercadopago_webhook_payment
+        result = process_mercadopago_webhook_payment(str(payment_id))
+        if result.get('success') and result.get('processed'):
+            return Response({'status': 'processed', 'payment_id': payment_id, 'loja_slug': result.get('loja_slug')}, status=status.HTTP_200_OK)
+        return Response({'status': 'ok', 'processed': result.get('processed', False)}, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.exception("Erro no webhook Mercado Pago: %s", e)
+        return Response({'status': 'error'}, status=status.HTTP_200_OK)
 
 
 # View para recuperação de senha de lojas (função simples, não ViewSet)

@@ -38,6 +38,8 @@ interface FinanceiroData {
     total_pago: number
     total_pendente: number
     tem_asaas: boolean
+    tem_mercadopago?: boolean
+    provedor_boleto?: 'asaas' | 'mercadopago'
     boleto_url: string
     pix_qr_code: string
     pix_copy_paste: string
@@ -101,23 +103,33 @@ export default function FinanceiroLojaPage() {
           'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
       })
-      
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `boleto_${slug}.pdf`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-      } else {
-        alert('Erro ao baixar boleto')
+      if (!response.ok) {
+        alert('Erro ao abrir/baixar boleto')
+        return
       }
+      const contentType = response.headers.get('content-type') || ''
+      const blob = await response.blob()
+      // Mercado Pago retorna JSON com link para abrir em nova aba
+      if (contentType.includes('application/json')) {
+        const text = await blob.text()
+        const data = JSON.parse(text) as { boleto_url?: string; provedor?: string }
+        if (data?.boleto_url && data.provedor === 'mercadopago') {
+          window.open(data.boleto_url, '_blank', 'noopener,noreferrer')
+          return
+        }
+      }
+      // Asaas: PDF para download
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `boleto_${slug}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
     } catch (error) {
       console.error('Erro ao baixar boleto:', error)
-      alert('Erro ao baixar boleto')
+      alert('Erro ao abrir/baixar boleto')
     }
   }
 
@@ -329,7 +341,7 @@ export default function FinanceiroLojaPage() {
       )}
 
       {/* Tabs para Boleto e PIX */}
-      {data.financeiro.tem_asaas && (data.financeiro.boleto_url || data.financeiro.pix_qr_code) && (
+      {(data.financeiro.tem_asaas || data.financeiro.tem_mercadopago) && (data.financeiro.boleto_url || data.financeiro.pix_qr_code) && (
         <Card>
           <CardHeader className="p-4 sm:p-6">
             <CardTitle className="text-base sm:text-lg">Formas de Pagamento</CardTitle>

@@ -667,6 +667,8 @@ class AsaasSyncService:
                             pagamento_loja = PagamentoLoja.objects.create(
                                 loja=loja,
                                 financeiro=financeiro,
+                                provedor_boleto='asaas',
+                                mercadopago_payment_id='',
                                 asaas_payment_id=result['payment_id'],
                                 valor=result['value'],
                                 status='pendente',

@@ -24,7 +24,8 @@ class LojaAsaasService:
     
     def criar_cobranca_loja(self, loja, financeiro):
         """
-        Cria cobrança no Asaas para uma nova loja
+        Cria cobrança (boleto) para a loja. Usa Mercado Pago se configurado e
+        use_for_boletos ativo; caso contrário usa Asaas.
         
         Args:
             loja: Instância da Loja
@@ -33,6 +34,56 @@ class LojaAsaasService:
         Returns:
             dict: Resultado da criação da cobrança
         """
+        # Opção: Mercado Pago para boletos
+        try:
+            from .models import MercadoPagoConfig
+            from .mercadopago_service import LojaMercadoPagoService
+            mp_config = MercadoPagoConfig.get_config()
+            if mp_config.enabled and mp_config.use_for_boletos and mp_config.access_token:
+                mp_service = LojaMercadoPagoService()
+                if mp_service.available:
+                    resultado = mp_service.criar_cobranca_loja(loja, financeiro)
+                    if resultado.get('success'):
+                        financeiro.provedor_boleto = 'mercadopago'
+                        financeiro.mercadopago_payment_id = resultado.get('payment_id', '')
+                        financeiro.asaas_customer_id = ''
+                        financeiro.asaas_payment_id = ''
+                        financeiro.boleto_url = resultado.get('boleto_url', '')
+                        financeiro.pix_qr_code = ''
+                        financeiro.pix_copy_paste = ''
+                        financeiro.status_pagamento = 'pendente'
+                        financeiro.save()
+                        from .models import PagamentoLoja
+                        pagamento = PagamentoLoja.objects.create(
+                            loja=loja,
+                            financeiro=financeiro,
+                            valor=financeiro.valor_mensalidade,
+                            referencia_mes=financeiro.data_proxima_cobranca.replace(day=1),
+                            status='pendente',
+                            forma_pagamento='boleto',
+                            data_vencimento=financeiro.data_proxima_cobranca,
+                            provedor_boleto='mercadopago',
+                            mercadopago_payment_id=resultado.get('payment_id', ''),
+                            asaas_payment_id='',
+                            boleto_url=resultado.get('boleto_url', ''),
+                            pix_qr_code='',
+                            pix_copy_paste='',
+                        )
+                        logger.info(f"Cobrança Mercado Pago criada para loja {loja.nome}: {resultado.get('payment_id')}")
+                        return {
+                            'success': True,
+                            'payment_id': resultado.get('payment_id'),
+                            'customer_id': '',
+                            'boleto_url': resultado.get('boleto_url'),
+                            'pix_qr_code': '',
+                            'due_date': resultado.get('due_date'),
+                            'value': resultado.get('value'),
+                            'pagamento_id': pagamento.id,
+                        }
+                    return resultado
+        except Exception as e:
+            logger.warning("Mercado Pago não usado para cobrança: %s", e)
+        # Fallback: Asaas
         if not self.available:
             return {
                 'success': False,
@@ -77,6 +128,8 @@ class LojaAsaasService:
             
             if resultado.get('success'):
                 # Atualizar financeiro com dados do Asaas
+                financeiro.provedor_boleto = 'asaas'
+                financeiro.mercadopago_payment_id = ''
                 financeiro.asaas_customer_id = resultado.get('customer_id', '')
                 financeiro.asaas_payment_id = resultado.get('payment_id', '')
                 financeiro.boleto_url = resultado.get('boleto_url', '')
@@ -95,6 +148,8 @@ class LojaAsaasService:
                     status='pendente',
                     forma_pagamento='boleto',
                     data_vencimento=financeiro.data_proxima_cobranca,
+                    provedor_boleto='asaas',
+                    mercadopago_payment_id='',
                     asaas_payment_id=resultado.get('payment_id', ''),
                     boleto_url=resultado.get('boleto_url', ''),
                     pix_qr_code=resultado.get('pix_qr_code', ''),

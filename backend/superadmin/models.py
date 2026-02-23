@@ -317,10 +317,21 @@ class FinanceiroLoja(models.Model):
     ]
     status_pagamento = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ativo')
     
+    # Provedor de boleto: asaas ou mercadopago
+    PROVEDOR_BOLETO_CHOICES = [
+        ('asaas', 'Asaas'),
+        ('mercadopago', 'Mercado Pago'),
+    ]
+    provedor_boleto = models.CharField(
+        max_length=20, choices=PROVEDOR_BOLETO_CHOICES, default='asaas',
+        help_text='Provedor usado para gerar boleto desta cobrança'
+    )
+    mercadopago_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento no Mercado Pago')
+    
     # Integração Asaas
     asaas_customer_id = models.CharField(max_length=100, blank=True, help_text='ID do cliente no Asaas')
     asaas_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento atual no Asaas')
-    boleto_url = models.URLField(blank=True, help_text='URL do boleto no Asaas')
+    boleto_url = models.URLField(blank=True, help_text='URL do boleto (Asaas ou Mercado Pago)')
     boleto_pdf_url = models.URLField(blank=True, help_text='URL do PDF do boleto')
     pix_qr_code = models.TextField(blank=True, help_text='QR Code PIX')
     pix_copy_paste = models.TextField(blank=True, help_text='PIX Copia e Cola')
@@ -372,6 +383,15 @@ class PagamentoLoja(models.Model):
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente')
     
+    # Provedor do boleto
+    provedor_boleto = models.CharField(
+        max_length=20,
+        choices=FinanceiroLoja.PROVEDOR_BOLETO_CHOICES,
+        default='asaas',
+        help_text='Provedor do boleto (Asaas ou Mercado Pago)'
+    )
+    mercadopago_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento no Mercado Pago')
+    
     # Integração Asaas
     asaas_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento no Asaas')
     boleto_url = models.URLField(blank=True, help_text='URL do boleto')
@@ -403,6 +423,37 @@ class PagamentoLoja(models.Model):
     
     def __str__(self):
         return f"{self.loja.nome} - {self.referencia_mes.strftime('%m/%Y')} - R$ {self.valor}"
+
+
+class MercadoPagoConfig(models.Model):
+    """Configuração da integração Mercado Pago para boletos das lojas"""
+    singleton_key = models.CharField(max_length=10, default='config', unique=True)
+    access_token = models.TextField(blank=True, verbose_name='Access Token (Produção ou Teste)')
+    enabled = models.BooleanField(default=False, verbose_name='Integração habilitada')
+    use_for_boletos = models.BooleanField(
+        default=False,
+        verbose_name='Usar Mercado Pago para novos boletos',
+        help_text='Se ativo, novas cobranças de lojas usarão boleto via Mercado Pago em vez do Asaas'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'superadmin_mercadopago_config'
+        verbose_name = 'Configuração Mercado Pago'
+        verbose_name_plural = 'Configurações Mercado Pago'
+
+    def __str__(self):
+        status = 'Habilitado' if self.enabled else 'Desabilitado'
+        return f"Mercado Pago - {status}"
+
+    @classmethod
+    def get_config(cls):
+        obj, _ = cls.objects.get_or_create(
+            singleton_key='config',
+            defaults={'enabled': False, 'use_for_boletos': False}
+        )
+        return obj
 
 
 class UsuarioSistema(models.Model):

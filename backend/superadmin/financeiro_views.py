@@ -160,12 +160,27 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=True, methods=['get'])
     def baixar_boleto_pdf(self, request, pk=None):
-        """Baixar PDF do boleto via Asaas"""
+        """Baixar PDF do boleto (Asaas) ou redirecionar para o boleto (Mercado Pago)"""
         pagamento = self.get_object()
         
+        # Boleto via Mercado Pago: retornar JSON com link para o frontend abrir em nova aba
+        if getattr(pagamento, 'provedor_boleto', 'asaas') == 'mercadopago' and pagamento.mercadopago_payment_id:
+            boleto_url = pagamento.boleto_url
+            if not boleto_url:
+                from .mercadopago_service import LojaMercadoPagoService
+                mp_service = LojaMercadoPagoService()
+                boleto_url = mp_service.get_boleto_url(pagamento.mercadopago_payment_id)
+            if boleto_url:
+                return Response({'boleto_url': boleto_url, 'provedor': 'mercadopago'})
+            return Response(
+                {'error': 'Link do boleto Mercado Pago não disponível. Use o link enviado por e-mail.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Boleto via Asaas
         if not pagamento.asaas_payment_id:
             return Response(
-                {'error': 'Pagamento não possui ID do Asaas'},
+                {'error': 'Pagamento não possui boleto (Asaas/Mercado Pago)'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -413,6 +428,8 @@ def dashboard_financeiro_loja(request, loja_slug):
             'total_pago': float(financeiro.total_pago),
             'total_pendente': float(financeiro.total_pendente),
             'tem_asaas': bool(financeiro.asaas_payment_id) or bool(boleto_url),
+            'tem_mercadopago': bool(getattr(financeiro, 'mercadopago_payment_id', None)) or getattr(financeiro, 'provedor_boleto', 'asaas') == 'mercadopago',
+            'provedor_boleto': getattr(financeiro, 'provedor_boleto', 'asaas'),
             'asaas_customer_id': financeiro.asaas_customer_id,
             'asaas_payment_id': financeiro.asaas_payment_id,
             'boleto_url': boleto_url,

@@ -37,6 +37,8 @@ interface AssinaturaData {
     data_proxima_cobranca: string
     dia_vencimento: number
     tem_asaas: boolean
+    tem_mercadopago?: boolean
+    provedor_boleto?: 'asaas' | 'mercadopago'
     boleto_url: string
     pix_qr_code: string
     pix_copy_paste: string
@@ -89,7 +91,18 @@ export default function AssinaturaLojaPage() {
         `/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`,
         { responseType: 'blob' }
       )
-      const blob = response.data
+      const blob = response.data as Blob
+      const contentType = response.headers?.['content-type'] || blob.type || ''
+      // Mercado Pago retorna JSON com link para abrir em nova aba
+      if (contentType.includes('application/json') || blob.type?.includes('json')) {
+        const text = await blob.text()
+        const data = JSON.parse(text) as { boleto_url?: string; provedor?: string }
+        if (data?.boleto_url && data.provedor === 'mercadopago') {
+          window.open(data.boleto_url, '_blank', 'noopener,noreferrer')
+          return
+        }
+      }
+      // Asaas: PDF para download
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -100,7 +113,7 @@ export default function AssinaturaLojaPage() {
       document.body.removeChild(a)
     } catch (err) {
       console.error('Erro ao baixar boleto:', err)
-      alert('Erro ao baixar boleto')
+      alert('Erro ao abrir/baixar boleto')
     }
   }
 
@@ -245,7 +258,7 @@ export default function AssinaturaLojaPage() {
       </div>
 
       {/* Boleto / PIX – igual à loja clínica de estética */}
-      {data.financeiro.tem_asaas && (data.financeiro.boleto_url || data.financeiro.pix_copy_paste) ? (
+      {(data.financeiro.tem_asaas || data.financeiro.tem_mercadopago) && (data.financeiro.boleto_url || data.financeiro.pix_copy_paste) ? (
         <Card className="dark:bg-neutral-800 dark:border-neutral-700">
           <CardHeader>
             <CardTitle className="dark:text-gray-100">Formas de pagamento</CardTitle>

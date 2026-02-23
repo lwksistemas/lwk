@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, PagamentoLoja, UsuarioSistema, UserSession
+from .models import (
+    TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, PagamentoLoja,
+    UsuarioSistema, UserSession, MercadoPagoConfig,
+)
 
 @admin.register(UserSession)
 class UserSessionAdmin(admin.ModelAdmin):
@@ -40,8 +43,13 @@ class FinanceiroLojaAdmin(admin.ModelAdmin):
 
 @admin.register(PagamentoLoja)
 class PagamentoLojaAdmin(admin.ModelAdmin):
-    list_display = ['loja', 'valor', 'status', 'data_vencimento', 'data_pagamento']
-    list_filter = ['status']
+    list_display = ['loja', 'valor', 'status', 'provedor_boleto', 'data_vencimento', 'data_pagamento']
+    list_filter = ['status', 'provedor_boleto']
+
+@admin.register(MercadoPagoConfig)
+class MercadoPagoConfigAdmin(admin.ModelAdmin):
+    list_display = ['singleton_key', 'enabled', 'use_for_boletos', 'updated_at']
+    list_editable = ['enabled', 'use_for_boletos']
 
 @admin.register(UsuarioSistema)
 class UsuarioSistemaAdmin(admin.ModelAdmin):

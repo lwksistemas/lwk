@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja,
-    PagamentoLoja, UsuarioSistema, ViolacaoSeguranca, ProfissionalUsuario
+    PagamentoLoja, UsuarioSistema, ViolacaoSeguranca, ProfissionalUsuario, MercadoPagoConfig
 )
 from .serializers import (
     TipoLojaSerializer, PlanoAssinaturaSerializer, LojaSerializer,
@@ -1047,6 +1047,36 @@ Equipe LWK Sistemas
                 {'detail': f'Erro ao enviar email: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# Configuração Mercado Pago (boletos)
+@api_view(['GET', 'PATCH'])
+@permission_classes([permissions.IsAuthenticated])
+def mercadopago_config(request):
+    """GET: retorna config (token mascarado). PATCH: atualiza enabled, use_for_boletos e opcionalmente access_token. Apenas superuser."""
+    if not request.user.is_superuser:
+        return Response({'detail': 'Sem permissão.'}, status=status.HTTP_403_FORBIDDEN)
+    config = MercadoPagoConfig.get_config()
+    if request.method == 'GET':
+        return Response({
+            'enabled': config.enabled,
+            'use_for_boletos': config.use_for_boletos,
+            'access_token_set': bool(config.access_token),
+            'access_token_masked': (config.access_token[:8] + '...' + config.access_token[-4:]) if config.access_token and len(config.access_token) >= 12 else ('****' if config.access_token else ''),
+        })
+    if request.method == 'PATCH':
+        if 'enabled' in request.data:
+            config.enabled = bool(request.data['enabled'])
+        if 'use_for_boletos' in request.data:
+            config.use_for_boletos = bool(request.data['use_for_boletos'])
+        if 'access_token' in request.data and request.data['access_token'] is not None:
+            config.access_token = str(request.data['access_token']).strip()
+        config.save()
+        return Response({
+            'enabled': config.enabled,
+            'use_for_boletos': config.use_for_boletos,
+            'access_token_set': bool(config.access_token),
+        })
 
 
 # View para recuperação de senha de lojas (função simples, não ViewSet)

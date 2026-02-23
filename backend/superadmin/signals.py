@@ -159,6 +159,8 @@ def delete_all_loja_data(sender, instance, **kwargs):
                         **default_db,
                         'OPTIONS': {'options': f'-c search_path={schema_name},public'},
                         'CONN_MAX_AGE': 0,
+                        'ATOMIC_REQUESTS': False,
+                        'TIME_ZONE': getattr(settings, 'TIME_ZONE', None),
                     }
                 except Exception as e:
                     logger.warning(f"   ⚠️ Não foi possível configurar banco da loja {db_name}: {e}")

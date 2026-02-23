@@ -100,6 +100,10 @@ DATABASES = {
     )
 }
 
+# Chaves esperadas pelo Django ao acessar settings_dict (evita KeyError em make_view_atomic/check_settings)
+DATABASES['default'].setdefault('ATOMIC_REQUESTS', False)
+DATABASES['default'].setdefault('TIME_ZONE', None)
+
 # Adicionar timeout de conexão para evitar conexões travadas
 if 'OPTIONS' not in DATABASES['default']:
     DATABASES['default']['OPTIONS'] = {}

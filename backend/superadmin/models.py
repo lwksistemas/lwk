@@ -161,6 +161,18 @@ class Loja(models.Model):
     ]
     tipo_assinatura = models.CharField(max_length=10, choices=TIPO_ASSINATURA_CHOICES, default='mensal')
     
+    # Provedor de boleto preferido para esta loja (Asaas ou Mercado Pago)
+    PROVEDOR_BOLETO_CHOICES = [
+        ('asaas', 'Asaas'),
+        ('mercadopago', 'Mercado Pago'),
+    ]
+    provedor_boleto_preferido = models.CharField(
+        max_length=20,
+        choices=PROVEDOR_BOLETO_CHOICES,
+        default='asaas',
+        help_text='Provedor de boleto a usar nas cobranças desta loja'
+    )
+    
     # Proprietário (administrador da loja — não editável nem excluível após criação)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lojas_owned')
     owner_telefone = models.CharField(max_length=20, blank=True, help_text='Telefone do administrador da loja')

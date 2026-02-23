@@ -34,12 +34,17 @@ class LojaAsaasService:
         Returns:
             dict: Resultado da criação da cobrança
         """
-        # Opção: Mercado Pago para boletos
+        # Opção: Mercado Pago para boletos (preferência da loja ou global)
         try:
             from .models import MercadoPagoConfig
             from .mercadopago_service import LojaMercadoPagoService
             mp_config = MercadoPagoConfig.get_config()
-            if mp_config.enabled and mp_config.use_for_boletos and mp_config.access_token:
+            usar_mp = (
+                mp_config.enabled
+                and mp_config.access_token
+                and getattr(loja, 'provedor_boleto_preferido', 'asaas') == 'mercadopago'
+            )
+            if usar_mp:
                 mp_service = LojaMercadoPagoService()
                 if mp_service.available:
                     resultado = mp_service.criar_cobranca_loja(loja, financeiro)

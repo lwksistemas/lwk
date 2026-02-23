@@ -32,8 +32,8 @@ class PlanoAssinaturaAdmin(admin.ModelAdmin):
 
 @admin.register(Loja)
 class LojaAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'tipo_loja', 'plano', 'is_active', 'is_trial', 'created_at']
-    list_filter = ['is_active', 'is_trial', 'tipo_loja', 'plano']
+    list_display = ['nome', 'tipo_loja', 'plano', 'provedor_boleto_preferido', 'is_active', 'is_trial', 'created_at']
+    list_filter = ['is_active', 'is_trial', 'tipo_loja', 'plano', 'provedor_boleto_preferido']
     search_fields = ['nome', 'slug']
 
 @admin.register(FinanceiroLoja)

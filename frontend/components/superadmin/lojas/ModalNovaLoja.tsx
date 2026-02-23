@@ -24,6 +24,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     plano: '',
     tipo_assinatura: 'mensal',
     dia_vencimento: 10,
+    provedor_boleto_preferido: 'asaas' as 'asaas' | 'mercadopago',
     owner_full_name: '',
     owner_username: '',
     owner_password: '',
@@ -39,7 +40,19 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
   useEffect(() => {
     loadTiposEPlanos();
     gerarSenhaProvisoria(); // Gerar senha ao abrir o modal
+    loadMercadoPagoDefault();
   }, []);
+
+  const loadMercadoPagoDefault = async () => {
+    try {
+      const { data } = await apiClient.get('/superadmin/mercadopago-config/');
+      if (data?.use_for_boletos && data?.enabled) {
+        setFormData((prev) => ({ ...prev, provedor_boleto_preferido: 'mercadopago' }));
+      }
+    } catch {
+      // Ignora; mantém padrão Asaas
+    }
+  };
 
   const gerarSenhaProvisoria = () => {
     // Gerar senha segura: 8 caracteres com letras, números e símbolos
@@ -650,6 +663,22 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Provedor de boleto
+                </label>
+                <select
+                  name="provedor_boleto_preferido"
+                  value={formData.provedor_boleto_preferido}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, provedor_boleto_preferido: e.target.value as 'asaas' | 'mercadopago' }))}
+                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="asaas">Asaas</option>
+                  <option value="mercadopago">Mercado Pago</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Define qual provedor gerará os boletos desta loja</p>
               </div>
 
               {valorAssinatura > 0 && (

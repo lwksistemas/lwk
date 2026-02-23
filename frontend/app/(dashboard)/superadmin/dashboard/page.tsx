@@ -69,6 +69,13 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'orange',
   },
   {
+    title: 'Configuração Mercado Pago',
+    description: 'Configurar boletos via Mercado Pago para as lojas',
+    icon: '💳',
+    href: '/superadmin/mercadopago',
+    color: 'blue',
+  },
+  {
     title: 'Busca de Logs',
     description: 'Busca avançada e análise detalhada de logs',
     icon: '🔍',

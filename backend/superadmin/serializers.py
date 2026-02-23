@@ -251,7 +251,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
         fields = [
             'nome', 'slug', 'descricao', 'cpf_cnpj',
             'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
-            'tipo_loja', 'plano', 'tipo_assinatura',
+            'tipo_loja', 'plano', 'tipo_assinatura', 'provedor_boleto_preferido',
             'owner_full_name', 'owner_username', 'owner_password', 'owner_email', 'owner_telefone', 'dia_vencimento',
             'logo', 'cor_primaria', 'cor_secundaria', 'dominio_customizado'
         ]

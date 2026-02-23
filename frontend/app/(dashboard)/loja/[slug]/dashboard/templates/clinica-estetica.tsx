@@ -234,8 +234,8 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
       </div>
         </nav>
 
-        {/* Conteúdo do Calendário - ocupa o resto da tela */}
-        <div className="flex-1 overflow-auto px-2 sm:px-4 lg:px-8 py-6">
+        {/* Conteúdo do Calendário - ocupa o resto da tela; no mobile usa altura total para scroll suave */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-2 sm:px-4 lg:px-8 py-3 sm:py-6">
           <CalendarioAgendamentos loja={loja} />
             </div>
             </div>

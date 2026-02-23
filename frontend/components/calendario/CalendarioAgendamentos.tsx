@@ -439,10 +439,10 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="p-4 border-b dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Agendamentos do Dia</h3>
+        <div className="p-3 sm:p-4 border-b dark:border-gray-700">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Agendamentos do Dia</h3>
         </div>
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           <div className="space-y-2">
             {horarios.map(horario => {
               const agendamento = agendamentosDoDia.find(ag => ag.horario.startsWith(horario.split(':')[0]));
@@ -451,33 +451,33 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
               
               return (
-                <div key={horario} className="flex items-center border-b dark:border-gray-700 pb-2">
-                  <div className="w-16 text-sm text-gray-600 dark:text-gray-400 font-mono">
+                <div key={horario} className="flex items-stretch gap-2 sm:gap-4 border-b dark:border-gray-700 pb-2 min-h-[52px]">
+                  <div className="w-12 sm:w-16 flex-shrink-0 text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-mono pt-2">
                     {horario}
                   </div>
-                  <div className="flex-1 ml-4">
+                  <div className="flex-1 min-w-0">
                     {agendamento ? (
                       <div 
-                        className="p-3 rounded-lg cursor-pointer hover:opacity-80 border-l-4"
+                        className="p-2.5 sm:p-3 rounded-lg cursor-pointer hover:opacity-80 border-l-4 active:scale-[0.99]"
                         style={{ 
                           backgroundColor: `${getStatusColor(agendamento.status)}20`, 
                           borderLeftColor: getStatusColor(agendamento.status)
                         }}
                         onClick={() => handleEditarAgendamento(agendamento)}
                       >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-lg">{getStatusEmoji(agendamento.status)}</span>
-                              <p className="font-semibold text-gray-900 dark:text-white">{agendamento.cliente_nome}</p>
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="text-base sm:text-lg">{getStatusEmoji(agendamento.status)}</span>
+                              <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">{agendamento.cliente_nome}</p>
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{agendamento.procedimento_nome}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Prof: {agendamento.profissional_nome}</p>
-                            <p className="text-xs font-medium mt-1" style={{ color: getStatusColor(agendamento.status) }}>
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{agendamento.procedimento_nome}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">Prof: {agendamento.profissional_nome}</p>
+                            <p className="text-[10px] sm:text-xs font-medium mt-0.5" style={{ color: getStatusColor(agendamento.status) }}>
                               {getStatusText(agendamento.status)}
                             </p>
                           </div>
-                          <div className="flex space-x-2">
+                          <div className="flex flex-shrink-0 gap-1 sm:space-x-2">
                             <MenuStatus 
                               agendamento={agendamento}
                               onStatusChange={handleMudarStatus}
@@ -558,7 +558,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     );
   };
 
-  // Componente para visualização por semana
+  // Componente para visualização por semana - scroll horizontal no mobile com colunas legíveis
   const VisualizacaoSemana = () => {
     const { dataInicio } = calcularPeriodo();
     const inicioSemana = new Date(dataInicio);
@@ -566,21 +566,21 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     const horarios = Array.from({ length: 12 }, (_, i) => `${(i + 8).toString().padStart(2, '0')}:00`);
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-        <div className="min-w-full">
-          {/* Cabeçalho dos dias */}
-          <div className="grid grid-cols-8 border-b dark:border-gray-700">
-            <div className="p-3 text-sm font-semibold text-gray-600 dark:text-gray-400">Horário</div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto overflow-y-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="min-w-[min(100%,720px)] sm:min-w-0">
+          {/* Cabeçalho dos dias - coluna hora fixa + 7 dias com largura mínima no mobile */}
+          <div className="grid grid-cols-8 border-b dark:border-gray-700" style={{ minWidth: 'max-content' }}>
+            <div className="sticky left-0 z-10 bg-white dark:bg-gray-800 p-2 sm:p-3 text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400 border-r dark:border-gray-700 min-w-[52px] sm:min-w-[64px]">Hora</div>
             {Array.from({ length: 7 }, (_, i) => {
               const dia = new Date(inicioSemana);
               dia.setDate(inicioSemana.getDate() + i);
               
               return (
-                <div key={i} className="p-3 text-center border-l dark:border-gray-700">
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                <div key={i} className="p-2 sm:p-3 text-center border-l dark:border-gray-700 min-w-[88px] sm:min-w-[100px]">
+                  <div className="text-[10px] sm:text-sm font-semibold text-gray-900 dark:text-white">
                     {diasSemana[dia.getDay()]}
                   </div>
-                  <div className="text-lg font-bold" style={{ color: loja.cor_primaria }}>
+                  <div className="text-base sm:text-lg font-bold" style={{ color: loja.cor_primaria }}>
                     {dia.getDate()}
                   </div>
                 </div>
@@ -588,10 +588,10 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
             })}
           </div>
 
-          {/* Grade de horários */}
+          {/* Grade de horários - mesma grid para alinhar com o cabeçalho */}
           {horarios.map(horario => (
-            <div key={horario} className="grid grid-cols-8 border-b dark:border-gray-700">
-              <div className="p-3 text-sm text-gray-600 dark:text-gray-400 font-mono border-r dark:border-gray-700">
+            <div key={horario} className="grid grid-cols-8 border-b dark:border-gray-700" style={{ minWidth: 'max-content' }}>
+              <div className="sticky left-0 z-10 p-2 sm:p-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-mono border-r dark:border-gray-700 bg-white dark:bg-gray-800 min-w-[52px] sm:min-w-[64px]">
                 {horario}
               </div>
               {Array.from({ length: 7 }, (_, i) => {
@@ -606,7 +606,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                 const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
 
                 return (
-                  <div key={i} className="p-2 border-l dark:border-gray-700 min-h-[60px] relative group">
+                  <div key={i} className="p-2 border-l dark:border-gray-700 min-h-[60px] min-w-[88px] sm:min-w-[100px] relative group">
                     {agendamento ? (
                       <div
                         className="p-2 rounded text-xs cursor-pointer hover:opacity-80 border-l-2 relative"
@@ -710,21 +710,21 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="p-4 border-b dark:border-gray-700">
-          <div className="grid grid-cols-7 gap-2">
+        <div className="p-3 sm:p-4 border-b dark:border-gray-700">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(dia => (
-              <div key={dia} className="text-center text-sm font-semibold text-gray-600 dark:text-gray-400 p-2">
+              <div key={dia} className="text-center text-[10px] sm:text-sm font-semibold text-gray-600 dark:text-gray-400 p-1 sm:p-2">
                 {dia}
               </div>
             ))}
           </div>
         </div>
         
-        <div className="p-4">
-          <div className="grid grid-cols-7 gap-2">
+        <div className="p-2 sm:p-4">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {dias.map((dia, index) => {
               if (!dia) {
-                return <div key={index} className="h-24"></div>;
+                return <div key={index} className="h-16 sm:h-24"></div>;
               }
 
               const dataStr = formatarData(new Date(ano, mes, dia));
@@ -736,7 +736,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               return (
                 <div
                   key={dia}
-                  className={`h-24 border dark:border-gray-700 rounded-lg p-1 cursor-pointer ${
+                  className={`min-h-[64px] sm:h-24 border dark:border-gray-700 rounded p-1 cursor-pointer active:scale-[0.98] ${
                     diaBloqueadoTotal ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800' : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                   onClick={() => {
@@ -786,25 +786,24 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Cabeçalho do Calendário */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+    <div className="space-y-4 sm:space-y-6 min-h-0 flex flex-col">
+      {/* Cabeçalho do Calendário - otimizado para mobile */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 flex-shrink-0">
+        <div className="flex flex-col gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
-              📅 Calendário de Agendamentos
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
+              📅 Calendário
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">{obterTituloPeriodo()}</p>
-            
-            {/* Legenda de Cores */}
-            <div className="flex flex-wrap gap-3 mt-3">
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-0.5">{obterTituloPeriodo()}</p>
+            {/* Legenda: oculta no mobile para ganhar espaço */}
+            <div className="hidden sm:flex flex-wrap gap-3 mt-3">
               <div className="flex items-center gap-1 text-xs">
                 <span>🔵</span>
                 <span className="text-gray-600 dark:text-gray-400">Agendado</span>
               </div>
               <div className="flex items-center gap-1 text-xs">
                 <span>🟢</span>
-                <span className="text-gray-600 dark:text-gray-400">Confirmado/Em Atendimento</span>
+                <span className="text-gray-600 dark:text-gray-400">Confirmado</span>
               </div>
               <div className="flex items-center gap-1 text-xs">
                 <span>🔴</span>
@@ -817,29 +816,27 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-            {/* Filtro de Profissional (para bloquear corretamente) */}
+          {/* Linha 1 mobile: visualização + navegação */}
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={profissionalSelecionado}
               onChange={(e) => setProfissionalSelecionado(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="flex-1 min-w-0 min-h-[44px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               title="Filtrar por profissional"
             >
-              <option value="">Todos os profissionais</option>
+              <option value="">Todos</option>
               {profissionais.map((p) => (
                 <option key={p.id} value={String(p.id)}>
                   {p.nome}
                 </option>
               ))}
             </select>
-
-            {/* Botões de Visualização */}
-            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600">
+            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
               {(['dia', 'semana', 'mes'] as VisualizacaoTipo[]).map((tipo) => (
                 <button
                   key={tipo}
                   onClick={() => setVisualizacao(tipo)}
-                  className={`px-4 py-2 text-sm font-medium capitalize ${
+                  className={`min-h-[44px] px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium capitalize ${
                     visualizacao === tipo
                       ? 'text-white'
                       : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -848,61 +845,63 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
                     backgroundColor: visualizacao === tipo ? loja.cor_primaria : 'transparent'
                   }}
                 >
-                  {tipo}
+                  {tipo === 'mes' ? 'Mês' : tipo === 'semana' ? 'Semana' : 'Dia'}
                 </button>
               ))}
             </div>
-
-            {/* Navegação */}
-            <div className="flex space-x-2">
+            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
               <button
                 onClick={() => navegarPeriodo('anterior')}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                className="min-h-[44px] min-w-[44px] px-2 py-2 border-r border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                aria-label="Período anterior"
               >
                 ←
               </button>
               <button
                 onClick={() => setDataAtual(new Date())}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                className="min-h-[44px] px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-white"
               >
                 Hoje
               </button>
               <button
                 onClick={() => navegarPeriodo('proximo')}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                className="min-h-[44px] min-w-[44px] px-2 py-2 border-l border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                aria-label="Próximo período"
               >
                 →
               </button>
             </div>
+          </div>
 
-            {/* Botões de Ação */}
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setShowModalBloqueio(true)}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-              >
-                🚫 Bloquear Horário
-              </button>
-              <button
-                onClick={() => handleNovoAgendamento()}
-                className="px-4 py-2 text-white rounded-lg hover:opacity-90"
-                style={{ backgroundColor: loja.cor_primaria }}
-              >
-                + Novo Agendamento
-              </button>
-            </div>
+          {/* Botões de ação: full width no mobile para toque fácil */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+            <button
+              onClick={() => handleNovoAgendamento()}
+              className="min-h-[48px] px-4 py-3 sm:py-2 text-white rounded-lg hover:opacity-90 text-sm font-medium col-span-2 sm:col-span-1 order-first sm:order-none"
+              style={{ backgroundColor: loja.cor_primaria }}
+            >
+              + Novo Agendamento
+            </button>
+            <button
+              onClick={() => setShowModalBloqueio(true)}
+              className="min-h-[48px] px-4 py-3 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm font-medium"
+            >
+              🚫 Bloquear
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Visualização do Calendário */}
-      {loading ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-          <div className="text-gray-500 dark:text-gray-400">Carregando agendamentos...</div>
-        </div>
-      ) : (
-        renderizarVisualizacao()
-      )}
+      {/* Visualização do Calendário - área rolável no mobile */}
+      <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+        {loading ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 sm:p-12 text-center">
+            <div className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Carregando agendamentos...</div>
+          </div>
+        ) : (
+          renderizarVisualizacao()
+        )}
+      </div>
 
       {/* Modal de Agendamento */}
       {showModalAgendamento && (

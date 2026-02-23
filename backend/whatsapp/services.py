@@ -116,7 +116,10 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
         )
         return False, f"Erro de conexão: {str(e)}"
 
-    ok = response.ok and (data.get('messages') or not data.get('error'))
+    # Sucesso só quando a Meta devolve o id da mensagem (messages não vazio)
+    ok = response.ok and bool(data.get('messages'))
+    if response.ok and not ok:
+        logger.warning("WhatsApp: Meta respondeu %s mas sem 'messages' na resposta: %s", response.status_code, data)
     WhatsAppLog.objects.create(
         loja=loja,
         user=user,

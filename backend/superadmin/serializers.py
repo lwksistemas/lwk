@@ -528,21 +528,13 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             # consulte LojaAssinatura.objects.get(loja_slug=loja.slug)
             
             # 👤 CRIAR FUNCIONÁRIO / PROFISSIONAL ADMIN AUTOMATICAMENTE
+            # Clínica de Estética, Serviços, Restaurante, CRM Vendas: o funcionário admin já é criado
+            # pelo signal post_save em superadmin/signals.py (create_funcionario_for_loja_owner). Não criar aqui para evitar duplicação.
             try:
                 tipo_loja_nome = loja.tipo_loja.nome if loja.tipo_loja else ''
                 
-                if tipo_loja_nome == 'Clínica de Estética':
-                    from clinica_estetica.models import Funcionario
-                    Funcionario.objects.create(
-                        loja_id=loja.id,
-                        nome=owner_first_name + (' ' + owner_last_name if owner_last_name else ''),
-                        email=owner_email,
-                        telefone='',
-                        cargo='Administrador',
-                        is_admin=True,
-                        is_active=True
-                    )
-                    print(f"✅ Funcionário admin criado para {owner_email}")
+                if tipo_loja_nome in ('Clínica de Estética', 'Serviços', 'Restaurante', 'CRM Vendas'):
+                    print(f"   Funcionário admin criado pelo signal para {owner_email} ({tipo_loja_nome})")
 
                 elif tipo_loja_nome == 'Clínica da Beleza':
                     # Fallback: cadastro já foi feito acima (dentro do bloco de schema). Só tenta de novo se ainda não existir.

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Script from 'next/script'
 import apiClient from '@/lib/api-client'
 import { authService } from '@/lib/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,13 +11,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle, XCircle, Settings, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { CheckCircle, XCircle, Settings, Eye, EyeOff, ArrowLeft, Key } from 'lucide-react'
+
+declare global {
+  interface Window {
+    MercadoPago?: new (publicKey: string) => { getInstallments?: (params: unknown) => Promise<unknown> }
+  }
+}
 
 interface MercadoPagoConfigState {
   enabled: boolean
   use_for_boletos: boolean
   access_token_set: boolean
   access_token_masked: string
+  public_key: string
 }
 
 export default function MercadoPagoConfigPage() {
@@ -26,12 +34,25 @@ export default function MercadoPagoConfigPage() {
     use_for_boletos: false,
     access_token_set: false,
     access_token_masked: '',
+    public_key: '',
   })
   const [accessToken, setAccessToken] = useState('')
+  const [publicKey, setPublicKey] = useState('')
   const [showToken, setShowToken] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [sdkReady, setSdkReady] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const initMercadoPago = useCallback((publicKeyValue: string) => {
+    if (typeof window === 'undefined' || !publicKeyValue.trim() || !window.MercadoPago) return
+    try {
+      new window.MercadoPago(publicKeyValue.trim())
+      setSdkReady(true)
+    } catch {
+      setSdkReady(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
@@ -46,6 +67,12 @@ export default function MercadoPagoConfigPage() {
       setLoading(true)
       const { data } = await apiClient.get('/superadmin/mercadopago-config/')
       setConfig(data)
+      if (data.public_key) {
+        setPublicKey(data.public_key)
+        if (typeof window !== 'undefined' && window.MercadoPago) {
+          initMercadoPago(data.public_key)
+        }
+      }
     } catch (err) {
       console.error('Erro ao carregar configuração Mercado Pago:', err)
       setMessage({ type: 'error', text: 'Erro ao carregar configuração. Verifique se está logado como superadmin.' })
@@ -59,15 +86,17 @@ export default function MercadoPagoConfigPage() {
     setSaving(true)
     setMessage(null)
     try {
-      const body: { enabled?: boolean; use_for_boletos?: boolean; access_token?: string } = {
+      const body: { enabled?: boolean; use_for_boletos?: boolean; access_token?: string; public_key?: string } = {
         enabled: config.enabled,
         use_for_boletos: config.use_for_boletos,
       }
       if (accessToken.trim()) body.access_token = accessToken.trim()
+      body.public_key = publicKey.trim()
       await apiClient.patch('/superadmin/mercadopago-config/', body)
       setMessage({ type: 'success', text: 'Configuração salva com sucesso!' })
       setAccessToken('')
       await loadConfig()
+      if (publicKey.trim()) initMercadoPago(publicKey.trim())
     } catch (err: unknown) {
       const ax = err && typeof err === 'object' && 'response' in err ? (err as { response?: { data?: { detail?: string } } }).response : undefined
       const detail = ax?.data?.detail
@@ -87,6 +116,16 @@ export default function MercadoPagoConfigPage() {
 
   return (
     <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {/* SDK Mercado Pago - ambiente de desenvolvimento (client-side) */}
+      <Script
+        src="https://sdk.mercadopago.com/js/v2"
+        strategy="afterInteractive"
+        onLoad={() => {
+          if (config.public_key && typeof window !== 'undefined' && window.MercadoPago) {
+            initMercadoPago(config.public_key)
+          }
+        }}
+      />
       <div className="flex items-center gap-4">
         <Link
           href="/superadmin/dashboard"
@@ -104,16 +143,28 @@ export default function MercadoPagoConfigPage() {
             Configure a integração para gerar boletos das lojas via Mercado Pago
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {config.access_token_set ? (
+        <div className="flex items-center gap-3 flex-wrap">
+          {config.access_token_set && (
             <span className="inline-flex items-center text-green-600">
               <CheckCircle className="w-4 h-4 mr-1" />
               Token configurado
             </span>
+          )}
+          {config.public_key ? (
+            <span className="inline-flex items-center text-green-600">
+              <Key className="w-4 h-4 mr-1" />
+              Public Key configurada
+            </span>
           ) : (
             <span className="inline-flex items-center text-amber-600">
               <XCircle className="w-4 h-4 mr-1" />
-              Token não configurado
+              Public Key não configurada
+            </span>
+          )}
+          {sdkReady && (
+            <span className="inline-flex items-center text-blue-600">
+              <CheckCircle className="w-4 h-4 mr-1" />
+              SDK MercadoPago.js inicializado
             </span>
           )}
         </div>
@@ -140,12 +191,27 @@ export default function MercadoPagoConfigPage() {
               className="text-purple-600 underline"
             >
               Mercado Pago – Suas integrações
-            </a>{' '}
-            e cole o Access Token abaixo. Ao criar uma nova loja, você poderá escolher se os boletos serão gerados por Asaas ou Mercado Pago.
+            </a>
+            . Use a <strong>Public Key</strong> (teste ou produção) para inicializar o SDK no frontend e o <strong>Access Token</strong> no backend para gerar boletos. Ao criar uma nova loja, você pode escolher Asaas ou Mercado Pago.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={saveConfig} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="public_key">Public Key (para o frontend – teste ou produção)</Label>
+              <Input
+                id="public_key"
+                type="text"
+                placeholder="APP_USR-xxxx ou TEST-xxxx"
+                value={publicKey}
+                onChange={(e) => setPublicKey(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500">
+                Usada para inicializar a biblioteca MercadoPago.js no frontend. Pode ser exposta no cliente.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="access_token">Access Token (Produção ou Teste)</Label>
               <div className="flex gap-2">
@@ -168,7 +234,7 @@ export default function MercadoPagoConfigPage() {
                 </Button>
               </div>
               <p className="text-xs text-gray-500">
-                Deixe em branco para não alterar o token já salvo.
+                Usado apenas no backend para criar pagamentos. Deixe em branco para não alterar o token já salvo.
               </p>
             </div>
 

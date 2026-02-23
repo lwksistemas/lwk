@@ -1063,6 +1063,7 @@ def mercadopago_config(request):
             'use_for_boletos': config.use_for_boletos,
             'access_token_set': bool(config.access_token),
             'access_token_masked': (config.access_token[:8] + '...' + config.access_token[-4:]) if config.access_token and len(config.access_token) >= 12 else ('****' if config.access_token else ''),
+            'public_key': getattr(config, 'public_key', '') or '',
         })
     if request.method == 'PATCH':
         if 'enabled' in request.data:
@@ -1071,11 +1072,14 @@ def mercadopago_config(request):
             config.use_for_boletos = bool(request.data['use_for_boletos'])
         if 'access_token' in request.data and request.data['access_token'] is not None:
             config.access_token = str(request.data['access_token']).strip()
+        if 'public_key' in request.data and request.data['public_key'] is not None:
+            config.public_key = str(request.data['public_key']).strip()[:80]
         config.save()
         return Response({
             'enabled': config.enabled,
             'use_for_boletos': config.use_for_boletos,
             'access_token_set': bool(config.access_token),
+            'public_key': getattr(config, 'public_key', '') or '',
         })
 
 

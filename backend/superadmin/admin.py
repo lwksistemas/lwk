@@ -48,8 +48,12 @@ class PagamentoLojaAdmin(admin.ModelAdmin):
 
 @admin.register(MercadoPagoConfig)
 class MercadoPagoConfigAdmin(admin.ModelAdmin):
-    list_display = ['singleton_key', 'enabled', 'use_for_boletos', 'updated_at']
+    list_display = ['singleton_key', 'enabled', 'use_for_boletos', 'public_key_short', 'updated_at']
     list_editable = ['enabled', 'use_for_boletos']
+
+    def public_key_short(self, obj):
+        return (obj.public_key[:20] + '...') if obj.public_key and len(obj.public_key) > 20 else (obj.public_key or '-')
+    public_key_short.short_description = 'Public Key'
 
 @admin.register(UsuarioSistema)
 class UsuarioSistemaAdmin(admin.ModelAdmin):

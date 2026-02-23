@@ -441,6 +441,11 @@ class MercadoPagoConfig(models.Model):
     """Configuração da integração Mercado Pago para boletos das lojas"""
     singleton_key = models.CharField(max_length=10, default='config', unique=True)
     access_token = models.TextField(blank=True, verbose_name='Access Token (Produção ou Teste)')
+    public_key = models.CharField(
+        max_length=80, blank=True,
+        verbose_name='Public Key (para SDK no frontend)',
+        help_text='Chave pública para inicializar MercadoPago.js no frontend'
+    )
     enabled = models.BooleanField(default=False, verbose_name='Integração habilitada')
     use_for_boletos = models.BooleanField(
         default=False,

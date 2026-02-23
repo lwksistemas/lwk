@@ -163,7 +163,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     setFormData(prev => ({ ...prev, cpf_cnpj: formatted, slug: getSuggestedSlug(prev.nome, formatted) }));
   };
 
-  /** Consulta CEP via ViaCEP e preenche endereço */
+  /** Consulta CEP (ViaCEP com fallback para BrasilAPI) e preenche endereço */
   const buscarCep = async () => {
     const cep = formData.cep.replace(/\D/g, '');
     if (cep.length !== 8) {
@@ -171,13 +171,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
       return;
     }
     setBuscarCepLoading(true);
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await res.json();
-      if (data.erro) {
-        alert('CEP não encontrado.');
-        return;
-      }
+    const applyViaCep = (data: { logradouro?: string; bairro?: string; localidade?: string; uf?: string }) => {
       setFormData(prev => ({
         ...prev,
         logradouro: data.logradouro || prev.logradouro,
@@ -185,6 +179,34 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
         cidade: data.localidade || prev.cidade,
         uf: data.uf || prev.uf,
       }));
+    };
+    const applyBrasilApi = (data: { street?: string; neighborhood?: string; city?: string; state?: string }) => {
+      setFormData(prev => ({
+        ...prev,
+        logradouro: data.street || prev.logradouro,
+        bairro: data.neighborhood || prev.bairro,
+        cidade: data.city || prev.cidade,
+        uf: data.state || prev.uf,
+      }));
+    };
+    try {
+      // 1) Tentar ViaCEP
+      const resVia = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const dataVia = await resVia.json();
+      if (!dataVia.erro && dataVia.cep) {
+        applyViaCep(dataVia);
+        setBuscarCepLoading(false);
+        return;
+      }
+      // 2) Fallback: BrasilAPI CEP
+      const resBr = await fetch(`https://brasilapi.com.br/api/cep/v1/${cep}`);
+      if (resBr.ok) {
+        const dataBr = await resBr.json();
+        applyBrasilApi(dataBr);
+        setBuscarCepLoading(false);
+        return;
+      }
+      alert('CEP não encontrado.');
     } catch {
       alert('Erro ao consultar CEP. Tente novamente.');
     } finally {

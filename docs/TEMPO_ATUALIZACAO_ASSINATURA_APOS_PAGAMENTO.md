@@ -17,25 +17,18 @@
 
 ### Mercado Pago
 
-- **Mecanismo:** apenas **webhook** (não há consulta automática periódica ao MP).
+- **Mecanismo:** **webhook** + **sync periódico** (opcional, no servidor).
 - **URL do webhook:** `https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/mercadopago-webhook/`
 - **Evento:** `payment` (quando o status do pagamento muda).
-- **Fluxo:**
-  1. Cliente paga o boleto.
-  2. Mercado Pago confirma o pagamento (status `approved`) e envia um POST para a URL acima.
-  3. O backend processa em `process_mercadopago_webhook_payment`, atualiza `FinanceiroLoja`, `PagamentoLoja` e desbloqueia a loja.
-- **Tempo no nosso sistema:** da ordem de **segundos** após o envio do webhook pelo MP.
+- **Fluxo principal:** Cliente paga → MP confirma (status `approved`) → MP envia POST no webhook → backend atualiza `FinanceiroLoja`, `PagamentoLoja` e desbloqueia a loja (segundos).
+- **Sync em tempo real no servidor (como Asaas):** execute no Heroku o comando `sync_mercadopago_auto` de tempos em tempos (ex.: a cada 10 min via Heroku Scheduler). O comando consulta a API do MP para todos os pagamentos pendentes e atualiza quem estiver aprovado. Veja a seção *Sincronização periódica no Heroku* abaixo.
 
 ### Asaas
 
-- **Mecanismo:** apenas **webhook** (sincronização manual/comando existe, mas não há job agendado automático de sync no código).
+- **Mecanismo:** **webhook** + **sync periódico** (comando `sync_asaas_auto` pode ser agendado no Heroku Scheduler para atualização em tempo real no servidor).
 - **URL do webhook:** configurada no painel Asaas (deve apontar para o endpoint de webhook do backend).
 - **Eventos:** `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_UPDATED`, `PAYMENT_CREATED`.
-- **Fluxo:**
-  1. Cliente paga o boleto.
-  2. Asaas confirma o pagamento (status `RECEIVED` / `CONFIRMED` / `RECEIVED_IN_CASH`) e envia o webhook.
-  3. O backend processa em `process_webhook_payment` (AsaasSyncService), atualiza pagamento e financeiro da loja e desbloqueia se for o caso.
-- **Tempo no nosso sistema:** da ordem de **segundos** após o envio do webhook pelo Asaas.
+- **Fluxo:** Cliente paga → Asaas confirma → webhook → backend atualiza e desbloqueia (segundos). Opcionalmente, o sync periódico no servidor consulta a API do Asaas e atualiza pagamentos pendentes.
 
 ---
 
@@ -59,10 +52,27 @@ Ou seja: quem define o atraso é a confirmação do pagamento pelo **Mercado Pag
 2. **Logs no Heroku**
    - Procurar por `Webhook MP` / `Webhook Asaas recebido` e por erros ao processar o pagamento.
 
-3. **Sincronização manual (só Asaas)**
-   - Se o webhook falhar ou não estiver configurado, é possível rodar manualmente:
-     - `python manage.py sync_asaas_auto` (ou comando equivalente no projeto)
-   - Para **Mercado Pago** não existe sync periódico no código; a atualização depende do webhook.
+3. **Sincronização manual ou periódica (Asaas e Mercado Pago)**
+   - **Asaas:** `cd backend && python manage.py sync_asaas_auto` (ou `--loja SLUG` para uma loja).
+   - **Mercado Pago:** `cd backend && python manage.py sync_mercadopago_auto` (ou `--loja SLUG`).
+   - Para **atualização em tempo real no servidor** (como o Asaas), agende esses comandos no **Heroku Scheduler** (ex.: a cada 10 minutos). Veja a seção abaixo.
+
+---
+
+## Sincronização periódica no Heroku (tempo real no servidor)
+
+Para que o **Mercado Pago** (e o Asaas) atualizem no servidor mesmo se o webhook atrasar ou falhar, agende os comandos de sync no **Heroku Scheduler**:
+
+1. No [Dashboard Heroku](https://dashboard.heroku.com/) → app **lwksistemas** → aba **Resources**.
+2. Adicione o add-on **Heroku Scheduler** (se ainda não tiver).
+3. Abra o Scheduler e crie **jobs**:
+
+| Provedor      | Comando no Scheduler                          | Frequência sugerida   |
+|---------------|------------------------------------------------|------------------------|
+| **Asaas**     | `cd backend && python manage.py sync_asaas_auto`     | A cada 10 min ou 1 h   |
+| **Mercado Pago** | `cd backend && python manage.py sync_mercadopago_auto` | A cada 10 min ou 1 h   |
+
+Assim, o servidor consulta a API de cada provedor periodicamente e atualiza pagamentos pendentes que já foram aprovados, mantendo o comportamento em tempo real igual ao do Asaas.
 
 ---
 

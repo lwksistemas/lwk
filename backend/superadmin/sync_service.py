@@ -758,6 +758,82 @@ class AsaasSyncService:
             }
 
 
+def sync_all_mercadopago_payments():
+    """
+    Sincroniza todos os pagamentos pendentes do Mercado Pago (consulta a API e atualiza status).
+    Pode ser executado periodicamente no servidor (ex.: Heroku Scheduler a cada 10 min) para
+    atualização em tempo real, similar ao sync do Asaas.
+    """
+    from .models import MercadoPagoConfig
+    config = MercadoPagoConfig.get_config()
+    if not config or not config.access_token:
+        logger.warning("Mercado Pago não configurado; sync ignorado")
+        return {'success': False, 'error': 'Mercado Pago não configurado', 'processed': 0}
+
+    # IDs de pagamento pendentes em PagamentoLoja (mercadopago)
+    ids_pagamento = set(
+        PagamentoLoja.objects.filter(
+            provedor_boleto='mercadopago',
+            status__in=['pendente', 'atrasado'],
+            mercadopago_payment_id__isnull=False
+        ).exclude(mercadopago_payment_id='').values_list('mercadopago_payment_id', flat=True)
+    )
+    # IDs em FinanceiroLoja (cobrança atual, pode não ter PagamentoLoja ainda)
+    ids_financeiro = set(
+        FinanceiroLoja.objects.filter(
+            provedor_boleto='mercadopago',
+            mercadopago_payment_id__isnull=False
+        ).exclude(mercadopago_payment_id='').values_list('mercadopago_payment_id', flat=True)
+    )
+    payment_ids = list(ids_pagamento | ids_financeiro)
+    if not payment_ids:
+        logger.info("Sync MP: nenhum pagamento pendente com Mercado Pago")
+        return {'success': True, 'processed': 0, 'total_checked': 0}
+
+    processed = 0
+    for pid in payment_ids:
+        try:
+            result = process_mercadopago_webhook_payment(str(pid))
+            if result.get('processed'):
+                processed += 1
+        except Exception as e:
+            logger.warning("Sync MP: erro ao processar payment %s: %s", pid, e)
+
+    logger.info("Sync MP: %d pagamentos verificados, %d atualizados", len(payment_ids), processed)
+    return {
+        'success': True,
+        'total_checked': len(payment_ids),
+        'processed': processed,
+    }
+
+
+def sync_loja_payments_mercadopago(loja):
+    """Sincroniza pagamentos Mercado Pago de uma loja específica."""
+    ids_pagamento = set(
+        PagamentoLoja.objects.filter(
+            loja=loja,
+            provedor_boleto='mercadopago',
+            status__in=['pendente', 'atrasado'],
+            mercadopago_payment_id__isnull=False
+        ).exclude(mercadopago_payment_id='').values_list('mercadopago_payment_id', flat=True)
+    )
+    try:
+        financeiro = loja.financeiro
+        if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and getattr(financeiro, 'mercadopago_payment_id', ''):
+            ids_pagamento.add(financeiro.mercadopago_payment_id)
+    except Exception:
+        pass
+    processed = 0
+    for pid in ids_pagamento:
+        try:
+            result = process_mercadopago_webhook_payment(str(pid))
+            if result.get('processed'):
+                processed += 1
+        except Exception as e:
+            logger.warning("Sync MP loja %s payment %s: %s", loja.slug, pid, e)
+    return {'success': True, 'loja': loja.nome, 'processed': processed, 'total_checked': len(ids_pagamento)}
+
+
 def process_mercadopago_webhook_payment(payment_id: str) -> dict:
     """
     Processa notificação de webhook do Mercado Pago.

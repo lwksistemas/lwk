@@ -143,6 +143,28 @@ def delete_all_loja_data(sender, instance, **kwargs):
         return
     
     try:
+        # Alias do banco da loja: usar schema isolado (evita deletar no default e criar órfãos)
+        from django.conf import settings
+        db_alias = None
+        db_name = getattr(instance, 'database_name', None)
+        if db_name:
+            import os
+            DATABASE_URL = os.environ.get('DATABASE_URL', '')
+            if 'postgres' in DATABASE_URL.lower() and db_name not in settings.DATABASES:
+                try:
+                    import dj_database_url
+                    default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
+                    schema_name = db_name.replace('-', '_')
+                    settings.DATABASES[db_name] = {
+                        **default_db,
+                        'OPTIONS': {'options': f'-c search_path={schema_name},public'},
+                        'CONN_MAX_AGE': 0,
+                    }
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Não foi possível configurar banco da loja {db_name}: {e}")
+            if db_name in settings.DATABASES:
+                db_alias = db_name
+
         # 0. Remover LojaAssinatura por slug (evita órfãos se loja for excluída fora da API)
         try:
             from asaas_integration.models import LojaAssinatura
@@ -153,69 +175,96 @@ def delete_all_loja_data(sender, instance, **kwargs):
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao remover LojaAssinatura por slug: {e}")
         
-        # 1. Deletar funcionários/vendedores baseado no tipo de loja
+        # 1. Deletar funcionários/vendedores baseado no tipo de loja (no schema da loja quando db_alias definido)
         if tipo_loja_nome == 'Clínica de Estética':
             from clinica_estetica.models import Funcionario, Cliente, Agendamento, Profissional, Procedimento
-            
+            _db = db_alias
+
             # Funcionários
-            func_count = Funcionario.objects.all_without_filter().filter(loja_id=loja_id).count()
-            Funcionario.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            qs = Funcionario.objects.all_without_filter().filter(loja_id=loja_id)
+            if _db:
+                qs = qs.using(_db)
+            func_count = qs.count()
+            qs.delete()
             logger.info(f"   ✅ {func_count} funcionários deletados")
-            
-            # Clientes
-            cli_count = Cliente.objects.all_without_filter().filter(loja_id=loja_id).count()
-            Cliente.objects.all_without_filter().filter(loja_id=loja_id).delete()
+
+            qs = Cliente.objects.all_without_filter().filter(loja_id=loja_id)
+            if _db:
+                qs = qs.using(_db)
+            cli_count = qs.count()
+            qs.delete()
             logger.info(f"   ✅ {cli_count} clientes deletados")
-            
-            # Agendamentos
-            agend_count = Agendamento.objects.all_without_filter().filter(loja_id=loja_id).count()
-            Agendamento.objects.all_without_filter().filter(loja_id=loja_id).delete()
+
+            qs = Agendamento.objects.all_without_filter().filter(loja_id=loja_id)
+            if _db:
+                qs = qs.using(_db)
+            agend_count = qs.count()
+            qs.delete()
             logger.info(f"   ✅ {agend_count} agendamentos deletados")
-            
-            # Profissionais
-            prof_count = Profissional.objects.all_without_filter().filter(loja_id=loja_id).count()
-            Profissional.objects.all_without_filter().filter(loja_id=loja_id).delete()
+
+            qs = Profissional.objects.all_without_filter().filter(loja_id=loja_id)
+            if _db:
+                qs = qs.using(_db)
+            prof_count = qs.count()
+            qs.delete()
             logger.info(f"   ✅ {prof_count} profissionais deletados")
-            
-            # Procedimentos
-            proc_count = Procedimento.objects.all_without_filter().filter(loja_id=loja_id).count()
-            Procedimento.objects.all_without_filter().filter(loja_id=loja_id).delete()
+
+            qs = Procedimento.objects.all_without_filter().filter(loja_id=loja_id)
+            if _db:
+                qs = qs.using(_db)
+            proc_count = qs.count()
+            qs.delete()
             logger.info(f"   ✅ {proc_count} procedimentos deletados")
             
         elif tipo_loja_nome == 'CRM Vendas':
             from crm_vendas.models import Vendedor, Cliente, Lead, Venda, Pipeline, Produto
-            
-            # Vendedores
-            vend_count = Vendedor.objects.all_without_filter().filter(loja_id=loja_id).count()
-            Vendedor.objects.all_without_filter().filter(loja_id=loja_id).delete()
+            _db = db_alias
+
+            qs = Vendedor.objects.all_without_filter().filter(loja_id=loja_id)
+            if _db:
+                qs = qs.using(_db)
+            vend_count = qs.count()
+            qs.delete()
             logger.info(f"   ✅ {vend_count} vendedores deletados")
-            
-            # Clientes
-            cli_count = Cliente.objects.all_without_filter().filter(loja_id=loja_id).count()
-            Cliente.objects.all_without_filter().filter(loja_id=loja_id).delete()
+
+            qs = Cliente.objects.all_without_filter().filter(loja_id=loja_id)
+            if _db:
+                qs = qs.using(_db)
+            cli_count = qs.count()
+            qs.delete()
             logger.info(f"   ✅ {cli_count} clientes deletados")
-            
-            # Leads
-            lead_count = Lead.objects.all_without_filter().filter(loja_id=loja_id).count()
-            Lead.objects.all_without_filter().filter(loja_id=loja_id).delete()
+
+            qs = Lead.objects.all_without_filter().filter(loja_id=loja_id)
+            if _db:
+                qs = qs.using(_db)
+            lead_count = qs.count()
+            qs.delete()
             logger.info(f"   ✅ {lead_count} leads deletados")
-            
-            # Vendas, Pipeline e Produtos (evitar órfãos)
+
             try:
-                venda_count = Venda.objects.all_without_filter().filter(loja_id=loja_id).count()
-                Venda.objects.all_without_filter().filter(loja_id=loja_id).delete()
+                qs = Venda.objects.all_without_filter().filter(loja_id=loja_id)
+                if _db:
+                    qs = qs.using(_db)
+                venda_count = qs.count()
+                qs.delete()
                 logger.info(f"   ✅ {venda_count} vendas deletadas")
             except Exception as e:
                 logger.warning(f"   ⚠️ Erro ao deletar vendas CRM: {e}")
             try:
-                pipe_count = Pipeline.objects.all_without_filter().filter(loja_id=loja_id).count()
-                Pipeline.objects.all_without_filter().filter(loja_id=loja_id).delete()
+                qs = Pipeline.objects.all_without_filter().filter(loja_id=loja_id)
+                if _db:
+                    qs = qs.using(_db)
+                pipe_count = qs.count()
+                qs.delete()
                 logger.info(f"   ✅ {pipe_count} etapas pipeline deletadas")
             except Exception as e:
                 logger.warning(f"   ⚠️ Erro ao deletar pipeline: {e}")
             try:
-                prod_count = Produto.objects.all_without_filter().filter(loja_id=loja_id).count()
-                Produto.objects.all_without_filter().filter(loja_id=loja_id).delete()
+                qs = Produto.objects.all_without_filter().filter(loja_id=loja_id)
+                if _db:
+                    qs = qs.using(_db)
+                prod_count = qs.count()
+                qs.delete()
                 logger.info(f"   ✅ {prod_count} produtos CRM deletados")
             except Exception as e:
                 logger.warning(f"   ⚠️ Erro ao deletar produtos CRM: {e}")
@@ -225,13 +274,16 @@ def delete_all_loja_data(sender, instance, **kwargs):
                 Funcionario, Reserva, Pedido, ItemCardapio, Categoria, Mesa, Cliente,
                 Fornecedor, NotaFiscalEntrada, EstoqueItem, MovimentoEstoque, RegistroPesoBalança
             )
-            
+            _db = db_alias
+
             def _delete_restaurante(model, nome):
                 try:
                     if hasattr(model.objects, 'all_without_filter'):
                         qs = model.objects.all_without_filter().filter(loja_id=loja_id)
                     else:
                         qs = model.objects.filter(loja_id=loja_id)
+                    if _db:
+                        qs = qs.using(_db)
                     count = qs.count()
                     qs.delete()
                     logger.info(f"   ✅ {count} {nome} deletados")
@@ -250,14 +302,20 @@ def delete_all_loja_data(sender, instance, **kwargs):
             _delete_restaurante(NotaFiscalEntrada, 'notas fiscais')
             # Movimentos e registros de peso antes de EstoqueItem (FK PROTECT)
             try:
-                mov_count = MovimentoEstoque.objects.filter(estoque_item__loja_id=loja_id).count()
-                MovimentoEstoque.objects.filter(estoque_item__loja_id=loja_id).delete()
+                qs = MovimentoEstoque.objects.filter(estoque_item__loja_id=loja_id)
+                if _db:
+                    qs = qs.using(_db)
+                mov_count = qs.count()
+                qs.delete()
                 logger.info(f"   ✅ {mov_count} movimentos de estoque deletados")
             except Exception as e:
                 logger.warning(f"   ⚠️ Erro ao deletar movimentos estoque: {e}")
             try:
-                reg_count = RegistroPesoBalança.objects.filter(estoque_item__loja_id=loja_id).count()
-                RegistroPesoBalança.objects.filter(estoque_item__loja_id=loja_id).delete()
+                qs = RegistroPesoBalança.objects.filter(estoque_item__loja_id=loja_id)
+                if _db:
+                    qs = qs.using(_db)
+                reg_count = qs.count()
+                qs.delete()
                 logger.info(f"   ✅ {reg_count} registros peso deletados")
             except Exception as e:
                 logger.warning(f"   ⚠️ Erro ao deletar registros peso: {e}")
@@ -265,13 +323,16 @@ def delete_all_loja_data(sender, instance, **kwargs):
             
         elif tipo_loja_nome == 'Serviços':
             from servicos.models import Funcionario, Servico, Profissional, Agendamento, OrdemServico, Orcamento, Cliente, Categoria
-            
+            _db = db_alias
+
             def _delete_servicos(model, nome):
                 try:
                     if hasattr(model.objects, 'all_without_filter'):
                         qs = model.objects.all_without_filter().filter(loja_id=loja_id)
                     else:
                         qs = model.objects.filter(loja_id=loja_id)
+                    if _db:
+                        qs = qs.using(_db)
                     count = qs.count()
                     qs.delete()
                     logger.info(f"   ✅ {count} {nome} deletados")
@@ -293,6 +354,8 @@ def delete_all_loja_data(sender, instance, **kwargs):
                 Patient, Professional, Procedure, Appointment, BloqueioHorario,
                 HorarioTrabalhoProfissional, Payment, CampanhaPromocao
             )
+            _db = db_alias
+
             def _delete_clinica_beleza(model, nome):
                 try:
                     with tx.atomic():
@@ -300,6 +363,8 @@ def delete_all_loja_data(sender, instance, **kwargs):
                             qs = model.objects.all_without_filter().filter(loja_id=loja_id)
                         else:
                             qs = model.objects.filter(loja_id=loja_id)
+                        if _db:
+                            qs = qs.using(_db)
                         count = qs.count()
                         qs.delete()
                         logger.info(f"   ✅ {count} {nome} (Clínica da Beleza) deletados")
@@ -316,18 +381,20 @@ def delete_all_loja_data(sender, instance, **kwargs):
             _delete_clinica_beleza(Patient, 'pacientes')
             
         elif tipo_loja_nome == 'Cabeleireiro':
-            # Dados do Cabeleireiro podem estar no schema (DROP abaixo) ou no default
             from cabeleireiro.models import (
                 Cliente, Profissional, Servico, Agendamento, Produto, Venda,
                 Funcionario, HorarioFuncionamento, BloqueioAgenda
             )
-            
+            _db = db_alias
+
             def _delete_cabeleireiro(model, nome):
                 try:
                     if hasattr(model.objects, 'all_without_filter'):
                         qs = model.objects.all_without_filter().filter(loja_id=loja_id)
                     else:
                         qs = model.objects.filter(loja_id=loja_id)
+                    if _db:
+                        qs = qs.using(_db)
                     count = qs.count()
                     qs.delete()
                     logger.info(f"   ✅ {count} {nome} (Cabeleireiro) deletados")
@@ -402,13 +469,13 @@ def delete_all_loja_data(sender, instance, **kwargs):
             logger.error(traceback.format_exc())
             # Não interrompe a exclusão da loja, apenas loga o erro
         
-        # 5. Rede de segurança: limpar qualquer tabela do default com loja_id (evita órfãos)
-        # Cada DELETE em um savepoint para que falha em uma tabela (ex.: não existe em public)
-        # não aborte a transação inteira (evita "current transaction is aborted")
+        # 5. Rede de segurança: limpar só tabelas do default (public) com loja_id.
+        # Dados operacionais da loja estão no schema da loja (já limpos acima com .using());
+        # no default ficam só superadmin/asaas (TABELAS_LOJA_ID_DEFAULT).
         try:
             from django.db import connection, transaction
-            from superadmin.orfaos_config import TABELAS_LOJA_ID
-            for tabela, coluna in TABELAS_LOJA_ID:
+            from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT
+            for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
                 try:
                     with transaction.atomic():
                         with connection.cursor() as cursor:
@@ -421,7 +488,7 @@ def delete_all_loja_data(sender, instance, **kwargs):
                 except Exception as e:
                     logger.warning(f"   ⚠️ Safety net {tabela}: {e}")
         except Exception as e:
-            logger.warning(f"   ⚠️ Erro na rede de segurança TABELAS_LOJA_ID: {e}")
+            logger.warning(f"   ⚠️ Erro na rede de segurança TABELAS_LOJA_ID_DEFAULT: {e}")
         
         logger.info(f"✅ Exclusão em cascata concluída para loja: {loja_nome}")
         

@@ -1,31 +1,79 @@
+import os
 from django.core.management.base import BaseCommand
+from django.conf import settings
 from cabeleireiro.models import Funcionario, Profissional
+from superadmin.models import Loja
+
+
+def _ensure_loja_db(loja):
+    """Garante que o banco da loja está em settings.DATABASES. Retorna alias ou None."""
+    db_name = getattr(loja, 'database_name', None)
+    if not db_name:
+        return None
+    if db_name in settings.DATABASES:
+        return db_name
+    try:
+        import dj_database_url
+        database_url = os.environ.get('DATABASE_URL', '')
+        if 'postgres' not in database_url.lower():
+            return None
+        default_db = dj_database_url.config(default=database_url, conn_max_age=0)
+        schema_name = db_name.replace('-', '_')
+        settings.DATABASES[db_name] = {
+            **default_db,
+            'OPTIONS': {'options': f'-c search_path={schema_name},public'},
+            'CONN_MAX_AGE': 0,
+        }
+        return db_name
+    except Exception:
+        return None
 
 
 class Command(BaseCommand):
-    help = 'Migra funcionários profissionais para tabela de profissionais'
+    help = 'Migra funcionários profissionais para tabela de profissionais (por loja, no schema da loja)'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--slug',
+            type=str,
+            default=None,
+            help='Slug da loja (opcional). Se informado, usa o schema da loja; senão usa default (legado).',
+        )
 
     def handle(self, *args, **options):
         self.stdout.write('🔄 Iniciando migração...\n')
-        
-        funcionarios = Funcionario.objects.filter(funcao='profissional')
-        self.stdout.write(f'📋 Encontrados {funcionarios.count()} funcionários profissionais\n')
-        
+        slug = options.get('slug')
+        db_alias = None
+        if slug:
+            loja = Loja.objects.filter(slug=slug, is_active=True).first()
+            if not loja:
+                self.stdout.write(self.style.ERROR(f'Loja com slug "{slug}" não encontrada.'))
+                return
+            db_alias = _ensure_loja_db(loja)
+            if not db_alias:
+                self.stdout.write(self.style.WARNING(f'Loja sem database_name ou não PostgreSQL; usando default.'))
+            else:
+                self.stdout.write(f'📋 Usando schema da loja: {loja.nome} (alias={db_alias})\n')
+
+        base = Funcionario.objects.filter(funcao='profissional')
+        if db_alias:
+            base = base.using(db_alias)
+        funcionarios = list(base)
+        self.stdout.write(f'📋 Encontrados {len(funcionarios)} funcionários profissionais\n')
+
         migrados = 0
         ja_existentes = 0
-        
+        prof_qs = Profissional.objects
+        if db_alias:
+            prof_qs = prof_qs.using(db_alias)
+
         for func in funcionarios:
-            existe = Profissional.objects.filter(
-                loja_id=func.loja_id,
-                email=func.email
-            ).first()
-            
+            existe = prof_qs.filter(loja_id=func.loja_id, email=func.email).first()
             if existe:
                 self.stdout.write(f'⚠️  Já existe: {func.nome} (ID: {existe.id})')
                 ja_existentes += 1
                 continue
-            
-            prof = Profissional.objects.create(
+            prof = prof_qs.create(
                 loja_id=func.loja_id,
                 nome=func.nome,
                 email=func.email,
@@ -36,9 +84,9 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS(f'✅ Criado: {func.nome} (ID: {prof.id})'))
             migrados += 1
-        
+
         self.stdout.write('\n📊 Resumo:')
         self.stdout.write(self.style.SUCCESS(f'   ✅ Migrados: {migrados}'))
         self.stdout.write(f'   ⚠️  Já existentes: {ja_existentes}')
-        self.stdout.write(f'   📋 Total: {funcionarios.count()}')
+        self.stdout.write(f'   📋 Total: {len(funcionarios)}')
         self.stdout.write(self.style.SUCCESS('\n✅ Migração concluída!'))

@@ -10,7 +10,7 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connection
 from superadmin.models import Loja
-from superadmin.orfaos_config import TABELAS_LOJA_ID
+from superadmin.orfaos_config import TABELAS_LOJA_ID, LIMPAR_REFERENCIAS_ANTES
 
 
 class Command(BaseCommand):
@@ -102,10 +102,21 @@ class Command(BaseCommand):
                             self.stdout.write(self.style.SUCCESS(f'  loja_assinatura: {cursor.rowcount} removidos'))
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f'  loja_assinatura: {e}'))
-                # Ordem de TABELAS_LOJA_ID para respeitar FKs (ex.: protocolos antes de procedimentos)
+                # Ordem de TABELAS_LOJA_ID. Antes de deletar em cada tabela pai, limpar FKs em tabelas filhas
                 for tabela, coluna in TABELAS_LOJA_ID:
                     if tabela not in detalhes_dict:
                         continue
+                    # Remover referências em tabelas filhas que apontam para órfãos da tabela pai
+                    for tabela_filha, coluna_fk in LIMPAR_REFERENCIAS_ANTES.get(tabela, []):
+                        try:
+                            cursor.execute(
+                                f'DELETE FROM {tabela_filha} WHERE {coluna_fk} IN '
+                                f'(SELECT id FROM {tabela} WHERE {coluna} IS NOT NULL AND {coluna} NOT IN (SELECT id FROM superadmin_loja))'
+                            )
+                            if cursor.rowcount > 0:
+                                self.stdout.write(self.style.SUCCESS(f'  {tabela_filha} (ref {tabela}): {cursor.rowcount} removidos'))
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f'  {tabela_filha}: {e}'))
                     try:
                         cursor.execute(
                             f'DELETE FROM {tabela} WHERE {coluna} IS NOT NULL AND {coluna} NOT IN (SELECT id FROM superadmin_loja)'

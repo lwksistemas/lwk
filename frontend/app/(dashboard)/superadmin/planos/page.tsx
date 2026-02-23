@@ -410,12 +410,13 @@ export default function PlanosPage() {
         </div>
       </main>
 
-      {/* Modal Novo Plano */}
+      {/* Modal Novo Plano - passa tipo selecionado para vincular o plano ao tipo (ex: Clínica de Estética) */}
       {showModal && (
         <ModalNovoPlano 
           onClose={handleCloseModal} 
-          onSuccess={() => loadPlanosPorTipo(tipoSelecionado!)}
+          onSuccess={() => tipoSelecionado && loadPlanosPorTipo(tipoSelecionado)}
           editingPlano={editingPlano}
+          tipoLojaId={tipoSelecionado}
         />
       )}
     </div>
@@ -424,11 +425,13 @@ export default function PlanosPage() {
 function NovoPlanoModal({ 
   onClose, 
   onSuccess,
-  editingPlano 
+  editingPlano,
+  tipoLojaId = null,
 }: { 
   onClose: () => void; 
   onSuccess: () => void;
   editingPlano?: Plano | null;
+  tipoLojaId?: number | null;
 }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -485,8 +488,12 @@ function NovoPlanoModal({
         await apiClient.put(`/superadmin/planos/${editingPlano.id}/`, formData);
         alert('Plano atualizado com sucesso!');
       } else {
-        // Criar novo plano
-        await apiClient.post('/superadmin/planos/', formData);
+        // Criar novo plano vinculado ao tipo de loja selecionado (ex: Clínica de Estética)
+        const payload = { ...formData };
+        if (tipoLojaId != null) {
+          (payload as Record<string, unknown>).tipos_loja = [tipoLojaId];
+        }
+        await apiClient.post('/superadmin/planos/', payload);
         alert('Plano criado com sucesso!');
       }
       onSuccess();

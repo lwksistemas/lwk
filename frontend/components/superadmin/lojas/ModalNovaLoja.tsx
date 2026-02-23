@@ -189,26 +189,43 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
         uf: data.state || prev.uf,
       }));
     };
+    const timeoutMs = 10000;
+    const fetchWithTimeout = (url: string) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+    };
     try {
-      // 1) Tentar ViaCEP
-      const resVia = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const dataVia = await resVia.json();
-      if (!dataVia.erro && dataVia.cep) {
-        applyViaCep(dataVia);
-        setBuscarCepLoading(false);
-        return;
+      // 1) Tentar ViaCEP (só usa se resposta OK e JSON válido)
+      try {
+        const resVia = await fetchWithTimeout(`https://viacep.com.br/ws/${cep}/json/`);
+        if (resVia.ok) {
+          const dataVia = await resVia.json();
+          if (dataVia && !dataVia.erro && dataVia.cep) {
+            applyViaCep(dataVia);
+            setBuscarCepLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Ignora falha ViaCEP e tenta BrasilAPI
       }
       // 2) Fallback: BrasilAPI CEP
-      const resBr = await fetch(`https://brasilapi.com.br/api/cep/v1/${cep}`);
-      if (resBr.ok) {
-        const dataBr = await resBr.json();
-        applyBrasilApi(dataBr);
-        setBuscarCepLoading(false);
-        return;
+      try {
+        const resBr = await fetchWithTimeout(`https://brasilapi.com.br/api/cep/v1/${cep}`);
+        if (resBr.ok) {
+          const dataBr = await resBr.json();
+          if (dataBr && (dataBr.street ?? dataBr.city ?? dataBr.state)) {
+            applyBrasilApi(dataBr);
+            setBuscarCepLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Falha de rede ou timeout na BrasilAPI
       }
-      alert('CEP não encontrado.');
-    } catch {
-      alert('Erro ao consultar CEP. Tente novamente.');
+      // Nenhuma API retornou endereço
+      alert('Erro ao consultar CEP. Verifique sua conexão ou tente novamente em instantes.');
     } finally {
       setBuscarCepLoading(false);
     }

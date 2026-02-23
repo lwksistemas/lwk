@@ -214,6 +214,16 @@ class LojaMercadoPagoService:
                 "error": "Loja precisa de e-mail do responsável e CPF/CNPJ para gerar boleto no Mercado Pago.",
             }
 
+        # Mercado Pago exige endereço completo do pagador para boleto (CEP, logradouro, número, bairro, cidade, UF)
+        cep_ok = (getattr(loja, "cep", None) or "").replace("-", "").replace(" ", "").strip()
+        cep_ok = len(cep_ok) >= 8
+        endereco_ok = bool((getattr(loja, "logradouro", None) or "").strip() and (getattr(loja, "cidade", None) or "").strip() and (getattr(loja, "uf", None) or "").strip())
+        if not cep_ok or not endereco_ok:
+            return {
+                "success": False,
+                "error": "Para gerar boleto pelo Mercado Pago, preencha o endereço da loja: CEP (buscar), logradouro, número, bairro, cidade e UF.",
+            }
+
         due_date = financeiro.data_proxima_cobranca
         if hasattr(due_date, "strftime"):
             due_date = due_date.strftime("%Y-%m-%d")
@@ -223,6 +233,14 @@ class LojaMercadoPagoService:
         client = MercadoPagoClient(self._config.access_token)
         description = f"Assinatura {loja.plano.nome} - Loja {loja.nome}"
         external_ref = f"loja_{loja.slug}_assinatura"
+
+        # Endereço da loja (obrigatório para boleto MP: zip_code, street_name, street_number, neighborhood, city, federal_unit)
+        zip_code = (getattr(loja, "cep", None) or "").strip()
+        street_name = (getattr(loja, "logradouro", None) or "").strip()
+        street_number = (getattr(loja, "numero", None) or "").strip()
+        neighborhood = (getattr(loja, "bairro", None) or "").strip()
+        city = (getattr(loja, "cidade", None) or "").strip()
+        federal_unit = (getattr(loja, "uf", None) or "").strip()[:2].upper()
 
         try:
             result = client.create_boleto(
@@ -235,6 +253,12 @@ class LojaMercadoPagoService:
                 due_date=due_date,
                 description=description,
                 external_reference=external_ref,
+                zip_code=zip_code,
+                street_name=street_name,
+                street_number=street_number,
+                neighborhood=neighborhood,
+                city=city,
+                federal_unit=federal_unit,
             )
         except requests.exceptions.HTTPError as e:
             msg = getattr(e, "response", None)

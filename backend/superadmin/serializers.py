@@ -349,11 +349,15 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                         'slug': f'Já existe uma loja com database_name derivado deste slug. O sistema gerará um slug único automaticamente.'
                     })
             
+            # Garantir provedor de boleto (enviado pelo frontend em Nova Loja)
+            validated_data.setdefault('provedor_boleto_preferido', 'asaas')
+            
             loja = Loja.objects.create(**validated_data)
             
             # LOG para confirmar criação
             print(f"\n{'='*80}")
             print(f"✅ Loja criada: {loja.nome}")
+            print(f"   - Provedor boleto preferido: {getattr(loja, 'provedor_boleto_preferido', 'asaas')}")
             print(f"   - ID: {loja.id}")
             print(f"   - Slug: {loja.slug}")
             print(f"   - Database name: {loja.database_name}")

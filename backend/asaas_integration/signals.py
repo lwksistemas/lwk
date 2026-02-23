@@ -17,11 +17,11 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
     if not created:
         return
     
-    loja = instance.loja
-    # Garantir que lemos o valor salvo no banco (evita cache de FK)
-    loja.refresh_from_db()
-    provedor = getattr(loja, 'provedor_boleto_preferido', None) or 'asaas'
-    logger.info(f"Primeira cobrança para loja {loja.nome} (provedor_boleto_preferido={provedor})")
+    # Ler loja direto do banco pelo FK para garantir valor persistido (evita cache)
+    from superadmin.models import Loja
+    loja = Loja.objects.get(pk=instance.loja_id)
+    provedor = (getattr(loja, 'provedor_boleto_preferido', None) or '').strip() or 'asaas'
+    logger.info(f"Primeira cobrança para loja {loja.nome} (provedor_boleto_preferido={provedor!r})")
 
     # Se a loja escolheu Mercado Pago, usar LojaAsaasService (que delega para MP)
     if provedor == 'mercadopago':

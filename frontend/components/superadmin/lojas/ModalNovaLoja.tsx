@@ -258,7 +258,11 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     setLoading(true);
 
     try {
-      const response = await apiClient.post('/superadmin/lojas/', formData);
+      const payload = {
+        ...formData,
+        provedor_boleto_preferido: formData.provedor_boleto_preferido || 'asaas',
+      };
+      const response = await apiClient.post('/superadmin/lojas/', payload);
       const loja = response.data;
       setCreatedLoja(loja);
       setShowSuccess(true);

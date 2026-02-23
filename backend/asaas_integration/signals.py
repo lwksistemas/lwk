@@ -11,22 +11,40 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender='superadmin.FinanceiroLoja')
 def create_asaas_subscription_on_financeiro_creation(sender, instance, created, **kwargs):
     """
-    Cria automaticamente uma assinatura no Asaas quando o FinanceiroLoja é criado
+    Cria automaticamente a primeira cobrança (boleto) quando o FinanceiroLoja é criado.
+    Respeita a preferência da loja: Mercado Pago ou Asaas.
     """
     if not created:
         return
     
+    loja = instance.loja
+
+    # Se a loja escolheu Mercado Pago, usar LojaAsaasService (que delega para MP)
+    if getattr(loja, 'provedor_boleto_preferido', 'asaas') == 'mercadopago':
+        try:
+            from superadmin.asaas_service import LojaAsaasService
+            from superadmin.models import MercadoPagoConfig
+            mp_config = MercadoPagoConfig.get_config()
+            if mp_config.enabled and mp_config.access_token:
+                logger.info(f"Criando cobrança Mercado Pago para loja: {loja.nome}")
+                service = LojaAsaasService()
+                result = service.criar_cobranca_loja(loja, instance)
+                if result.get('success'):
+                    logger.info(f"✅ Cobrança Mercado Pago criada para loja {loja.nome}")
+                    return
+                logger.warning(f"Mercado Pago falhou para {loja.nome}: {result.get('error')}, tentando Asaas")
+        except Exception as e:
+            logger.warning(f"Mercado Pago não usado para {loja.nome}: {e}, tentando Asaas")
+
     # Verificar se a integração com Asaas está habilitada
     if not getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False):
-        logger.info(f"Integração Asaas desabilitada. Loja {instance.loja.nome} criada sem cobrança.")
+        logger.info(f"Integração Asaas desabilitada. Loja {loja.nome} criada sem cobrança.")
         return
     
     try:
         from .client import AsaasPaymentService
         from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
         from django.db import transaction
-        
-        loja = instance.loja
         
         logger.info(f"Criando assinatura Asaas para loja: {loja.nome}")
         
@@ -98,6 +116,14 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
                 plano_valor=plano_data['preco'],
                 data_vencimento=payment.due_date
             )
+            
+            # Atualizar FinanceiroLoja com boleto para exibir no dashboard
+            instance.asaas_customer_id = result['customer_id']
+            instance.asaas_payment_id = result['payment_id']
+            instance.boleto_url = result.get('boleto_url', '')
+            instance.pix_qr_code = result.get('pix_qr_code', '')
+            instance.data_proxima_cobranca = datetime.strptime(result['due_date'], '%Y-%m-%d').date()
+            instance.save(update_fields=['asaas_customer_id', 'asaas_payment_id', 'boleto_url', 'pix_qr_code', 'data_proxima_cobranca'])
             
             logger.info(f"✅ Assinatura Asaas criada com sucesso para loja {loja.nome}")
             logger.info(f"   Payment ID: {payment.asaas_id}")

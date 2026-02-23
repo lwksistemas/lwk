@@ -62,6 +62,7 @@ class SuperAdminSecurityMiddleware:
                 '/api/superadmin/lojas/debug_senha_status/',
                 '/api/superadmin/usuarios/recuperar_senha/',  # Recuperação de senha superadmin/suporte
                 '/api/superadmin/lojas/recuperar_senha/',     # Recuperação de senha lojas
+                '/api/superadmin/mercadopago-webhook/',       # Webhook Mercado Pago (notificações de pagamento)
             ]
             
             # Endpoints que proprietários de lojas podem acessar (com autenticação)

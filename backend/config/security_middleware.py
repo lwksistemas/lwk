@@ -83,6 +83,7 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/lojas/info_publica/',
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
                 '/api/superadmin/lojas/debug_senha_status/',
+                '/api/superadmin/mercadopago-webhook/',  # Webhook MP (notificações de pagamento)
             ]
             
             if any(path.startswith(endpoint) for endpoint in public_endpoints):

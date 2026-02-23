@@ -5,12 +5,12 @@ import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface ModalNovaCobrancaProps {
   assinatura: {
-    id: number;
+    id: number | string;
     loja_nome: string;
     plano_valor: string;
   };
   onClose: () => void;
-  onConfirm: (assinaturaId: number, dueDate?: string) => void;
+  onConfirm: (assinaturaId: number | string, dueDate?: string) => void;
   loading: boolean;
 }
 

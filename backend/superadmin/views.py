@@ -1105,8 +1105,7 @@ def mercadopago_test(request):
 
 
 @csrf_exempt
-@require_http_methods(['POST'])
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([])
 def mercadopago_webhook(request):
     """
@@ -1114,7 +1113,18 @@ def mercadopago_webhook(request):
     Configurar no painel MP: URL = https://seu-dominio.com/api/superadmin/mercadopago-webhook/
     Eventos: payment (pagamento atualizado). Ao receber approved, o sistema atualiza
     PagamentoLoja e FinanceiroLoja e desbloqueia a loja.
+
+    GET: Teste de conectividade (retorna 200 e instruções para testar o POST).
     """
+    if request.method == 'GET':
+        return Response({
+            'status': 'ok',
+            'message': 'Endpoint do webhook Mercado Pago ativo.',
+            'url': 'https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/mercadopago-webhook/',
+            'test': 'Envie POST com JSON: {"type": "payment", "data": {"id": "<payment_id>"}}. '
+                    'Use o ID de um pagamento real (boleto) para testar a confirmação.',
+        }, status=status.HTTP_200_OK)
+
     try:
         # MP envia JSON: type e data.id
         body = request.data if isinstance(getattr(request, 'data', None), dict) else {}

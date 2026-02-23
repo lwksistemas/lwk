@@ -18,14 +18,23 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
         return
     
     loja = instance.loja
+    # Garantir que lemos o valor salvo no banco (evita cache de FK)
+    loja.refresh_from_db()
+    provedor = getattr(loja, 'provedor_boleto_preferido', None) or 'asaas'
+    logger.info(f"Primeira cobrança para loja {loja.nome} (provedor_boleto_preferido={provedor})")
 
     # Se a loja escolheu Mercado Pago, usar LojaAsaasService (que delega para MP)
-    if getattr(loja, 'provedor_boleto_preferido', 'asaas') == 'mercadopago':
+    if provedor == 'mercadopago':
         try:
             from superadmin.asaas_service import LojaAsaasService
             from superadmin.models import MercadoPagoConfig
             mp_config = MercadoPagoConfig.get_config()
-            if mp_config.enabled and mp_config.access_token:
+            if not mp_config.enabled or not (getattr(mp_config, 'access_token', '') or '').strip():
+                logger.warning(
+                    f"Loja {loja.nome} escolheu Mercado Pago mas a API não está configurada. "
+                    "Configure em Superadmin → Mercado Pago (habilitar e preencher Access Token). Tentando Asaas."
+                )
+            elif mp_config.enabled and mp_config.access_token:
                 logger.info(f"Criando cobrança Mercado Pago para loja: {loja.nome}")
                 service = LojaAsaasService()
                 result = service.criar_cobranca_loja(loja, instance)

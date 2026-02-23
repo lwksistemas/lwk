@@ -291,67 +291,72 @@ def dashboard_financeiro_loja(request, loja_slug):
         from asaas_integration.models import LojaAssinatura, AsaasPayment
         from decimal import Decimal
         
-        # Buscar assinatura da loja
+        # Buscar assinatura da loja (Asaas); se não existir, loja pode ser Mercado Pago e usamos FinanceiroLoja
         try:
             loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
             logger.info(f"✅ LojaAssinatura encontrada: customer_id={loja_assinatura.asaas_customer.asaas_id}")
         except LojaAssinatura.DoesNotExist:
-            logger.error(f"❌ LojaAssinatura não encontrada para slug: {loja.slug}")
-            raise
-        
-        # Buscar todos os pagamentos do customer para debug
-        todos_pagamentos = AsaasPayment.objects.filter(
-            customer=loja_assinatura.asaas_customer
-        ).order_by('-due_date')
-        
-        logger.info(f"📊 Total de pagamentos no Asaas: {todos_pagamentos.count()}")
-        for pag in todos_pagamentos[:5]:
-            logger.info(f"   - ID: {pag.asaas_id}, Status: {pag.status}, Vencimento: {pag.due_date}, Valor: R$ {pag.value}")
-        
-        # Buscar próximo pagamento pendente (mais recente)
-        proximo_boleto = AsaasPayment.objects.filter(
-            customer=loja_assinatura.asaas_customer,
-            status='PENDING',
-            due_date__gte=timezone.now().date()
-        ).order_by('due_date').first()
-        
-        if proximo_boleto:
-            boleto_url = proximo_boleto.bank_slip_url or proximo_boleto.invoice_url
-            pix_qr_code = proximo_boleto.pix_qr_code
-            pix_copy_paste = proximo_boleto.pix_copy_paste
-            
-            logger.info(f"✅ Próximo boleto encontrado para {loja.nome}:")
-            logger.info(f"   - ID: {proximo_boleto.asaas_id}")
-            logger.info(f"   - Vencimento: {proximo_boleto.due_date}")
-            logger.info(f"   - Status: {proximo_boleto.status}")
-            logger.info(f"   - Boleto URL: {boleto_url[:50] if boleto_url else 'None'}...")
-            logger.info(f"   - PIX: {'Sim' if pix_copy_paste else 'Não'}")
-        else:
-            logger.warning(f"⚠️ Nenhum boleto pendente encontrado para {loja.nome}")
-            logger.warning(f"   - Data atual: {timezone.now().date()}")
-            logger.warning(f"   - Filtro: status=PENDING, due_date >= {timezone.now().date()}")
-        
-        # Calcular estatísticas do Asaas
-        total_pagamentos_asaas = todos_pagamentos.count()
-        pagamentos_pagos_asaas = todos_pagamentos.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']).count()
-        pagamentos_pendentes_asaas = todos_pagamentos.filter(status='PENDING').count()
-        pagamentos_atrasados_asaas = todos_pagamentos.filter(status='OVERDUE').count()
-        
-        # Calcular valores
-        for pag in todos_pagamentos.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']):
-            valor_total_pago_asaas += Decimal(str(pag.value))
-        
-        for pag in todos_pagamentos.filter(status__in=['PENDING', 'OVERDUE']):
-            valor_total_pendente_asaas += Decimal(str(pag.value))
-        
-        logger.info(f"📊 Estatísticas do Asaas para {loja.nome}:")
-        logger.info(f"   - Total: {total_pagamentos_asaas}")
-        logger.info(f"   - Pagos: {pagamentos_pagos_asaas}")
-        logger.info(f"   - Pendentes: {pagamentos_pendentes_asaas}")
-        logger.info(f"   - Atrasados: {pagamentos_atrasados_asaas}")
-        logger.info(f"   - Valor pago: R$ {valor_total_pago_asaas}")
-        logger.info(f"   - Valor pendente: R$ {valor_total_pendente_asaas}")
-            
+            # Loja com boleto Mercado Pago (ou sem assinatura Asaas): usar dados do FinanceiroLoja
+            boleto_url = financeiro.boleto_url or ''
+            pix_qr_code = financeiro.pix_qr_code or ''
+            pix_copy_paste = financeiro.pix_copy_paste or ''
+            logger.info(f"Loja {loja.slug} sem LojaAssinatura (provedor={getattr(financeiro, 'provedor_boleto', 'asaas')}), usando FinanceiroLoja")
+            loja_assinatura = None
+
+        if loja_assinatura is not None:
+            # Buscar todos os pagamentos do customer para debug
+            todos_pagamentos = AsaasPayment.objects.filter(
+                customer=loja_assinatura.asaas_customer
+            ).order_by('-due_date')
+
+            logger.info(f"📊 Total de pagamentos no Asaas: {todos_pagamentos.count()}")
+            for pag in todos_pagamentos[:5]:
+                logger.info(f"   - ID: {pag.asaas_id}, Status: {pag.status}, Vencimento: {pag.due_date}, Valor: R$ {pag.value}")
+
+            # Buscar próximo pagamento pendente (mais recente)
+            proximo_boleto = AsaasPayment.objects.filter(
+                customer=loja_assinatura.asaas_customer,
+                status='PENDING',
+                due_date__gte=timezone.now().date()
+            ).order_by('due_date').first()
+
+            if proximo_boleto:
+                boleto_url = proximo_boleto.bank_slip_url or proximo_boleto.invoice_url
+                pix_qr_code = proximo_boleto.pix_qr_code
+                pix_copy_paste = proximo_boleto.pix_copy_paste
+
+                logger.info(f"✅ Próximo boleto encontrado para {loja.nome}:")
+                logger.info(f"   - ID: {proximo_boleto.asaas_id}")
+                logger.info(f"   - Vencimento: {proximo_boleto.due_date}")
+                logger.info(f"   - Status: {proximo_boleto.status}")
+                logger.info(f"   - Boleto URL: {boleto_url[:50] if boleto_url else 'None'}...")
+                logger.info(f"   - PIX: {'Sim' if pix_copy_paste else 'Não'}")
+            else:
+                logger.warning(f"⚠️ Nenhum boleto pendente encontrado para {loja.nome}")
+                logger.warning(f"   - Data atual: {timezone.now().date()}")
+                logger.warning(f"   - Filtro: status=PENDING, due_date >= {timezone.now().date()}")
+
+            # Calcular estatísticas do Asaas
+            total_pagamentos_asaas = todos_pagamentos.count()
+            pagamentos_pagos_asaas = todos_pagamentos.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']).count()
+            pagamentos_pendentes_asaas = todos_pagamentos.filter(status='PENDING').count()
+            pagamentos_atrasados_asaas = todos_pagamentos.filter(status='OVERDUE').count()
+
+            # Calcular valores
+            for pag in todos_pagamentos.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']):
+                valor_total_pago_asaas += Decimal(str(pag.value))
+
+            for pag in todos_pagamentos.filter(status__in=['PENDING', 'OVERDUE']):
+                valor_total_pendente_asaas += Decimal(str(pag.value))
+
+            logger.info(f"📊 Estatísticas do Asaas para {loja.nome}:")
+            logger.info(f"   - Total: {total_pagamentos_asaas}")
+            logger.info(f"   - Pagos: {pagamentos_pagos_asaas}")
+            logger.info(f"   - Pendentes: {pagamentos_pendentes_asaas}")
+            logger.info(f"   - Atrasados: {pagamentos_atrasados_asaas}")
+            logger.info(f"   - Valor pago: R$ {valor_total_pago_asaas}")
+            logger.info(f"   - Valor pendente: R$ {valor_total_pendente_asaas}")
+
     except Exception as e:
         logger.error(f"❌ Erro ao buscar boleto do Asaas para {loja.nome}: {e}")
         import traceback
@@ -449,3 +454,133 @@ def dashboard_financeiro_loja(request, loja_slug):
         'pagamentos_recentes': PagamentoLojaSerializer(pagamentos[:5], many=True).data,
         'historico_pagamentos': historico_pagamentos
     })
+
+
+def _financeiro_unificado_stats():
+    """Estatísticas unificadas (Asaas + Mercado Pago) para superadmin."""
+    from asaas_integration.models import LojaAssinatura, AsaasPayment
+    from django.db.models import Sum
+    from decimal import Decimal
+
+    # Asaas
+    total_asaas = LojaAssinatura.objects.count()
+    ativas_asaas = LojaAssinatura.objects.filter(ativa=True).count()
+    pag_asaas = AsaasPayment.objects
+    pendentes_asaas = pag_asaas.filter(status='PENDING').count()
+    pagos_asaas = pag_asaas.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']).count()
+    vencidos_asaas = pag_asaas.filter(status='OVERDUE').count()
+    receita_asaas = pag_asaas.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']).aggregate(t=Sum('value'))['t'] or Decimal('0')
+    pendente_asaas = pag_asaas.filter(status__in=['PENDING', 'OVERDUE']).aggregate(t=Sum('value'))['t'] or Decimal('0')
+
+    # Mercado Pago (FinanceiroLoja com boleto MP)
+    mp_fin = FinanceiroLoja.objects.filter(provedor_boleto='mercadopago', mercadopago_payment_id__isnull=False).exclude(mercadopago_payment_id='')
+    total_mp = mp_fin.count()
+    pendente_mp = sum(f.valor_mensalidade for f in mp_fin)
+
+    return {
+        'total_assinaturas': total_asaas + total_mp,
+        'assinaturas_ativas': ativas_asaas + total_mp,
+        'pagamentos_pendentes': pendentes_asaas + total_mp,
+        'pagamentos_pagos': pagos_asaas,
+        'pagamentos_vencidos': vencidos_asaas,
+        'receita_total': float(receita_asaas),
+        'receita_pendente': float(pendente_asaas) + float(pendente_mp),
+    }
+
+
+def _assinaturas_unificado():
+    """Lista unificada de assinaturas (Asaas + Mercado Pago) no formato esperado pelo frontend."""
+    from asaas_integration.models import LojaAssinatura
+    from asaas_integration.serializers import LojaAssinaturaSerializer
+
+    out = []
+    # Asaas
+    for a in LojaAssinatura.objects.all().select_related('asaas_customer', 'current_payment').order_by('-created_at'):
+        out.append(LojaAssinaturaSerializer(a).data)
+    # Mercado Pago (FinanceiroLoja com boleto)
+    for f in FinanceiroLoja.objects.filter(
+        provedor_boleto='mercadopago'
+    ).exclude(mercadopago_payment_id='').select_related('loja', 'loja__plano'):
+        loja = f.loja
+        data_venc = f.data_proxima_cobranca.strftime('%Y-%m-%d') if f.data_proxima_cobranca else ''
+        out.append({
+            'id': f'mp-{f.id}',
+            'loja_slug': loja.slug,
+            'loja_nome': loja.nome,
+            'plano_nome': loja.plano.nome if loja.plano else 'Plano',
+            'plano_valor': str(f.valor_mensalidade),
+            'ativa': True,
+            'data_vencimento': data_venc,
+            'total_payments': 1,
+            'current_payment_data': {
+                'id': f.id,
+                'asaas_id': f.mercadopago_payment_id,
+                'customer_name': loja.nome,
+                'value': str(f.valor_mensalidade),
+                'status': 'PENDING',
+                'status_display': 'Pendente',
+                'due_date': data_venc,
+                'bank_slip_url': f.boleto_url or '',
+                'pix_copy_paste': f.pix_copy_paste or '',
+                'is_paid': False,
+                'is_pending': True,
+                'is_overdue': False,
+            },
+        })
+    return out
+
+
+def _pagamentos_unificado():
+    """Lista unificada de pagamentos (Asaas + Mercado Pago) no formato esperado pelo frontend."""
+    from asaas_integration.models import AsaasPayment
+    from asaas_integration.serializers import AsaasPaymentSerializer
+
+    out = []
+    for p in AsaasPayment.objects.all().select_related('customer').order_by('-due_date'):
+        d = AsaasPaymentSerializer(p).data
+        d['provedor'] = 'asaas'
+        out.append(d)
+    for f in FinanceiroLoja.objects.filter(
+        provedor_boleto='mercadopago'
+    ).exclude(mercadopago_payment_id='').select_related('loja'):
+        data_venc = f.data_proxima_cobranca.strftime('%Y-%m-%d') if f.data_proxima_cobranca else ''
+        out.append({
+            'id': f.id,
+            'asaas_id': f.mercadopago_payment_id,
+            'customer_name': f.loja.nome,
+            'customer_email': getattr(f.loja.owner, 'email', ''),
+            'value': str(f.valor_mensalidade),
+            'status': 'PENDING',
+            'status_display': 'Pendente',
+            'due_date': data_venc,
+            'payment_date': None,
+            'bank_slip_url': f.boleto_url or '',
+            'pix_copy_paste': f.pix_copy_paste or '',
+            'is_paid': False,
+            'is_pending': True,
+            'is_overdue': False,
+            'provedor': 'mercadopago',
+        })
+    return out
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def financeiro_unificado(request):
+    """
+    Resumo financeiro unificado para superadmin: Asaas + Mercado Pago.
+    Retorna stats, assinaturas e pagamentos no mesmo formato dos endpoints Asaas
+    para compatibilidade com a página /superadmin/financeiro.
+    """
+    if not request.user.is_superuser:
+        return Response({'detail': 'Apenas superadmin.'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        stats = _financeiro_unificado_stats()
+        assinaturas = _assinaturas_unificado()
+        pagamentos = _pagamentos_unificado()
+        # Mesmo formato dos 3 endpoints Asaas: stats no top level + results para listas
+        data = {**stats, 'assinaturas': assinaturas, 'pagamentos': pagamentos}
+        return Response(data)
+    except Exception as e:
+        logger.exception("financeiro_unificado: %s", e)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

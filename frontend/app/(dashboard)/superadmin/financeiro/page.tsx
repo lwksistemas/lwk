@@ -23,10 +23,11 @@ interface AsaasPayment {
   is_paid: boolean;
   is_overdue: boolean;
   is_pending: boolean;
+  provedor?: 'asaas' | 'mercadopago';
 }
 
 interface LojaAssinatura {
-  id: number;
+  id: number | string;
   loja_slug: string;
   loja_nome: string;
   plano_nome: string;
@@ -81,11 +82,12 @@ function AssinaturaCard({
   onUpdateStatus: (paymentId: number) => void;
   onNovaCobranca: (assinatura: LojaAssinatura) => void;
   onExcluirPagamento: (payment: AsaasPayment) => void;
-  gerandoCobranca: number | null;
+  gerandoCobranca: number | string | null;
   formatDate: (date: string) => string;
   formatCurrency: (value: string | number) => string;
   getStatusColor: (status: string) => string;
 }) {
+  const isAsaas = typeof assinatura.id === 'number';
   return (
     <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
       <div className="flex justify-between items-start mb-4">
@@ -136,7 +138,7 @@ function AssinaturaCard({
             </div>
           </div>
           
-          {/* Ações */}
+          {/* Ações: Baixar Boleto / PIX para todos; Atualizar/Nova Cobrança/Excluir só Asaas */}
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => onDownloadBoleto(assinatura.current_payment_data!)}
@@ -154,29 +156,31 @@ function AssinaturaCard({
               </button>
             )}
             
-            <button
-              onClick={() => onUpdateStatus(assinatura.current_payment_data!.id)}
-              className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors"
-            >
-              🔄 Atualizar Status
-            </button>
-            
-            <button
-              onClick={() => onNovaCobranca(assinatura)}
-              disabled={gerandoCobranca === assinatura.id}
-              className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 disabled:opacity-50 transition-colors"
-            >
-              {gerandoCobranca === assinatura.id ? 'Gerando...' : '➕ Nova Cobrança'}
-            </button>
-            
-            <button
-              onClick={() => onExcluirPagamento(assinatura.current_payment_data!)}
-              disabled={assinatura.current_payment_data!.is_paid}
-              className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title={assinatura.current_payment_data!.is_paid ? 'Não é possível excluir cobrança paga' : 'Excluir cobrança'}
-            >
-              🗑️ Excluir
-            </button>
+            {isAsaas && (
+              <>
+                <button
+                  onClick={() => onUpdateStatus(assinatura.current_payment_data!.id)}
+                  className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors"
+                >
+                  🔄 Atualizar Status
+                </button>
+                <button
+                  onClick={() => onNovaCobranca(assinatura)}
+                  disabled={gerandoCobranca === assinatura.id}
+                  className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 disabled:opacity-50 transition-colors"
+                >
+                  {gerandoCobranca === assinatura.id ? 'Gerando...' : '➕ Nova Cobrança'}
+                </button>
+                <button
+                  onClick={() => onExcluirPagamento(assinatura.current_payment_data!)}
+                  disabled={assinatura.current_payment_data!.is_paid}
+                  className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title={assinatura.current_payment_data!.is_paid ? 'Não é possível excluir cobrança paga' : 'Excluir cobrança'}
+                >
+                  🗑️ Excluir
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -209,19 +213,23 @@ export default function FinanceiroPage() {
     loadData();
   }, [router]);
 
-  // Carregar dados
+  // Carregar dados (unificado: Asaas + Mercado Pago)
   const loadData = async () => {
     try {
       setLoading(true);
-      const [statsRes, assinaturasRes, pagamentosRes] = await Promise.all([
-        apiClient.get('/asaas/subscriptions/dashboard_stats/'),
-        apiClient.get('/asaas/subscriptions/'),
-        apiClient.get('/asaas/payments/')
-      ]);
-      
-      setStats(statsRes.data);
-      setAssinaturas(assinaturasRes.data.results || assinaturasRes.data);
-      setPagamentos(pagamentosRes.data.results || pagamentosRes.data);
+      const res = await apiClient.get('/superadmin/financeiro-unificado/');
+      const data = res.data;
+      setStats({
+        total_assinaturas: data.total_assinaturas ?? 0,
+        assinaturas_ativas: data.assinaturas_ativas ?? 0,
+        pagamentos_pendentes: data.pagamentos_pendentes ?? 0,
+        pagamentos_pagos: data.pagamentos_pagos ?? 0,
+        pagamentos_vencidos: data.pagamentos_vencidos ?? 0,
+        receita_total: data.receita_total ?? 0,
+        receita_pendente: data.receita_pendente ?? 0,
+      });
+      setAssinaturas(Array.isArray(data.assinaturas) ? data.assinaturas : []);
+      setPagamentos(Array.isArray(data.pagamentos) ? data.pagamentos : []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -250,8 +258,12 @@ export default function FinanceiroPage() {
     }
   };
 
-  // Criar cobrança manual
-  const createManualPayment = async (assinaturaId: number, dueDate?: string) => {
+  // Criar cobrança manual (apenas Asaas)
+  const createManualPayment = async (assinaturaId: number | string, dueDate?: string) => {
+    if (typeof assinaturaId !== 'number') {
+      alert('Nova cobrança manual disponível apenas para assinaturas Asaas.');
+      return;
+    }
     setGerandoCobranca(assinaturaId);
     try {
       const endpoint = dueDate 
@@ -348,7 +360,7 @@ export default function FinanceiroPage() {
               <a href="/superadmin/dashboard" className="text-purple-200 hover:text-white transition-colors">
                 ← Voltar
               </a>
-              <h1 className="text-2xl font-bold">Financeiro - Asaas</h1>
+              <h1 className="text-2xl font-bold">Financeiro (Asaas + Mercado Pago)</h1>
             </div>
           </div>
         </div>
@@ -486,20 +498,24 @@ export default function FinanceiroPage() {
                                   📱 PIX
                                 </button>
                               )}
-                              <button
-                                onClick={() => updatePaymentStatus(pagamento.id)}
-                                className="text-purple-600 hover:text-purple-800 transition-colors"
-                              >
-                                🔄 Status
-                              </button>
-                              <button
-                                onClick={() => handleExcluirPagamento(pagamento)}
-                                disabled={pagamento.is_paid}
-                                className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title={pagamento.is_paid ? 'Não é possível excluir cobrança paga' : 'Excluir cobrança'}
-                              >
-                                🗑️ Excluir
-                              </button>
+                              {pagamento.provedor === 'asaas' && (
+                                <>
+                                  <button
+                                    onClick={() => updatePaymentStatus(pagamento.id)}
+                                    className="text-purple-600 hover:text-purple-800 transition-colors"
+                                  >
+                                    🔄 Status
+                                  </button>
+                                  <button
+                                    onClick={() => handleExcluirPagamento(pagamento)}
+                                    disabled={pagamento.is_paid}
+                                    className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    title={pagamento.is_paid ? 'Não é possível excluir cobrança paga' : 'Excluir cobrança'}
+                                  >
+                                    🗑️ Excluir
+                                  </button>
+                                </>
+                              )}
                             </td>
                           </tr>
                         ))}

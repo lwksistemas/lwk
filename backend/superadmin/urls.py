@@ -9,7 +9,8 @@ from .views import (
 from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
     PagamentoLojaViewSet as PagamentoViewSet,
-    dashboard_financeiro_loja
+    dashboard_financeiro_loja,
+    financeiro_unificado
 )
 from .auth_views_secure import SecureLoginView, SecureLogoutView
 
@@ -37,6 +38,7 @@ urlpatterns = [
     # Outras rotas públicas
     path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),
     path('loja/<str:loja_slug>/financeiro/', dashboard_financeiro_loja, name='dashboard-financeiro-loja'),
+    path('financeiro-unificado/', financeiro_unificado, name='financeiro-unificado'),
     path('mercadopago-config/', mercadopago_config, name='mercadopago-config'),
     path('mercadopago-config/test/', mercadopago_test, name='mercadopago-config-test'),
     path('mercadopago-webhook/', mercadopago_webhook, name='mercadopago-webhook'),

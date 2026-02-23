@@ -39,7 +39,13 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
                 service = LojaAsaasService()
                 result = service.criar_cobranca_loja(loja, instance)
                 if result.get('success'):
+                    # Atualizar FinanceiroLoja com dados do boleto MP (equivalente ao fluxo Asaas)
+                    instance.provedor_boleto = 'mercadopago'
+                    instance.mercadopago_payment_id = result.get('payment_id', '') or ''
+                    instance.boleto_url = result.get('boleto_url', '') or ''
+                    instance.save(update_fields=['provedor_boleto', 'mercadopago_payment_id', 'boleto_url'])
                     logger.info(f"✅ Cobrança Mercado Pago criada para loja {loja.nome}")
+                    logger.info(f"   Payment ID: {instance.mercadopago_payment_id}, Boleto URL: {instance.boleto_url[:50] if instance.boleto_url else 'N/A'}...")
                     return
                 logger.warning(f"Mercado Pago falhou para {loja.nome}: {result.get('error')}, tentando Asaas")
         except Exception as e:

@@ -372,6 +372,7 @@ class FinanceiroLoja(models.Model):
             models.Index(fields=['loja', 'status_pagamento'], name='fin_loja_status_idx'),
             models.Index(fields=['asaas_customer_id'], name='fin_asaas_customer_idx'),
             models.Index(fields=['asaas_payment_id'], name='fin_asaas_payment_idx'),
+            models.Index(fields=['mercadopago_payment_id'], name='fin_mp_payment_idx'),
         ]
     
     def __str__(self):
@@ -431,6 +432,7 @@ class PagamentoLoja(models.Model):
             models.Index(fields=['status', 'data_vencimento'], name='pag_status_venc_idx'),
             models.Index(fields=['financeiro', '-data_vencimento'], name='pag_fin_venc_idx'),
             models.Index(fields=['asaas_payment_id'], name='pag_asaas_payment_idx'),
+            models.Index(fields=['mercadopago_payment_id'], name='pag_mp_payment_idx'),
         ]
     
     def __str__(self):

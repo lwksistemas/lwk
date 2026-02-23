@@ -28,9 +28,11 @@ interface ModalNovoPlanoProps {
   onClose: () => void;
   onSuccess: () => void;
   editingPlano?: Plano | null;
+  /** ID do tipo de loja selecionado (ex.: Clínica de Estética) para vincular o novo plano */
+  tipoLojaId?: number | null;
 }
 
-export function ModalNovoPlano({ onClose, onSuccess, editingPlano }: ModalNovoPlanoProps) {
+export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = null }: ModalNovoPlanoProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nome: editingPlano?.nome || '',
@@ -85,7 +87,11 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano }: ModalNovoPl
         await apiClient.put(`/superadmin/planos/${editingPlano.id}/`, formData);
         alert('Plano atualizado com sucesso!');
       } else {
-        await apiClient.post('/superadmin/planos/', formData);
+        const payload = { ...formData } as Record<string, unknown>;
+        if (tipoLojaId != null) {
+          payload.tipos_loja = [tipoLojaId];
+        }
+        await apiClient.post('/superadmin/planos/', payload);
         alert('Plano criado com sucesso!');
       }
       onSuccess();

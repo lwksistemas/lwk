@@ -297,11 +297,12 @@ def dashboard_financeiro_loja(request, loja_slug):
             # Loja com boleto Mercado Pago (ou sem assinatura Asaas): usar dados do FinanceiroLoja
             pix_qr_code = financeiro.pix_qr_code or ''
             pix_copy_paste = financeiro.pix_copy_paste or ''
-            # URL do boleto MP: buscar na API (a salva é truncada a 200 chars e quebra)
+            # URL do boleto MP: só da API (a salva é truncada a 200 chars e gera "Pagamento não encontrado")
             if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and getattr(financeiro, 'mercadopago_payment_id', ''):
                 from .mercadopago_service import LojaMercadoPagoService
                 mp_svc = LojaMercadoPagoService()
-                boleto_url = mp_svc.get_boleto_url(financeiro.mercadopago_payment_id) or (financeiro.boleto_url or '')
+                boleto_url = mp_svc.get_boleto_url(financeiro.mercadopago_payment_id) or ''
+                # Não usar financeiro.boleto_url (truncada); se API falhar, front deve chamar baixar_boleto_pdf
             else:
                 boleto_url = financeiro.boleto_url or ''
             logger.info(f"Loja {loja.slug} sem LojaAssinatura (provedor={getattr(financeiro, 'provedor_boleto', 'asaas')}), usando FinanceiroLoja")
@@ -524,6 +525,19 @@ def _assinaturas_unificado():
     ).exclude(mercadopago_payment_id='').select_related('loja', 'loja__plano'):
         loja = f.loja
         data_venc = f.data_proxima_cobranca.strftime('%Y-%m-%d') if f.data_proxima_cobranca else ''
+        # ID do PagamentoLoja (pendente ou último) para o endpoint baixar_boleto_pdf
+        pagamento_atual = (
+            PagamentoLoja.objects.filter(loja=loja, financeiro=f, status='pendente')
+            .order_by('-data_vencimento')
+            .first()
+        )
+        if not pagamento_atual:
+            pagamento_atual = (
+                PagamentoLoja.objects.filter(loja=loja, financeiro=f)
+                .order_by('-data_vencimento')
+                .first()
+            )
+        payment_pk = pagamento_atual.id if pagamento_atual else None
         out.append({
             'id': f'mp-{f.id}',
             'loja_slug': loja.slug,
@@ -534,8 +548,9 @@ def _assinaturas_unificado():
             'data_vencimento': data_venc,
             'total_payments': 1,
             'current_payment_data': {
-                'id': f.id,
+                'id': payment_pk,
                 'asaas_id': f.mercadopago_payment_id,
+                'provedor': 'mercadopago',
                 'customer_name': loja.nome,
                 'value': str(f.valor_mensalidade),
                 'status': 'PENDING',

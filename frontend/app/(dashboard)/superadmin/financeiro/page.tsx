@@ -9,7 +9,7 @@ import { ModalConfirmarExclusao } from '@/components/superadmin/financeiro/Modal
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 
 interface AsaasPayment {
-  id: number;
+  id: number | null;
   asaas_id: string;
   customer_name: string;
   customer_email: string;
@@ -237,8 +237,27 @@ export default function FinanceiroPage() {
     }
   };
 
-  // Baixar boleto
-  const downloadBoleto = (payment: AsaasPayment) => {
+  // Baixar boleto (Mercado Pago: buscar URL na API; Asaas: abrir link direto)
+  const downloadBoleto = async (payment: AsaasPayment) => {
+    if (payment.provedor === 'mercadopago') {
+      if (payment.id == null || payment.id === undefined) {
+        alert('Link do boleto não disponível para este pagamento.');
+        return;
+      }
+      try {
+        const res = await apiClient.get(`/superadmin/loja-pagamentos/${payment.id}/baixar_boleto_pdf/`);
+        const data = res.data as { boleto_url?: string; provedor?: string };
+        if (data?.boleto_url) {
+          window.open(data.boleto_url, '_blank', 'noopener,noreferrer');
+        } else {
+          alert('Link do boleto não disponível. Verifique se o pagamento existe na conta (produção/sandbox).');
+        }
+      } catch (e: unknown) {
+        const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        alert(msg || 'Não foi possível obter o link do boleto.');
+      }
+      return;
+    }
     if (payment.bank_slip_url) {
       window.open(payment.bank_slip_url, '_blank', 'noopener,noreferrer');
     } else {

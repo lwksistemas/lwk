@@ -163,17 +163,15 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
         """Baixar PDF do boleto (Asaas) ou redirecionar para o boleto (Mercado Pago)"""
         pagamento = self.get_object()
         
-        # Boleto via Mercado Pago: retornar JSON com link para o frontend abrir em nova aba
+        # Boleto via Mercado Pago: sempre buscar URL completa na API (a salva é truncada a 200 chars e perde o hash)
         if getattr(pagamento, 'provedor_boleto', 'asaas') == 'mercadopago' and pagamento.mercadopago_payment_id:
-            boleto_url = pagamento.boleto_url
-            if not boleto_url:
-                from .mercadopago_service import LojaMercadoPagoService
-                mp_service = LojaMercadoPagoService()
-                boleto_url = mp_service.get_boleto_url(pagamento.mercadopago_payment_id)
+            from .mercadopago_service import LojaMercadoPagoService
+            mp_service = LojaMercadoPagoService()
+            boleto_url = mp_service.get_boleto_url(pagamento.mercadopago_payment_id)
             if boleto_url:
                 return Response({'boleto_url': boleto_url, 'provedor': 'mercadopago'})
             return Response(
-                {'error': 'Link do boleto Mercado Pago não disponível. Use o link enviado por e-mail.'},
+                {'error': 'Link do boleto Mercado Pago não disponível. Verifique se o pagamento existe na conta (produção x sandbox).'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -297,9 +295,15 @@ def dashboard_financeiro_loja(request, loja_slug):
             logger.info(f"✅ LojaAssinatura encontrada: customer_id={loja_assinatura.asaas_customer.asaas_id}")
         except LojaAssinatura.DoesNotExist:
             # Loja com boleto Mercado Pago (ou sem assinatura Asaas): usar dados do FinanceiroLoja
-            boleto_url = financeiro.boleto_url or ''
             pix_qr_code = financeiro.pix_qr_code or ''
             pix_copy_paste = financeiro.pix_copy_paste or ''
+            # URL do boleto MP: buscar na API (a salva é truncada a 200 chars e quebra)
+            if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and getattr(financeiro, 'mercadopago_payment_id', ''):
+                from .mercadopago_service import LojaMercadoPagoService
+                mp_svc = LojaMercadoPagoService()
+                boleto_url = mp_svc.get_boleto_url(financeiro.mercadopago_payment_id) or (financeiro.boleto_url or '')
+            else:
+                boleto_url = financeiro.boleto_url or ''
             logger.info(f"Loja {loja.slug} sem LojaAssinatura (provedor={getattr(financeiro, 'provedor_boleto', 'asaas')}), usando FinanceiroLoja")
             loja_assinatura = None
 

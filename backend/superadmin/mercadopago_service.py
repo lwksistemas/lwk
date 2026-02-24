@@ -410,7 +410,11 @@ class LojaMercadoPagoService:
         }
 
     def get_boleto_url(self, payment_id: str) -> Optional[str]:
-        """Obtém a URL do boleto consultando o pagamento no MP (se necessário)."""
+        """
+        Obtém a URL completa do boleto consultando o pagamento na API do MP.
+        Sempre use este método ao exibir/baixar boleto: a URL salva em boleto_url
+        é truncada a 200 chars e perde o hash, gerando 'Pagamento não encontrado'.
+        """
         if not self.available or not payment_id:
             return None
         try:
@@ -427,7 +431,11 @@ class LojaMercadoPagoService:
                 return None
             data = resp.json()
             td = data.get("transaction_details") or {}
-            return td.get("external_resource_url") or ""
+            boleto_url = td.get("external_resource_url") or ""
+            if not boleto_url and data.get("point_of_interaction"):
+                poi = data.get("point_of_interaction", {})
+                boleto_url = poi.get("transaction_data", {}).get("ticket_url") or ""
+            return boleto_url or None
         except Exception as e:
             logger.warning("Erro ao obter boleto URL do MP: %s", e)
             return None

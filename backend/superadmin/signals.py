@@ -161,6 +161,8 @@ def delete_all_loja_data(sender, instance, **kwargs):
                         'CONN_MAX_AGE': 0,
                         'ATOMIC_REQUESTS': False,
                         'TIME_ZONE': getattr(settings, 'TIME_ZONE', None),
+                        'AUTOCOMMIT': True,  # obrigatório para Django (evita KeyError em ensure_connection/close)
+                        'CONN_HEALTH_CHECKS': default_db.get('CONN_HEALTH_CHECKS', False),
                     }
                 except Exception as e:
                     logger.warning(f"   ⚠️ Não foi possível configurar banco da loja {db_name}: {e}")

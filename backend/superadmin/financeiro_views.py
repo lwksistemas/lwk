@@ -386,7 +386,7 @@ def dashboard_financeiro_loja(request, loja_slug):
     logger.info(f"   - Valor Pago: R$ {valor_total_pago} (Asaas: {valor_total_pago_asaas}, Loja: {valor_total_pago_loja})")
     logger.info(f"   - Valor Pendente: R$ {valor_total_pendente} (Asaas: {valor_total_pendente_asaas}, Loja: {valor_total_pendente_loja})")
     
-    # Preparar histórico do Asaas
+    # Preparar histórico: Asaas e/ou cobrança atual Mercado Pago
     historico_pagamentos = []
     try:
         if 'todos_pagamentos' in locals() and todos_pagamentos:
@@ -415,6 +415,23 @@ def dashboard_financeiro_loja(request, loja_slug):
             logger.info(f"✅ Histórico preparado: {len(historico_pagamentos)} pagamentos")
     except Exception as e:
         logger.error(f"❌ Erro ao preparar histórico: {e}")
+
+    # Se for loja só Mercado Pago e tiver boleto, incluir cobrança atual no histórico para aparecer no dashboard
+    if not historico_pagamentos and boleto_url and getattr(financeiro, 'provedor_boleto', '') == 'mercadopago':
+        historico_pagamentos.append({
+            'id': getattr(financeiro, 'id', 0),
+            'asaas_id': getattr(financeiro, 'mercadopago_payment_id', '') or '',
+            'valor': float(financeiro.valor_mensalidade),
+            'status': 'PENDING',
+            'status_display': 'Aguardando pagamento',
+            'data_vencimento': financeiro.data_proxima_cobranca.strftime('%Y-%m-%d') if financeiro.data_proxima_cobranca else None,
+            'data_pagamento': None,
+            'boleto_url': boleto_url,
+            'is_paid': False,
+            'is_pending': True,
+            'is_overdue': False,
+        })
+        logger.info(f"✅ Histórico MP: 1 cobrança atual incluída para {loja.nome}")
     
     return Response({
         'loja': {

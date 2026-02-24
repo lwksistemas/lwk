@@ -159,6 +159,45 @@ class MercadoPagoClient:
             logger.warning("Erro ao obter pagamento MP %s: %s", payment_id, e)
             return None
 
+    def cancel_payment(self, payment_id: str) -> bool:
+        """
+        Cancela um pagamento pendente no Mercado Pago (PUT status=cancelled).
+        Só é possível cancelar quando status é 'pending' ou 'in_process'.
+        Retorna True se cancelou, False se não cancelou (já pago, já cancelado ou erro).
+        """
+        try:
+            payment = self.get_payment(payment_id)
+            if not payment:
+                return False
+            status = (payment.get("status") or "").lower()
+            if status not in ("pending", "in_process", "in_mediation"):
+                logger.info(
+                    "Pagamento MP %s não cancelado (status: %s)",
+                    payment_id,
+                    status,
+                )
+                return False
+            url = f"{MP_API_BASE}/v1/payments/{payment_id}"
+            self.session.headers["X-Idempotency-Key"] = str(uuid.uuid4())
+            resp = self.session.put(
+                url,
+                json={"status": "cancelled"},
+                timeout=15,
+            )
+            if resp.status_code >= 400:
+                logger.warning(
+                    "Mercado Pago cancel_payment %s: %s %s",
+                    payment_id,
+                    resp.status_code,
+                    resp.text,
+                )
+                return False
+            logger.info("Pagamento MP %s cancelado", payment_id)
+            return True
+        except Exception as e:
+            logger.warning("Erro ao cancelar pagamento MP %s: %s", payment_id, e)
+            return False
+
 
 class LojaMercadoPagoService:
     """Serviço para criar cobrança (boleto) de loja via Mercado Pago."""
@@ -324,3 +363,74 @@ class LojaMercadoPagoService:
         except Exception as e:
             logger.warning("Erro ao obter boleto URL do MP: %s", e)
             return None
+
+    def cancel_pending_payments_loja(self, loja_slug: str) -> Dict[str, Any]:
+        """
+        Cancela todos os boletos pendentes do Mercado Pago associados à loja
+        (igual ao fluxo Asaas na exclusão da loja).
+        Retorna dict com success, cancelled_count, error (opcional).
+        """
+        if not self.available:
+            return {
+                "success": False,
+                "cancelled_count": 0,
+                "error": "Mercado Pago não configurado ou desabilitado",
+            }
+        try:
+            from .models import FinanceiroLoja, Loja, PagamentoLoja
+
+            try:
+                loja = Loja.objects.get(slug=loja_slug)
+            except Loja.DoesNotExist:
+                logger.info("Loja não encontrada: %s", loja_slug)
+                return {
+                    "success": True,
+                    "cancelled_count": 0,
+                    "message": "Loja não encontrada",
+                }
+
+            payment_ids = set()
+            for fin in FinanceiroLoja.objects.filter(loja=loja).exclude(
+                mercadopago_payment_id=""
+            ).values_list("mercadopago_payment_id", flat=True):
+                if fin:
+                    payment_ids.add(str(fin).strip())
+            for pag in PagamentoLoja.objects.filter(loja=loja).exclude(
+                mercadopago_payment_id=""
+            ).values_list("mercadopago_payment_id", flat=True):
+                if pag:
+                    payment_ids.add(str(pag).strip())
+
+            if not payment_ids:
+                logger.info(
+                    "Nenhum boleto Mercado Pago pendente para loja: %s",
+                    loja_slug,
+                )
+                return {
+                    "success": True,
+                    "cancelled_count": 0,
+                    "message": "Nenhum pagamento MP encontrado para a loja",
+                }
+
+            client = MercadoPagoClient(self._config.access_token)
+            cancelled = 0
+            for pid in payment_ids:
+                if client.cancel_payment(pid):
+                    cancelled += 1
+            logger.info(
+                "Mercado Pago: %s pagamento(s) cancelado(s) para loja %s",
+                cancelled,
+                loja_slug,
+            )
+            return {
+                "success": True,
+                "cancelled_count": cancelled,
+                "message": f"{cancelled} boleto(s) cancelado(s) no Mercado Pago",
+            }
+        except Exception as e:
+            logger.exception("Erro ao cancelar boletos MP da loja %s: %s", loja_slug, e)
+            return {
+                "success": False,
+                "cancelled_count": 0,
+                "error": str(e),
+            }

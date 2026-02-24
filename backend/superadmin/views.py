@@ -427,6 +427,7 @@ Equipe de Suporte
         asaas_local_payments_removed = 0
         asaas_local_customers_removed = 0
         asaas_local_subscriptions_removed = 0
+        mercadopago_deleted_payments = 0
         usuario_removido = False
         usuario_sera_removido = outras_lojas_owner == 0
         
@@ -489,6 +490,19 @@ Equipe de Suporte
         except Exception as e:
             print(f"⚠️ Erro ao remover dados Asaas: {e}")
         
+        # 3b. Cancelar boletos pendentes no Mercado Pago (igual ao Asaas)
+        try:
+            from .mercadopago_service import LojaMercadoPagoService
+            mp_service = LojaMercadoPagoService()
+            if mp_service.available:
+                result = mp_service.cancel_pending_payments_loja(loja_slug)
+                if result.get('success'):
+                    mercadopago_deleted_payments = result.get('cancelled_count', 0)
+                    if mercadopago_deleted_payments:
+                        print(f"✅ Boletos Mercado Pago cancelados: {mercadopago_deleted_payments}")
+        except Exception as e:
+            print(f"⚠️ Erro ao cancelar boletos Mercado Pago: {e}")
+        
         # 4. Remover a loja (operação principal)
         try:
             with transaction.atomic():
@@ -544,6 +558,9 @@ Equipe de Suporte
                         'customers_removidos': asaas_local_customers_removed,
                         'subscriptions_removidas': asaas_local_subscriptions_removed
                     }
+                },
+                'mercadopago': {
+                    'boletos_pendentes_cancelados': mercadopago_deleted_payments
                 },
                 'usuario_proprietario': {
                     'username': owner_username,

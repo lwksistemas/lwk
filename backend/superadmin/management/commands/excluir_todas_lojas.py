@@ -88,6 +88,17 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Asaas: {e}'))
 
+            # 2b. Mercado Pago: cancelar boletos pendentes
+            try:
+                from superadmin.mercadopago_service import LojaMercadoPagoService
+                mp_service = LojaMercadoPagoService()
+                if mp_service.available:
+                    result = mp_service.cancel_pending_payments_loja(loja_slug)
+                    if result.get('success') and result.get('cancelled_count', 0):
+                        self.stdout.write(f'   [{loja_slug}] Mercado Pago: {result["cancelled_count"]} boleto(s) cancelado(s)')
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Mercado Pago: {e}'))
+
             # 3. Excluir loja (dispara signal pre_delete que limpa dados do tipo de loja)
             with transaction.atomic():
                 loja.delete()

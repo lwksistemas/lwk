@@ -770,21 +770,23 @@ def sync_all_mercadopago_payments():
         logger.warning("Mercado Pago não configurado; sync ignorado")
         return {'success': False, 'error': 'Mercado Pago não configurado', 'processed': 0}
 
-    # IDs de pagamento pendentes em PagamentoLoja (mercadopago)
-    ids_pagamento = set(
-        PagamentoLoja.objects.filter(
-            provedor_boleto='mercadopago',
-            status__in=['pendente', 'atrasado'],
-            mercadopago_payment_id__isnull=False
-        ).exclude(mercadopago_payment_id='').values_list('mercadopago_payment_id', flat=True)
-    )
-    # IDs em FinanceiroLoja (cobrança atual, pode não ter PagamentoLoja ainda)
-    ids_financeiro = set(
-        FinanceiroLoja.objects.filter(
-            provedor_boleto='mercadopago',
-            mercadopago_payment_id__isnull=False
-        ).exclude(mercadopago_payment_id='').values_list('mercadopago_payment_id', flat=True)
-    )
+    # IDs de pagamento pendentes em PagamentoLoja (boleto + PIX)
+    ids_pagamento = set()
+    for row in PagamentoLoja.objects.filter(
+        provedor_boleto='mercadopago',
+        status__in=['pendente', 'atrasado'],
+    ).values_list('mercadopago_payment_id', 'mercadopago_pix_payment_id'):
+        for pid in row:
+            if pid:
+                ids_pagamento.add(pid)
+    # IDs em FinanceiroLoja (cobrança atual)
+    ids_financeiro = set()
+    for row in FinanceiroLoja.objects.filter(
+        provedor_boleto='mercadopago',
+    ).values_list('mercadopago_payment_id', 'mercadopago_pix_payment_id'):
+        for pid in row:
+            if pid:
+                ids_financeiro.add(pid)
     payment_ids = list(ids_pagamento | ids_financeiro)
     if not payment_ids:
         logger.info("Sync MP: nenhum pagamento pendente com Mercado Pago")
@@ -808,19 +810,23 @@ def sync_all_mercadopago_payments():
 
 
 def sync_loja_payments_mercadopago(loja):
-    """Sincroniza pagamentos Mercado Pago de uma loja específica."""
-    ids_pagamento = set(
-        PagamentoLoja.objects.filter(
-            loja=loja,
-            provedor_boleto='mercadopago',
-            status__in=['pendente', 'atrasado'],
-            mercadopago_payment_id__isnull=False
-        ).exclude(mercadopago_payment_id='').values_list('mercadopago_payment_id', flat=True)
-    )
+    """Sincroniza pagamentos Mercado Pago de uma loja específica (boleto + PIX)."""
+    ids_pagamento = set()
+    for row in PagamentoLoja.objects.filter(
+        loja=loja,
+        provedor_boleto='mercadopago',
+        status__in=['pendente', 'atrasado'],
+    ).values_list('mercadopago_payment_id', 'mercadopago_pix_payment_id'):
+        for pid in row:
+            if pid:
+                ids_pagamento.add(pid)
     try:
         financeiro = loja.financeiro
-        if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and getattr(financeiro, 'mercadopago_payment_id', ''):
-            ids_pagamento.add(financeiro.mercadopago_payment_id)
+        if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago':
+            if getattr(financeiro, 'mercadopago_payment_id', ''):
+                ids_pagamento.add(financeiro.mercadopago_payment_id)
+            if getattr(financeiro, 'mercadopago_pix_payment_id', ''):
+                ids_pagamento.add(financeiro.mercadopago_pix_payment_id)
     except Exception:
         pass
     processed = 0
@@ -861,17 +867,24 @@ def process_mercadopago_webhook_payment(payment_id: str) -> dict:
         logger.info(f"Webhook MP pagamento {payment_id} status={status_mp}, ignorando (aguardando approved)")
         return {'success': True, 'processed': False, 'status': status_mp}
 
-    # Buscar PagamentoLoja pelo ID do Mercado Pago
+    # Buscar PagamentoLoja pelo ID do Mercado Pago (boleto ou PIX)
+    from django.db.models import Q
     try:
-        pagamento = PagamentoLoja.objects.get(mercadopago_payment_id=str(payment_id), provedor_boleto='mercadopago')
+        pagamento = PagamentoLoja.objects.get(
+            Q(mercadopago_payment_id=str(payment_id)) | Q(mercadopago_pix_payment_id=str(payment_id)),
+            provedor_boleto='mercadopago',
+        )
     except PagamentoLoja.DoesNotExist:
         # Pode ser a cobrança atual só no FinanceiroLoja (primeira cobrança)
         try:
-            financeiro = FinanceiroLoja.objects.get(mercadopago_payment_id=str(payment_id), provedor_boleto='mercadopago')
+            financeiro = FinanceiroLoja.objects.get(
+                Q(mercadopago_payment_id=str(payment_id)) | Q(mercadopago_pix_payment_id=str(payment_id)),
+                provedor_boleto='mercadopago',
+            )
             loja = financeiro.loja
             # Marcar PagamentoLoja correspondente ou criar registro de pagamento
-            pagamento = PagamentoLoja.objects.filter(
-                loja=loja, mercadopago_payment_id=str(payment_id)
+            pagamento = PagamentoLoja.objects.filter(loja=loja).filter(
+                Q(mercadopago_payment_id=str(payment_id)) | Q(mercadopago_pix_payment_id=str(payment_id)),
             ).first()
             if not pagamento:
                 pagamento = PagamentoLoja.objects.filter(
@@ -882,7 +895,9 @@ def process_mercadopago_webhook_payment(payment_id: str) -> dict:
                 pagamento.data_pagamento = timezone.now()
                 if not pagamento.mercadopago_payment_id:
                     pagamento.mercadopago_payment_id = str(payment_id)
-                pagamento.save(update_fields=['status', 'data_pagamento', 'mercadopago_payment_id'])
+                if not pagamento.mercadopago_pix_payment_id and pagamento.mercadopago_payment_id != str(payment_id):
+                    pagamento.mercadopago_pix_payment_id = str(payment_id)
+                pagamento.save(update_fields=['status', 'data_pagamento', 'mercadopago_payment_id', 'mercadopago_pix_payment_id'])
             financeiro = loja.financeiro
             _update_loja_financeiro_after_mercadopago_payment(loja, financeiro)
             if getattr(loja, 'is_blocked', False):

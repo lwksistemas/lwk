@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 # Boleto no Brasil: payment_method_id = bolbradesco
 MP_PAYMENT_METHOD_BOLETO = "bolbradesco"
+# PIX Brasil
+MP_PAYMENT_METHOD_PIX = "pix"
 MP_API_BASE = "https://api.mercadopago.com"
 
 
@@ -103,6 +105,44 @@ class MercadoPagoClient:
         if external_reference:
             payload["external_reference"] = external_reference[:256]
 
+        return self._post_payment(payload)
+
+    def create_pix(
+        self,
+        transaction_amount: float,
+        payer_email: str,
+        payer_first_name: str,
+        payer_last_name: str,
+        payer_doc_type: str,
+        payer_doc_number: str,
+        description: str,
+        external_reference: str = "",
+    ) -> Dict[str, Any]:
+        """
+        Cria um pagamento por PIX (Brasil).
+        Retorna o mesmo formato da API; qr_code (copia e cola) e qr_code_base64 vêm em point_of_interaction.transaction_data.
+        """
+        doc_number = "".join(c for c in str(payer_doc_number) if c.isdigit()) or "00000000000"
+        if len(doc_number) > 11:
+            payer_doc_type = "CNPJ"
+        else:
+            payer_doc_type = "CPF"
+        payload = {
+            "transaction_amount": round(float(transaction_amount), 2),
+            "payment_method_id": MP_PAYMENT_METHOD_PIX,
+            "payer": {
+                "email": (payer_email or "").strip() or "pagador@email.com",
+                "first_name": (payer_first_name or " ").strip() or "Cliente",
+                "last_name": (payer_last_name or " ").strip() or "Loja",
+                "identification": {
+                    "type": payer_doc_type,
+                    "number": doc_number,
+                },
+            },
+            "description": (description or "Assinatura")[:230],
+        }
+        if external_reference:
+            payload["external_reference"] = external_reference[:256]
         return self._post_payment(payload)
 
     def test_connection(self) -> Dict[str, Any]:
@@ -331,6 +371,31 @@ class LojaMercadoPagoService:
         date_approved = result.get("date_approved")
         date_created = result.get("date_created")
 
+        # Gerar também PIX (igual Asaas: boleto + PIX na mesma cobrança)
+        pix_payment_id = ""
+        pix_qr_code = ""
+        pix_copy_paste = ""
+        try:
+            pix_result = client.create_pix(
+                transaction_amount=float(financeiro.valor_mensalidade),
+                payer_email=email,
+                payer_first_name=first_name,
+                payer_last_name=last_name,
+                payer_doc_type="CPF",
+                payer_doc_number=cpf_cnpj,
+                description=description,
+                external_reference=external_ref + "_pix",
+            )
+            pix_payment_id = str(pix_result.get("id", ""))
+            poi = pix_result.get("point_of_interaction") or {}
+            tdata = poi.get("transaction_data") or {}
+            pix_copy_paste = (tdata.get("qr_code") or "")[:500]
+            pix_qr_code = (tdata.get("qr_code_base64") or "")[:2000]  # base64 image opcional
+            if pix_payment_id:
+                logger.info("PIX Mercado Pago criado para loja %s: %s", loja.nome, pix_payment_id)
+        except Exception as e:
+            logger.warning("PIX Mercado Pago não gerado para %s: %s", loja.nome, e)
+
         return {
             "success": True,
             "payment_id": payment_id,
@@ -339,6 +404,9 @@ class LojaMercadoPagoService:
             "value": float(result.get("transaction_amount", financeiro.valor_mensalidade)),
             "status": status,
             "raw": result,
+            "pix_payment_id": pix_payment_id or None,
+            "pix_qr_code": pix_qr_code or None,
+            "pix_copy_paste": pix_copy_paste or None,
         }
 
     def get_boleto_url(self, payment_id: str) -> Optional[str]:
@@ -392,14 +460,16 @@ class LojaMercadoPagoService:
             payment_ids = set()
             for fin in FinanceiroLoja.objects.filter(loja=loja).exclude(
                 mercadopago_payment_id=""
-            ).values_list("mercadopago_payment_id", flat=True):
-                if fin:
-                    payment_ids.add(str(fin).strip())
-            for pag in PagamentoLoja.objects.filter(loja=loja).exclude(
-                mercadopago_payment_id=""
-            ).values_list("mercadopago_payment_id", flat=True):
-                if pag:
-                    payment_ids.add(str(pag).strip())
+            ).values_list("mercadopago_payment_id", "mercadopago_pix_payment_id"):
+                for pid in fin:
+                    if pid:
+                        payment_ids.add(str(pid).strip())
+            for pag in PagamentoLoja.objects.filter(loja=loja).values_list(
+                "mercadopago_payment_id", "mercadopago_pix_payment_id"
+            ):
+                for pid in pag:
+                    if pid:
+                        payment_ids.add(str(pid).strip())
 
             if not payment_ids:
                 logger.info(

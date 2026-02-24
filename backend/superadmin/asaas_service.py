@@ -51,13 +51,17 @@ class LojaAsaasService:
                     if resultado.get('success'):
                         # Limitar boleto_url a 200 chars (URLField default) para evitar "value too long"
                         boleto_url = (resultado.get('boleto_url') or '')[:200]
+                        pix_qr = (resultado.get('pix_qr_code') or '')[:2000]
+                        pix_paste = (resultado.get('pix_copy_paste') or '')[:500]
+                        pix_pid = (resultado.get('pix_payment_id') or '')[:100]
                         financeiro.provedor_boleto = 'mercadopago'
                         financeiro.mercadopago_payment_id = (resultado.get('payment_id') or '')[:100]
+                        financeiro.mercadopago_pix_payment_id = pix_pid
                         financeiro.asaas_customer_id = ''
                         financeiro.asaas_payment_id = ''
                         financeiro.boleto_url = boleto_url
-                        financeiro.pix_qr_code = ''
-                        financeiro.pix_copy_paste = ''
+                        financeiro.pix_qr_code = pix_qr
+                        financeiro.pix_copy_paste = pix_paste
                         financeiro.status_pagamento = 'pendente'
                         financeiro.save()
                         from .models import PagamentoLoja
@@ -71,19 +75,21 @@ class LojaAsaasService:
                             data_vencimento=financeiro.data_proxima_cobranca,
                             provedor_boleto='mercadopago',
                             mercadopago_payment_id=(resultado.get('payment_id') or '')[:100],
+                            mercadopago_pix_payment_id=pix_pid,
                             asaas_payment_id='',
                             boleto_url=boleto_url,
-                            pix_qr_code='',
-                            pix_copy_paste='',
+                            pix_qr_code=pix_qr,
+                            pix_copy_paste=pix_paste,
                         )
-                        logger.info(f"Cobrança Mercado Pago criada para loja {loja.nome}: {resultado.get('payment_id')}")
+                        logger.info(f"Cobrança Mercado Pago criada para loja {loja.nome}: {resultado.get('payment_id')}" + (f", PIX: {pix_pid}" if pix_pid else ""))
                         return {
                             'success': True,
                             'provedor': 'mercadopago',
                             'payment_id': resultado.get('payment_id'),
                             'customer_id': '',
                             'boleto_url': resultado.get('boleto_url'),
-                            'pix_qr_code': '',
+                            'pix_qr_code': pix_qr or resultado.get('pix_qr_code'),
+                            'pix_copy_paste': pix_paste or resultado.get('pix_copy_paste'),
                             'due_date': resultado.get('due_date'),
                             'value': resultado.get('value'),
                             'pagamento_id': pagamento.id,

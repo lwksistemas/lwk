@@ -338,7 +338,8 @@ class FinanceiroLoja(models.Model):
         max_length=20, choices=PROVEDOR_BOLETO_CHOICES, default='asaas',
         help_text='Provedor usado para gerar boleto desta cobrança'
     )
-    mercadopago_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento no Mercado Pago')
+    mercadopago_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento boleto no Mercado Pago')
+    mercadopago_pix_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento PIX no Mercado Pago')
     
     # Integração Asaas
     asaas_customer_id = models.CharField(max_length=100, blank=True, help_text='ID do cliente no Asaas')
@@ -403,7 +404,8 @@ class PagamentoLoja(models.Model):
         default='asaas',
         help_text='Provedor do boleto (Asaas ou Mercado Pago)'
     )
-    mercadopago_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento no Mercado Pago')
+    mercadopago_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento boleto no Mercado Pago')
+    mercadopago_pix_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento PIX no Mercado Pago')
     
     # Integração Asaas
     asaas_payment_id = models.CharField(max_length=100, blank=True, help_text='ID do pagamento no Asaas')

@@ -43,8 +43,14 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
                     # (asaas_service já atualizou financeiro e criou PagamentoLoja; truncar URL para limite do banco)
                     instance.provedor_boleto = 'mercadopago'
                     instance.mercadopago_payment_id = (result.get('payment_id') or '')[:100]
+                    instance.mercadopago_pix_payment_id = (result.get('pix_payment_id') or '')[:100]
                     instance.boleto_url = (result.get('boleto_url') or '')[:200]
-                    instance.save(update_fields=['provedor_boleto', 'mercadopago_payment_id', 'boleto_url'])
+                    instance.pix_qr_code = (result.get('pix_qr_code') or '')[:2000]
+                    instance.pix_copy_paste = (result.get('pix_copy_paste') or '')[:500]
+                    instance.save(update_fields=[
+                        'provedor_boleto', 'mercadopago_payment_id', 'mercadopago_pix_payment_id',
+                        'boleto_url', 'pix_qr_code', 'pix_copy_paste',
+                    ])
                     logger.info(f"✅ Cobrança Mercado Pago criada para loja {loja.nome}")
                     logger.info(f"   Payment ID: {instance.mercadopago_payment_id}, Boleto URL: {(instance.boleto_url or '')[:50]}...")
                     return

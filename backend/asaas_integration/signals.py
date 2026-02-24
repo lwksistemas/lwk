@@ -58,9 +58,20 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
                     # Fallback Asaas já foi feito em criar_cobranca_loja (financeiro + PagamentoLoja atualizados)
                     logger.info(f"✅ Cobrança Asaas criada para loja {loja.nome} (fallback após falha MP)")
                     return
-                logger.warning(f"Mercado Pago falhou para {loja.nome}: {result.get('error')}, tentando Asaas")
+                # Loja escolheu Mercado Pago: não criar cobrança no Asaas ao falhar o MP
+                logger.warning(
+                    f"Mercado Pago falhou para {loja.nome}: {result.get('error')}. "
+                    "Loja configurada para MP; não será criada cobrança Asaas. "
+                    "Gerar cobrança manualmente em Superadmin → Financeiro ou verificar configuração MP."
+                )
+                return
         except Exception as e:
-            logger.warning(f"Mercado Pago não usado para {loja.nome}: {e}, tentando Asaas")
+            # Loja escolheu Mercado Pago: não criar cobrança no Asaas quando MP não foi usado
+            logger.warning(
+                f"Mercado Pago não usado para {loja.nome}: {e}. "
+                "Loja configurada para MP; não será criada cobrança Asaas."
+            )
+            return
 
     # Verificar se a integração com Asaas está habilitada
     if not getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False):

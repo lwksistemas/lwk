@@ -494,6 +494,15 @@ def delete_all_loja_data(sender, instance, **kwargs):
         except Exception as e:
             logger.warning(f"   ⚠️ Erro na rede de segurança TABELAS_LOJA_ID_DEFAULT: {e}")
         
+        # 6. Remover config do banco de settings.DATABASES (evitar nome órfão no default)
+        db_name = getattr(instance, 'database_name', None)
+        if db_name and db_name in settings.DATABASES:
+            try:
+                del settings.DATABASES[db_name]
+                logger.info(f"   ✅ Config do banco removida do settings: {db_name}")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Erro ao remover config do banco: {e}")
+        
         logger.info(f"✅ Exclusão em cascata concluída para loja: {loja_nome}")
         
     except Exception as e:

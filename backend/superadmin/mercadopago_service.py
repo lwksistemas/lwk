@@ -308,13 +308,13 @@ class LojaMercadoPagoService:
             due_date = due_date.strftime("%Y-%m-%d")
         else:
             due_date = str(due_date)[:10]
-        # Mercado Pago: data de vencimento do boleto não pode ser maior que 29 dias
+        # Mercado Pago: data de vencimento do boleto não pode ser maior que 29 dias (usar 28 para evitar rejeição)
         try:
             dt_due = datetime.strptime(due_date, "%Y-%m-%d").date()
             today = date.today()
-            if (dt_due - today).days > 29:
-                due_date = (today + timedelta(days=29)).strftime("%Y-%m-%d")
-                logger.info("Mercado Pago: vencimento limitado a 29 dias: %s", due_date)
+            if (dt_due - today).days > 28:
+                due_date = (today + timedelta(days=28)).strftime("%Y-%m-%d")
+                logger.info("Mercado Pago: vencimento limitado a 28 dias: %s", due_date)
         except Exception:
             pass
 

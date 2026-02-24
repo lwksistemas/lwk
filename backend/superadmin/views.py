@@ -444,20 +444,18 @@ Equipe de Suporte
         except Exception as e:
             print(f"⚠️ Erro ao remover chamados de suporte: {e}")
         
-        # 2. Remover banco de dados físico se existir
+        # 2. Remover arquivo SQLite se existir (config do banco é removida após loja.delete(),
+        #    para não deixar nome órfão em settings.DATABASES quando o signal re-adiciona a config)
         if database_created:
             try:
                 db_path = settings.BASE_DIR / f'db_{database_name}.sqlite3'
-                if database_name in settings.DATABASES:
-                    del settings.DATABASES[database_name]
-                    print(f"✅ Configuração do banco removida: {database_name}")
                 if db_path.exists():
                     import os
                     os.remove(db_path)
                     banco_removido = True
                     print(f"✅ Arquivo do banco removido: {db_path}")
             except Exception as e:
-                print(f"⚠️ Erro ao remover banco: {e}")
+                print(f"⚠️ Erro ao remover arquivo do banco: {e}")
         
         # 3. Remover dados do Asaas (operação independente)
         try:
@@ -503,7 +501,7 @@ Equipe de Suporte
         except Exception as e:
             print(f"⚠️ Erro ao cancelar boletos Mercado Pago: {e}")
         
-        # 4. Remover a loja (operação principal)
+        # 4. Remover a loja (operação principal; signal pre_delete limpa schema e tabelas default)
         try:
             with transaction.atomic():
                 loja.delete()
@@ -515,6 +513,15 @@ Equipe de Suporte
                 {'error': f'Erro ao remover loja: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+        # 4b. Remover configuração do banco de settings.DATABASES (evitar nome órfão no default)
+        #     O signal pre_delete pode ter adicionado a config para limpar o schema tenant.
+        if database_name and database_name in settings.DATABASES:
+            try:
+                del settings.DATABASES[database_name]
+                print(f"✅ Configuração do banco removida do settings: {database_name}")
+            except Exception as e:
+                print(f"⚠️ Erro ao remover config do banco: {e}")
         
         # 5. Remover usuário proprietário se não for usado por outras lojas
         if usuario_sera_removido:

@@ -384,6 +384,15 @@ class LojaMercadoPagoService:
         pix_payment_id = ""
         pix_qr_code = ""
         pix_copy_paste = ""
+
+        def _extract_pix_from_response(pix_result: dict) -> tuple:
+            """Extrai qr_code e qr_code_base64 da resposta do MP (transaction_data)."""
+            poi = pix_result.get("point_of_interaction") or {}
+            tdata = poi.get("transaction_data") or {}
+            cp = (tdata.get("qr_code") or tdata.get("qr_code_copia_cola") or "")[:500]
+            qr = (tdata.get("qr_code_base64") or "")[:2000]
+            return cp, qr
+
         try:
             pix_result = client.create_pix(
                 transaction_amount=float(financeiro.valor_mensalidade),
@@ -396,12 +405,24 @@ class LojaMercadoPagoService:
                 external_reference=external_ref + "_pix",
             )
             pix_payment_id = str(pix_result.get("id", ""))
-            poi = pix_result.get("point_of_interaction") or {}
-            tdata = poi.get("transaction_data") or {}
-            pix_copy_paste = (tdata.get("qr_code") or "")[:500]
-            pix_qr_code = (tdata.get("qr_code_base64") or "")[:2000]  # base64 image opcional
+            pix_copy_paste, pix_qr_code = _extract_pix_from_response(pix_result)
+            # Se criou o pagamento PIX mas QR não veio na resposta, buscar de novo (API às vezes retorna após um instante)
+            if pix_payment_id and not pix_copy_paste:
+                try:
+                    import time
+                    time.sleep(1)
+                    refetched = client.get_payment(pix_payment_id)
+                    if refetched:
+                        pix_copy_paste, pix_qr_code = _extract_pix_from_response(refetched)
+                        if pix_copy_paste:
+                            logger.info("PIX Mercado Pago: QR obtido na segunda consulta para loja %s", loja.nome)
+                except Exception as e2:
+                    logger.debug("PIX refetch para %s: %s", loja.nome, e2)
             if pix_payment_id:
-                logger.info("PIX Mercado Pago criado para loja %s: %s", loja.nome, pix_payment_id)
+                logger.info("PIX Mercado Pago criado para loja %s: %s (QR: %s)", loja.nome, pix_payment_id, "sim" if pix_copy_paste else "não")
+        except requests.exceptions.HTTPError as e:
+            err_body = getattr(e, "response", None) and getattr(e.response, "text", None)
+            logger.warning("PIX Mercado Pago não gerado para %s: %s | Response: %s", loja.nome, e, (err_body or "")[:500])
         except Exception as e:
             logger.warning("PIX Mercado Pago não gerado para %s: %s", loja.nome, e)
 

@@ -4,7 +4,7 @@ import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 
 interface ModalConfirmarExclusaoProps {
   pagamento: {
-    id: number;
+    id: number | null;
     customer_name: string;
     value: string;
     due_date: string;
@@ -71,8 +71,8 @@ export function ModalConfirmarExclusao({ pagamento, onClose, onConfirm, loading 
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(pagamento.id)}
-            disabled={loading}
+            onClick={() => pagamento.id != null && onConfirm(pagamento.id)}
+            disabled={loading || pagamento.id == null}
             className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
           >
             {loading ? 'Excluindo...' : 'Excluir Cobrança'}

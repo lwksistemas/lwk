@@ -159,8 +159,12 @@ function AssinaturaCard({
             {isAsaas && (
               <>
                 <button
-                  onClick={() => onUpdateStatus(assinatura.current_payment_data!.id)}
-                  className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors"
+                  onClick={() => {
+                    const id = assinatura.current_payment_data?.id;
+                    if (id != null) onUpdateStatus(id);
+                  }}
+                  disabled={assinatura.current_payment_data?.id == null}
+                  className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   🔄 Atualizar Status
                 </button>
@@ -486,7 +490,7 @@ export default function FinanceiroPage() {
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {pagamentosFiltrados.map((pagamento) => (
-                          <tr key={pagamento.id} className="hover:bg-gray-50 transition-colors">
+                          <tr key={pagamento.id ?? `pay-${pagamento.asaas_id}`} className="hover:bg-gray-50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="font-medium text-gray-900">{pagamento.customer_name}</div>
                               <div className="text-sm text-gray-500">{pagamento.customer_email}</div>
@@ -520,8 +524,9 @@ export default function FinanceiroPage() {
                               {pagamento.provedor === 'asaas' && (
                                 <>
                                   <button
-                                    onClick={() => updatePaymentStatus(pagamento.id)}
-                                    className="text-purple-600 hover:text-purple-800 transition-colors"
+                                    onClick={() => pagamento.id != null && updatePaymentStatus(pagamento.id)}
+                                    disabled={pagamento.id == null}
+                                    className="text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     🔄 Status
                                   </button>

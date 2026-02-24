@@ -38,14 +38,19 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
                 logger.info(f"Criando cobrança Mercado Pago para loja: {loja.nome}")
                 service = LojaAsaasService()
                 result = service.criar_cobranca_loja(loja, instance)
-                if result.get('success'):
-                    # Atualizar FinanceiroLoja com dados do boleto MP (equivalente ao fluxo Asaas)
+                if result.get('success') and result.get('provedor') == 'mercadopago':
+                    # Cobrança foi criada pelo Mercado Pago no asaas_service; só atualizar campos no signal
+                    # (asaas_service já atualizou financeiro e criou PagamentoLoja; truncar URL para limite do banco)
                     instance.provedor_boleto = 'mercadopago'
-                    instance.mercadopago_payment_id = result.get('payment_id', '') or ''
-                    instance.boleto_url = result.get('boleto_url', '') or ''
+                    instance.mercadopago_payment_id = (result.get('payment_id') or '')[:100]
+                    instance.boleto_url = (result.get('boleto_url') or '')[:200]
                     instance.save(update_fields=['provedor_boleto', 'mercadopago_payment_id', 'boleto_url'])
                     logger.info(f"✅ Cobrança Mercado Pago criada para loja {loja.nome}")
-                    logger.info(f"   Payment ID: {instance.mercadopago_payment_id}, Boleto URL: {instance.boleto_url[:50] if instance.boleto_url else 'N/A'}...")
+                    logger.info(f"   Payment ID: {instance.mercadopago_payment_id}, Boleto URL: {(instance.boleto_url or '')[:50]}...")
+                    return
+                if result.get('success') and result.get('provedor') == 'asaas':
+                    # Fallback Asaas já foi feito em criar_cobranca_loja (financeiro + PagamentoLoja atualizados)
+                    logger.info(f"✅ Cobrança Asaas criada para loja {loja.nome} (fallback após falha MP)")
                     return
                 logger.warning(f"Mercado Pago falhou para {loja.nome}: {result.get('error')}, tentando Asaas")
         except Exception as e:

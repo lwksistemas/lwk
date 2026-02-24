@@ -49,11 +49,13 @@ class LojaAsaasService:
                 if mp_service.available:
                     resultado = mp_service.criar_cobranca_loja(loja, financeiro)
                     if resultado.get('success'):
+                        # Limitar boleto_url a 200 chars (URLField default) para evitar "value too long"
+                        boleto_url = (resultado.get('boleto_url') or '')[:200]
                         financeiro.provedor_boleto = 'mercadopago'
-                        financeiro.mercadopago_payment_id = resultado.get('payment_id', '')
+                        financeiro.mercadopago_payment_id = (resultado.get('payment_id') or '')[:100]
                         financeiro.asaas_customer_id = ''
                         financeiro.asaas_payment_id = ''
-                        financeiro.boleto_url = resultado.get('boleto_url', '')
+                        financeiro.boleto_url = boleto_url
                         financeiro.pix_qr_code = ''
                         financeiro.pix_copy_paste = ''
                         financeiro.status_pagamento = 'pendente'
@@ -68,15 +70,16 @@ class LojaAsaasService:
                             forma_pagamento='boleto',
                             data_vencimento=financeiro.data_proxima_cobranca,
                             provedor_boleto='mercadopago',
-                            mercadopago_payment_id=resultado.get('payment_id', ''),
+                            mercadopago_payment_id=(resultado.get('payment_id') or '')[:100],
                             asaas_payment_id='',
-                            boleto_url=resultado.get('boleto_url', ''),
+                            boleto_url=boleto_url,
                             pix_qr_code='',
                             pix_copy_paste='',
                         )
                         logger.info(f"Cobrança Mercado Pago criada para loja {loja.nome}: {resultado.get('payment_id')}")
                         return {
                             'success': True,
+                            'provedor': 'mercadopago',
                             'payment_id': resultado.get('payment_id'),
                             'customer_id': '',
                             'boleto_url': resultado.get('boleto_url'),
@@ -137,9 +140,10 @@ class LojaAsaasService:
                 financeiro.mercadopago_payment_id = ''
                 financeiro.asaas_customer_id = resultado.get('customer_id', '')
                 financeiro.asaas_payment_id = resultado.get('payment_id', '')
-                financeiro.boleto_url = resultado.get('boleto_url', '')
-                financeiro.pix_qr_code = resultado.get('pix_qr_code', '')
-                financeiro.pix_copy_paste = resultado.get('pix_copy_paste', '')
+                boleto_url_asaas = (resultado.get('boleto_url') or '')[:200]
+                financeiro.boleto_url = boleto_url_asaas
+                financeiro.pix_qr_code = (resultado.get('pix_qr_code') or '')[:500]
+                financeiro.pix_copy_paste = (resultado.get('pix_copy_paste') or '')[:500]
                 financeiro.status_pagamento = 'pendente'
                 financeiro.save()
                 
@@ -155,16 +159,17 @@ class LojaAsaasService:
                     data_vencimento=financeiro.data_proxima_cobranca,
                     provedor_boleto='asaas',
                     mercadopago_payment_id='',
-                    asaas_payment_id=resultado.get('payment_id', ''),
-                    boleto_url=resultado.get('boleto_url', ''),
-                    pix_qr_code=resultado.get('pix_qr_code', ''),
-                    pix_copy_paste=resultado.get('pix_copy_paste', '')
+                    asaas_payment_id=(resultado.get('payment_id') or '')[:100],
+                    boleto_url=boleto_url_asaas,
+                    pix_qr_code=(resultado.get('pix_qr_code') or '')[:500],
+                    pix_copy_paste=(resultado.get('pix_copy_paste') or '')[:500]
                 )
                 
                 logger.info(f"Cobrança Asaas criada para loja {loja.nome}: {resultado.get('payment_id')}")
                 
                 return {
                     'success': True,
+                    'provedor': 'asaas',
                     'payment_id': resultado.get('payment_id'),
                     'customer_id': resultado.get('customer_id'),
                     'boleto_url': resultado.get('boleto_url'),

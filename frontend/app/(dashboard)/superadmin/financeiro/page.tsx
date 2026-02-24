@@ -20,6 +20,7 @@ interface AsaasPayment {
   payment_date: string | null;
   bank_slip_url: string;
   pix_copy_paste: string;
+  pix_qr_code?: string | null;
   is_paid: boolean;
   is_overdue: boolean;
   is_pending: boolean;
@@ -68,10 +69,12 @@ function AssinaturaCard({
   assinatura,
   onDownloadBoleto,
   onCopyPix,
+  onGerarPix,
   onUpdateStatus,
   onNovaCobranca,
   onExcluirPagamento,
   gerandoCobranca,
+  gerandoPix,
   formatDate,
   formatCurrency,
   getStatusColor
@@ -79,10 +82,12 @@ function AssinaturaCard({
   assinatura: LojaAssinatura;
   onDownloadBoleto: (payment: AsaasPayment) => void;
   onCopyPix: (pixCode: string) => void;
+  onGerarPix?: (payment: AsaasPayment) => void;
   onUpdateStatus: (paymentId: number) => void;
   onNovaCobranca: (assinatura: LojaAssinatura) => void;
   onExcluirPagamento: (payment: AsaasPayment) => void;
   gerandoCobranca: number | string | null;
+  gerandoPix: number | null;
   formatDate: (date: string) => string;
   formatCurrency: (value: string | number) => string;
   getStatusColor: (status: string) => string;
@@ -147,12 +152,20 @@ function AssinaturaCard({
               📄 Baixar Boleto
             </button>
             
-            {assinatura.current_payment_data.pix_copy_paste && (
+            {assinatura.current_payment_data.pix_copy_paste ? (
               <button
                 onClick={() => onCopyPix(assinatura.current_payment_data!.pix_copy_paste)}
                 className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
               >
                 📱 Copiar PIX
+              </button>
+            ) : assinatura.current_payment_data.provedor === 'mercadopago' && assinatura.current_payment_data.id != null && onGerarPix && (
+              <button
+                onClick={() => onGerarPix(assinatura.current_payment_data!)}
+                disabled={gerandoPix === assinatura.current_payment_data!.id}
+                className="px-3 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {gerandoPix === assinatura.current_payment_data!.id ? 'Gerando...' : '🔲 Gerar PIX'}
               </button>
             )}
             
@@ -202,6 +215,7 @@ export default function FinanceiroPage() {
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
   const [activeTab, setActiveTab] = useState<'assinaturas' | 'pagamentos'>('assinaturas');
   const [gerandoCobranca, setGerandoCobranca] = useState<number | null>(null);
+  const [gerandoPix, setGerandoPix] = useState<number | null>(null);
   const [showModalNovaCobranca, setShowModalNovaCobranca] = useState(false);
   const [assinaturaParaCobranca, setAssinaturaParaCobranca] = useState<LojaAssinatura | null>(null);
   const [showModalExclusao, setShowModalExclusao] = useState(false);
@@ -266,6 +280,26 @@ export default function FinanceiroPage() {
       window.open(payment.bank_slip_url, '_blank', 'noopener,noreferrer');
     } else {
       alert('Boleto não disponível');
+    }
+  };
+
+  // Gerar PIX para pagamento Mercado Pago que ainda não tem PIX
+  const handleGerarPix = async (payment: AsaasPayment) => {
+    if (payment.id == null) return;
+    try {
+      setGerandoPix(payment.id);
+      const res = await apiClient.post(`/superadmin/loja-pagamentos/${payment.id}/gerar_pix/`);
+      const data = res.data as { pix_copy_paste?: string; pix_qr_code?: string };
+      if (data?.pix_copy_paste) {
+        navigator.clipboard.writeText(data.pix_copy_paste);
+        await loadData();
+        alert('PIX gerado! O código foi copiado para a área de transferência.');
+      }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      alert(msg || 'Não foi possível gerar o PIX.');
+    } finally {
+      setGerandoPix(null);
     }
   };
 
@@ -439,10 +473,12 @@ export default function FinanceiroPage() {
                         assinatura={assinatura}
                         onDownloadBoleto={downloadBoleto}
                         onCopyPix={copyPixCode}
+                        onGerarPix={handleGerarPix}
                         onUpdateStatus={updatePaymentStatus}
                         onNovaCobranca={handleNovaCobranca}
                         onExcluirPagamento={handleExcluirPagamento}
                         gerandoCobranca={gerandoCobranca}
+                        gerandoPix={gerandoPix}
                         formatDate={formatDate}
                         formatCurrency={formatCurrency}
                         getStatusColor={getStatusColor}

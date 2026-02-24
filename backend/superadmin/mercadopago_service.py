@@ -4,7 +4,7 @@ API: https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/p
 """
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, Optional
 
 import requests
@@ -308,6 +308,15 @@ class LojaMercadoPagoService:
             due_date = due_date.strftime("%Y-%m-%d")
         else:
             due_date = str(due_date)[:10]
+        # Mercado Pago: data de vencimento do boleto não pode ser maior que 29 dias
+        try:
+            dt_due = datetime.strptime(due_date, "%Y-%m-%d").date()
+            today = date.today()
+            if (dt_due - today).days > 29:
+                due_date = (today + timedelta(days=29)).strftime("%Y-%m-%d")
+                logger.info("Mercado Pago: vencimento limitado a 29 dias: %s", due_date)
+        except Exception:
+            pass
 
         client = MercadoPagoClient(self._config.access_token)
         description = f"Assinatura {loja.plano.nome} - Loja {loja.nome}"
@@ -512,3 +521,90 @@ class LojaMercadoPagoService:
                 "cancelled_count": 0,
                 "error": str(e),
             }
+
+    def gerar_pix_para_pagamento(self, pagamento) -> Dict[str, Any]:
+        """
+        Gera PIX para um PagamentoLoja que já tem boleto MP mas ainda não tem PIX
+        (ex.: cobrança criada antes da opção PIX ou falha na criação).
+        Persiste em FinanceiroLoja e PagamentoLoja e retorna pix_copy_paste e pix_qr_code.
+        """
+        from .models import PagamentoLoja
+
+        if not self.available:
+            return {"success": False, "error": "Mercado Pago não configurado ou desabilitado"}
+        if not isinstance(pagamento, PagamentoLoja):
+            return {"success": False, "error": "Pagamento inválido"}
+        if getattr(pagamento, "provedor_boleto", "") != "mercadopago":
+            return {"success": False, "error": "Apenas pagamentos Mercado Pago podem gerar PIX por aqui"}
+        if (getattr(pagamento, "pix_copy_paste", None) or "").strip():
+            return {
+                "success": True,
+                "pix_copy_paste": pagamento.pix_copy_paste,
+                "pix_qr_code": getattr(pagamento, "pix_qr_code", None) or "",
+                "message": "PIX já existente",
+            }
+        loja = pagamento.loja
+        financeiro = pagamento.financeiro
+        try:
+            from django.contrib.auth.models import User
+
+            owner = getattr(loja, "owner", None)
+            if not isinstance(owner, User):
+                owner = getattr(loja, "owner_id", None) and User.objects.get(pk=loja.owner_id)
+            email = getattr(owner, "email", "") or ""
+            first_name = (getattr(owner, "first_name", "") or "").strip() or (loja.nome or "")[:50]
+            last_name = (getattr(owner, "last_name", "") or "").strip() or "."
+        except Exception as e:
+            logger.warning("Dados do owner da loja: %s", e)
+            email = ""
+            first_name = (loja.nome or "Cliente")[:50]
+            last_name = "."
+
+        cpf_cnpj = (getattr(loja, "cpf_cnpj", None) or "").replace(".", "").replace("-", "").replace("/", "").strip()
+        if not cpf_cnpj or not email:
+            return {
+                "success": False,
+                "error": "Loja precisa de e-mail do responsável e CPF/CNPJ para gerar PIX.",
+            }
+
+        description = f"Assinatura {getattr(loja.plano, 'nome', 'Plano')} - Loja {loja.nome}"
+        external_ref = f"loja_{loja.slug}_pix_{pagamento.id}"
+
+        try:
+            client = MercadoPagoClient(self._config.access_token)
+            valor = float(pagamento.valor)
+            pix_result = client.create_pix(
+                transaction_amount=valor,
+                payer_email=email,
+                payer_first_name=first_name,
+                payer_last_name=last_name,
+                payer_doc_type="CPF",
+                payer_doc_number=cpf_cnpj,
+                description=description,
+                external_reference=external_ref,
+            )
+            pix_payment_id = str(pix_result.get("id", ""))
+            poi = pix_result.get("point_of_interaction") or {}
+            tdata = poi.get("transaction_data") or {}
+            pix_copy_paste = (tdata.get("qr_code") or "")[:500]
+            pix_qr_code = (tdata.get("qr_code_base64") or "")[:2000]
+            if not pix_copy_paste:
+                return {"success": False, "error": "Resposta do Mercado Pago sem código PIX"}
+            financeiro.pix_copy_paste = pix_copy_paste
+            financeiro.pix_qr_code = pix_qr_code or ""
+            financeiro.mercadopago_pix_payment_id = pix_payment_id
+            financeiro.save(update_fields=["pix_copy_paste", "pix_qr_code", "mercadopago_pix_payment_id"])
+            pagamento.pix_copy_paste = pix_copy_paste
+            pagamento.pix_qr_code = pix_qr_code or ""
+            pagamento.mercadopago_pix_payment_id = pix_payment_id
+            pagamento.save(update_fields=["pix_copy_paste", "pix_qr_code", "mercadopago_pix_payment_id"])
+            logger.info("PIX gerado para PagamentoLoja %s (loja %s): %s", pagamento.id, loja.slug, pix_payment_id)
+            return {
+                "success": True,
+                "pix_copy_paste": pix_copy_paste,
+                "pix_qr_code": pix_qr_code or None,
+                "mercadopago_pix_payment_id": pix_payment_id,
+            }
+        except Exception as e:
+            logger.exception("Erro ao gerar PIX para pagamento %s: %s", pagamento.id, e)
+            return {"success": False, "error": str(e)}

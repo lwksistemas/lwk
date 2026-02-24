@@ -158,6 +158,28 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
             loja__is_active=True
         )
     
+    @action(detail=True, methods=['post'])
+    def gerar_pix(self, request, pk=None):
+        """Gera PIX para um pagamento Mercado Pago que ainda não tem PIX (copia e cola + QR)."""
+        pagamento = self.get_object()
+        if getattr(pagamento, 'provedor_boleto', 'asaas') != 'mercadopago':
+            return Response(
+                {'error': 'Apenas pagamentos Mercado Pago podem gerar PIX aqui.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from .mercadopago_service import LojaMercadoPagoService
+        svc = LojaMercadoPagoService()
+        result = svc.gerar_pix_para_pagamento(pagamento)
+        if not result.get('success'):
+            return Response(
+                {'error': result.get('error', 'Não foi possível gerar o PIX.')},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response({
+            'pix_copy_paste': result.get('pix_copy_paste', ''),
+            'pix_qr_code': result.get('pix_qr_code'),
+        })
+
     @action(detail=True, methods=['get'])
     def baixar_boleto_pdf(self, request, pk=None):
         """Baixar PDF do boleto (Asaas) ou redirecionar para o boleto (Mercado Pago)"""
@@ -538,6 +560,15 @@ def _assinaturas_unificado():
                 .first()
             )
         payment_pk = pagamento_atual.id if pagamento_atual else None
+        # PIX: preferir do PagamentoLoja (pagamento atual), senão do FinanceiroLoja
+        pix_cp = ''
+        pix_qr = ''
+        if pagamento_atual and (pagamento_atual.pix_copy_paste or pagamento_atual.pix_qr_code):
+            pix_cp = pagamento_atual.pix_copy_paste or ''
+            pix_qr = pagamento_atual.pix_qr_code or ''
+        else:
+            pix_cp = f.pix_copy_paste or ''
+            pix_qr = f.pix_qr_code or ''
         out.append({
             'id': f'mp-{f.id}',
             'loja_slug': loja.slug,
@@ -557,7 +588,8 @@ def _assinaturas_unificado():
                 'status_display': 'Pendente',
                 'due_date': data_venc,
                 'bank_slip_url': f.boleto_url or '',
-                'pix_copy_paste': f.pix_copy_paste or '',
+                'pix_copy_paste': pix_cp,
+                'pix_qr_code': pix_qr or None,
                 'is_paid': False,
                 'is_pending': True,
                 'is_overdue': False,
@@ -580,8 +612,15 @@ def _pagamentos_unificado():
         provedor_boleto='mercadopago'
     ).exclude(mercadopago_payment_id='').select_related('loja'):
         data_venc = f.data_proxima_cobranca.strftime('%Y-%m-%d') if f.data_proxima_cobranca else ''
+        pag = (
+            PagamentoLoja.objects.filter(loja=f.loja, financeiro=f)
+            .order_by('-data_vencimento')
+            .first()
+        )
+        payment_pk = pag.id if pag else f.id
+        pix_cp = (pag.pix_copy_paste if pag else '') or f.pix_copy_paste or ''
         out.append({
-            'id': f.id,
+            'id': payment_pk,
             'asaas_id': f.mercadopago_payment_id,
             'customer_name': f.loja.nome,
             'customer_email': getattr(f.loja.owner, 'email', ''),
@@ -591,7 +630,7 @@ def _pagamentos_unificado():
             'due_date': data_venc,
             'payment_date': None,
             'bank_slip_url': f.boleto_url or '',
-            'pix_copy_paste': f.pix_copy_paste or '',
+            'pix_copy_paste': pix_cp,
             'is_paid': False,
             'is_pending': True,
             'is_overdue': False,

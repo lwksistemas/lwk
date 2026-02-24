@@ -569,6 +569,10 @@ def _assinaturas_unificado():
         else:
             pix_cp = f.pix_copy_paste or ''
             pix_qr = f.pix_qr_code or ''
+        # Status real: pagamento_atual.status (pago/pendente/atrasado)
+        is_pago = pagamento_atual and getattr(pagamento_atual, 'status', '') == 'pago'
+        status_mp = 'RECEIVED' if is_pago else 'PENDING'
+        status_display_mp = 'Pago' if is_pago else 'Pendente'
         out.append({
             'id': f'mp-{f.id}',
             'loja_slug': loja.slug,
@@ -584,14 +588,14 @@ def _assinaturas_unificado():
                 'provedor': 'mercadopago',
                 'customer_name': loja.nome,
                 'value': str(f.valor_mensalidade),
-                'status': 'PENDING',
-                'status_display': 'Pendente',
+                'status': status_mp,
+                'status_display': status_display_mp,
                 'due_date': data_venc,
                 'bank_slip_url': f.boleto_url or '',
                 'pix_copy_paste': pix_cp,
                 'pix_qr_code': pix_qr or None,
-                'is_paid': False,
-                'is_pending': True,
+                'is_paid': is_pago,
+                'is_pending': not is_pago,
                 'is_overdue': False,
             },
         })
@@ -619,20 +623,22 @@ def _pagamentos_unificado():
         )
         payment_pk = pag.id if pag else f.id
         pix_cp = (pag.pix_copy_paste if pag else '') or f.pix_copy_paste or ''
+        is_pago = pag and getattr(pag, 'status', '') == 'pago'
+        payment_date_str = pag.data_pagamento.strftime('%Y-%m-%d') if pag and getattr(pag, 'data_pagamento', None) else None
         out.append({
             'id': payment_pk,
             'asaas_id': f.mercadopago_payment_id,
             'customer_name': f.loja.nome,
             'customer_email': getattr(f.loja.owner, 'email', ''),
             'value': str(f.valor_mensalidade),
-            'status': 'PENDING',
-            'status_display': 'Pendente',
+            'status': 'RECEIVED' if is_pago else 'PENDING',
+            'status_display': 'Pago' if is_pago else 'Pendente',
             'due_date': data_venc,
-            'payment_date': None,
+            'payment_date': payment_date_str,
             'bank_slip_url': f.boleto_url or '',
             'pix_copy_paste': pix_cp,
-            'is_paid': False,
-            'is_pending': True,
+            'is_paid': is_pago,
+            'is_pending': not is_pago,
             'is_overdue': False,
             'provedor': 'mercadopago',
         })

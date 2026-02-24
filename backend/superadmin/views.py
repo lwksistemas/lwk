@@ -1178,6 +1178,49 @@ def mercadopago_webhook(request):
         return Response({'status': 'error'}, status=status.HTTP_200_OK)
 
 
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def sync_mercadopago_loja(request):
+    """
+    Sincroniza pagamentos Mercado Pago de uma loja (consulta API MP e atualiza status/financeiro).
+    Uso: POST com { "loja_slug": "slug-da-loja" }. Apenas superadmin.
+    Útil quando o webhook não foi recebido ou para atualizar manualmente pelo botão no financeiro.
+    """
+    if not request.user.is_superuser:
+        return Response({'detail': 'Apenas superadmin.'}, status=status.HTTP_403_FORBIDDEN)
+    loja_slug = (request.data.get('loja_slug') or '').strip()
+    if not loja_slug:
+        return Response(
+            {'error': 'Envie "loja_slug" no body (ex: {"loja_slug": "minha-loja"}).'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        loja = Loja.objects.get(slug=loja_slug, is_active=True)
+    except Loja.DoesNotExist:
+        return Response(
+            {'error': f'Loja com slug "{loja_slug}" não encontrada.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    try:
+        from .sync_service import sync_loja_payments_mercadopago
+        resultado = sync_loja_payments_mercadopago(loja)
+        processed = resultado.get('processed', 0)
+        total_checked = resultado.get('total_checked', 0)
+        return Response({
+            'success': True,
+            'message': f'Loja {loja_slug}: {processed} pagamento(s) atualizado(s) de {total_checked} verificados.',
+            'processed': processed,
+            'total_checked': total_checked,
+            'loja_slug': loja_slug,
+        })
+    except Exception as e:
+        logger.exception("sync_mercadopago_loja: %s", e)
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 # View para recuperação de senha de lojas (função simples, não ViewSet)
 @api_view(['POST'])
 @permission_classes([])

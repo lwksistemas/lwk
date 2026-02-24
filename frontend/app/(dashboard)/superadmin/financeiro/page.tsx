@@ -71,10 +71,12 @@ function AssinaturaCard({
   onCopyPix,
   onGerarPix,
   onUpdateStatus,
+  onUpdateStatusMercadoPago,
   onNovaCobranca,
   onExcluirPagamento,
   gerandoCobranca,
   gerandoPix,
+  atualizandoMP,
   formatDate,
   formatCurrency,
   getStatusColor
@@ -84,15 +86,19 @@ function AssinaturaCard({
   onCopyPix: (pixCode: string) => void;
   onGerarPix?: (payment: AsaasPayment) => void;
   onUpdateStatus: (paymentId: number) => void;
+  onUpdateStatusMercadoPago?: (lojaSlug: string) => void;
   onNovaCobranca: (assinatura: LojaAssinatura) => void;
   onExcluirPagamento: (payment: AsaasPayment) => void;
   gerandoCobranca: number | string | null;
   gerandoPix: number | null;
+  atualizandoMP: string | null;
   formatDate: (date: string) => string;
   formatCurrency: (value: string | number) => string;
   getStatusColor: (status: string) => string;
 }) {
   const isAsaas = typeof assinatura.id === 'number';
+  const isMercadoPago = assinatura.current_payment_data?.provedor === 'mercadopago';
+  const updatingThisMP = atualizandoMP === assinatura.loja_slug;
   return (
     <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
       <div className="flex justify-between items-start mb-4">
@@ -168,6 +174,17 @@ function AssinaturaCard({
                 {gerandoPix === assinatura.current_payment_data!.id ? 'Gerando...' : '🔲 Gerar PIX'}
               </button>
             )}
+
+            {isMercadoPago && onUpdateStatusMercadoPago && (
+              <button
+                onClick={() => onUpdateStatusMercadoPago(assinatura.loja_slug)}
+                disabled={updatingThisMP || assinatura.current_payment_data?.is_paid}
+                className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Consultar status no Mercado Pago e atualizar (ex.: boleto pago via PIX)"
+              >
+                {updatingThisMP ? 'Atualizando...' : '🔄 Atualizar Status'}
+              </button>
+            )}
             
             {isAsaas && (
               <>
@@ -216,6 +233,7 @@ export default function FinanceiroPage() {
   const [activeTab, setActiveTab] = useState<'assinaturas' | 'pagamentos'>('assinaturas');
   const [gerandoCobranca, setGerandoCobranca] = useState<number | null>(null);
   const [gerandoPix, setGerandoPix] = useState<number | null>(null);
+  const [atualizandoMP, setAtualizandoMP] = useState<string | null>(null);
   const [showModalNovaCobranca, setShowModalNovaCobranca] = useState(false);
   const [assinaturaParaCobranca, setAssinaturaParaCobranca] = useState<LojaAssinatura | null>(null);
   const [showModalExclusao, setShowModalExclusao] = useState(false);
@@ -303,7 +321,7 @@ export default function FinanceiroPage() {
     }
   };
 
-  // Atualizar status do pagamento
+  // Atualizar status do pagamento (Asaas)
   const updatePaymentStatus = async (paymentId: number) => {
     try {
       await apiClient.post(`/asaas/payments/${paymentId}/update_status/`);
@@ -312,6 +330,27 @@ export default function FinanceiroPage() {
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao atualizar status');
+    }
+  };
+
+  // Atualizar status Mercado Pago (sync com API MP e atualiza financeiro/assinatura)
+  const updatePaymentStatusMercadoPago = async (lojaSlug: string) => {
+    setAtualizandoMP(lojaSlug);
+    try {
+      const res = await apiClient.post('/superadmin/sync-mercadopago/', { loja_slug: lojaSlug });
+      await loadData();
+      const processed = res.data?.processed ?? 0;
+      if (processed > 0) {
+        alert(`Status atualizado: ${processed} pagamento(s) sincronizado(s) com o Mercado Pago.`);
+      } else {
+        alert(res.data?.message || 'Nenhuma alteração. O pagamento pode ainda estar pendente no Mercado Pago.');
+      }
+    } catch (error: unknown) {
+      console.error('Erro ao sincronizar Mercado Pago:', error);
+      const msg = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      alert(msg || 'Erro ao atualizar status. Tente novamente.');
+    } finally {
+      setAtualizandoMP(null);
     }
   };
 
@@ -475,10 +514,12 @@ export default function FinanceiroPage() {
                         onCopyPix={copyPixCode}
                         onGerarPix={handleGerarPix}
                         onUpdateStatus={updatePaymentStatus}
+                        onUpdateStatusMercadoPago={updatePaymentStatusMercadoPago}
                         onNovaCobranca={handleNovaCobranca}
                         onExcluirPagamento={handleExcluirPagamento}
                         gerandoCobranca={gerandoCobranca}
                         gerandoPix={gerandoPix}
+                        atualizandoMP={atualizandoMP}
                         formatDate={formatDate}
                         formatCurrency={formatCurrency}
                         getStatusColor={getStatusColor}

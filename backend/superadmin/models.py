@@ -456,6 +456,12 @@ class MercadoPagoConfig(models.Model):
         verbose_name='Usar Mercado Pago para novos boletos',
         help_text='Se ativo, novas cobranças de lojas usarão boleto via Mercado Pago em vez do Asaas'
     )
+    chave_pix_estatica = models.CharField(
+        max_length=120,
+        blank=True,
+        verbose_name='Chave PIX estática (fallback)',
+        help_text='Chave PIX (copia e cola) exibida na página do boleto quando não houver PIX dinâmico do Mercado Pago. Ex.: chave aleatória para pagamento manual.'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

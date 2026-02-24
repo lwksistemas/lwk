@@ -832,7 +832,7 @@ def sync_loja_payments_mercadopago(loja):
     processed = 0
     for pid in ids_pagamento:
         try:
-            result = process_mercadopago_webhook_payment(str(pid))
+            result = process_mercadopago_webhook_payment(str(pid), loja=loja)
             if result.get('processed'):
                 processed += 1
         except Exception as e:
@@ -840,7 +840,7 @@ def sync_loja_payments_mercadopago(loja):
     return {'success': True, 'loja': loja.nome, 'processed': processed, 'total_checked': len(ids_pagamento)}
 
 
-def process_mercadopago_webhook_payment(payment_id: str) -> dict:
+def process_mercadopago_webhook_payment(payment_id: str, loja=None) -> dict:
     """
     Processa notificação de webhook do Mercado Pago.
     Quando o pagamento está aprovado, atualiza PagamentoLoja e FinanceiroLoja
@@ -867,20 +867,32 @@ def process_mercadopago_webhook_payment(payment_id: str) -> dict:
         logger.info(f"Webhook MP pagamento {payment_id} status={status_mp}, ignorando (aguardando approved)")
         return {'success': True, 'processed': False, 'status': status_mp}
 
-    # Buscar PagamentoLoja pelo ID do Mercado Pago (boleto ou PIX)
+    # Buscar PagamentoLoja pelo ID do Mercado Pago (boleto ou PIX).
+    # Se loja for passada (sync por loja), restringe àquela loja para não marcar outra como paga por engano.
     from django.db.models import Q
-    try:
-        pagamento = PagamentoLoja.objects.get(
-            Q(mercadopago_payment_id=str(payment_id)) | Q(mercadopago_pix_payment_id=str(payment_id)),
-            provedor_boleto='mercadopago',
+    q_payment = Q(mercadopago_payment_id=str(payment_id)) | Q(mercadopago_pix_payment_id=str(payment_id))
+    base_qs = PagamentoLoja.objects.filter(q_payment, provedor_boleto='mercadopago')
+    if loja is not None:
+        base_qs = base_qs.filter(loja=loja)
+    pagamento = base_qs.first()
+    if base_qs.count() > 1 and loja is None:
+        logger.warning(
+            "Webhook MP: payment_id %s vinculado a mais de uma loja (%s). "
+            "Atualizando apenas a primeira; corrija os dados para evitar duplicidade.",
+            payment_id, list(base_qs.values_list('loja__slug', flat=True)),
         )
-    except PagamentoLoja.DoesNotExist:
+    if pagamento is None:
         # Pode ser a cobrança atual só no FinanceiroLoja (primeira cobrança)
         try:
-            financeiro = FinanceiroLoja.objects.get(
-                Q(mercadopago_payment_id=str(payment_id)) | Q(mercadopago_pix_payment_id=str(payment_id)),
+            fin_qs = FinanceiroLoja.objects.filter(
+                q_payment,
                 provedor_boleto='mercadopago',
             )
+            if loja is not None:
+                fin_qs = fin_qs.filter(loja=loja)
+            financeiro = fin_qs.first()
+            if not financeiro:
+                raise FinanceiroLoja.DoesNotExist
             loja = financeiro.loja
             # Marcar PagamentoLoja correspondente ou criar registro de pagamento
             pagamento = PagamentoLoja.objects.filter(loja=loja).filter(

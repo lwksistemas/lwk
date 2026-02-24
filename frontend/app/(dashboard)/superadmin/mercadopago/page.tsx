@@ -25,6 +25,7 @@ interface MercadoPagoConfigState {
   access_token_set: boolean
   access_token_masked: string
   public_key: string
+  chave_pix_estatica: string
 }
 
 export default function MercadoPagoConfigPage() {
@@ -35,6 +36,7 @@ export default function MercadoPagoConfigPage() {
     access_token_set: false,
     access_token_masked: '',
     public_key: '',
+    chave_pix_estatica: '',
   })
   const [accessToken, setAccessToken] = useState('')
   const [publicKey, setPublicKey] = useState('')
@@ -106,9 +108,10 @@ export default function MercadoPagoConfigPage() {
     setSaving(true)
     setMessage(null)
     try {
-      const body: { enabled?: boolean; use_for_boletos?: boolean; access_token?: string; public_key?: string } = {
+      const body: { enabled?: boolean; use_for_boletos?: boolean; access_token?: string; public_key?: string; chave_pix_estatica?: string } = {
         enabled: config.enabled,
         use_for_boletos: config.use_for_boletos,
+        chave_pix_estatica: config.chave_pix_estatica.trim(),
       }
       if (accessToken.trim()) body.access_token = accessToken.trim()
       body.public_key = publicKey.trim()
@@ -284,6 +287,21 @@ export default function MercadoPagoConfigPage() {
             <p className="text-xs text-gray-500">
               Se marcado, ao criar uma nova loja o padrão será Mercado Pago; você ainda pode escolher Asaas no formulário de nova loja.
             </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="chave_pix_estatica">Chave PIX estática (fallback)</Label>
+              <Input
+                id="chave_pix_estatica"
+                type="text"
+                placeholder="Ex.: 6beb2cc6-3d68-48a1-820d-03aae62d8b44"
+                value={config.chave_pix_estatica}
+                onChange={(e) => setConfig((c) => ({ ...c, chave_pix_estatica: e.target.value }))}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500">
+                Exibida na página do boleto/assinatura da loja quando não houver PIX dinâmico do Mercado Pago. O cliente pode copiar e colar para pagar via PIX (pagamento manual).
+              </p>
+            </div>
 
             <div className="pt-2 flex flex-wrap gap-2">
               <Button type="submit" disabled={saving}>

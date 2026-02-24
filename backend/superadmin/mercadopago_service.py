@@ -258,13 +258,17 @@ class LojaMercadoPagoService:
             and self._config.enabled
         )
 
-    def criar_cobranca_loja(self, loja, financeiro) -> Dict[str, Any]:
+    def criar_cobranca_loja(self, loja, financeiro, criar_pix: bool = True) -> Dict[str, Any]:
         """
-        Cria cobrança no Mercado Pago (boleto) para a loja.
+        Cria cobrança no Mercado Pago (boleto + PIX) para a loja.
+
+        Por padrão cria boleto e PIX (QR + copia e cola) para a loja pagar rápido
+        e a assinatura ser atualizada/liberada via webhook.
 
         Args:
             loja: instância de Loja
             financeiro: instância de FinanceiroLoja
+            criar_pix: se True (padrão), cria também pagamento PIX com QR na mesma cobrança.
 
         Returns:
             dict com success, payment_id, boleto_url, due_date, value ou error.
@@ -380,61 +384,65 @@ class LojaMercadoPagoService:
         date_approved = result.get("date_approved")
         date_created = result.get("date_created")
 
-        # Gerar também PIX (igual Asaas: boleto + PIX na mesma cobrança)
+        # PIX opcional: na criação da loja criamos só o boleto (1 transação no MP).
+        # PIX pode ser gerado depois pelo botão "Gerar PIX" no financeiro.
         pix_payment_id = ""
         pix_qr_code = ""
         pix_copy_paste = ""
 
-        def _extract_pix_from_response(pix_result: dict) -> tuple:
-            """Extrai qr_code e qr_code_base64 da resposta do MP (transaction_data)."""
-            poi = pix_result.get("point_of_interaction") or {}
-            tdata = poi.get("transaction_data") or {}
-            cp = (tdata.get("qr_code") or tdata.get("qr_code_copia_cola") or "")[:500]
-            qr = (tdata.get("qr_code_base64") or "")[:2000]
-            return cp, qr
+        if criar_pix:
+            def _extract_pix_from_response(pix_result: dict) -> tuple:
+                """Extrai qr_code e qr_code_base64 da resposta do MP (transaction_data)."""
+                poi = pix_result.get("point_of_interaction") or {}
+                tdata = poi.get("transaction_data") or {}
+                cp = (tdata.get("qr_code") or tdata.get("qr_code_copia_cola") or "")[:500]
+                qr = (tdata.get("qr_code_base64") or "")[:2000]
+                return cp, qr
 
-        try:
-            pix_result = client.create_pix(
-                transaction_amount=float(financeiro.valor_mensalidade),
-                payer_email=email,
-                payer_first_name=first_name,
-                payer_last_name=last_name,
-                payer_doc_type="CPF",
-                payer_doc_number=cpf_cnpj,
-                description=description,
-                external_reference=external_ref + "_pix",
-            )
-            pix_payment_id = str(pix_result.get("id", ""))
-            pix_copy_paste, pix_qr_code = _extract_pix_from_response(pix_result)
-            # Se criou o pagamento PIX mas QR não veio na resposta, refetch (API às vezes retorna após um instante)
-            import time
-            for tentativa, espera in enumerate([1, 2], 1):
+            try:
+                pix_result = client.create_pix(
+                    transaction_amount=float(financeiro.valor_mensalidade),
+                    payer_email=email,
+                    payer_first_name=first_name,
+                    payer_last_name=last_name,
+                    payer_doc_type="CPF",
+                    payer_doc_number=cpf_cnpj,
+                    description=description,
+                    external_reference=external_ref + "_pix",
+                )
+                pix_payment_id = str(pix_result.get("id", ""))
+                pix_copy_paste, pix_qr_code = _extract_pix_from_response(pix_result)
+                # Se criou o pagamento PIX mas QR não veio na resposta, refetch (API às vezes retorna após um instante)
+                import time
+                for tentativa, espera in enumerate([1, 2], 1):
+                    if pix_payment_id and not pix_copy_paste:
+                        try:
+                            time.sleep(espera)
+                            refetched = client.get_payment(pix_payment_id)
+                            if refetched:
+                                pix_copy_paste, pix_qr_code = _extract_pix_from_response(refetched)
+                                if pix_copy_paste:
+                                    logger.info("PIX Mercado Pago: QR obtido na consulta %s para loja %s", tentativa + 1, loja.nome)
+                                    break
+                                if tentativa == 2:
+                                    tdata = (refetched.get("point_of_interaction") or {}).get("transaction_data") or {}
+                                    logger.info("PIX MP sem QR após refetch; transaction_data keys: %s", list(tdata.keys()))
+                        except Exception as e2:
+                            logger.debug("PIX refetch tentativa %s para %s: %s", tentativa, loja.nome, e2)
+                    else:
+                        break
                 if pix_payment_id and not pix_copy_paste:
-                    try:
-                        time.sleep(espera)
-                        refetched = client.get_payment(pix_payment_id)
-                        if refetched:
-                            pix_copy_paste, pix_qr_code = _extract_pix_from_response(refetched)
-                            if pix_copy_paste:
-                                logger.info("PIX Mercado Pago: QR obtido na consulta %s para loja %s", tentativa + 1, loja.nome)
-                                break
-                            if tentativa == 2:
-                                tdata = (refetched.get("point_of_interaction") or {}).get("transaction_data") or {}
-                                logger.info("PIX MP sem QR após refetch; transaction_data keys: %s", list(tdata.keys()))
-                    except Exception as e2:
-                        logger.debug("PIX refetch tentativa %s para %s: %s", tentativa, loja.nome, e2)
-                else:
-                    break
-            if pix_payment_id and not pix_copy_paste:
-                tdata = (pix_result.get("point_of_interaction") or {}).get("transaction_data") or {}
-                logger.info("PIX MP criado mas QR vazio na resposta inicial; transaction_data keys: %s", list(tdata.keys()))
-            if pix_payment_id:
-                logger.info("PIX Mercado Pago criado para loja %s: %s (QR: %s)", loja.nome, pix_payment_id, "sim" if pix_copy_paste else "não")
-        except requests.exceptions.HTTPError as e:
-            err_body = getattr(e, "response", None) and getattr(e.response, "text", None)
-            logger.warning("PIX Mercado Pago não gerado para %s: %s | Response: %s", loja.nome, e, (err_body or "")[:500])
-        except Exception as e:
-            logger.warning("PIX Mercado Pago não gerado para %s: %s", loja.nome, e)
+                    tdata = (pix_result.get("point_of_interaction") or {}).get("transaction_data") or {}
+                    logger.info("PIX MP criado mas QR vazio na resposta inicial; transaction_data keys: %s", list(tdata.keys()))
+                if pix_payment_id:
+                    logger.info("PIX Mercado Pago criado para loja %s: %s (QR: %s)", loja.nome, pix_payment_id, "sim" if pix_copy_paste else "não")
+            except requests.exceptions.HTTPError as e:
+                err_body = getattr(e, "response", None) and getattr(e.response, "text", None)
+                logger.warning("PIX Mercado Pago não gerado para %s: %s | Response: %s", loja.nome, e, (err_body or "")[:500])
+            except Exception as e:
+                logger.warning("PIX Mercado Pago não gerado para %s: %s", loja.nome, e)
+        else:
+            logger.info("Cobrança MP para loja %s: apenas boleto (criar_pix=False)", loja.nome)
 
         return {
             "success": True,

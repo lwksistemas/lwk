@@ -1090,6 +1090,7 @@ def mercadopago_config(request):
             'access_token_set': bool(config.access_token),
             'access_token_masked': (config.access_token[:8] + '...' + config.access_token[-4:]) if config.access_token and len(config.access_token) >= 12 else ('****' if config.access_token else ''),
             'public_key': getattr(config, 'public_key', '') or '',
+            'chave_pix_estatica': getattr(config, 'chave_pix_estatica', '') or '',
         })
     if request.method == 'PATCH':
         if 'enabled' in request.data:
@@ -1100,12 +1101,15 @@ def mercadopago_config(request):
             config.access_token = str(request.data['access_token']).strip()
         if 'public_key' in request.data and request.data['public_key'] is not None:
             config.public_key = str(request.data['public_key']).strip()[:80]
+        if 'chave_pix_estatica' in request.data:
+            config.chave_pix_estatica = str(request.data.get('chave_pix_estatica') or '').strip()[:120]
         config.save()
         return Response({
             'enabled': config.enabled,
             'use_for_boletos': config.use_for_boletos,
             'access_token_set': bool(config.access_token),
             'public_key': getattr(config, 'public_key', '') or '',
+            'chave_pix_estatica': getattr(config, 'chave_pix_estatica', '') or '',
         })
 
 

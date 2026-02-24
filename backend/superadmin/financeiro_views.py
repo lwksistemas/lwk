@@ -459,7 +459,19 @@ def dashboard_financeiro_loja(request, loja_slug):
             'is_overdue': False,
         })
         logger.info(f"✅ Histórico MP: 1 cobrança atual incluída para {loja.nome}")
-    
+
+    # Fallback: se for Mercado Pago e não tiver PIX dinâmico, usar chave PIX estática da config
+    if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and not (pix_copy_paste or '').strip():
+        try:
+            from .models import MercadoPagoConfig
+            mp_config = MercadoPagoConfig.get_config()
+            chave = (getattr(mp_config, 'chave_pix_estatica', '') or '').strip()
+            if chave:
+                pix_copy_paste = chave
+                logger.info(f"Usando chave PIX estática como fallback para loja {loja.nome}")
+        except Exception:
+            pass
+
     return Response({
         'loja': {
             'id': loja.id,

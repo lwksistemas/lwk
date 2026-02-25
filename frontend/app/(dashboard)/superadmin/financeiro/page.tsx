@@ -37,6 +37,8 @@ interface LojaAssinatura {
   data_vencimento: string;
   current_payment_data: AsaasPayment | null;
   total_payments: number;
+  subscription_status?: string;
+  subscription_status_display?: string;
 }
 
 interface AsaasStats {
@@ -115,23 +117,15 @@ function AssinaturaCard({
           <span className={`px-2 py-1 text-xs rounded-full ${
             assinatura.ativa ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
           }`}>
-            {assinatura.ativa ? 'Ativa' : 'Inativa'}
+            {assinatura.subscription_status_display || (assinatura.ativa ? 'Ativa' : 'Inativa')}
           </span>
-          
-          {assinatura.current_payment_data && (
-            <span className={`px-2 py-1 text-xs rounded-full ${
-              getStatusColor(assinatura.current_payment_data.status)
-            }`}>
-              {assinatura.current_payment_data.status_display}
-            </span>
-          )}
         </div>
       </div>
       
       {/* Pagamento Atual */}
       {assinatura.current_payment_data && (
         <div className="p-3 bg-gray-50 rounded">
-          <h4 className="font-medium text-gray-900 mb-2">Pagamento Atual</h4>
+          <h4 className="font-medium text-gray-900 mb-2">Próximo Pagamento</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-3">
             <div>
               <span className="text-gray-600">Valor:</span>
@@ -144,8 +138,12 @@ function AssinaturaCard({
               <span className="ml-2">{formatDate(assinatura.current_payment_data.due_date)}</span>
             </div>
             <div>
-              <span className="text-gray-600">Status:</span>
-              <span className="ml-2">{assinatura.current_payment_data.status_display}</span>
+              <span className="text-gray-600">Status do Pagamento:</span>
+              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+                getStatusColor(assinatura.current_payment_data.status)
+              }`}>
+                {assinatura.current_payment_data.status_display}
+              </span>
             </div>
           </div>
           

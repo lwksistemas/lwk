@@ -193,7 +193,24 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
             if boleto_url:
                 return Response({'boleto_url': boleto_url, 'provedor': 'mercadopago'})
             return Response(
-                {'error': 'Link do boleto Mercado Pago não disponível. Verifique se o pagamento existe na conta (produção x sandbox).'},
+                {'error': 'Link do boleto Mercado Pago não disponível. Verifique se o pagamento existe na conta (produção/sandbox).'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # ✅ NOVO v733: Se não tem mercadopago_payment_id no PagamentoLoja, buscar no FinanceiroLoja
+        if getattr(pagamento, 'provedor_boleto', 'asaas') == 'mercadopago' and not pagamento.mercadopago_payment_id:
+            try:
+                financeiro = pagamento.financeiro or pagamento.loja.financeiro
+                if financeiro and financeiro.mercadopago_payment_id:
+                    from .mercadopago_service import LojaMercadoPagoService
+                    mp_service = LojaMercadoPagoService()
+                    boleto_url = mp_service.get_boleto_url(financeiro.mercadopago_payment_id)
+                    if boleto_url:
+                        return Response({'boleto_url': boleto_url, 'provedor': 'mercadopago'})
+            except Exception as e:
+                logger.warning(f"Erro ao buscar boleto MP do financeiro: {e}")
+            return Response(
+                {'error': 'Link do boleto Mercado Pago não disponível. Verifique se o pagamento existe na conta (produção/sandbox).'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

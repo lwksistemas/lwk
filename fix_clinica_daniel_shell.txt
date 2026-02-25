@@ -1,0 +1,73 @@
+# Execute este comando no shell do Heroku:
+# heroku run python backend/manage.py shell --app lwksistemas
+
+# Cole este código no shell:
+
+from superadmin.models import Loja, FinanceiroLoja, MercadoPagoConfig
+from superadmin.mercadopago_service import MercadoPagoClient
+from django.utils import timezone
+from datetime import date
+from calendar import monthrange
+
+# Buscar loja
+loja = Loja.objects.get(slug='clinica-daniel-5889')
+financeiro = loja.financeiro
+
+print(f"\n{'='*80}")
+print(f"CORREÇÃO: Clinica Daniel")
+print(f"{'='*80}\n")
+print(f"Status atual: {financeiro.status_pagamento}")
+print(f"Senha enviada: {financeiro.senha_enviada}")
+
+# Verificar pagamento no Mercado Pago
+config = MercadoPagoConfig.get_config()
+client = MercadoPagoClient(config.access_token)
+
+# Verificar PIX
+pix_id = financeiro.mercadopago_pix_payment_id
+print(f"\nVerificando PIX: {pix_id}")
+pix_data = client.get_payment(str(pix_id))
+print(f"Status no MP: {pix_data.get('status')}")
+
+if pix_data.get('status') == 'approved':
+    print(f"\n✅ Pagamento aprovado! Atualizando...")
+    
+    # Calcular próxima cobrança
+    data_vencimento_atual = financeiro.data_proxima_cobranca
+    dia_vencimento = 10
+    
+    if data_vencimento_atual.month == 12:
+        proximo_mes = 1
+        proximo_ano = data_vencimento_atual.year + 1
+    else:
+        proximo_mes = data_vencimento_atual.month + 1
+        proximo_ano = data_vencimento_atual.year
+    
+    ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
+    dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
+    proxima_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
+    
+    # Atualizar financeiro
+    financeiro.status_pagamento = 'ativo'
+    financeiro.ultimo_pagamento = timezone.now()
+    financeiro.data_proxima_cobranca = proxima_cobranca
+    financeiro.save()
+    
+    print(f"✅ Status atualizado: {financeiro.status_pagamento}")
+    print(f"✅ Próxima cobrança: {financeiro.data_proxima_cobranca}")
+    
+    # Enviar senha
+    if not financeiro.senha_enviada:
+        from superadmin.email_service import EmailService
+        service = EmailService()
+        success = service.enviar_senha_provisoria(loja, loja.owner)
+        if success:
+            print(f"✅ Senha enviada para {loja.owner.email}")
+        else:
+            print(f"⚠️ Falha ao enviar senha (registrado para retry)")
+    else:
+        print(f"ℹ️ Senha já foi enviada")
+else:
+    print(f"⚠️ Pagamento ainda não aprovado")
+
+print(f"\n{'='*80}\n")

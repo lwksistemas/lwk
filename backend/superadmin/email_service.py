@@ -166,6 +166,25 @@ class EmailService:
         Returns:
             str com corpo do email
         """
+        # ✅ NOVO v734: Incluir link do boleto PDF para Mercado Pago
+        boleto_info = ""
+        try:
+            financeiro = loja.financeiro
+            if financeiro.provedor_boleto == 'mercadopago' and financeiro.mercadopago_payment_id:
+                from .mercadopago_service import LojaMercadoPagoService
+                mp_service = LojaMercadoPagoService()
+                boleto_url = mp_service.get_boleto_url(financeiro.mercadopago_payment_id)
+                if boleto_url:
+                    boleto_info = f"""
+💳 FORMAS DE PAGAMENTO:
+• Boleto: {boleto_url}
+• PIX: {financeiro.pix_copy_paste or 'Disponível no painel'}
+
+Você pode pagar via boleto ou PIX. Escolha a opção mais conveniente!
+"""
+        except Exception as e:
+            logger.warning(f"Erro ao buscar link do boleto para email: {e}")
+        
         mensagem = f"""
 Olá!
 
@@ -186,7 +205,7 @@ Sua loja "{loja.nome}" foi criada com sucesso e o pagamento foi confirmado!
 • Tipo: {loja.tipo_loja.nome}
 • Plano: {loja.plano.nome}
 • Assinatura: {loja.get_tipo_assinatura_display()}
-
+{boleto_info}
 🎯 PRÓXIMOS PASSOS:
 1. Acesse o link de login acima
 2. Faça login com os dados fornecidos

@@ -154,78 +154,79 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
     );
   }
 
-  // Calendário - com barra superior integrada
+  // Calendário - tela cheia, layout tipo app para mobile (Clínica de Estética)
   if (showCalendario) {
     return (
-      <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 flex flex-col">
-        {/* Barra Superior Roxa */}
-        <nav 
-          className="text-white shadow-lg flex-shrink-0"
+      <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 flex flex-col min-h-[100dvh] safe-area-inset pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        {/* Barra superior: título à esquerda, ações à direita; no mobile botões compactos (ícone) */}
+        <nav
+          className="text-white shadow-lg flex-shrink-0 px-[max(0.75rem,env(safe-area-inset-left))]"
           style={{ backgroundColor: loja.cor_primaria }}
         >
-          <div className="max-w-full px-3 sm:px-4 md:px-6 lg:px-8">
-            <div className="flex flex-col sm:flex-row justify-between min-h-[56px] sm:h-16 py-2 sm:py-0 items-start sm:items-center gap-2 sm:gap-0">
-              <div className="w-full sm:w-auto">
-                <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{loja.nome}</h1>
-                <p className="text-xs sm:text-sm opacity-90">{loja.tipo_loja_nome}</p>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          <button 
-                  onClick={() => router.push(`/loja/${loja.slug}/suporte`)}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                  title="Ver meus chamados de suporte"
-                >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  <span>Chamados</span>
-          </button>
-          <button 
-                  onClick={() => {
-                    const html = document.documentElement;
-                    const isDark = html.classList.contains('dark');
-                    if (isDark) {
-                      html.classList.remove('dark');
-                      localStorage.setItem('theme', 'light');
-                    } else {
-                      html.classList.add('dark');
-                      localStorage.setItem('theme', 'dark');
-                    }
-                  }}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                  title="Alternar modo escuro/claro"
-                >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                  <span className="hidden sm:inline">Tema</span>
-          </button>
-          <button 
-                  onClick={() => setShowCalendario(false)}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                  title="Voltar ao dashboard"
-                >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  <span className="hidden sm:inline">Voltar</span>
-          </button>
-          <button 
-                  onClick={() => (onLogout ? onLogout() : (sessionStorage.clear(), router.push(`/loja/${loja.slug}/login`)))}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-red-600 hover:bg-red-700 rounded-md transition-colors text-sm active:scale-95"
-                >
-                  Sair
-          </button>
-        </div>
-        </div>
-      </div>
+          <div className="flex items-center justify-between min-h-[56px] sm:h-14 gap-2">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base sm:text-xl font-bold truncate">{loja.nome}</h1>
+              <p className="text-xs opacity-90 truncate hidden sm:block">{loja.tipo_loja_nome}</p>
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              <button
+                onClick={() => router.push(`/loja/${loja.slug}/suporte`)}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 active:scale-95"
+                title="Chamados"
+                aria-label="Chamados"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => {
+                  const html = document.documentElement;
+                  const isDark = html.classList.contains('dark');
+                  if (isDark) {
+                    html.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                  } else {
+                    html.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                  }
+                }}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 active:scale-95"
+                title="Tema"
+                aria-label="Alternar tema"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowCalendario(false)}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 active:scale-95"
+                title="Voltar"
+                aria-label="Voltar ao dashboard"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+              </button>
+              <button
+                onClick={() => (onLogout ? onLogout() : (sessionStorage.clear(), router.push(`/loja/${loja.slug}/login`)))}
+                className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:px-3 flex items-center justify-center rounded-lg bg-red-600 hover:bg-red-700 active:scale-95 text-sm font-medium"
+              >
+                <span className="hidden sm:inline">Sair</span>
+                <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </nav>
 
-        {/* Conteúdo do Calendário - ocupa o resto da tela; no mobile usa altura total para scroll suave */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-2 sm:px-4 lg:px-8 py-3 sm:py-6">
+        {/* Área do calendário: flex-1, scroll suave no mobile */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
           <CalendarioAgendamentos loja={loja} />
-            </div>
-            </div>
+        </div>
+      </div>
     );
   }
 

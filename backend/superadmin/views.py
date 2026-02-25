@@ -122,19 +122,34 @@ class LojaViewSet(viewsets.ModelViewSet):
         return queryset
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], authentication_classes=[])
+    @action(detail=False, methods=['get'], permission_classes=[])
     def info_publica(self, request):
-        """Retorna informações públicas da loja para página de login (sem autenticação). Otimizado e defensivo."""
+        """
+        Retorna informações públicas da loja para página de login (sem autenticação). 
+        Otimizado com cache Redis (TTL 5min) - v663
+        """
+        from django.core.cache import cache
+        
         slug = request.query_params.get('slug')
         if not slug:
             return Response({'error': 'slug é obrigatório'}, status=400)
-        slug = slug.strip()
+        slug = slug.strip().lower()
+        
+        # ✅ OTIMIZAÇÃO v663: Cache Redis com TTL de 5 minutos
+        cache_key = f'loja_info_publica:{slug}'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.debug(f'✅ Cache HIT para loja {slug}')
+            return Response(cached_data)
+        
         try:
             loja = Loja.objects.select_related('tipo_loja').filter(slug__iexact=slug, is_active=True).first()
             if not loja:
                 return Response({'error': 'Loja não encontrada'}, status=404)
             tipo = getattr(loja, 'tipo_loja', None)
             tipo_nome = tipo.nome if tipo else 'Loja'
-            return Response({
+            
+            data = {
                 'id': loja.id,
                 'nome': getattr(loja, 'nome', '') or '',
                 'slug': getattr(loja, 'slug', '') or slug,
@@ -145,7 +160,13 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'login_page_url': getattr(loja, 'login_page_url', None) or '',
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
                 'requer_cpf_cnpj': True,  # SEMPRE requer CPF/CNPJ para maior segurança
-            })
+            }
+            
+            # Cachear por 5 minutos (300 segundos)
+            cache.set(cache_key, data, 300)
+            logger.debug(f'💾 Cache SET para loja {slug}')
+            
+            return Response(data)
         except Loja.DoesNotExist:
             return Response({'error': 'Loja não encontrada'}, status=404)
         except Exception as e:

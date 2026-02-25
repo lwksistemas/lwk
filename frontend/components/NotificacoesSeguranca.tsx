@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
 
@@ -19,30 +19,21 @@ interface NotificacoesSegurancaProps {
   onNovaViolacao?: (violacao: Violacao) => void;
 }
 
+const INTERVALO_POLLING_MS = 30000; // 30 segundos
+
 export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSegurancaProps) {
   const [violacoesNaoLidas, setViolacoesNaoLidas] = useState<Violacao[]>([]);
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
-  const [ultimaVerificacao, setUltimaVerificacao] = useState<Date>(new Date());
-
-  // Polling a cada 30 segundos
-  useEffect(() => {
-    verificarNovasViolacoes();
-    const interval = setInterval(() => {
-      verificarNovasViolacoes();
-    }, 30000);
-
-    return () => clearInterval(interval);
-    // verificarNovasViolacoes omitido: definido abaixo, evita loop
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ultimaVerificacao]);
+  const desdeRef = useRef<Date>(new Date());
 
   const verificarNovasViolacoes = async () => {
     try {
+      const desde = desdeRef.current.toISOString();
       const response = await apiClient.get('/superadmin/violacoes-seguranca/', {
         params: {
           status: 'nova',
           criticidade__in: 'alta,critica',
-          created_at__gte: ultimaVerificacao.toISOString(),
+          created_at__gte: desde,
           ordering: '-created_at',
           page_size: 10,
         }
@@ -55,14 +46,13 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
           const ids = new Set(prev.map(v => v.id));
           const violacoesUnicas = novasViolacoes.filter((v: Violacao) => !ids.has(v.id));
           
-          // Notificar sobre novas violações
           violacoesUnicas.forEach((v: Violacao) => {
             try {
               mostrarNotificacaoNativa(v);
               if (onNovaViolacao) {
                 onNovaViolacao(v);
               }
-            } catch (error) {
+            } catch {
               // Silenciosamente ignorar erros de notificação
             }
           });
@@ -71,11 +61,18 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
         });
       }
       
-      setUltimaVerificacao(new Date());
-    } catch (error) {
-      // Silenciosamente ignorar erros de rede no mobile
+      desdeRef.current = new Date();
+    } catch {
+      // Silenciosamente ignorar erros de rede
     }
   };
+
+  // Polling a cada 30 segundos (apenas ao montar; sem dep que reexecute o efeito)
+  useEffect(() => {
+    verificarNovasViolacoes();
+    const interval = setInterval(verificarNovasViolacoes, INTERVALO_POLLING_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   const mostrarNotificacaoNativa = (violacao: Violacao) => {
     // Desabilitar notificações nativas no mobile para evitar erros

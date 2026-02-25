@@ -5,10 +5,13 @@ import apiClient from '@/lib/api-client';
 
 /**
  * Hook para monitorar sessão em tempo real (sessão única).
- * Chama o backend a cada 15s; se outra sessão foi aberta, o backend retorna 401
+ * Chama o backend a cada 60s; se outra sessão foi aberta, o backend retorna 401
  * e o interceptor do apiClient faz logout e redireciona para o login.
+ * 
+ * Otimização v663: Aumentado de 15s para 60s para reduzir carga no servidor
+ * (de 4 req/min para 1 req/min por usuário = 75% de redução)
  */
-const CHECK_INTERVAL_MS = 15000;
+const CHECK_INTERVAL_MS = 60000;
 
 export function useSessionMonitor() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);

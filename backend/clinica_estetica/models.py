@@ -444,6 +444,10 @@ class BloqueioAgenda(models.Model):
         ordering = ['data_inicio']
         verbose_name = 'Bloqueio de Agenda'
         verbose_name_plural = 'Bloqueios de Agenda'
+        # ✅ OTIMIZAÇÃO v663: Índice composto para queries de bloqueios por período
+        indexes = [
+            models.Index(fields=['loja_id', 'is_active', 'data_inicio', 'data_fim'], name='bloqueio_periodo_idx'),
+        ]
 
     def __str__(self):
         return f"{self.titulo} - {self.data_inicio} a {self.data_fim}"

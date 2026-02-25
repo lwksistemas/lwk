@@ -158,7 +158,11 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
   const [bloqueios, setBloqueios] = useState<BloqueioAgenda[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<string>(''); // '' = todos
-  const [visualizacao, setVisualizacao] = useState<VisualizacaoTipo>('semana');
+  // No mobile (Clínica de Estética), visualização "Dia" é mais usável que semana/mês
+  const [visualizacao, setVisualizacao] = useState<VisualizacaoTipo>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches) return 'dia';
+    return 'semana';
+  });
   const [dataAtual, setDataAtual] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [showModalAgendamento, setShowModalAgendamento] = useState(false);
@@ -836,15 +840,15 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 min-h-0 flex flex-col">
-      {/* Cabeçalho do Calendário - otimizado para mobile */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 flex-shrink-0">
-        <div className="flex flex-col gap-4">
+    <div className="space-y-3 sm:space-y-6 min-h-0 flex flex-col h-full">
+      {/* Cabeçalho do Calendário - compacto no mobile para Clínica de Estética */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-3 sm:p-6 flex-shrink-0">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
               📅 Calendário
             </h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-0.5">{obterTituloPeriodo()}</p>
+            <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400 mt-0.5">{obterTituloPeriodo()}</p>
             {/* Legenda: oculta no mobile para ganhar espaço */}
             <div className="hidden sm:flex flex-wrap gap-3 mt-3">
               <div className="flex items-center gap-1 text-xs">
@@ -866,27 +870,27 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
             </div>
           </div>
 
-          {/* Linha 1 mobile: visualização + navegação */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Filtro profissional + Dia/Semana/Mês + Navegação - empilhado no mobile */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
             <select
               value={profissionalSelecionado}
               onChange={(e) => setProfissionalSelecionado(e.target.value)}
-              className="flex-1 min-w-0 min-h-[44px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full sm:flex-1 sm:min-w-[120px] min-h-[44px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
               title="Filtrar por profissional"
             >
-              <option value="">Todos</option>
+              <option value="">Todos os profissionais</option>
               {profissionais.map((p) => (
                 <option key={p.id} value={String(p.id)}>
                   {p.nome}
                 </option>
               ))}
             </select>
-            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden touch-manipulation">
               {(['dia', 'semana', 'mes'] as VisualizacaoTipo[]).map((tipo) => (
                 <button
                   key={tipo}
                   onClick={() => setVisualizacao(tipo)}
-                  className={`min-h-[44px] px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium capitalize ${
+                  className={`flex-1 min-h-[44px] px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium capitalize ${
                     visualizacao === tipo
                       ? 'text-white'
                       : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -899,23 +903,23 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
                 </button>
               ))}
             </div>
-            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden touch-manipulation">
               <button
                 onClick={() => navegarPeriodo('anterior')}
-                className="min-h-[44px] min-w-[44px] px-2 py-2 border-r border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center border-r border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
                 aria-label="Período anterior"
               >
                 ←
               </button>
               <button
                 onClick={() => setDataAtual(new Date())}
-                className="min-h-[44px] px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                className="min-h-[44px] px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white"
               >
                 Hoje
               </button>
               <button
                 onClick={() => navegarPeriodo('proximo')}
-                className="min-h-[44px] min-w-[44px] px-2 py-2 border-l border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center border-l border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
                 aria-label="Próximo período"
               >
                 →
@@ -923,18 +927,18 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
             </div>
           </div>
 
-          {/* Botões de ação: full width no mobile para toque fácil */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+          {/* Botões na mesma linha; no mobile menores para caber junto */}
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => handleNovoAgendamento()}
-              className="min-h-[48px] px-4 py-3 sm:py-2 text-white rounded-lg hover:opacity-90 text-sm font-medium col-span-2 sm:col-span-1 order-first sm:order-none"
+              className="min-h-[44px] flex-1 min-w-0 px-3 py-2 sm:px-4 sm:py-2.5 text-white rounded-lg hover:opacity-90 text-xs sm:text-sm font-medium touch-manipulation"
               style={{ backgroundColor: loja.cor_primaria }}
             >
               + Novo Agendamento
             </button>
             <button
               onClick={() => setShowModalBloqueio(true)}
-              className="min-h-[48px] px-4 py-3 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm font-medium"
+              className="min-h-[44px] flex-1 min-w-0 px-3 py-2 sm:px-4 sm:py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs sm:text-sm font-medium touch-manipulation"
             >
               🚫 Bloquear
             </button>
@@ -942,10 +946,10 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
         </div>
       </div>
 
-      {/* Visualização do Calendário - área rolável no mobile */}
-      <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+      {/* Área do calendário - scroll suave no mobile (Clínica de Estética) */}
+      <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2 sm:mx-0 sm:px-0 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
         {loading ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 sm:p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 sm:p-12 text-center min-h-[200px] flex items-center justify-center">
             <div className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Carregando agendamentos...</div>
           </div>
         ) : (

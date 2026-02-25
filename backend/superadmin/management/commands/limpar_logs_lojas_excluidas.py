@@ -125,6 +125,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('🗑️  Removendo dados órfãos...'))
             
             try:
+                deleted_logs = 0
+                deleted_alertas = 0
+                
                 with transaction.atomic():
                     # Remover logs
                     if total_logs_orfaos > 0:

@@ -5,7 +5,7 @@ Execute: python manage.py shell < verificar_orfaos.py
 
 from django.contrib.auth import get_user_model
 from django.db import connection
-from superadmin.models import Loja, LojaFinanceiro
+from superadmin.models import Loja, FinanceiroLoja
 from asaas_integration.models import AsaasCustomer, AsaasSubscription, AsaasPayment
 from mercadopago_integration.models import MercadoPagoCustomer, LojaPagamento
 
@@ -51,7 +51,7 @@ for usuario in usuarios:
 
 # 3. FINANCEIRO
 print("\n3. VERIFICANDO FINANCEIRO...")
-financeiros = LojaFinanceiro.objects.all()
+financeiros = FinanceiroLoja.objects.all()
 print(f"Total de financeiros: {financeiros.count()}")
 financeiros_orfaos = []
 for fin in financeiros:
@@ -174,7 +174,7 @@ if total_orfaos > 0:
     if financeiros_orfaos:
         print("\n# Financeiro:")
         ids = [f.id for f in financeiros_orfaos]
-        print(f"LojaFinanceiro.objects.filter(id__in={ids}).delete()")
+        print(f"FinanceiroLoja.objects.filter(id__in={ids}).delete()")
     
     if asaas_payments_orfaos:
         print("\n# Asaas Payments:")

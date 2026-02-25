@@ -442,6 +442,8 @@ Equipe de Suporte
         # Variáveis de controle
         chamados_removidos = 0
         respostas_removidas = 0
+        logs_removidos = 0
+        alertas_removidos = 0
         banco_removido = False
         asaas_deleted_payments = 0
         asaas_deleted_customer = False
@@ -464,6 +466,28 @@ Equipe de Suporte
                 print(f"✅ Chamados de suporte removidos: {chamados_removidos}")
         except Exception as e:
             print(f"⚠️ Erro ao remover chamados de suporte: {e}")
+        
+        # 1b. Remover logs, alertas e auditoria da loja
+        logs_removidos = 0
+        alertas_removidos = 0
+        try:
+            from .models import HistoricoAcessoGlobal, ViolacaoSeguranca
+            
+            with transaction.atomic():
+                # Remover histórico de acessos (logs/auditoria)
+                logs = HistoricoAcessoGlobal.objects.filter(loja_slug=loja_slug)
+                logs_removidos = logs.count()
+                logs.delete()
+                
+                # Remover violações de segurança (alertas)
+                alertas = ViolacaoSeguranca.objects.filter(loja__slug=loja_slug)
+                alertas_removidos = alertas.count()
+                alertas.delete()
+                
+                if logs_removidos > 0 or alertas_removidos > 0:
+                    print(f"✅ Logs/Auditoria removidos: {logs_removidos}, Alertas removidos: {alertas_removidos}")
+        except Exception as e:
+            print(f"⚠️ Erro ao remover logs/alertas: {e}")
         
         # 2. Remover arquivo SQLite se existir (config do banco é removida após loja.delete(),
         #    para não deixar nome órfão em settings.DATABASES quando o signal re-adiciona a config)
@@ -557,6 +581,10 @@ Equipe de Suporte
                 'suporte': {
                     'chamados_removidos': chamados_removidos,
                     'respostas_removidas': respostas_removidas
+                },
+                'logs_auditoria': {
+                    'logs_removidos': logs_removidos,
+                    'alertas_removidos': alertas_removidos
                 },
                 'banco_dados': {
                     'existia': database_created,

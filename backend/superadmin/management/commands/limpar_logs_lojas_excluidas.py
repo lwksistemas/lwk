@@ -60,7 +60,8 @@ class Command(BaseCommand):
         # Obter IDs de lojas ativas
         lojas_ativas_ids = set(Loja.objects.values_list('id', flat=True))
         
-        logs_orfaos_recurso = HistoricoAcessoGlobal.objects.filter(
+        # Logs com recurso_id preenchido que não existe mais
+        logs_orfaos_recurso_com_id = HistoricoAcessoGlobal.objects.filter(
             recurso='Loja'
         ).exclude(
             recurso_id__in=lojas_ativas_ids
@@ -68,11 +69,25 @@ class Command(BaseCommand):
             recurso_id__isnull=True
         )
         
+        # Logs de criar/editar Loja sem recurso_id (criados antes do ID ser gerado)
+        # Se não há lojas ativas, TODOS os logs de criar/editar são órfãos
+        logs_orfaos_recurso_sem_id = HistoricoAcessoGlobal.objects.none()
+        
+        if total_lojas_ativas == 0:
+            # Sem lojas ativas = todos os logs de criar/editar Loja são órfãos
+            logs_orfaos_recurso_sem_id = HistoricoAcessoGlobal.objects.filter(
+                recurso='Loja',
+                recurso_id__isnull=True
+            ).exclude(
+                acao='excluir'  # Logs de excluir já foram tratados acima
+            )
+        
         # Combinar ambos os tipos de logs órfãos (usar Q para OR)
         from django.db.models import Q
         logs_orfaos_ids = set(
             list(logs_orfaos_slug.values_list('id', flat=True)) +
-            list(logs_orfaos_recurso.values_list('id', flat=True))
+            list(logs_orfaos_recurso_com_id.values_list('id', flat=True)) +
+            list(logs_orfaos_recurso_sem_id.values_list('id', flat=True))
         )
         
         logs_orfaos = HistoricoAcessoGlobal.objects.filter(id__in=logs_orfaos_ids)
@@ -80,7 +95,8 @@ class Command(BaseCommand):
         total_logs_orfaos = logs_orfaos.count()
         
         self.stdout.write(f'   Total de logs com loja: {total_logs_com_slug:,}')
-        self.stdout.write(f'   Logs de ações sobre lojas excluídas: {logs_orfaos_recurso.count():,}')
+        self.stdout.write(f'   Logs de ações sobre lojas excluídas (com ID): {logs_orfaos_recurso_com_id.count():,}')
+        self.stdout.write(f'   Logs de ações sobre lojas excluídas (sem ID): {logs_orfaos_recurso_sem_id.count():,}')
         self.stdout.write(f'   Logs de ações dentro de lojas excluídas: {logs_orfaos_slug.count():,}')
         self.stdout.write(f'   Total de logs órfãos: {total_logs_orfaos:,}')
         

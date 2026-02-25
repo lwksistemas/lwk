@@ -1,40 +1,95 @@
 """
-Configuração centralizada para prevenção e limpeza de dados órfãos (banco default).
+Configuração de tabelas para verificação de dados órfãos.
 
-- TABELAS_LOJA_ID: tabelas que existem NO BANCO DEFAULT (schema public) e têm coluna loja_id.
-  Usado pelo signal (rede de segurança) e pelo comando verificar_dados_orfaos.
-  Inclui APENAS: superadmin (FinanceiroLoja, PagamentoLoja, ProfissionalUsuario), etc.
-  NÃO inclui tabelas de apps de loja (clinica_*, cabeleireiro_*, crm_*, etc.): essas
-  existem só nos schemas isolados por loja e são apagadas com o DROP SCHEMA.
-
-- ProfissionalUsuario (superadmin_profissionalusuario): tabela GLOBAL no default que
-  vincula User a Loja (perfil profissional/recepção). Não é dado “da loja” no schema
-  isolado; por isso fica no default e entra nesta lista.
-
-- LIMPAR_REFERENCIAS_ANTES: para tabelas que são referenciadas por outras (FK).
-  Usado pelo comando verificar_dados_orfaos --remover. No default não há dependências
-  entre as tabelas listadas; mantido para eventual uso em bases legado.
+Lista de tabelas que possuem coluna loja_id e devem ser verificadas
+para garantir que não existam registros com loja_id inválido (órfãos).
 """
 
-# Tabelas que existem no banco default (public) e têm loja_id.
-# Signal (rede de segurança) e verificar_dados_orfaos usam esta lista.
-# Dados operacionais das lojas (clinica_*, cabeleireiro_*, etc.) ficam no schema da loja.
-TABELAS_LOJA_ID = [
-    ('superadmin_financeiroloja', 'loja_id'),
-    ('superadmin_pagamentoloja', 'loja_id'),
-    ('superadmin_profissionalusuario', 'loja_id'),
+# Tabelas no banco DEFAULT (public) que têm loja_id
+# Formato: (nome_tabela, nome_coluna_loja_id)
+TABELAS_LOJA_ID_DEFAULT = [
+    # Superadmin
+    ('superadmin_loja', 'id'),  # A própria tabela de lojas
+    
+    # Asaas Integration
+    ('asaas_integration_lojaassinatura', 'loja_id'),
+    
+    # Notificações
+    ('notificacoes_notificacao', 'loja_id'),
+    
+    # WhatsApp
+    ('whatsapp_whatsappconfig', 'loja_id'),
+    ('whatsapp_mensagemwhatsapp', 'loja_id'),
+    ('whatsapp_templatewhatsapp', 'loja_id'),
+    
+    # Rules (Regras Automáticas)
+    ('rules_regra', 'loja_id'),
+    ('rules_execucaoregra', 'loja_id'),
 ]
 
-# Alias para compatibilidade (signal usa esta nomeação no comentário; mesmo conteúdo).
-TABELAS_LOJA_ID_DEFAULT = TABELAS_LOJA_ID
-
-# Tabelas filhas que referenciam tabelas pai por FK (verificar_dados_orfaos --remover).
-# No default atual não há essas tabelas; útil para bases legado com clinica_* no public.
-LIMPAR_REFERENCIAS_ANTES = {
-    'clinica_procedimentos': [
-        ('clinica_anamneses_templates', 'procedimento_id'),
-        ('clinica_protocolos', 'procedimento_id'),
-        ('clinica_consultas', 'procedimento_id'),
-        ('clinica_agendamentos', 'procedimento_id'),
+# Tabelas em schemas de loja (tenant) - verificadas via ORM com .using(db_alias)
+# Estas são limpas automaticamente pelos signals quando a loja é excluída
+TABELAS_TENANT_LOJA_ID = {
+    'clinica_estetica': [
+        'clinica_estetica_funcionario',
+        'clinica_estetica_cliente',
+        'clinica_estetica_agendamento',
+        'clinica_estetica_profissional',
+        'clinica_estetica_procedimento',
+        'clinica_bloqueios_agenda',
+        'clinica_horarios_funcionamento',
+    ],
+    'crm_vendas': [
+        'crm_vendas_vendedor',
+        'crm_vendas_cliente',
+        'crm_vendas_lead',
+        'crm_vendas_venda',
+        'crm_vendas_pipeline',
+        'crm_vendas_produto',
+    ],
+    'restaurante': [
+        'restaurante_funcionario',
+        'restaurante_reserva',
+        'restaurante_pedido',
+        'restaurante_itemcardapio',
+        'restaurante_categoria',
+        'restaurante_mesa',
+        'restaurante_cliente',
+        'restaurante_fornecedor',
+        'restaurante_notafiscalentrada',
+        'restaurante_estoqueitem',
+        'restaurante_movimentoestoque',
+        'restaurante_registropesobalanca',
+    ],
+    'servicos': [
+        'servicos_funcionario',
+        'servicos_servico',
+        'servicos_profissional',
+        'servicos_agendamento',
+        'servicos_ordemservico',
+        'servicos_orcamento',
+        'servicos_cliente',
+        'servicos_categoria',
+    ],
+    'clinica_beleza': [
+        'clinica_beleza_patient',
+        'clinica_beleza_professional',
+        'clinica_beleza_procedure',
+        'clinica_beleza_appointment',
+        'clinica_beleza_bloqueiohorario',
+        'clinica_beleza_horariotrabalhoprofissional',
+        'clinica_beleza_payment',
+        'clinica_beleza_campanhapromocao',
+    ],
+    'cabeleireiro': [
+        'cabeleireiro_cliente',
+        'cabeleireiro_profissional',
+        'cabeleireiro_servico',
+        'cabeleireiro_agendamento',
+        'cabeleireiro_produto',
+        'cabeleireiro_venda',
+        'cabeleireiro_funcionario',
+        'cabeleireiro_horariofuncionamento',
+        'cabeleireiro_bloqueioagenda',
     ],
 }

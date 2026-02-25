@@ -492,10 +492,14 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             from datetime import date, timedelta
             from calendar import monthrange
             
-            # Calcular próxima cobrança baseada no dia de vencimento
-            # SEMPRE no próximo mês (não no mês atual)
+            # ✅ MODIFICAÇÃO v726: Primeiro boleto vence em 3 dias
+            # Próximos boletos: dia fixo escolhido pelo cliente
             hoje = date.today()
             
+            # Primeiro boleto: 3 dias a partir de hoje
+            primeiro_vencimento = hoje + timedelta(days=3)
+            
+            # Próxima cobrança (após o primeiro pagamento): dia fixo no próximo mês
             # Calcular próximo mês
             if hoje.month == 12:
                 proximo_mes = 1
@@ -508,8 +512,8 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
             dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
             
-            # Definir próxima cobrança sempre no próximo mês
-            proxima_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
+            # Usar primeiro_vencimento para a cobrança inicial
+            proxima_cobranca = primeiro_vencimento
             
             financeiro = FinanceiroLoja.objects.create(
                 loja=loja,

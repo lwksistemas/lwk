@@ -17,13 +17,37 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
     - Respeita a preferência da loja: Mercado Pago ou Asaas
     - NÃO envia mais senha provisória aqui
     - Senha será enviada pelo signal on_payment_confirmed após confirmação do pagamento
+    
+    ✅ MODIFICAÇÃO v720: Proteção contra duplicação
+    - Verifica se cobrança já foi criada antes de criar novamente
+    - Adiciona logs detalhados para debug
     """
     if not created:
         return
     
+    # Log detalhado para debug
+    import threading
+    logger.info(f"{'='*80}")
+    logger.info(f"🔔 SIGNAL DISPARADO: create_asaas_subscription_on_financeiro_creation")
+    logger.info(f"   Loja ID: {instance.loja_id}")
+    logger.info(f"   Financeiro ID: {instance.id}")
+    logger.info(f"   Thread: {threading.current_thread().name}")
+    logger.info(f"{'='*80}")
+    
     # Ler loja direto do banco pelo FK para garantir valor persistido (evita cache)
-    from superadmin.models import Loja
+    from superadmin.models import Loja, FinanceiroLoja
     from superadmin.cobranca_service import CobrancaService
+    
+    # 🔒 PROTEÇÃO CONTRA DUPLICAÇÃO: Verificar se já tem payment_id
+    # Se já tem payment_id (Asaas ou Mercado Pago), significa que a cobrança já foi criada
+    if instance.asaas_payment_id or instance.mercadopago_payment_id:
+        logger.warning(
+            f"⚠️ Cobrança já existe para loja ID {instance.loja_id} "
+            f"(asaas_payment_id={instance.asaas_payment_id}, "
+            f"mercadopago_payment_id={instance.mercadopago_payment_id}). "
+            f"Pulando criação para evitar duplicação."
+        )
+        return
     
     loja = Loja.objects.get(pk=instance.loja_id)
     provedor = (getattr(loja, 'provedor_boleto_preferido', None) or '').strip() or 'asaas'

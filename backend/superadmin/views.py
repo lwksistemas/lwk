@@ -472,10 +472,15 @@ Equipe de Suporte
         alertas_removidos = 0
         try:
             from .models import HistoricoAcessoGlobal, ViolacaoSeguranca
+            from django.db.models import Q
             
             with transaction.atomic():
                 # Remover histórico de acessos (logs/auditoria)
-                logs = HistoricoAcessoGlobal.objects.filter(loja_slug=loja_slug)
+                # Inclui: logs da loja (loja_slug) + logs de ações sobre a loja (recurso="Loja" e recurso_id)
+                logs = HistoricoAcessoGlobal.objects.filter(
+                    Q(loja_slug=loja_slug) |  # Logs de ações dentro da loja
+                    Q(recurso='Loja', recurso_id=loja_id)  # Logs de ações sobre a loja (criar/excluir)
+                )
                 logs_removidos = logs.count()
                 logs.delete()
                 

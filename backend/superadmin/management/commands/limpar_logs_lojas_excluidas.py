@@ -49,29 +49,63 @@ class Command(BaseCommand):
         # 2. Identificar logs de lojas excluídas
         self.stdout.write(self.style.WARNING('🔍 Analisando logs de acesso...'))
         
-        # Logs com loja_slug preenchido
+        # Logs com loja_slug preenchido (ações dentro da loja)
         logs_com_slug = HistoricoAcessoGlobal.objects.exclude(loja_slug='')
         total_logs_com_slug = logs_com_slug.count()
         
         # Logs de lojas excluídas (slug não está na lista de lojas ativas)
-        logs_orfaos = logs_com_slug.exclude(loja_slug__in=lojas_ativas)
+        logs_orfaos_slug = logs_com_slug.exclude(loja_slug__in=lojas_ativas)
+        
+        # Logs de ações sobre lojas (recurso="Loja") que não existem mais
+        # Obter IDs de lojas ativas
+        lojas_ativas_ids = set(Loja.objects.values_list('id', flat=True))
+        
+        logs_orfaos_recurso = HistoricoAcessoGlobal.objects.filter(
+            recurso='Loja'
+        ).exclude(
+            recurso_id__in=lojas_ativas_ids
+        ).exclude(
+            recurso_id__isnull=True
+        )
+        
+        # Combinar ambos os tipos de logs órfãos (usar Q para OR)
+        from django.db.models import Q
+        logs_orfaos = HistoricoAcessoGlobal.objects.filter(
+            Q(loja_slug__in=logs_orfaos_slug.values_list('loja_slug', flat=True)) |
+            Q(id__in=logs_orfaos_recurso.values_list('id', flat=True))
+        ).distinct()
+        
         total_logs_orfaos = logs_orfaos.count()
         
         self.stdout.write(f'   Total de logs com loja: {total_logs_com_slug:,}')
-        self.stdout.write(f'   Logs de lojas excluídas: {total_logs_orfaos:,}')
+        self.stdout.write(f'   Logs de ações sobre lojas excluídas: {logs_orfaos_recurso.count():,}')
+        self.stdout.write(f'   Logs de ações dentro de lojas excluídas: {logs_orfaos_slug.count():,}')
+        self.stdout.write(f'   Total de logs órfãos: {total_logs_orfaos:,}')
         
         # Estatísticas dos logs órfãos
         if total_logs_orfaos > 0:
             self.stdout.write('')
+            self.stdout.write('   📋 Tipos de logs órfãos:')
+            
+            # Por tipo de ação
+            por_tipo = logs_orfaos.values('acao', 'recurso').annotate(
+                total=models.Count('id')
+            ).order_by('-total')[:10]
+            
+            for item in por_tipo:
+                self.stdout.write(f'     - {item["acao"]} {item["recurso"]}: {item["total"]:,}')
+            
+            self.stdout.write('')
             self.stdout.write('   📋 Top 10 lojas excluídas com mais logs:')
             
-            por_loja = logs_orfaos.values('loja_slug', 'loja_nome').annotate(
+            por_loja = logs_orfaos.exclude(loja_nome='').values('loja_slug', 'loja_nome').annotate(
                 total=models.Count('id')
             ).order_by('-total')[:10]
             
             for item in por_loja:
                 loja_nome = item['loja_nome'] or 'Sem nome'
-                self.stdout.write(f'     - {item["loja_slug"]} ({loja_nome}): {item["total"]:,} logs')
+                loja_slug = item['loja_slug'] or 'Sem slug'
+                self.stdout.write(f'     - {loja_slug} ({loja_nome}): {item["total"]:,} logs')
         
         self.stdout.write('')
         

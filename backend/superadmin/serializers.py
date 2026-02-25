@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, 
     PagamentoLoja, UsuarioSistema, HistoricoAcessoGlobal,
-    ViolacaoSeguranca
+    ViolacaoSeguranca, EmailRetry
 )
 import logging
 
@@ -576,104 +576,22 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 traceback.print_exc()
                 # Não falhar a criação da loja por causa do funcionário
         
-            # Enviar email com senha provisória
-            try:
-                # Verificar se email está configurado
-                if hasattr(settings, 'DEFAULT_FROM_EMAIL') and settings.DEFAULT_FROM_EMAIL:
-                    assunto = f"Acesso à sua loja {loja.nome} - Senha Provisória"
-                    
-                    # Mensagem base
-                    mensagem = f"""
-Olá!
-
-Sua loja "{loja.nome}" foi criada com sucesso no nosso sistema!
-
-🔐 DADOS DE ACESSO:
-• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
-• Usuário: {owner_username}
-• Senha Provisória: {owner_password}
-
-⚠️ IMPORTANTE:
-• Esta é uma senha provisória gerada automaticamente
-• Recomendamos alterar a senha no primeiro acesso
-• Mantenha seus dados de acesso em segurança
-
-📋 INFORMAÇÕES DA LOJA:
-• Nome: {loja.nome}
-• Tipo: {loja.tipo_loja.nome}
-• Plano: {loja.plano.nome}
-• Assinatura: {loja.get_tipo_assinatura_display()}"""
-
-                    # Adicionar informações do boleto se disponível
-                    if hasattr(loja, '_asaas_data') and loja._asaas_data.get('success'):
-                        asaas_data = loja._asaas_data
-                        mensagem += f"""
-
-💰 INFORMAÇÕES DE PAGAMENTO:
-• Valor da Mensalidade: R$ {loja.plano.preco_mensal}
-• Vencimento: {asaas_data.get('due_date', 'Em breve')}
-• Status: Aguardando Pagamento"""
-                        
-                        if asaas_data.get('boleto_url'):
-                            mensagem += f"""
-• Boleto: {asaas_data.get('boleto_url')}"""
-                        
-                        if asaas_data.get('pix_copy_paste'):
-                            mensagem += f"""
-• PIX Copia e Cola: {asaas_data.get('pix_copy_paste')}"""
-
-                    mensagem += f"""
-
-🎯 PRÓXIMOS PASSOS:
-1. Acesse o link de login acima
-2. Faça login com os dados fornecidos
-3. Altere sua senha provisória
-4. Configure sua loja"""
-                    
-                    if hasattr(loja, '_asaas_data') and loja._asaas_data.get('success'):
-                        mensagem += """
-5. Efetue o pagamento da primeira mensalidade"""
-
-                    mensagem += """
-
-Bem-vindo ao nosso sistema!
-
----
-Equipe de Suporte
-Sistema Multi-Loja"""
-                    
-                    send_mail(
-                        subject=assunto,
-                        message=mensagem,
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[owner_email],
-                        fail_silently=True  # Não falhar se email não funcionar
-                    )
-                    
-                    logger.info(
-                        "Email senha provisória: enviado para %s (loja %s)",
-                        owner_email,
-                        getattr(loja, 'slug', loja.nome),
-                    )
-                else:
-                    logger.warning(
-                        "Email senha provisória: não enviado (DEFAULT_FROM_EMAIL não configurado). Loja=%s, owner=%s",
-                        getattr(loja, 'slug', loja.nome),
-                        owner_email,
-                    )
-                
-            except Exception as e:
-                logger.warning(
-                    "Email senha provisória: falha ao enviar para %s (loja %s): %s",
-                    owner_email,
-                    getattr(loja, 'slug', loja.nome),
-                    e,
-                    exc_info=True,
-                )
-                # Não falhar a criação da loja por causa do email
+            # ✅ MODIFICAÇÃO v719: Senha provisória NÃO é mais enviada aqui
+            # A senha será enviada automaticamente pelo signal on_payment_confirmed
+            # após a confirmação do pagamento via webhook (Asaas ou Mercado Pago)
+            # 
+            # Fluxo:
+            # 1. Loja criada → FinanceiroLoja criado
+            # 2. Signal cria cobrança (boleto + PIX)
+            # 3. Cliente paga → Webhook recebido
+            # 4. Status atualizado para 'ativo'
+            # 5. Signal on_payment_confirmed envia senha via EmailService
             
-            # Adicionar senha provisória ao contexto para retorno
-            loja._senha_provisoria = owner_password
+            logger.info(
+                "Loja criada com sucesso: %s (owner: %s). Senha será enviada após confirmação do pagamento.",
+                loja.slug,
+                owner_email,
+            )
             
             return loja
         
@@ -914,3 +832,58 @@ class ViolacaoSegurancaListSerializer(serializers.ModelSerializer):
         from django.utils import timezone
         local_time = timezone.localtime(obj.created_at)
         return local_time.strftime('%d/%m/%Y %H:%M:%S')
+
+
+
+class EmailRetrySerializer(serializers.ModelSerializer):
+    """
+    Serializer para EmailRetry
+    
+    ✅ NOVO v719: Gerenciamento de emails com falha de envio
+    """
+    
+    loja_nome = serializers.CharField(source='loja.nome', read_only=True)
+    loja_slug = serializers.CharField(source='loja.slug', read_only=True)
+    pode_retentar = serializers.SerializerMethodField()
+    atingiu_max = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = EmailRetry
+        fields = [
+            'id',
+            'destinatario',
+            'assunto',
+            'mensagem',
+            'tentativas',
+            'max_tentativas',
+            'enviado',
+            'erro',
+            'loja',
+            'loja_nome',
+            'loja_slug',
+            'created_at',
+            'updated_at',
+            'proxima_tentativa',
+            'pode_retentar',
+            'atingiu_max',
+            'status_display',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_pode_retentar(self, obj):
+        """Verifica se ainda pode tentar reenviar"""
+        return obj.pode_retentar()
+    
+    def get_atingiu_max(self, obj):
+        """Verifica se atingiu máximo de tentativas"""
+        return obj.atingiu_max_tentativas()
+    
+    def get_status_display(self, obj):
+        """Retorna status formatado"""
+        if obj.enviado:
+            return "✅ Enviado"
+        elif obj.atingiu_max_tentativas():
+            return f"❌ Falhou ({obj.tentativas}/{obj.max_tentativas})"
+        else:
+            return f"⏳ Aguardando ({obj.tentativas}/{obj.max_tentativas})"

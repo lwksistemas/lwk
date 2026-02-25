@@ -62,6 +62,15 @@ export default function AssinaturaLojaPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [atualizandoStatus, setAtualizandoStatus] = useState(false)
+  const [gerandoCobranca, setGerandoCobranca] = useState(false)
+  const [showModalNovaCobranca, setShowModalNovaCobranca] = useState(false)
+  const [novaCobrancaData, setNovaCobrancaData] = useState<{
+    boleto_url?: string
+    pix_qr_code?: string
+    pix_copy_paste?: string
+    due_date?: string
+    value?: number
+  } | null>(null)
 
   const carregarDados = useCallback(async () => {
     try {
@@ -136,6 +145,36 @@ export default function AssinaturaLojaPage() {
   const copiarPixCodigo = () => {
     if (data?.financeiro.pix_copy_paste) {
       navigator.clipboard.writeText(data.financeiro.pix_copy_paste)
+      alert('Código PIX copiado!')
+    }
+  }
+
+  const gerarNovaCobranca = async () => {
+    if (!data?.loja.id) return
+
+    try {
+      setGerandoCobranca(true)
+      const response = await apiClient.post(`/superadmin/financeiro/${data.loja.id}/renovar/`, {
+        dia_vencimento: data.financeiro.dia_vencimento
+      })
+      
+      setNovaCobrancaData(response.data)
+      setShowModalNovaCobranca(true)
+      
+      // Recarregar dados para atualizar a interface
+      await carregarDados()
+    } catch (err: any) {
+      console.error('Erro ao gerar cobrança:', err)
+      const errorMsg = err.response?.data?.error || 'Erro ao gerar nova cobrança'
+      alert(`Erro: ${errorMsg}`)
+    } finally {
+      setGerandoCobranca(false)
+    }
+  }
+
+  const copiarPixNovaCobranca = () => {
+    if (novaCobrancaData?.pix_copy_paste) {
+      navigator.clipboard.writeText(novaCobrancaData.pix_copy_paste)
       alert('Código PIX copiado!')
     }
   }
@@ -256,6 +295,35 @@ export default function AssinaturaLojaPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Botão Gerar Nova Cobrança */}
+      <Card className="dark:bg-neutral-800 dark:border-neutral-700">
+        <CardHeader>
+          <CardTitle className="text-base dark:text-gray-100">Renovar Assinatura</CardTitle>
+          <CardDescription className="dark:text-gray-400">
+            Gere uma nova cobrança para renovar sua assinatura
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={gerarNovaCobranca}
+            disabled={gerandoCobranca}
+            className="w-full sm:w-auto"
+          >
+            {gerandoCobranca ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <CreditCard className="w-4 h-4 mr-2" />
+                Gerar Nova Cobrança
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Boleto / PIX – igual à loja clínica de estética */}
       {(data.financeiro.tem_asaas || data.financeiro.tem_mercadopago) && (data.financeiro.boleto_url || data.financeiro.pix_copy_paste) ? (
@@ -386,6 +454,102 @@ export default function AssinaturaLojaPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Modal Nova Cobrança */}
+      {showModalNovaCobranca && novaCobrancaData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowModalNovaCobranca(false)}>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-purple-900 text-white px-6 py-4">
+              <h2 className="text-xl font-bold">Nova Cobrança Gerada</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <p className="text-green-900 dark:text-green-100 font-medium">
+                  ✅ Cobrança gerada com sucesso!
+                </p>
+                {novaCobrancaData.due_date && (
+                  <p className="text-sm text-green-800 dark:text-green-200 mt-1">
+                    Vencimento: {formatDate(novaCobrancaData.due_date)}
+                  </p>
+                )}
+                {novaCobrancaData.value && (
+                  <p className="text-sm text-green-800 dark:text-green-200">
+                    Valor: {formatCurrency(novaCobrancaData.value)}
+                  </p>
+                )}
+              </div>
+
+              <Tabs defaultValue={novaCobrancaData.boleto_url ? 'boleto' : 'pix'}>
+                <TabsList className="w-full dark:bg-neutral-700">
+                  {novaCobrancaData.boleto_url && (
+                    <TabsTrigger value="boleto" className="flex-1">
+                      Boleto
+                    </TabsTrigger>
+                  )}
+                  {novaCobrancaData.pix_qr_code && (
+                    <TabsTrigger value="pix" className="flex-1">
+                      PIX
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+
+                {novaCobrancaData.boleto_url && (
+                  <TabsContent value="boleto" className="space-y-4 pt-4">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => window.open(novaCobrancaData.boleto_url, '_blank')}
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Abrir Boleto
+                    </Button>
+                  </TabsContent>
+                )}
+
+                {novaCobrancaData.pix_qr_code && (
+                  <TabsContent value="pix" className="space-y-4 pt-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <h4 className="font-medium mb-2 dark:text-gray-200">QR Code PIX</h4>
+                        <div className="bg-white dark:bg-neutral-700 p-4 rounded border dark:border-neutral-600 inline-block">
+                          <Image
+                            src={`data:image/png;base64,${novaCobrancaData.pix_qr_code}`}
+                            alt="QR Code PIX"
+                            width={192}
+                            height={192}
+                            className="w-32 h-32 sm:w-48 sm:h-48"
+                            unoptimized
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2 dark:text-gray-200">Código PIX (copia e cola)</h4>
+                        <div className="bg-muted dark:bg-neutral-700 p-3 rounded text-sm font-mono break-all dark:text-gray-200 max-h-32 overflow-y-auto">
+                          {novaCobrancaData.pix_copy_paste || '—'}
+                        </div>
+                        {novaCobrancaData.pix_copy_paste && (
+                          <Button variant="outline" className="mt-2 w-full" onClick={copiarPixNovaCobranca}>
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copiar código
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+                )}
+              </Tabs>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 dark:bg-neutral-900 border-t dark:border-neutral-700 flex justify-end">
+              <Button
+                onClick={() => setShowModalNovaCobranca(false)}
+                variant="outline"
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

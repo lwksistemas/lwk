@@ -12,166 +12,39 @@ logger = logging.getLogger(__name__)
 def create_asaas_subscription_on_financeiro_creation(sender, instance, created, **kwargs):
     """
     Cria automaticamente a primeira cobrança (boleto) quando o FinanceiroLoja é criado.
-    Respeita a preferência da loja: Mercado Pago ou Asaas.
+    
+    ✅ MODIFICAÇÃO v719: Usa CobrancaService unificado (Strategy Pattern)
+    - Respeita a preferência da loja: Mercado Pago ou Asaas
+    - NÃO envia mais senha provisória aqui
+    - Senha será enviada pelo signal on_payment_confirmed após confirmação do pagamento
     """
     if not created:
         return
     
     # Ler loja direto do banco pelo FK para garantir valor persistido (evita cache)
     from superadmin.models import Loja
+    from superadmin.cobranca_service import CobrancaService
+    
     loja = Loja.objects.get(pk=instance.loja_id)
     provedor = (getattr(loja, 'provedor_boleto_preferido', None) or '').strip() or 'asaas'
-    logger.info(f"Primeira cobrança para loja {loja.nome} (provedor_boleto_preferido={provedor!r})")
-
-    # Se a loja escolheu Mercado Pago, usar LojaAsaasService (que delega para MP)
-    if provedor == 'mercadopago':
-        try:
-            from superadmin.asaas_service import LojaAsaasService
-            from superadmin.models import MercadoPagoConfig
-            mp_config = MercadoPagoConfig.get_config()
-            if not mp_config.enabled or not (getattr(mp_config, 'access_token', '') or '').strip():
-                logger.warning(
-                    f"Loja {loja.nome} escolheu Mercado Pago mas a API não está configurada. "
-                    "Configure em Superadmin → Mercado Pago (habilitar e preencher Access Token). Tentando Asaas."
-                )
-            elif mp_config.enabled and mp_config.access_token:
-                logger.info(f"Criando cobrança Mercado Pago para loja: {loja.nome}")
-                service = LojaAsaasService()
-                result = service.criar_cobranca_loja(loja, instance)
-                if result.get('success') and result.get('provedor') == 'mercadopago':
-                    # Cobrança foi criada pelo Mercado Pago no asaas_service; só atualizar campos no signal
-                    # (asaas_service já atualizou financeiro e criou PagamentoLoja; truncar URL para limite do banco)
-                    instance.provedor_boleto = 'mercadopago'
-                    instance.mercadopago_payment_id = (result.get('payment_id') or '')[:100]
-                    instance.mercadopago_pix_payment_id = (result.get('pix_payment_id') or '')[:100]
-                    instance.boleto_url = (result.get('boleto_url') or '')[:200]
-                    instance.pix_qr_code = (result.get('pix_qr_code') or '')[:2000]
-                    instance.pix_copy_paste = (result.get('pix_copy_paste') or '')[:500]
-                    instance.save(update_fields=[
-                        'provedor_boleto', 'mercadopago_payment_id', 'mercadopago_pix_payment_id',
-                        'boleto_url', 'pix_qr_code', 'pix_copy_paste',
-                    ])
-                    logger.info(f"✅ Cobrança Mercado Pago criada para loja {loja.nome}")
-                    logger.info(f"   Payment ID: {instance.mercadopago_payment_id}, Boleto URL: {(instance.boleto_url or '')[:50]}...")
-                    return
-                if result.get('success') and result.get('provedor') == 'asaas':
-                    # Fallback Asaas já foi feito em criar_cobranca_loja (financeiro + PagamentoLoja atualizados)
-                    logger.info(f"✅ Cobrança Asaas criada para loja {loja.nome} (fallback após falha MP)")
-                    return
-                # Loja escolheu Mercado Pago: não criar cobrança no Asaas ao falhar o MP
-                logger.warning(
-                    f"Mercado Pago falhou para {loja.nome}: {result.get('error')}. "
-                    "Loja configurada para MP; não será criada cobrança Asaas. "
-                    "Gerar cobrança manualmente em Superadmin → Financeiro ou verificar configuração MP."
-                )
-                return
-        except Exception as e:
-            # Loja escolheu Mercado Pago: não criar cobrança no Asaas quando MP não foi usado
-            logger.warning(
-                f"Mercado Pago não usado para {loja.nome}: {e}. "
-                "Loja configurada para MP; não será criada cobrança Asaas."
-            )
-            return
-
-    # Verificar se a integração com Asaas está habilitada
-    if not getattr(settings, 'ASAAS_INTEGRATION_ENABLED', False):
-        logger.info(f"Integração Asaas desabilitada. Loja {loja.nome} criada sem cobrança.")
-        return
     
-    try:
-        from .client import AsaasPaymentService
-        from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
-        from django.db import transaction
-        
-        logger.info(f"Criando assinatura Asaas para loja: {loja.nome}")
-        
-        # Usar data_proxima_cobranca do FinanceiroLoja
-        due_date_str = instance.data_proxima_cobranca.strftime('%Y-%m-%d')
-        logger.info(f"Usando data_proxima_cobranca do FinanceiroLoja: {due_date_str}")
-        
-        # Preparar dados da loja
-        loja_data = {
-            'nome': loja.nome,
-            'slug': loja.slug,
-            'email': loja.owner.email,
-            'cpf_cnpj': loja.cpf_cnpj or '000.000.000-00',  # CPF padrão se não informado
-            'telefone': getattr(loja.owner, 'telefone', ''),
-        }
-        
-        # Preparar dados do plano
-        valor_plano = loja.plano.preco_anual if loja.tipo_assinatura == 'anual' else loja.plano.preco_mensal
-        plano_data = {
-            'nome': f"{loja.plano.nome} ({loja.get_tipo_assinatura_display()})",
-            'preco': valor_plano
-        }
-        
-        with transaction.atomic():
-            # Criar cobrança no Asaas com data correta
-            service = AsaasPaymentService()
-            result = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
-            
-            if not result['success']:
-                logger.error(f"Erro ao criar cobrança Asaas para loja {loja.nome}: {result['error']}")
-                return
-            
-            # Criar cliente no banco local
-            customer = AsaasCustomer.objects.create(
-                asaas_id=result['customer_id'],
-                name=loja_data['nome'],
-                email=loja_data['email'],
-                cpf_cnpj=loja_data['cpf_cnpj'],
-                phone=loja_data.get('telefone', ''),
-                external_reference=f"loja_{loja_data['slug']}",
-                raw_data=result['raw_customer']
-            )
-            
-            # Criar pagamento no banco local
-            from datetime import datetime
-            payment = AsaasPayment.objects.create(
-                asaas_id=result['payment_id'],
-                customer=customer,
-                external_reference=f"loja_{loja_data['slug']}_assinatura",
-                billing_type='BOLETO',
-                status=result['status'],
-                value=result['value'],
-                due_date=datetime.strptime(result['due_date'], '%Y-%m-%d').date(),
-                invoice_url=result['payment_url'],
-                bank_slip_url=result['boleto_url'],
-                pix_qr_code=result['pix_qr_code'],
-                pix_copy_paste=result['pix_copy_paste'],
-                description=f"Assinatura {plano_data['nome']} - Loja {loja_data['nome']}",
-                raw_data=result['raw_payment']
-            )
-            
-            # Criar assinatura
-            assinatura = LojaAssinatura.objects.create(
-                loja_slug=loja_data['slug'],
-                loja_nome=loja_data['nome'],
-                asaas_customer=customer,
-                current_payment=payment,
-                plano_nome=plano_data['nome'],
-                plano_valor=plano_data['preco'],
-                data_vencimento=payment.due_date
-            )
-            
-            # Atualizar FinanceiroLoja com boleto para exibir no dashboard
-            instance.asaas_customer_id = result['customer_id']
-            instance.asaas_payment_id = result['payment_id']
-            instance.boleto_url = result.get('boleto_url', '')
-            instance.pix_qr_code = result.get('pix_qr_code', '')
-            instance.data_proxima_cobranca = datetime.strptime(result['due_date'], '%Y-%m-%d').date()
-            instance.save(update_fields=['asaas_customer_id', 'asaas_payment_id', 'boleto_url', 'pix_qr_code', 'data_proxima_cobranca'])
-            
-            logger.info(f"✅ Assinatura Asaas criada com sucesso para loja {loja.nome}")
-            logger.info(f"   Payment ID: {payment.asaas_id}")
-            logger.info(f"   Valor: R$ {payment.value}")
-            logger.info(f"   Vencimento: {payment.due_date}")
-            
-    except Exception as e:
-        logger.error(f"❌ Erro ao criar assinatura Asaas para loja {loja.nome}: {e}")
-        import traceback
-        traceback.print_exc()
-        # Não interrompe a criação da loja, apenas loga o erro
+    logger.info(f"Criando primeira cobrança para loja {loja.nome} (provedor={provedor})")
+    
+    # Usar serviço unificado para criar cobrança
+    service = CobrancaService()
+    result = service.criar_cobranca(loja, instance)
+    
+    if result.get('success'):
+        logger.info(f"✅ Cobrança criada para loja {loja.nome}")
+        logger.info(f"   Provedor: {result.get('provedor')}")
+        logger.info(f"   Payment ID: {result.get('payment_id')}")
+        logger.info(f"   Boleto URL: {(result.get('boleto_url') or '')[:50]}...")
+        logger.info(f"   Valor: R$ {result.get('value')}")
+        logger.info(f"   Vencimento: {result.get('due_date')}")
+    else:
+        logger.error(f"❌ Erro ao criar cobrança para loja {loja.nome}: {result.get('error')}")
+        logger.error(f"   Provedor: {provedor}")
+        logger.error(f"   Loja pode ser criada manualmente em Superadmin → Financeiro")
 
 @receiver(post_save, sender='superadmin.Loja')
 def update_asaas_subscription_on_loja_update(sender, instance, created, **kwargs):

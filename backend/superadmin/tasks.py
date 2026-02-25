@@ -311,3 +311,104 @@ def send_daily_summary():
             'tempo_execucao': elapsed,
             'timestamp': timezone.now().isoformat()
         }
+
+
+def reprocessar_emails_task():
+    """
+    Task agendada para reprocessar emails falhados
+    
+    ✅ NOVO v719: Task para retry automático de emails
+    
+    Executa o comando reprocessar_emails_falhados para tentar
+    reenviar emails que falharam anteriormente.
+    
+    Esta task é executada a cada 5 minutos pelo Django-Q.
+    
+    Returns:
+        dict: Resumo do reprocessamento
+    """
+    logger.info("📧 [TASK] Iniciando reprocessamento de emails falhados...")
+    start_time = timezone.now()
+    
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        
+        # Capturar output do comando
+        output = StringIO()
+        call_command('reprocessar_emails_falhados', stdout=output)
+        
+        elapsed = (timezone.now() - start_time).total_seconds()
+        
+        logger.info(f"✅ [TASK] Reprocessamento concluído em {elapsed:.2f}s")
+        
+        return {
+            'success': True,
+            'tempo_execucao': elapsed,
+            'timestamp': timezone.now().isoformat(),
+            'output': output.getvalue()
+        }
+        
+    except Exception as e:
+        elapsed = (timezone.now() - start_time).total_seconds()
+        logger.error(
+            f"❌ [TASK] Erro ao reprocessar emails após {elapsed:.2f}s: {e}",
+            exc_info=True
+        )
+        return {
+            'success': False,
+            'error': str(e),
+            'tempo_execucao': elapsed,
+            'timestamp': timezone.now().isoformat()
+        }
+
+
+def verificar_assinaturas_task():
+    """
+    Task agendada para verificar status de assinaturas
+    
+    ✅ NOVO v719: Task para gerenciamento automático de status
+    
+    Executa o comando verificar_status_assinaturas para:
+    - Marcar assinaturas vencidas há 7+ dias como 'atrasado'
+    - Marcar assinaturas vencidas há 30+ dias como 'bloqueado'
+    
+    Esta task é executada diariamente às 00:00 pelo Django-Q.
+    
+    Returns:
+        dict: Resumo da verificação
+    """
+    logger.info("🔍 [TASK] Iniciando verificação de status de assinaturas...")
+    start_time = timezone.now()
+    
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        
+        # Capturar output do comando
+        output = StringIO()
+        call_command('verificar_status_assinaturas', stdout=output)
+        
+        elapsed = (timezone.now() - start_time).total_seconds()
+        
+        logger.info(f"✅ [TASK] Verificação concluída em {elapsed:.2f}s")
+        
+        return {
+            'success': True,
+            'tempo_execucao': elapsed,
+            'timestamp': timezone.now().isoformat(),
+            'output': output.getvalue()
+        }
+        
+    except Exception as e:
+        elapsed = (timezone.now() - start_time).total_seconds()
+        logger.error(
+            f"❌ [TASK] Erro ao verificar assinaturas após {elapsed:.2f}s: {e}",
+            exc_info=True
+        )
+        return {
+            'success': False,
+            'error': str(e),
+            'tempo_execucao': elapsed,
+            'timestamp': timezone.now().isoformat()
+        }

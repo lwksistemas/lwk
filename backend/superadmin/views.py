@@ -837,6 +837,134 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
         pendentes = self.get_queryset().filter(status_pagamento__in=['pendente', 'atrasado'])
         serializer = self.get_serializer(pendentes, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def renovar(self, request, pk=None):
+        """
+        Cria nova cobrança para renovação de assinatura
+        
+        ✅ NOVO v719: Endpoint para renovação de assinatura no dashboard
+        
+        Body (opcional):
+            {
+                "dia_vencimento": 10  // Dia do mês (1-28)
+            }
+        
+        Returns:
+            {
+                "success": true,
+                "provedor": "asaas",
+                "payment_id": "pay_123456",
+                "boleto_url": "https://...",
+                "pix_qr_code": "00020126...",
+                "pix_copy_paste": "00020126...",
+                "due_date": "2026-03-10",
+                "value": 99.90
+            }
+        """
+        from superadmin.cobranca_service import CobrancaService
+        
+        try:
+            financeiro = self.get_object()
+            loja = financeiro.loja
+            
+            # Obter dia_vencimento do body (opcional)
+            dia_vencimento = request.data.get('dia_vencimento')
+            
+            if dia_vencimento:
+                # Validar dia_vencimento
+                try:
+                    dia_vencimento = int(dia_vencimento)
+                    if dia_vencimento < 1 or dia_vencimento > 28:
+                        return Response({
+                            'success': False,
+                            'error': 'dia_vencimento deve estar entre 1 e 28'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                except (ValueError, TypeError):
+                    return Response({
+                        'success': False,
+                        'error': 'dia_vencimento deve ser um número inteiro'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            logger.info(f"Renovando assinatura para loja {loja.slug} (dia_vencimento={dia_vencimento})")
+            
+            # Criar nova cobrança usando CobrancaService
+            service = CobrancaService()
+            result = service.renovar_cobranca(loja, financeiro, dia_vencimento)
+            
+            if result.get('success'):
+                logger.info(f"✅ Cobrança renovada para loja {loja.slug}: {result.get('payment_id')}")
+                return Response(result, status=status.HTTP_200_OK)
+            else:
+                logger.error(f"❌ Erro ao renovar cobrança para loja {loja.slug}: {result.get('error')}")
+                return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as e:
+            logger.exception(f"Erro ao renovar assinatura: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'])
+    def reenviar_senha(self, request, pk=None):
+        """
+        Reenvia senha provisória manualmente (apenas se pagamento já confirmado)
+        
+        ✅ NOVO v719: Endpoint para reenvio manual de senha
+        
+        Permissões: Apenas superadmin
+        
+        Returns:
+            {
+                "success": true,
+                "message": "Senha reenviada para email@example.com"
+            }
+        
+        Errors:
+            - 400: Pagamento ainda não confirmado
+            - 404: Loja não encontrada
+            - 500: Erro ao enviar email
+        """
+        from superadmin.email_service import EmailService
+        
+        try:
+            financeiro = self.get_object()
+            loja = financeiro.loja
+            owner = loja.owner
+            
+            # Verificar se pagamento já foi confirmado
+            if financeiro.status_pagamento != 'ativo':
+                return Response({
+                    'success': False,
+                    'error': f'Pagamento ainda não confirmado. Status atual: {financeiro.get_status_pagamento_display()}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            logger.info(f"Reenviando senha para loja {loja.slug} (owner: {owner.email})")
+            
+            # Enviar senha usando EmailService
+            service = EmailService()
+            success = service.enviar_senha_provisoria(loja, owner)
+            
+            if success:
+                logger.info(f"✅ Senha reenviada para {owner.email} (loja {loja.slug})")
+                return Response({
+                    'success': True,
+                    'message': f'Senha reenviada para {owner.email}'
+                }, status=status.HTTP_200_OK)
+            else:
+                logger.warning(f"⚠️ Falha ao reenviar senha para {owner.email} (loja {loja.slug})")
+                return Response({
+                    'success': False,
+                    'error': 'Falha ao enviar email. Email registrado para retry automático.'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        except Exception as e:
+            logger.exception(f"Erro ao reenviar senha: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PagamentoLojaViewSet(viewsets.ModelViewSet):
@@ -1131,6 +1259,194 @@ Equipe LWK Sistemas
                 {'detail': f'Erro ao enviar email: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class EmailRetryViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar emails com falha de envio
+    
+    ✅ NOVO v719: Gerenciamento de retry de emails
+    
+    Endpoints:
+    - GET /emails-retry/ - Lista emails pendentes
+    - GET /emails-retry/{id}/ - Detalhes de um email
+    - POST /emails-retry/{id}/reprocessar/ - Força reenvio
+    - DELETE /emails-retry/{id}/ - Remove email da fila
+    
+    Permissões: Apenas superadmin
+    """
+    from superadmin.serializers import EmailRetrySerializer
+    from superadmin.models import EmailRetry
+    
+    serializer_class = EmailRetrySerializer
+    permission_classes = [IsSuperAdmin]
+    
+    def get_queryset(self):
+        """
+        Retorna emails ordenados por prioridade:
+        1. Não enviados com tentativas < max
+        2. Ordenados por proxima_tentativa
+        """
+        from django.db.models import Q
+        
+        queryset = EmailRetry.objects.select_related('loja').all()
+        
+        # Filtros opcionais via query params
+        enviado = self.request.query_params.get('enviado')
+        loja_slug = self.request.query_params.get('loja')
+        
+        if enviado is not None:
+            enviado_bool = enviado.lower() in ['true', '1', 'yes']
+            queryset = queryset.filter(enviado=enviado_bool)
+        
+        if loja_slug:
+            queryset = queryset.filter(loja__slug=loja_slug)
+        
+        # Ordenar: pendentes primeiro, depois por proxima_tentativa
+        return queryset.order_by('enviado', 'proxima_tentativa', '-created_at')
+    
+    @action(detail=False, methods=['get'])
+    def pendentes(self, request):
+        """
+        Lista apenas emails pendentes (não enviados e com tentativas < max)
+        
+        GET /emails-retry/pendentes/
+        """
+        from django.db.models import F
+        
+        pendentes = self.get_queryset().filter(
+            enviado=False,
+            tentativas__lt=F('max_tentativas')
+        )
+        
+        serializer = self.get_serializer(pendentes, many=True)
+        return Response({
+            'count': pendentes.count(),
+            'results': serializer.data
+        })
+    
+    @action(detail=False, methods=['get'])
+    def falhados(self, request):
+        """
+        Lista emails que falharam (atingiram max tentativas)
+        
+        GET /emails-retry/falhados/
+        """
+        from django.db.models import F
+        
+        falhados = self.get_queryset().filter(
+            enviado=False,
+            tentativas__gte=F('max_tentativas')
+        )
+        
+        serializer = self.get_serializer(falhados, many=True)
+        return Response({
+            'count': falhados.count(),
+            'results': serializer.data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def reprocessar(self, request, pk=None):
+        """
+        Força reprocessamento de email falhado
+        
+        POST /emails-retry/{id}/reprocessar/
+        
+        Returns:
+            {
+                "success": true,
+                "message": "Email reenviado com sucesso"
+            }
+        """
+        from superadmin.email_service import EmailService
+        
+        try:
+            email_retry = self.get_object()
+            
+            if email_retry.enviado:
+                return Response({
+                    'success': False,
+                    'error': 'Email já foi enviado'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            logger.info(f"Reprocessando email {email_retry.id} manualmente (admin: {request.user.username})")
+            
+            # Reenviar usando EmailService
+            service = EmailService()
+            success = service.reenviar_email(email_retry.id)
+            
+            if success:
+                logger.info(f"✅ Email {email_retry.id} reenviado com sucesso")
+                return Response({
+                    'success': True,
+                    'message': 'Email reenviado com sucesso'
+                }, status=status.HTTP_200_OK)
+            else:
+                logger.warning(f"⚠️ Falha ao reenviar email {email_retry.id}")
+                return Response({
+                    'success': False,
+                    'error': 'Falha ao reenviar email. Verifique os logs.'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        except Exception as e:
+            logger.exception(f"Erro ao reprocessar email: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['post'])
+    def reprocessar_todos_pendentes(self, request):
+        """
+        Reprocessa todos os emails pendentes
+        
+        POST /emails-retry/reprocessar_todos_pendentes/
+        
+        Returns:
+            {
+                "success": true,
+                "total": 10,
+                "enviados": 8,
+                "falhados": 2
+            }
+        """
+        from superadmin.email_service import EmailService
+        from django.db.models import F
+        
+        try:
+            pendentes = EmailRetry.objects.filter(
+                enviado=False,
+                tentativas__lt=F('max_tentativas')
+            )
+            
+            total = pendentes.count()
+            enviados = 0
+            falhados = 0
+            
+            logger.info(f"Reprocessando {total} emails pendentes (admin: {request.user.username})")
+            
+            service = EmailService()
+            for email_retry in pendentes:
+                if service.reenviar_email(email_retry.id):
+                    enviados += 1
+                else:
+                    falhados += 1
+            
+            logger.info(f"✅ Reprocessamento concluído: {enviados}/{total} enviados, {falhados} falhas")
+            
+            return Response({
+                'success': True,
+                'total': total,
+                'enviados': enviados,
+                'falhados': falhados
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.exception(f"Erro ao reprocessar emails: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Configuração Mercado Pago (boletos)

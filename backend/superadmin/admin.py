@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, PagamentoLoja,
-    UsuarioSistema, UserSession, MercadoPagoConfig,
+    UsuarioSistema, UserSession, MercadoPagoConfig, EmailRetry,
 )
 
 @admin.register(UserSession)
@@ -59,3 +59,39 @@ class MercadoPagoConfigAdmin(admin.ModelAdmin):
 class UsuarioSistemaAdmin(admin.ModelAdmin):
     list_display = ['user', 'tipo', 'is_active', 'created_at']
     list_filter = ['tipo', 'is_active']
+
+
+@admin.register(EmailRetry)
+class EmailRetryAdmin(admin.ModelAdmin):
+    list_display = ['id', 'destinatario', 'assunto_short', 'loja', 'tentativas', 'max_tentativas', 'enviado', 'proxima_tentativa', 'created_at']
+    list_filter = ['enviado', 'created_at', 'loja']
+    search_fields = ['destinatario', 'assunto', 'loja__nome']
+    readonly_fields = ['created_at', 'updated_at']
+    list_per_page = 50
+    
+    def assunto_short(self, obj):
+        return obj.assunto[:50] + '...' if len(obj.assunto) > 50 else obj.assunto
+    assunto_short.short_description = 'Assunto'
+    
+    actions = ['reprocessar_emails']
+    
+    def reprocessar_emails(self, request, queryset):
+        """Action para reprocessar emails selecionados"""
+        from .email_service import EmailService
+        
+        service = EmailService()
+        sucesso = 0
+        falha = 0
+        
+        for email_retry in queryset.filter(enviado=False):
+            if email_retry.pode_retentar():
+                if service.reenviar_email(email_retry.id):
+                    sucesso += 1
+                else:
+                    falha += 1
+        
+        self.message_user(
+            request,
+            f"✅ {sucesso} email(s) reenviado(s) com sucesso. ❌ {falha} falha(s)."
+        )
+    reprocessar_emails.short_description = "Reprocessar emails selecionados"

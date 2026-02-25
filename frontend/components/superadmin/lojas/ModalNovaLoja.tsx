@@ -343,14 +343,56 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
         <div className="flex-1 overflow-y-auto p-4 md:p-6 relative w-full">
           {showSuccess && createdLoja ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 p-8 animate-fade-in">
-              <div className="flex flex-col items-center max-w-md text-center">
+              <div className="flex flex-col items-center max-w-2xl text-center">
                 <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6 animate-scale-in">
                   <span className="text-5xl text-green-600">✓</span>
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-2">Loja criada com sucesso!</h3>
                 <p className="text-lg text-purple-600 font-semibold mb-4">{createdLoja.nome}</p>
+                
+                {/* Mensagem sobre boleto e senha */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 w-full">
+                  <p className="text-sm text-blue-900 font-medium mb-2">
+                    📧 Boleto enviado para o email
+                  </p>
+                  <p className="text-sm text-blue-800">
+                    A senha de acesso será enviada automaticamente para <strong>{formData.owner_email}</strong> após a confirmação do pagamento.
+                  </p>
+                </div>
+
+                {/* Exibir boleto_url e pix_qr_code se disponíveis */}
+                {(createdLoja.boleto_url || createdLoja.pix_qr_code) && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4 w-full">
+                    <p className="text-sm font-semibold text-purple-900 mb-3">Formas de pagamento disponíveis:</p>
+                    <div className="space-y-2">
+                      {createdLoja.boleto_url && (
+                        <a
+                          href={createdLoja.boleto_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block px-4 py-2 bg-white border border-purple-300 rounded-md hover:bg-purple-100 transition text-purple-700 font-medium"
+                        >
+                          🧾 Abrir Boleto
+                        </a>
+                      )}
+                      {createdLoja.pix_qr_code && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Aqui você pode abrir um modal com o QR code PIX
+                            alert('QR Code PIX disponível. Implementar modal se necessário.');
+                          }}
+                          className="block w-full px-4 py-2 bg-white border border-purple-300 rounded-md hover:bg-purple-100 transition text-purple-700 font-medium"
+                        >
+                          📱 Ver QR Code PIX
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-sm text-gray-600 mb-2 flex flex-wrap items-center justify-center gap-2">
-                  <span>Acesso:</span>
+                  <span>URL de acesso:</span>
                   <span className="font-mono text-gray-800 break-all">{typeof window !== 'undefined' ? `${window.location.origin}${createdLoja.login_page_url}` : createdLoja.login_page_url}</span>
                   {typeof window !== 'undefined' && (
                     <button
@@ -367,13 +409,11 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     </button>
                   )}
                 </p>
-                <p className="text-sm text-gray-500 mb-6">
-                  Email com dados de acesso foi enviado para <strong>{formData.owner_email}</strong>
-                </p>
+                
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition font-medium"
+                  className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition font-medium mt-4"
                 >
                   Fechar
                 </button>

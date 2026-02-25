@@ -4,6 +4,7 @@ from .views import (
     TipoLojaViewSet, PlanoAssinaturaViewSet, LojaViewSet,
     FinanceiroLojaViewSet, PagamentoLojaViewSet, UsuarioSistemaViewSet,
     HistoricoAcessoGlobalViewSet, ViolacaoSegurancaViewSet, EstatisticasAuditoriaViewSet,
+    EmailRetryViewSet,
     recuperar_senha_loja, mercadopago_config, mercadopago_test, mercadopago_webhook,
     sync_mercadopago_loja,
 )
@@ -22,6 +23,7 @@ router.register(r'lojas', LojaViewSet, basename='loja')
 router.register(r'financeiro', FinanceiroLojaViewSet, basename='financeiro')
 router.register(r'pagamentos', PagamentoLojaViewSet, basename='pagamento')
 router.register(r'usuarios', UsuarioSistemaViewSet, basename='usuario-sistema')
+router.register(r'emails-retry', EmailRetryViewSet, basename='email-retry')
 router.register(r'historico-acessos', HistoricoAcessoGlobalViewSet, basename='historico-acessos')
 router.register(r'violacoes-seguranca', ViolacaoSegurancaViewSet, basename='violacao-seguranca')
 router.register(r'estatisticas-auditoria', EstatisticasAuditoriaViewSet, basename='estatisticas-auditoria')

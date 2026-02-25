@@ -944,7 +944,12 @@ def process_mercadopago_webhook_payment(payment_id: str, loja=None) -> dict:
 
 
 def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
-    """Atualiza status e próxima cobrança do financeiro após pagamento aprovado no Mercado Pago."""
+    """
+    Atualiza status e próxima cobrança do financeiro após pagamento aprovado no Mercado Pago.
+    
+    ✅ MODIFICAÇÃO v728: Removido update_fields para garantir que signal on_payment_confirmed seja disparado.
+    O signal on_payment_confirmed envia a senha provisória automaticamente.
+    """
     from calendar import monthrange
     financeiro.status_pagamento = 'ativo'
     financeiro.ultimo_pagamento = timezone.now()
@@ -957,4 +962,5 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
     ultimo_dia = monthrange(proximo_ano, proximo_mes)[1]
     dia_cobranca = min(dia_vencimento, ultimo_dia)
     financeiro.data_proxima_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
-    financeiro.save(update_fields=['status_pagamento', 'ultimo_pagamento', 'data_proxima_cobranca'])
+    # ✅ Removido update_fields para disparar signal on_payment_confirmed
+    financeiro.save()

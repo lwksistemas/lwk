@@ -6,7 +6,7 @@ Execute: python manage.py shell < verificar_orfaos.py
 from django.contrib.auth import get_user_model
 from django.db import connection
 from superadmin.models import Loja, FinanceiroLoja
-from asaas_integration.models import AsaasCustomer, AsaasSubscription, AsaasPayment
+from asaas_integration.models import AsaasCustomer, LojaAssinatura, AsaasPayment
 from mercadopago_integration.models import MercadoPagoCustomer, LojaPagamento
 
 User = get_user_model()
@@ -75,7 +75,7 @@ for customer in asaas_customers:
         asaas_customers_orfaos.append(customer)
         print(f"❌ Customer {customer.asaas_id} (slug: {customer.loja_slug}) → ÓRFÃO")
 
-asaas_subscriptions = AsaasSubscription.objects.all()
+asaas_subscriptions = LojaAssinatura.objects.all()
 print(f"\nTotal de Asaas Subscriptions: {asaas_subscriptions.count()}")
 asaas_subscriptions_orfaos = []
 for sub in asaas_subscriptions:
@@ -184,7 +184,7 @@ if total_orfaos > 0:
     if asaas_subscriptions_orfaos:
         print("\n# Asaas Subscriptions:")
         ids = [s.id for s in asaas_subscriptions_orfaos]
-        print(f"AsaasSubscription.objects.filter(id__in={ids}).delete()")
+        print(f"LojaAssinatura.objects.filter(id__in={ids}).delete()")
     
     if asaas_customers_orfaos:
         print("\n# Asaas Customers:")

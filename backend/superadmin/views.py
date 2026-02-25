@@ -876,6 +876,7 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         usuario_sistema = self.get_object()
         user_django = usuario_sistema.user
         username = user_django.username
+        user_id = user_django.id
 
         # Evitar órfãos e exclusão acidental: não excluir usuário que é dono de loja
         lojas_owned = Loja.objects.filter(owner=user_django).exists()
@@ -890,21 +891,36 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         
         try:
             with transaction.atomic():
-                # 1. Excluir UsuarioSistema
-                usuario_sistema.delete()
-                logger.info(f"✅ UsuarioSistema excluído: {username}")
+                # Limpar sessões manualmente antes de excluir (evita problemas de CASCADE)
+                from superadmin.models import UserSession
+                sessoes_count = UserSession.objects.filter(user_id=user_id).count()
+                UserSession.objects.filter(user_id=user_id).delete()
+                if sessoes_count:
+                    logger.info(f"   ✅ {sessoes_count} sessão(ões) removida(s)")
                 
-                # 2. Excluir User do Django
+                # Limpar grupos e permissões
+                user_django.groups.clear()
+                user_django.user_permissions.clear()
+                
+                # Excluir User do Django (CASCADE vai excluir UsuarioSistema automaticamente)
                 user_django.delete()
-                logger.info(f"✅ User Django excluído: {username}")
+                logger.info(f"✅ Usuário excluído: {username} (ID: {user_id})")
             
             return Response({
                 'message': f'Usuário "{username}" foi completamente removido do sistema',
-                'username': username
+                'username': username,
+                'detalhes': {
+                    'user_id': user_id,
+                    'sessoes_removidas': sessoes_count,
+                    'usuario_sistema_removido': True,
+                    'user_django_removido': True
+                }
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
             logger.error(f"❌ Erro ao excluir usuário {username}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return Response(
                 {'error': f'Erro ao excluir usuário: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

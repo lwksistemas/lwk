@@ -949,6 +949,9 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
     
     ✅ MODIFICAÇÃO v728: Removido update_fields para garantir que signal on_payment_confirmed seja disparado.
     O signal on_payment_confirmed envia a senha provisória automaticamente.
+    
+    ✅ MODIFICAÇÃO v729: Cancelar automaticamente a transação não paga (boleto ou PIX).
+    Quando PIX é pago, cancela o boleto. Quando boleto é pago, cancela o PIX.
     """
     from calendar import monthrange
     financeiro.status_pagamento = 'ativo'
@@ -964,3 +967,43 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
     financeiro.data_proxima_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
     # ✅ Removido update_fields para disparar signal on_payment_confirmed
     financeiro.save()
+    
+    # ✅ NOVO v729: Cancelar transação não paga no Mercado Pago
+    try:
+        from .models import MercadoPagoConfig
+        from .mercadopago_service import MercadoPagoClient
+        
+        config = MercadoPagoConfig.get_config()
+        if config and config.access_token:
+            client = MercadoPagoClient(config.access_token)
+            
+            # Identificar qual transação foi paga e qual deve ser cancelada
+            boleto_id = getattr(financeiro, 'mercadopago_payment_id', None)
+            pix_id = getattr(financeiro, 'mercadopago_pix_payment_id', None)
+            
+            if boleto_id and pix_id:
+                # Verificar qual foi pago
+                boleto_data = client.get_payment(str(boleto_id))
+                pix_data = client.get_payment(str(pix_id))
+                
+                boleto_status = (boleto_data.get('status') if boleto_data else None) or ''
+                pix_status = (pix_data.get('status') if pix_data else None) or ''
+                
+                # Se PIX foi aprovado, cancelar boleto
+                if pix_status == 'approved' and boleto_status in ('pending', 'in_process'):
+                    logger.info(f"PIX aprovado para loja {loja.slug}. Cancelando boleto {boleto_id}...")
+                    if client.cancel_payment(str(boleto_id)):
+                        logger.info(f"✅ Boleto {boleto_id} cancelado automaticamente")
+                    else:
+                        logger.warning(f"⚠️ Não foi possível cancelar boleto {boleto_id}")
+                
+                # Se boleto foi aprovado, cancelar PIX
+                elif boleto_status == 'approved' and pix_status in ('pending', 'in_process'):
+                    logger.info(f"Boleto aprovado para loja {loja.slug}. Cancelando PIX {pix_id}...")
+                    if client.cancel_payment(str(pix_id)):
+                        logger.info(f"✅ PIX {pix_id} cancelado automaticamente")
+                    else:
+                        logger.warning(f"⚠️ Não foi possível cancelar PIX {pix_id}")
+    
+    except Exception as e:
+        logger.warning(f"Erro ao cancelar transação não paga para loja {loja.slug}: {e}")

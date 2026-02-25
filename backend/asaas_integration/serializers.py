@@ -42,11 +42,20 @@ class AsaasPaymentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class LojaAssinaturaSerializer(serializers.ModelSerializer):
-    """Serializer para assinaturas das lojas"""
+    """
+    Serializer para assinaturas das lojas
+    
+    ✅ MODIFICAÇÃO v730: Adicionados campos subscription_status e subscription_status_display
+    para diferenciar status da assinatura do status do próximo pagamento.
+    """
     
     customer_data = AsaasCustomerSerializer(source='asaas_customer', read_only=True)
     current_payment_data = AsaasPaymentSerializer(source='current_payment', read_only=True)
     total_payments = serializers.SerializerMethodField()
+    
+    # ✅ NOVO v730: Campos para status da assinatura
+    subscription_status = serializers.SerializerMethodField()
+    subscription_status_display = serializers.SerializerMethodField()
     
     class Meta:
         model = LojaAssinatura
@@ -54,6 +63,7 @@ class LojaAssinaturaSerializer(serializers.ModelSerializer):
             'id', 'loja_slug', 'loja_nome', 'asaas_customer', 'customer_data',
             'current_payment', 'current_payment_data', 'plano_nome', 'plano_valor',
             'ativa', 'data_ativacao', 'data_vencimento', 'total_payments',
+            'subscription_status', 'subscription_status_display',  # ✅ NOVO v730
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -61,6 +71,26 @@ class LojaAssinaturaSerializer(serializers.ModelSerializer):
     def get_total_payments(self, obj):
         """Retorna total de pagamentos desta assinatura"""
         return obj.get_all_payments().count()
+    
+    def get_subscription_status(self, obj):
+        """
+        ✅ NOVO v730: Retorna status da assinatura (não do próximo pagamento)
+        
+        Returns:
+            'active': Assinatura ativa (pagamento em dia)
+            'inactive': Assinatura inativa
+        """
+        return 'active' if obj.ativa else 'inactive'
+    
+    def get_subscription_status_display(self, obj):
+        """
+        ✅ NOVO v730: Retorna status da assinatura em português
+        
+        Returns:
+            'Ativo': Assinatura ativa
+            'Inativo': Assinatura inativa
+        """
+        return 'Ativo' if obj.ativa else 'Inativo'
 
 class CreateLojaAssinaturaSerializer(serializers.Serializer):
     """Serializer para criar assinatura de loja"""

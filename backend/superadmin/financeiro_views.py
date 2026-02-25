@@ -585,13 +585,20 @@ def _assinaturas_unificado():
         is_pago = pagamento_atual and getattr(pagamento_atual, 'status', '') == 'pago'
         status_mp = 'RECEIVED' if is_pago else 'PENDING'
         status_display_mp = 'Pago' if is_pago else 'Pendente'
+        
+        # ✅ NOVO v730: Status da assinatura (não do próximo pagamento)
+        subscription_status = 'active' if f.status_pagamento == 'ativo' else 'inactive'
+        subscription_status_display = 'Ativo' if f.status_pagamento == 'ativo' else 'Inativo'
+        
         out.append({
             'id': f'mp-{f.id}',
             'loja_slug': loja.slug,
             'loja_nome': loja.nome,
             'plano_nome': loja.plano.nome if loja.plano else 'Plano',
             'plano_valor': str(f.valor_mensalidade),
-            'ativa': True,
+            'ativa': f.status_pagamento == 'ativo',  # ✅ Baseado no status real
+            'subscription_status': subscription_status,  # ✅ NOVO v730
+            'subscription_status_display': subscription_status_display,  # ✅ NOVO v730
             'data_vencimento': data_venc,
             'total_payments': 1,
             'current_payment_data': {

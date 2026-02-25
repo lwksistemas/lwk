@@ -70,10 +70,12 @@ class Command(BaseCommand):
         
         # Combinar ambos os tipos de logs órfãos (usar Q para OR)
         from django.db.models import Q
-        logs_orfaos = HistoricoAcessoGlobal.objects.filter(
-            Q(loja_slug__in=logs_orfaos_slug.values_list('loja_slug', flat=True)) |
-            Q(id__in=logs_orfaos_recurso.values_list('id', flat=True))
-        ).distinct()
+        logs_orfaos_ids = set(
+            list(logs_orfaos_slug.values_list('id', flat=True)) +
+            list(logs_orfaos_recurso.values_list('id', flat=True))
+        )
+        
+        logs_orfaos = HistoricoAcessoGlobal.objects.filter(id__in=logs_orfaos_ids)
         
         total_logs_orfaos = logs_orfaos.count()
         

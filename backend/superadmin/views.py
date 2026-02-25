@@ -478,49 +478,37 @@ Equipe de Suporte
             except Exception as e:
                 print(f"⚠️ Erro ao remover arquivo do banco: {e}")
         
-        # 3. Remover dados do Asaas (operação independente)
+        # 3. Remover dados de pagamentos (Asaas + Mercado Pago) - UNIFICADO
         try:
-            from asaas_integration.deletion_service import AsaasDeletionService
-            from asaas_integration.models import AsaasPayment, AsaasCustomer, LojaAssinatura
+            from .payment_deletion_service import UnifiedPaymentDeletionService
             
-            deletion_service = AsaasDeletionService()
-            if deletion_service.available:
-                result = deletion_service.delete_loja_from_asaas(loja_slug)
-                if result.get('success'):
-                    asaas_deleted_payments = result.get('deleted_payments', 0)
-                    asaas_deleted_customer = result.get('deleted_customer', False)
-                    print(f"✅ Dados Asaas API removidos")
+            payment_service = UnifiedPaymentDeletionService()
+            payment_results = payment_service.delete_all_payments_for_loja(loja_slug)
             
-            # Remover dados locais do Asaas
-            with transaction.atomic():
-                try:
-                    assinatura = LojaAssinatura.objects.get(loja_slug=loja_slug)
-                    customer = assinatura.asaas_customer
-                    payments = AsaasPayment.objects.filter(customer=customer)
-                    asaas_local_payments_removed = payments.count()
-                    payments.delete()
-                    assinatura.delete()
-                    asaas_local_subscriptions_removed = 1
-                    customer.delete()
-                    asaas_local_customers_removed = 1
-                    print(f"✅ Dados Asaas locais removidos")
-                except LojaAssinatura.DoesNotExist:
-                    print(f"ℹ️ Nenhuma assinatura Asaas encontrada")
+            # Extrair resultados para compatibilidade com código existente
+            asaas_result = payment_results['providers'].get('Asaas', {})
+            mercadopago_result = payment_results['providers'].get('Mercado Pago', {})
+            
+            # Asaas
+            asaas_deleted_payments = asaas_result.get('api_cancelled', 0)
+            asaas_deleted_customer = asaas_result.get('local_deleted_customers', 0) > 0
+            asaas_local_payments_removed = asaas_result.get('local_deleted_payments', 0)
+            asaas_local_customers_removed = asaas_result.get('local_deleted_customers', 0)
+            asaas_local_subscriptions_removed = asaas_result.get('local_deleted_subscriptions', 0)
+            
+            # Mercado Pago
+            mercadopago_deleted_payments = mercadopago_result.get('api_cancelled', 0)
+            
+            if payment_results['total_cancelled'] > 0:
+                print(f"✅ Pagamentos cancelados: {payment_results['total_cancelled']} (Asaas: {asaas_deleted_payments}, MP: {mercadopago_deleted_payments})")
+            if payment_results['errors']:
+                for error in payment_results['errors']:
+                    print(f"⚠️ {error}")
+                    
         except Exception as e:
-            print(f"⚠️ Erro ao remover dados Asaas: {e}")
-        
-        # 3b. Cancelar boletos pendentes no Mercado Pago (igual ao Asaas)
-        try:
-            from .mercadopago_service import LojaMercadoPagoService
-            mp_service = LojaMercadoPagoService()
-            if mp_service.available:
-                result = mp_service.cancel_pending_payments_loja(loja_slug)
-                if result.get('success'):
-                    mercadopago_deleted_payments = result.get('cancelled_count', 0)
-                    if mercadopago_deleted_payments:
-                        print(f"✅ Boletos Mercado Pago cancelados: {mercadopago_deleted_payments}")
-        except Exception as e:
-            print(f"⚠️ Erro ao cancelar boletos Mercado Pago: {e}")
+            print(f"⚠️ Erro ao remover dados de pagamentos: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         
         # 4. Remover a loja (operação principal; signal pre_delete limpa schema e tabelas default)
         try:

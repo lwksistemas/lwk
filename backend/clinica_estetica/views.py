@@ -361,19 +361,26 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
         queryset = queryset.filter(loja_id=loja_id).select_related('profissional')
         
         params = getattr(self.request, "query_params", self.request.GET)
-        data_inicio = params.get('data_inicio')
-        data_fim = params.get('data_fim')
+        data_inicio_str = params.get('data_inicio')
+        data_fim_str = params.get('data_fim')
         profissional_id = params.get('profissional_id')
 
         # Apenas bloqueios ativos
         queryset = queryset.filter(is_active=True)
         
-        if data_inicio and data_fim:
-            queryset = queryset.filter(
-                data_inicio__lte=data_fim,
-                data_fim__gte=data_inicio
-            )
-            logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro de data: {data_inicio} a {data_fim}")
+        if data_inicio_str and data_fim_str:
+            from datetime import datetime
+            try:
+                data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
+                data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                data_inicio = data_fim = None
+            if data_inicio is not None and data_fim is not None:
+                queryset = queryset.filter(
+                    data_inicio__lte=data_fim,
+                    data_fim__gte=data_inicio
+                )
+                logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro de data: {data_inicio} a {data_fim}")
 
         # Se filtrar por profissional, incluir bloqueios do profissional E bloqueios globais (profissional null)
         if profissional_id:
@@ -386,13 +393,18 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
         count = queryset.count()
         logger.info(f"✅ [BloqueioAgendaViewSet] Retornando {count} bloqueios para loja_id={loja_id}")
         
-        # Se count é 0, fazer query direta para verificar se bloqueios existem
-        if count == 0:
-            from django.db import connection
-            with connection.cursor() as cursor:
-                cursor.execute(f"SELECT COUNT(*) FROM clinica_bloqueios_agenda WHERE loja_id = {loja_id}")
+        # Aviso só quando não há filtro de data: 0 resultados pode indicar problema de tenant/DB
+        if count == 0 and not (data_inicio_str and data_fim_str):
+            from django.db import connection, connections
+            conn = connections[tenant_db] if (tenant_db and tenant_db != 'default') else connection
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM clinica_bloqueios_agenda WHERE loja_id = %s", [loja_id])
                 total_bloqueios = cursor.fetchone()[0]
-                logger.warning(f"⚠️ [BloqueioAgendaViewSet] Query retornou 0, mas existem {total_bloqueios} bloqueios no banco para loja_id={loja_id}")
+                if total_bloqueios > 0:
+                    logger.warning(
+                        "⚠️ [BloqueioAgendaViewSet] Query retornou 0, mas existem %s bloqueios no banco para loja_id=%s (verifique tenant/DB)",
+                        total_bloqueios, loja_id
+                    )
         
         return queryset
     

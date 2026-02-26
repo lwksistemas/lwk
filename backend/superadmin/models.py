@@ -207,6 +207,27 @@ class Loja(models.Model):
     blocked_reason = models.CharField(max_length=255, blank=True, help_text='Motivo do bloqueio')
     days_overdue = models.IntegerField(default=0, help_text='Dias em atraso')
     
+    # ✅ NOVO v738: Monitoramento de Storage
+    storage_usado_mb = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0,
+        help_text='Espaço em disco usado pela loja (em MB)'
+    )
+    storage_limite_mb = models.IntegerField(
+        default=500,
+        help_text='Limite de storage da loja (em MB) - baseado no plano'
+    )
+    storage_alerta_enviado = models.BooleanField(
+        default=False,
+        help_text='Indica se alerta de 80% já foi enviado'
+    )
+    storage_ultima_verificacao = models.DateTimeField(
+        null=True, 
+        blank=True,
+        help_text='Data da última verificação de storage'
+    )
+    
     # Datas
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -224,6 +245,7 @@ class Loja(models.Model):
             models.Index(fields=['owner', 'is_active'], name='loja_owner_active_idx'),
             models.Index(fields=['database_name'], name='loja_db_name_idx'),
             models.Index(fields=['is_trial', 'trial_ends_at'], name='loja_trial_idx'),
+            models.Index(fields=['storage_ultima_verificacao'], name='loja_storage_check_idx'),  # ✅ NOVO v738
         ]
     
     def _get_slug_suffix_from_cpf_cnpj(self):
@@ -301,10 +323,43 @@ class Loja(models.Model):
         if not self.cor_secundaria and self.tipo_loja:
             self.cor_secundaria = self.tipo_loja.cor_secundaria
         
+        # ✅ NOVO v738: Definir limite de storage baseado no plano
+        if self.plano and self.storage_limite_mb == 500:  # Valor padrão
+            self.storage_limite_mb = self.plano.espaco_storage_gb * 1024
+        
         # Executar validações antes de salvar
         self.full_clean()
         
         super().save(*args, **kwargs)
+    
+    def get_storage_percentual(self):
+        """
+        Retorna o percentual de uso de storage.
+        
+        Returns:
+            float: Percentual de uso (0-100)
+        """
+        if self.storage_limite_mb == 0:
+            return 0
+        return (float(self.storage_usado_mb) / self.storage_limite_mb) * 100
+    
+    def is_storage_critical(self):
+        """
+        Verifica se o storage está em nível crítico (>= 80%).
+        
+        Returns:
+            bool: True se >= 80%, False caso contrário
+        """
+        return self.get_storage_percentual() >= 80
+    
+    def is_storage_full(self):
+        """
+        Verifica se o storage está cheio (>= 100%).
+        
+        Returns:
+            bool: True se >= 100%, False caso contrário
+        """
+        return self.get_storage_percentual() >= 100
     
     def __str__(self):
         return f"{self.nome} ({self.plano.nome})"

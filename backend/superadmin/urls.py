@@ -7,6 +7,7 @@ from .views import (
     EmailRetryViewSet,
     recuperar_senha_loja, mercadopago_config, mercadopago_test, mercadopago_webhook,
     sync_mercadopago_loja,
+    verificar_storage_loja, listar_storage_lojas,  # ✅ NOVO v738
 )
 from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
@@ -46,5 +47,10 @@ urlpatterns = [
     path('mercadopago-config/test/', mercadopago_test, name='mercadopago-config-test'),
     path('mercadopago-webhook/', mercadopago_webhook, name='mercadopago-webhook'),
     path('sync-mercadopago/', sync_mercadopago_loja, name='sync-mercadopago'),
+    
+    # ✅ NOVO v738: Rotas de monitoramento de storage
+    path('lojas/<int:loja_id>/verificar-storage/', verificar_storage_loja, name='verificar-storage-loja'),
+    path('storage/', listar_storage_lojas, name='listar-storage-lojas'),
+    
     path('', include(router.urls)),
 ]

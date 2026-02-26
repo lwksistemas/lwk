@@ -2671,3 +2671,135 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
             'erros': falhas,  # frontend usa "erros"
             'taxa_sucesso': round(taxa_sucesso, 2)
         })
+
+
+# ✅ NOVO v738: Endpoint para verificação de storage
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verificar_storage_loja(request, loja_id):
+    """
+    Verifica storage de uma loja específica (manual).
+    
+    Endpoint: POST /api/superadmin/lojas/{loja_id}/verificar-storage/
+    
+    Apenas superadmin pode executar.
+    """
+    if not request.user.is_superuser:
+        return Response(
+            {'error': 'Apenas superadmin pode verificar storage'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        loja = Loja.objects.get(id=loja_id)
+        
+        # Executar comando de verificação para esta loja específica
+        from django.core.management import call_command
+        from io import StringIO
+        
+        out = StringIO()
+        call_command('verificar_storage_lojas', loja_id=loja_id, stdout=out)
+        
+        # Recarregar dados atualizados
+        loja.refresh_from_db()
+        
+        return Response({
+            'success': True,
+            'loja': {
+                'id': loja.id,
+                'nome': loja.nome,
+                'slug': loja.slug,
+            },
+            'storage': {
+                'usado_mb': float(loja.storage_usado_mb),
+                'limite_mb': loja.storage_limite_mb,
+                'percentual': loja.get_storage_percentual(),
+                'is_critical': loja.is_storage_critical(),
+                'is_full': loja.is_storage_full(),
+            },
+            'alerta_enviado': loja.storage_alerta_enviado,
+            'ultima_verificacao': loja.storage_ultima_verificacao.isoformat() if loja.storage_ultima_verificacao else None,
+            'output': out.getvalue()
+        })
+    
+    except Loja.DoesNotExist:
+        return Response(
+            {'error': 'Loja não encontrada'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f'Erro ao verificar storage da loja {loja_id}: {e}', exc_info=True)
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listar_storage_lojas(request):
+    """
+    Lista uso de storage de todas as lojas.
+    
+    Endpoint: GET /api/superadmin/storage/
+    
+    Apenas superadmin pode acessar.
+    """
+    if not request.user.is_superuser:
+        return Response(
+            {'error': 'Apenas superadmin pode acessar'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        lojas = Loja.objects.filter(is_active=True).select_related('plano', 'owner')
+        
+        dados = []
+        for loja in lojas:
+            dados.append({
+                'id': loja.id,
+                'nome': loja.nome,
+                'slug': loja.slug,
+                'owner': {
+                    'nome': loja.owner.get_full_name() or loja.owner.username,
+                    'email': loja.owner.email,
+                },
+                'plano': {
+                    'nome': loja.plano.nome,
+                    'limite_gb': loja.plano.espaco_storage_gb,
+                },
+                'storage': {
+                    'usado_mb': float(loja.storage_usado_mb),
+                    'limite_mb': loja.storage_limite_mb,
+                    'percentual': loja.get_storage_percentual(),
+                    'is_critical': loja.is_storage_critical(),
+                    'is_full': loja.is_storage_full(),
+                },
+                'alerta_enviado': loja.storage_alerta_enviado,
+                'ultima_verificacao': loja.storage_ultima_verificacao.isoformat() if loja.storage_ultima_verificacao else None,
+                'is_blocked': loja.is_blocked,
+            })
+        
+        # Ordenar por percentual (maior primeiro)
+        dados.sort(key=lambda x: x['storage']['percentual'], reverse=True)
+        
+        # Estatísticas
+        total_lojas = len(dados)
+        lojas_criticas = sum(1 for d in dados if d['storage']['is_critical'])
+        lojas_cheias = sum(1 for d in dados if d['storage']['is_full'])
+        
+        return Response({
+            'lojas': dados,
+            'estatisticas': {
+                'total_lojas': total_lojas,
+                'lojas_criticas': lojas_criticas,
+                'lojas_cheias': lojas_cheias,
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f'Erro ao listar storage das lojas: {e}', exc_info=True)
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

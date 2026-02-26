@@ -259,8 +259,9 @@ export default function MonitoramentoStoragePage() {
 
         {/* Lista de Lojas */}
         {lojas.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
@@ -358,7 +359,7 @@ export default function MonitoramentoStoragePage() {
               <p className="text-gray-500">Nenhuma loja encontrada com os filtros selecionados</p>
             </div>
           )}
-        </div>
+          </div>
         )}
 
         {/* Informações */}

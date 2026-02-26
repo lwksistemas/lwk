@@ -83,6 +83,18 @@ export default function GerenciarLojasPage() {
     owner_username: string;
     owner_email: string;
     owner_telefone?: string;
+    // ✅ NOVO v743: Campos do monitoramento de storage
+    storage_usado_mb?: number;
+    storage_limite_mb?: number;
+    storage_livre_mb?: number;
+    storage_livre_gb?: number;
+    storage_percentual?: number;
+    storage_status?: string;
+    storage_status_texto?: string;
+    storage_alerta_enviado?: boolean;
+    storage_ultima_verificacao?: string | null;
+    storage_horas_desde_verificacao?: number | null;
+    plano_nome?: string;
   } | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(false);
 

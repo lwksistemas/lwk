@@ -32,8 +32,14 @@ export default function MonitoramentoStoragePage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
-    const user = authService.getUser();
-    if (!user || !user.is_superuser) {
+    // Verificar autenticação
+    if (!authService.isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+
+    const userType = authService.getUserType();
+    if (userType !== 'superadmin') {
       router.push('/login');
       return;
     }

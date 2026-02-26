@@ -2764,64 +2764,67 @@ def verificar_storage_loja(request, loja_id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@permission_classes([IsSuperAdmin])
 def listar_storage_lojas(request):
     """
     Lista uso de storage de todas as lojas.
+    
+    ✅ ATUALIZADO v743: Retorna dados formatados para dashboard de monitoramento
     
     Endpoint: GET /api/superadmin/storage/
     
     Apenas superadmin pode acessar.
     """
-    if not request.user.is_superuser:
-        return Response(
-            {'error': 'Apenas superadmin pode acessar'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
     try:
-        lojas = Loja.objects.filter(is_active=True).select_related('plano', 'owner')
+        from django.utils import timezone
+        
+        lojas = Loja.objects.all().select_related('plano', 'owner')
         
         dados = []
         for loja in lojas:
+            # Calcular horas desde última verificação
+            horas_desde_verificacao = None
+            if loja.storage_ultima_verificacao:
+                tempo_desde = timezone.now() - loja.storage_ultima_verificacao
+                horas_desde_verificacao = int(tempo_desde.total_seconds() / 3600)
+            
+            # Determinar status
+            percentual = loja.get_storage_percentual()
+            if percentual >= 100:
+                storage_status = 'critical'
+                storage_status_texto = 'Storage cheio'
+            elif percentual >= 80:
+                storage_status = 'warning'
+                storage_status_texto = 'Atingindo o limite'
+            else:
+                storage_status = 'ok'
+                storage_status_texto = 'Normal'
+            
             dados.append({
                 'id': loja.id,
                 'nome': loja.nome,
                 'slug': loja.slug,
-                'owner': {
-                    'nome': loja.owner.get_full_name() or loja.owner.username,
-                    'email': loja.owner.email,
-                },
-                'plano': {
-                    'nome': loja.plano.nome,
-                    'limite_gb': loja.plano.espaco_storage_gb,
-                },
-                'storage': {
-                    'usado_mb': float(loja.storage_usado_mb),
-                    'limite_mb': loja.storage_limite_mb,
-                    'percentual': loja.get_storage_percentual(),
-                    'is_critical': loja.is_storage_critical(),
-                    'is_full': loja.is_storage_full(),
-                },
-                'alerta_enviado': loja.storage_alerta_enviado,
-                'ultima_verificacao': loja.storage_ultima_verificacao.isoformat() if loja.storage_ultima_verificacao else None,
+                'storage_usado_mb': float(loja.storage_usado_mb) if loja.storage_usado_mb else 0.0,
+                'storage_limite_mb': loja.storage_limite_mb if loja.storage_limite_mb else (loja.plano.espaco_storage_gb * 1024 if loja.plano else 5120),
+                'storage_livre_mb': (loja.storage_limite_mb if loja.storage_limite_mb else 5120) - (float(loja.storage_usado_mb) if loja.storage_usado_mb else 0.0),
+                'storage_percentual': percentual,
+                'storage_status': storage_status,
+                'storage_status_texto': storage_status_texto,
+                'storage_alerta_enviado': loja.storage_alerta_enviado,
+                'storage_ultima_verificacao': loja.storage_ultima_verificacao.isoformat() if loja.storage_ultima_verificacao else None,
+                'storage_horas_desde_verificacao': horas_desde_verificacao,
+                'plano_nome': loja.plano.nome if loja.plano else 'Sem plano',
+                'is_active': loja.is_active,
                 'is_blocked': loja.is_blocked,
             })
         
         # Ordenar por percentual (maior primeiro)
-        dados.sort(key=lambda x: x['storage']['percentual'], reverse=True)
-        
-        # Estatísticas
-        total_lojas = len(dados)
-        lojas_criticas = sum(1 for d in dados if d['storage']['is_critical'])
-        lojas_cheias = sum(1 for d in dados if d['storage']['is_full'])
+        dados.sort(key=lambda x: x['storage_percentual'], reverse=True)
         
         return Response({
             'lojas': dados,
-            'estatisticas': {
-                'total_lojas': total_lojas,
-                'lojas_criticas': lojas_criticas,
-                'lojas_cheias': lojas_cheias,
-            }
+            'total': len(dados),
         })
     
     except Exception as e:

@@ -96,6 +96,13 @@ const MENU_CARDS: MenuCardProps[] = [
     href: '/superadmin/dashboard/alertas',
     color: 'red',
   },
+  {
+    title: 'Monitoramento de Storage',
+    description: 'Acompanhar crescimento do banco de todas as lojas em tempo real',
+    icon: '💾',
+    href: '/superadmin/dashboard/storage',
+    color: 'purple',
+  },
 ];
 
 // Configuração das cores - DRY (Don't Repeat Yourself)

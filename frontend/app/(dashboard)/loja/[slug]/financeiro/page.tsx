@@ -96,8 +96,34 @@ export default function FinanceiroLojaPage() {
     carregarDados()
   }, [carregarDados])
 
-  const baixarBoleto = async (pagamentoId: number) => {
+  const baixarBoleto = async (pagamentoId: number, mercadopagoPaymentId?: string, provedor?: string) => {
     try {
+      // Se for Mercado Pago e tiver o payment_id, usar endpoint direto
+      if (provedor === 'mercadopago' && mercadopagoPaymentId) {
+        // Buscar URL do boleto diretamente da API do Mercado Pago via backend
+        const response = await fetch(`${API_BASE_URL}/api/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`, {
+          headers: {
+            'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
+          }
+        })
+        if (!response.ok) {
+          alert('Erro ao abrir boleto')
+          return
+        }
+        const data = await response.json() as { boleto_url?: string; provedor?: string; error?: string }
+        if (data.error) {
+          alert(data.error)
+          return
+        }
+        if (data.boleto_url) {
+          window.open(data.boleto_url, '_blank', 'noopener,noreferrer')
+          return
+        }
+        alert('Link do boleto não disponível')
+        return
+      }
+      
+      // Fluxo normal para Asaas
       const response = await fetch(`${API_BASE_URL}/api/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`, {
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
@@ -327,7 +353,11 @@ export default function FinanceiroLojaPage() {
                 
                 {data.proximo_pagamento.asaas_payment_id && (
                   <Button 
-                    onClick={() => baixarBoleto(data.proximo_pagamento.id)}
+                    onClick={() => baixarBoleto(
+                      data.proximo_pagamento.id,
+                      data.proximo_pagamento.mercadopago_payment_id,
+                      data.proximo_pagamento.provedor_boleto || 'asaas'
+                    )}
                     className="text-xs sm:text-sm min-h-[40px] w-full sm:w-auto"
                   >
                     <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
@@ -441,7 +471,11 @@ export default function FinanceiroLojaPage() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => baixarBoleto(pagamento.id)}
+                          onClick={() => baixarBoleto(
+                            pagamento.id,
+                            pagamento.mercadopago_payment_id,
+                            pagamento.provedor_boleto || 'asaas'
+                          )}
                           className="min-h-[36px] flex-1 sm:flex-none"
                         >
                           <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
@@ -471,7 +505,11 @@ export default function FinanceiroLojaPage() {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => baixarBoleto(pagamento.id)}
+                      onClick={() => baixarBoleto(
+                        pagamento.id,
+                        pagamento.mercadopago_payment_id,
+                        pagamento.provedor_boleto || 'asaas'
+                      )}
                       className="min-h-[36px]"
                     >
                       <Download className="w-3 h-3 sm:w-4 sm:h-4" />

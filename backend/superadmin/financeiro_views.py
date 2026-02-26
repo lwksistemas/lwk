@@ -446,6 +446,8 @@ def dashboard_financeiro_loja(request, loja_slug):
                 historico_pagamentos.append({
                     'id': pag.id,
                     'asaas_id': pag.asaas_id,
+                    'mercadopago_payment_id': '',  # ✅ NOVO v736: Vazio para Asaas
+                    'provedor_boleto': 'asaas',  # ✅ NOVO v736: Identificar provedor
                     'valor': float(pag.value),
                     'status': pag.status,
                     'status_display': status_display,
@@ -464,20 +466,38 @@ def dashboard_financeiro_loja(request, loja_slug):
 
     # Se for loja só Mercado Pago e tiver boleto, incluir cobrança atual no histórico para aparecer no dashboard
     if not historico_pagamentos and boleto_url and getattr(financeiro, 'provedor_boleto', '') == 'mercadopago':
+        # Buscar PagamentoLoja correspondente (pendente ou mais recente)
+        pagamento_mp = PagamentoLoja.objects.filter(
+            loja=loja,
+            financeiro=financeiro,
+            provedor_boleto='mercadopago'
+        ).order_by('-data_vencimento').first()
+        
+        # Se não existir PagamentoLoja, criar um temporário para o histórico
+        if not pagamento_mp:
+            logger.warning(f"⚠️ PagamentoLoja não encontrado para loja MP {loja.nome}, criando entrada temporária")
+            pagamento_id = 0  # ID temporário, frontend não conseguirá baixar boleto
+        else:
+            pagamento_id = pagamento_mp.id
+        
         historico_pagamentos.append({
-            'id': getattr(financeiro, 'id', 0),
+            'id': pagamento_id,
             'asaas_id': getattr(financeiro, 'mercadopago_payment_id', '') or '',
+            'mercadopago_payment_id': getattr(financeiro, 'mercadopago_payment_id', '') or '',  # ✅ NOVO v736: ID do MP
+            'provedor_boleto': 'mercadopago',  # ✅ NOVO v736: Identificar provedor
             'valor': float(financeiro.valor_mensalidade),
             'status': 'PENDING',
             'status_display': 'Aguardando pagamento',
             'data_vencimento': financeiro.data_proxima_cobranca.strftime('%Y-%m-%d') if financeiro.data_proxima_cobranca else None,
             'data_pagamento': None,
             'boleto_url': boleto_url,
+            'pix_copy_paste': pix_copy_paste or '',  # ✅ NOVO v736: Incluir PIX
+            'pix_qr_code': pix_qr_code or '',  # ✅ NOVO v736: Incluir QR Code
             'is_paid': False,
             'is_pending': True,
             'is_overdue': False,
         })
-        logger.info(f"✅ Histórico MP: 1 cobrança atual incluída para {loja.nome}")
+        logger.info(f"✅ Histórico MP: 1 cobrança atual incluída para {loja.nome} (PagamentoLoja ID: {pagamento_id})")
 
     # Fallback: se for Mercado Pago e não tiver PIX dinâmico, usar chave PIX estática da config
     if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and not (pix_copy_paste or '').strip():

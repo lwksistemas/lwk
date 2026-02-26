@@ -63,14 +63,19 @@ export default function MonitoramentoStoragePage() {
     try {
       if (!silent) setLoading(true);
       
+      console.log('🔍 Carregando storage das lojas...');
       const response = await apiClient.get('/api/superadmin/storage/');
+      console.log('✅ Resposta recebida:', response.data);
       
       if (response.data) {
-        setLojas(response.data.lojas || []);
+        const lojasData = response.data.lojas || [];
+        console.log(`📊 Total de lojas: ${lojasData.length}`);
+        setLojas(lojasData);
         setError('');
       }
     } catch (err: any) {
-      console.error('Erro ao carregar storage:', err);
+      console.error('❌ Erro ao carregar storage:', err);
+      console.error('Detalhes:', err.response?.data);
       if (!silent) {
         setError(err.response?.data?.error || 'Erro ao carregar dados de storage');
       }
@@ -221,8 +226,39 @@ export default function MonitoramentoStoragePage() {
           </div>
         </div>
 
+        {/* Mensagem quando não há lojas */}
+        {!loading && lojas.length === 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-medium text-yellow-900 mb-2">⚠️ Nenhuma loja encontrada</h3>
+            <p className="text-yellow-800 mb-4">
+              O sistema não encontrou nenhuma loja cadastrada ou houve um erro ao carregar os dados.
+            </p>
+            <div className="space-y-2 text-sm text-yellow-700">
+              <p>Possíveis causas:</p>
+              <ul className="list-disc list-inside ml-4">
+                <li>Nenhuma loja foi cadastrada ainda</li>
+                <li>Erro de autenticação (token expirado)</li>
+                <li>Erro no servidor ao buscar os dados</li>
+              </ul>
+            </div>
+            <button
+              onClick={() => carregarLojas()}
+              className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+            >
+              🔄 Tentar Novamente
+            </button>
+          </div>
+        )}
+
+        {/* Mensagem de erro */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-800">❌ {error}</p>
+          </div>
+        )}
+
         {/* Lista de Lojas */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        {lojas.length > 0 && (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -323,6 +359,9 @@ export default function MonitoramentoStoragePage() {
             </div>
           )}
         </div>
+
+        {/* Fechar div do lojas.length > 0 */}
+        )}
 
         {/* Informações */}
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">

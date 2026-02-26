@@ -359,8 +359,6 @@ export default function MonitoramentoStoragePage() {
             </div>
           )}
         </div>
-
-        {/* Fechar div do lojas.length > 0 */}
         )}
 
         {/* Informações */}

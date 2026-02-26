@@ -64,7 +64,7 @@ export default function MonitoramentoStoragePage() {
       if (!silent) setLoading(true);
       
       console.log('🔍 Carregando storage das lojas...');
-      const response = await apiClient.get('/api/superadmin/storage/');
+      const response = await apiClient.get('/superadmin/storage/');
       console.log('✅ Resposta recebida:', response.data);
       
       if (response.data) {
@@ -86,7 +86,7 @@ export default function MonitoramentoStoragePage() {
 
   const verificarLoja = async (lojaId: number) => {
     try {
-      await apiClient.post(`/api/superadmin/lojas/${lojaId}/verificar-storage/`);
+      await apiClient.post(`/superadmin/lojas/${lojaId}/verificar-storage/`);
       carregarLojas(true);
     } catch (err: any) {
       console.error('Erro ao verificar storage:', err);

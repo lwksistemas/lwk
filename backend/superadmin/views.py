@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated  # ✅ NOVO v738
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.conf import settings

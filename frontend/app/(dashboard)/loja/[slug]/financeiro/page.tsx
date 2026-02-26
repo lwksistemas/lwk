@@ -467,7 +467,7 @@ export default function FinanceiroLojaPage() {
                   {/* Botões de ação para pagamentos pendentes */}
                   {pagamento.status.toLowerCase() === 'pendente' && (
                     <div className="flex gap-2 w-full sm:w-auto">
-                      {pagamento.asaas_payment_id && (
+                      {(pagamento.asaas_payment_id || pagamento.mercadopago_payment_id) && (
                         <Button 
                           variant="outline" 
                           size="sm"
@@ -479,7 +479,7 @@ export default function FinanceiroLojaPage() {
                           className="min-h-[36px] flex-1 sm:flex-none"
                         >
                           <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                          <span className="text-xs">Boleto</span>
+                          <span className="text-xs">Ver Boleto</span>
                         </Button>
                       )}
                       
@@ -501,7 +501,7 @@ export default function FinanceiroLojaPage() {
                   )}
                   
                   {/* Botão de download para pagamentos pagos */}
-                  {pagamento.status.toLowerCase() === 'pago' && pagamento.asaas_payment_id && (
+                  {pagamento.status.toLowerCase() === 'pago' && (pagamento.asaas_payment_id || pagamento.mercadopago_payment_id) && (
                     <Button 
                       variant="outline" 
                       size="sm"

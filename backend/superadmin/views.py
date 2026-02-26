@@ -763,43 +763,69 @@ Sistema Multi-Loja
 
     @action(detail=True, methods=['get'])
     def info_loja(self, request, pk=None):
-        """Retorna informações da loja para o superadmin: tamanho do banco, espaço livre, senha, página de login."""
-        import os
+        """
+        Retorna informações da loja para o superadmin: tamanho do banco, espaço livre, senha, página de login.
+        
+        ✅ ATUALIZADO v742: Usa dados reais do sistema de monitoramento de storage
+        """
         loja = self.get_object()
-        tamanho_banco_mb = None
-        tamanho_banco_motivo = None
-        if not loja.database_created or not loja.database_name:
-            tamanho_banco_motivo = 'Banco isolado não criado para esta loja (dados no banco principal).'
+        
+        # ✅ NOVO v742: Usar dados reais do monitoramento de storage
+        storage_usado_mb = float(loja.storage_usado_mb) if loja.storage_usado_mb else 0.0
+        storage_limite_mb = loja.storage_limite_mb if loja.storage_limite_mb else (loja.plano.espaco_storage_gb * 1024 if loja.plano else 5120)
+        storage_percentual = loja.get_storage_percentual()
+        storage_livre_mb = storage_limite_mb - storage_usado_mb
+        storage_livre_gb = round(storage_livre_mb / 1024, 2)
+        
+        # Informações sobre última verificação
+        ultima_verificacao = loja.storage_ultima_verificacao
+        if ultima_verificacao:
+            from django.utils import timezone
+            tempo_desde_verificacao = timezone.now() - ultima_verificacao
+            horas_desde_verificacao = int(tempo_desde_verificacao.total_seconds() / 3600)
         else:
-            db_path = settings.BASE_DIR / f'db_{loja.database_name}.sqlite3'
-            if db_path.exists():
-                try:
-                    tamanho_banco_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
-                except OSError:
-                    tamanho_banco_motivo = 'Não foi possível ler o tamanho do arquivo.'
-            else:
-                tamanho_banco_motivo = 'Tamanho exato indisponível (disco efêmero no servidor).'
-        # Quando não há tamanho real, usar estimativa padrão (512 MB) para exibição e cálculo de espaço livre
-        tamanho_banco_estimativa_mb = self.TAMANHO_BANCO_ESTIMATIVA_MB
-        espaco_plano_gb = loja.plano.espaco_storage_gb if loja.plano else None
-        espaco_livre_gb = None
-        if espaco_plano_gb is not None:
-            uso_mb = tamanho_banco_mb if tamanho_banco_mb is not None else tamanho_banco_estimativa_mb
-            espaco_livre_gb = round(espaco_plano_gb - (uso_mb / 1024), 2)
+            horas_desde_verificacao = None
+        
+        # Status do storage
+        if storage_percentual >= 100:
+            storage_status = 'critical'  # Cheio
+            storage_status_texto = 'Storage cheio'
+        elif storage_percentual >= 80:
+            storage_status = 'warning'  # Alerta
+            storage_status_texto = 'Atingindo o limite'
+        else:
+            storage_status = 'ok'  # Normal
+            storage_status_texto = 'Normal'
+        
         return Response({
             'id': loja.id,
             'nome': loja.nome,
             'slug': loja.slug,
-            'tamanho_banco_mb': tamanho_banco_mb,
-            'tamanho_banco_estimativa_mb': tamanho_banco_estimativa_mb,
-            'tamanho_banco_motivo': tamanho_banco_motivo,
-            'database_created': loja.database_created,
-            'espaco_plano_gb': espaco_plano_gb,
-            'espaco_livre_gb': espaco_livre_gb,
+            # ✅ NOVO v742: Dados reais do monitoramento
+            'storage_usado_mb': storage_usado_mb,
+            'storage_limite_mb': storage_limite_mb,
+            'storage_livre_mb': storage_livre_mb,
+            'storage_livre_gb': storage_livre_gb,
+            'storage_percentual': storage_percentual,
+            'storage_status': storage_status,
+            'storage_status_texto': storage_status_texto,
+            'storage_alerta_enviado': loja.storage_alerta_enviado,
+            'storage_ultima_verificacao': ultima_verificacao.isoformat() if ultima_verificacao else None,
+            'storage_horas_desde_verificacao': horas_desde_verificacao,
+            # Dados do plano
+            'espaco_plano_gb': loja.plano.espaco_storage_gb if loja.plano else 5,
+            'plano_nome': loja.plano.nome if loja.plano else 'Sem plano',
+            # Dados de acesso
             'senha_provisoria': loja.senha_provisoria or '',
             'login_page_url': loja.login_page_url or '',
             'owner_username': loja.owner.username,
             'owner_email': loja.owner.email,
+            # Dados legados (compatibilidade)
+            'database_created': loja.database_created,
+            'tamanho_banco_mb': storage_usado_mb,  # Compatibilidade
+            'tamanho_banco_estimativa_mb': self.TAMANHO_BANCO_ESTIMATIVA_MB,
+            'tamanho_banco_motivo': 'Dados reais do monitoramento de storage PostgreSQL',
+            'espaco_livre_gb': storage_livre_gb,  # Compatibilidade
         })
     
     @action(detail=False, methods=['get'])

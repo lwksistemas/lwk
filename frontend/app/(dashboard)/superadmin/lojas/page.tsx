@@ -409,27 +409,71 @@ export default function GerenciarLojasPage() {
                     <span className="font-semibold text-gray-500 block mb-1">Loja</span>
                     <p className="font-medium text-gray-900">{lojaInfo.nome}</p>
                   </div>
+                  {/* ✅ ATUALIZADO v742: Exibir dados reais do monitoramento de storage */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <span className="font-semibold text-gray-500 block mb-1">Tamanho do banco</span>
+                      <span className="font-semibold text-gray-500 block mb-1">Storage usado</span>
                       <p className="text-gray-900">
-                        {lojaInfo.tamanho_banco_mb != null
-                          ? `${lojaInfo.tamanho_banco_mb} MB`
-                          : `~${lojaInfo.tamanho_banco_estimativa_mb} MB (estimativa do plano)`}
+                        {lojaInfo.storage_usado_mb != null
+                          ? `${lojaInfo.storage_usado_mb.toFixed(2)} MB`
+                          : '0.00 MB'}
                       </p>
-                      {lojaInfo.tamanho_banco_motivo && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {lojaInfo.tamanho_banco_motivo}
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {lojaInfo.storage_percentual != null
+                          ? `${lojaInfo.storage_percentual.toFixed(1)}% do limite`
+                          : 'Aguardando verificação'}
+                      </p>
                     </div>
                     <div>
-                      <span className="font-semibold text-gray-500 block mb-1">Espaço livre</span>
+                      <span className="font-semibold text-gray-500 block mb-1">Storage disponível</span>
                       <p className="text-gray-900">
-                        {lojaInfo.espaco_livre_gb != null ? `${lojaInfo.espaco_livre_gb} GB` : lojaInfo.espaco_plano_gb != null ? `${lojaInfo.espaco_plano_gb} GB (plano)` : '—'}
+                        {lojaInfo.storage_livre_gb != null 
+                          ? `${lojaInfo.storage_livre_gb} GB` 
+                          : lojaInfo.espaco_plano_gb != null 
+                          ? `${lojaInfo.espaco_plano_gb} GB (plano)` 
+                          : '—'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Limite: {lojaInfo.storage_limite_mb != null 
+                          ? `${(lojaInfo.storage_limite_mb / 1024).toFixed(0)} GB` 
+                          : '5 GB'}
                       </p>
                     </div>
                   </div>
+                  
+                  {/* ✅ NOVO v742: Status do storage com cores */}
+                  {lojaInfo.storage_status && (
+                    <div className={`p-3 rounded-lg ${
+                      lojaInfo.storage_status === 'critical' 
+                        ? 'bg-red-50 border border-red-200' 
+                        : lojaInfo.storage_status === 'warning'
+                        ? 'bg-yellow-50 border border-yellow-200'
+                        : 'bg-green-50 border border-green-200'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${
+                          lojaInfo.storage_status === 'critical'
+                            ? 'text-red-700'
+                            : lojaInfo.storage_status === 'warning'
+                            ? 'text-yellow-700'
+                            : 'text-green-700'
+                        }`}>
+                          {lojaInfo.storage_status === 'critical' && '🚫'}
+                          {lojaInfo.storage_status === 'warning' && '⚠️'}
+                          {lojaInfo.storage_status === 'ok' && '✅'}
+                          {' '}
+                          {lojaInfo.storage_status_texto}
+                        </span>
+                      </div>
+                      {lojaInfo.storage_ultima_verificacao && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          Última verificação: {lojaInfo.storage_horas_desde_verificacao != null 
+                            ? `há ${lojaInfo.storage_horas_desde_verificacao}h` 
+                            : 'recente'}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <span className="font-semibold text-gray-500 block mb-1">Senha de acesso</span>
                     <p className="text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded break-all">

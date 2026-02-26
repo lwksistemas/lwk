@@ -452,6 +452,8 @@ def dashboard_financeiro_loja(request, loja_slug):
                     'data_vencimento': pag.due_date.strftime('%Y-%m-%d') if pag.due_date else None,
                     'data_pagamento': pag.payment_date.strftime('%Y-%m-%d') if pag.payment_date else None,
                     'boleto_url': pag.bank_slip_url or pag.invoice_url,
+                    'pix_copy_paste': pag.pix_copy_paste or '',  # ✅ NOVO v735: Incluir PIX no histórico
+                    'pix_qr_code': pag.pix_qr_code or '',  # ✅ NOVO v735: Incluir QR Code no histórico
                     'is_paid': pag.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'],
                     'is_pending': pag.status == 'PENDING',
                     'is_overdue': pag.status == 'OVERDUE'

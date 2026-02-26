@@ -952,6 +952,8 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
     
     ✅ MODIFICAÇÃO v729: Cancelar automaticamente a transação não paga (boleto ou PIX).
     Quando PIX é pago, cancela o boleto. Quando boleto é pago, cancela o PIX.
+    
+    ✅ MODIFICAÇÃO v735: Criar automaticamente o próximo boleto após pagamento confirmado.
     """
     from calendar import monthrange
     financeiro.status_pagamento = 'ativo'
@@ -1007,3 +1009,20 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
     
     except Exception as e:
         logger.warning(f"Erro ao cancelar transação não paga para loja {loja.slug}: {e}")
+    
+    # ✅ NOVO v735: Criar próximo boleto automaticamente
+    try:
+        from .cobranca_service import CobrancaService
+        
+        logger.info(f"Criando próximo boleto para loja {loja.slug} (vencimento: {financeiro.data_proxima_cobranca})")
+        
+        service = CobrancaService()
+        result = service.renovar_cobranca(loja, financeiro, dia_vencimento)
+        
+        if result.get('success'):
+            logger.info(f"✅ Próximo boleto criado para loja {loja.slug}: {result.get('payment_id')}")
+        else:
+            logger.warning(f"⚠️ Erro ao criar próximo boleto para loja {loja.slug}: {result.get('error')}")
+    
+    except Exception as e:
+        logger.warning(f"Erro ao criar próximo boleto para loja {loja.slug}: {e}")

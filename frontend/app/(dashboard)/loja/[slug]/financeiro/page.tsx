@@ -414,25 +414,60 @@ export default function FinanceiroLojaPage() {
       {/* Histórico de Pagamentos */}
       <Card>
         <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg">Histórico de Pagamentos</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Histórico de Pagamentos ({data.pagamentos_recentes.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
           <div className="space-y-3 sm:space-y-4">
             {data.pagamentos_recentes.map((pagamento) => (
               <div key={pagamento.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded gap-3">
                 <div className="w-full sm:w-auto">
-                  <p className="font-medium text-sm sm:text-base">{formatCurrency(pagamento.valor)}</p>
+                  <p className="font-medium text-sm sm:text-base">#{pagamento.id}</p>
+                  <p className="text-lg sm:text-xl font-bold">{formatCurrency(pagamento.valor)}</p>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    {formatDate(pagamento.referencia_mes)} - Venc: {formatDate(pagamento.data_vencimento)}
+                    Vencimento: {formatDate(pagamento.data_vencimento)}
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
                   <Badge variant={getStatusColor(pagamento.status)} className="text-xs">
+                    {getStatusIcon(pagamento.status)}
                     {pagamento.status}
                   </Badge>
                   
-                  {pagamento.asaas_payment_id && (
+                  {/* Botões de ação para pagamentos pendentes */}
+                  {pagamento.status.toLowerCase() === 'pendente' && (
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      {pagamento.asaas_payment_id && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => baixarBoleto(pagamento.id)}
+                          className="min-h-[36px] flex-1 sm:flex-none"
+                        >
+                          <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                          <span className="text-xs">Boleto</span>
+                        </Button>
+                      )}
+                      
+                      {pagamento.pix_copy_paste && (
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(pagamento.pix_copy_paste)
+                            alert('Código PIX copiado!')
+                          }}
+                          className="min-h-[36px] flex-1 sm:flex-none"
+                        >
+                          <QrCode className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                          <span className="text-xs">Pagar com PIX</span>
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Botão de download para pagamentos pagos */}
+                  {pagamento.status.toLowerCase() === 'pago' && pagamento.asaas_payment_id && (
                     <Button 
                       variant="outline" 
                       size="sm"

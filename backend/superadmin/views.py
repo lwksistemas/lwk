@@ -2763,8 +2763,6 @@ def verificar_storage_loja(request, loja_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
-@api_view(['GET'])
 @permission_classes([IsSuperAdmin])
 def listar_storage_lojas(request):
     """

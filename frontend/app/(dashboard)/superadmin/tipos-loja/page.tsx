@@ -109,8 +109,8 @@ export default function TiposLojaPage() {
           {loading ? (
             <div className="text-center py-12">Carregando...</div>
           ) : tipos.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <p className="text-gray-500 mb-4">Nenhum tipo de loja cadastrado ainda.</p>
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+              <p className="text-gray-500 dark:text-gray-400 mb-4">Nenhum tipo de loja cadastrado ainda.</p>
               <button
                 onClick={() => setShowModal(true)}
                 className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
@@ -123,7 +123,7 @@ export default function TiposLojaPage() {
               {Array.isArray(tipos) && tipos.map((tipo) => (
                 <div
                   key={tipo.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
                 >
                   {/* Header do Card */}
                   <div 

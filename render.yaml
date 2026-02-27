@@ -14,7 +14,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.12
       - key: ALLOWED_HOSTS
-        value: lwksistemas-backup.onrender.com,lwksistemas-38ad47519238.herokuapp.com,lwksistemas.herokuapp.com
+        value: lwksistemas-backup-2fdg.onrender.com,lwksistemas-backup.onrender.com,lwksistemas-38ad47519238.herokuapp.com,lwksistemas.herokuapp.com
       - key: ASAAS_API_KEY
         value: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjY5ZjZhMmI3LTFmZWYtNDdkMC1iMmVkLTY4NWU0NzkxMmJlZDo6$aach_86202caf-f697-49c8-b95b-bdf23c45dbd8
       - key: ASAAS_INTEGRATION_ENABLED

@@ -1,0 +1,120 @@
+═══════════════════════════════════════════════════════════════
+  🔐 VARIÁVEIS DE AMBIENTE PARA O RENDER
+═══════════════════════════════════════════════════════════════
+
+COPIE E COLE CADA VARIÁVEL NO RENDER (Environment Variables)
+
+⚠️ IMPORTANTE: Adicione a URL do Render no ALLOWED_HOSTS!
+
+────────────────────────────────────────────────────────────────
+
+Key: ALLOWED_HOSTS
+Value: lwksistemas-backup.onrender.com,lwksistemas-38ad47519238.herokuapp.com,lwksistemas.herokuapp.com
+
+────────────────────────────────────────────────────────────────
+
+Key: ASAAS_API_KEY
+Value: $aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjY5ZjZhMmI3LTFmZWYtNDdkMC1iMmVkLTY4NWU0NzkxMmJlZDo6$aach_86202caf-f697-49c8-b95b-bdf23c45dbd8
+
+────────────────────────────────────────────────────────────────
+
+Key: ASAAS_INTEGRATION_ENABLED
+Value: true
+
+────────────────────────────────────────────────────────────────
+
+Key: ASAAS_SANDBOX
+Value: true
+
+────────────────────────────────────────────────────────────────
+
+Key: CONN_MAX_AGE
+Value: 60
+
+────────────────────────────────────────────────────────────────
+
+Key: CORS_ORIGINS
+Value: https://lwksistemas.com.br,https://www.lwksistemas.com.br,https://frontend-r3q0a1lw4-lwks-projects-48afd555.vercel.app
+
+────────────────────────────────────────────────────────────────
+
+Key: DATABASE_URL
+Value: postgres://uav89ndofshapp:p3e1961bd3950804921290cace7a9cfda23395a9450b6b52273b5180c93dc5c7b@cet8r1hlj0mlnt.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d6rgsibf3ofk9d
+
+────────────────────────────────────────────────────────────────
+
+Key: DEBUG
+Value: False
+
+────────────────────────────────────────────────────────────────
+
+Key: DJANGO_SETTINGS_MODULE
+Value: config.settings_production
+
+────────────────────────────────────────────────────────────────
+
+Key: EMAIL_HOST
+Value: smtp.gmail.com
+
+────────────────────────────────────────────────────────────────
+
+Key: EMAIL_HOST_PASSWORD
+Value: cabbshvjjbcjagzh
+
+────────────────────────────────────────────────────────────────
+
+Key: EMAIL_HOST_USER
+Value: lwksistemas@gmail.com
+
+────────────────────────────────────────────────────────────────
+
+Key: EMAIL_PORT
+Value: 587
+
+────────────────────────────────────────────────────────────────
+
+Key: EMAIL_USE_TLS
+Value: True
+
+────────────────────────────────────────────────────────────────
+
+Key: REDIS_URL
+Value: rediss://:p4e1eb26897f7bd54b09923045e224c76d12f1f2a35724fe97fffeee7264d9081@ec2-18-232-249-224.compute-1.amazonaws.com:19140
+
+────────────────────────────────────────────────────────────────
+
+Key: SECRET_KEY
+Value: django-insecure-prod-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
+
+────────────────────────────────────────────────────────────────
+
+Key: SECURITY_NOTIFICATION_EMAILS
+Value: admin@lwksistemas.com.br,seguranca@lwksistemas.com.br
+
+────────────────────────────────────────────────────────────────
+
+Key: SITE_URL
+Value: https://lwksistemas.com.br
+
+────────────────────────────────────────────────────────────────
+
+Key: USE_REDIS
+Value: false
+
+────────────────────────────────────────────────────────────────
+
+⚠️ ATENÇÃO: Se você tiver MERCADOPAGO configurado, adicione também:
+
+Key: MERCADOPAGO_ACCESS_TOKEN
+Value: [copie do heroku config se existir]
+
+Key: MERCADOPAGO_PUBLIC_KEY
+Value: [copie do heroku config se existir]
+
+────────────────────────────────────────────────────────────────
+
+TOTAL: 17 variáveis
+
+═══════════════════════════════════════════════════════════════
+  ✅ DEPOIS DE ADICIONAR TODAS, CLIQUE EM "CREATE WEB SERVICE"
+═══════════════════════════════════════════════════════════════

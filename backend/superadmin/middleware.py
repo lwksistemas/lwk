@@ -55,6 +55,10 @@ class SuperAdminSecurityMiddleware:
     def __call__(self, request):
         # Verificar se é uma rota do superadmin
         if request.path.startswith('/api/superadmin/'):
+            # CORS preflight: OPTIONS não envia Authorization; deve passar para o CorsMiddleware responder com 200 + headers
+            if request.method == 'OPTIONS':
+                return self.get_response(request)
+
             # Permitir apenas endpoints públicos específicos (sem autenticação)
             public_endpoints = [
                 '/api/superadmin/health/',                    # Health check para failover (v750)

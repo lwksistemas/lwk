@@ -1,13 +1,14 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated  # ✅ NOVO v738
+from rest_framework.permissions import IsAuthenticated, AllowAny  # ✅ NOVO v738
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.conf import settings
 from django.db import transaction, connection
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.utils import timezone
 from pathlib import Path
 import logging
 
@@ -2831,3 +2832,44 @@ def listar_storage_lojas(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+# ===== HEALTH CHECK ENDPOINT (v750) =====
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """
+    Health check endpoint para load balancer e failover automático.
+    Verifica conexão com banco de dados e retorna status do sistema.
+    
+    Retorna:
+    - 200 OK: Sistema saudável
+    - 503 Service Unavailable: Sistema com problemas
+    """
+    try:
+        # Verificar conexão com banco de dados
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        
+        # Verificar se consegue acessar modelo básico
+        from .models import Loja
+        loja_count = Loja.objects.count()
+        
+        return Response({
+            'status': 'healthy',
+            'database': 'connected',
+            'lojas_count': loja_count,
+            'timestamp': timezone.now().isoformat(),
+            'version': 'v750'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f'Health check falhou: {e}', exc_info=True)
+        return Response({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e),
+            'timestamp': timezone.now().isoformat()
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)

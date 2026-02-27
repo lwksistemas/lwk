@@ -8,6 +8,7 @@ from .views import (
     recuperar_senha_loja, mercadopago_config, mercadopago_test, mercadopago_webhook,
     sync_mercadopago_loja,
     verificar_storage_loja, listar_storage_lojas,  # ✅ NOVO v738
+    health_check,  # ✅ NOVO v750
 )
 from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
@@ -35,6 +36,9 @@ router.register(r'loja-pagamentos', PagamentoViewSet, basename='loja-pagamentos'
 
 # IMPORTANTE: Rotas públicas devem vir ANTES do include do router
 urlpatterns = [
+    # Health Check (público para load balancer)
+    path('health/', health_check, name='health-check'),
+    
     # Autenticação
     path('login/', SecureLoginView.as_view(), name='superadmin-login'),
     path('logout/', SecureLogoutView.as_view(), name='superadmin-logout'),

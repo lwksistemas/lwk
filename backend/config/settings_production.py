@@ -29,7 +29,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'django_q',  # ✅ Task queue para jobs agendados
+    # 'django_q',  # ✅ Task queue para jobs agendados (DESABILITADO TEMPORARIAMENTE PARA RENDER)
     'core',  # App base com modelos abstratos
     'stores',
     'products',

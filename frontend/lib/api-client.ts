@@ -2,7 +2,19 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { logger } from './logger';
 import { getLoginUrl } from './auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// ===== CONFIGURAÇÃO DE FAILOVER (v750) =====
+const PRIMARY_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const BACKUP_API = process.env.NEXT_PUBLIC_API_BACKUP_URL;
+const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '20000');
+
+// Controle de failover
+let currentAPI = PRIMARY_API;
+let failoverCount = 0;
+let lastFailoverTime: number | null = null;
+const MAX_FAILOVER_ATTEMPTS = 3;
+const RECOVERY_TIME = 5 * 60 * 1000; // 5 minutos
+
+const API_URL = currentAPI;
 const API_BASE = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
 
 const SESSION_CODES = [
@@ -124,10 +136,11 @@ async function handle401(
 
 /** Cria instância base (baseURL, timeout, JSON). */
 function createApiInstance(): AxiosInstance {
+  const baseURL = currentAPI.endsWith('/api') ? currentAPI : `${currentAPI}/api`;
   return axios.create({
-    baseURL: API_BASE,
+    baseURL,
     headers: { 'Content-Type': 'application/json' },
-    timeout: 20000,
+    timeout: TIMEOUT,
   });
 }
 
@@ -143,10 +156,70 @@ function applyLojaInterceptors(instance: AxiosInstance) {
   instance.interceptors.response.use(
     (response) => {
       logger.log('API Response:', response.status, response.config.url);
+      
+      // ✅ FAILOVER v750: Se sucesso e estamos no backup, tentar voltar ao primary após 5 minutos
+      if (BACKUP_API && currentAPI === BACKUP_API && lastFailoverTime) {
+        const timeSinceFailover = Date.now() - lastFailoverTime;
+        if (timeSinceFailover >= RECOVERY_TIME) {
+          logger.log('✅ Voltando para API primária após 5 minutos de sucesso');
+          currentAPI = PRIMARY_API;
+          failoverCount = 0;
+          lastFailoverTime = null;
+          // Recriar instâncias com nova baseURL
+          const newInstance = createApiInstance();
+          applyLojaInterceptors(newInstance);
+          Object.assign(apiClient, newInstance);
+          Object.assign(clinicaApiClient, newInstance);
+        }
+      }
+      
       return response;
     },
     async (error) => {
       logger.error('API Error:', error.response?.status, error.response?.data?.code);
+      
+      // ✅ FAILOVER v750: Detectar falhas e tentar backup
+      const originalRequest = error.config;
+      const shouldFailover = 
+        BACKUP_API &&
+        !originalRequest?._failoverRetry &&
+        currentAPI === PRIMARY_API &&
+        failoverCount < MAX_FAILOVER_ATTEMPTS &&
+        (
+          error.code === 'ECONNABORTED' ||
+          error.code === 'ERR_NETWORK' ||
+          error.code === 'ETIMEDOUT' ||
+          !error.response ||
+          (error.response?.status >= 500 && error.response?.status < 600)
+        );
+      
+      if (shouldFailover && originalRequest) {
+        failoverCount++;
+        lastFailoverTime = Date.now();
+        originalRequest._failoverRetry = true;
+        
+        logger.warn(`⚠️ API primária falhou (${error.code || error.response?.status}), tentando backup (${failoverCount}/${MAX_FAILOVER_ATTEMPTS})...`);
+        
+        // Mudar para backup
+        currentAPI = BACKUP_API;
+        const backupBaseURL = BACKUP_API.endsWith('/api') ? BACKUP_API : `${BACKUP_API}/api`;
+        originalRequest.baseURL = backupBaseURL;
+        
+        // Recriar instâncias com nova baseURL
+        const newInstance = createApiInstance();
+        applyLojaInterceptors(newInstance);
+        Object.assign(apiClient, newInstance);
+        Object.assign(clinicaApiClient, newInstance);
+        
+        try {
+          logger.log('🔄 Repetindo requisição no servidor backup...');
+          return await instance(originalRequest);
+        } catch (backupError) {
+          logger.error('❌ Servidor backup também falhou:', backupError);
+          return Promise.reject(backupError);
+        }
+      }
+      
       if (handle507(error)) return Promise.reject(error);
       if (error.response?.status === 401) {
         return handle401(error, instance);
@@ -163,6 +236,37 @@ export const clinicaApiClient = createApiInstance();
 applyLojaInterceptors(clinicaApiClient);
 
 export default apiClient;
+
+// ===== FAILOVER STATUS (v750) =====
+
+/** Retorna status atual do failover */
+export function getFailoverStatus() {
+  return {
+    currentAPI,
+    isPrimary: currentAPI === PRIMARY_API,
+    isBackup: currentAPI === BACKUP_API,
+    failoverCount,
+    lastFailoverTime,
+    hasBackup: !!BACKUP_API,
+  };
+}
+
+/** Verifica health do servidor atual */
+export async function checkHealth(): Promise<{ healthy: boolean; api: string; error?: string }> {
+  try {
+    const response = await axios.get(`${currentAPI}/api/health/`, { timeout: 5000 });
+    return {
+      healthy: response.data.status === 'healthy',
+      api: currentAPI,
+    };
+  } catch (error) {
+    return {
+      healthy: false,
+      api: currentAPI,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
 
 // ===== HEARTBEAT =====
 

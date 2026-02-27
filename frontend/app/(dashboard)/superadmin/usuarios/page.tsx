@@ -109,9 +109,9 @@ export default function UsuariosPage() {
     : usuarios.filter(u => u.tipo === filtroTipo);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <nav className="bg-purple-900 text-white shadow-lg">
+      <nav className="bg-purple-900 dark:bg-purple-950 text-white shadow-lg">
         <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">

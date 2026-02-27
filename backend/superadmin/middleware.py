@@ -57,6 +57,7 @@ class SuperAdminSecurityMiddleware:
         if request.path.startswith('/api/superadmin/'):
             # Permitir apenas endpoints públicos específicos (sem autenticação)
             public_endpoints = [
+                '/api/superadmin/health/',                    # Health check para failover (v750)
                 '/api/superadmin/lojas/info_publica/',
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
                 '/api/superadmin/lojas/debug_senha_status/',

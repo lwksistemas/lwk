@@ -1,5 +1,5 @@
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, authentication_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny  # ✅ NOVO v738
 from django.contrib.auth.models import User
@@ -2837,11 +2837,13 @@ def listar_storage_lojas(request):
 # ===== HEALTH CHECK ENDPOINT (v750) =====
 
 @api_view(['GET'])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def health_check(request):
     """
     Health check endpoint para load balancer e failover automático.
     Verifica conexão com banco de dados e retorna status do sistema.
+    Endpoint público (sem autenticação) para permitir verificação externa.
     
     Retorna:
     - 200 OK: Sistema saudável

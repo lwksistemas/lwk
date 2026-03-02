@@ -139,7 +139,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
       setFormData(prev => ({ ...prev, slug: getSuggestedSlug(value, prev.cpf_cnpj) }));
     }
     
-    // Carregar planos quando tipo de loja for selecionado
+    // Carregar planos quando tipo de app for selecionado
     if (name === 'tipo_loja' && value) {
       loadPlanosPorTipo(value);
       // Limpar plano selecionado
@@ -621,9 +621,9 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
               </div>
             </div>
 
-            {/* Seção 3: Tipo de Loja */}
+            {/* Seção 3: Tipo de App */}
             <div className="border-b pb-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-700">3. Tipo de Loja</h3>
+              <h3 className="text-lg font-semibold mb-4 text-gray-700">3. Tipo de App</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Selecione o tipo *
@@ -669,11 +669,11 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                 </label>
                 {!formData.tipo_loja ? (
                   <div className="text-center py-8 text-gray-500">
-                    Selecione um tipo de loja primeiro para ver os planos disponíveis
+                    Selecione um tipo de app primeiro para ver os planos disponíveis
                   </div>
                 ) : planos.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    Nenhum plano disponível para este tipo de loja
+                    Nenhum plano disponível para este tipo de app
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

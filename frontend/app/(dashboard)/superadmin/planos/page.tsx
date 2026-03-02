@@ -101,14 +101,14 @@ export default function PlanosPage() {
           {loading ? (
             <div className="text-center py-12">Carregando...</div>
           ) : viewMode === 'tipos' ? (
-            /* Visualização de Tipos de Loja */
+            /* Visualização de Tipos de App */
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Selecione um Tipo de Loja
+                  Selecione um Tipo de App
                 </h2>
                 <p className="text-gray-600">
-                  Escolha um tipo de loja para visualizar e gerenciar seus planos de assinatura
+                  Escolha um tipo de app para visualizar e gerenciar seus planos de assinatura
                 </p>
               </div>
 
@@ -119,7 +119,7 @@ export default function PlanosPage() {
                     href="/superadmin/tipos-app"
                     className="inline-block px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                   >
-                    Criar Tipos de Loja
+                    Criar Tipos de App
                   </a>
                 </div>
               ) : (
@@ -146,7 +146,7 @@ export default function PlanosPage() {
                       className="text-purple-600 hover:text-purple-800 mb-2 flex items-center space-x-2"
                     >
                       <span>←</span>
-                      <span>Voltar para Tipos de Loja</span>
+                      <span>Voltar para Tipos de App</span>
                     </button>
                     <h2 className="text-2xl font-bold text-gray-900">
                       {tipoAtual?.nome}
@@ -162,7 +162,7 @@ export default function PlanosPage() {
               {planos.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-lg shadow">
                   <p className="text-gray-500 mb-4">
-                    Nenhum plano disponível para este tipo de loja.
+                    Nenhum plano disponível para este tipo de app.
                   </p>
                   <button
                     onClick={() => setShowModal(true)}

@@ -28,7 +28,7 @@ interface ModalNovoPlanoProps {
   onClose: () => void;
   onSuccess: () => void;
   editingPlano?: Plano | null;
-  /** ID do tipo de loja selecionado (ex.: Clínica de Estética) para vincular o novo plano */
+  /** ID do tipo de app selecionado (ex.: Clínica de Estética) para vincular o novo plano */
   tipoLojaId?: number | null;
 }
 

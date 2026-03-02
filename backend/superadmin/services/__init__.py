@@ -8,6 +8,7 @@ from .email_validation_service import EmailValidationService
 from .loja_creation_service import LojaCreationService
 from .database_schema_service import DatabaseSchemaService
 from .financeiro_service import FinanceiroService
+from .professional_service import ProfessionalService
 
 __all__ = [
     'LojaCleanupService',
@@ -16,4 +17,5 @@ __all__ = [
     'LojaCreationService',
     'DatabaseSchemaService',
     'FinanceiroService',
+    'ProfessionalService',
 ]

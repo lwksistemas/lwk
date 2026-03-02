@@ -257,351 +257,99 @@ class LojaCreateSerializer(serializers.ModelSerializer):
         ]
     
     def create(self, validated_data):
-        import secrets
-        import string
+        """
+        Cria loja usando services para separar responsabilidades
+        ✅ REFATORADO v769: Reduzido de 300+ para ~80 linhas usando services
+        """
+        from .services import (
+            LojaCreationService,
+            DatabaseSchemaService,
+            FinanceiroService,
+            ProfessionalService
+        )
         import traceback
-        import os
-        
+
         try:
-            from django.core.mail import send_mail
-            from django.conf import settings
-            
-            # Extrair dados do owner
+            # 1. EXTRAIR E PROCESSAR DADOS DO OWNER
             owner_full_name = (validated_data.pop('owner_full_name', '') or '').strip()
             owner_username = validated_data.pop('owner_username')
             owner_password = validated_data.pop('owner_password', None)
             owner_email = validated_data.pop('owner_email')
             owner_telefone = (validated_data.pop('owner_telefone', '') or '').strip()
             dia_vencimento = validated_data.pop('dia_vencimento', 10)
-            # Nome completo -> first_name e last_name (primeira palavra = first_name, resto = last_name)
-            parts = owner_full_name.split(None, 1) if owner_full_name else []
-            owner_first_name = parts[0] if parts else ''
-            owner_last_name = parts[1] if len(parts) > 1 else ''
-            
-            # Gerar senha provisória se não fornecida
+
+            # Processar nome completo
+            first_name, last_name = LojaCreationService.processar_nome_completo(owner_full_name)
+
+            # Gerar senha se não fornecida
             if not owner_password:
-                # Gerar senha segura: 8 caracteres com letras, números e símbolos
-                alphabet = string.ascii_letters + string.digits + "!@#$%&*"
-                owner_password = ''.join(secrets.choice(alphabet) for _ in range(8))
-        
-            # Obter ou criar usuário owner: reutilizar usuário órfão (ex.: após exclusão de loja) para evitar duplicate key
-            owner = User.objects.filter(username=owner_username).first()
-            if owner:
-                if owner.lojas_owned.exists():
-                    raise serializers.ValidationError({
-                        'owner_username': f'O usuário "{owner_username}" já é dono de outra loja. Use outro nome de usuário.'
-                    })
-                # Usuário órfão: reutilizar e atualizar dados
-                owner.email = owner_email
-                owner.first_name = owner_first_name
-                owner.last_name = owner_last_name
-                owner.set_password(owner_password)
-                owner.is_staff = False
-                owner.save()
-            else:
-                try:
-                    owner = User.objects.create_user(
-                        username=owner_username,
-                        email=owner_email,
-                        password=owner_password,
-                        first_name=owner_first_name,
-                        last_name=owner_last_name,
-                        is_staff=False  # Usuários de loja NÃO devem ser staff
-                    )
-                except IntegrityError as e:
-                    if 'username' in str(e) or 'auth_user_username_key' in str(e):
-                        raise serializers.ValidationError({
-                            'owner_username': (
-                                f'Já existe um usuário com o login "{owner_username}". '
-                                'Para liberar esse login (usuário órfão), no servidor execute: '
-                                f'python manage.py verificar_usuario {owner_username} --remover '
-                                'ou python manage.py limpar_usuarios_orfaos --confirmar. '
-                                'Veja docs/LIMPAR_USUARIOS_ORFAOS.md. Ou use outro nome de usuário.'
-                            )
-                        })
-                    if 'email' in str(e) or 'auth_user_email_key' in str(e):
-                        raise serializers.ValidationError({
-                            'owner_email': f'Já existe um usuário com o e-mail "{owner_email}". Use outro e-mail ou limpe usuários órfãos (limpar_usuarios_orfaos --confirmar).'
-                        })
-                    raise serializers.ValidationError({
-                        'owner_username': 'Erro ao criar usuário (dados duplicados). Use outro nome de usuário ou e-mail.'
-                    })
-            
-            # Slug: usar o enviado pelo frontend se for válido e único; senão o model gera automaticamente
-            slug_enviado = (validated_data.pop('slug', None) or '').strip()
-            if slug_enviado:
-                from django.utils.text import slugify
-                slug_sanitizado = slugify(slug_enviado) or None
-                if slug_sanitizado:
-                    if Loja.objects.filter(slug=slug_sanitizado).exists():
-                        raise serializers.ValidationError({'slug': f'Já existe uma loja com o slug "{slug_sanitizado}". Escolha outro.'})
-                    validated_data['slug'] = slug_sanitizado
+                owner_password = LojaCreationService.gerar_senha_provisoria()
+
+            # 2. CRIAR OU ATUALIZAR OWNER
+            owner = LojaCreationService.criar_ou_atualizar_owner(
+                username=owner_username,
+                email=owner_email,
+                password=owner_password,
+                first_name=first_name,
+                last_name=last_name
+            )
+
+            # 3. PROCESSAR E VALIDAR SLUG
+            slug_enviado = validated_data.pop('slug', None)
+            slug_validado = LojaCreationService.validar_e_processar_slug(slug_enviado)
+            if slug_validado:
+                validated_data['slug'] = slug_validado
+
+            # 4. PREPARAR DADOS DA LOJA
             validated_data['owner'] = owner
             validated_data['owner_telefone'] = owner_telefone
-            validated_data['senha_provisoria'] = owner_password  # Salvar senha provisória
-            validated_data['senha_foi_alterada'] = False  # Garantir que precisa trocar no primeiro login
-            
-            # 🔒 VALIDAÇÃO: Verificar que database_name será único
-            if 'slug' in validated_data:
-                proposed_db_name = f"loja_{validated_data['slug'].replace('-', '_')}"
-                if Loja.objects.filter(database_name=proposed_db_name).exists():
-                    raise serializers.ValidationError({
-                        'slug': f'Já existe uma loja com database_name derivado deste slug. O sistema gerará um slug único automaticamente.'
-                    })
-            
-            # Garantir provedor de boleto (enviado pelo frontend em Nova Loja)
+            validated_data['senha_provisoria'] = owner_password
+            validated_data['senha_foi_alterada'] = False
             validated_data.setdefault('provedor_boleto_preferido', 'asaas')
-            
+
+            # 5. CRIAR LOJA
             loja = Loja.objects.create(**validated_data)
-            
-            # LOG para confirmar criação
-            print(f"\n{'='*80}")
-            print(f"✅ Loja criada: {loja.nome}")
-            print(f"   - Provedor boleto preferido: {getattr(loja, 'provedor_boleto_preferido', 'asaas')}")
-            print(f"   - ID: {loja.id}")
-            print(f"   - Slug: {loja.slug}")
-            print(f"   - Database name: {loja.database_name}")
-            print(f"   - Owner: {owner.username} ({owner.email})")
-            print(f"   - Senha provisória: {owner_password[:3]}***")
-            print(f"   - Senha foi alterada: {loja.senha_foi_alterada}")
-            print(f"{'='*80}\n")
-            
-            # Criar schema no PostgreSQL automaticamente
-            try:
-                from django.db import connection
-                schema_name = loja.database_name.replace('-', '_')  # Remover hífens
-                
-                with connection.cursor() as cursor:
-                    # Criar schema - validando nome para evitar SQL injection
-                    import re
-                    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', schema_name):
-                        raise ValueError(f"Nome de schema inválido: {schema_name}")
-                    cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
-                    print(f"✅ Schema '{schema_name}' criado no PostgreSQL")
-                
-                # Marcar como criado
-                loja.database_created = True
-                loja.save()
-                
-                # 🔒 VALIDAÇÃO: Verificar que schema foi criado com sucesso
-                with connection.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT COUNT(*) 
-                        FROM information_schema.schemata 
-                        WHERE schema_name = %s
-                    """, [schema_name])
-                    schema_exists = cursor.fetchone()[0] > 0
-                    
-                    if not schema_exists:
-                        raise Exception(f"Schema '{schema_name}' não foi criado corretamente!")
-                    
-                    print(f"✅ Schema '{schema_name}' verificado e confirmado")
-                
-                # Adicionar às configurações do Django
-                from django.conf import settings
-                import dj_database_url
-                
-                DATABASE_URL = os.environ.get('DATABASE_URL')
-                if DATABASE_URL:
-                    # CONN_MAX_AGE=0 para não acumular conexões (evitar "too many connections" no Postgres)
-                    default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-                    settings.DATABASES[loja.database_name] = {
-                        **default_db,
-                        'OPTIONS': {
-                            'options': f'-c search_path={schema_name},public'
-                        },
-                        'ATOMIC_REQUESTS': False,
-                        'AUTOCOMMIT': True,
-                        'CONN_MAX_AGE': 0,
-                        'CONN_HEALTH_CHECKS': False,
-                        'TIME_ZONE': None,
-                    }
-                    print(f"✅ Configuração de banco adicionada para '{loja.database_name}'")
-                    print(f"✅ Banco '{loja.database_name}' adicionado às configurações")
-                
-                # Criar tabelas no schema da loja via migrations (funciona para todos os tipos, inclusive Clínica da Beleza)
-                # Antes: copiava de public, mas tabelas como clinica_beleza_* não existem em public em produção.
-                try:
-                    from django.core.management import call_command
-                    tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
-                    base_apps = ['stores', 'products']
-                    tipo_apps = {
-                        'clinica-de-estetica': ['clinica_estetica'],
-                        'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
-                        'crm-vendas': ['crm_vendas'],
-                        'e-commerce': ['ecommerce'],
-                        'restaurante': ['restaurante'],
-                        'servicos': ['servicos'],
-                        'cabeleireiro': ['cabeleireiro'],
-                    }
-                    apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
-                    for app in apps_to_migrate:
-                        try:
-                            call_command('migrate', app, '--database', loja.database_name, verbosity=0)
-                            print(f"   ✅ Migrations aplicadas: {app}")
-                        except Exception as e:
-                            print(f"   ⚠️ {app}: {e}")
-                    print(f"✅ Tabelas criadas no schema '{schema_name}' via migrations")
 
-                    # Cadastro automático do owner como profissional (Clínica da Beleza), logo após migrations
-                    tipo_loja_nome = loja.tipo_loja.nome if loja.tipo_loja else ''
-                    if tipo_loja_nome == 'Clínica da Beleza':
-                        try:
-                            from clinica_beleza.models import Professional
-                            from superadmin.models import ProfissionalUsuario
-                            if not ProfissionalUsuario.objects.filter(loja=loja, user=owner).exists():
-                                owner_name = (owner_first_name + (' ' + owner_last_name if owner_last_name else '')).strip() or owner_username
-                                prof = Professional.objects.using(loja.database_name).create(
-                                    name=owner_name,
-                                    email=owner_email,
-                                    phone=owner_telefone or '',
-                                    specialty='Administrador',
-                                    active=True,
-                                    loja_id=loja.id,
-                                )
-                                ProfissionalUsuario.objects.create(
-                                    user=owner,
-                                    loja=loja,
-                                    professional_id=prof.id,
-                                    perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
-                                    precisa_trocar_senha=False,
-                                )
-                                print(f"✅ Profissional admin (Clínica da Beleza) criado e vinculado para {owner_email}")
-                            else:
-                                print(f"   Profissional admin já existente para {owner_email}")
-                        except Exception as e_prof:
-                            print(f"⚠️ Erro ao cadastrar owner como profissional (Clínica da Beleza): {e_prof}")
-                            import traceback
-                            traceback.print_exc()
-                except Exception as e:
-                    print(f"⚠️ Erro ao rodar migrations: {e}")
-                    import traceback
-                    print(traceback.format_exc())
-                
+            # Log da criação
+            LojaCreationService.log_criacao_loja(loja, owner, owner_password)
+
+            # 6. CONFIGURAR SCHEMA DO BANCO DE DADOS
+            try:
+                DatabaseSchemaService.configurar_schema_completo(loja)
             except Exception as e:
-                print(f"⚠️ Erro ao criar schema: {e}")
+                logger.warning(f"Erro ao configurar schema: {e}")
                 # Não falhar a criação da loja por causa do schema
-            
-            # Calcular valor baseado no tipo de assinatura
-            if loja.tipo_assinatura == 'anual':
-                valor_mensalidade = loja.plano.preco_anual / 12 if loja.plano.preco_anual else loja.plano.preco_mensal
-            else:
-                valor_mensalidade = loja.plano.preco_mensal
-            
-            # Criar financeiro
-            from datetime import date, timedelta
-            from calendar import monthrange
-            
-            # ✅ MODIFICAÇÃO v726: Primeiro boleto vence em 3 dias
-            # Próximos boletos: dia fixo escolhido pelo cliente
-            hoje = date.today()
-            
-            # Primeiro boleto: 3 dias a partir de hoje
-            primeiro_vencimento = hoje + timedelta(days=3)
-            
-            # Próxima cobrança (após o primeiro pagamento): dia fixo no próximo mês
-            # Calcular próximo mês
-            if hoje.month == 12:
-                proximo_mes = 1
-                proximo_ano = hoje.year + 1
-            else:
-                proximo_mes = hoje.month + 1
-                proximo_ano = hoje.year
-            
-            # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
-            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
-            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
-            
-            # Usar primeiro_vencimento para a cobrança inicial
-            proxima_cobranca = primeiro_vencimento
-            
-            financeiro = FinanceiroLoja.objects.create(
-                loja=loja,
-                data_proxima_cobranca=proxima_cobranca,
-                valor_mensalidade=valor_mensalidade,
-                dia_vencimento=dia_vencimento,
-                status_pagamento='ativo' if not loja.is_trial else 'pendente'
-            )
-            
-            # 🚀 INTEGRAÇÃO ASAAS: Criação automática via signal
-            # A cobrança é criada automaticamente pelo signal em asaas_integration/signals.py
-            # Não criar aqui para evitar duplicação
-            # 
-            # NOTA: O signal create_asaas_subscription_on_loja_creation já cria:
-            # - AsaasCustomer
-            # - AsaasPayment  
-            # - LojaAssinatura
-            #
-            # Se precisar dos dados do Asaas imediatamente após criar a loja,
-            # consulte LojaAssinatura.objects.get(loja_slug=loja.slug)
-            
-            # 👤 CRIAR FUNCIONÁRIO / PROFISSIONAL ADMIN AUTOMATICAMENTE
-            # Clínica de Estética, Serviços, Restaurante, CRM Vendas: o funcionário admin já é criado
-            # pelo signal post_save em superadmin/signals.py (create_funcionario_for_loja_owner). Não criar aqui para evitar duplicação.
-            try:
-                tipo_loja_nome = loja.tipo_loja.nome if loja.tipo_loja else ''
-                
-                if tipo_loja_nome in ('Clínica de Estética', 'Serviços', 'Restaurante', 'CRM Vendas'):
-                    print(f"   Funcionário admin criado pelo signal para {owner_email} ({tipo_loja_nome})")
 
-                elif tipo_loja_nome == 'Clínica da Beleza':
-                    # Fallback: cadastro já foi feito acima (dentro do bloco de schema). Só tenta de novo se ainda não existir.
-                    from superadmin.models import ProfissionalUsuario
-                    if ProfissionalUsuario.objects.filter(loja=loja, user=owner).exists():
-                        print(f"   Profissional admin (Clínica da Beleza) já vinculado para {owner_email}")
-                    elif getattr(loja, 'database_name', None) and loja.database_created:
-                        from clinica_beleza.models import Professional
-                        try:
-                            owner_name = (owner_first_name + (' ' + owner_last_name if owner_last_name else '')).strip() or owner_username
-                            prof = Professional.objects.using(loja.database_name).create(
-                                name=owner_name,
-                                email=owner_email,
-                                phone=getattr(loja, 'owner_telefone', '') or '',
-                                specialty='Administrador',
-                                active=True,
-                                loja_id=loja.id,
-                            )
-                            ProfissionalUsuario.objects.create(
-                                user=owner,
-                                loja=loja,
-                                professional_id=prof.id,
-                                perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
-                                precisa_trocar_senha=False,
-                            )
-                            print(f"✅ Profissional admin (Clínica da Beleza) criado e vinculado para {owner_email}")
-                        except Exception as e2:
-                            print(f"⚠️ Fallback Clínica da Beleza: {e2}")
-                    else:
-                        print(f"⚠️ Clínica da Beleza: schema ainda não criado; use o comando vincular_owner_profissional_clinica_beleza depois.")
-                    
+            # 7. CRIAR FINANCEIRO
+            try:
+                FinanceiroService.criar_financeiro_loja(loja, dia_vencimento)
             except Exception as e:
-                print(f"⚠️ Erro ao criar funcionário/profissional admin: {e}")
-                import traceback
-                traceback.print_exc()
-                # Não falhar a criação da loja por causa do funcionário
-        
-            # ✅ MODIFICAÇÃO v719: Senha provisória NÃO é mais enviada aqui
-            # A senha será enviada automaticamente pelo signal on_payment_confirmed
-            # após a confirmação do pagamento via webhook (Asaas ou Mercado Pago)
-            # 
-            # Fluxo:
-            # 1. Loja criada → FinanceiroLoja criado
-            # 2. Signal cria cobrança (boleto + PIX)
-            # 3. Cliente paga → Webhook recebido
-            # 4. Status atualizado para 'ativo'
-            # 5. Signal on_payment_confirmed envia senha via EmailService
-            
+                logger.error(f"Erro ao criar financeiro: {e}")
+                raise
+
+            # 8. CRIAR PROFISSIONAL/FUNCIONÁRIO ADMIN
+            try:
+                ProfessionalService.criar_profissional_por_tipo(loja, owner, owner_telefone)
+            except Exception as e:
+                logger.warning(f"Erro ao criar profissional/funcionário: {e}")
+                # Não falhar a criação da loja
+
+            # 9. INTEGRAÇÃO ASAAS
+            # A cobrança é criada automaticamente pelo signal em asaas_integration/signals.py
+            # Signal: create_asaas_subscription_on_loja_creation
+            # Cria: AsaasCustomer, AsaasPayment, LojaAssinatura
+
             logger.info(
                 "Loja criada com sucesso: %s (owner: %s). Senha será enviada após confirmação do pagamento.",
                 loja.slug,
                 owner_email,
             )
-            
+
             return loja
-        
+
         except Exception as e:
-            print(f"❌ ERRO AO CRIAR LOJA: {e}")
-            print(traceback.format_exc())
+            logger.error(f"Erro ao criar loja: {e}")
+            logger.error(traceback.format_exc())
             raise serializers.ValidationError(f"Erro ao criar loja: {str(e)}")
 
 

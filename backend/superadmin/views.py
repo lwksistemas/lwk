@@ -208,7 +208,16 @@ class LojaViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[IsSuperAdmin])
     def debug_auth(self, request):
-        """Debug endpoint para verificar autenticação - APENAS SUPERADMIN"""
+        """
+        Debug endpoint para verificar autenticação - APENAS SUPERADMIN
+        ✅ REFATORADO v766: Protegido com flag DEBUG
+        """
+        if not settings.DEBUG:
+            return Response(
+                {'error': 'Endpoint disponível apenas em modo DEBUG'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         return Response({
             'authenticated': request.user.is_authenticated if hasattr(request, 'user') else False,
             'user': str(request.user) if hasattr(request, 'user') and request.user.is_authenticated else 'Anonymous',
@@ -250,15 +259,24 @@ class LojaViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def debug_senha_status(self, request):
-        """DEBUG: Verifica o estado dos campos de senha de uma loja por slug"""
+        """
+        DEBUG: Verifica o estado dos campos de senha de uma loja por slug
+        ✅ REFATORADO v766: Protegido com flag DEBUG
+        """
+        if not settings.DEBUG:
+            return Response(
+                {'error': 'Endpoint disponível apenas em modo DEBUG'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         slug = request.query_params.get('slug')
         if not slug:
             return Response({'error': 'Parâmetro slug é obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             loja = Loja.objects.get(slug=slug)
             precisa_trocar = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
-            
+
             return Response({
                 'loja_id': loja.id,
                 'loja_slug': loja.slug,
@@ -424,202 +442,39 @@ Equipe de Suporte
         })
     
     def destroy(self, request, *args, **kwargs):
-        """Exclusão completa da loja com limpeza de todos os dados"""
+        """
+        Exclusão completa da loja com limpeza de todos os dados
+        ✅ REFATORADO v766: Usa LojaCleanupService para separar responsabilidades
+        """
+        from .services import LojaCleanupService
+        
         loja = self.get_object()
         
-        # Coletar informações antes da exclusão
-        loja_nome = loja.nome
-        loja_slug = loja.slug
-        loja_id = loja.id
-        database_name = loja.database_name
-        database_created = loja.database_created
-        owner_username = loja.owner.username
-        owner = loja.owner
-        owner_id = owner.id
+        # Usar service para fazer toda a limpeza
+        cleanup_service = LojaCleanupService(loja)
         
-        # Contar dados relacionados
-        outras_lojas_owner = Loja.objects.filter(owner=loja.owner).exclude(id=loja.id).count()
-        
-        # Variáveis de controle
-        chamados_removidos = 0
-        respostas_removidas = 0
-        logs_removidos = 0
-        alertas_removidos = 0
-        banco_removido = False
-        asaas_deleted_payments = 0
-        asaas_deleted_customer = False
-        asaas_local_payments_removed = 0
-        asaas_local_customers_removed = 0
-        asaas_local_subscriptions_removed = 0
-        mercadopago_deleted_payments = 0
-        usuario_removido = False
-        usuario_sera_removido = outras_lojas_owner == 0
-        
-        # 1. Remover chamados de suporte da loja (operação independente)
         try:
-            from suporte.models import Chamado
-            with transaction.atomic():
-                chamados = Chamado.objects.filter(loja_slug=loja_slug)
-                chamados_removidos = chamados.count()
-                for chamado in chamados:
-                    respostas_removidas += chamado.respostas.count()
-                chamados.delete()
-                print(f"✅ Chamados de suporte removidos: {chamados_removidos}")
-        except Exception as e:
-            print(f"⚠️ Erro ao remover chamados de suporte: {e}")
-        
-        # 1b. Remover logs, alertas e auditoria da loja
-        logs_removidos = 0
-        alertas_removidos = 0
-        try:
-            from .models import HistoricoAcessoGlobal, ViolacaoSeguranca
-            from django.db.models import Q
+            # Executar limpeza antes de deletar a loja
+            results = cleanup_service.cleanup_all()
             
-            with transaction.atomic():
-                # Remover histórico de acessos (logs/auditoria)
-                # Inclui: logs da loja (loja_slug) + logs de ações sobre a loja (recurso="Loja" e recurso_id)
-                logs = HistoricoAcessoGlobal.objects.filter(
-                    Q(loja_slug=loja_slug) |  # Logs de ações dentro da loja
-                    Q(recurso='Loja', recurso_id=loja_id)  # Logs de ações sobre a loja (criar/excluir)
-                )
-                logs_removidos = logs.count()
-                logs.delete()
-                
-                # Remover violações de segurança (alertas)
-                alertas = ViolacaoSeguranca.objects.filter(loja__slug=loja_slug)
-                alertas_removidos = alertas.count()
-                alertas.delete()
-                
-                if logs_removidos > 0 or alertas_removidos > 0:
-                    print(f"✅ Logs/Auditoria removidos: {logs_removidos}, Alertas removidos: {alertas_removidos}")
-        except Exception as e:
-            print(f"⚠️ Erro ao remover logs/alertas: {e}")
-        
-        # 2. Remover arquivo SQLite se existir (config do banco é removida após loja.delete(),
-        #    para não deixar nome órfão em settings.DATABASES quando o signal re-adiciona a config)
-        if database_created:
-            try:
-                db_path = settings.BASE_DIR / f'db_{database_name}.sqlite3'
-                if db_path.exists():
-                    import os
-                    os.remove(db_path)
-                    banco_removido = True
-                    print(f"✅ Arquivo do banco removido: {db_path}")
-            except Exception as e:
-                print(f"⚠️ Erro ao remover arquivo do banco: {e}")
-        
-        # 3. Remover dados de pagamentos (Asaas + Mercado Pago) - UNIFICADO
-        try:
-            from .payment_deletion_service import UnifiedPaymentDeletionService
-            
-            payment_service = UnifiedPaymentDeletionService()
-            payment_results = payment_service.delete_all_payments_for_loja(loja_slug)
-            
-            # Extrair resultados para compatibilidade com código existente
-            asaas_result = payment_results['providers'].get('Asaas', {})
-            mercadopago_result = payment_results['providers'].get('Mercado Pago', {})
-            
-            # Asaas
-            asaas_deleted_payments = asaas_result.get('api_cancelled', 0)
-            asaas_deleted_customer = asaas_result.get('local_deleted_customers', 0) > 0
-            asaas_local_payments_removed = asaas_result.get('local_deleted_payments', 0)
-            asaas_local_customers_removed = asaas_result.get('local_deleted_customers', 0)
-            asaas_local_subscriptions_removed = asaas_result.get('local_deleted_subscriptions', 0)
-            
-            # Mercado Pago
-            mercadopago_deleted_payments = mercadopago_result.get('api_cancelled', 0)
-            
-            if payment_results['total_cancelled'] > 0:
-                print(f"✅ Pagamentos cancelados: {payment_results['total_cancelled']} (Asaas: {asaas_deleted_payments}, MP: {mercadopago_deleted_payments})")
-            if payment_results['errors']:
-                for error in payment_results['errors']:
-                    print(f"⚠️ {error}")
-                    
-        except Exception as e:
-            print(f"⚠️ Erro ao remover dados de pagamentos: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        # 4. Remover a loja (operação principal; signal pre_delete limpa schema e tabelas default)
-        try:
+            # Deletar a loja (signal pre_delete limpa schema e tabelas)
             with transaction.atomic():
                 loja.delete()
-                print(f"✅ Loja removida: {loja_nome}")
+                logger.info(f"✅ Loja removida: {results['loja_nome']}")
+            
+            # Retornar resposta de sucesso
+            return Response({
+                'message': f'Loja "{results["loja_nome"]}" foi completamente removida do sistema',
+                'detalhes': results
+            }, status=status.HTTP_200_OK)
+            
         except Exception as e:
-            transaction.set_rollback(True)  # evita "current transaction is aborted" em usos posteriores da conexão
-            print(f"❌ Erro ao remover loja: {e}")
+            logger.error(f"❌ Erro ao remover loja: {e}")
+            transaction.set_rollback(True)
             return Response(
                 {'error': f'Erro ao remover loja: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        # 4b. Remover configuração do banco de settings.DATABASES (evitar nome órfão no default)
-        #     O signal pre_delete pode ter adicionado a config para limpar o schema tenant.
-        if database_name and database_name in settings.DATABASES:
-            try:
-                del settings.DATABASES[database_name]
-                print(f"✅ Configuração do banco removida do settings: {database_name}")
-            except Exception as e:
-                print(f"⚠️ Erro ao remover config do banco: {e}")
-        
-        # 5. Remover usuário proprietário se não for usado por outras lojas
-        if usuario_sera_removido:
-            try:
-                user_to_delete = User.objects.filter(id=owner_id).first()
-                if user_to_delete and not user_to_delete.is_superuser:
-                    with transaction.atomic():
-                        user_to_delete.groups.clear()
-                        user_to_delete.user_permissions.clear()
-                        user_to_delete.delete()
-                        usuario_removido = True
-                        print(f"✅ Usuário proprietário removido: {owner_username}")
-            except Exception as e:
-                print(f"⚠️ Erro ao remover usuário (pode já ter sido removido): {e}")
-        
-        # Retornar resposta de sucesso
-        return Response({
-            'message': f'Loja "{loja_nome}" foi completamente removida do sistema',
-            'detalhes': {
-                'loja_id': loja_id,
-                'loja_nome': loja_nome,
-                'loja_slug': loja_slug,
-                'loja_removida': True,
-                'suporte': {
-                    'chamados_removidos': chamados_removidos,
-                    'respostas_removidas': respostas_removidas
-                },
-                'logs_auditoria': {
-                    'logs_removidos': logs_removidos,
-                    'alertas_removidos': alertas_removidos
-                },
-                'banco_dados': {
-                    'existia': database_created,
-                    'nome': database_name,
-                    'arquivo_removido': banco_removido,
-                    'config_removida': database_created
-                },
-                'asaas': {
-                    'api': {
-                        'pagamentos_cancelados': asaas_deleted_payments,
-                        'cliente_removido': asaas_deleted_customer
-                    },
-                    'local': {
-                        'payments_removidos': asaas_local_payments_removed,
-                        'customers_removidos': asaas_local_customers_removed,
-                        'subscriptions_removidas': asaas_local_subscriptions_removed
-                    }
-                },
-                'mercadopago': {
-                    'boletos_pendentes_cancelados': mercadopago_deleted_payments
-                },
-                'usuario_proprietario': {
-                    'username': owner_username,
-                    'removido': usuario_removido,
-                    'motivo_nao_removido': 'Possui outras lojas' if not usuario_sera_removido else ('Superuser/Staff' if not usuario_removido and usuario_sera_removido else None)
-                },
-                'limpeza_completa': True
-            }
-        }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def reenviar_senha(self, request, pk=None):

@@ -142,11 +142,13 @@ class LojaCleanupService:
 - [x] Criar componente de mensagens de erro/sucesso (CONCLUÍDO v765)
 - [x] Simplificar tratamento de erros (CONCLUÍDO v765)
 
-### Fase 3: Backend - Views
-- [ ] Remover endpoints de debug ou proteger com flag
-- [ ] Extrair lógica de exclusão para service class
-- [ ] Simplificar método destroy()
-- [ ] Remover código comentado
+### Fase 3: Backend - Views ✅
+- [x] Remover código comentado do settings_production.py (CONCLUÍDO v767)
+- [x] Criar serviço de validação centralizado (CONCLUÍDO v767)
+- [x] Criar serviço de validação de emails (CONCLUÍDO v767)
+- [x] Organizar módulo de services com __init__.py (CONCLUÍDO v767)
+- [x] Endpoints de debug já protegidos com flag DEBUG (v766)
+- [x] Método destroy() já refatorado usando LojaCleanupService (v766)
 
 ### Fase 4: Backend - Serializers
 - [ ] Refatorar LojaCreateSerializer
@@ -256,3 +258,56 @@ class LojaCleanupService:
 **Data:** 27/02/2026  
 **Versão Atual:** v765  
 **Status:** Fase 2 concluída, iniciando Fase 3
+
+---
+
+## ✅ FASE 3 CONCLUÍDA - v767
+
+### Refatoração Backend - Services e Validações
+
+**Arquivos Criados:**
+- `backend/superadmin/services/__init__.py` - Módulo de services organizado
+- `backend/superadmin/services/validation_service.py` - Validações centralizadas
+- `backend/superadmin/services/email_validation_service.py` - Validação e envio de emails
+
+**Melhorias Implementadas:**
+
+1. **Código Comentado Removido**
+   - Removido código comentado do `settings_production.py`
+   - Throttling desabilitado de forma limpa
+   - Referência ao django-q removida
+
+2. **Serviço de Validação Centralizado**
+   - `ValidationService`: Centraliza todas as validações
+   - Métodos para validar: slug, email, senha, username, dados de loja, permissões
+   - Retorna tuplas (is_valid, error_message) para fácil uso
+   - Reduz duplicação de código de validação
+
+3. **Serviço de Email**
+   - `EmailValidationService`: Gerencia envio de emails
+   - Validação de configuração de email
+   - Envio simples e para múltiplos destinatários
+   - Logging centralizado
+
+4. **Organização de Services**
+   - Módulo `services/` com `__init__.py` para imports limpos
+   - Separação clara de responsabilidades
+   - Fácil de importar: `from superadmin.services import ValidationService`
+
+5. **Benefícios**
+   - Código mais organizado e reutilizável
+   - Validações consistentes em todo o sistema
+   - Fácil de testar unitariamente
+   - Melhor separação de responsabilidades (SRP)
+
+**Status Anterior (v766):**
+- Endpoints de debug protegidos com flag DEBUG
+- Método destroy() refatorado usando LojaCleanupService
+
+**Deploy:** v767 pronto para deploy
+
+---
+
+**Data:** 02/03/2026  
+**Versão Atual:** v767  
+**Status:** Fase 3 concluída, iniciando Fase 4

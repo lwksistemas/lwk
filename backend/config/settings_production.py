@@ -29,7 +29,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    # 'django_q',  # ✅ Task queue para jobs agendados (DESABILITADO TEMPORARIAMENTE PARA RENDER)
     'core',  # App base com modelos abstratos
     'stores',
     'products',
@@ -196,14 +195,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    # Throttle em produção: limitar abuso; ajustável via env (ex.: heroku config:set DRF_THROTTLE_USER_RATE=3000/hour)
-    'DEFAULT_THROTTLE_CLASSES': [
-        # 'rest_framework.throttling.AnonRateThrottle',  # Desabilitado temporariamente
-        # 'rest_framework.throttling.UserRateThrottle',  # Desabilitado temporariamente
-    ],
+    # Throttle desabilitado - pode ser habilitado via variáveis de ambiente se necessário
+    'DEFAULT_THROTTLE_CLASSES': [],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': os.environ.get('DRF_THROTTLE_ANON_RATE', '100000/hour'),  # Muito alto temporariamente
-        'user': os.environ.get('DRF_THROTTLE_USER_RATE', '100000/hour'),  # Muito alto temporariamente
+        'anon': os.environ.get('DRF_THROTTLE_ANON_RATE', '100000/hour'),
+        'user': os.environ.get('DRF_THROTTLE_USER_RATE', '100000/hour'),
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,

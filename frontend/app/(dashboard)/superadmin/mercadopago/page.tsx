@@ -244,6 +244,7 @@ export default function MercadoPagoConfigPage() {
                   placeholder={config.access_token_set ? config.access_token_masked : 'Cole o Access Token aqui'}
                   value={accessToken}
                   onChange={(e) => setAccessToken(e.target.value)}
+                  autoComplete="off"
                   className="font-mono text-sm"
                 />
                 <Button

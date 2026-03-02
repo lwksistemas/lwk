@@ -145,6 +145,7 @@ export default function TrocarSenhaLojaPage() {
               id="nova_senha"
               name="nova_senha"
               type="password"
+              autoComplete="new-password"
               required
               minLength={6}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:focus:ring-offset-gray-800"
@@ -162,6 +163,7 @@ export default function TrocarSenhaLojaPage() {
               id="confirmar_senha"
               name="confirmar_senha"
               type="password"
+              autoComplete="new-password"
               required
               minLength={6}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:focus:ring-offset-gray-800"

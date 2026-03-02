@@ -158,6 +158,7 @@ export default function TrocarSenhaForm({
                 id="nova_senha"
                 name="nova_senha"
                 type="password"
+                autoComplete="new-password"
                 required
                 minLength={6}
                 className={`w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${colors.ring}`}
@@ -175,6 +176,7 @@ export default function TrocarSenhaForm({
                 id="confirmar_senha"
                 name="confirmar_senha"
                 type="password"
+                autoComplete="new-password"
                 required
                 minLength={6}
                 className={`w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${colors.ring}`}

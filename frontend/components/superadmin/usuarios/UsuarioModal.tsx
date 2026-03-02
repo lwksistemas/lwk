@@ -190,6 +190,7 @@ export function UsuarioModal({ usuario, onClose, onSubmit, loading }: UsuarioMod
                   <input
                     type="password"
                     name="password"
+                    autoComplete="new-password"
                     value={formData.password}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"

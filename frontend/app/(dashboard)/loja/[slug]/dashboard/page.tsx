@@ -120,7 +120,7 @@ export default function LojaDashboardDinamicoPage() {
   const isCabeleireiro = tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia');
   const isFullWidth = isClinicaEstetica || isClinicaBeleza || isRestaurante || isCabeleireiro;
 
-  // Renderizar dashboard específico por tipo de loja
+  // Renderizar dashboard específico por tipo de app
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Para cabeleireiro e clínica da beleza, renderizar SEM header/container (layout próprio) */}

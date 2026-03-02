@@ -5,7 +5,8 @@ import { getLoginUrl } from './auth';
 // ===== CONFIGURAÇÃO DE FAILOVER (v750) =====
 const PRIMARY_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const BACKUP_API = process.env.NEXT_PUBLIC_API_BACKUP_URL;
-const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '20000');
+const ENABLE_LOJA_FAILOVER = process.env.NEXT_PUBLIC_ENABLE_LOJA_FAILOVER === 'true';
+const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000');
 
 // Controle de failover
 let currentAPI = PRIMARY_API;
@@ -178,44 +179,60 @@ function applyLojaInterceptors(instance: AxiosInstance) {
     async (error) => {
       logger.error('API Error:', error.response?.status, error.response?.data?.code);
       
-      // ✅ FAILOVER v750: Detectar falhas e tentar backup
+      // ✅ FAILOVER v750: Detectar falhas e tentar backup (inclui CORS/rede quando primária indisponível)
       const originalRequest = error.config;
-      const shouldFailover = 
+      const isNetworkOrCors =
+        error.code === 'ECONNABORTED' ||
+        error.code === 'ERR_NETWORK' ||
+        error.code === 'ETIMEDOUT' ||
+        !error.response ||
+        (error.response?.status >= 500 && error.response?.status < 600) ||
+        (typeof error.message === 'string' && (
+          error.message.includes('Network Error') ||
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('CORS') ||
+          error.message.includes('Access-Control')
+        ));
+      const requestUrl = (originalRequest?.baseURL || '') + (originalRequest?.url || '');
+      const isLojaRoute =
+        requestUrl.includes('info_publica') ||
+        requestUrl.includes('auth/loja') ||
+        requestUrl.includes('lojas/verificar_senha') ||
+        requestUrl.includes('lojas/recuperar_senha');
+      const shouldFailover =
         BACKUP_API &&
         !originalRequest?._failoverRetry &&
         currentAPI === PRIMARY_API &&
         failoverCount < MAX_FAILOVER_ATTEMPTS &&
-        (
-          error.code === 'ECONNABORTED' ||
-          error.code === 'ERR_NETWORK' ||
-          error.code === 'ETIMEDOUT' ||
-          !error.response ||
-          (error.response?.status >= 500 && error.response?.status < 600)
-        );
-      
+        isNetworkOrCors &&
+        (!isLojaRoute || ENABLE_LOJA_FAILOVER);
+
       if (shouldFailover && originalRequest) {
         failoverCount++;
         lastFailoverTime = Date.now();
         originalRequest._failoverRetry = true;
-        
-        logger.warn(`⚠️ API primária falhou (${error.code || error.response?.status}), tentando backup (${failoverCount}/${MAX_FAILOVER_ATTEMPTS})...`);
-        
+
+        // Sempre visível no console (inclusive produção) para teste de failover
+        console.warn(`⚠️ API primária falhou (${error.code || error.response?.status || 'CORS/rede'}), tentando backup (${failoverCount}/${MAX_FAILOVER_ATTEMPTS})...`);
+
         // Mudar para backup
         currentAPI = BACKUP_API;
         const backupBaseURL = BACKUP_API.endsWith('/api') ? BACKUP_API : `${BACKUP_API}/api`;
         originalRequest.baseURL = backupBaseURL;
-        
+
         // Recriar instâncias com nova baseURL
         const newInstance = createApiInstance();
         applyLojaInterceptors(newInstance);
         Object.assign(apiClient, newInstance);
         Object.assign(clinicaApiClient, newInstance);
-        
+
         try {
-          logger.log('🔄 Repetindo requisição no servidor backup...');
-          return await instance(originalRequest);
+          console.warn('🔄 Repetindo requisição no servidor backup...');
+          const res = await instance(originalRequest);
+          console.warn('API Response:', res.status, res.config.url);
+          return res;
         } catch (backupError) {
-          logger.error('❌ Servidor backup também falhou:', backupError);
+          console.error('❌ Servidor backup também falhou:', backupError);
           return Promise.reject(backupError);
         }
       }
@@ -249,6 +266,21 @@ export function getFailoverStatus() {
     lastFailoverTime,
     hasBackup: !!BACKUP_API,
   };
+}
+
+/**
+ * Força uso da API primária (Heroku). Usar ao entrar em páginas de loja:
+ * o backup (Render) não tem os dados das lojas; lojas devem sempre usar a API principal.
+ */
+export function resetToPrimaryAPI(): void {
+  if (currentAPI === PRIMARY_API) return;
+  currentAPI = PRIMARY_API;
+  failoverCount = 0;
+  lastFailoverTime = null;
+  const newInstance = createApiInstance();
+  applyLojaInterceptors(newInstance);
+  Object.assign(apiClient, newInstance);
+  Object.assign(clinicaApiClient, newInstance);
 }
 
 /** Verifica health do servidor atual */

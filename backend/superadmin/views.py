@@ -124,7 +124,6 @@ class LojaViewSet(viewsets.ModelViewSet):
         return queryset
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], authentication_classes=[])
-    @action(detail=False, methods=['get'], permission_classes=[])
     def info_publica(self, request):
         """
         Retorna informações públicas da loja para página de login (sem autenticação). 

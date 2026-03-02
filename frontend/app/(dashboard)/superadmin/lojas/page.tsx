@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { ModalNovaLoja, ModalEditarLoja, ModalExcluirLoja } from '@/components/superadmin/lojas';
+import { useLojaActions } from '@/hooks/useLojaActions';
+import { useLojaInfo } from '@/hooks/useLojaInfo';
 
 interface Loja {
   id: number;
@@ -23,11 +25,20 @@ interface Loja {
   created_at: string;
 }
 
+type ModalType = 'create' | 'edit' | 'delete' | 'info' | null;
+
 export default function GerenciarLojasPage() {
   const router = useRouter();
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  
+  // ✅ REFATORAÇÃO v765: Estado único para modais
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
+  const [selectedLoja, setSelectedLoja] = useState<Loja | null>(null);
+  
+  // ✅ REFATORAÇÃO v765: Hooks customizados
+  const { excluirLoja, reenviarSenha, criarBanco, loading: actionLoading } = useLojaActions();
+  const { lojaInfo, loading: infoLoading, loadLojaInfo } = useLojaInfo();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
@@ -52,175 +63,60 @@ export default function GerenciarLojasPage() {
     }
   };
 
-  const criarBanco = async (lojaId: number) => {
+  // ✅ REFATORAÇÃO v765: Funções simplificadas usando hooks
+  const handleCriarBanco = async (lojaId: number) => {
     if (!confirm('Deseja criar o banco de dados isolado para esta loja?')) return;
-
-    try {
-      const response = await apiClient.post(`/superadmin/lojas/${lojaId}/criar_banco/`);
-      alert(`Banco criado com sucesso!\n\nUsuário: ${response.data.admin_username}\nSenha: ${response.data.admin_password}`);
-      loadLojas();
-    } catch (error: any) {
-      alert(`Erro: ${error.response?.data?.error || 'Erro ao criar banco'}`);
-    }
+    const result = await criarBanco(lojaId);
+    alert(result.message);
+    if (result.success) loadLojas();
   };
 
-  const [lojaParaExcluir, setLojaParaExcluir] = useState<Loja | null>(null);
-  const [showModalExcluir, setShowModalExcluir] = useState(false);
-  const [lojaParaEditar, setLojaParaEditar] = useState<Loja | null>(null);
-  const [showModalEditar, setShowModalEditar] = useState(false);
-  const [showModalInfo, setShowModalInfo] = useState(false);
-  const [lojaInfo, setLojaInfo] = useState<{
-    nome: string;
-    slug: string;
-    tamanho_banco_mb: number | null;
-    tamanho_banco_estimativa_mb: number;
-    tamanho_banco_motivo: string | null;
-    database_created: boolean;
-    espaco_plano_gb: number | null;
-    espaco_livre_gb: number | null;
-    senha_provisoria: string;
-    login_page_url: string;
-    owner_username: string;
-    owner_email: string;
-    owner_telefone?: string;
-    // ✅ NOVO v743: Campos do monitoramento de storage
-    storage_usado_mb?: number;
-    storage_limite_mb?: number;
-    storage_livre_mb?: number;
-    storage_livre_gb?: number;
-    storage_percentual?: number;
-    storage_status?: string;
-    storage_status_texto?: string;
-    storage_alerta_enviado?: boolean;
-    storage_ultima_verificacao?: string | null;
-    storage_horas_desde_verificacao?: number | null;
-    plano_nome?: string;
-  } | null>(null);
-  const [loadingInfo, setLoadingInfo] = useState(false);
-
-  const excluirLoja = async (loja: Loja) => {
-    setLojaParaExcluir(loja);
-    setShowModalExcluir(true);
+  const handleExcluirLoja = (loja: Loja) => {
+    setSelectedLoja(loja);
+    setActiveModal('delete');
   };
 
-  const editarLoja = (loja: Loja) => {
-    setLojaParaEditar(loja);
-    setShowModalEditar(true);
+  const handleEditarLoja = (loja: Loja) => {
+    setSelectedLoja(loja);
+    setActiveModal('edit');
   };
 
-  const reenviarSenha = async (loja: Loja) => {
+  const handleReenviarSenha = async (loja: Loja) => {
     if (!loja.senha_provisoria) {
       alert('❌ Esta loja não possui senha provisória cadastrada.');
       return;
     }
-
     if (!confirm(`Reenviar senha provisória para ${loja.owner_email}?`)) return;
-
-    try {
-      const response = await apiClient.post(`/superadmin/lojas/${loja.id}/reenviar_senha/`);
-      alert(`✅ ${response.data.message}`);
-    } catch (error: any) {
-      console.error('Erro ao reenviar senha:', error);
-      alert(`❌ Erro ao reenviar senha: ${error.response?.data?.error || 'Erro desconhecido'}`);
-    }
+    const result = await reenviarSenha(loja);
+    alert(result.message);
   };
 
-  const abrirInformacoesLoja = async (loja: Loja) => {
-    setShowModalInfo(true);
-    setLojaInfo(null);
-    setLoadingInfo(true);
-    try {
-      const response = await apiClient.get(`/superadmin/lojas/${loja.id}/info_loja/`);
-      setLojaInfo(response.data);
-    } catch (error: any) {
-      console.error('Erro ao carregar informações da loja:', error);
-      alert(`Erro ao carregar informações: ${error.response?.data?.error || 'Erro desconhecido'}`);
-      setShowModalInfo(false);
-    } finally {
-      setLoadingInfo(false);
-    }
+  const handleAbrirInfo = async (loja: Loja) => {
+    setSelectedLoja(loja);
+    setActiveModal('info');
+    await loadLojaInfo(loja.id);
   };
 
-  const confirmarExclusao = async () => {
-    if (!lojaParaExcluir) return;
-
-    try {
-      const response = await apiClient.delete(`/superadmin/lojas/${lojaParaExcluir.id}/`);
-      
-      // Verificar se a resposta tem a estrutura esperada
-      if (!response.data || !response.data.detalhes) {
-        // Exclusão bem-sucedida mas sem detalhes - mostrar mensagem simples
-        alert(`✅ Loja "${lojaParaExcluir.nome}" foi removida com sucesso!`);
-        setShowModalExcluir(false);
-        setLojaParaExcluir(null);
-        loadLojas();
-        return;
-      }
-      
-      // Mostrar detalhes da exclusão
-      const detalhes = response.data.detalhes;
-      const lojaNome = detalhes.loja_nome || lojaParaExcluir.nome;
-      let mensagem = `✅ Loja "${lojaNome}" foi completamente removida!\n\n`;
-      
-      mensagem += `📋 Detalhes da limpeza:\n`;
-      mensagem += `• Loja: ✅ Removida\n`;
-      
-      if (detalhes.banco_dados?.existia) {
-        mensagem += `• Banco de dados: ✅ Arquivo removido (${detalhes.banco_dados.nome})\n`;
-        mensagem += `• Configurações: ✅ Removidas do sistema\n`;
-      } else {
-        mensagem += `• Banco de dados: ℹ️ Não havia banco criado\n`;
-      }
-      
-      if (detalhes.dados_financeiros?.financeiro_removido) {
-        mensagem += `• Dados financeiros: ✅ Removidos\n`;
-      }
-      
-      if (detalhes.dados_financeiros?.pagamentos_removidos > 0) {
-        mensagem += `• Histórico de pagamentos: ✅ ${detalhes.dados_financeiros.pagamentos_removidos} registro(s) removido(s)\n`;
-      }
-      
-      if (detalhes.usuario_proprietario?.removido) {
-        mensagem += `• Usuário proprietário: ✅ Removido (${detalhes.usuario_proprietario.username})\n`;
-      } else if (detalhes.usuario_proprietario?.username) {
-        const motivo = detalhes.usuario_proprietario.motivo_nao_removido || 'Mantido no sistema';
-        mensagem += `• Usuário proprietário: ℹ️ ${motivo} (${detalhes.usuario_proprietario.username})\n`;
-      }
-      
-      mensagem += `\n🎯 Limpeza 100% completa!`;
-      
-      alert(mensagem);
-      setShowModalExcluir(false);
-      setLojaParaExcluir(null);
+  const handleConfirmarExclusao = async () => {
+    if (!selectedLoja) return;
+    const result = await excluirLoja(selectedLoja);
+    alert(result.message);
+    if (result.success) {
+      setActiveModal(null);
+      setSelectedLoja(null);
       loadLojas();
-    } catch (error: any) {
-      console.error('Erro ao excluir loja:', error);
-
-      // 404 = loja já foi excluída ou não existe (ex.: lista desatualizada)
-      if (error.response?.status === 404) {
-        setShowModalExcluir(false);
-        setLojaParaExcluir(null);
-        loadLojas();
-        alert('ℹ️ Esta loja já foi excluída ou não existe. A lista foi atualizada.');
-        return;
-      }
-      
-      let mensagemErro = '❌ Erro ao excluir loja:\n\n';
-      
-      if (error.response?.data?.error) {
-        mensagemErro += error.response.data.error;
-      } else if (error.message) {
-        mensagemErro += error.message;
-      } else {
-        mensagemErro += 'Erro desconhecido';
-      }
-      
-      if (error.response?.data?.detalhes) {
-        mensagemErro += '\n\n' + error.response.data.detalhes;
-      }
-      
-      alert(mensagemErro);
     }
+  };
+
+  const handleCloseModal = () => {
+    setActiveModal(null);
+    setSelectedLoja(null);
+  };
+
+  const handleSuccessModal = () => {
+    setActiveModal(null);
+    setSelectedLoja(null);
+    loadLojas();
   };
 
   return (
@@ -236,7 +132,7 @@ export default function GerenciarLojasPage() {
               <h1 className="text-2xl font-bold">Gerenciar Lojas</h1>
             </div>
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => setActiveModal('create')}
               className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md transition-colors"
             >
               + Nova Loja
@@ -254,7 +150,7 @@ export default function GerenciarLojasPage() {
             <div className="text-center py-12 bg-white rounded-lg shadow">
               <p className="text-gray-500 mb-4">Nenhuma loja cadastrada ainda.</p>
               <button
-                onClick={() => setShowModal(true)}
+                onClick={() => setActiveModal('create')}
                 className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
               >
                 Criar Primeira Loja
@@ -322,8 +218,9 @@ export default function GerenciarLojasPage() {
                           <span className="text-green-600">✓ Criado</span>
                         ) : (
                           <button
-                            onClick={() => criarBanco(loja.id)}
+                            onClick={() => handleCriarBanco(loja.id)}
                             className="text-blue-600 hover:text-blue-800"
+                            disabled={actionLoading}
                           >
                             Criar Banco
                           </button>
@@ -332,9 +229,10 @@ export default function GerenciarLojasPage() {
                       <td className="px-6 py-4">
                         {loja.senha_provisoria ? (
                           <button
-                            onClick={() => reenviarSenha(loja)}
+                            onClick={() => handleReenviarSenha(loja)}
                             className="text-xs text-blue-600 hover:text-blue-800"
                             title="Reenviar senha por email"
+                            disabled={actionLoading}
                           >
                             📧 Reenviar senha
                           </button>
@@ -345,20 +243,20 @@ export default function GerenciarLojasPage() {
                       </td>
                       <td className="px-6 py-4 text-sm space-x-2">
                         <button
-                          onClick={() => abrirInformacoesLoja(loja)}
+                          onClick={() => handleAbrirInfo(loja)}
                           className="text-purple-600 hover:text-purple-800 font-medium"
                           title="Ver informações da loja"
                         >
                           Informações da Loja
                         </button>
                         <button 
-                          onClick={() => editarLoja(loja)}
+                          onClick={() => handleEditarLoja(loja)}
                           className="text-blue-600 hover:text-blue-800"
                         >
                           Editar
                         </button>
                         <button 
-                          onClick={() => excluirLoja(loja)}
+                          onClick={() => handleExcluirLoja(loja)}
                           className="text-red-600 hover:text-red-800"
                           title={loja.database_created ? 'Não é possível excluir - banco criado' : 'Excluir loja'}
                         >
@@ -375,45 +273,37 @@ export default function GerenciarLojasPage() {
       </main>
 
       {/* Modal Nova Loja */}
-      {showModal && <ModalNovaLoja onClose={() => setShowModal(false)} onSuccess={loadLojas} />}
+      {activeModal === 'create' && (
+        <ModalNovaLoja onClose={handleCloseModal} onSuccess={handleSuccessModal} />
+      )}
       
       {/* Modal Editar Loja */}
-      {showModalEditar && lojaParaEditar && (
+      {activeModal === 'edit' && selectedLoja && (
         <ModalEditarLoja 
-          loja={lojaParaEditar}
-          onClose={() => {
-            setShowModalEditar(false);
-            setLojaParaEditar(null);
-          }}
-          onSuccess={() => {
-            setShowModalEditar(false);
-            setLojaParaEditar(null);
-            loadLojas();
-          }}
+          loja={selectedLoja}
+          onClose={handleCloseModal}
+          onSuccess={handleSuccessModal}
         />
       )}
       
       {/* Modal Excluir Loja */}
-      {showModalExcluir && lojaParaExcluir && (
+      {activeModal === 'delete' && selectedLoja && (
         <ModalExcluirLoja 
-          loja={lojaParaExcluir}
-          onClose={() => {
-            setShowModalExcluir(false);
-            setLojaParaExcluir(null);
-          }}
-          onConfirm={confirmarExclusao}
+          loja={selectedLoja}
+          onClose={handleCloseModal}
+          onConfirm={handleConfirmarExclusao}
         />
       )}
 
       {/* Modal Informações da Loja */}
-      {showModalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowModalInfo(false)}>
+      {activeModal === 'info' && selectedLoja && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={handleCloseModal}>
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="bg-purple-900 text-white px-6 py-4">
               <h2 className="text-xl font-bold">Informações da Loja</h2>
             </div>
             <div className="p-6">
-              {loadingInfo ? (
+              {infoLoading ? (
                 <div className="text-center py-8 text-gray-500">Carregando...</div>
               ) : lojaInfo ? (
                 <div className="space-y-4 text-sm">
@@ -517,7 +407,7 @@ export default function GerenciarLojasPage() {
             </div>
             <div className="px-6 py-4 bg-gray-50 border-t flex justify-end">
               <button
-                onClick={() => setShowModalInfo(false)}
+                onClick={handleCloseModal}
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-md"
               >
                 Fechar

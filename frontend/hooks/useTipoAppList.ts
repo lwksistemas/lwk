@@ -6,6 +6,9 @@ import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
 import { TipoApp } from './useTipoAppActions';
 
+// Re-exportar o tipo para facilitar importações
+export type { TipoApp };
+
 export function useTipoAppList() {
   const [tipos, setTipos] = useState<TipoApp[]>([]);
   const [loading, setLoading] = useState(true);

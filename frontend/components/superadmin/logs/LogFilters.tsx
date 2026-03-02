@@ -2,7 +2,8 @@
  * Componente de filtros de busca de logs
  * ✅ REFATORADO v777: Extraído da página de logs
  */
-import type { FiltrosBusca, BuscaSalva } from '@/hooks/useLogsList';
+import type { FiltrosBusca } from '@/hooks/useLogsList';
+import type { BuscaSalva } from '@/hooks/useLogActions';
 
 interface LogFiltersProps {
   filtros: FiltrosBusca;

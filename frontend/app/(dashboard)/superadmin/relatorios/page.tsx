@@ -121,9 +121,9 @@ export default function RelatoriosPage() {
   const lojasRecentes = lojas.filter(l => new Date(l.created_at) >= dataLimite).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <nav className="bg-pink-900 text-white shadow-lg">
+      <nav className="bg-pink-900 dark:bg-pink-950 text-white shadow-lg">
         <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">
@@ -223,56 +223,56 @@ export default function RelatoriosPage() {
 
               {/* Análise Financeira */}
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">💵 Análise Financeira</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">💵 Análise Financeira</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Receitas</h3>
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Receitas</h3>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Total Recebido:</span>
-                        <span className="font-bold text-green-600">{formatCurrency(receitaTotal)}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Total Recebido:</span>
+                        <span className="font-bold text-green-600 dark:text-green-400">{formatCurrency(receitaTotal)}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Pendente:</span>
-                        <span className="font-bold text-yellow-600">{formatCurrency(receitaPendente)}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Pendente:</span>
+                        <span className="font-bold text-yellow-600 dark:text-yellow-400">{formatCurrency(receitaPendente)}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Mensal Estimada:</span>
-                        <span className="font-bold text-blue-600">{formatCurrency(receitaMensal)}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Mensal Estimada:</span>
+                        <span className="font-bold text-blue-600 dark:text-blue-400">{formatCurrency(receitaMensal)}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Status de Pagamento</h3>
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Status de Pagamento</h3>
                     <div className="space-y-2">
                       {Object.entries(statusPagamento).map(([status, count]) => (
                         <div key={status} className="flex justify-between items-center">
-                          <span className="text-gray-600">{status}:</span>
-                          <span className="font-bold">{count}</span>
+                          <span className="text-gray-600 dark:text-gray-400">{status}:</span>
+                          <span className="font-bold text-gray-900 dark:text-gray-100">{count}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Métricas</h3>
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Métricas</h3>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Ticket Médio:</span>
-                        <span className="font-bold text-purple-600">
+                        <span className="text-gray-600 dark:text-gray-400">Ticket Médio:</span>
+                        <span className="font-bold text-purple-600 dark:text-purple-400">
                           {formatCurrency(lojasAtivas > 0 ? receitaMensal / lojasAtivas : 0)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Taxa de Conversão:</span>
-                        <span className="font-bold text-green-600">
+                        <span className="text-gray-600 dark:text-gray-400">Taxa de Conversão:</span>
+                        <span className="font-bold text-green-600 dark:text-green-400">
                           {lojas.length > 0 ? ((lojasAtivas / lojas.length) * 100).toFixed(1) : 0}%
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Lojas Inativas:</span>
-                        <span className="font-bold text-red-600">{lojasInativas}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Lojas Inativas:</span>
+                        <span className="font-bold text-red-600 dark:text-red-400">{lojasInativas}</span>
                       </div>
                     </div>
                   </div>
@@ -281,42 +281,42 @@ export default function RelatoriosPage() {
 
               {/* Análise de Lojas */}
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">🏪 Análise de Lojas</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">🏪 Análise de Lojas</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Lojas por Tipo</h3>
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Lojas por Tipo</h3>
                     <div className="space-y-3">
                       {Object.entries(lojasPorTipo).map(([tipo, count]) => (
                         <div key={tipo} className="flex items-center justify-between">
-                          <span className="text-gray-600">{tipo}</span>
+                          <span className="text-gray-600 dark:text-gray-400">{tipo}</span>
                           <div className="flex items-center space-x-3">
-                            <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                               <div
-                                className="bg-purple-600 h-2 rounded-full"
+                                className="bg-purple-600 dark:bg-purple-400 h-2 rounded-full"
                                 style={{ width: `${(count / lojas.length) * 100}%` }}
                               ></div>
                             </div>
-                            <span className="font-bold text-gray-900 w-8 text-right">{count}</span>
+                            <span className="font-bold text-gray-900 dark:text-gray-100 w-8 text-right">{count}</span>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Lojas por Plano</h3>
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">Lojas por Plano</h3>
                     <div className="space-y-3">
                       {Object.entries(lojasPorPlano).map(([plano, count]) => (
                         <div key={plano} className="flex items-center justify-between">
-                          <span className="text-gray-600">{plano}</span>
+                          <span className="text-gray-600 dark:text-gray-400">{plano}</span>
                           <div className="flex items-center space-x-3">
-                            <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                               <div
-                                className="bg-blue-600 h-2 rounded-full"
+                                className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full"
                                 style={{ width: `${(count / lojas.length) * 100}%` }}
                               ></div>
                             </div>
-                            <span className="font-bold text-gray-900 w-8 text-right">{count}</span>
+                            <span className="font-bold text-gray-900 dark:text-gray-100 w-8 text-right">{count}</span>
                           </div>
                         </div>
                       ))}
@@ -327,43 +327,43 @@ export default function RelatoriosPage() {
 
               {/* Análise de Usuários */}
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">👥 Análise de Usuários</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">👥 Análise de Usuários</h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="bg-white p-6 rounded-lg shadow">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Total de Usuários</p>
-                        <p className="text-2xl font-bold text-purple-600 mt-2">{usuarios.length}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Total de Usuários</p>
+                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-2">{usuarios.length}</p>
                       </div>
                       <div className="text-3xl">👥</div>
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 rounded-lg shadow">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Super Admins</p>
-                        <p className="text-2xl font-bold text-purple-600 mt-2">{superAdmins}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Super Admins</p>
+                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-2">{superAdmins}</p>
                       </div>
                       <div className="text-3xl">👑</div>
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 rounded-lg shadow">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Suporte</p>
-                        <p className="text-2xl font-bold text-blue-600 mt-2">{suporte}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Suporte</p>
+                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">{suporte}</p>
                       </div>
                       <div className="text-3xl">🛠️</div>
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 rounded-lg shadow">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">Ativos</p>
-                        <p className="text-2xl font-bold text-green-600 mt-2">{usuariosAtivos}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Ativos</p>
+                        <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-2">{usuariosAtivos}</p>
                       </div>
                       <div className="text-3xl">✅</div>
                     </div>
@@ -373,41 +373,41 @@ export default function RelatoriosPage() {
 
               {/* Status Geral do Sistema */}
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">⚡ Status Geral do Sistema</h2>
-                <div className="bg-white p-6 rounded-lg shadow">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">⚡ Status Geral do Sistema</h2>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                      <h3 className="text-sm font-medium text-gray-500 mb-3">Lojas</h3>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Lojas</h3>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Ativas:</span>
-                          <span className="font-semibold text-green-600">{lojasAtivas}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Ativas:</span>
+                          <span className="font-semibold text-green-600 dark:text-green-400">{lojasAtivas}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Inativas:</span>
-                          <span className="font-semibold text-red-600">{lojasInativas}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Inativas:</span>
+                          <span className="font-semibold text-red-600 dark:text-red-400">{lojasInativas}</span>
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-medium text-gray-500 mb-3">Financeiro</h3>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Financeiro</h3>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Ativos:</span>
-                          <span className="font-semibold text-green-600">
+                          <span className="text-gray-600 dark:text-gray-400">Ativos:</span>
+                          <span className="font-semibold text-green-600 dark:text-green-400">
                             {financeiros.filter(f => f.status_pagamento === 'ativo').length}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Pendentes:</span>
-                          <span className="font-semibold text-yellow-600">
+                          <span className="text-gray-600 dark:text-gray-400">Pendentes:</span>
+                          <span className="font-semibold text-yellow-600 dark:text-yellow-400">
                             {financeiros.filter(f => f.status_pagamento === 'pendente').length}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Atrasados:</span>
-                          <span className="font-semibold text-red-600">
+                          <span className="text-gray-600 dark:text-gray-400">Atrasados:</span>
+                          <span className="font-semibold text-red-600 dark:text-red-400">
                             {financeiros.filter(f => f.status_pagamento === 'atrasado').length}
                           </span>
                         </div>
@@ -415,21 +415,21 @@ export default function RelatoriosPage() {
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-medium text-gray-500 mb-3">Crescimento</h3>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Crescimento</h3>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Novas (30d):</span>
-                          <span className="font-semibold text-blue-600">{lojasRecentes}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Novas (30d):</span>
+                          <span className="font-semibold text-blue-600 dark:text-blue-400">{lojasRecentes}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Taxa Ativas:</span>
-                          <span className="font-semibold text-green-600">
+                          <span className="text-gray-600 dark:text-gray-400">Taxa Ativas:</span>
+                          <span className="font-semibold text-green-600 dark:text-green-400">
                             {lojas.length > 0 ? ((lojasAtivas / lojas.length) * 100).toFixed(0) : 0}%
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Taxa Inativas:</span>
-                          <span className="font-semibold text-red-600">
+                          <span className="text-gray-600 dark:text-gray-400">Taxa Inativas:</span>
+                          <span className="font-semibold text-red-600 dark:text-red-400">
                             {lojas.length > 0 ? ((lojasInativas / lojas.length) * 100).toFixed(0) : 0}%
                           </span>
                         </div>
@@ -440,36 +440,36 @@ export default function RelatoriosPage() {
               </div>
 
               {/* Ações Rápidas */}
-              <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-6 rounded-lg border-2 border-pink-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🚀 Ações Rápidas</h3>
+              <div className="bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-900/20 dark:to-purple-900/20 p-6 rounded-lg border-2 border-pink-200 dark:border-pink-800">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">🚀 Ações Rápidas</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <a
                     href="/superadmin/lojas"
-                    className="px-4 py-3 bg-white hover:bg-gray-50 rounded-lg shadow text-center transition-colors"
+                    className="px-4 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg shadow text-center transition-colors"
                   >
                     <div className="text-2xl mb-1">🏪</div>
-                    <div className="text-sm font-medium text-gray-700">Ver Lojas</div>
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Ver Lojas</div>
                   </a>
                   <a
                     href="/superadmin/financeiro"
-                    className="px-4 py-3 bg-white hover:bg-gray-50 rounded-lg shadow text-center transition-colors"
+                    className="px-4 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg shadow text-center transition-colors"
                   >
                     <div className="text-2xl mb-1">💰</div>
-                    <div className="text-sm font-medium text-gray-700">Financeiro</div>
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Financeiro</div>
                   </a>
                   <a
                     href="/superadmin/usuarios"
-                    className="px-4 py-3 bg-white hover:bg-gray-50 rounded-lg shadow text-center transition-colors"
+                    className="px-4 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg shadow text-center transition-colors"
                   >
                     <div className="text-2xl mb-1">👥</div>
-                    <div className="text-sm font-medium text-gray-700">Usuários</div>
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Usuários</div>
                   </a>
                   <a
                     href="/superadmin/planos"
-                    className="px-4 py-3 bg-white hover:bg-gray-50 rounded-lg shadow text-center transition-colors"
+                    className="px-4 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg shadow text-center transition-colors"
                   >
                     <div className="text-2xl mb-1">💎</div>
-                    <div className="text-sm font-medium text-gray-700">Planos</div>
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Planos</div>
                   </a>
                 </div>
               </div>

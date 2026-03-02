@@ -297,7 +297,7 @@ class Command(BaseCommand):
                     defaults=plano_data
                 )
                 if created:
-                    # Adicionar tipo de loja ao ManyToMany
+                    # Adicionar tipo de app ao ManyToMany
                     plano.tipos_loja.add(tipo_loja)
                     created_count += 1
                     self.stdout.write(f'  ✅ Plano criado: {plano.nome}')

@@ -44,7 +44,7 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
         
         funcionario_criado = None
         
-        # Criar funcionário baseado no tipo de loja
+        # Criar funcionário baseado no tipo de app
         if tipo_loja_nome == 'Clínica de Estética':
             from clinica_estetica.models import Funcionario
             
@@ -86,7 +86,7 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
             return
             
         else:
-            logger.warning(f"Tipo de loja não reconhecido: {tipo_loja_nome}")
+            logger.warning(f"Tipo de app não reconhecido: {tipo_loja_nome}")
             return
         
         if funcionario_criado:
@@ -139,7 +139,7 @@ def delete_all_loja_data(sender, instance, **kwargs):
     logger.info(f"🗑️ Iniciando exclusão em cascata para loja: {loja_nome} (ID: {loja_id})")
     
     if not tipo_loja_nome:
-        logger.warning(f"⚠️ Tipo de loja não disponível para {loja_nome}, pulando exclusão de dados relacionados")
+        logger.warning(f"⚠️ Tipo de app não disponível para {loja_nome}, pulando exclusão de dados relacionados")
         return
     
     try:
@@ -179,7 +179,7 @@ def delete_all_loja_data(sender, instance, **kwargs):
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao remover LojaAssinatura por slug: {e}")
         
-        # 1. Deletar funcionários/vendedores baseado no tipo de loja (no schema da loja quando db_alias definido)
+        # 1. Deletar funcionários/vendedores baseado no tipo de app (no schema da loja quando db_alias definido)
         if tipo_loja_nome == 'Clínica de Estética':
             from clinica_estetica.models import Funcionario, Cliente, Agendamento, Profissional, Procedimento
             _db = db_alias

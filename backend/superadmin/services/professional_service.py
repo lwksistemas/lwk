@@ -1,6 +1,6 @@
 """
 Serviço para gerenciamento de profissionais/funcionários
-Centraliza lógica de criação de profissionais por tipo de loja
+Centraliza lógica de criação de profissionais por tipo de app
 """
 import logging
 
@@ -70,7 +70,7 @@ class ProfessionalService:
     @staticmethod
     def criar_profissional_por_tipo(loja, owner, owner_telefone: str = '') -> bool:
         """
-        Cria profissional/funcionário baseado no tipo de loja
+        Cria profissional/funcionário baseado no tipo de app
         
         Args:
             loja: Objeto Loja
@@ -94,5 +94,5 @@ class ProfessionalService:
             logger.info(f"Funcionário admin será criado pelo signal para {tipo_loja_nome}")
             return True
         
-        logger.info(f"Tipo de loja '{tipo_loja_nome}' não requer criação de profissional")
+        logger.info(f"Tipo de app '{tipo_loja_nome}' não requer criação de profissional")
         return True

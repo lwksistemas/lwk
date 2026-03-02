@@ -185,7 +185,7 @@ PLANO_LIST_SCHEMA = extend_schema(
             name="tipo_loja",
             type=OpenApiTypes.INT,
             location=OpenApiParameter.QUERY,
-            description="Filtrar por tipo de loja"
+            description="Filtrar por tipo de app"
         ),
     ],
     examples=[

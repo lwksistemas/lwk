@@ -99,7 +99,7 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Mercado Pago: {e}'))
 
-            # 3. Excluir loja (dispara signal pre_delete que limpa dados do tipo de loja)
+            # 3. Excluir loja (dispara signal pre_delete que limpa dados do tipo de app)
             with transaction.atomic():
                 loja.delete()
             self.stdout.write(self.style.SUCCESS(f'   [{loja_slug}] Loja excluída'))

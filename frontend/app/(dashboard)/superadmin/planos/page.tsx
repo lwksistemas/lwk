@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
-import { useTipoLojaList } from '@/hooks/useTipoLojaList';
+import { useTipoAppList } from '@/hooks/useTipoAppList';
 import { usePlanoList } from '@/hooks/usePlanoList';
 import { usePlanoActions, Plano } from '@/hooks/usePlanoActions';
-import { ModalNovoPlano, PlanoCard, TipoLojaCard } from '@/components/superadmin/planos';
+import { ModalNovoPlano, PlanoCard, TipoAppCard } from '@/components/superadmin/planos';
 
 export default function PlanosPage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function PlanosPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingPlano, setEditingPlano] = useState<Plano | null>(null);
 
-  const { tipos, loading: loadingTipos } = useTipoLojaList();
+  const { tipos, loading: loadingTipos } = useTipoAppList();
   const { planos, loading: loadingPlanos, loadPlanos } = usePlanoList(tipoSelecionado);
   const { excluirPlano } = usePlanoActions();
 
@@ -125,7 +125,7 @@ export default function PlanosPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {tipos.map((tipo) => (
-                    <TipoLojaCard
+                    <TipoAppCard
                       key={tipo.id}
                       tipo={tipo}
                       onClick={() => handleSelectTipo(tipo.id)}

@@ -1,9 +1,9 @@
 'use client';
 
-import { TipoLoja } from '@/hooks/useTipoLojaList';
+import { TipoApp } from '@/hooks/useTipoAppList';
 
-interface TipoLojaCardProps {
-  tipo: TipoLoja;
+interface TipoAppCardProps {
+  tipo: TipoApp;
   onClick: () => void;
 }
 
@@ -18,7 +18,7 @@ const getIconForType = (nome: string) => {
   }
 };
 
-export function TipoLojaCard({ tipo, onClick }: TipoLojaCardProps) {
+export function TipoAppCard({ tipo, onClick }: TipoAppCardProps) {
   return (
     <button
       onClick={onClick}

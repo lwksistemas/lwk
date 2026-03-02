@@ -66,8 +66,8 @@ class TipoLoja(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        verbose_name = 'Tipo de Loja'
-        verbose_name_plural = 'Tipos de Loja'
+        verbose_name = 'Tipo de App'
+        verbose_name_plural = 'Tipos de App'
         ordering = ['nome']
         # ✅ OTIMIZAÇÃO: Índices para queries comuns
         indexes = [
@@ -317,7 +317,7 @@ class Loja(models.Model):
             self.database_name = f'loja_{self.slug.replace("-", "_")}'
         if not self.login_page_url:
             self.login_page_url = f'/loja/{self.slug}/login'
-        # Herdar cores do tipo de loja se não definidas
+        # Herdar cores do tipo de app se não definidas
         if not self.cor_primaria and self.tipo_loja:
             self.cor_primaria = self.tipo_loja.cor_primaria
         if not self.cor_secundaria and self.tipo_loja:

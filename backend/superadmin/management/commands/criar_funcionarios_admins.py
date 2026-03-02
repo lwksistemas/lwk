@@ -77,7 +77,7 @@ class Command(BaseCommand):
                 
                 funcionario_criado = False
                 
-                # Criar funcionário baseado no tipo de loja (no schema da loja quando db_alias != default)
+                # Criar funcionário baseado no tipo de app (no schema da loja quando db_alias != default)
                 if tipo_loja_nome == 'Clínica de Estética':
                     from clinica_estetica.models import Funcionario
                     from django.db import connections
@@ -154,7 +154,7 @@ class Command(BaseCommand):
                     continue
                     
                 else:
-                    self.stdout.write(self.style.WARNING(f'   ⚠️ Tipo de loja não reconhecido: {tipo_loja_nome}'))
+                    self.stdout.write(self.style.WARNING(f'   ⚠️ Tipo de app não reconhecido: {tipo_loja_nome}'))
                     continue
                 
                 if funcionario_criado:

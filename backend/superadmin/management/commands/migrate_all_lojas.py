@@ -53,7 +53,7 @@ class Command(BaseCommand):
             # Apps base (sempre aplicar)
             base_apps = ['stores', 'products']
             
-            # Apps específicos por tipo de loja (whatsapp = config isolada por loja para Clínica da Beleza)
+            # Apps específicos por tipo de app (whatsapp = config isolada por loja para Clínica da Beleza)
             tipo_apps = {
                 'clinica-de-estetica': ['clinica_estetica'],
                 'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],

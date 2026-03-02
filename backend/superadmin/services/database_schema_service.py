@@ -150,7 +150,7 @@ class DatabaseSchemaService:
         # Apps base
         base_apps = ['stores', 'products']
         
-        # Apps por tipo de loja
+        # Apps por tipo de app
         tipo_apps = {
             'clinica-de-estetica': ['clinica_estetica'],
             'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],

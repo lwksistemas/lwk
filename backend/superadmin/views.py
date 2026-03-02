@@ -115,7 +115,7 @@ class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gerenciar Planos de Assinatura.
     
-    Planos definem preços e limites para cada tipo de loja.
+    Planos definem preços e limites para cada tipo de app.
     """
     serializer_class = PlanoAssinaturaSerializer
     permission_classes = [IsSuperAdmin]
@@ -126,7 +126,7 @@ class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def por_tipo(self, request):
-        """Buscar planos por tipo de loja"""
+        """Buscar planos por tipo de app"""
         tipo_id = request.query_params.get('tipo_id')
         if tipo_id:
             planos = self.get_queryset().filter(tipos_loja__id=tipo_id, is_active=True)

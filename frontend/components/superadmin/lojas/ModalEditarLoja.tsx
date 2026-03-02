@@ -13,7 +13,6 @@ interface Loja {
   owner_email: string;
   owner_telefone?: string;
   is_active: boolean;
-  is_trial: boolean;
   database_created: boolean;
   login_page_url: string;
 }
@@ -27,8 +26,7 @@ interface ModalEditarLojaProps {
 export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaProps) {
   const [formData, setFormData] = useState({
     nome: loja.nome,
-    is_active: loja.is_active,
-    is_trial: loja.is_trial
+    is_active: loja.is_active
   });
   const [loading, setLoading] = useState(false);
 
@@ -73,32 +71,17 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="is_active"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
-                    Loja Ativa
-                  </label>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="is_trial"
-                    checked={formData.is_trial}
-                    onChange={(e) => setFormData({ ...formData, is_trial: e.target.checked })}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="is_trial" className="ml-2 block text-sm text-gray-700">
-                    Período Trial
-                  </label>
-                </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={formData.is_active}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                />
+                <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
+                  Loja Ativa
+                </label>
               </div>
             </div>
           </div>

@@ -94,7 +94,7 @@ export default function GerenciarLojasPage() {
   const stats = {
     total: lojas.length,
     ativas: lojas.filter(l => l.is_active).length,
-    trial: lojas.filter(l => l.is_trial).length,
+    inativas: lojas.filter(l => !l.is_active).length,
     comBanco: lojas.filter(l => l.database_created).length,
   };
 
@@ -148,10 +148,10 @@ export default function GerenciarLojasPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Em Trial</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.trial}</p>
+                  <p className="text-sm text-gray-600">Lojas Inativas</p>
+                  <p className="text-2xl font-bold text-red-600">{stats.inativas}</p>
                 </div>
-                <div className="text-3xl">⏱️</div>
+                <div className="text-3xl">❌</div>
               </div>
             </div>
 

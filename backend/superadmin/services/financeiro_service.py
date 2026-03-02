@@ -97,8 +97,8 @@ class FinanceiroService:
             # Usar primeiro vencimento como próxima cobrança
             proxima_cobranca = primeiro_vencimento
             
-            # Determinar status
-            status_pagamento = 'ativo' if not loja.is_trial else 'pendente'
+            # Status inicial sempre pendente (aguardando primeiro pagamento)
+            status_pagamento = 'pendente'
             
             # Criar financeiro
             financeiro = FinanceiroLoja.objects.create(

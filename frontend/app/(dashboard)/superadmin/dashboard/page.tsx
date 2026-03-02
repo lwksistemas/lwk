@@ -12,7 +12,6 @@ import { ThemeToggle } from '@/components/ui/ThemeProvider';
 interface Estatisticas {
   total_lojas: number;
   lojas_ativas: number;
-  lojas_trial: number;
   lojas_inativas: number;
   receita_mensal_estimada: number;
 }
@@ -228,9 +227,9 @@ export default function SuperAdminDashboard() {
               color="text-green-600"
             />
             <StatCard
-              label="Em Trial"
-              value={stats?.lojas_trial || 0}
-              color="text-yellow-600"
+              label="Lojas Inativas"
+              value={stats?.lojas_inativas || 0}
+              color="text-red-600"
             />
             <StatCard
               label="Receita Mensal"

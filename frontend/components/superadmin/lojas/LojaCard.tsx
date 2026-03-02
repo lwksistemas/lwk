@@ -29,22 +29,15 @@ export function LojaCard({
           <h3 className="text-lg font-bold text-gray-900">{loja.nome}</h3>
           <p className="text-sm text-gray-500">@{loja.owner_username}</p>
         </div>
-        <div className="flex flex-col items-end space-y-1">
-          <span
-            className={`px-3 py-1 text-xs rounded-full ${
-              loja.is_active
-                ? 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800'
-            }`}
-          >
-            {loja.is_active ? 'Ativa' : 'Inativa'}
-          </span>
-          {loja.is_trial && (
-            <span className="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
-              Trial
-            </span>
-          )}
-        </div>
+        <span
+          className={`px-3 py-1 text-xs rounded-full ${
+            loja.is_active
+              ? 'bg-green-100 text-green-800'
+              : 'bg-red-100 text-red-800'
+          }`}
+        >
+          {loja.is_active ? 'Ativa' : 'Inativa'}
+        </span>
       </div>
 
       {/* Informações */}

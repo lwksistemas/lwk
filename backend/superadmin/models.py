@@ -198,8 +198,6 @@ class Loja(models.Model):
     
     # Status
     is_active = models.BooleanField(default=True)
-    is_trial = models.BooleanField(default=True)
-    trial_ends_at = models.DateTimeField(null=True, blank=True)
     
     # Controle de bloqueio por inadimplência
     is_blocked = models.BooleanField(default=False, help_text='Loja bloqueada por inadimplência')
@@ -244,8 +242,7 @@ class Loja(models.Model):
             models.Index(fields=['plano', 'is_active'], name='loja_plano_active_idx'),
             models.Index(fields=['owner', 'is_active'], name='loja_owner_active_idx'),
             models.Index(fields=['database_name'], name='loja_db_name_idx'),
-            models.Index(fields=['is_trial', 'trial_ends_at'], name='loja_trial_idx'),
-            models.Index(fields=['storage_ultima_verificacao'], name='loja_storage_check_idx'),  # ✅ NOVO v738
+            models.Index(fields=['storage_ultima_verificacao'], name='loja_storage_check_idx'),
         ]
     
     def _get_slug_suffix_from_cpf_cnpj(self):

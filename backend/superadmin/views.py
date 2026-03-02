@@ -744,7 +744,6 @@ Sistema Multi-Loja
         """Estatísticas gerais do sistema"""
         total_lojas = Loja.objects.count()
         lojas_ativas = Loja.objects.filter(is_active=True).count()
-        lojas_trial = Loja.objects.filter(is_trial=True).count()
         
         # Receita mensal
         from django.db.models import Sum
@@ -755,7 +754,6 @@ Sistema Multi-Loja
         return Response({
             'total_lojas': total_lojas,
             'lojas_ativas': lojas_ativas,
-            'lojas_trial': lojas_trial,
             'lojas_inativas': total_lojas - lojas_ativas,
             'receita_mensal_estimada': float(receita_mensal),
         })

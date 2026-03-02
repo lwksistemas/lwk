@@ -14,7 +14,6 @@ export interface Loja {
   owner_telefone?: string;
   senha_provisoria: string;
   is_active: boolean;
-  is_trial: boolean;
   database_created: boolean;
   login_page_url: string;
   created_at: string;

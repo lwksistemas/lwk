@@ -9,7 +9,6 @@ import { formatCurrency } from '@/lib/financeiro-helpers';
 interface Estatisticas {
   total_lojas: number;
   lojas_ativas: number;
-  lojas_trial: number;
   lojas_inativas: number;
   receita_mensal_estimada: number;
 }
@@ -20,7 +19,6 @@ interface Loja {
   tipo_loja_nome: string;
   plano_nome: string;
   is_active: boolean;
-  is_trial: boolean;
   created_at: string;
 }
 
@@ -93,7 +91,6 @@ export default function RelatoriosPage() {
   const receitaMensal = financeiros.reduce((acc, f) => acc + parseFloat(f.valor_mensalidade || '0'), 0);
   
   const lojasAtivas = lojas.filter(l => l.is_active).length;
-  const lojasTrial = lojas.filter(l => l.is_trial).length;
   const lojasInativas = lojas.filter(l => !l.is_active).length;
   
   const usuariosAtivos = usuarios.filter(u => u.is_active).length;
@@ -274,8 +271,8 @@ export default function RelatoriosPage() {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Lojas em Trial:</span>
-                        <span className="font-bold text-yellow-600">{lojasTrial}</span>
+                        <span className="text-gray-600">Lojas Inativas:</span>
+                        <span className="font-bold text-red-600">{lojasInativas}</span>
                       </div>
                     </div>
                   </div>
@@ -387,10 +384,6 @@ export default function RelatoriosPage() {
                           <span className="font-semibold text-green-600">{lojasAtivas}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Trial:</span>
-                          <span className="font-semibold text-yellow-600">{lojasTrial}</span>
-                        </div>
-                        <div className="flex justify-between">
                           <span className="text-gray-600">Inativas:</span>
                           <span className="font-semibold text-red-600">{lojasInativas}</span>
                         </div>
@@ -435,9 +428,9 @@ export default function RelatoriosPage() {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Conversão Trial:</span>
-                          <span className="font-semibold text-purple-600">
-                            {lojas.length > 0 ? (((lojas.length - lojasTrial) / lojas.length) * 100).toFixed(0) : 0}%
+                          <span className="text-gray-600">Taxa Inativas:</span>
+                          <span className="font-semibold text-red-600">
+                            {lojas.length > 0 ? ((lojasInativas / lojas.length) * 100).toFixed(0) : 0}%
                           </span>
                         </div>
                       </div>

@@ -324,7 +324,7 @@ Conforme planejado no `PLANO_REFATORACAO_v777-v782.md`:
 
 ---
 
-**Status**: ✅ Código Refatorado  
-**Build**: ⏳ Em andamento  
-**Deploy**: ⏳ Aguardando  
+**Status**: ✅ Concluído  
+**Build**: ✅ Sucesso  
+**Deploy**: ✅ Produção (https://lwksistemas.com.br/superadmin/financeiro)  
 **Próxima Versão**: v781 (Refatoração Asaas)

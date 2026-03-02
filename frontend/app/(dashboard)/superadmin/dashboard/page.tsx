@@ -35,10 +35,10 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'purple',
   },
   {
-    title: 'Tipos de Loja',
-    description: 'Configurar tipos de loja e dashboards personalizados',
+    title: 'Tipos de App',
+    description: 'Configurar tipos de app e dashboards personalizados',
     icon: '🎨',
-    href: '/superadmin/tipos-loja',
+    href: '/superadmin/tipos-app',
     color: 'indigo',
   },
   {

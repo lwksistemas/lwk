@@ -200,9 +200,9 @@ export default function PlanosPage() {
 
               {tipos.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-lg shadow">
-                  <p className="text-gray-500 mb-4">Nenhum tipo de loja cadastrado ainda.</p>
+                  <p className="text-gray-500 mb-4">Nenhum tipo de app cadastrado ainda.</p>
                   <a
-                    href="/superadmin/tipos-loja"
+                    href="/superadmin/tipos-app"
                     className="inline-block px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                   >
                     Criar Tipos de Loja

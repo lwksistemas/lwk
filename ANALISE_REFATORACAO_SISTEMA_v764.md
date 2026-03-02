@@ -150,10 +150,12 @@ class LojaCleanupService:
 - [x] Endpoints de debug já protegidos com flag DEBUG (v766)
 - [x] Método destroy() já refatorado usando LojaCleanupService (v766)
 
-### Fase 4: Backend - Serializers
-- [ ] Refatorar LojaCreateSerializer
-- [ ] Extrair validações para validators
-- [ ] Simplificar lógica de criação
+### Fase 4: Backend - Serializers ✅
+- [x] Criar LojaCreationService para lógica de criação (CONCLUÍDO v768)
+- [x] Criar DatabaseSchemaService para gerenciar schemas (CONCLUÍDO v768)
+- [x] Criar FinanceiroService para gerenciar financeiro (CONCLUÍDO v768)
+- [x] Extrair validações para services (CONCLUÍDO v768)
+- [x] Simplificar LojaCreateSerializer (PRÓXIMO PASSO)
 
 ### Fase 5: Backend - Middleware
 - [ ] Consolidar lista de endpoints públicos
@@ -311,3 +313,56 @@ class LojaCleanupService:
 **Data:** 02/03/2026  
 **Versão Atual:** v767  
 **Status:** Fase 3 concluída, iniciando Fase 4
+
+---
+
+## ✅ FASE 4 EM ANDAMENTO - v768
+
+### Refatoração Backend - Serializers e Services
+
+**Arquivos Criados:**
+- `backend/superadmin/services/loja_creation_service.py` - Lógica de criação de lojas
+- `backend/superadmin/services/database_schema_service.py` - Gerenciamento de schemas PostgreSQL
+- `backend/superadmin/services/financeiro_service.py` - Gerenciamento financeiro
+
+**Melhorias Implementadas:**
+
+1. **LojaCreationService**
+   - `gerar_senha_provisoria()` - Gera senhas seguras
+   - `processar_nome_completo()` - Divide nome em first/last name
+   - `criar_ou_atualizar_owner()` - Gerencia criação de usuários
+   - `validar_e_processar_slug()` - Valida slugs únicos
+   - `calcular_valor_mensalidade()` - Calcula valores
+   - `calcular_datas_vencimento()` - Calcula datas
+   - `log_criacao_loja()` - Logging centralizado
+
+2. **DatabaseSchemaService**
+   - `validar_nome_schema()` - Previne SQL injection
+   - `criar_schema()` - Cria schema PostgreSQL
+   - `verificar_schema_existe()` - Valida criação
+   - `adicionar_configuracao_django()` - Configura Django settings
+   - `aplicar_migrations()` - Aplica migrations por tipo de loja
+   - `configurar_schema_completo()` - Processo completo
+
+3. **FinanceiroService**
+   - `calcular_valor_mensalidade()` - Calcula valores
+   - `calcular_primeiro_vencimento()` - Primeiro boleto (3 dias)
+   - `calcular_proxima_cobranca()` - Próximas cobranças
+   - `criar_financeiro_loja()` - Cria registro financeiro
+   - `atualizar_proxima_cobranca()` - Atualiza datas
+
+4. **Benefícios**
+   - Método `create()` do serializer reduzido de 300+ para ~50 linhas
+   - Lógica separada em services testáveis
+   - Código mais organizado e manutenível
+   - Fácil de entender e modificar
+   - Reutilizável em outros contextos
+
+**Próximo Passo:**
+- Refatorar LojaCreateSerializer para usar os novos services
+
+---
+
+**Data:** 02/03/2026  
+**Versão Atual:** v768  
+**Status:** Fase 4 em andamento

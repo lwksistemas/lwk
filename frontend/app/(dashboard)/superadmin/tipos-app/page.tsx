@@ -64,7 +64,7 @@ export default function TiposAppPage() {
               onClick={() => setShowModal(true)}
               className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md transition-colors"
             >
-              + Novo Tipo
+              + Novo Tipo de App
             </button>
           </div>
         </div>
@@ -84,7 +84,7 @@ export default function TiposAppPage() {
                 onClick={() => setShowModal(true)}
                 className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
               >
-                Criar Primeiro Tipo
+                Criar Primeiro Tipo de App
               </button>
             </div>
           ) : (

@@ -143,15 +143,15 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg p-8 max-w-4xl w-full my-8">
-        <h2 className="text-2xl font-bold mb-6 text-purple-900">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-3xl w-full my-8 max-h-[85vh] overflow-y-auto">
+        <h2 className="text-2xl font-bold mb-6 text-purple-900 dark:text-purple-400">
           {isEditing ? 'Editar Plano de Assinatura' : 'Novo Plano de Assinatura'}
         </h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Templates Pré-definidos */}
           <div>
-            <h3 className="text-lg font-semibold mb-3 text-gray-700">Templates Rápidos</h3>
+            <h3 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Templates Rápidos</h3>
             <div className="grid grid-cols-3 gap-3">
               {planosPreDefinidos.map((template) => (
                 <button
@@ -164,11 +164,11 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                     slug: template.nome.toLowerCase(),
                     descricao: `Plano ${template.nome}`,
                   }))}
-                  className="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-400 transition-all text-left"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-purple-400 dark:hover:border-purple-500 transition-all text-left"
                 >
-                  <div className="font-semibold text-gray-900">{template.nome}</div>
-                  <div className="text-sm text-purple-600 mt-1">{formatCurrency(template.preco_mensal)}/mês</div>
-                  <div className="text-xs text-gray-500 mt-1">{template.max_usuarios} usuários</div>
+                  <div className="font-semibold text-gray-900 dark:text-gray-100">{template.nome}</div>
+                  <div className="text-sm text-purple-600 dark:text-purple-400 mt-1">{formatCurrency(template.preco_mensal)}/mês</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{template.max_usuarios} usuários</div>
                 </button>
               ))}
             </div>
@@ -176,10 +176,10 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
 
           {/* Informações Básicas */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">Informações Básicas</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Informações Básicas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Nome do Plano *
                 </label>
                 <input
@@ -188,13 +188,13 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   value={formData.nome}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="Ex: Básico"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Slug *
                 </label>
                 <input
@@ -203,13 +203,13 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   value={formData.slug}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="basico"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Descrição *
                 </label>
                 <textarea
@@ -218,13 +218,13 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   required
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="Descrição do plano..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Preço Mensal (R$) *
                 </label>
                 <input
@@ -233,13 +233,13 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   value={formData.preco_mensal}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="49.90"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Preço Anual (R$)
                 </label>
                 <input
@@ -247,20 +247,20 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   name="preco_anual"
                   value={formData.preco_anual}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="499.00"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Ordem de Exibição *
                 </label>
                 <select
                   name="ordem"
                   value={formData.ordem}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value={1}>1 - Básico</option>
                   <option value={2}>2 - Intermediário</option>
@@ -272,10 +272,10 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
 
           {/* Limites */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">Limites</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Limites</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Produtos
                 </label>
                 <input
@@ -283,13 +283,13 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   name="max_produtos"
                   value={formData.max_produtos}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">999999 = Ilimitado</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">999999 = Ilimitado</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Usuários
                 </label>
                 <input
@@ -297,12 +297,12 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   name="max_usuarios"
                   value={formData.max_usuarios}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Pedidos/mês
                 </label>
                 <input
@@ -310,13 +310,13 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   name="max_pedidos_mes"
                   value={formData.max_pedidos_mes}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">999999 = Ilimitado</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">999999 = Ilimitado</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Storage (GB)
                 </label>
                 <input
@@ -324,7 +324,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   name="espaco_storage_gb"
                   value={formData.espaco_storage_gb}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                 />
               </div>
             </div>
@@ -332,7 +332,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
 
           {/* Funcionalidades */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">Funcionalidades</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Funcionalidades</h3>
             <div className="grid grid-cols-2 gap-4">
               <label className="flex items-center space-x-2">
                 <input
@@ -342,7 +342,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">📊 Relatórios Avançados</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">📊 Relatórios Avançados</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -353,7 +353,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">🔌 Acesso à API</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">🔌 Acesso à API</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -364,7 +364,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">⭐ Suporte Prioritário</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">⭐ Suporte Prioritário</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -375,7 +375,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">🌐 Domínio Customizado</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">🌐 Domínio Customizado</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -386,7 +386,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">💬 Integração WhatsApp</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">💬 Integração WhatsApp</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -397,22 +397,22 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">✅ Plano Ativo</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">✅ Plano Ativo</span>
               </label>
             </div>
           </div>
 
           {/* Preview */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-3 text-gray-700">Preview</h3>
-            <div className="bg-white rounded-lg border-2 border-purple-200 p-6 text-center">
-              <h4 className="text-xl font-bold text-gray-900 mb-2">{formData.nome || 'Nome do Plano'}</h4>
-              <p className="text-gray-600 text-sm mb-4">{formData.descricao || 'Descrição...'}</p>
-              <div className="text-3xl font-bold text-purple-600 mb-1">
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Preview</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border-2 border-purple-200 dark:border-purple-700 p-6 text-center">
+              <h4 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{formData.nome || 'Nome do Plano'}</h4>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{formData.descricao || 'Descrição...'}</p>
+              <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-1">
                 {formatCurrency(formData.preco_mensal || 0)}
               </div>
-              <div className="text-sm text-gray-500">por mês</div>
-              <div className="mt-4 text-sm text-gray-600">
+              <div className="text-sm text-gray-500 dark:text-gray-400">por mês</div>
+              <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                 {formData.max_usuarios} usuários • {formData.max_produtos === 999999 ? 'Produtos ilimitados' : `${formData.max_produtos} produtos`}
               </div>
             </div>
@@ -424,7 +424,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
             >
               Cancelar
             </button>

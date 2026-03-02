@@ -22,8 +22,12 @@ interface AssinaturasTabProps {
   onCopyPixMP: (pixCode: string) => void;
   onGerarPixMP: (payment: any) => void;
   onUpdateStatusMP: (lojaSlug: string) => void;
+  onNovaCobrancaMP: (assinatura: Assinatura) => void;
+  onExcluirMP: (payment: any) => void;
   gerandoPix: number | null;
   atualizandoMP: string | null;
+  gerandoCobrancaMP: string | number | null;
+  excluindoPagamentoMP: boolean;
 }
 
 const FILTRO_OPTIONS = [
@@ -47,8 +51,12 @@ export function AssinaturasTab({
   onCopyPixMP,
   onGerarPixMP,
   onUpdateStatusMP,
+  onNovaCobrancaMP,
+  onExcluirMP,
   gerandoPix,
-  atualizandoMP
+  atualizandoMP,
+  gerandoCobrancaMP,
+  excluindoPagamentoMP
 }: AssinaturasTabProps) {
   if (loading) {
     return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>;
@@ -99,8 +107,12 @@ export function AssinaturasTab({
               onCopyPixMP={onCopyPixMP}
               onGerarPixMP={onGerarPixMP}
               onUpdateStatusMP={onUpdateStatusMP}
+              onNovaCobrancaMP={onNovaCobrancaMP}
+              onExcluirMP={onExcluirMP}
               gerandoPix={gerandoPix}
               atualizandoMP={atualizandoMP}
+              gerandoCobrancaMP={gerandoCobrancaMP}
+              excluindoPagamentoMP={excluindoPagamentoMP}
             />
           ))}
         </div>

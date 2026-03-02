@@ -21,8 +21,12 @@ interface AssinaturaCardProps {
   onCopyPixMP: (pixCode: string) => void;
   onGerarPixMP: (payment: any) => void;
   onUpdateStatusMP: (lojaSlug: string) => void;
+  onNovaCobrancaMP: (assinatura: Assinatura) => void;
+  onExcluirMP: (payment: any) => void;
   gerandoPix: number | null;
   atualizandoMP: string | null;
+  gerandoCobrancaMP: string | number | null;
+  excluindoPagamentoMP: boolean;
 }
 
 function getStatusColor(status: string) {
@@ -48,8 +52,12 @@ export function AssinaturaCard({
   onCopyPixMP,
   onGerarPixMP,
   onUpdateStatusMP,
+  onNovaCobrancaMP,
+  onExcluirMP,
   gerandoPix,
-  atualizandoMP
+  atualizandoMP,
+  gerandoCobrancaMP,
+  excluindoPagamentoMP
 }: AssinaturaCardProps) {
   const isAsaas = typeof assinatura.id === 'number';
   const isMercadoPago = assinatura.current_payment_data?.provedor === 'mercadopago';
@@ -133,14 +141,19 @@ export function AssinaturaCard({
             />
           ) : isMercadoPago ? (
             <AssinaturaMercadoPago
+              assinatura={assinatura}
               lojaSlug={assinatura.loja_slug}
               payment={assinatura.current_payment_data}
               onDownloadBoleto={onDownloadBoletoMP}
               onCopyPix={onCopyPixMP}
               onGerarPix={onGerarPixMP}
               onUpdateStatus={onUpdateStatusMP}
+              onNovaCobranca={onNovaCobrancaMP}
+              onExcluir={onExcluirMP}
               gerandoPix={gerandoPix}
               atualizandoMP={atualizandoMP}
+              gerandoCobranca={gerandoCobrancaMP}
+              excluindoPagamento={excluindoPagamentoMP}
             />
           ) : null}
         </div>

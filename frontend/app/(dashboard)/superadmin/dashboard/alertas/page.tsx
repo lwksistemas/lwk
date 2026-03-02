@@ -139,14 +139,14 @@ export default function AlertasPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">🚨 Alertas de Segurança</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">🚨 Alertas de Segurança</h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Monitoramento de violações e atividades suspeitas
               </p>
             </div>
             <button
               onClick={() => router.push('/superadmin/dashboard')}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors"
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white rounded-md transition-colors"
             >
               ← Voltar
             </button>
@@ -158,25 +158,25 @@ export default function AlertasPage() {
         {/* Estatísticas */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Total de Violações</h3>
-              <p className="text-3xl font-bold text-purple-600 mt-2">{stats.total}</p>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total de Violações</h3>
+              <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2">{stats.total}</p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Novas</h3>
-              <p className="text-3xl font-bold text-red-600 mt-2">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Novas</h3>
+              <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-2">
                 {stats.por_status.nova || 0}
               </p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Críticas</h3>
-              <p className="text-3xl font-bold text-red-600 mt-2">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Críticas</h3>
+              <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-2">
                 {stats.por_criticidade.critica || 0}
               </p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 text-sm font-medium">Resolvidas</h3>
-              <p className="text-3xl font-bold text-green-600 mt-2">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Resolvidas</h3>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
                 {stats.por_status.resolvida || 0}
               </p>
             </div>
@@ -184,17 +184,17 @@ export default function AlertasPage() {
         )}
 
         {/* Filtros */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h3 className="text-lg font-semibold mb-4">Filtros</h3>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Filtros</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Status
               </label>
               <select
                 value={filtroStatus}
                 onChange={(e) => setFiltroStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">Todos</option>
                 <option value="nova">Nova</option>
@@ -204,13 +204,13 @@ export default function AlertasPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Criticidade
               </label>
               <select
                 value={filtroCriticidade}
                 onChange={(e) => setFiltroCriticidade(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">Todas</option>
                 <option value="critica">Crítica</option>
@@ -220,13 +220,13 @@ export default function AlertasPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Tipo
               </label>
               <select
                 value={filtroTipo}
                 onChange={(e) => setFiltroTipo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">Todos</option>
                 <option value="brute_force">Brute Force</option>
@@ -241,24 +241,24 @@ export default function AlertasPage() {
         </div>
 
         {/* Lista de Violações */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Violações Detectadas ({violacoes.length})
             </h3>
           </div>
           
           {violacoes.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               <p className="text-lg">✅ Nenhuma violação encontrada</p>
               <p className="text-sm mt-2">O sistema está seguro!</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {violacoes.map((violacao) => (
                 <div
                   key={violacao.id}
-                  className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                   onClick={() => {
                     setSelectedViolacao(violacao);
                     setShowModal(true);
@@ -273,16 +273,16 @@ export default function AlertasPage() {
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusClass(violacao.status)}`}>
                           {violacao.status_display}
                         </span>
-                        <span className="text-sm text-gray-500">{violacao.data_hora}</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">{violacao.data_hora}</span>
                       </div>
                       
-                      <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                         {violacao.tipo_display}
                       </h4>
                       
-                      <p className="text-gray-700 mb-2">{violacao.descricao}</p>
+                      <p className="text-gray-700 dark:text-gray-300 mb-2">{violacao.descricao}</p>
                       
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                         <span>👤 {violacao.usuario_nome}</span>
                         <span>📧 {violacao.usuario_email}</span>
                         <span>🌐 {violacao.ip_address}</span>
@@ -292,7 +292,7 @@ export default function AlertasPage() {
                     </div>
                     
                     <div className="ml-4">
-                      <button className="text-purple-600 hover:text-purple-800 font-medium">
+                      <button className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 font-medium">
                         Ver Detalhes →
                       </button>
                     </div>

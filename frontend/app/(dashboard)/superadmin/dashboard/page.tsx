@@ -107,15 +107,15 @@ const MENU_CARDS: MenuCardProps[] = [
 
 // Configuração das cores - DRY (Don't Repeat Yourself)
 const COLOR_CLASSES: Record<string, string> = {
-  purple: 'bg-purple-50 hover:bg-purple-100 border-purple-200',
-  indigo: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200',
-  blue: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
-  green: 'bg-green-50 hover:bg-green-100 border-green-200',
-  cyan: 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200',
-  pink: 'bg-pink-50 hover:bg-pink-100 border-pink-200',
-  red: 'bg-red-50 hover:bg-red-100 border-red-200',
-  orange: 'bg-orange-50 hover:bg-orange-100 border-orange-200',
-  teal: 'bg-teal-50 hover:bg-teal-100 border-teal-200',
+  purple: 'bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 border-purple-200 dark:border-purple-700',
+  indigo: 'bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700',
+  blue: 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 border-blue-200 dark:border-blue-700',
+  green: 'bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 border-green-200 dark:border-green-700',
+  cyan: 'bg-cyan-50 dark:bg-cyan-900/20 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 border-cyan-200 dark:border-cyan-700',
+  pink: 'bg-pink-50 dark:bg-pink-900/20 hover:bg-pink-100 dark:hover:bg-pink-900/40 border-pink-200 dark:border-pink-700',
+  red: 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 border-red-200 dark:border-red-700',
+  orange: 'bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 border-orange-200 dark:border-orange-700',
+  teal: 'bg-teal-50 dark:bg-teal-900/20 hover:bg-teal-100 dark:hover:bg-teal-900/40 border-teal-200 dark:border-teal-700',
 };
 
 export default function SuperAdminDashboard() {
@@ -253,9 +253,9 @@ export default function SuperAdminDashboard() {
 // Componente StatCard - Reutilizável e com responsabilidade única
 function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-gray-500 text-sm font-medium">{label}</h3>
-      <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+      <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">{label}</h3>
+      <p className={`text-3xl font-bold mt-2 ${color} dark:opacity-90`}>{value}</p>
     </div>
   );
 }
@@ -271,8 +271,8 @@ function MenuCard({ title, description, icon, href, color }: MenuCardProps) {
       aria-label={`Acessar ${title}`}
     >
       <div className="text-4xl mb-3" aria-hidden="true">{icon}</div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-      <p className="text-sm text-gray-600">{description}</p>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
     </a>
   );
 }

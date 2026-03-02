@@ -78,15 +78,20 @@ export default function FinanceiroPage() {
   };
 
   const handleConfirmarNovaCobranca = async (assinaturaId: number | string, dueDate?: string) => {
-    if (typeof assinaturaId !== 'number') {
-      alert('Nova cobrança manual disponível apenas para assinaturas Asaas.');
-      return;
-    }
-    
-    const success = await asaasActions.createManualPayment(assinaturaId, dueDate, loadAll);
-    if (success) {
-      setShowModalNovaCobranca(false);
-      setAssinaturaParaCobranca(null);
+    if (typeof assinaturaId === 'number') {
+      // Asaas
+      const success = await asaasActions.createManualPayment(assinaturaId, dueDate, loadAll);
+      if (success) {
+        setShowModalNovaCobranca(false);
+        setAssinaturaParaCobranca(null);
+      }
+    } else {
+      // Mercado Pago
+      const success = await mercadoPagoActions.createManualPayment(assinaturaId, dueDate, loadAll);
+      if (success) {
+        setShowModalNovaCobranca(false);
+        setAssinaturaParaCobranca(null);
+      }
     }
   };
 
@@ -99,11 +104,21 @@ export default function FinanceiroPage() {
     setShowModalExclusao(true);
   };
 
-  const handleConfirmarExclusao = async (paymentId: number) => {
-    const success = await asaasActions.deletePayment(paymentId, loadAll);
-    if (success) {
-      setShowModalExclusao(false);
-      setPagamentoParaExcluir(null);
+  const handleConfirmarExclusao = async (paymentId: number | string) => {
+    if (typeof paymentId === 'number') {
+      // Asaas
+      const success = await asaasActions.deletePayment(paymentId, loadAll);
+      if (success) {
+        setShowModalExclusao(false);
+        setPagamentoParaExcluir(null);
+      }
+    } else {
+      // Mercado Pago
+      const success = await mercadoPagoActions.deletePayment(paymentId, loadAll);
+      if (success) {
+        setShowModalExclusao(false);
+        setPagamentoParaExcluir(null);
+      }
     }
   };
 
@@ -188,8 +203,12 @@ export default function FinanceiroPage() {
                 onCopyPixMP={mercadoPagoActions.copyPixCode}
                 onGerarPixMP={handleGerarPixMP}
                 onUpdateStatusMP={handleUpdateStatusMP}
+                onNovaCobrancaMP={handleNovaCobranca}
+                onExcluirMP={handleExcluirPagamento}
                 gerandoPix={mercadoPagoActions.gerandoPix}
                 atualizandoMP={mercadoPagoActions.atualizandoMP}
+                gerandoCobrancaMP={mercadoPagoActions.gerandoCobranca}
+                excluindoPagamentoMP={mercadoPagoActions.excluindoPagamento}
               />
             ) : (
               <PagamentosTab
@@ -219,7 +238,10 @@ export default function FinanceiroPage() {
             setAssinaturaParaCobranca(null);
           }}
           onConfirm={handleConfirmarNovaCobranca}
-          loading={asaasActions.gerandoCobranca !== null}
+          loading={
+            asaasActions.gerandoCobranca !== null || 
+            mercadoPagoActions.gerandoCobranca !== null
+          }
         />
       )}
 
@@ -232,7 +254,10 @@ export default function FinanceiroPage() {
             setPagamentoParaExcluir(null);
           }}
           onConfirm={handleConfirmarExclusao}
-          loading={asaasActions.excluindoPagamento}
+          loading={
+            asaasActions.excluindoPagamento || 
+            mercadoPagoActions.excluindoPagamento
+          }
         />
       )}
     </div>

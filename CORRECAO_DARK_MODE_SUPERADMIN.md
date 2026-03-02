@@ -13,12 +13,13 @@ Várias páginas do superadmin não têm suporte completo a dark mode, causando 
 
 ## 🎯 Páginas com Problemas
 
-### 1. `/superadmin/usuarios` ✅ CORRIGIDO
-- Cards de estatísticas sem `dark:bg-gray-800`
-- Textos sem `dark:text-gray-*`
-- Filtros sem dark mode
+### 1. `/superadmin/usuarios` ✅ CORRIGIDO (v781)
+- ✅ Modal de criação/edição - todos os textos, labels, inputs e borders
+- ✅ Cards de usuários - backgrounds, textos e borders
+- ✅ Filtros - botões com dark mode
+- ✅ Cards de estatísticas
 
-### 2. `/superadmin/relatorios` ⏳ PENDENTE
+### 2. `/superadmin/relatorios` ✅ CORRIGIDO
 - Títulos sem `dark:text-gray-100`
 - Cards brancos sem `dark:bg-gray-800`
 - Textos cinzas sem variantes dark
@@ -111,7 +112,7 @@ className="hover:bg-gray-50 dark:hover:bg-gray-700"
 - [ ] Hover states
 
 ### Páginas
-- [x] `/superadmin/usuarios` ✅
+- [x] `/superadmin/usuarios` ✅ v781
 - [x] `/superadmin/relatorios` ✅
 - [ ] `/superadmin/dashboard/alertas`
 - [ ] `/superadmin/dashboard/storage`
@@ -168,7 +169,29 @@ Gradientes coloridos (purple, green, blue) geralmente ficam bem em dark mode sem
 
 ---
 
-**Status**: 🔄 Em Andamento (2/12 páginas concluídas)  
-**Deploy**: ✅ Produção (https://lwksistemas.com.br)  
+**Status**: 🔄 Em Andamento (3/12 páginas concluídas)  
+**Deploy**: ✅ v781 - Produção (https://lwksistemas.com.br)  
 **Prioridade**: Alta  
 **Próximo**: Corrigir página de alertas
+
+---
+
+## 📝 Changelog
+
+### v781 - Correção Dark Mode Usuários (02/03/2026)
+- ✅ Modal de usuários completamente corrigido
+  - Background do modal: `dark:bg-gray-800`
+  - Títulos e labels: `dark:text-gray-300`
+  - Inputs e selects: `dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600`
+  - Borders de seções: `dark:border-gray-700`
+  - Textos de ajuda: `dark:text-gray-400`
+  - Botões: hover states com dark mode
+- ✅ Cards de usuários corrigidos
+  - Background: `dark:bg-gray-800`
+  - Textos: `dark:text-gray-100` e `dark:text-gray-400`
+  - Borders: `dark:border-gray-700`
+  - Avatar background: `dark:bg-purple-900`
+- ✅ Filtros corrigidos
+  - Botões não selecionados: `dark:bg-gray-700 dark:text-gray-300`
+  - Hover: `dark:hover:bg-gray-600`
+- Deploy: Vercel (frontend)

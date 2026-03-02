@@ -84,18 +84,18 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6 text-purple-900">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <h2 className="text-2xl font-bold mb-6 text-purple-900 dark:text-purple-400">
           {isEditing ? 'Editar Tipo de App' : 'Novo Tipo de App'}
         </h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informações Básicas */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">Informações Básicas</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Informações Básicas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Nome do Tipo *
                 </label>
                 <input
@@ -104,13 +104,13 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   value={formData.nome}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="Ex: E-commerce"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Slug *
                 </label>
                 <input
@@ -119,13 +119,13 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   value={formData.slug}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="e-commerce"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Descrição *
                 </label>
                 <textarea
@@ -134,20 +134,20 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   onChange={handleChange}
                   required
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="Descrição do tipo de app..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Template do Dashboard
                 </label>
                 <select
                   name="dashboard_template"
                   value={formData.dashboard_template}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value="default">Padrão</option>
                   <option value="ecommerce">E-commerce</option>
@@ -160,9 +160,9 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
 
           {/* Cores */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">Cores do Tema</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Cores do Tema</h3>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Cores Pré-definidas
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -177,8 +177,8 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                     }))}
                     className={`p-3 rounded-lg border-2 transition-all ${
                       formData.cor_primaria === cor.primaria
-                        ? 'border-purple-600 bg-purple-50'
-                        : 'border-gray-200 hover:border-purple-300'
+                        ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500'
                     }`}
                   >
                     <div className="flex items-center space-x-2">
@@ -186,7 +186,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                         className="w-6 h-6 rounded-full"
                         style={{ backgroundColor: cor.primaria }}
                       />
-                      <span className="text-sm font-medium">{cor.nome}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{cor.nome}</span>
                     </div>
                   </button>
                 ))}
@@ -195,7 +195,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Cor Primária
                 </label>
                 <div className="flex space-x-2">
@@ -204,19 +204,19 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                     name="cor_primaria"
                     value={formData.cor_primaria}
                     onChange={handleChange}
-                    className="w-12 h-10 border border-gray-300 rounded"
+                    className="w-12 h-10 border border-gray-300 dark:border-gray-600 rounded"
                   />
                   <input
                     type="text"
                     value={formData.cor_primaria}
                     onChange={(e) => setFormData(prev => ({ ...prev, cor_primaria: e.target.value }))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Cor Secundária
                 </label>
                 <div className="flex space-x-2">
@@ -225,13 +225,13 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                     name="cor_secundaria"
                     value={formData.cor_secundaria}
                     onChange={handleChange}
-                    className="w-12 h-10 border border-gray-300 rounded"
+                    className="w-12 h-10 border border-gray-300 dark:border-gray-600 rounded"
                   />
                   <input
                     type="text"
                     value={formData.cor_secundaria}
                     onChange={(e) => setFormData(prev => ({ ...prev, cor_secundaria: e.target.value }))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
               </div>
@@ -240,7 +240,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
 
           {/* Funcionalidades */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">Funcionalidades</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Funcionalidades</h3>
             <div className="grid grid-cols-2 gap-4">
               <label className="flex items-center space-x-2">
                 <input
@@ -250,7 +250,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">Produtos</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Produtos</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -261,7 +261,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">Serviços</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Serviços</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -272,7 +272,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">Agendamento</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Agendamento</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -283,7 +283,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">Delivery</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Delivery</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -294,21 +294,21 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm">Controle de Estoque</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Controle de Estoque</span>
               </label>
             </div>
           </div>
 
           {/* Preview */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-3 text-gray-700">Preview</h3>
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Preview</h3>
             <div 
               className="h-16 rounded-lg flex items-center justify-center mb-2"
               style={{ backgroundColor: formData.cor_primaria }}
             >
               <span className="text-white font-bold">{formData.nome || 'Nome do Tipo'}</span>
             </div>
-            <p className="text-sm text-gray-600">{formData.descricao || 'Descrição do tipo...'}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{formData.descricao || 'Descrição do tipo...'}</p>
           </div>
 
           {/* Botões */}
@@ -317,7 +317,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
             >
               Cancelar
             </button>

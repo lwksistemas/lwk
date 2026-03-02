@@ -1,31 +1,43 @@
 /**
  * Componente de ações para assinaturas Mercado Pago
  * ✅ REFATORADO v780: Extraído da página de financeiro
+ * ✅ ATUALIZADO v785: Adicionado Nova Cobrança e Excluir
  */
-import type { Pagamento } from '@/hooks/useAssinaturas';
+import type { Pagamento, Assinatura } from '@/hooks/useAssinaturas';
 
 interface AssinaturaMercadoPagoProps {
+  assinatura: Assinatura;
   lojaSlug: string;
   payment: Pagamento;
   onDownloadBoleto: (payment: Pagamento) => void;
   onCopyPix: (pixCode: string) => void;
   onGerarPix: (payment: Pagamento) => void;
   onUpdateStatus: (lojaSlug: string) => void;
+  onNovaCobranca: (assinatura: Assinatura) => void;
+  onExcluir: (payment: Pagamento) => void;
   gerandoPix: number | null;
   atualizandoMP: string | null;
+  gerandoCobranca: string | number | null;
+  excluindoPagamento: boolean;
 }
 
 export function AssinaturaMercadoPago({
+  assinatura,
   lojaSlug,
   payment,
   onDownloadBoleto,
   onCopyPix,
   onGerarPix,
   onUpdateStatus,
+  onNovaCobranca,
+  onExcluir,
   gerandoPix,
-  atualizandoMP
+  atualizandoMP,
+  gerandoCobranca,
+  excluindoPagamento
 }: AssinaturaMercadoPagoProps) {
   const updatingThis = atualizandoMP === lojaSlug;
+  const gerandoCobrancaThis = gerandoCobranca === lojaSlug || gerandoCobranca === assinatura.id;
   
   return (
     <div className="flex flex-wrap gap-2">
@@ -60,6 +72,23 @@ export function AssinaturaMercadoPago({
         title="Consultar status no Mercado Pago e atualizar (ex.: boleto pago via PIX)"
       >
         {updatingThis ? 'Atualizando...' : '🔄 Atualizar Status'}
+      </button>
+      
+      <button
+        onClick={() => onNovaCobranca(assinatura)}
+        disabled={gerandoCobrancaThis}
+        className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 disabled:opacity-50 transition-colors"
+      >
+        {gerandoCobrancaThis ? 'Gerando...' : '➕ Nova Cobrança'}
+      </button>
+      
+      <button
+        onClick={() => onExcluir(payment)}
+        disabled={payment.is_paid || excluindoPagamento}
+        className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        title={payment.is_paid ? 'Não é possível excluir cobrança paga' : 'Excluir cobrança'}
+      >
+        {excluindoPagamento ? 'Excluindo...' : '🗑️ Excluir'}
       </button>
     </div>
   );

@@ -326,9 +326,9 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-0">
-      <div className="bg-white w-full h-full max-w-full max-h-full flex flex-col rounded-none shadow-2xl">
+      <div className="bg-white dark:bg-gray-800 w-full h-full max-w-full max-h-full flex flex-col rounded-none shadow-2xl">
         {/* Header fixo */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-purple-900 text-white shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-purple-900 text-white shrink-0">
           <h2 className="text-2xl font-bold">Nova Loja</h2>
           <button
             onClick={onClose}
@@ -342,35 +342,35 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
         {/* Conteúdo: formulário ou tela de sucesso (tela cheia, sem faixa lateral) */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 relative w-full">
           {showSuccess && createdLoja ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 p-8 animate-fade-in">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white dark:bg-gray-800 z-10 p-8 animate-fade-in">
               <div className="flex flex-col items-center max-w-2xl text-center">
-                <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6 animate-scale-in">
-                  <span className="text-5xl text-green-600">✓</span>
+                <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mb-6 animate-scale-in">
+                  <span className="text-5xl text-green-600 dark:text-green-400">✓</span>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">Loja criada com sucesso!</h3>
-                <p className="text-lg text-purple-600 font-semibold mb-4">{createdLoja.nome}</p>
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Loja criada com sucesso!</h3>
+                <p className="text-lg text-purple-600 dark:text-purple-400 font-semibold mb-4">{createdLoja.nome}</p>
                 
                 {/* Mensagem sobre boleto e senha */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 w-full">
-                  <p className="text-sm text-blue-900 font-medium mb-2">
+                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4 w-full">
+                  <p className="text-sm text-blue-900 dark:text-blue-300 font-medium mb-2">
                     📧 Boleto enviado para o email
                   </p>
-                  <p className="text-sm text-blue-800">
+                  <p className="text-sm text-blue-800 dark:text-blue-400">
                     A senha de acesso será enviada automaticamente para <strong>{formData.owner_email}</strong> após a confirmação do pagamento.
                   </p>
                 </div>
 
                 {/* Exibir boleto_url e pix_qr_code se disponíveis */}
                 {(createdLoja.boleto_url || createdLoja.pix_qr_code) && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4 w-full">
-                    <p className="text-sm font-semibold text-purple-900 mb-3">Formas de pagamento disponíveis:</p>
+                  <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4 mb-4 w-full">
+                    <p className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-3">Formas de pagamento disponíveis:</p>
                     <div className="space-y-2">
                       {createdLoja.boleto_url && (
                         <a
                           href={createdLoja.boleto_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block px-4 py-2 bg-white border border-purple-300 rounded-md hover:bg-purple-100 transition text-purple-700 font-medium"
+                          className="block px-4 py-2 bg-white dark:bg-gray-700 border border-purple-300 dark:border-purple-600 rounded-md hover:bg-purple-100 dark:hover:bg-purple-800 transition text-purple-700 dark:text-purple-300 font-medium"
                         >
                           🧾 Abrir Boleto
                         </a>
@@ -382,7 +382,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                             // Aqui você pode abrir um modal com o QR code PIX
                             alert('QR Code PIX disponível. Implementar modal se necessário.');
                           }}
-                          className="block w-full px-4 py-2 bg-white border border-purple-300 rounded-md hover:bg-purple-100 transition text-purple-700 font-medium"
+                          className="block w-full px-4 py-2 bg-white dark:bg-gray-700 border border-purple-300 dark:border-purple-600 rounded-md hover:bg-purple-100 dark:hover:bg-purple-800 transition text-purple-700 dark:text-purple-300 font-medium"
                         >
                           📱 Ver QR Code PIX
                         </button>
@@ -391,9 +391,9 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   </div>
                 )}
 
-                <p className="text-sm text-gray-600 mb-2 flex flex-wrap items-center justify-center gap-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 flex flex-wrap items-center justify-center gap-2">
                   <span>URL de acesso:</span>
-                  <span className="font-mono text-gray-800 break-all">{typeof window !== 'undefined' ? `${window.location.origin}${createdLoja.login_page_url}` : createdLoja.login_page_url}</span>
+                  <span className="font-mono text-gray-800 dark:text-gray-200 break-all">{typeof window !== 'undefined' ? `${window.location.origin}${createdLoja.login_page_url}` : createdLoja.login_page_url}</span>
                   {typeof window !== 'undefined' && (
                     <button
                       type="button"
@@ -403,7 +403,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                         setUrlCopied(true);
                         setTimeout(() => setUrlCopied(false), 2000);
                       }}
-                      className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 disabled:opacity-70"
+                      className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-200 dark:hover:bg-purple-800 disabled:opacity-70"
                     >
                       {urlCopied ? '✓ Copiado!' : 'Copiar URL'}
                     </button>
@@ -423,11 +423,11 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
           ) : null}
           <form id="form-nova-loja" onSubmit={handleSubmit} className="space-y-6 w-full">
             {/* Seção 1: Informações Básicas */}
-            <div className="border-b pb-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-700">1. Informações Básicas</h3>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">1. Informações Básicas</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Nome da Loja *
                   </label>
                   <input
@@ -436,13 +436,13 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     value={formData.nome}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Ex: Minha Loja Tech"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Slug (URL) – editável
                   </label>
                   <input
@@ -450,15 +450,15 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     name="slug"
                     value={formData.slug}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="minha-loja-123456"
                   />
-                  <p className="text-xs text-gray-500 mt-1">URL: /loja/{formData.slug || '…'}/login — sugestão automática; você pode editar</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">URL: /loja/{formData.slug || '…'}/login — sugestão automática; você pode editar</p>
                 </div>
 
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       CPF ou CNPJ *
                     </label>
                     <input
@@ -468,7 +468,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                       onChange={handleCpfCnpjChange}
                       required
                       maxLength={18}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                       placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     />
                   </div>
@@ -492,7 +492,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                 </div>
 
                 <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Descrição
                   </label>
                   <textarea
@@ -500,7 +500,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     value={formData.descricao}
                     onChange={handleChange}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Descrição da loja..."
                   />
                 </div>
@@ -508,12 +508,12 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
             </div>
 
             {/* Seção 2: Endereço (CEP primeiro para consulta automática) */}
-            <div className="border-b pb-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-700">2. Endereço</h3>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">2. Endereço</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       CEP (busca automática)
                     </label>
                     <input
@@ -523,7 +523,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                       onChange={handleChange}
                       onBlur={() => formData.cep.replace(/\D/g, '').length === 8 && buscarCep()}
                       maxLength={9}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                       placeholder="00000-000"
                     />
                   </div>
@@ -538,7 +538,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   </button>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Logradouro
                   </label>
                   <input
@@ -546,13 +546,13 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     name="logradouro"
                     value={formData.logradouro}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Rua, avenida..."
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Número
                     </label>
                     <input
@@ -560,12 +560,12 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                       name="numero"
                       value={formData.numero}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                       placeholder="Nº"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Complemento
                     </label>
                     <input
@@ -573,13 +573,13 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                       name="complemento"
                       value={formData.complemento}
                       onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                       placeholder="Sala, apto..."
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Bairro
                   </label>
                   <input
@@ -587,12 +587,12 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     name="bairro"
                     value={formData.bairro}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Bairro"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Cidade
                   </label>
                   <input
@@ -600,12 +600,12 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     name="cidade"
                     value={formData.cidade}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Cidade"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     UF
                   </label>
                   <input
@@ -614,7 +614,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     value={formData.uf}
                     onChange={handleChange}
                     maxLength={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 uppercase"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500 uppercase"
                     placeholder="UF"
                   />
                 </div>
@@ -622,10 +622,10 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
             </div>
 
             {/* Seção 3: Tipo de App */}
-            <div className="border-b pb-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-700">3. Tipo de App</h3>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">3. Tipo de App</h3>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Selecione o tipo *
               </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -634,8 +634,8 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     key={tipo.id}
                     className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                       formData.tipo_loja === tipo.id.toString()
-                        ? 'border-purple-600 bg-purple-50'
-                        : 'border-gray-200 hover:border-purple-300'
+                        ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500'
                     }`}
                   >
                     <input
@@ -647,7 +647,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                       className="sr-only"
                     />
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">{tipo.nome}</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{tipo.nome}</span>
                       <div
                         className="w-6 h-6 rounded-full"
                         style={{ backgroundColor: tipo.cor_primaria }}
@@ -660,19 +660,19 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
           </div>
 
           {/* Seção 4: Plano e Assinatura */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">4. Plano e Assinatura</h3>
+          <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">4. Plano e Assinatura</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Selecione o plano *
                 </label>
                 {!formData.tipo_loja ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     Selecione um tipo de app primeiro para ver os planos disponíveis
                   </div>
                 ) : planos.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     Nenhum plano disponível para este tipo de app
                   </div>
                 ) : (
@@ -682,8 +682,8 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                         key={plano.id}
                         className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                           formData.plano === plano.id.toString()
-                            ? 'border-purple-600 bg-purple-50'
-                            : 'border-gray-200 hover:border-purple-300'
+                            ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500'
                         }`}
                       >
                         <input
@@ -695,17 +695,17 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                           className="sr-only"
                         />
                         <div className="text-center">
-                          <h4 className="font-bold text-lg mb-2">{plano.nome}</h4>
-                          <p className="text-2xl font-bold text-purple-600 mb-2">
+                          <h4 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-100">{plano.nome}</h4>
+                          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-2">
                             {formatCurrency(plano.preco_mensal)}
                           </p>
-                          <p className="text-sm text-gray-600">por mês</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">por mês</p>
                           {plano.preco_anual && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                               ou {formatCurrency(plano.preco_anual)}/ano
                             </p>
                           )}
-                          <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
                             {plano.descricao}
                           </p>
                         </div>
@@ -717,14 +717,14 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Tipo de Assinatura *
                   </label>
                   <select
                     name="tipo_assinatura"
                     value={formData.tipo_assinatura}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   >
                     <option value="mensal">Mensal</option>
                     <option value="anual">Anual</option>
@@ -732,14 +732,14 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Dia de Vencimento *
                   </label>
                   <select
                     name="dia_vencimento"
                     value={formData.dia_vencimento}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   >
                     {Array.from({ length: 28 }, (_, i) => i + 1).map(dia => (
                       <option key={dia} value={dia}>Dia {dia}</option>
@@ -749,28 +749,28 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Provedor de boleto
                 </label>
                 <select
                   name="provedor_boleto_preferido"
                   value={formData.provedor_boleto_preferido}
                   onChange={(e) => setFormData((prev) => ({ ...prev, provedor_boleto_preferido: e.target.value as 'asaas' | 'mercadopago' }))}
-                  className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value="asaas">Asaas</option>
                   <option value="mercadopago">Mercado Pago</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Define qual provedor gerará os boletos desta loja</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Define qual provedor gerará os boletos desta loja</p>
               </div>
 
               {valorAssinatura > 0 && (
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-purple-900">
+                <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
+                  <p className="text-sm font-medium text-purple-900 dark:text-purple-300">
                     Valor da assinatura: <span className="text-xl">{formatCurrency(valorAssinatura)}</span>
                     {formData.tipo_assinatura === 'anual' && ' (pagamento anual)'}
                   </p>
-                  <p className="text-xs text-purple-700 mt-1">
+                  <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
                     Vencimento todo dia {formData.dia_vencimento} do mês
                   </p>
                 </div>
@@ -779,11 +779,11 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
           </div>
 
           {/* Seção 5: Usuário Administrador */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-700">5. Usuário Administrador da Loja</h3>
+          <div className="border-b border-gray-200 dark:border-gray-700 pb-6">
+            <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">5. Usuário Administrador da Loja</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Nome de Usuário *
                 </label>
                 <input
@@ -793,13 +793,13 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   onChange={handleChange}
                   required
                   autoComplete="name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="Ex: Maria Silva Santos"
                 />
-                <p className="text-xs text-gray-500 mt-1">Nome completo do administrador da loja</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nome completo do administrador da loja</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Usuário para acessar o sistema *
                 </label>
                 <input
@@ -809,14 +809,14 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   onChange={handleChange}
                   required
                   autoComplete="username"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="Ex: maria.silva ou admin_loja"
                 />
-                <p className="text-xs text-gray-500 mt-1">Login usado para entrar no painel da loja</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Login usado para entrar no painel da loja</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Senha Provisória *
                 </label>
                 <div className="flex gap-2">
@@ -829,7 +829,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                       required
                       minLength={6}
                       readOnly
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md bg-gray-50 focus:ring-purple-500 focus:border-purple-500 font-mono"
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-purple-500 focus:border-purple-500 font-mono"
                       placeholder="Gerando..."
                     />
                     <button
@@ -838,7 +838,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                         navigator.clipboard.writeText(formData.owner_password);
                         alert('✅ Senha copiada para a área de transferência!');
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-600"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
                       title="Copiar senha"
                     >
                       📋
@@ -853,14 +853,14 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     🔄 Gerar Nova
                   </button>
                 </div>
-                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
                   <span>✅</span>
                   <span>Esta senha será enviada por email para o proprietário</span>
                 </p>
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   E-mail *
                 </label>
                 <input
@@ -869,13 +869,13 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   value={formData.owner_email}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="admin@loja.com"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Telefone do administrador
                 </label>
                 <input
@@ -883,7 +883,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   name="owner_telefone"
                   value={formData.owner_telefone}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="(00) 00000-0000"
                 />
               </div>
@@ -894,13 +894,13 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
         </div>
         
         {/* Footer fixo */}
-        <div className="border-t px-6 py-4 bg-gray-50 shrink-0">
+        <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-gray-50 dark:bg-gray-800 shrink-0">
           <div className="flex justify-end space-x-4">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
             >
               Cancelar
             </button>

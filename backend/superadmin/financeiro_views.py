@@ -242,6 +242,36 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=False, methods=['get'], url_path='baixar_boleto_mercadopago')
+    def baixar_boleto_mercadopago(self, request):
+        """Baixar boleto do Mercado Pago usando mercadopago_payment_id"""
+        mp_payment_id = request.query_params.get('payment_id')
+        
+        if not mp_payment_id:
+            return Response(
+                {'error': 'payment_id é obrigatório'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from .mercadopago_service import LojaMercadoPagoService
+            mp_service = LojaMercadoPagoService()
+            boleto_url = mp_service.get_boleto_url(mp_payment_id)
+            
+            if boleto_url:
+                return Response({'boleto_url': boleto_url, 'provedor': 'mercadopago'})
+            
+            return Response(
+                {'error': 'Link do boleto Mercado Pago não disponível. Verifique se o pagamento existe na conta (produção/sandbox).'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Erro ao buscar boleto MP: {e}")
+            return Response(
+                {'error': f'Erro ao buscar boleto: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     @action(detail=False, methods=['get'])
     def meus_pagamentos(self, request):
         """Listar pagamentos do usuário logado"""

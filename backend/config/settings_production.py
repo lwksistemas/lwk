@@ -159,15 +159,29 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # DEFAULT PRIMARY KEY
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    'CORS_ORIGINS',
-    'https://lwksistemas.com.br,https://www.lwksistemas.com.br,https://frontend-r3q0a1lw4-lwks-projects-48afd555.vercel.app'
-).split(',')
+# CORS (strip espaços; fallback para backup Render/Heroku)
+_DEFAULT_CORS_ORIGINS = [
+    'https://lwksistemas.com.br',
+    'https://www.lwksistemas.com.br',
+    'https://frontend-r3q0a1lw4-lwks-projects-48afd555.vercel.app',
+]
+_raw = os.environ.get('CORS_ORIGINS', '').strip()
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _raw.split(',') if o.strip()] if _raw else _DEFAULT_CORS_ORIGINS
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Manter segurança
+
+# ✅ CORREÇÃO v764: Adicionar configurações CORS necessárias para preflight
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 horas (cache de preflight)
+
 # CORS_ALLOW_HEADERS - Lista de headers permitidos nas requisições CORS
-# Nota: O nome correto é CORS_ALLOW_HEADERS (não CORS_ALLOWED_HEADERS)
 from corsheaders.defaults import default_headers
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'x-loja-id',  # ✅ Header customizado com ID único da loja

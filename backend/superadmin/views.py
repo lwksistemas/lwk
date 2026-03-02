@@ -12,6 +12,17 @@ from django.utils import timezone
 from pathlib import Path
 import logging
 
+# ✅ FASE 7 v771: Documentação Swagger
+from drf_spectacular.utils import extend_schema_view, extend_schema
+from .api_docs import (
+    TIPO_LOJA_LIST_SCHEMA,
+    TIPO_LOJA_CREATE_SCHEMA,
+    PLANO_LIST_SCHEMA,
+    LOJA_LIST_SCHEMA,
+    LOJA_CREATE_SCHEMA,
+    LOJA_DELETE_SCHEMA,
+)
+
 logger = logging.getLogger(__name__)
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja,
@@ -59,7 +70,31 @@ class IsSuperAdmin(permissions.BasePermission):
         return request.user and request.user.is_superuser and request.user.is_active
 
 
+from .api_docs import (
+    TIPO_LOJA_LIST_SCHEMA,
+    TIPO_LOJA_CREATE_SCHEMA,
+    PLANO_LIST_SCHEMA,
+    LOJA_LIST_SCHEMA,
+    LOJA_CREATE_SCHEMA,
+    LOJA_DELETE_SCHEMA,
+)
+from drf_spectacular.utils import extend_schema_view
+
+
+@extend_schema_view(
+    list=TIPO_LOJA_LIST_SCHEMA,
+    create=TIPO_LOJA_CREATE_SCHEMA,
+    retrieve=extend_schema(summary="Detalhes do Tipo de App", tags=["Tipos de App"]),
+    update=extend_schema(summary="Atualizar Tipo de App", tags=["Tipos de App"]),
+    partial_update=extend_schema(summary="Atualizar Parcialmente Tipo de App", tags=["Tipos de App"]),
+    destroy=extend_schema(summary="Excluir Tipo de App", tags=["Tipos de App"]),
+)
 class TipoLojaViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar Tipos de App (anteriormente Tipos de Loja).
+    
+    Tipos de App definem as funcionalidades e aparência de cada loja.
+    """
     serializer_class = TipoLojaSerializer
     permission_classes = [IsSuperAdmin]
     
@@ -68,7 +103,20 @@ class TipoLojaViewSet(viewsets.ModelViewSet):
         return TipoLoja.objects.prefetch_related('lojas', 'planos').all()
 
 
+@extend_schema_view(
+    list=PLANO_LIST_SCHEMA,
+    create=extend_schema(summary="Criar Plano", tags=["Planos"]),
+    retrieve=extend_schema(summary="Detalhes do Plano", tags=["Planos"]),
+    update=extend_schema(summary="Atualizar Plano", tags=["Planos"]),
+    partial_update=extend_schema(summary="Atualizar Parcialmente Plano", tags=["Planos"]),
+    destroy=extend_schema(summary="Excluir Plano", tags=["Planos"]),
+)
 class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar Planos de Assinatura.
+    
+    Planos definem preços e limites para cada tipo de loja.
+    """
     serializer_class = PlanoAssinaturaSerializer
     permission_classes = [IsSuperAdmin]
     
@@ -87,6 +135,14 @@ class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
         return Response({'error': 'tipo_id é obrigatório'}, status=400)
 
 
+@extend_schema_view(
+    list=LOJA_LIST_SCHEMA,
+    create=LOJA_CREATE_SCHEMA,
+    retrieve=extend_schema(summary="Detalhes da Loja", tags=["Lojas"]),
+    update=extend_schema(summary="Atualizar Loja", tags=["Lojas"]),
+    partial_update=extend_schema(summary="Atualizar Parcialmente Loja", tags=["Lojas"]),
+    destroy=LOJA_DELETE_SCHEMA,
+)
 class LojaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperAdmin]
     

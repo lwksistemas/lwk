@@ -1,4 +1,4 @@
-# Resumo Completo das Refatorações - v770 a v774
+# Resumo Completo das Refatorações - v770 a v775
 
 ## 🎯 Objetivo Geral
 Refatorar páginas do frontend seguindo princípios SOLID, DRY e Clean Code, criando hooks customizados e componentes reutilizáveis.
@@ -68,6 +68,29 @@ Refatorar páginas do frontend seguindo princípios SOLID, DRY e Clean Code, cri
 
 ---
 
+### v775 - Lojas do Sistema (02/03/2026)
+**Página:** `/superadmin/lojas`
+
+**Redução:** ~400 → ~200 linhas (50%)
+
+**Arquivos Criados:**
+- `frontend/hooks/useLojaList.ts` - Listar lojas
+- `frontend/components/superadmin/lojas/LojaCard.tsx` - Card de loja
+- `frontend/components/superadmin/lojas/LojaInfoModal.tsx` - Modal de informações
+
+**Hooks Reutilizados:**
+- `useLojaActions` (criado em v765)
+- `useLojaInfo` (criado em v765)
+
+**Melhorias:**
+- Layout: Tabela → Cards (mais moderno e responsivo)
+- Estatísticas no topo (Total, Ativas, Trial, Com Banco)
+- Informações de storage detalhadas
+- Botões de ação mais acessíveis
+- Melhor visualização de status
+
+---
+
 ## 📊 Estatísticas Gerais
 
 ### Código Reduzido
@@ -76,12 +99,13 @@ Refatorar páginas do frontend seguindo princípios SOLID, DRY e Clean Code, cri
 | v770 | Tipos de App | 600+ | ~100 | 83% | ~500 |
 | v773 | Planos | 846 | ~180 | 79% | ~666 |
 | v774 | Usuários | ~600 | ~240 | 60% | ~360 |
-| **TOTAL** | **3 páginas** | **~2.046** | **~520** | **75%** | **~1.526** |
+| v775 | Lojas | ~400 | ~200 | 50% | ~200 |
+| **TOTAL** | **4 páginas** | **~2.446** | **~720** | **71%** | **~1.726** |
 
 ### Arquivos Criados
-- **Hooks:** 7 (useTipoAppActions, useTipoAppList, usePlanoActions, usePlanoList, useTipoLojaList, useUsuarioActions, useUsuarioList)
-- **Componentes:** 6 (TipoAppCard, TipoAppModal, PlanoCard, TipoLojaCard, UsuarioCard, UsuarioModal)
-- **Documentações:** 4 (REFATORACAO_TIPOS_APP_v770.md, REFATORACAO_PLANOS_v773.md, REFATORACAO_USUARIOS_v774.md, este arquivo)
+- **Hooks:** 9 (useTipoAppActions, useTipoAppList, usePlanoActions, usePlanoList, useTipoLojaList, useUsuarioActions, useUsuarioList, useLojaList, + 2 reutilizados)
+- **Componentes:** 8 (TipoAppCard, TipoAppModal, PlanoCard, TipoLojaCard, UsuarioCard, UsuarioModal, LojaCard, LojaInfoModal)
+- **Documentações:** 5 (REFATORACAO_TIPOS_APP_v770.md, REFATORACAO_PLANOS_v773.md, REFATORACAO_USUARIOS_v774.md, REFATORACAO_LOJAS_v775.md, este arquivo)
 
 ---
 
@@ -237,10 +261,7 @@ export default function EntityPage() {
 ## 📋 Próximas Páginas para Refatorar
 
 ### Prioridade Alta
-1. **Lojas** - Já tem hooks, mas pode melhorar layout
-   - Atual: ~800 linhas
-   - Potencial: ~300 linhas (62% redução)
-   - Benefício: Página mais usada
+1. ~~**Lojas**~~ - ✅ Concluído em v775
 
 ### Prioridade Média
 2. **Financeiro** - Complexa, mas muito usada
@@ -328,11 +349,11 @@ export default function EntityPage() {
 
 ## 🎉 Conclusão
 
-As refatorações v770-v774 foram um grande sucesso! Conseguimos:
+As refatorações v770-v775 foram um grande sucesso! Conseguimos:
 
-- ✅ Reduzir ~1.526 linhas de código (75%)
-- ✅ Criar 7 hooks reutilizáveis
-- ✅ Criar 6 componentes modulares
+- ✅ Reduzir ~1.726 linhas de código (71%)
+- ✅ Criar 9 hooks reutilizáveis
+- ✅ Criar 8 componentes modulares
 - ✅ Estabelecer padrão consistente
 - ✅ Melhorar UX significativamente
 - ✅ Facilitar manutenção futura
@@ -341,10 +362,10 @@ O sistema está muito mais organizado, seguindo boas práticas de programação 
 
 ---
 
-**Versões:** v770 → v774  
+**Versões:** v770 → v775  
 **Data:** 02/03/2026  
-**Status:** ✅ 3 Páginas Refatoradas com Sucesso!  
-**Próximo:** Continuar com página de Lojas (v775)
+**Status:** ✅ 4 Páginas Refatoradas com Sucesso!  
+**Próximo:** Continuar com página de Financeiro (v776)
 
 ---
 

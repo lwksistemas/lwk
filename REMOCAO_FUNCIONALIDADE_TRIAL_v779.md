@@ -262,7 +262,8 @@ A migration remove campos que não são usados na lógica de negócio:
 
 ---
 
-**Status**: ✅ Código Atualizado  
-**Migration**: ⏳ Aguardando aplicação em produção  
-**Deploy**: ⏳ Aguardando  
+**Status**: ✅ Concluído  
+**Migration**: ✅ Aplicada em produção (v774)  
+**Deploy Backend**: ✅ Heroku v774  
+**Deploy Frontend**: ✅ Vercel (https://lwksistemas.com.br)  
 **Próxima Versão**: v780 (Refatoração Asaas)

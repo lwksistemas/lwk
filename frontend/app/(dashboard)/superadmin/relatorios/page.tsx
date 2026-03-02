@@ -172,12 +172,12 @@ export default function RelatoriosPage() {
       <main className="w-full max-w-full py-6 px-4 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {loading ? (
-            <div className="text-center py-12">Carregando relatórios...</div>
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando relatórios...</div>
           ) : (
             <>
               {/* Resumo Executivo */}
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">📊 Resumo Executivo</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">📊 Resumo Executivo</h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
                     <div className="flex items-center justify-between">

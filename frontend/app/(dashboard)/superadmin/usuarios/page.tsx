@@ -119,41 +119,41 @@ export default function UsuariosPage() {
         <div className="px-4 py-6 sm:px-0">
           {/* Estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total de Usuários</p>
-                  <p className="text-2xl font-bold text-purple-600">{stats.total}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total de Usuários</p>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.total}</p>
                 </div>
                 <div className="text-3xl">👥</div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Super Admins</p>
-                  <p className="text-2xl font-bold text-purple-600">{stats.superadmins}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Super Admins</p>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.superadmins}</p>
                 </div>
                 <div className="text-3xl">👑</div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Suporte</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.suporte}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Suporte</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.suporte}</p>
                 </div>
                 <div className="text-3xl">🛠️</div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Ativos</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.ativos}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Ativos</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.ativos}</p>
                 </div>
                 <div className="text-3xl">✅</div>
               </div>
@@ -161,9 +161,9 @@ export default function UsuariosPage() {
           </div>
 
           {/* Filtros */}
-          <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
             <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-gray-700">Filtrar por tipo:</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por tipo:</span>
               <div className="flex space-x-2">
                 {['todos', 'superadmin', 'suporte'].map((tipo) => (
                   <button
@@ -184,10 +184,10 @@ export default function UsuariosPage() {
 
           {/* Lista de Usuários */}
           {loading ? (
-            <div className="text-center py-12">Carregando...</div>
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
           ) : usuariosFiltrados.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <p className="text-gray-500 mb-4">
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+              <p className="text-gray-500 dark:text-gray-400 mb-4">
                 {filtroTipo === 'todos' 
                   ? 'Nenhum usuário cadastrado ainda.' 
                   : `Nenhum usuário do tipo "${filtroTipo}".`

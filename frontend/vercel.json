@@ -1,6 +1,11 @@
 {
   "redirects": [
     {
+      "source": "/superadmin/tipos-loja",
+      "destination": "/superadmin/tipos-app",
+      "permanent": true
+    },
+    {
       "source": "/(.*)",
       "has": [
         {

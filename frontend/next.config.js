@@ -77,6 +77,17 @@ const nextConfig = {
     ]
   },
   
+  // Redirects para nomenclatura atualizada
+  async redirects() {
+    return [
+      {
+        source: '/superadmin/tipos-loja',
+        destination: '/superadmin/tipos-app',
+        permanent: true,
+      },
+    ]
+  },
+  
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
     NEXT_PUBLIC_BUILD_ID: 'v258-restaurante-dashboard',

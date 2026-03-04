@@ -1,6 +1,6 @@
 # Backup no Render – CORS, banco único e variáveis
 
-Quando o frontend faz **failover** para o backend de backup no Render (`lwksistemas-backup-ewgo.onrender.com`), o navegador exige que as respostas tenham cabeçalhos CORS corretos **e** que o Render use o **mesmo banco de dados** que o Heroku para não mostrar dados diferentes.
+Quando o frontend faz **failover** para o backend de backup no Render (`lwksistemas-backup.onrender.com`), o navegador exige que as respostas tenham cabeçalhos CORS corretos **e** que o Render use o **mesmo banco de dados** que o Heroku para as lojas aparecerem nos dois.
 
 ---
 
@@ -13,7 +13,7 @@ Quando o frontend faz **failover** para o backend de backup no Render (`lwksiste
 
 ### O que conferir no Render
 
-1. **Variáveis de ambiente** (Dashboard do Render → serviço `lwksistemas-backup-ewgo` → Environment):
+1. **Variáveis de ambiente** (Dashboard do Render → serviço `lwksistemas-backup` → Environment):
    - **`CORS_ORIGINS`**: pode ficar em branco (o código usa o default) ou ser algo como:
      ```text
      https://lwksistemas.com.br,https://www.lwksistemas.com.br
@@ -28,30 +28,31 @@ Depois do redeploy, as chamadas do frontend (`lwksistemas.com.br`) para o backup
 
 ---
 
-## 2. Banco Único para Heroku e Render
+## 2. Banco Único para Heroku e Render (obrigatório)
 
-Para que o Render seja um **backup real** (com os mesmos dados das lojas), Heroku e Render devem usar o **mesmo banco PostgreSQL**.
+**Se as lojas somem ao trocar para o Render**, é porque o Render está usando outro banco. Heroku e Render **precisam** usar o **mesmo** `DATABASE_URL` (Postgres do Heroku).
 
-### Passo a passo (recomendado: usar o Postgres do Heroku)
+### Passo a passo
 
-1. **Pegar o `DATABASE_URL` do Heroku**  
-   No seu computador, na pasta do projeto:
+1. **Obter o `DATABASE_URL` do Heroku**  
+   No terminal, na pasta do projeto:
    ```bash
    heroku config:get DATABASE_URL --app lwksistemas
    ```
-   Copie o valor retornado (URL completa do Postgres do Heroku).
+   (Se o nome do app Heroku for outro, use `--app SEU_APP_NAME`.)  
+   Copie **todo** o valor retornado (começa com `postgres://` ou `postgresql://`).
 
-2. **Configurar o mesmo `DATABASE_URL` no Render**  
-   - Acesse o painel do Render → serviço `lwksistemas-backup-ewgo` → **Environment**.
-   - Encontre a variável **`DATABASE_URL`**.
-   - Substitua o valor atual pela **mesma URL** que você copiou do Heroku.
-   - Salve as mudanças.
+2. **Definir o mesmo `DATABASE_URL` no Render**  
+   - Acesse [Dashboard Render](https://dashboard.render.com) → serviço **lwksistemas-backup** → **Environment**.
+   - Se já existir **`DATABASE_URL`**, edite e **substitua** pelo valor copiado do Heroku.
+   - Se não existir, clique em **Add Environment Variable**: Key = `DATABASE_URL`, Value = (valor do Heroku).
+   - Salve.
 
 3. **Redeploy no Render**  
-   - Clique em **Manual Deploy → Deploy latest commit** (ou use o hook de deploy).
-   - Aguarde o deploy completar.
+   - No serviço **lwksistemas-backup**, use **Manual Deploy → Deploy latest commit**.
+   - Aguarde o deploy terminar.
 
-Depois disso, **Heroku e Render** passam a ler e gravar no **mesmo banco**.
+Depois disso, **Heroku e Render** usam o mesmo banco e as **lojas aparecem nos dois**.
 
 ---
 

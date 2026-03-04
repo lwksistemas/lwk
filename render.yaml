@@ -7,7 +7,7 @@ services:
     plan: free
     branch: master
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
     preDeployCommand: python manage.py migrate --noinput
     startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     healthCheckPath: /api/superadmin/health/
@@ -53,3 +53,6 @@ services:
         value: https://lwksistemas.com.br
       - key: USE_REDIS
         value: false
+      # Evita 500 "Missing staticfiles manifest" no Render (respostas HTML da API)
+      - key: DISABLE_STATICFILES_MANIFEST
+        value: "true"

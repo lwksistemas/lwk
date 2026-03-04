@@ -149,7 +149,11 @@ USE_TZ = True
 # STATIC FILES
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# No Render, manifest pode faltar (build efêmero); usar storage sem manifest evita 500 em respostas HTML da API
+if os.environ.get('DISABLE_STATICFILES_MANIFEST', '').lower() in ('true', '1', 'yes'):
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # MEDIA FILES
 MEDIA_URL = '/media/'

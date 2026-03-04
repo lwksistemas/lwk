@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db import transaction, connection
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
 from django.utils import timezone
 from pathlib import Path
 import logging
@@ -2743,48 +2744,39 @@ def listar_storage_lojas(request):
 
 
 # ===== HEALTH CHECK ENDPOINT (v750) =====
+# Usa JsonResponse para nunca passar pelo renderer HTML do DRF (evita 500 por staticfiles no Render).
 
-@api_view(['GET'])
-@authentication_classes([])
-@permission_classes([AllowAny])
+@require_http_methods(['GET'])
 def health_check(request):
     """
     Health check endpoint para load balancer e failover automático.
     Verifica conexão com banco de dados e retorna status do sistema.
-    Endpoint público (sem autenticação) para permitir verificação externa.
-    
-    Retorna:
-    - 200 OK: Sistema saudável (ou DB ok e falha só ao contar lojas)
-    - 503 Service Unavailable: Sem conexão com o banco
-    Nunca retorna 500: erros são capturados e devolvidos como 503 com detalhe.
+    Endpoint público (sem autenticação). Sempre retorna JSON (não usa templates/static).
     """
     try:
-        # 1) Verificar conexão com banco
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
     except Exception as e:
         logger.error(f'Health check: banco falhou: {e}', exc_info=True)
-        return Response({
+        return JsonResponse({
             'status': 'unhealthy',
             'database': 'disconnected',
             'error': str(e),
             'timestamp': timezone.now().isoformat()
-        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        }, status=503)
 
-    # 2) Contar lojas (opcional: se falhar, ainda retornamos 200 com database connected)
     loja_count = None
     try:
         from .models import Loja
         loja_count = Loja.objects.count()
     except Exception as e:
         logger.warning(f'Health check: Loja.objects.count() falhou: {e}')
-        # Mantemos 200 com database connected; lojas_count fica null
 
-    return Response({
+    return JsonResponse({
         'status': 'healthy',
         'database': 'connected',
         'lojas_count': loja_count,
         'timestamp': timezone.now().isoformat(),
         'version': 'v750'
-    }, status=status.HTTP_200_OK)
+    }, status=200)

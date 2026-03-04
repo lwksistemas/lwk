@@ -2754,32 +2754,37 @@ def health_check(request):
     Endpoint público (sem autenticação) para permitir verificação externa.
     
     Retorna:
-    - 200 OK: Sistema saudável
-    - 503 Service Unavailable: Sistema com problemas
+    - 200 OK: Sistema saudável (ou DB ok e falha só ao contar lojas)
+    - 503 Service Unavailable: Sem conexão com o banco
+    Nunca retorna 500: erros são capturados e devolvidos como 503 com detalhe.
     """
     try:
-        # Verificar conexão com banco de dados
+        # 1) Verificar conexão com banco
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
-        
-        # Verificar se consegue acessar modelo básico
-        from .models import Loja
-        loja_count = Loja.objects.count()
-        
-        return Response({
-            'status': 'healthy',
-            'database': 'connected',
-            'lojas_count': loja_count,
-            'timestamp': timezone.now().isoformat(),
-            'version': 'v750'
-        }, status=status.HTTP_200_OK)
-        
     except Exception as e:
-        logger.error(f'Health check falhou: {e}', exc_info=True)
+        logger.error(f'Health check: banco falhou: {e}', exc_info=True)
         return Response({
             'status': 'unhealthy',
             'database': 'disconnected',
             'error': str(e),
             'timestamp': timezone.now().isoformat()
         }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    # 2) Contar lojas (opcional: se falhar, ainda retornamos 200 com database connected)
+    loja_count = None
+    try:
+        from .models import Loja
+        loja_count = Loja.objects.count()
+    except Exception as e:
+        logger.warning(f'Health check: Loja.objects.count() falhou: {e}')
+        # Mantemos 200 com database connected; lojas_count fica null
+
+    return Response({
+        'status': 'healthy',
+        'database': 'connected',
+        'lojas_count': loja_count,
+        'timestamp': timezone.now().isoformat(),
+        'version': 'v750'
+    }, status=status.HTTP_200_OK)

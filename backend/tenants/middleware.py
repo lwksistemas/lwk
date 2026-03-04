@@ -46,6 +46,14 @@ class TenantMiddleware:
         logger = logging.getLogger(__name__)
         
         try:
+            # Health check: não resolver tenant (evita query em Loja e possível 500)
+            if request.path.rstrip('/') == '/api/superadmin/health':
+                set_current_tenant_db('default')
+                set_current_loja_id(None)
+                response = self.get_response(request)
+                set_current_loja_id(None)
+                set_current_tenant_db('default')
+                return response
             # Detectar tenant por subdomain, header ou parâmetro
             tenant_slug = self._get_tenant_slug(request)
             

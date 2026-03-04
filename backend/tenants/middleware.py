@@ -229,11 +229,17 @@ class TenantMiddleware:
                     return None
             return tenant_slug
         
-        # 5. Tentar pegar do subdomain
-        host = request.get_host().split(':')[0]
+        # 5. Tentar pegar do subdomain (não usar para hosts de API backend)
+        host = request.get_host().split(':')[0].lower()
+        if host.endswith('.herokuapp.com') or '.onrender.com' in host:
+            # Heroku/Render: o "subdomínio" é o nome do app, não slug de loja
+            return None
         parts = host.split('.')
         if len(parts) > 2:  # ex: loja1.localhost
             tenant_slug = parts[0]
+            # Nunca tratar nomes de serviço backend como slug de loja (evita query e erro de coluna)
+            if tenant_slug in ('lwksistemas-backup', 'lwksistemas-38ad47519238'):
+                return None
             if hasattr(request, 'user') and request.user.is_authenticated:
                 if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
                     return None

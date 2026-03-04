@@ -8,6 +8,7 @@ services:
     branch: master
     rootDir: backend
     buildCommand: pip install -r requirements.txt
+    preDeployCommand: python manage.py migrate --noinput
     startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     healthCheckPath: /api/superadmin/health/
     envVars:
@@ -25,6 +26,7 @@ services:
         value: 60
       - key: CORS_ORIGINS
         value: https://lwksistemas.com.br,https://www.lwksistemas.com.br,https://frontend-r3q0a1lw4-lwks-projects-48afd555.vercel.app,https://frontend-7v1dtxf44-lwks-projects-48afd555.vercel.app
+      # Mesmo banco do Heroku (sincronizar com: heroku config:get DATABASE_URL -a lwksistemas)
       - key: DATABASE_URL
         value: postgres://uav89ndofshapp:p3e1961bd3950804921290cace7a9cfda23395a9450b6b52273b5180c93dc5c7b@cet8r1hlj0mlnt.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d6rgsibf3ofk9d
       - key: DEBUG

@@ -6,6 +6,8 @@ from pathlib import Path
 from threading import local
 from django.conf import settings
 from django.http import JsonResponse
+from django.db import connection
+from django.utils import timezone
 
 _thread_locals = local()
 
@@ -46,11 +48,36 @@ class TenantMiddleware:
         logger = logging.getLogger(__name__)
         
         try:
-            # Health check: não resolver tenant (evita query em Loja e possível 500)
+            # Health check: responder AQUI sem passar por views/DRF/templates (evita 500 staticfiles no Render)
             if request.path.rstrip('/') == '/api/superadmin/health':
                 set_current_tenant_db('default')
                 set_current_loja_id(None)
-                response = self.get_response(request)
+                if request.method not in ('GET', 'HEAD'):
+                    set_current_tenant_db('default')
+                    return JsonResponse({'error': 'Method Not Allowed'}, status=405)
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT 1")
+                        cursor.fetchone()
+                    db_ok = True
+                except Exception:
+                    db_ok = False
+                loja_count = None
+                if db_ok:
+                    try:
+                        from superadmin.models import Loja
+                        loja_count = Loja.objects.count()
+                    except Exception:
+                        pass
+                status_code = 200 if db_ok else 503
+                payload = {
+                    'status': 'healthy' if db_ok else 'unhealthy',
+                    'database': 'connected' if db_ok else 'disconnected',
+                    'lojas_count': loja_count,
+                    'timestamp': timezone.now().isoformat(),
+                    'version': 'v750',
+                }
+                response = JsonResponse(payload, status=status_code)
                 set_current_loja_id(None)
                 set_current_tenant_db('default')
                 return response

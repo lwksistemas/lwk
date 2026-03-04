@@ -225,6 +225,9 @@ export default function SuperAdminDashboard() {
               <p className="text-amber-800 dark:text-amber-200 text-sm font-medium">
                 Você está no servidor <strong>Render</strong> e não há lojas listadas. Para ver as mesmas lojas do Heroku, o Render precisa usar o <strong>mesmo banco de dados</strong>: no Dashboard do Render → serviço <strong>lwksistemas-backup</strong> → <strong>Environment</strong>, defina <code className="bg-amber-100 dark:bg-amber-800 px-1 rounded">DATABASE_URL</code> com o mesmo valor do Heroku (<code className="text-xs">heroku config:get DATABASE_URL -a lwksistemas</code>). Depois faça um novo deploy.
               </p>
+              <p className="text-amber-700 dark:text-amber-300 text-xs mt-2">
+                Instruções detalhadas no repositório: <code>docs/RENDER-DATABASE-SYNC.md</code>
+              </p>
             </div>
           )}
 

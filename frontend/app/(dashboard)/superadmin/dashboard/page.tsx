@@ -6,6 +6,7 @@ import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import NotificacoesSeguranca from '@/components/NotificacoesSeguranca';
+import SeletorServidorBackend from '@/components/SeletorServidorBackend';
 import { ToastContainer, useToast } from '@/components/ToastNotificacao';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 
@@ -138,7 +139,8 @@ export default function SuperAdminDashboard() {
       const response = await apiClient.get('/superadmin/lojas/estatisticas/');
       setStats(response.data);
     } catch (error) {
-      // Erro já logado pelo interceptor do apiClient
+      // Erro já logado pelo interceptor do apiClient; deixa stats null (mostra 0)
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -198,6 +200,7 @@ export default function SuperAdminDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <NotificacoesSeguranca onNovaViolacao={handleNovaViolacao} />
+              <SeletorServidorBackend />
               {/* Botão de Dark Mode */}
               <ThemeToggle />
               <button
@@ -214,6 +217,17 @@ export default function SuperAdminDashboard() {
       {/* Main Content */}
       <main className="w-full max-w-full py-6 px-4 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          {/* Aviso: usando Render com 0 lojas = provavelmente outro banco */}
+          {typeof window !== 'undefined' &&
+            localStorage.getItem('backend_servidor') === 'render' &&
+            (stats?.total_lojas ?? 0) === 0 && (
+            <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+              <p className="text-amber-800 dark:text-amber-200 text-sm font-medium">
+                Você está no servidor <strong>Render</strong> e não há lojas listadas. Para ver as mesmas lojas do Heroku, o Render precisa usar o <strong>mesmo banco de dados</strong>: no Dashboard do Render → serviço <strong>lwksistemas-backup</strong> → <strong>Environment</strong>, defina <code className="bg-amber-100 dark:bg-amber-800 px-1 rounded">DATABASE_URL</code> com o mesmo valor do Heroku (<code className="text-xs">heroku config:get DATABASE_URL -a lwksistemas</code>). Depois faça um novo deploy.
+              </p>
+            </div>
+          )}
+
           {/* Estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <StatCard

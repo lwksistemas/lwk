@@ -192,6 +192,17 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 
 # REST FRAMEWORK
+# No Render (e onde DISABLE_STATICFILES_MANIFEST=true): desabilitar BrowsableAPIRenderer
+# para evitar 500 "Missing staticfiles manifest" em respostas HTML (templates usam {% static %}).
+_drf_renderers = (
+    'rest_framework.renderers.JSONRenderer',
+)
+if not os.environ.get('DISABLE_STATICFILES_MANIFEST', '').lower() in ('true', '1', 'yes'):
+    _drf_renderers = (
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    )
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'superadmin.authentication.SessionAwareJWTAuthentication',  # 🔐 SESSÃO ÚNICA
@@ -199,6 +210,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_RENDERER_CLASSES': _drf_renderers,
     # Throttle desabilitado - pode ser habilitado via variáveis de ambiente se necessário
     'DEFAULT_THROTTLE_CLASSES': [],
     'DEFAULT_THROTTLE_RATES': {

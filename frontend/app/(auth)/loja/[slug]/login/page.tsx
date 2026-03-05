@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
-import apiClient, { resetToPrimaryAPI } from '@/lib/api-client';
+import apiClient from '@/lib/api-client';
 import PasswordInput from '@/components/auth/PasswordInput';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
@@ -52,10 +52,9 @@ export default function LojaLoginDinamicoPage() {
   }, [slug]);
 
   // Limpar sessões antigas e salvar slug para PWA reabrir na loja certa.
-  // Garantir uso da API primária (Heroku): backup Render não tem dados das lojas.
+  // Respeitar servidor selecionado (Heroku ou Render); Render usa o mesmo banco.
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      resetToPrimaryAPI();
       if (slug) localStorage.setItem('pwa_loja_slug', slug);
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');

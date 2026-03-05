@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import RouteGuard from '@/components/RouteGuard';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
 import { registrarSincronizacaoAoVoltarOnline } from '@/lib/offline-sync';
-import { resetToPrimaryAPI } from '@/lib/api-client';
 import CapturaErrosNavegador from '@/components/suporte/CapturaErrosNavegador';
 
 const PWA_LOJA_SLUG_KEY = 'pwa_loja_slug';
@@ -26,11 +25,7 @@ export default function LojaLayout({
     registrarSincronizacaoAoVoltarOnline();
   }, []);
 
-  // Garantir uso da API primária (Heroku) em todas as páginas da loja: backup Render não tem dados das lojas
-  useEffect(() => {
-    resetToPrimaryAPI();
-  }, [slug]);
-
+  // Respeitar servidor selecionado (Heroku ou Render); não forçar Heroku — Render usa o mesmo banco.
   // Persistir slug para PWA: ao abrir o app instalado, redirecionar para login da loja
   useEffect(() => {
     if (slug?.trim()) {

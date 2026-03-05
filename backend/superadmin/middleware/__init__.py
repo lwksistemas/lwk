@@ -79,12 +79,17 @@ class SuperAdminSecurityMiddleware:
                 '/api/superadmin/mercadopago-webhook/',       # Webhook Mercado Pago (notificações de pagamento)
             ]
             
-            # Endpoints que proprietários de lojas podem acessar (com autenticação)
-            # Esses endpoints têm verificação adicional na view para garantir que o usuário é o proprietário
+            # Endpoints que proprietários/usuários da loja podem acessar (com autenticação)
+            # A view (IsOwnerOrSuperAdmin) verifica se é owner, admin ou profissional da loja
             owner_allowed_patterns = [
                 '/alterar_senha_primeiro_acesso/',  # Trocar senha provisória
                 '/reenviar_senha/',                  # Reenviar senha por email
                 '/financeiro/',                      # Dados financeiros da própria loja
+                '/exportar_backup/',                 # Backup: exportar (loja)
+                '/importar_backup/',                 # Backup: importar (loja)
+                '/configuracao_backup',              # Backup: config (GET/PATCH)
+                '/historico_backups/',               # Backup: histórico
+                '/reenviar_backup_email/',           # Backup: reenviar email
             ]
             
             is_public = any(request.path.startswith(endpoint) for endpoint in public_endpoints)

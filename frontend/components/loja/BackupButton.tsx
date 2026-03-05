@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
-import { useToast } from '@/components/ToastNotificacao';
+import { useToast, ToastContainer } from '@/components/ToastNotificacao';
 
 interface BackupButtonProps {
   lojaId: number;
@@ -13,7 +13,7 @@ interface BackupButtonProps {
 export default function BackupButton({ lojaId, lojaNome, className = '' }: BackupButtonProps) {
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const { addToast } = useToast();
+  const { toasts, addToast, removeToast } = useToast();
 
   const handleExportarBackup = async () => {
     try {
@@ -168,60 +168,63 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
   };
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setShowMenu(!showMenu)}
-        disabled={loading}
-        className={`flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-        title="Gerenciar backups"
-      >
-        <span>💾</span>
-        <span className="hidden sm:inline">Backup</span>
-        {loading && (
-          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-        )}
-      </button>
+    <>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <div className="relative">
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          disabled={loading}
+          className={`flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+          title="Gerenciar backups"
+        >
+          <span>💾</span>
+          <span className="hidden sm:inline">Backup</span>
+          {loading && (
+            <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          )}
+        </button>
 
-      {showMenu && !loading && (
-        <>
-          {/* Overlay para fechar o menu */}
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setShowMenu(false)}
-          />
-          
-          {/* Menu dropdown */}
-          <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
-            <div className="py-1">
-              <button
-                onClick={handleExportarBackup}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-              >
-                <span>📤</span>
-                <span>Exportar Backup</span>
-              </button>
-              
-              <button
-                onClick={handleImportarBackup}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-              >
-                <span>📥</span>
-                <span>Importar Backup</span>
-              </button>
-              
-              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-              
-              <button
-                onClick={handleConfigurarBackup}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-              >
-                <span>⚙️</span>
-                <span>Configurar Automático</span>
-              </button>
+        {showMenu && !loading && (
+          <>
+            {/* Overlay para fechar o menu */}
+            <div
+              className="fixed inset-0 z-10"
+              onClick={() => setShowMenu(false)}
+            />
+            
+            {/* Menu dropdown */}
+            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
+              <div className="py-1">
+                <button
+                  onClick={handleExportarBackup}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <span>📤</span>
+                  <span>Exportar Backup</span>
+                </button>
+                
+                <button
+                  onClick={handleImportarBackup}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <span>📥</span>
+                  <span>Importar Backup</span>
+                </button>
+                
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                
+                <button
+                  onClick={handleConfigurarBackup}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <span>⚙️</span>
+                  <span>Configurar Automático</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </div>
+    </>
   );
 }

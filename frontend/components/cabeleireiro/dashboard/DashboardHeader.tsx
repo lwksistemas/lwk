@@ -1,12 +1,15 @@
 import Image from "next/image";
 import { Bell, Mail } from "lucide-react";
+import BackupButton from '@/components/loja/BackupButton';
 
 interface DashboardHeaderProps {
   userName: string;
   userAvatar?: string;
+  lojaId?: number;
+  lojaNome?: string;
 }
 
-export function DashboardHeader({ userName, userAvatar }: DashboardHeaderProps) {
+export function DashboardHeader({ userName, userAvatar, lojaId, lojaNome }: DashboardHeaderProps) {
   return (
     <header className="flex items-center justify-between mb-4 sm:mb-6">
       <div className="flex items-center gap-3 sm:gap-4">
@@ -23,6 +26,9 @@ export function DashboardHeader({ userName, userAvatar }: DashboardHeaderProps) 
         </div>
       </div>
       <div className="flex items-center gap-3 sm:gap-6">
+        {lojaId && lojaNome && (
+          <BackupButton lojaId={lojaId} lojaNome={lojaNome} className="hidden sm:flex" />
+        )}
         <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-purple-600 transition-colors" />
         <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-purple-600 transition-colors hidden sm:block" />
         {userAvatar ? (

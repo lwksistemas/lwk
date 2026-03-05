@@ -18,6 +18,7 @@ import {
   ModalOrcamentos,
   ModalFuncionarios
 } from '@/components/servicos/modals';
+import BackupButton from '@/components/loja/BackupButton';
 
 export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
   const router = useRouter();
@@ -73,7 +74,10 @@ export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
           Dashboard - {loja.nome}
         </h1>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <BackupButton lojaId={loja.id} lojaNome={loja.nome} />
+          <ThemeToggle />
+        </div>
       </div>
 
       {/* Ações Rápidas */}

@@ -117,6 +117,8 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       <DashboardHeader 
         userName={userInfo.nome} 
         userAvatar={userInfo.foto}
+        lojaId={loja.id}
+        lojaNome={loja.nome}
       />
 
       {/* Stats Cards - Grid responsivo */}

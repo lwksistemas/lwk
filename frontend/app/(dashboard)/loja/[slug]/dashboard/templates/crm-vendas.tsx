@@ -12,6 +12,7 @@ import { LojaInfo, EstatisticasCRM, Lead } from '@/types/dashboard';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { ORIGENS_CRM, STATUS_LEAD } from '@/constants/status';
 import { ModalLead, ModalCliente, ModalProduto, ModalPipeline, ModalFuncionarios } from '@/components/crm-vendas/modals';
+import BackupButton from '@/components/loja/BackupButton';
 
 // Lazy loading do modal de configurações
 const ConfiguracoesModal = lazy(() => import('@/components/clinica/modals/ConfiguracoesModal').then(m => ({ default: m.ConfiguracoesModal })));
@@ -114,7 +115,10 @@ export default function DashboardCRMVendas({ loja }: { loja: LojaInfo }) {
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
           Dashboard - {loja.nome}
         </h1>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <BackupButton lojaId={loja.id} lojaNome={loja.nome} />
+          <ThemeToggle />
+        </div>
       </div>
 
       {/* Ações Rápidas */}

@@ -13,6 +13,8 @@ import { LojaInfo, EstatisticasClinica, Agendamento } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { clinicaApiClient } from '@/lib/api-client';
+import BackupButton from '@/components/loja/BackupButton';
+import { ThemeToggle } from '@/components/ui/ThemeProvider';
 
 // Lazy loading dos modais - carrega apenas quando necessário
 const ModalClientes = lazy(() => import('@/components/clinica/modals/ModalClientes').then(m => ({ default: m.ModalClientes })));
@@ -282,6 +284,17 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
 
   return (
     <div className="space-y-6 sm:space-y-8 px-2 sm:px-4 lg:px-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+          Dashboard - {loja.nome}
+        </h1>
+        <div className="flex items-center gap-2">
+          <BackupButton lojaId={loja.id} lojaNome={loja.nome} />
+          <ThemeToggle />
+        </div>
+      </div>
+
       {/* Ações Rápidas */}
       <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg card-hover">
         <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>

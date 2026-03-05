@@ -12,7 +12,7 @@ O sistema usa **dois backends** (API Django) para garantir disponibilidade:
 | Papel        | Serviço | URL | Uso |
 |--------------|---------|-----|-----|
 | **Primário** | Heroku  | `https://lwksistemas-38ad47519238.herokuapp.com` | Sempre tentado primeiro |
-| **Backup**   | Render  | `https://lwksistemas-backup-ewgo.onrender.com`   | Usado quando o primário falha |
+| **Backup**   | Render  | `https://lwksistemas-backup.onrender.com`   | Usado quando o primário falha |
 
 O **frontend** (Next.js na Vercel) decide sozinho: se a chamada ao Heroku falhar (rede, timeout, CORS, 5xx), repete a **mesma requisição** no Render. Os dois backends usam o **mesmo banco PostgreSQL**, então os dados são os mesmos.
 
@@ -223,7 +223,7 @@ No **Vercel** ou em **`.env.production`**:
 
 ```env
 NEXT_PUBLIC_API_URL=https://lwksistemas-38ad47519238.herokuapp.com/api
-NEXT_PUBLIC_API_BACKUP_URL=https://lwksistemas-backup-ewgo.onrender.com
+NEXT_PUBLIC_API_BACKUP_URL=https://lwksistemas-backup.onrender.com
 NEXT_PUBLIC_ENABLE_LOJA_FAILOVER=true
 NEXT_PUBLIC_API_TIMEOUT=10000
 ```

@@ -34,7 +34,6 @@ class LojaCleanupService:
             'logs_auditoria': {},
             'banco_dados': {},
             'asaas': {'api': {}, 'local': {}},
-            'mercadopago': {},
             'usuario_proprietario': {},
             'limpeza_completa': False
         }
@@ -116,44 +115,85 @@ class LojaCleanupService:
             self.results['logs_auditoria'] = {'erro': str(e)}
     
     def cleanup_payments(self):
-        """Remove dados de pagamentos (Asaas + Mercado Pago)"""
+        """Remove dados de pagamentos (Asaas)"""
         try:
-            from .payment_deletion_service import UnifiedPaymentDeletionService
+            # Cancelar pagamentos Asaas
+            asaas_cancelled = self._cleanup_asaas_payments()
             
-            payment_service = UnifiedPaymentDeletionService()
-            payment_results = payment_service.delete_all_payments_for_loja(self.loja_slug)
-            
-            # Asaas
-            asaas_result = payment_results['providers'].get('Asaas', {})
-            self.results['asaas'] = {
-                'api': {
-                    'pagamentos_cancelados': asaas_result.get('api_cancelled', 0),
-                    'cliente_removido': asaas_result.get('local_deleted_customers', 0) > 0
-                },
-                'local': {
-                    'payments_removidos': asaas_result.get('local_deleted_payments', 0),
-                    'customers_removidos': asaas_result.get('local_deleted_customers', 0),
-                    'subscriptions_removidas': asaas_result.get('local_deleted_subscriptions', 0)
-                }
-            }
-            
-            # Mercado Pago
-            mercadopago_result = payment_results['providers'].get('Mercado Pago', {})
-            self.results['mercadopago'] = {
-                'boletos_pendentes_cancelados': mercadopago_result.get('api_cancelled', 0)
-            }
-            
-            if payment_results['total_cancelled'] > 0:
-                logger.info(f"✅ Pagamentos cancelados: {payment_results['total_cancelled']}")
-                
-            if payment_results['errors']:
-                for error in payment_results['errors']:
-                    logger.warning(f"⚠️ {error}")
+            if asaas_cancelled > 0:
+                logger.info(f"✅ Total de pagamentos cancelados: {asaas_cancelled}")
                     
         except Exception as e:
             logger.warning(f"⚠️ Erro ao remover pagamentos: {e}")
             self.results['asaas'] = {'erro': str(e)}
-            self.results['mercadopago'] = {'erro': str(e)}
+    
+    def _cleanup_asaas_payments(self):
+        """Cancela pagamentos pendentes no Asaas e remove dados locais"""
+        try:
+            from asaas_integration.models import LojaAssinatura, AsaasPayment, AsaasCustomer
+            from asaas_integration.client import AsaasClient
+            
+            cancelled_count = 0
+            
+            with transaction.atomic():
+                # Buscar assinatura da loja
+                assinatura = LojaAssinatura.objects.filter(loja_slug=self.loja_slug).first()
+                
+                if not assinatura:
+                    self.results['asaas'] = {
+                        'api': {'pagamentos_cancelados': 0},
+                        'local': {'payments_removidos': 0, 'customers_removidos': 0, 'subscriptions_removidas': 0}
+                    }
+                    return 0
+                
+                # Buscar todos os pagamentos da loja
+                payments = AsaasPayment.objects.filter(
+                    external_reference__contains=f"loja_{self.loja_slug}"
+                )
+                
+                # Cancelar pagamentos pendentes na API Asaas
+                try:
+                    client = AsaasClient()
+                    for payment in payments:
+                        if payment.status in ['PENDING', 'OVERDUE']:
+                            try:
+                                client.delete_payment(payment.asaas_id)
+                                cancelled_count += 1
+                                logger.info(f"✅ Pagamento Asaas cancelado: {payment.asaas_id}")
+                            except Exception as e:
+                                logger.warning(f"⚠️ Erro ao cancelar pagamento {payment.asaas_id}: {e}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao conectar com API Asaas: {e}")
+                
+                # Remover dados locais
+                payments_count = payments.count()
+                payments.delete()
+                
+                customer_id = assinatura.asaas_customer.asaas_id if assinatura.asaas_customer else None
+                customer = assinatura.asaas_customer
+                
+                assinatura.delete()
+                
+                if customer:
+                    customer.delete()
+                
+                self.results['asaas'] = {
+                    'api': {'pagamentos_cancelados': cancelled_count},
+                    'local': {
+                        'payments_removidos': payments_count,
+                        'customers_removidos': 1 if customer else 0,
+                        'subscriptions_removidas': 1
+                    }
+                }
+                
+                logger.info(f"✅ Asaas: {cancelled_count} cancelados na API, {payments_count} removidos localmente")
+                
+            return cancelled_count
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao limpar pagamentos Asaas: {e}")
+            self.results['asaas'] = {'erro': str(e)}
+            return 0
     
     def cleanup_database_file(self):
         """Remove arquivo SQLite do banco de dados isolado"""

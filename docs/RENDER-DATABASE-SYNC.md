@@ -60,18 +60,22 @@ heroku config:get DATABASE_URL -a lwksistemas
 
 Se ao usar o backend **Render** (no seletor ou no failover) aparecer **CORS** ou **503 (Service Unavailable)**:
 
-### 1. Usar a URL correta do backup
+### 1. Usar a URL correta do backup (evita CORS + 503)
 
-O serviço do blueprint é **lwksistemas-backup** e a URL é:
+O serviço do blueprint é **lwksistemas-backup** e a URL correta é:
 
 - **https://lwksistemas-backup.onrender.com**
 
-No **Vercel** (Dashboard → projeto → Settings → Environment Variables) defina:
+**Não use** `https://lwksistemas-backup-ewgo.onrender.com` — essa URL antiga/outra instância costuma gerar CORS e 503.
 
-- **Key:** `NEXT_PUBLIC_API_BACKUP_URL`
-- **Value:** `https://lwksistemas-backup.onrender.com`
+**No Vercel** (onde o frontend é buildado, a variável é aplicada no build):
 
-Não use outra URL (por exemplo `lwksistemas-backup-ewgo.onrender.com`) a menos que você tenha configurado CORS e DATABASE_URL nesse outro serviço.
+1. Acesse [Vercel Dashboard](https://vercel.com) → seu projeto (frontend) → **Settings** → **Environment Variables**.
+2. Procure **NEXT_PUBLIC_API_BACKUP_URL**.
+3. Se existir com valor `...-ewgo.onrender.com`, clique em **Edit** e troque para:  
+   **Value:** `https://lwksistemas-backup.onrender.com`  
+   Se não existir, **Add New** → Key: `NEXT_PUBLIC_API_BACKUP_URL`, Value: `https://lwksistemas-backup.onrender.com`.
+4. Salve e faça um **redeploy** do projeto (Deployments → ⋮ no último deploy → Redeploy), pois variáveis `NEXT_PUBLIC_*` entram no build.
 
 ### 2. CORS no Render
 

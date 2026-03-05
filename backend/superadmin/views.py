@@ -57,6 +57,18 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
         # Verificar se é o proprietário da loja
         if hasattr(obj, 'owner') and request.user == obj.owner:
             return True
+        
+        # Verificar se é um usuário admin da loja (UsuarioSistema)
+        if hasattr(obj, 'id'):
+            from .models import UsuarioSistema
+            if UsuarioSistema.objects.filter(
+                user=request.user, 
+                loja=obj, 
+                tipo_usuario='admin',
+                is_active=True
+            ).exists():
+                return True
+        
         # Profissional (Clínica da Beleza): pode acessar a loja para trocar senha
         if hasattr(obj, 'id') and getattr(view, 'action', None) == 'alterar_senha_primeiro_acesso':
             if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():

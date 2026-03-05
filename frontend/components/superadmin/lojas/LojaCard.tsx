@@ -9,7 +9,6 @@ interface LojaCardProps {
   onDelete: (loja: Loja) => void;
   onCriarBanco: (lojaId: number) => void;
   onReenviarSenha: (loja: Loja) => void;
-  onBackup?: (loja: Loja) => void;
   actionLoading: boolean;
 }
 
@@ -20,7 +19,6 @@ export function LojaCard({
   onDelete,
   onCriarBanco,
   onReenviarSenha,
-  onBackup,
   actionLoading,
 }: LojaCardProps) {
   return (
@@ -113,15 +111,6 @@ export function LojaCard({
           >
             ℹ️ Info
           </button>
-          {onBackup && loja.database_created && (
-            <button
-              onClick={() => onBackup(loja)}
-              className="px-3 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
-              title="Gerenciar backups da loja"
-            >
-              💾 Backup
-            </button>
-          )}
           <button
             onClick={() => onEdit(loja)}
             className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"

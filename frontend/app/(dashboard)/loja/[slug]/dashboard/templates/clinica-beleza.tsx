@@ -28,6 +28,7 @@ import { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { getClinicaBelezaHeadersWithLoja } from '@/lib/clinica-beleza-api';
+import BackupButton from '@/components/loja/BackupButton';
 
 interface DashboardStats {
   appointments_today: number;
@@ -272,6 +273,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
           </div>
 
           <div className="flex items-center gap-2 relative">
+            <BackupButton lojaId={loja.id} lojaNome={loja.nome} className="hidden sm:flex" />
             <NotificationBell
               open={notificationsOpen}
               onOpenChange={setNotificationsOpen}

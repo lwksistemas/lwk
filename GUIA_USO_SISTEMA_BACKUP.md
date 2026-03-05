@@ -1,4 +1,4 @@
-# 📘 Guia de Uso - Sistema de Backup das Lojas
+a 📘 Guia de Uso - Sistema de Backup das Lojas
 
 ## 🎯 Visão Geral
 

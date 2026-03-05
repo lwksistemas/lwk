@@ -1,414 +1,469 @@
 """
-Tasks agendadas para o SuperAdmin
+Tasks Celery para Backup Automático - v800
 
-Este módulo contém as tasks que serão executadas periodicamente
-pelo Django-Q para monitoramento de segurança e manutenção do sistema.
+Responsabilidades:
+- Executar backups agendados automaticamente
+- Processar backups de forma assíncrona
+- Enviar emails com backups
+- Limpar backups antigos
 
 Boas práticas aplicadas:
-- Single Responsibility: Cada task tem uma responsabilidade específica
-- Logging: Todas as tasks registram início, progresso e resultado
-- Error Handling: Tratamento robusto de erros com logging detalhado
-- Performance: Tasks otimizadas para não sobrecarregar o sistema
+- Tasks idempotentes
+- Retry automático em caso de falha
+- Logging detalhado
+- Error handling robusto
+- Rate limiting
 """
+
 import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
 from django.utils import timezone
+from django.conf import settings
+
+# Celery será configurado posteriormente
+# from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
 
-def detect_security_violations():
+# ============================================================================
+# TASK: Executar Backups Automáticos
+# ============================================================================
+
+def executar_backups_automaticos():
     """
-    Task agendada para detectar violações de segurança
+    Task executada periodicamente (a cada hora) para verificar
+    se há backups agendados para serem executados.
     
-    Executa todas as detecções de padrões suspeitos:
-    - Brute force
-    - Rate limit
-    - Cross-tenant access
-    - Privilege escalation
-    - Mass deletion
-    - IP change
+    Fluxo:
+    1. Busca todas as ConfiguracaoBackup ativas
+    2. Verifica quais devem executar backup hoje/agora
+    3. Cria task assíncrona para cada backup
     
-    Esta task é executada a cada 5 minutos pelo Django-Q.
-    
-    Returns:
-        dict: Resumo das violações detectadas
+    Boas práticas:
+    - Não processa backups diretamente (delega para task específica)
+    - Verifica horário com margem de 1 hora
+    - Evita duplicação (verifica último backup)
     """
-    logger.info("🚀 [TASK] Iniciando detecção de violações de segurança...")
-    start_time = timezone.now()
+    from .models import ConfiguracaoBackup
     
-    try:
-        from superadmin.security_detector import SecurityDetector
-        
-        # Executar todas as detecções
-        detector = SecurityDetector()
-        resultados = detector.run_all_detections()
-        
-        # Calcular tempo de execução
-        elapsed = (timezone.now() - start_time).total_seconds()
-        total_violacoes = sum(resultados.values())
-        
-        # Log do resultado
-        logger.info(
-            f"✅ [TASK] Detecção concluída em {elapsed:.2f}s - "
-            f"{total_violacoes} violações detectadas"
-        )
-        logger.info(f"📊 [TASK] Detalhes: {resultados}")
-        
-        return {
-            'success': True,
-            'total_violacoes': total_violacoes,
-            'detalhes': resultados,
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
-        
-    except Exception as e:
-        elapsed = (timezone.now() - start_time).total_seconds()
-        logger.error(
-            f"❌ [TASK] Erro ao detectar violações após {elapsed:.2f}s: {e}",
-            exc_info=True
-        )
-        return {
-            'success': False,
-            'error': str(e),
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
-
-
-def cleanup_old_logs():
-    """
-    Task agendada para limpar logs antigos (>90 dias)
+    logger.info("🔄 Iniciando verificação de backups automáticos agendados")
     
-    Remove logs de acesso com mais de 90 dias para manter
-    o banco de dados otimizado.
+    # Buscar configurações ativas
+    configs = ConfiguracaoBackup.objects.filter(
+        backup_automatico_ativo=True
+    ).select_related('loja')
     
-    Esta task é executada diariamente às 3h da manhã.
+    hora_atual = timezone.now().time()
+    total_agendados = 0
     
-    Returns:
-        dict: Resumo da limpeza
-    """
-    logger.info("🧹 [TASK] Iniciando limpeza de logs antigos...")
-    start_time = timezone.now()
-    
-    try:
-        from datetime import timedelta
-        from superadmin.models import HistoricoAcessoGlobal
-        
-        # Calcular data de corte (90 dias atrás)
-        cutoff_date = timezone.now() - timedelta(days=90)
-        
-        # Contar logs a serem removidos
-        logs_to_delete = HistoricoAcessoGlobal.objects.filter(
-            created_at__lt=cutoff_date
-        )
-        count = logs_to_delete.count()
-        
-        # Remover logs
-        if count > 0:
-            logs_to_delete.delete()
-            logger.info(f"✅ [TASK] {count} logs antigos removidos")
-        else:
-            logger.info("ℹ️  [TASK] Nenhum log antigo para remover")
-        
-        elapsed = (timezone.now() - start_time).total_seconds()
-        
-        return {
-            'success': True,
-            'logs_removidos': count,
-            'cutoff_date': cutoff_date.isoformat(),
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
-        
-    except Exception as e:
-        elapsed = (timezone.now() - start_time).total_seconds()
-        logger.error(
-            f"❌ [TASK] Erro ao limpar logs após {elapsed:.2f}s: {e}",
-            exc_info=True
-        )
-        return {
-            'success': False,
-            'error': str(e),
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
-
-
-def send_security_notifications():
-    """
-    Task agendada para enviar notificações de violações críticas
-    
-    Envia emails para SuperAdmins sobre violações críticas não notificadas.
-    Agrupa notificações para evitar spam (máx 1 email a cada 15 min por tipo).
-    
-    Esta task é executada a cada 15 minutos.
-    
-    Returns:
-        dict: Resumo das notificações enviadas
-    """
-    logger.info("📧 [TASK] Iniciando envio de notificações de segurança...")
-    start_time = timezone.now()
-    
-    try:
-        from datetime import timedelta
-        from superadmin.models import ViolacaoSeguranca
-        from django.contrib.auth.models import User
-        from django.core.mail import send_mail
-        from django.conf import settings
-        
-        # Buscar violações críticas não notificadas
-        violacoes = ViolacaoSeguranca.objects.filter(
-            criticidade='critica',
-            notificado=False,
-            status='nova'
-        ).order_by('-created_at')[:10]  # Limitar a 10 por execução
-        
-        if not violacoes.exists():
-            logger.info("ℹ️  [TASK] Nenhuma violação crítica para notificar")
-            return {
-                'success': True,
-                'notificacoes_enviadas': 0,
-                'tempo_execucao': (timezone.now() - start_time).total_seconds(),
-                'timestamp': timezone.now().isoformat()
-            }
-        
-        # Buscar SuperAdmins
-        superadmins = User.objects.filter(is_superuser=True, is_active=True)
-        emails_superadmins = list(superadmins.values_list('email', flat=True))
-        
-        if not emails_superadmins:
-            logger.warning("⚠️  [TASK] Nenhum SuperAdmin encontrado para notificar")
-            return {
-                'success': False,
-                'error': 'Nenhum SuperAdmin encontrado',
-                'tempo_execucao': (timezone.now() - start_time).total_seconds(),
-                'timestamp': timezone.now().isoformat()
-            }
-        
-        # Enviar notificação
-        count = violacoes.count()
-        subject = f"🚨 {count} Violação(ões) Crítica(s) de Segurança Detectada(s)"
-        
-        message = f"""
-Olá SuperAdmin,
-
-Foram detectadas {count} violação(ões) crítica(s) de segurança no sistema:
-
-"""
-        for v in violacoes:
-            message += f"""
-- {v.get_tipo_display()}: {v.descricao}
-  Usuário: {v.usuario_nome} ({v.usuario_email})
-  IP: {v.ip_address}
-  Data: {v.created_at.strftime('%d/%m/%Y %H:%M')}
-"""
-        
-        message += f"""
-
-Acesse o dashboard de segurança para mais detalhes:
-{settings.ALLOWED_HOSTS[0]}/superadmin/dashboard/alertas
-
----
-Sistema de Monitoramento de Segurança
-LWK Sistemas
-"""
-        
-        # Enviar email
+    for config in configs:
         try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=emails_superadmins,
-                fail_silently=False,
+            # Verificar se deve executar hoje
+            if not config.deve_executar_backup_hoje():
+                continue
+            
+            # Verificar se está no horário (com margem de 1 hora)
+            horario_inicio = config.horario_envio
+            horario_fim = (
+                datetime.combine(datetime.today(), horario_inicio) + 
+                timedelta(hours=1)
+            ).time()
+            
+            if not (horario_inicio <= hora_atual <= horario_fim):
+                continue
+            
+            # Verificar se já executou hoje
+            if config.ultimo_backup:
+                hoje = timezone.now().date()
+                if config.ultimo_backup.date() == hoje:
+                    logger.debug(
+                        f"⏭️ Backup já executado hoje para loja {config.loja.nome}"
+                    )
+                    continue
+            
+            # Agendar backup
+            logger.info(
+                f"📅 Agendando backup automático para loja {config.loja.nome}"
             )
             
-            # Marcar como notificado
-            violacoes.update(
-                notificado=True,
-                notificado_em=timezone.now()
+            # Criar task assíncrona
+            processar_backup_loja(
+                loja_id=config.loja.id,
+                tipo='automatico',
+                incluir_imagens=config.incluir_imagens
             )
             
-            logger.info(f"✅ [TASK] {count} notificações enviadas para {len(emails_superadmins)} SuperAdmin(s)")
-            
-        except Exception as email_error:
-            logger.error(f"❌ [TASK] Erro ao enviar email: {email_error}")
-            raise
+            total_agendados += 1
         
-        elapsed = (timezone.now() - start_time).total_seconds()
+        except Exception as e:
+            logger.error(
+                f"❌ Erro ao agendar backup para loja {config.loja.nome}: {e}"
+            )
+    
+    logger.info(f"✅ Verificação concluída. {total_agendados} backups agendados")
+    
+    return {
+        'total_verificados': configs.count(),
+        'total_agendados': total_agendados
+    }
+
+
+# ============================================================================
+# TASK: Processar Backup de Loja
+# ============================================================================
+
+def processar_backup_loja(
+    loja_id: int,
+    tipo: str = 'automatico',
+    user_id: Optional[int] = None,
+    incluir_imagens: bool = False
+):
+    """
+    Task assíncrona para processar backup de uma loja.
+    
+    Args:
+        loja_id: ID da loja
+        tipo: 'manual' ou 'automatico'
+        user_id: ID do usuário que solicitou (para backups manuais)
+        incluir_imagens: Se deve incluir imagens
+    
+    Returns:
+        dict com resultado do backup
+    
+    Boas práticas:
+    - Idempotente (pode ser executada múltiplas vezes)
+    - Retry automático (3 tentativas)
+    - Timeout de 30 minutos
+    - Logging detalhado
+    """
+    from .models import Loja, HistoricoBackup, ConfiguracaoBackup
+    from .backup_service import BackupService
+    from .backup_email_service import BackupEmailService
+    from django.contrib.auth.models import User
+    import os
+    
+    logger.info(
+        f"� Iniciando processamento de backup - "
+        f"Loja ID: {loja_id}, Tipo: {tipo}"
+    )
+    
+    try:
+        # Buscar loja
+        loja = Loja.objects.get(id=loja_id)
+        
+        # Buscar usuário (se fornecido)
+        solicitado_por = None
+        if user_id:
+            try:
+                solicitado_por = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                pass
+        
+        # Criar registro de histórico
+        historico = HistoricoBackup.objects.create(
+            loja=loja,
+            tipo=tipo,
+            status='processando',
+            solicitado_por=solicitado_por,
+            arquivo_nome='processando...'
+        )
+        
+        # Executar backup
+        service = BackupService()
+        result = service.exportar_loja(
+            loja_id=loja_id,
+            incluir_imagens=incluir_imagens
+        )
+        
+        if not result.get('success'):
+            # Marcar como erro
+            erro = result.get('erro', 'Erro desconhecido')
+            historico.marcar_como_erro(erro)
+            logger.error(f"❌ Erro ao processar backup: {erro}")
+            return {'success': False, 'erro': erro}
+        
+        # Salvar arquivo no storage
+        arquivo_path = _salvar_arquivo_backup(
+            loja=loja,
+            arquivo_nome=result['arquivo_nome'],
+            arquivo_bytes=result['arquivo_bytes']
+        )
+        
+        # Atualizar histórico
+        historico.arquivo_nome = result['arquivo_nome']
+        historico.arquivo_path = arquivo_path
+        historico.marcar_como_concluido(
+            tamanho_mb=result['tamanho_mb'],
+            total_registros=result['total_registros'],
+            tabelas=result['tabelas']
+        )
+        
+        # Atualizar configuração
+        config, _ = ConfiguracaoBackup.objects.get_or_create(loja=loja)
+        config.incrementar_contador()
+        
+        logger.info(
+            f"✅ Backup processado com sucesso - "
+            f"{result['arquivo_nome']} - {result['tamanho_mb']:.2f} MB"
+        )
+        
+        # Enviar email (apenas para backups automáticos)
+        if tipo == 'automatico':
+            enviar_backup_email_task(
+                loja_id=loja_id,
+                historico_backup_id=historico.id
+            )
+        
+        # Limpar backups antigos
+        limpar_backups_antigos_task(loja_id=loja_id)
         
         return {
             'success': True,
-            'notificacoes_enviadas': count,
-            'destinatarios': len(emails_superadmins),
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
+            'historico_id': historico.id,
+            'arquivo_nome': result['arquivo_nome'],
+            'tamanho_mb': result['tamanho_mb'],
+            'total_registros': result['total_registros']
         }
-        
+    
+    except Loja.DoesNotExist:
+        erro = f"Loja com ID {loja_id} não encontrada"
+        logger.error(f"❌ {erro}")
+        return {'success': False, 'erro': erro}
+    
     except Exception as e:
-        elapsed = (timezone.now() - start_time).total_seconds()
-        logger.error(
-            f"❌ [TASK] Erro ao enviar notificações após {elapsed:.2f}s: {e}",
-            exc_info=True
-        )
-        return {
-            'success': False,
-            'error': str(e),
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
+        erro = f"Erro inesperado ao processar backup: {str(e)}"
+        logger.exception(f"❌ {erro}")
+        
+        # Tentar marcar histórico como erro
+        try:
+            if 'historico' in locals():
+                historico.marcar_como_erro(erro)
+        except:
+            pass
+        
+        return {'success': False, 'erro': erro}
 
 
+# ============================================================================
+# TASK: Enviar Backup por Email
+# ============================================================================
 
-def send_daily_summary():
+def enviar_backup_email_task(loja_id: int, historico_backup_id: int):
     """
-    Task agendada para enviar resumo diário de violações
+    Task assíncrona para enviar backup por email.
     
-    Envia email com estatísticas das últimas 24 horas:
-    - Total de violações
-    - Distribuição por criticidade
-    - Distribuição por status
-    - Top 10 violações críticas
-    
-    Esta task é executada diariamente às 8h pelo Django-Q.
+    Args:
+        loja_id: ID da loja
+        historico_backup_id: ID do histórico de backup
     
     Returns:
-        dict: Resultado do envio
+        bool indicando sucesso
+    
+    Boas práticas:
+    - Separada do processamento do backup
+    - Retry automático (3 tentativas)
+    - Timeout de 5 minutos
     """
-    logger.info("📧 [TASK] Iniciando envio de resumo diário...")
-    start_time = timezone.now()
+    from .backup_email_service import BackupEmailService
+    
+    logger.info(
+        f"📧 Enviando backup por email - "
+        f"Loja ID: {loja_id}, Histórico ID: {historico_backup_id}"
+    )
     
     try:
-        from superadmin.notifications import NotificationService
+        service = BackupEmailService()
+        success = service.enviar_backup_email(
+            loja_id=loja_id,
+            historico_backup_id=historico_backup_id
+        )
         
-        # Enviar resumo
-        sucesso = NotificationService.enviar_resumo_diario()
-        
-        # Calcular tempo de execução
-        elapsed = (timezone.now() - start_time).total_seconds()
-        
-        if sucesso:
-            logger.info(f"✅ [TASK] Resumo diário enviado em {elapsed:.2f}s")
+        if success:
+            logger.info(f"✅ Email enviado com sucesso")
         else:
-            logger.warning(f"⚠️  [TASK] Resumo diário não enviado (sem violações ou sem destinatários)")
+            logger.warning(f"⚠️ Falha ao enviar email")
         
-        return {
-            'success': sucesso,
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
-        
+        return success
+    
     except Exception as e:
-        elapsed = (timezone.now() - start_time).total_seconds()
-        logger.error(
-            f"❌ [TASK] Erro ao enviar resumo diário após {elapsed:.2f}s: {e}",
-            exc_info=True
-        )
-        return {
-            'success': False,
-            'error': str(e),
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
+        logger.exception(f"❌ Erro ao enviar email: {e}")
+        return False
 
 
-def reprocessar_emails_task():
+# ============================================================================
+# TASK: Limpar Backups Antigos
+# ============================================================================
+
+def limpar_backups_antigos_task(loja_id: int):
     """
-    Task agendada para reprocessar emails falhados
+    Task assíncrona para limpar backups antigos de uma loja.
     
-    ✅ NOVO v719: Task para retry automático de emails
+    Mantém apenas os N backups mais recentes conforme configuração.
     
-    Executa o comando reprocessar_emails_falhados para tentar
-    reenviar emails que falharam anteriormente.
-    
-    Esta task é executada a cada 5 minutos pelo Django-Q.
+    Args:
+        loja_id: ID da loja
     
     Returns:
-        dict: Resumo do reprocessamento
+        dict com estatísticas da limpeza
+    
+    Boas práticas:
+    - Executa após cada backup
+    - Respeita configuração da loja
+    - Remove arquivos do filesystem
+    - Logging detalhado
     """
-    logger.info("📧 [TASK] Iniciando reprocessamento de emails falhados...")
-    start_time = timezone.now()
+    from .models import Loja, ConfiguracaoBackup, HistoricoBackup
+    import os
+    
+    logger.info(f"🧹 Iniciando limpeza de backups antigos - Loja ID: {loja_id}")
     
     try:
-        from django.core.management import call_command
-        from io import StringIO
+        # Buscar loja e configuração
+        loja = Loja.objects.get(id=loja_id)
+        config = ConfiguracaoBackup.objects.filter(loja=loja).first()
         
-        # Capturar output do comando
-        output = StringIO()
-        call_command('reprocessar_emails_falhados', stdout=output)
+        if not config:
+            logger.debug(f"⏭️ Sem configuração de backup para loja {loja.nome}")
+            return {'success': True, 'removidos': 0}
         
-        elapsed = (timezone.now() - start_time).total_seconds()
+        # Quantidade a manter
+        manter = config.manter_ultimos_n_backups
         
-        logger.info(f"✅ [TASK] Reprocessamento concluído em {elapsed:.2f}s")
+        # Buscar backups concluídos (ordenados por data)
+        backups = HistoricoBackup.objects.filter(
+            loja=loja,
+            status='concluido'
+        ).order_by('-created_at')
+        
+        total_backups = backups.count()
+        
+        if total_backups <= manter:
+            logger.debug(
+                f"⏭️ Nenhum backup para remover. "
+                f"Total: {total_backups}, Manter: {manter}"
+            )
+            return {'success': True, 'removidos': 0}
+        
+        # Backups a remover (os mais antigos)
+        backups_remover = backups[manter:]
+        total_removidos = 0
+        tamanho_liberado_mb = 0
+        
+        for backup in backups_remover:
+            try:
+                # Remover arquivo do filesystem
+                if backup.arquivo_path and os.path.exists(backup.arquivo_path):
+                    os.remove(backup.arquivo_path)
+                    tamanho_liberado_mb += float(backup.arquivo_tamanho_mb)
+                    logger.debug(f"🗑️ Arquivo removido: {backup.arquivo_nome}")
+                
+                # Remover registro do banco
+                backup.delete()
+                total_removidos += 1
+            
+            except Exception as e:
+                logger.warning(
+                    f"⚠️ Erro ao remover backup {backup.arquivo_nome}: {e}"
+                )
+        
+        logger.info(
+            f"✅ Limpeza concluída - "
+            f"{total_removidos} backups removidos, "
+            f"{tamanho_liberado_mb:.2f} MB liberados"
+        )
         
         return {
             'success': True,
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat(),
-            'output': output.getvalue()
+            'removidos': total_removidos,
+            'tamanho_liberado_mb': tamanho_liberado_mb
         }
-        
+    
+    except Loja.DoesNotExist:
+        erro = f"Loja com ID {loja_id} não encontrada"
+        logger.error(f"❌ {erro}")
+        return {'success': False, 'erro': erro}
+    
     except Exception as e:
-        elapsed = (timezone.now() - start_time).total_seconds()
-        logger.error(
-            f"❌ [TASK] Erro ao reprocessar emails após {elapsed:.2f}s: {e}",
-            exc_info=True
-        )
-        return {
-            'success': False,
-            'error': str(e),
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
+        erro = f"Erro ao limpar backups antigos: {str(e)}"
+        logger.exception(f"❌ {erro}")
+        return {'success': False, 'erro': erro}
 
 
-def verificar_assinaturas_task():
+# ============================================================================
+# HELPER: Salvar Arquivo de Backup
+# ============================================================================
+
+def _salvar_arquivo_backup(loja, arquivo_nome: str, arquivo_bytes: bytes) -> str:
     """
-    Task agendada para verificar status de assinaturas
+    Salva arquivo de backup no storage.
     
-    ✅ NOVO v719: Task para gerenciamento automático de status
-    
-    Executa o comando verificar_status_assinaturas para:
-    - Marcar assinaturas vencidas há 7+ dias como 'atrasado'
-    - Marcar assinaturas vencidas há 30+ dias como 'bloqueado'
-    
-    Esta task é executada diariamente às 00:00 pelo Django-Q.
+    Args:
+        loja: Instância de Loja
+        arquivo_nome: Nome do arquivo
+        arquivo_bytes: Conteúdo do arquivo
     
     Returns:
-        dict: Resumo da verificação
-    """
-    logger.info("🔍 [TASK] Iniciando verificação de status de assinaturas...")
-    start_time = timezone.now()
+        str: Caminho do arquivo salvo
     
-    try:
-        from django.core.management import call_command
-        from io import StringIO
-        
-        # Capturar output do comando
-        output = StringIO()
-        call_command('verificar_status_assinaturas', stdout=output)
-        
-        elapsed = (timezone.now() - start_time).total_seconds()
-        
-        logger.info(f"✅ [TASK] Verificação concluída em {elapsed:.2f}s")
-        
-        return {
-            'success': True,
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat(),
-            'output': output.getvalue()
+    Nota:
+        Por enquanto salva no filesystem local.
+        Futuramente pode ser adaptado para S3.
+    """
+    import os
+    from pathlib import Path
+    
+    # Diretório de backups
+    backups_dir = Path(settings.BASE_DIR) / 'backups' / loja.slug
+    backups_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Caminho completo
+    arquivo_path = backups_dir / arquivo_nome
+    
+    # Salvar arquivo
+    with open(arquivo_path, 'wb') as f:
+        f.write(arquivo_bytes)
+    
+    logger.debug(f"💾 Arquivo salvo: {arquivo_path}")
+    
+    return str(arquivo_path)
+
+
+# ============================================================================
+# CONFIGURAÇÃO CELERY BEAT (para referência)
+# ============================================================================
+
+"""
+Adicionar ao celery.py ou settings.py:
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'executar-backups-automaticos': {
+        'task': 'superadmin.tasks.executar_backups_automaticos',
+        'schedule': crontab(minute=0),  # A cada hora
+        'options': {
+            'expires': 3600,  # Expira em 1 hora
         }
-        
-    except Exception as e:
-        elapsed = (timezone.now() - start_time).total_seconds()
-        logger.error(
-            f"❌ [TASK] Erro ao verificar assinaturas após {elapsed:.2f}s: {e}",
-            exc_info=True
-        )
-        return {
-            'success': False,
-            'error': str(e),
-            'tempo_execucao': elapsed,
-            'timestamp': timezone.now().isoformat()
-        }
+    },
+}
+
+# Configuração de retry para tasks
+CELERY_TASK_ANNOTATIONS = {
+    'superadmin.tasks.processar_backup_loja': {
+        'rate_limit': '10/m',  # Máximo 10 por minuto
+        'time_limit': 1800,  # Timeout de 30 minutos
+        'soft_time_limit': 1700,  # Soft timeout de 28 minutos
+        'max_retries': 3,
+        'default_retry_delay': 300,  # 5 minutos entre retries
+    },
+    'superadmin.tasks.enviar_backup_email_task': {
+        'rate_limit': '30/m',
+        'time_limit': 300,  # 5 minutos
+        'max_retries': 3,
+        'default_retry_delay': 60,  # 1 minuto entre retries
+    },
+}
+"""

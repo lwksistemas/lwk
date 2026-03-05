@@ -13,14 +13,18 @@ interface BackupButtonProps {
 export default function BackupButton({ lojaId, lojaNome, className = '' }: BackupButtonProps) {
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const toast = useToast();
+  const { addToast } = useToast();
 
   const handleExportarBackup = async () => {
     try {
       setLoading(true);
       setShowMenu(false);
       
-      toast.success('Iniciando exportação do backup...');
+      addToast({
+        tipo: 'info',
+        titulo: 'Backup',
+        mensagem: 'Iniciando exportação do backup...'
+      });
       
       const response = await apiClient.post(
         `/superadmin/lojas/${lojaId}/exportar_backup/`,
@@ -50,10 +54,18 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
       link.remove();
       window.URL.revokeObjectURL(url);
       
-      toast.success('Backup exportado com sucesso!');
+      addToast({
+        tipo: 'sucesso',
+        titulo: 'Backup',
+        mensagem: 'Backup exportado com sucesso!'
+      });
     } catch (error: any) {
       console.error('Erro ao exportar backup:', error);
-      toast.error(error.response?.data?.error || 'Erro ao exportar backup');
+      addToast({
+        tipo: 'erro',
+        titulo: 'Erro',
+        mensagem: error.response?.data?.error || 'Erro ao exportar backup'
+      });
     } finally {
       setLoading(false);
     }
@@ -70,12 +82,20 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
       if (!file) return;
       
       if (!file.name.endsWith('.zip')) {
-        toast.error('Por favor, selecione um arquivo ZIP');
+        addToast({
+          tipo: 'erro',
+          titulo: 'Erro',
+          mensagem: 'Por favor, selecione um arquivo ZIP'
+        });
         return;
       }
       
       if (file.size > 500 * 1024 * 1024) {
-        toast.error('Arquivo muito grande. Máximo: 500MB');
+        addToast({
+          tipo: 'erro',
+          titulo: 'Erro',
+          mensagem: 'Arquivo muito grande. Máximo: 500MB'
+        });
         return;
       }
       
@@ -85,7 +105,11 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
       
       try {
         setLoading(true);
-        toast.info('Importando backup... Isso pode levar alguns minutos.');
+        addToast({
+          tipo: 'info',
+          titulo: 'Backup',
+          mensagem: 'Importando backup... Isso pode levar alguns minutos.'
+        });
         
         const formData = new FormData();
         formData.append('arquivo', file);
@@ -101,18 +125,30 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
         );
         
         if (response.data.success) {
-          toast.success(`Backup importado! ${response.data.total_registros_importados} registros restaurados.`);
+          addToast({
+            tipo: 'sucesso',
+            titulo: 'Backup',
+            mensagem: `Backup importado! ${response.data.total_registros_importados} registros restaurados.`
+          });
           
           // Recarregar página após 2 segundos
           setTimeout(() => {
             window.location.reload();
           }, 2000);
         } else {
-          toast.error(response.data.error || 'Erro ao importar backup');
+          addToast({
+            tipo: 'erro',
+            titulo: 'Erro',
+            mensagem: response.data.error || 'Erro ao importar backup'
+          });
         }
       } catch (error: any) {
         console.error('Erro ao importar backup:', error);
-        toast.error(error.response?.data?.error || 'Erro ao importar backup');
+        addToast({
+          tipo: 'erro',
+          titulo: 'Erro',
+          mensagem: error.response?.data?.error || 'Erro ao importar backup'
+        });
       } finally {
         setLoading(false);
       }
@@ -123,7 +159,11 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
 
   const handleConfigurarBackup = () => {
     setShowMenu(false);
-    toast.info('Configuração de backup automático em desenvolvimento');
+    addToast({
+      tipo: 'info',
+      titulo: 'Backup',
+      mensagem: 'Configuração de backup automático em desenvolvimento'
+    });
     // TODO: Abrir modal de configuração
   };
 

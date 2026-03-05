@@ -19,6 +19,7 @@ import csv
 import zipfile
 import io
 import os
+import re
 import logging
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
@@ -30,6 +31,17 @@ from django.conf import settings
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+# Constantes (evitar magic numbers e listas soltas no código)
+BACKUP_SYSTEM_TABLES_EXCLUDE = {
+    'django_migrations',
+    'django_content_type',
+    'django_session',
+    'auth_permission',
+    'auth_group',
+}
+# Regex para validar nome de tabela/coluna (segurança SQL: apenas alfanumérico e underscore)
+BACKUP_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 
 class BackupExportError(Exception):
@@ -151,12 +163,18 @@ class DatabaseHelper:
                     """
                 )
             tables = [row[0] for row in cursor.fetchall()]
-        # Excluir tabelas de sistema
-        exclude = {'django_migrations', 'django_content_type', 'django_session', 'auth_permission', 'auth_group'}
-        return [t for t in tables if t not in exclude]
+        return [t for t in tables if t not in BACKUP_SYSTEM_TABLES_EXCLUDE]
+    
+    @staticmethod
+    def is_safe_table_name(name: str) -> bool:
+        """Valida se o nome é seguro para uso em SQL (evita injection)."""
+        return bool(name and BACKUP_SAFE_IDENTIFIER_RE.match(name))
     
     def table_exists(self, table_name: str) -> bool:
         """Verifica se uma tabela existe no banco"""
+        if not self.is_safe_table_name(table_name):
+            logger.warning(f"Nome de tabela inválido (segurança): {table_name!r}")
+            return False
         try:
             with self.get_connection().cursor() as cursor:
                 if self._is_sqlite():
@@ -179,6 +197,8 @@ class DatabaseHelper:
     
     def get_table_columns(self, table_name: str) -> List[str]:
         """Retorna lista de colunas de uma tabela"""
+        if not self.is_safe_table_name(table_name):
+            return []
         with self.get_connection().cursor() as cursor:
             if self._is_sqlite():
                 cursor.execute(f"PRAGMA table_info({table_name})")
@@ -195,6 +215,8 @@ class DatabaseHelper:
     
     def count_records(self, table_name: str) -> int:
         """Conta registros em uma tabela"""
+        if not self.is_safe_table_name(table_name):
+            return 0
         with self.get_connection().cursor() as cursor:
             cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
             return cursor.fetchone()[0]
@@ -206,6 +228,8 @@ class DatabaseHelper:
         Returns:
             Tuple com (colunas, registros)
         """
+        if not self.is_safe_table_name(table_name):
+            return [], []
         columns = self.get_table_columns(table_name)
         
         with self.get_connection().cursor() as cursor:
@@ -484,83 +508,125 @@ class BackupService:
             logger.info(f"🔄 Iniciando importação de backup - Loja: {loja.nome} (ID: {loja_id})")
             
             # Validar ZIP
+            zip_buffer = io.BytesIO(arquivo_zip)
+            zip_file = None
             try:
-                zip_buffer = io.BytesIO(arquivo_zip)
                 zip_file = zipfile.ZipFile(zip_buffer, 'r')
             except zipfile.BadZipFile:
                 raise BackupImportError("Arquivo ZIP inválido ou corrompido")
-            
-            # Ler metadados
             try:
-                import json
-                metadata_content = zip_file.read('_metadata.json')
-                metadata = json.loads(metadata_content)
-                logger.info(f"📋 Metadados do backup: {metadata.get('data_backup')}")
-            except KeyError:
-                logger.warning("⚠️ Arquivo de metadados não encontrado no backup")
-                metadata = {}
-            
-            # Inicializar helper
-            db_helper = DatabaseHelper(loja.database_name)
-            
-            # Estatísticas
-            total_registros = 0
-            tabelas_stats = {}
-            
-            # Importar cada tabela (em ordem)
-            tabelas = self.config.get_tabelas_ordenadas_importacao()
-            
-            with transaction.atomic(using=loja.database_name):
-                for tabela_config in tabelas:
-                    table_name = tabela_config.nome
-                    csv_filename = f"{table_name}.csv"
-                    
-                    # Verificar se CSV existe no ZIP
-                    if csv_filename not in zip_file.namelist():
-                        logger.warning(f"⚠️ Arquivo {csv_filename} não encontrado no backup")
-                        continue
-                    
-                    # Verificar se tabela existe
-                    if not db_helper.table_exists(table_name):
-                        logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
-                        continue
-                    
-                    try:
-                        # Ler CSV
-                        csv_content = zip_file.read(csv_filename).decode('utf-8')
-                        csv_reader = csv.DictReader(io.StringIO(csv_content))
+                # Ler metadados
+                try:
+                    import json
+                    metadata_content = zip_file.read('_metadata.json')
+                    metadata = json.loads(metadata_content)
+                    logger.info(f"📋 Metadados do backup: {metadata.get('data_backup')}")
+                except KeyError:
+                    logger.warning("⚠️ Arquivo de metadados não encontrado no backup")
+                    metadata = {}
+                
+                # Inicializar helper
+                db_helper = DatabaseHelper(loja.database_name)
+                
+                # Estatísticas
+                total_registros = 0
+                tabelas_stats = {}
+                
+                # Montar lista de (table_name, csv_filename): lista fixa + CSVs do ZIP (backup dinâmico)
+                tabelas = self.config.get_tabelas_ordenadas_importacao()
+                processar = []
+                vistos = set()
+                for t in tabelas:
+                    fn = f"{t.nome}.csv"
+                    if fn in zip_file.namelist() and t.nome not in vistos:
+                        processar.append((t.nome, fn))
+                        vistos.add(t.nome)
+                for nome in zip_file.namelist():
+                    if nome.endswith(".csv") and nome != "_metadata.json":
+                        table_name = nome[:-4]
+                        if table_name not in vistos:
+                            processar.append((table_name, nome))
+                            vistos.add(table_name)
+                
+                with transaction.atomic(using=loja.database_name):
+                    for table_name, csv_filename in processar:
+                        # Verificar se tabela existe e nome é seguro
+                        if not DatabaseHelper.is_safe_table_name(table_name):
+                            continue
+                        if not db_helper.table_exists(table_name):
+                            logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
+                            continue
                         
-                        # Limpar tabela antes de importar
-                        with db_helper.get_connection().cursor() as cursor:
-                            cursor.execute(f"DELETE FROM {table_name}")
+                        try:
+                            # Ler CSV
+                            csv_content = zip_file.read(csv_filename).decode('utf-8')
+                            csv_reader = csv.DictReader(io.StringIO(csv_content))
+                            rows = list(csv_reader)
+                            if not rows:
+                                tabelas_stats[table_name] = 0
+                                continue
+                            
+                            # Colunas da tabela no banco (ordem e nomes)
+                            db_columns = db_helper.get_table_columns(table_name)
+                            if not db_columns:
+                                logger.warning(f"⚠️ Não foi possível obter colunas da tabela {table_name}")
+                                continue
+                            
+                            # Usar apenas colunas que existem no CSV e na tabela (ordem da tabela)
+                            # Filtrar também por nome seguro (defesa em profundidade)
+                            csv_headers = list(rows[0].keys()) if rows else []
+                            cols_for_insert = [
+                                c for c in db_columns
+                                if c in csv_headers and DatabaseHelper.is_safe_table_name(c)
+                            ]
+                            if not cols_for_insert:
+                                logger.warning(f"⚠️ Nenhuma coluna comum entre CSV e tabela {table_name}")
+                                tabelas_stats[table_name] = 0
+                                continue
+                            
+                            # Limpar tabela antes de importar
+                            with db_helper.get_connection().cursor() as cursor:
+                                cursor.execute(f"DELETE FROM {table_name}")
+                                
+                                # INSERT com placeholders (%s funciona em Django para SQLite e PostgreSQL)
+                                placeholders = ", ".join(["%s"] * len(cols_for_insert))
+                                cols_str = ", ".join(cols_for_insert)
+                                insert_sql = f"INSERT INTO {table_name} ({cols_str}) VALUES ({placeholders})"
+                                
+                                for row in rows:
+                                    values = []
+                                    for col in cols_for_insert:
+                                        val = row.get(col, "")
+                                        if val == "" and col != "id":
+                                            values.append(None)
+                                        else:
+                                            values.append(val)
+                                    cursor.execute(insert_sql, values)
+                            
+                            count = len(rows)
+                            total_registros += count
+                            tabelas_stats[table_name] = count
+                            
+                            logger.info(f"✅ Tabela {table_name}: {count} registros importados")
                         
-                        # Importar registros
-                        count = 0
-                        for row in csv_reader:
-                            # Aqui você implementaria a lógica de inserção
-                            # Por simplicidade, vou deixar um placeholder
-                            count += 1
-                        
-                        total_registros += count
-                        tabelas_stats[table_name] = count
-                        
-                        logger.info(f"✅ Tabela {table_name}: {count} registros importados")
-                    
-                    except Exception as e:
-                        logger.error(f"❌ Erro ao importar tabela {table_name}: {e}")
-                        raise BackupImportError(f"Erro ao importar {table_name}: {str(e)}")
-            
-            zip_file.close()
-            zip_buffer.close()
-            
-            logger.info(f"✅ Importação concluída - {total_registros} registros importados")
-            
-            return {
-                'success': True,
-                'message': f'Backup importado com sucesso. {total_registros} registros restaurados.',
-                'total_registros_importados': total_registros,
-                'tabelas': tabelas_stats,
-            }
+                        except Exception as e:
+                            logger.error(f"❌ Erro ao importar tabela {table_name}: {e}")
+                            raise BackupImportError(f"Erro ao importar {table_name}: {str(e)}")
+                
+                logger.info(f"✅ Importação concluída - {total_registros} registros importados")
+                
+                return {
+                    'success': True,
+                    'message': f'Backup importado com sucesso. {total_registros} registros restaurados.',
+                    'total_registros_importados': total_registros,
+                    'tabelas': tabelas_stats,
+                }
+            finally:
+                try:
+                    if zip_file is not None:
+                        zip_file.close()
+                finally:
+                    zip_buffer.close()
         
         except Loja.DoesNotExist:
             erro = f"Loja com ID {loja_id} não encontrada"

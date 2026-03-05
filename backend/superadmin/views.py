@@ -785,6 +785,25 @@ Sistema Multi-Loja
     # ENDPOINTS DE BACKUP - v800
     # ============================================================================
     
+    # Constante: tamanho máximo do arquivo de backup na importação (500 MB)
+    BACKUP_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
+    
+    def _ensure_loja_database_available(self, loja):
+        """
+        Garante que o banco da loja está em settings.DATABASES (produção: rotas
+        superadmin não passam pelo TenantMiddleware). Retorna (True, None) ou
+        (False, Response) para retorno imediato.
+        """
+        if not loja.database_name or loja.database_name in settings.DATABASES:
+            return True, None
+        from .services.database_schema_service import DatabaseSchemaService
+        if DatabaseSchemaService.adicionar_configuracao_django(loja):
+            return True, None
+        return False, Response(
+            {'success': False, 'error': 'Não foi possível conectar ao banco de dados da loja.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+    
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def exportar_backup(self, request, pk=None):
         """
@@ -812,15 +831,9 @@ Sistema Multi-Loja
         loja = self.get_object()
         incluir_imagens = request.data.get('incluir_imagens', False)
         
-        # Garantir que o banco da loja está em DATABASES (produção: schema PostgreSQL não é setado pelo middleware em rotas superadmin)
-        from django.conf import settings
-        if loja.database_name and loja.database_name not in settings.DATABASES:
-            from .services.database_schema_service import DatabaseSchemaService
-            if not DatabaseSchemaService.adicionar_configuracao_django(loja):
-                return Response(
-                    {'success': False, 'error': 'Não foi possível conectar ao banco de dados da loja.'},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE
-                )
+        ok, err_response = self._ensure_loja_database_available(loja)
+        if not ok:
+            return err_response
         
         logger.info(f"📤 Solicitação de exportação de backup - Loja: {loja.nome} (ID: {loja.id})")
         
@@ -857,9 +870,12 @@ Sistema Multi-Loja
                 tabelas=result['tabelas']
             )
             
-            # Atualizar configuração (incrementar contador)
-            config, _ = ConfiguracaoBackup.objects.get_or_create(loja=loja)
-            config.incrementar_contador()
+            # Incrementar contador só se já existir configuração de backup (evita criar com validação semanal)
+            try:
+                config = ConfiguracaoBackup.objects.get(loja=loja)
+                config.incrementar_contador()
+            except ConfiguracaoBackup.DoesNotExist:
+                pass  # Export manual sem configuração de backup automático
             
             # Retornar arquivo para download
             response = HttpResponse(
@@ -912,18 +928,12 @@ Sistema Multi-Loja
         """
         from .backup_service import BackupService
         from .models import HistoricoBackup
-        from django.conf import settings
         
         loja = self.get_object()
         
-        # Garantir que o banco da loja está em DATABASES (rotas superadmin não passam pelo middleware de tenant)
-        if loja.database_name and loja.database_name not in settings.DATABASES:
-            from .services.database_schema_service import DatabaseSchemaService
-            if not DatabaseSchemaService.adicionar_configuracao_django(loja):
-                return Response(
-                    {'success': False, 'error': 'Não foi possível conectar ao banco de dados da loja.'},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE
-                )
+        ok, err_response = self._ensure_loja_database_available(loja)
+        if not ok:
+            return err_response
         
         # Validar arquivo
         arquivo = request.FILES.get('arquivo')
@@ -939,12 +949,10 @@ Sistema Multi-Loja
                 'error': 'Arquivo deve ser um ZIP'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Validar tamanho (máximo 500MB)
-        max_size = 500 * 1024 * 1024  # 500MB
-        if arquivo.size > max_size:
+        if arquivo.size > self.BACKUP_MAX_UPLOAD_BYTES:
             return Response({
                 'success': False,
-                'error': f'Arquivo muito grande. Máximo: 500MB'
+                'error': f'Arquivo muito grande. Máximo: {self.BACKUP_MAX_UPLOAD_BYTES // (1024*1024)}MB'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         logger.info(f"📥 Solicitação de importação de backup - Loja: {loja.nome} - Arquivo: {arquivo.name}")
@@ -1017,8 +1025,11 @@ Sistema Multi-Loja
         
         loja = self.get_object()
         
-        # Buscar ou criar configuração
-        config, created = ConfiguracaoBackup.objects.get_or_create(loja=loja)
+        # Buscar ou criar configuração (defaults válidos: diário não exige dia_semana)
+        config, created = ConfiguracaoBackup.objects.get_or_create(
+            loja=loja,
+            defaults={'frequencia': 'diario'}
+        )
         
         serializer = ConfiguracaoBackupSerializer(config)
         
@@ -1053,8 +1064,11 @@ Sistema Multi-Loja
         
         loja = self.get_object()
         
-        # Buscar ou criar configuração
-        config, _ = ConfiguracaoBackup.objects.get_or_create(loja=loja)
+        # Buscar ou criar configuração (defaults válidos para criação)
+        config, _ = ConfiguracaoBackup.objects.get_or_create(
+            loja=loja,
+            defaults={'frequencia': 'diario'}
+        )
         
         # Atualizar com dados do request
         serializer = ConfiguracaoBackupSerializer(

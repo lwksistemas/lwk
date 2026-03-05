@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { useToast, ToastContainer } from '@/components/ToastNotificacao';
+import { getBackupErrorMessage, BACKUP_MAX_UPLOAD_BYTES } from '@/lib/backup-utils';
+import BackupConfigModal from '@/components/loja/BackupConfigModal';
 
 interface BackupButtonProps {
   lojaId: number;
@@ -13,6 +15,7 @@ interface BackupButtonProps {
 export default function BackupButton({ lojaId, lojaNome, className = '' }: BackupButtonProps) {
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showModalConfig, setShowModalConfig] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
 
   const handleExportarBackup = async () => {
@@ -61,20 +64,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
       });
     } catch (error: any) {
       console.error('Erro ao exportar backup:', error);
-      let msg = 'Erro ao exportar backup';
-      if (error.response?.data != null) {
-        const data = error.response.data;
-        if (typeof data === 'string') msg = data;
-        else if (data.error) msg = data.error;
-        else if (data instanceof Blob) {
-          try {
-            const text = await data.text();
-            const parsed = text ? JSON.parse(text) : {};
-            msg = parsed.error || msg;
-          } catch (_) {}
-        }
-      }
-      if (error.response?.status === 403) msg = 'Sem permissão para exportar backup desta loja.';
+      const msg = await getBackupErrorMessage(error, 'Erro ao exportar backup');
       addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
     } finally {
       setLoading(false);
@@ -100,11 +90,11 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
         return;
       }
       
-      if (file.size > 500 * 1024 * 1024) {
+      if (file.size > BACKUP_MAX_UPLOAD_BYTES) {
         addToast({
           tipo: 'erro',
           titulo: 'Erro',
-          mensagem: 'Arquivo muito grande. Máximo: 500MB'
+          mensagem: `Arquivo muito grande. Máximo: ${BACKUP_MAX_UPLOAD_BYTES / (1024 * 1024)}MB`
         });
         return;
       }
@@ -154,20 +144,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
         }
       } catch (error: any) {
         console.error('Erro ao importar backup:', error);
-        let msg = 'Erro ao importar backup';
-        if (error.response?.data != null) {
-          const data = error.response.data;
-          if (typeof data === 'string') msg = data;
-          else if (data.error) msg = data.error;
-          else if (data instanceof Blob) {
-            try {
-              const text = await data.text();
-              const parsed = text ? JSON.parse(text) : {};
-              msg = parsed.error || msg;
-            } catch (_) {}
-          }
-        }
-        if (error.response?.status === 403) msg = 'Sem permissão para importar backup nesta loja.';
+        const msg = await getBackupErrorMessage(error, 'Erro ao importar backup', { isImport: true });
         addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
       } finally {
         setLoading(false);
@@ -179,12 +156,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
 
   const handleConfigurarBackup = () => {
     setShowMenu(false);
-    addToast({
-      tipo: 'info',
-      titulo: 'Backup',
-      mensagem: 'Configuração de backup automático em desenvolvimento'
-    });
-    // TODO: Abrir modal de configuração
+    setShowModalConfig(true);
   };
 
   return (
@@ -244,6 +216,13 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
             </div>
           </>
         )}
+
+        <BackupConfigModal
+          open={showModalConfig}
+          onClose={() => setShowModalConfig(false)}
+          lojaId={lojaId}
+          addToast={addToast}
+        />
       </div>
     </>
   );

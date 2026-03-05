@@ -201,8 +201,11 @@ def processar_backup_loja(
             tabelas=result['tabelas']
         )
         
-        # Atualizar configuração
-        config, _ = ConfiguracaoBackup.objects.get_or_create(loja=loja)
+        # Atualizar configuração (defaults válidos para criação: diário não exige dia_semana)
+        config, _ = ConfiguracaoBackup.objects.get_or_create(
+            loja=loja,
+            defaults={'frequencia': 'diario'}
+        )
         config.incrementar_contador()
         
         logger.info(

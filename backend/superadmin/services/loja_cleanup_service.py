@@ -202,7 +202,7 @@ class LojaCleanupService:
     def cleanup_owner_user(self):
         """Remove usuário proprietário se não tiver outras lojas"""
         from django.contrib.auth.models import User
-        from .models import Loja
+        from superadmin.models import Loja
         
         try:
             # Verificar se o usuário tem outras lojas

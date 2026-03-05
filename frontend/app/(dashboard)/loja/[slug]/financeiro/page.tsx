@@ -21,6 +21,7 @@ import {
   Copy
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers'
+import { getCurrentApiBaseUrl } from '@/lib/api-client'
 
 interface FinanceiroData {
   loja: {
@@ -66,14 +67,11 @@ export default function FinanceiroLojaPage() {
   const [error, setError] = useState<string | null>(null)
   const [atualizandoStatus, setAtualizandoStatus] = useState(false)
 
-  const API_BASE_URL = process.env.NODE_ENV === 'production' 
-    ? 'https://lwksistemas-38ad47519238.herokuapp.com' 
-    : 'http://localhost:8000'
-
   const carregarDados = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch(`${API_BASE_URL}/api/superadmin/loja/${slug}/financeiro/`, {
+      const apiBase = getCurrentApiBaseUrl()
+      const response = await fetch(`${apiBase}/superadmin/loja/${slug}/financeiro/`, {
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
@@ -90,7 +88,7 @@ export default function FinanceiroLojaPage() {
     } finally {
       setLoading(false)
     }
-  }, [slug, API_BASE_URL])
+  }, [slug])
 
   useEffect(() => {
     carregarDados()
@@ -101,7 +99,7 @@ export default function FinanceiroLojaPage() {
       // Se for Mercado Pago e tiver o payment_id, usar endpoint direto
       if (provedor === 'mercadopago' && mercadopagoPaymentId) {
         // Buscar URL do boleto diretamente da API do Mercado Pago via backend
-        const response = await fetch(`${API_BASE_URL}/api/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`, {
+        const response = await fetch(`${getCurrentApiBaseUrl()}/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`, {
           headers: {
             'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
           }
@@ -124,7 +122,7 @@ export default function FinanceiroLojaPage() {
       }
       
       // Fluxo normal para Asaas
-      const response = await fetch(`${API_BASE_URL}/api/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`, {
+      const response = await fetch(`${getCurrentApiBaseUrl()}/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`, {
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }
@@ -164,7 +162,7 @@ export default function FinanceiroLojaPage() {
     
     try {
       setAtualizandoStatus(true)
-      const response = await fetch(`${API_BASE_URL}/api/superadmin/loja-financeiro/${data.loja.id}/atualizar_status_asaas/`, {
+      const response = await fetch(`${getCurrentApiBaseUrl()}/superadmin/loja-financeiro/${data.loja.id}/atualizar_status_asaas/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`

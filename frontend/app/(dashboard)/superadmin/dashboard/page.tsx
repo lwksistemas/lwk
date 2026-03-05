@@ -230,6 +230,16 @@ export default function SuperAdminDashboard() {
               </p>
             </div>
           )}
+          {/* Dica: Render (backup) é mais lento — usar Heroku no dia a dia */}
+          {typeof window !== 'undefined' &&
+            localStorage.getItem('backend_servidor') === 'render' &&
+            (stats?.total_lojas ?? 0) > 0 && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+              <p className="text-blue-800 dark:text-blue-200 text-sm">
+                Servidor <strong>Render</strong> (backup) pode ser mais lento. Para uso diário, prefira <strong>Heroku</strong> no seletor acima.
+              </p>
+            </div>
+          )}
 
           {/* Estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

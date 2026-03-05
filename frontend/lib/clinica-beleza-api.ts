@@ -2,7 +2,7 @@
  * Cliente API otimizado para Clínica da Beleza
  */
 
-import { clearSessionAndRedirect, getLoginUrlForRedirect } from "@/lib/api-client";
+import { clearSessionAndRedirect, getLoginUrlForRedirect, getCurrentApiBaseUrl } from "@/lib/api-client";
 
 const SESSION_CODES = [
   "DIFFERENT_SESSION",
@@ -40,8 +40,9 @@ export async function handle401SessionResponse(response: Response): Promise<bool
   return false;
 }
 
-/** Base da API (com /api): ex. https://xxx.herokuapp.com/api */
+/** Base da API (com /api). Respeita o servidor selecionado (Heroku/Render) no cliente. */
 export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") return getCurrentApiBaseUrl();
   const base = process.env.NEXT_PUBLIC_API_URL || "";
   if (base.endsWith("/api")) return base;
   return base ? `${base.replace(/\/$/, "")}/api` : "";

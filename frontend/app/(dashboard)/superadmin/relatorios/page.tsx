@@ -58,26 +58,20 @@ export default function RelatoriosPage() {
   const loadDados = async () => {
     try {
       setLoading(true);
-      
-      // Carregar estatísticas
-      const statsRes = await apiClient.get('/superadmin/lojas/estatisticas/');
+      // Requisições em paralelo (menos tempo no Render/Heroku)
+      const [statsRes, lojasRes, finRes, usersRes] = await Promise.all([
+        apiClient.get('/superadmin/lojas/estatisticas/'),
+        apiClient.get('/superadmin/lojas/'),
+        apiClient.get('/superadmin/financeiro/'),
+        apiClient.get('/superadmin/usuarios/'),
+      ]);
       setEstatisticas(statsRes.data);
-      
-      // Carregar lojas
-      const lojasRes = await apiClient.get('/superadmin/lojas/');
       const lojasData = lojasRes.data.results || lojasRes.data;
       setLojas(Array.isArray(lojasData) ? lojasData : []);
-      
-      // Carregar financeiros
-      const finRes = await apiClient.get('/superadmin/financeiro/');
       const finData = finRes.data.results || finRes.data;
       setFinanceiros(Array.isArray(finData) ? finData : []);
-      
-      // Carregar usuários
-      const usersRes = await apiClient.get('/superadmin/usuarios/');
       const usersData = usersRes.data.results || usersRes.data;
       setUsuarios(Array.isArray(usersData) ? usersData : []);
-      
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {

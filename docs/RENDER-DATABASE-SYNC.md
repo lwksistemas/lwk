@@ -86,7 +86,15 @@ O backend precisa enviar `Access-Control-Allow-Origin` para o frontend. No Rende
 
 (O `render.yaml` do repositório já inclui isso; ao sincronizar o Blueprint, a variável é aplicada.)
 
-### 3. 503 no plano free (serviço “dormindo”)
+### 3. Lentidão no Super Admin com Render
+
+No plano **free**, o Render tem menos CPU/RAM e o serviço pode “dormir” após inatividade. Por isso o Super Admin pode ficar mais lento ao usar o backup:
+
+- **Recomendação:** use **Heroku** no seletor de backend para o dia a dia; deixe o **Render** para quando o Heroku estiver indisponível.
+- No dashboard, ao usar Render, é exibida uma dica sugerindo trocar para Heroku para melhor desempenho.
+- As páginas do super admin foram otimizadas para fazer requisições em **paralelo** (ex.: Relatórios), reduzindo o tempo total de carregamento.
+
+### 4. 503 no plano free (serviço “dormindo”)
 
 No plano **free**, o Render desliga o serviço após inatividade. A primeira requisição depois disso pode receber **503** e a página de erro do Render **não** envia headers CORS, então o navegador mostra erro de CORS.
 

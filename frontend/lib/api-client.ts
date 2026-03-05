@@ -8,8 +8,19 @@ const BACKUP_API = process.env.NEXT_PUBLIC_API_BACKUP_URL;
 const ENABLE_LOJA_FAILOVER = process.env.NEXT_PUBLIC_ENABLE_LOJA_FAILOVER === 'true';
 const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000');
 
+// ✅ NOVO v787: Suporte para troca manual de servidor
+function getInitialAPI(): string {
+  if (typeof window !== 'undefined') {
+    const savedServer = localStorage.getItem('backend_servidor');
+    if (savedServer === 'render' && BACKUP_API) {
+      return BACKUP_API;
+    }
+  }
+  return PRIMARY_API;
+}
+
 // Controle de failover
-let currentAPI = PRIMARY_API;
+let currentAPI = getInitialAPI();
 let failoverCount = 0;
 let lastFailoverTime: number | null = null;
 const MAX_FAILOVER_ATTEMPTS = 3;
@@ -166,11 +177,7 @@ function applyLojaInterceptors(instance: AxiosInstance) {
           currentAPI = PRIMARY_API;
           failoverCount = 0;
           lastFailoverTime = null;
-          // Recriar instâncias com nova baseURL
-          const newInstance = createApiInstance();
-          applyLojaInterceptors(newInstance);
-          Object.assign(apiClient, newInstance);
-          Object.assign(clinicaApiClient, newInstance);
+          updateInstancesBaseURL();
         }
       }
       
@@ -219,12 +226,7 @@ function applyLojaInterceptors(instance: AxiosInstance) {
         currentAPI = BACKUP_API;
         const backupBaseURL = BACKUP_API.endsWith('/api') ? BACKUP_API : `${BACKUP_API}/api`;
         originalRequest.baseURL = backupBaseURL;
-
-        // Recriar instâncias com nova baseURL
-        const newInstance = createApiInstance();
-        applyLojaInterceptors(newInstance);
-        Object.assign(apiClient, newInstance);
-        Object.assign(clinicaApiClient, newInstance);
+        updateInstancesBaseURL();
 
         try {
           console.warn('🔄 Repetindo requisição no servidor backup...');
@@ -252,6 +254,13 @@ applyLojaInterceptors(apiClient);
 export const clinicaApiClient = createApiInstance();
 applyLojaInterceptors(clinicaApiClient);
 
+/** Atualiza a baseURL das instâncias ao trocar de servidor (evita requisições irem ao servidor errado). */
+function updateInstancesBaseURL(): void {
+  const baseURL = currentAPI.endsWith('/api') ? currentAPI : `${currentAPI}/api`;
+  apiClient.defaults.baseURL = baseURL;
+  clinicaApiClient.defaults.baseURL = baseURL;
+}
+
 export default apiClient;
 
 // ===== FAILOVER STATUS (v750) =====
@@ -268,6 +277,23 @@ export function getFailoverStatus() {
   };
 }
 
+/** Base URL atual (com /api) para fetch() e outros clientes que não usam apiClient. */
+export function getCurrentApiBaseUrl(): string {
+  const base = currentAPI.endsWith('/api') ? currentAPI : `${currentAPI}/api`;
+  return base;
+}
+
+/**
+ * ✅ NOVO v787: Permite trocar manualmente o servidor backend.
+ * Atualiza defaults.baseURL para as próximas requisições irem ao servidor correto.
+ */
+export function setBackendServer(serverUrl: string): void {
+  currentAPI = serverUrl;
+  failoverCount = 0;
+  lastFailoverTime = null;
+  updateInstancesBaseURL();
+}
+
 /**
  * Força uso da API primária (Heroku). Usar ao entrar em páginas de loja:
  * o backup (Render) não tem os dados das lojas; lojas devem sempre usar a API principal.
@@ -277,10 +303,7 @@ export function resetToPrimaryAPI(): void {
   currentAPI = PRIMARY_API;
   failoverCount = 0;
   lastFailoverTime = null;
-  const newInstance = createApiInstance();
-  applyLojaInterceptors(newInstance);
-  Object.assign(apiClient, newInstance);
-  Object.assign(clinicaApiClient, newInstance);
+  updateInstancesBaseURL();
 }
 
 /** Verifica health do servidor atual */

@@ -763,12 +763,12 @@ Sistema Multi-Loja
     # ENDPOINTS DE BACKUP - v800
     # ============================================================================
     
-    @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def exportar_backup(self, request, pk=None):
         """
         Exporta backup manual da loja em formato CSV compactado.
         
-        Permissões: Apenas SuperAdmin
+        Permissões: SuperAdmin ou Owner da Loja
         
         Body (opcional):
             {
@@ -851,14 +851,14 @@ Sistema Multi-Loja
                 'error': f'Erro ao exportar backup: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def importar_backup(self, request, pk=None):
         """
         Importa backup de um arquivo ZIP.
         
         ATENÇÃO: Esta operação é destrutiva e substitui dados existentes.
         
-        Permissões: Apenas SuperAdmin
+        Permissões: SuperAdmin ou Owner da Loja
         
         Body:
             {
@@ -960,7 +960,7 @@ Sistema Multi-Loja
                 'error': f'Erro ao importar backup: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-    @action(detail=True, methods=['get'], permission_classes=[IsSuperAdmin])
+    @action(detail=True, methods=['get'], permission_classes=[IsOwnerOrSuperAdmin])
     def configuracao_backup(self, request, pk=None):
         """
         Obtém configuração de backup da loja.
@@ -986,7 +986,7 @@ Sistema Multi-Loja
             'created': created
         })
     
-    @action(detail=True, methods=['put', 'patch'], permission_classes=[IsSuperAdmin])
+    @action(detail=True, methods=['put', 'patch'], permission_classes=[IsOwnerOrSuperAdmin])
     def atualizar_configuracao_backup(self, request, pk=None):
         """
         Atualiza configuração de backup da loja.
@@ -1035,7 +1035,7 @@ Sistema Multi-Loja
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
     
-    @action(detail=True, methods=['get'], permission_classes=[IsSuperAdmin])
+    @action(detail=True, methods=['get'], permission_classes=[IsOwnerOrSuperAdmin])
     def historico_backups(self, request, pk=None):
         """
         Lista histórico de backups da loja.

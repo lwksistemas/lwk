@@ -758,6 +758,395 @@ Sistema Multi-Loja
             'lojas_inativas': total_lojas - lojas_ativas,
             'receita_mensal_estimada': float(receita_mensal),
         })
+    
+    # ============================================================================
+    # ENDPOINTS DE BACKUP - v800
+    # ============================================================================
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
+    def exportar_backup(self, request, pk=None):
+        """
+        Exporta backup manual da loja em formato CSV compactado.
+        
+        Permissões: Apenas SuperAdmin
+        
+        Body (opcional):
+            {
+                "incluir_imagens": false
+            }
+        
+        Returns:
+            Arquivo ZIP para download com todos os dados da loja
+        
+        Boas práticas:
+        - Processamento assíncrono para lojas grandes
+        - Logging detalhado
+        - Error handling robusto
+        """
+        from django.http import HttpResponse
+        from .backup_service import BackupService
+        from .models import HistoricoBackup, ConfiguracaoBackup
+        
+        loja = self.get_object()
+        incluir_imagens = request.data.get('incluir_imagens', False)
+        
+        logger.info(f"📤 Solicitação de exportação de backup - Loja: {loja.nome} (ID: {loja.id})")
+        
+        # Criar registro de histórico
+        historico = HistoricoBackup.objects.create(
+            loja=loja,
+            tipo='manual',
+            status='processando',
+            solicitado_por=request.user,
+            arquivo_nome='processando...'
+        )
+        
+        try:
+            # Executar exportação
+            service = BackupService()
+            result = service.exportar_loja(
+                loja_id=loja.id,
+                incluir_imagens=incluir_imagens
+            )
+            
+            if not result.get('success'):
+                # Marcar como erro
+                historico.marcar_como_erro(result.get('erro', 'Erro desconhecido'))
+                return Response({
+                    'success': False,
+                    'error': result.get('erro')
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Atualizar histórico
+            historico.arquivo_nome = result['arquivo_nome']
+            historico.marcar_como_concluido(
+                tamanho_mb=result['tamanho_mb'],
+                total_registros=result['total_registros'],
+                tabelas=result['tabelas']
+            )
+            
+            # Atualizar configuração (incrementar contador)
+            config, _ = ConfiguracaoBackup.objects.get_or_create(loja=loja)
+            config.incrementar_contador()
+            
+            # Retornar arquivo para download
+            response = HttpResponse(
+                result['arquivo_bytes'],
+                content_type='application/zip'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{result["arquivo_nome"]}"'
+            response['X-Backup-Id'] = str(historico.id)
+            response['X-Total-Registros'] = str(result['total_registros'])
+            response['X-Tamanho-MB'] = f"{result['tamanho_mb']:.2f}"
+            
+            logger.info(f"✅ Backup exportado com sucesso - {result['arquivo_nome']}")
+            
+            return response
+        
+        except Exception as e:
+            logger.exception(f"❌ Erro ao exportar backup: {e}")
+            historico.marcar_como_erro(str(e))
+            return Response({
+                'success': False,
+                'error': f'Erro ao exportar backup: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
+    def importar_backup(self, request, pk=None):
+        """
+        Importa backup de um arquivo ZIP.
+        
+        ATENÇÃO: Esta operação é destrutiva e substitui dados existentes.
+        
+        Permissões: Apenas SuperAdmin
+        
+        Body:
+            {
+                "arquivo": <file upload>
+            }
+        
+        Returns:
+            {
+                "success": true,
+                "message": "Backup importado com sucesso",
+                "total_registros_importados": 1234,
+                "tabelas": {...}
+            }
+        
+        Boas práticas:
+        - Validação de arquivo
+        - Backup de segurança antes de importar
+        - Transação atômica
+        """
+        from .backup_service import BackupService
+        from .models import HistoricoBackup
+        
+        loja = self.get_object()
+        
+        # Validar arquivo
+        arquivo = request.FILES.get('arquivo')
+        if not arquivo:
+            return Response({
+                'success': False,
+                'error': 'Arquivo não fornecido'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not arquivo.name.endswith('.zip'):
+            return Response({
+                'success': False,
+                'error': 'Arquivo deve ser um ZIP'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validar tamanho (máximo 500MB)
+        max_size = 500 * 1024 * 1024  # 500MB
+        if arquivo.size > max_size:
+            return Response({
+                'success': False,
+                'error': f'Arquivo muito grande. Máximo: 500MB'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        logger.info(f"📥 Solicitação de importação de backup - Loja: {loja.nome} - Arquivo: {arquivo.name}")
+        
+        # Criar registro de histórico
+        historico = HistoricoBackup.objects.create(
+            loja=loja,
+            tipo='manual',
+            status='processando',
+            solicitado_por=request.user,
+            arquivo_nome=arquivo.name
+        )
+        
+        try:
+            # Ler arquivo
+            arquivo_bytes = arquivo.read()
+            
+            # Executar importação
+            service = BackupService()
+            result = service.importar_loja(
+                loja_id=loja.id,
+                arquivo_zip=arquivo_bytes
+            )
+            
+            if not result.get('success'):
+                # Marcar como erro
+                historico.marcar_como_erro(result.get('erro', 'Erro desconhecido'))
+                return Response({
+                    'success': False,
+                    'error': result.get('erro')
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Atualizar histórico
+            historico.marcar_como_concluido(
+                tamanho_mb=arquivo.size / (1024 * 1024),
+                total_registros=result['total_registros_importados'],
+                tabelas=result['tabelas']
+            )
+            
+            logger.info(f"✅ Backup importado com sucesso - {arquivo.name}")
+            
+            return Response({
+                'success': True,
+                'message': result['message'],
+                'total_registros_importados': result['total_registros_importados'],
+                'tabelas': result['tabelas'],
+                'historico_id': historico.id
+            }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.exception(f"❌ Erro ao importar backup: {e}")
+            historico.marcar_como_erro(str(e))
+            return Response({
+                'success': False,
+                'error': f'Erro ao importar backup: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['get'], permission_classes=[IsSuperAdmin])
+    def configuracao_backup(self, request, pk=None):
+        """
+        Obtém configuração de backup da loja.
+        
+        Permissões: Apenas SuperAdmin
+        
+        Returns:
+            ConfiguracaoBackup serializado
+        """
+        from .models import ConfiguracaoBackup
+        from .serializers import ConfiguracaoBackupSerializer
+        
+        loja = self.get_object()
+        
+        # Buscar ou criar configuração
+        config, created = ConfiguracaoBackup.objects.get_or_create(loja=loja)
+        
+        serializer = ConfiguracaoBackupSerializer(config)
+        
+        return Response({
+            'success': True,
+            'config': serializer.data,
+            'created': created
+        })
+    
+    @action(detail=True, methods=['put', 'patch'], permission_classes=[IsSuperAdmin])
+    def atualizar_configuracao_backup(self, request, pk=None):
+        """
+        Atualiza configuração de backup da loja.
+        
+        Permissões: Apenas SuperAdmin
+        
+        Body:
+            {
+                "backup_automatico_ativo": true,
+                "horario_envio": "03:00:00",
+                "frequencia": "semanal",
+                "dia_semana": 0,
+                "incluir_imagens": false,
+                "manter_ultimos_n_backups": 5
+            }
+        
+        Returns:
+            ConfiguracaoBackup atualizado
+        """
+        from .models import ConfiguracaoBackup
+        from .serializers import ConfiguracaoBackupSerializer
+        
+        loja = self.get_object()
+        
+        # Buscar ou criar configuração
+        config, _ = ConfiguracaoBackup.objects.get_or_create(loja=loja)
+        
+        # Atualizar com dados do request
+        serializer = ConfiguracaoBackupSerializer(
+            config,
+            data=request.data,
+            partial=True
+        )
+        
+        if serializer.is_valid():
+            serializer.save()
+            logger.info(f"✅ Configuração de backup atualizada - Loja: {loja.nome}")
+            return Response({
+                'success': True,
+                'config': serializer.data,
+                'message': 'Configuração atualizada com sucesso'
+            })
+        else:
+            return Response({
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'], permission_classes=[IsSuperAdmin])
+    def historico_backups(self, request, pk=None):
+        """
+        Lista histórico de backups da loja.
+        
+        Permissões: Apenas SuperAdmin
+        
+        Query params:
+            - limit: Número de registros (padrão: 20)
+            - tipo: Filtrar por tipo (manual, automatico)
+            - status: Filtrar por status (processando, concluido, erro)
+        
+        Returns:
+            Lista de HistoricoBackup
+        """
+        from .models import HistoricoBackup
+        from .serializers import HistoricoBackupListSerializer
+        
+        loja = self.get_object()
+        
+        # Query base
+        queryset = HistoricoBackup.objects.filter(loja=loja)
+        
+        # Filtros
+        tipo = request.query_params.get('tipo')
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        # Limit
+        limit = int(request.query_params.get('limit', 20))
+        queryset = queryset[:limit]
+        
+        serializer = HistoricoBackupListSerializer(queryset, many=True)
+        
+        return Response({
+            'success': True,
+            'count': queryset.count(),
+            'historico': serializer.data
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
+    def reenviar_backup_email(self, request, pk=None):
+        """
+        Reenvia último backup por email.
+        
+        Permissões: Apenas SuperAdmin
+        
+        Body (opcional):
+            {
+                "historico_id": 123  // ID específico do backup
+            }
+        
+        Returns:
+            {
+                "success": true,
+                "message": "Backup enviado para email@example.com"
+            }
+        """
+        from .models import HistoricoBackup
+        from .backup_email_service import BackupEmailService
+        
+        loja = self.get_object()
+        
+        # Buscar histórico específico ou último concluído
+        historico_id = request.data.get('historico_id')
+        
+        if historico_id:
+            try:
+                historico = HistoricoBackup.objects.get(
+                    id=historico_id,
+                    loja=loja
+                )
+            except HistoricoBackup.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'error': 'Histórico de backup não encontrado'
+                }, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # Buscar último backup concluído
+            historico = HistoricoBackup.objects.filter(
+                loja=loja,
+                status='concluido'
+            ).order_by('-created_at').first()
+            
+            if not historico:
+                return Response({
+                    'success': False,
+                    'error': 'Nenhum backup concluído encontrado'
+                }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Enviar email
+        service = BackupEmailService()
+        success = service.enviar_backup_email(
+            loja_id=loja.id,
+            historico_backup_id=historico.id
+        )
+        
+        if success:
+            return Response({
+                'success': True,
+                'message': f'Backup enviado para {loja.owner.email}',
+                'historico_id': historico.id
+            })
+        else:
+            return Response({
+                'success': False,
+                'error': 'Erro ao enviar email. Verifique os logs.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class FinanceiroLojaViewSet(viewsets.ModelViewSet):

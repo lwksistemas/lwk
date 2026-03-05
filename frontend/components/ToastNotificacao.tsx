@@ -112,7 +112,7 @@ export function Toast({ id, tipo, titulo, mensagem, duracao = 5000, onClose }: T
   );
 }
 
-interface ToastNotificacao {
+export interface ToastNotificacao {
   id: string;
   tipo: 'sucesso' | 'erro' | 'aviso' | 'info' | 'critico';
   titulo: string;

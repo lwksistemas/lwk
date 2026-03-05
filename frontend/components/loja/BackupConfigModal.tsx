@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import type { ToastNotificacao } from '@/components/ToastNotificacao';
 
 export interface ConfigBackup {
   id: number;
@@ -30,7 +31,7 @@ interface BackupConfigModalProps {
   open: boolean;
   onClose: () => void;
   lojaId: number;
-  addToast: (t: { tipo: string; titulo: string; mensagem: string }) => void;
+  addToast: (t: Omit<ToastNotificacao, 'id'>) => void;
 }
 
 export default function BackupConfigModal({ open, onClose, lojaId, addToast }: BackupConfigModalProps) {

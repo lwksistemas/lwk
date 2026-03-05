@@ -61,11 +61,21 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
       });
     } catch (error: any) {
       console.error('Erro ao exportar backup:', error);
-      addToast({
-        tipo: 'erro',
-        titulo: 'Erro',
-        mensagem: error.response?.data?.error || 'Erro ao exportar backup'
-      });
+      let msg = 'Erro ao exportar backup';
+      if (error.response?.data != null) {
+        const data = error.response.data;
+        if (typeof data === 'string') msg = data;
+        else if (data.error) msg = data.error;
+        else if (data instanceof Blob) {
+          try {
+            const text = await data.text();
+            const parsed = text ? JSON.parse(text) : {};
+            msg = parsed.error || msg;
+          } catch (_) {}
+        }
+      }
+      if (error.response?.status === 403) msg = 'Sem permissão para exportar backup desta loja.';
+      addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
     } finally {
       setLoading(false);
     }
@@ -144,11 +154,21 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
         }
       } catch (error: any) {
         console.error('Erro ao importar backup:', error);
-        addToast({
-          tipo: 'erro',
-          titulo: 'Erro',
-          mensagem: error.response?.data?.error || 'Erro ao importar backup'
-        });
+        let msg = 'Erro ao importar backup';
+        if (error.response?.data != null) {
+          const data = error.response.data;
+          if (typeof data === 'string') msg = data;
+          else if (data.error) msg = data.error;
+          else if (data instanceof Blob) {
+            try {
+              const text = await data.text();
+              const parsed = text ? JSON.parse(text) : {};
+              msg = parsed.error || msg;
+            } catch (_) {}
+          }
+        }
+        if (error.response?.status === 403) msg = 'Sem permissão para importar backup nesta loja.';
+        addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
       } finally {
         setLoading(false);
       }

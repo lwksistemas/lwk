@@ -74,6 +74,16 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
             if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():
                 return True
 
+        # Profissional ou qualquer usuário da loja: pode exportar/importar backup da própria loja
+        if hasattr(obj, 'id'):
+            from .models import UsuarioSistema
+            action = getattr(view, 'action', None)
+            if action in ('exportar_backup', 'importar_backup', 'configuracao_backup', 'atualizar_configuracao_backup', 'historico_backups'):
+                if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():
+                    return True
+                if UsuarioSistema.objects.filter(user=request.user, loja=obj, is_active=True).exists():
+                    return True
+
         return False
 
 
@@ -802,6 +812,16 @@ Sistema Multi-Loja
         loja = self.get_object()
         incluir_imagens = request.data.get('incluir_imagens', False)
         
+        # Garantir que o banco da loja está em DATABASES (produção: schema PostgreSQL não é setado pelo middleware em rotas superadmin)
+        from django.conf import settings
+        if loja.database_name and loja.database_name not in settings.DATABASES:
+            from .services.database_schema_service import DatabaseSchemaService
+            if not DatabaseSchemaService.adicionar_configuracao_django(loja):
+                return Response(
+                    {'success': False, 'error': 'Não foi possível conectar ao banco de dados da loja.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+        
         logger.info(f"📤 Solicitação de exportação de backup - Loja: {loja.nome} (ID: {loja.id})")
         
         # Criar registro de histórico
@@ -892,8 +912,18 @@ Sistema Multi-Loja
         """
         from .backup_service import BackupService
         from .models import HistoricoBackup
+        from django.conf import settings
         
         loja = self.get_object()
+        
+        # Garantir que o banco da loja está em DATABASES (rotas superadmin não passam pelo middleware de tenant)
+        if loja.database_name and loja.database_name not in settings.DATABASES:
+            from .services.database_schema_service import DatabaseSchemaService
+            if not DatabaseSchemaService.adicionar_configuracao_django(loja):
+                return Response(
+                    {'success': False, 'error': 'Não foi possível conectar ao banco de dados da loja.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
         
         # Validar arquivo
         arquivo = request.FILES.get('arquivo')

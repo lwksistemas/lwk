@@ -130,15 +130,49 @@ class DatabaseHelper:
         """Retorna conexão com o banco da loja"""
         return connections[self.database_name]
     
+    def _is_sqlite(self) -> bool:
+        """Detecta se o backend é SQLite"""
+        conn = self.get_connection()
+        return conn.settings_dict.get('ENGINE', '').endswith('sqlite3')
+    
+    def get_all_table_names(self) -> List[str]:
+        """Lista todas as tabelas do schema/banco (PostgreSQL ou SQLite). Exclui django_migrations."""
+        with self.get_connection().cursor() as cursor:
+            if self._is_sqlite():
+                cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT table_name FROM information_schema.tables
+                    WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'
+                    ORDER BY table_name
+                    """
+                )
+            tables = [row[0] for row in cursor.fetchall()]
+        # Excluir tabelas de sistema
+        exclude = {'django_migrations', 'django_content_type', 'django_session', 'auth_permission', 'auth_group'}
+        return [t for t in tables if t not in exclude]
+    
     def table_exists(self, table_name: str) -> bool:
         """Verifica se uma tabela existe no banco"""
         try:
             with self.get_connection().cursor() as cursor:
-                cursor.execute(
-                    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = %s)",
-                    [table_name]
-                )
-                return cursor.fetchone()[0]
+                if self._is_sqlite():
+                    cursor.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=%s",
+                        [table_name]
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = %s)",
+                        [table_name]
+                    )
+                row = cursor.fetchone()
+                if self._is_sqlite():
+                    return row is not None
+                return bool(row[0]) if row else False
         except Exception as e:
             logger.warning(f"Erro ao verificar existência da tabela {table_name}: {e}")
             return False
@@ -146,11 +180,13 @@ class DatabaseHelper:
     def get_table_columns(self, table_name: str) -> List[str]:
         """Retorna lista de colunas de uma tabela"""
         with self.get_connection().cursor() as cursor:
+            if self._is_sqlite():
+                cursor.execute(f"PRAGMA table_info({table_name})")
+                return [row[1] for row in cursor.fetchall()]
             cursor.execute(
                 """
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = %s 
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = %s
                 ORDER BY ordinal_position
                 """,
                 [table_name]
@@ -327,15 +363,15 @@ class BackupService:
             total_registros = 0
             tabelas_stats = {}
             
-            # Exportar cada tabela
-            tabelas = self.config.get_tabelas_ordenadas_exportacao()
+            # Listar tabelas dinamicamente (qualquer tipo de loja: clínica, loja, etc.)
+            try:
+                table_names = db_helper.get_all_table_names()
+            except Exception as e:
+                logger.warning(f"⚠️ Fallback para lista fixa de tabelas: {e}")
+                table_names = [t.nome for t in self.config.get_tabelas_ordenadas_exportacao()]
             
-            for tabela_config in tabelas:
-                table_name = tabela_config.nome
-                
-                # Verificar se tabela existe
+            for table_name in table_names:
                 if not db_helper.table_exists(table_name):
-                    logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
                     continue
                 
                 try:

@@ -175,11 +175,13 @@ class DatabaseSchemaService:
                     call_command('migrate', app, '--database', loja.database_name, verbosity=0)
                     logger.info(f"Migrations aplicadas: {app}")
                 except Exception as e:
+                    # CRM Vendas: falha em crm_vendas impede loja sem tabelas (evita 500 no dashboard)
+                    if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
+                        logger.error(f"Erro crítico ao aplicar migration crm_vendas para loja {loja.slug}: {e}")
+                        raise
                     logger.warning(f"Erro ao aplicar migration {app}: {e}")
-            
             logger.info(f"Tabelas criadas no schema '{loja.database_name}' via migrations")
             return True
-            
         except Exception as e:
             logger.error(f"Erro ao aplicar migrations: {e}")
             return False
@@ -211,10 +213,18 @@ class DatabaseSchemaService:
             DatabaseSchemaService.adicionar_configuracao_django(loja)
             
             # 4. Aplicar migrations
-            DatabaseSchemaService.aplicar_migrations(loja)
-            
+            if not DatabaseSchemaService.aplicar_migrations(loja):
+                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or ''
+                if tipo_slug == 'crm-vendas':
+                    raise RuntimeError(
+                        "Falha ao criar tabelas do CRM no schema da loja. "
+                        "A loja CRM não pode ser usada sem as tabelas crm_vendas."
+                    )
+                logger.warning("Migrations aplicadas com falhas parciais (loja não é CRM)")
             return True
-            
         except Exception as e:
             logger.error(f"Erro ao configurar schema completo: {e}")
+            tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or ''
+            if tipo_slug == 'crm-vendas':
+                raise
             return False

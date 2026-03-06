@@ -176,15 +176,30 @@ class DatabaseHelper:
             logger.warning(f"Falha ao criar schema '{self._pg_schema}': {e}")
             return False
 
+    def _get_current_schema_pg(self) -> Optional[str]:
+        """Retorna o schema atual da conexão (PostgreSQL). Útil quando search_path está setado."""
+        if self._is_sqlite():
+            return None
+        try:
+            with self.get_connection().cursor() as cursor:
+                cursor.execute("SELECT current_schema()")
+                row = cursor.fetchone()
+                return row[0] if row else None
+        except Exception as e:
+            logger.warning(f"Erro ao obter current_schema: {e}")
+            return None
+
     def get_all_table_names(self) -> List[str]:
-        """Lista todas as tabelas do schema/banco (PostgreSQL ou SQLite). Exclui django_migrations."""
+        """Lista todas as tabelas do schema/banco (PostgreSQL ou SQLite). Exclui django_migrations.
+        Em PostgreSQL: tenta primeiro pelo schema nomeado (_pg_schema); se vazio, usa current_schema()."""
+        tables = []
         with self.get_connection().cursor() as cursor:
             if self._is_sqlite():
                 cursor.execute(
                     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
                 )
+                tables = [row[0] for row in cursor.fetchall()]
             else:
-                # Schema explícito para não depender de current_schema()/search_path (one-off dyno)
                 cursor.execute(
                     """
                     SELECT table_name FROM information_schema.tables
@@ -193,7 +208,38 @@ class DatabaseHelper:
                     """,
                     [self._pg_schema]
                 )
-            tables = [row[0] for row in cursor.fetchall()]
+                tables = [row[0] for row in cursor.fetchall()]
+                if not tables:
+                    current = self._get_current_schema_pg()
+                    logger.info(
+                        f"Backup: 0 tabelas em schema '{self._pg_schema}'; "
+                        f"current_schema()='{current}'"
+                    )
+                    if current and current != "public":
+                        cursor.execute(
+                            """
+                            SELECT table_name FROM information_schema.tables
+                            WHERE table_schema = %s AND table_type = 'BASE TABLE'
+                            ORDER BY table_name
+                            """,
+                            [current]
+                        )
+                        tables = [row[0] for row in cursor.fetchall()]
+                        if tables:
+                            self._pg_schema = current
+                            logger.info(f"Backup: usando schema '{current}' ({len(tables)} tabelas)")
+                    if not tables and current and current != "public":
+                        cursor.execute(
+                            """
+                            SELECT tablename FROM pg_tables
+                            WHERE schemaname = current_schema()
+                            ORDER BY tablename
+                            """
+                        )
+                        tables = [row[0] for row in cursor.fetchall()]
+                        if tables:
+                            self._pg_schema = current
+                            logger.info(f"Backup: pg_tables no current_schema = {len(tables)} tabelas")
         return [t for t in tables if t not in BACKUP_SYSTEM_TABLES_EXCLUDE]
     
     @staticmethod
@@ -419,6 +465,15 @@ class BackupService:
             total_registros = 0
             tabelas_stats = {}
             
+            # Forçar search_path na conexão (PostgreSQL) para garantir que usamos o schema da loja
+            if not db_helper._is_sqlite() and db_helper._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(db_helper._pg_schema):
+                try:
+                    with db_helper.get_connection().cursor() as cursor:
+                        cursor.execute(f'SET search_path TO "{db_helper._pg_schema}", public')
+                    logger.info(f"Backup: search_path definido para '{db_helper._pg_schema}'")
+                except Exception as e:
+                    logger.warning(f"Backup: não foi possível SET search_path: {e}")
+
             # Listar tabelas dinamicamente (qualquer tipo de loja: clínica, loja, etc.)
             try:
                 table_names = db_helper.get_all_table_names()

@@ -133,10 +133,14 @@ class DatabaseHelper:
     Helper para operações de banco de dados.
     
     Encapsula lógica de conexão e queries ao banco isolado da loja.
+    No PostgreSQL usa schema explícito (database_name com - trocado por _) para
+    não depender de search_path no one-off dyno do Scheduler.
     """
     
     def __init__(self, database_name: str):
         self.database_name = database_name
+        # Schema PostgreSQL = alias com hífens trocados por underscore (ex: loja_clinica_vida_5889)
+        self._pg_schema = (database_name or '').replace('-', '_') if database_name else ''
     
     def get_connection(self):
         """Retorna conexão com o banco da loja"""
@@ -147,6 +151,18 @@ class DatabaseHelper:
         conn = self.get_connection()
         return conn.settings_dict.get('ENGINE', '').endswith('sqlite3')
     
+    def _qualified_table(self, table_name: str) -> str:
+        """Retorna nome qualificado para PostgreSQL (schema.tabela) ou só tabela para SQLite."""
+        if self._is_sqlite() or not self._pg_schema or not self.is_safe_table_name(table_name):
+            return table_name
+        if not (self._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema)):
+            return table_name
+        return f'"{self._pg_schema}"."{table_name}"'
+    
+    def qualified_table_name(self, table_name: str) -> str:
+        """Nome da tabela qualificado com schema (PostgreSQL) ou só o nome (SQLite). Uso em SQL."""
+        return self._qualified_table(table_name)
+    
     def get_all_table_names(self) -> List[str]:
         """Lista todas as tabelas do schema/banco (PostgreSQL ou SQLite). Exclui django_migrations."""
         with self.get_connection().cursor() as cursor:
@@ -155,12 +171,14 @@ class DatabaseHelper:
                     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
                 )
             else:
+                # Schema explícito para não depender de current_schema()/search_path (one-off dyno)
                 cursor.execute(
                     """
                     SELECT table_name FROM information_schema.tables
-                    WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'
+                    WHERE table_schema = %s AND table_type = 'BASE TABLE'
                     ORDER BY table_name
-                    """
+                    """,
+                    [self._pg_schema]
                 )
             tables = [row[0] for row in cursor.fetchall()]
         return [t for t in tables if t not in BACKUP_SYSTEM_TABLES_EXCLUDE]
@@ -184,8 +202,8 @@ class DatabaseHelper:
                     )
                 else:
                     cursor.execute(
-                        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = %s)",
-                        [table_name]
+                        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s)",
+                        [self._pg_schema, table_name]
                     )
                 row = cursor.fetchone()
                 if self._is_sqlite():
@@ -206,10 +224,10 @@ class DatabaseHelper:
             cursor.execute(
                 """
                 SELECT column_name FROM information_schema.columns
-                WHERE table_schema = current_schema() AND table_name = %s
+                WHERE table_schema = %s AND table_name = %s
                 ORDER BY ordinal_position
                 """,
-                [table_name]
+                [self._pg_schema, table_name]
             )
             return [row[0] for row in cursor.fetchall()]
     
@@ -217,8 +235,9 @@ class DatabaseHelper:
         """Conta registros em uma tabela"""
         if not self.is_safe_table_name(table_name):
             return 0
+        qual = self._qualified_table(table_name)
         with self.get_connection().cursor() as cursor:
-            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            cursor.execute(f"SELECT COUNT(*) FROM {qual}")
             return cursor.fetchone()[0]
     
     def fetch_all_records(self, table_name: str) -> Tuple[List[str], List[tuple]]:
@@ -231,9 +250,9 @@ class DatabaseHelper:
         if not self.is_safe_table_name(table_name):
             return [], []
         columns = self.get_table_columns(table_name)
-        
+        qual = self._qualified_table(table_name)
         with self.get_connection().cursor() as cursor:
-            cursor.execute(f"SELECT * FROM {table_name}")
+            cursor.execute(f"SELECT * FROM {qual}")
             records = cursor.fetchall()
         
         return columns, records
@@ -584,14 +603,15 @@ class BackupService:
                                 tabelas_stats[table_name] = 0
                                 continue
                             
-                            # Limpar tabela antes de importar
+                            # Limpar tabela antes de importar (qualificado para PostgreSQL)
+                            qual = db_helper.qualified_table_name(table_name)
                             with db_helper.get_connection().cursor() as cursor:
-                                cursor.execute(f"DELETE FROM {table_name}")
+                                cursor.execute(f"DELETE FROM {qual}")
                                 
                                 # INSERT com placeholders (%s funciona em Django para SQLite e PostgreSQL)
                                 placeholders = ", ".join(["%s"] * len(cols_for_insert))
                                 cols_str = ", ".join(cols_for_insert)
-                                insert_sql = f"INSERT INTO {table_name} ({cols_str}) VALUES ({placeholders})"
+                                insert_sql = f"INSERT INTO {qual} ({cols_str}) VALUES ({placeholders})"
                                 
                                 for row in rows:
                                     values = []

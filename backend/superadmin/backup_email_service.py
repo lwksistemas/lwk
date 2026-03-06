@@ -104,17 +104,19 @@ class BackupEmailService:
 
     
     def _criar_assunto(self, loja, historico) -> str:
-        """Cria assunto do email"""
-        data = historico.created_at.strftime('%d/%m/%Y')
+        """Cria assunto do email (data em horário local - America/Sao_Paulo)."""
+        data_local = timezone.localtime(historico.created_at)
+        data = data_local.strftime('%d/%m/%Y')
         return f"Backup Automático - {loja.nome} - {data}"
     
     def _criar_corpo_html(self, loja, historico) -> str:
-        """Cria corpo HTML do email"""
+        """Cria corpo HTML do email (data/hora em horário local)."""
+        data_local = timezone.localtime(historico.created_at)
         context = {
             'loja': loja,
             'historico': historico,
             'owner_nome': loja.owner.first_name or loja.owner.username,
-            'data_backup': historico.created_at.strftime('%d/%m/%Y às %H:%M'),
+            'data_backup': data_local.strftime('%d/%m/%Y às %H:%M'),
             'tamanho': historico.get_tamanho_formatado(),
             'total_registros': historico.total_registros,
             'tabelas': historico.tabelas_incluidas,
@@ -182,9 +184,10 @@ class BackupEmailService:
         return html
     
     def _criar_corpo_texto(self, loja, historico) -> str:
-        """Cria corpo em texto puro do email"""
+        """Cria corpo em texto puro do email (data/hora em horário local)."""
         owner_nome = loja.owner.first_name or loja.owner.username
-        data_backup = historico.created_at.strftime('%d/%m/%Y às %H:%M')
+        data_local = timezone.localtime(historico.created_at)
+        data_backup = data_local.strftime('%d/%m/%Y às %H:%M')
         
         texto = f"""
 Backup Automático - {loja.nome}

@@ -56,7 +56,10 @@ def executar_backups_automaticos():
         backup_automatico_ativo=True
     ).select_related('loja')
     
-    hora_atual = timezone.now().time()
+    # Usar horário local (TIME_ZONE, ex.: America/Sao_Paulo) para comparar com o configurado pelo usuário
+    now_local = timezone.localtime(timezone.now())
+    hora_atual = now_local.time()
+    hoje = now_local.date()
     total_agendados = 0
     
     for config in configs:
@@ -77,7 +80,6 @@ def executar_backups_automaticos():
             
             # Verificar se já executou hoje
             if config.ultimo_backup:
-                hoje = timezone.now().date()
                 if config.ultimo_backup.date() == hoje:
                     logger.debug(
                         f"⏭️ Backup já executado hoje para loja {config.loja.nome}"

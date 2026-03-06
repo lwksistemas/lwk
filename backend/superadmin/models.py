@@ -1246,7 +1246,7 @@ class ConfiguracaoBackup(models.Model):
     
     def deve_executar_backup_hoje(self):
         """
-        Verifica se o backup deve ser executado hoje.
+        Verifica se o backup deve ser executado hoje (data local conforme TIME_ZONE).
         
         Returns:
             bool: True se deve executar, False caso contrário
@@ -1254,17 +1254,16 @@ class ConfiguracaoBackup(models.Model):
         if not self.backup_automatico_ativo:
             return False
         
-        from datetime import datetime
-        hoje = datetime.now()
+        now_local = timezone.localtime(timezone.now())
         
         if self.frequencia == 'diario':
             return True
         
         if self.frequencia == 'semanal':
-            return hoje.weekday() == self.dia_semana
+            return now_local.weekday() == self.dia_semana
         
         if self.frequencia == 'mensal':
-            return hoje.day == self.dia_mes
+            return now_local.day == self.dia_mes
         
         return False
     

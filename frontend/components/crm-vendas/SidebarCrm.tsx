@@ -10,22 +10,18 @@ import {
   User,
   Menu,
   LogOut,
-  ArrowLeft,
 } from 'lucide-react';
 
 interface SidebarCrmProps {
   lojaNome?: string;
   onLogout?: () => void;
-  /** Slug da loja (recomendado: passar do layout para garantir). */
-  slug?: string;
 }
 
-export default function SidebarCrm({ lojaNome, onLogout, slug: slugProp }: SidebarCrmProps) {
+export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
   const { collapsed, toggle } = useCRMUIStore();
   const params = useParams();
   const pathname = usePathname();
-  const slugFromRoute = (params?.slug as string) || (typeof pathname === 'string' && pathname.startsWith('/loja/') ? pathname.split('/')[2] : '') || '';
-  const slug = (slugProp ?? slugFromRoute).trim();
+  const slug = (params?.slug as string) || (typeof pathname === 'string' && pathname.startsWith('/loja/') ? pathname.split('/')[2] : '') || '';
   const base = `/loja/${slug}/crm-vendas`;
 
   return (
@@ -70,24 +66,6 @@ export default function SidebarCrm({ lojaNome, onLogout, slug: slugProp }: Sideb
       </nav>
 
       <div className="p-2 border-t border-gray-200 dark:border-gray-800 space-y-1">
-        <a
-          href={slug ? `/loja/${slug}/dashboard` : '#'}
-          onClick={(e) => {
-            if (!slug) {
-              e.preventDefault();
-              return;
-            }
-            e.preventDefault();
-            window.location.href = `/loja/${slug}/dashboard`;
-          }}
-          className="crm-menu-item block w-full text-left text-gray-500 dark:text-gray-400 no-underline"
-          style={{ pointerEvents: slug ? 'auto' : 'none' }}
-          title={slug ? 'Voltar ao dashboard da loja' : 'Carregando...'}
-          aria-disabled={!slug}
-        >
-          <ArrowLeft size={20} className="shrink-0" />
-          {!collapsed && <span>Voltar à loja</span>}
-        </a>
         {onLogout && (
           <button
             type="button"

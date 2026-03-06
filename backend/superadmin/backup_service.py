@@ -191,7 +191,7 @@ class DatabaseHelper:
 
     def get_all_table_names(self) -> List[str]:
         """Lista todas as tabelas do schema/banco (PostgreSQL ou SQLite). Exclui django_migrations.
-        Em PostgreSQL: tenta primeiro pelo schema nomeado (_pg_schema); se vazio, usa current_schema()."""
+        Em PostgreSQL: usa current_schema() da conexão (mesmo critério do ORM) para evitar ZIP vazio."""
         tables = []
         with self.get_connection().cursor() as cursor:
             if self._is_sqlite():
@@ -200,46 +200,36 @@ class DatabaseHelper:
                 )
                 tables = [row[0] for row in cursor.fetchall()]
             else:
+                # Usar current_schema() para listar tabelas (mesma conexão que o ORM usa no request)
+                current = self._get_current_schema_pg()
+                if current:
+                    self._pg_schema = current
                 cursor.execute(
                     """
-                    SELECT table_name FROM information_schema.tables
-                    WHERE table_schema = %s AND table_type = 'BASE TABLE'
-                    ORDER BY table_name
-                    """,
-                    [self._pg_schema]
+                    SELECT tablename FROM pg_tables
+                    WHERE schemaname = current_schema()
+                    ORDER BY tablename
+                    """
                 )
                 tables = [row[0] for row in cursor.fetchall()]
+                if tables:
+                    logger.info(f"Backup: {len(tables)} tabela(s) em current_schema()='{self._pg_schema}'")
                 if not tables:
-                    current = self._get_current_schema_pg()
-                    logger.info(
-                        f"Backup: 0 tabelas em schema '{self._pg_schema}'; "
-                        f"current_schema()='{current}'"
+                    cursor.execute(
+                        """
+                        SELECT table_name FROM information_schema.tables
+                        WHERE table_schema = %s AND table_type = 'BASE TABLE'
+                        ORDER BY table_name
+                        """,
+                        [self._pg_schema]
                     )
-                    if current and current != "public":
-                        cursor.execute(
-                            """
-                            SELECT table_name FROM information_schema.tables
-                            WHERE table_schema = %s AND table_type = 'BASE TABLE'
-                            ORDER BY table_name
-                            """,
-                            [current]
+                    tables = [row[0] for row in cursor.fetchall()]
+                    if not tables:
+                        current = self._get_current_schema_pg()
+                        logger.warning(
+                            f"Backup: 0 tabelas em current_schema e em schema '{self._pg_schema}'; "
+                            f"current_schema()='{current}'"
                         )
-                        tables = [row[0] for row in cursor.fetchall()]
-                        if tables:
-                            self._pg_schema = current
-                            logger.info(f"Backup: usando schema '{current}' ({len(tables)} tabelas)")
-                    if not tables and current and current != "public":
-                        cursor.execute(
-                            """
-                            SELECT tablename FROM pg_tables
-                            WHERE schemaname = current_schema()
-                            ORDER BY tablename
-                            """
-                        )
-                        tables = [row[0] for row in cursor.fetchall()]
-                        if tables:
-                            self._pg_schema = current
-                            logger.info(f"Backup: pg_tables no current_schema = {len(tables)} tabelas")
         return [t for t in tables if t not in BACKUP_SYSTEM_TABLES_EXCLUDE]
     
     @staticmethod

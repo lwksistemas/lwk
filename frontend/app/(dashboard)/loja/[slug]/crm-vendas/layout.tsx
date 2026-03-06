@@ -41,7 +41,7 @@ export default function CrmVendasLayout({
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
-      <SidebarCrm lojaNome={lojaInfo?.nome} onLogout={handleLogout} />
+      <SidebarCrm lojaNome={lojaInfo?.nome} onLogout={handleLogout} slug={slug} />
       <div className="flex-1 flex flex-col min-w-0">
         <HeaderCrm
           title={lojaInfo ? `${lojaInfo.nome} – CRM` : 'CRM Vendas'}

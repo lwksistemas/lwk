@@ -224,12 +224,27 @@ class DatabaseHelper:
                         [self._pg_schema]
                     )
                     tables = [row[0] for row in cursor.fetchall()]
-                    if not tables:
-                        current = self._get_current_schema_pg()
-                        logger.warning(
-                            f"Backup: 0 tabelas em current_schema e em schema '{self._pg_schema}'; "
-                            f"current_schema()='{current}'"
+                # Fallback: se o schema da loja está vazio, listar do public (ORM pode estar usando public)
+                if not tables and self._pg_schema and self._pg_schema != 'public':
+                    cursor.execute(
+                        """
+                        SELECT tablename FROM pg_tables
+                        WHERE schemaname = 'public'
+                        ORDER BY tablename
+                        """
+                    )
+                    tables = [row[0] for row in cursor.fetchall()]
+                    if tables:
+                        self._pg_schema = 'public'
+                        logger.info(
+                            f"Backup: 0 tabelas no schema nominal; usando schema 'public' ({len(tables)} tabela(s))"
                         )
+                if not tables:
+                    current = self._get_current_schema_pg()
+                    logger.warning(
+                        f"Backup: 0 tabelas em current_schema e em schema '{self._pg_schema}'; "
+                        f"current_schema()='{current}'"
+                    )
         return [t for t in tables if t not in BACKUP_SYSTEM_TABLES_EXCLUDE]
     
     @staticmethod
@@ -289,10 +304,21 @@ class DatabaseHelper:
             cursor.execute(f"SELECT COUNT(*) FROM {qual}")
             return cursor.fetchone()[0]
     
-    def fetch_all_records(self, table_name: str) -> Tuple[List[str], List[tuple]]:
+    def _table_has_loja_id(self, table_name: str) -> bool:
+        """Verifica se a tabela possui coluna loja_id (isolamento por loja)."""
+        if not self.is_safe_table_name(table_name):
+            return False
+        columns = self.get_table_columns(table_name)
+        return 'loja_id' in columns
+
+    def fetch_all_records(
+        self, table_name: str, loja_id: Optional[int] = None
+    ) -> Tuple[List[str], List[tuple]]:
         """
         Busca todos os registros de uma tabela.
-        
+        Se loja_id for informado e a tabela tiver coluna loja_id, filtra apenas
+        os registros daquela loja (backup com cadastros só da loja individual).
+
         Returns:
             Tuple com (colunas, registros)
         """
@@ -300,10 +326,19 @@ class DatabaseHelper:
             return [], []
         columns = self.get_table_columns(table_name)
         qual = self._qualified_table(table_name)
+        use_loja_filter = (
+            loja_id is not None
+            and self._table_has_loja_id(table_name)
+        )
         with self.get_connection().cursor() as cursor:
-            cursor.execute(f"SELECT * FROM {qual}")
+            if use_loja_filter:
+                cursor.execute(
+                    f'SELECT * FROM {qual} WHERE loja_id = %s',
+                    [loja_id],
+                )
+            else:
+                cursor.execute(f"SELECT * FROM {qual}")
             records = cursor.fetchall()
-        
         return columns, records
 
 
@@ -495,8 +530,10 @@ class BackupService:
                     continue
                 
                 try:
-                    # Buscar dados
-                    columns, records = db_helper.fetch_all_records(table_name)
+                    # Buscar dados (apenas cadastros da loja: filtro por loja_id quando a tabela tiver essa coluna)
+                    columns, records = db_helper.fetch_all_records(
+                        table_name, loja_id=loja.id
+                    )
                     count = len(records)
                     
                     # Exportar para CSV
@@ -519,12 +556,13 @@ class BackupService:
                     logger.error(f"❌ Erro ao exportar tabela {table_name}: {e}")
                     tabelas_stats[table_name] = 0
             
-            # Adicionar metadados
+            # Adicionar metadados (inclui schema efetivo para rastreabilidade quando fallback para public)
             metadata = {
                 'loja_id': loja.id,
                 'loja_nome': loja.nome,
                 'loja_slug': loja.slug,
                 'database_name': loja.database_name,
+                'schema_exportado': getattr(db_helper, '_pg_schema', loja.database_name or ''),
                 'data_backup': timezone.now().isoformat(),
                 'total_registros': total_registros,
                 'tabelas': tabelas_stats,

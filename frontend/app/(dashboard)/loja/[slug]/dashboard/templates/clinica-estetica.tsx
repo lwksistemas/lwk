@@ -4,7 +4,6 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
-import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
 import GerenciadorConsultas from '@/components/clinica/GerenciadorConsultas';
 import { ModalLoadingFallback, EmptyState, ActionButton, StatCard, AgendamentoCard } from '@/components/dashboard';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -13,8 +12,15 @@ import { LojaInfo, EstatisticasClinica, Agendamento } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { clinicaApiClient } from '@/lib/api-client';
-import BackupButton from '@/components/loja/BackupButton';
-import { ThemeToggle } from '@/components/ui/ThemeProvider';
+
+/** Estatísticas iniciais e fallback da API (fonte única, evita duplicação) */
+const ESTATISTICAS_CLINICA_INICIAL: EstatisticasClinica = {
+  agendamentos_hoje: 0,
+  agendamentos_mes: 0,
+  clientes_ativos: 0,
+  procedimentos_ativos: 0,
+  receita_mensal: 0,
+};
 
 // Lazy loading dos modais - carrega apenas quando necessário
 const ModalClientes = lazy(() => import('@/components/clinica/modals/ModalClientes').then(m => ({ default: m.ModalClientes })));
@@ -37,34 +43,18 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
     'protocolos', 'anamnese', 'configuracoes', 'funcionarios', 'assinatura', 'financeiro'
   ] as const);
 
-  // Estados de navegação
-  const [showCalendario, setShowCalendario] = useState(false);
+  // Estados de navegação (calendário é página dedicada: /loja/[slug]/clinica-estetica/agenda)
   const [showConsultas, setShowConsultas] = useState(false);
   const [showListaCompleta, setShowListaCompleta] = useState(false);
 
-  // Hook para carregar dados do dashboard
   const { loading, loadingData, stats, data, reload, error } = useDashboardData<EstatisticasClinica, Agendamento>({
     endpoint: '/clinica/agendamentos/dashboard/',
-    initialStats: {
-    agendamentos_hoje: 0,
-    agendamentos_mes: 0,
-    clientes_ativos: 0,
-    procedimentos_ativos: 0,
-    receita_mensal: 0
-    },
+    initialStats: ESTATISTICAS_CLINICA_INICIAL,
     initialData: [],
-    transformResponse: (responseData) => {
-      return {
-        stats: responseData.estatisticas || {
-          agendamentos_hoje: 0,
-          agendamentos_mes: 0,
-          clientes_ativos: 0,
-          procedimentos_ativos: 0,
-          receita_mensal: 0
-        },
-        data: ensureArray<Agendamento>(responseData.proximos)
-      };
-    }
+    transformResponse: (responseData) => ({
+      stats: responseData.estatisticas || ESTATISTICAS_CLINICA_INICIAL,
+      data: ensureArray<Agendamento>(responseData.proximos),
+    }),
   });
 
   // Garantir que o backend receba X-Loja-ID (e loja_slug como fallback) antes de qualquer requisição da clínica
@@ -79,7 +69,7 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
   }, [loja?.id, loja?.slug]);
 
   // Handlers
-  const handleNovoAgendamento = () => setShowCalendario(true);
+  const handleNovoAgendamento = () => router.push(`/loja/${loja.slug}/clinica-estetica/agenda`);
   const handleNovoCliente = () => openModal('cliente');
   const handleProcedimentos = () => openModal('procedimentos');
   const handleNovoProfissional = () => openModal('profissional');
@@ -88,7 +78,7 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
   const handleConfiguracoes = () => openModal('configuracoes');
   const handleAssinatura = () => openModal('assinatura');
   const handleFuncionarios = () => openModal('funcionarios');
-  const handleCalendario = () => setShowCalendario(true);
+  const handleCalendario = () => router.push(`/loja/${loja.slug}/clinica-estetica/agenda`);
   const handleConsultas = () => setShowConsultas(true);
   const handleFinanceiro = () => openModal('financeiro');
   const handleRelatorios = () => router.push(`/loja/${loja.slug}/relatorios`);
@@ -156,82 +146,6 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
     );
   }
 
-  // Calendário - tela cheia, layout tipo app para mobile (Clínica de Estética)
-  if (showCalendario) {
-    return (
-      <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 flex flex-col min-h-[100dvh] safe-area-inset pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        {/* Barra superior: título à esquerda, ações à direita; no mobile botões compactos (ícone) */}
-        <nav
-          className="text-white shadow-lg flex-shrink-0 px-[max(0.75rem,env(safe-area-inset-left))]"
-          style={{ backgroundColor: loja.cor_primaria }}
-        >
-          <div className="flex items-center justify-between min-h-[56px] sm:h-14 gap-2">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-base sm:text-xl font-bold truncate">{loja.nome}</h1>
-              <p className="text-xs opacity-90 truncate hidden sm:block">{loja.tipo_loja_nome}</p>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              <button
-                onClick={() => router.push(`/loja/${loja.slug}/suporte`)}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 active:scale-95"
-                title="Chamados"
-                aria-label="Chamados"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => {
-                  const html = document.documentElement;
-                  const isDark = html.classList.contains('dark');
-                  if (isDark) {
-                    html.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                  } else {
-                    html.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                  }
-                }}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 active:scale-95"
-                title="Tema"
-                aria-label="Alternar tema"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setShowCalendario(false)}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 active:scale-95"
-                title="Voltar"
-                aria-label="Voltar ao dashboard"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-              </button>
-              <button
-                onClick={() => (onLogout ? onLogout() : (sessionStorage.clear(), router.push(`/loja/${loja.slug}/login`)))}
-                className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:px-3 flex items-center justify-center rounded-lg bg-red-600 hover:bg-red-700 active:scale-95 text-sm font-medium"
-              >
-                <span className="hidden sm:inline">Sair</span>
-                <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </nav>
-
-        {/* Área do calendário: flex-1, scroll suave no mobile */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
-          <CalendarioAgendamentos loja={loja} />
-        </div>
-      </div>
-    );
-  }
-
   // Consultas
   if (showConsultas) {
     return (
@@ -284,17 +198,6 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
 
   return (
     <div className="space-y-6 sm:space-y-8 px-2 sm:px-4 lg:px-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-          Dashboard - {loja.nome}
-        </h1>
-        <div className="flex items-center gap-2">
-          <BackupButton lojaId={loja.id} lojaNome={loja.nome} />
-          <ThemeToggle />
-        </div>
-      </div>
-
       {/* Ações Rápidas */}
       <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg card-hover">
         <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
@@ -390,78 +293,21 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
         )}
       </div>
 
-      {/* Modais com Lazy Loading */}
+      {/* Modais com Lazy Loading (config única, sem repetição) */}
       <Suspense fallback={<ModalLoadingFallback />}>
         {modals.cliente && (
-          <ModalClientes 
-          loja={loja}
-            onClose={() => closeModal('cliente')}
-            onSuccess={() => {
-              reload();
-              toast.success('Cliente salvo com sucesso!');
-            }}
-          />
+          <ModalClientes loja={loja} onClose={() => closeModal('cliente')} onSuccess={() => { reload(); toast.success('Cliente salvo com sucesso!'); }} />
         )}
-
-        {modals.profissional && (
-          <ModalProfissionais 
-          loja={loja}
-            onClose={() => closeModal('profissional')}
-        />
-      )}
-
+        {modals.profissional && <ModalProfissionais loja={loja} onClose={() => closeModal('profissional')} />}
         {modals.procedimentos && (
-          <ModalProcedimentos 
-          loja={loja}
-            onClose={() => closeModal('procedimentos')}
-            onSuccess={() => {
-              reload();
-              toast.success('Procedimento salvo com sucesso!');
-            }}
-          />
+          <ModalProcedimentos loja={loja} onClose={() => closeModal('procedimentos')} onSuccess={() => { reload(); toast.success('Procedimento salvo com sucesso!'); }} />
         )}
-
-        {modals.protocolos && (
-          <ModalProtocolos 
-          loja={loja}
-            onClose={() => closeModal('protocolos')}
-        />
-      )}
-
-        {modals.anamnese && (
-          <ModalAnamnese 
-          loja={loja}
-            onClose={() => closeModal('anamnese')}
-        />
-      )}
-
-        {modals.assinatura && (
-          <ConfiguracoesModal 
-          loja={loja}
-            onClose={() => closeModal('assinatura')}
-        />
-      )}
-
-        {modals.configuracoes && (
-        <ModalConfiguracoes 
-          loja={loja}
-            onClose={() => closeModal('configuracoes')}
-        />
-      )}
-
-        {modals.funcionarios && (
-        <ModalFuncionarios 
-          loja={loja}
-            onClose={() => closeModal('funcionarios')}
-          />
-        )}
-
-        {modals.financeiro && (
-          <ModalFinanceiro 
-            loja={loja}
-            onClose={() => closeModal('financeiro')}
-          />
-        )}
+        {modals.protocolos && <ModalProtocolos loja={loja} onClose={() => closeModal('protocolos')} />}
+        {modals.anamnese && <ModalAnamnese loja={loja} onClose={() => closeModal('anamnese')} />}
+        {modals.assinatura && <ConfiguracoesModal loja={loja} onClose={() => closeModal('assinatura')} />}
+        {modals.configuracoes && <ModalConfiguracoes loja={loja} onClose={() => closeModal('configuracoes')} />}
+        {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => closeModal('funcionarios')} />}
+        {modals.financeiro && <ModalFinanceiro loja={loja} onClose={() => closeModal('financeiro')} />}
       </Suspense>
       </div>
     );

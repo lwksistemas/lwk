@@ -412,7 +412,22 @@ class BackupService:
             except Exception as e:
                 logger.warning(f"⚠️ Fallback para lista fixa de tabelas: {e}")
                 table_names = [t.nome for t in self.config.get_tabelas_ordenadas_exportacao()]
-            
+
+            # Se o schema não tem tabelas, tentar aplicar migrations (pode ser loja nova sem tabelas criadas)
+            if not table_names and loja.database_created:
+                try:
+                    from .services.database_schema_service import DatabaseSchemaService
+                    logger.info(f"🔄 Schema vazio - aplicando migrations para loja {loja.nome} (ID: {loja_id})")
+                    if DatabaseSchemaService.aplicar_migrations(loja):
+                        table_names = db_helper.get_all_table_names()
+                        if table_names:
+                            logger.info(f"✅ Migrations aplicadas - {len(table_names)} tabela(s) encontrada(s)")
+                except Exception as e:
+                    logger.warning(f"⚠️ Falha ao aplicar migrations antes do backup: {e}")
+
+            if not table_names:
+                logger.warning(f"⚠️ Nenhuma tabela no schema da loja {loja.nome} (database_name={loja.database_name})")
+
             for table_name in table_names:
                 if not db_helper.table_exists(table_name):
                     continue

@@ -154,6 +154,8 @@ export default function AgendaPage() {
   const [ptBrLocale, setPtBrLocale] = useState<any>(null);
   const [darkMode, setDarkMode] = useClinicaBelezaDark();
   const [isMobile, setIsMobile] = useState(false);
+  /** Título da vista do calendário (ex: "28 - 6 de fevereiro de 2026") para exibir no menu superior */
+  const [viewTitle, setViewTitle] = useState("");
 
   // Abrir modal "Novo Agendamento" quando ?novo=1 na URL
   useEffect(() => {
@@ -930,76 +932,89 @@ export default function AgendaPage() {
 
   return (
     <div className="w-screen h-screen flex flex-col bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 overflow-hidden">
-      {/* HEADER: compacto no celular, com wrap para não quebrar */}
-      <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl shadow-sm p-3 sm:p-4 flex flex-wrap items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <Link
-            href={`/loja/${slug}/dashboard`}
-            className="flex items-center gap-1.5 p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-neutral-700 transition-colors text-gray-700 dark:text-gray-300 font-medium shrink-0"
-            aria-label="Voltar ao dashboard"
-          >
-            <ArrowLeft className="w-5 h-5 shrink-0" />
-            <span className="hidden sm:inline">Voltar</span>
-          </Link>
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-pink-200 dark:bg-pink-900 flex items-center justify-center text-lg sm:text-xl shrink-0">
-            💆‍♀️
+      {/* Menu superior roxo: Calendário, período e legenda */}
+      <header className="bg-purple-600 dark:bg-purple-800 text-white shadow-lg shrink-0">
+        <div className="px-3 sm:px-4 py-2 sm:py-3 flex flex-col gap-2">
+          {/* Linha 1: Voltar, título Calendário, período, e ações */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Link
+                href={`/loja/${slug}/dashboard`}
+                className="flex items-center gap-1.5 p-1.5 sm:p-2 rounded-lg hover:bg-purple-500 dark:hover:bg-purple-700 transition-colors text-white/95 font-medium shrink-0"
+                aria-label="Voltar ao dashboard"
+              >
+                <ArrowLeft className="w-5 h-5 shrink-0" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Link>
+              <span className="text-lg sm:text-xl font-bold shrink-0">📅 Calendário</span>
+              {viewTitle && (
+                <span className="text-xs sm:text-sm text-white/90 truncate max-w-[180px] sm:max-w-none">
+                  {viewTitle}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+              <OfflineIndicator />
+              <button
+                type="button"
+                onClick={() => setDarkMode(!darkMode)}
+                className="p-2 rounded-lg hover:bg-purple-500 dark:hover:bg-purple-700 transition-colors shrink-0"
+                title={darkMode ? "Modo claro" : "Modo escuro"}
+                aria-label={darkMode ? "Modo claro" : "Modo escuro"}
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+              <select
+                value={selectedProfessional}
+                onChange={(e) => setSelectedProfessional(e.target.value)}
+                className="px-2 sm:px-3 py-1.5 border border-white/30 rounded-lg bg-white/15 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 max-w-[100px] sm:max-w-none [&>option]:bg-neutral-800"
+              >
+                <option value="">Todos</option>
+                {professionals.map((prof) => (
+                  <option key={prof.id} value={prof.id}>
+                    {prof.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowModalBloqueio(true)}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shrink-0 text-xs sm:text-sm"
+                title="Bloquear horário"
+              >
+                <Lock size={16} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Bloquear</span>
+              </button>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors shrink-0 text-xs sm:text-sm font-medium"
+                title="Novo agendamento"
+              >
+                <Plus size={16} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Novo</span>
+              </button>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100 truncate">Agenda</h1>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">{lojaNome || "Agenda"}</p>
+          {/* Legenda de status na própria barra roxa */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-white/95">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#a855f7]" aria-hidden />
+              Agendado
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#22c55e]" aria-hidden />
+              Confirmado
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#b45309]" aria-hidden />
+              Faltou
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />
+              Cancelado
+            </span>
           </div>
         </div>
-
-        <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap justify-end">
-          <OfflineIndicator />
-          <button
-            type="button"
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-lg hover:bg-purple-50 dark:hover:bg-neutral-700 transition-colors shrink-0"
-            title={darkMode ? "Modo claro" : "Modo escuro"}
-            aria-label={darkMode ? "Modo claro" : "Modo escuro"}
-          >
-            {darkMode ? <Sun className="w-5 h-5 text-purple-600" /> : <Moon className="w-5 h-5 text-purple-600" />}
-          </button>
-          <select
-            value={selectedProfessional}
-            onChange={(e) => setSelectedProfessional(e.target.value)}
-            className="px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 max-w-[120px] sm:max-w-none"
-          >
-            <option value="">Todos</option>
-            {professionals.map((prof) => (
-              <option key={prof.id} value={prof.id}>
-                {prof.name}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => setShowModalBloqueio(true)}
-            className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors shrink-0 text-sm"
-            title="Bloquear horário"
-          >
-            <Lock size={18} className="sm:w-5 sm:h-5" />
-            <span className="hidden sm:inline">Bloquear</span>
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shrink-0 text-sm"
-            title="Novo agendamento"
-          >
-            <Plus size={18} className="sm:w-5 sm:h-5" />
-            <span className="hidden sm:inline">Novo</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Legenda: mais compacta no celular */}
-      <div className="px-3 sm:px-4 py-1.5 sm:py-2 flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm bg-white/50 dark:bg-neutral-800/50 rounded-lg mx-3 sm:mx-4 mb-1 sm:mb-2 text-gray-700 dark:text-gray-300 shrink-0">
-        <span className="font-medium text-gray-600 dark:text-gray-400">Status:</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#22c55e]" aria-hidden />Confirmado</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#a855f7]" aria-hidden />Agendado</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#f59e0b]" aria-hidden />Intervalo</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
-      </div>
+      </header>
 
       {/* CALENDÁRIO: no celular view do dia, toolbar compacta, mais área útil */}
       <div className="flex-1 min-h-0 p-2 sm:p-4 overflow-hidden">
@@ -1021,6 +1036,7 @@ export default function AgendaPage() {
               eventDrop={moverEvento}
               eventClick={handleEventClick}
               dateClick={handleDateClick}
+              datesSet={(arg) => setViewTitle(arg.view.title)}
               height="100%"
               headerToolbar={
                 isMobile

@@ -3,9 +3,11 @@
 /**
  * Modal para configurar dias e horários de atendimento do profissional (Clínica de Estética).
  * GET/PUT /api/clinica/profissionais/<id>/horarios-trabalho/
+ * Renderiza em portal (document.body) para ficar sempre visível por cima do layout.
  */
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { clinicaApiClient } from '@/lib/api-client';
 
@@ -136,11 +138,11 @@ export function ModalHorariosTrabalho({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="modal-horarios-title">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+          <h2 id="modal-horarios-title" className="text-lg font-bold text-gray-900 dark:text-white">
             Horários de atendimento — {profissionalNome}
           </h2>
           <button
@@ -251,4 +253,8 @@ export function ModalHorariosTrabalho({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }

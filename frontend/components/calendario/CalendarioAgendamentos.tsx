@@ -153,7 +153,15 @@ interface LojaInfo {
 
 type VisualizacaoTipo = 'dia' | 'semana' | 'mes';
 
-export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
+interface CalendarioAgendamentosProps {
+  loja: LojaInfo;
+  /** Quando true, não renderiza o bloco "📅 Calendário" + período + legenda (o pai coloca no menu superior) */
+  headerInBar?: boolean;
+  /** Chamado quando o título do período muda (ex: "28 - 6 de fevereiro de 2026") */
+  onViewTitleChange?: (title: string) => void;
+}
+
+export default function CalendarioAgendamentos({ loja, headerInBar = false, onViewTitleChange }: CalendarioAgendamentosProps) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [bloqueios, setBloqueios] = useState<BloqueioAgenda[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
@@ -179,6 +187,20 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
     carregarAgendamentos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataAtual, visualizacao, profissionalSelecionado]);
+
+  // Notificar o pai com o título do período quando mudar (para exibir no menu superior)
+  useEffect(() => {
+    if (!onViewTitleChange) return;
+    const opcoes: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: visualizacao === 'dia' ? 'numeric' : undefined };
+    if (visualizacao === 'semana') {
+      const { dataInicio, dataFim } = calcularPeriodo();
+      const inicio = new Date(dataInicio);
+      const fim = new Date(dataFim);
+      onViewTitleChange(`${inicio.getDate()} - ${fim.getDate()} de ${inicio.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`);
+    } else {
+      onViewTitleChange(dataAtual.toLocaleDateString('pt-BR', opcoes));
+    }
+  }, [dataAtual, visualizacao, onViewTitleChange]);
 
   const carregarProfissionais = async () => {
     try {
@@ -244,6 +266,21 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
       slots.push(`${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`);
     }
     return slots.length ? slots : ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'];
+  };
+
+  /** Retorna o intervalo do profissional no dia (ex.: almoço) se o slot estiver dentro dele; senão null. */
+  const getIntervaloProfissionalAt = (diaSemanaBackend: number, horario: string): { inicio: string; fim: string } | null => {
+    const prof = profissionalSelecionado ? profissionais.find((p) => String(p.id) === profissionalSelecionado) : null;
+    const ht = prof?.horarios_trabalho?.filter((h) => h.ativo !== false && h.dia_semana === diaSemanaBackend);
+    if (!ht?.length) return null;
+    const slotMin = timeToMinutes(horario) ?? 0;
+    for (const h of ht) {
+      if (h.intervalo_inicio == null || h.intervalo_fim == null) continue;
+      const iIni = timeToMinutes(h.intervalo_inicio) ?? 0;
+      const iFim = timeToMinutes(h.intervalo_fim) ?? 0;
+      if (slotMin >= iIni && slotMin < iFim) return { inicio: h.intervalo_inicio, fim: h.intervalo_fim };
+    }
+    return null;
   };
 
   // Verifica se o slot (ex.: "09:00") está dentro do horário de atendimento do profissional no dia da semana (backend: 0=Seg … 6=Dom).
@@ -487,6 +524,7 @@ export default function CalendarioAgendamentos({ loja }: { loja: LojaInfo }) {
               const bloqueio = getBloqueioAt(dataStr, horario);
               const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
               const dentroHorarioDia = slotDentroDoHorarioProfissional(diaBackendDia, horario);
+              const intervaloAt = getIntervaloProfissionalAt(diaBackendDia, horario);
               
               return (
                 <div key={horario} className="flex items-stretch gap-2 sm:gap-4 border-b dark:border-gray-700 pb-2 min-h-[52px]">
@@ -540,6 +578,14 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}20`,
                             </button>
                           </div>
                         </div>
+                      </div>
+                    ) : intervaloAt ? (
+                      <div
+                        className="p-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200"
+                        title={`Intervalo do profissional: ${intervaloAt.inicio} – ${intervaloAt.fim}`}
+                      >
+                        <div className="font-semibold">🍽️ Intervalo</div>
+                        <div className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">{intervaloAt.inicio} – {intervaloAt.fim}</div>
                       </div>
                     ) : bloqueio ? (
                       <div
@@ -645,6 +691,7 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}20`,
                 const dataStr = formatarData(dia);
                 const diaBackend = jsDayToBackend(dia.getDay());
                 const dentroHorario = slotDentroDoHorarioProfissional(diaBackend, horario);
+                const intervaloAt = getIntervaloProfissionalAt(diaBackend, horario);
                 
                 const agendamento = agendamentos.find(ag => 
                   ag.data === dataStr && ag.horario.startsWith(horario.split(':')[0])
@@ -691,6 +738,14 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}20`,
                         <div className="text-[10px] font-medium mt-1" style={{ color: getStatusClinicaInfo(agendamento.status).color }}>
                           {getStatusClinicaInfo(agendamento.status).label}
                         </div>
+                      </div>
+                    ) : intervaloAt ? (
+                      <div
+                        className="p-2 rounded text-xs border border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200"
+                        title={`Intervalo: ${intervaloAt.inicio} – ${intervaloAt.fim}`}
+                      >
+                        <div className="font-semibold truncate">🍽️ Intervalo</div>
+                        <div className="text-[10px] truncate">{intervaloAt.inicio}–{intervaloAt.fim}</div>
                       </div>
                     ) : bloqueio ? (
                       <div
@@ -841,35 +896,23 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
 
   return (
     <div className="space-y-3 sm:space-y-6 min-h-0 flex flex-col h-full">
-      {/* Cabeçalho do Calendário - compacto no mobile para Clínica de Estética */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-3 sm:p-6 flex-shrink-0">
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <div>
-            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
-              📅 Calendário
-            </h2>
-            <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400 mt-0.5">{obterTituloPeriodo()}</p>
-            {/* Legenda: oculta no mobile para ganhar espaço */}
-            <div className="hidden sm:flex flex-wrap gap-3 mt-3">
-              <div className="flex items-center gap-1 text-xs">
-                <span>🔵</span>
-                <span className="text-gray-600 dark:text-gray-400">Agendado</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs">
-                <span>🟢</span>
-                <span className="text-gray-600 dark:text-gray-400">Confirmado</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs">
-                <span>🔴</span>
-                <span className="text-gray-600 dark:text-gray-400">Faltou</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs">
-                <span>⚪</span>
-                <span className="text-gray-600 dark:text-gray-400">Cancelado</span>
+      <div className={`${headerInBar ? '' : 'bg-white dark:bg-gray-800 rounded-xl shadow p-3 sm:p-6'} flex-shrink-0`}>
+        <div className={`flex flex-col ${headerInBar ? 'gap-2' : 'gap-3 sm:gap-4'}`}>
+          {/* Título + período + legenda: só quando não está no menu superior (headerInBar) */}
+          {!headerInBar && (
+            <div>
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
+                📅 Calendário
+              </h2>
+              <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400 mt-0.5">{obterTituloPeriodo()}</p>
+              <div className="hidden sm:flex flex-wrap gap-3 mt-3">
+                <div className="flex items-center gap-1 text-xs"><span>🔵</span><span className="text-gray-600 dark:text-gray-400">Agendado</span></div>
+                <div className="flex items-center gap-1 text-xs"><span>🟢</span><span className="text-gray-600 dark:text-gray-400">Confirmado</span></div>
+                <div className="flex items-center gap-1 text-xs"><span>🔴</span><span className="text-gray-600 dark:text-gray-400">Faltou</span></div>
+                <div className="flex items-center gap-1 text-xs"><span>⚪</span><span className="text-gray-600 dark:text-gray-400">Cancelado</span></div>
               </div>
             </div>
-          </div>
-
+          )}
           {/* Filtro profissional + Dia/Semana/Mês + Navegação - empilhado no mobile */}
           <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
             <select
@@ -885,6 +928,15 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
                 </option>
               ))}
             </select>
+            {profissionalSelecionado && (() => {
+              const slots = getHorariosExibicaoSemana();
+              if (!slots.length) return null;
+              return (
+                <span className="text-xs text-gray-600 dark:text-gray-400 self-center" title="Horário configurado do profissional">
+                  Horário: {slots[0]} – {slots[slots.length - 1]}
+                </span>
+              );
+            })()}
             <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden touch-manipulation">
               {(['dia', 'semana', 'mes'] as VisualizacaoTipo[]).map((tipo) => (
                 <button

@@ -56,11 +56,26 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+
+      const totalRegistros = response.headers['x-total-registros'] != null
+        ? parseInt(response.headers['x-total-registros'], 10)
+        : null;
+      const tamanhoMb = response.headers['x-tamanho-mb'];
+      let mensagem = 'Backup exportado com sucesso!';
+      if (totalRegistros !== null || tamanhoMb) {
+        const partes: string[] = [];
+        if (totalRegistros !== null) partes.push(`${totalRegistros.toLocaleString('pt-BR')} registro(s)`);
+        if (tamanhoMb) partes.push(`${tamanhoMb} MB`);
+        if (partes.length) mensagem += ` (${partes.join(', ')})`;
+        if (totalRegistros === 0) {
+          mensagem += '. Nenhum dado no banco da loja; se isso for inesperado, entre em contato com o suporte.';
+        }
+      }
+
       addToast({
         tipo: 'sucesso',
         titulo: 'Backup',
-        mensagem: 'Backup exportado com sucesso!'
+        mensagem
       });
     } catch (error: any) {
       console.error('Erro ao exportar backup:', error);

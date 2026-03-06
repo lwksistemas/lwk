@@ -1,16 +1,26 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import ModalChamado from '@/components/suporte/ModalChamado';
-import DashboardClinicaEstetica from './templates/clinica-estetica';
-import DashboardCRMVendas from './templates/crm-vendas';
-import DashboardRestaurante from './templates/restaurante';
-import DashboardServicos from './templates/servicos';
-import DashboardCabeleireiro from './templates/dashboard-cabeleireiro-novo';
-import DashboardClinicaBeleza from './templates/clinica-beleza';
+import BackupButton from '@/components/loja/BackupButton';
+
+const DashboardChunkSkeleton = () => (
+  <div className="flex flex-col items-center justify-center min-h-[200px] gap-3 p-6">
+    <div className="h-8 w-8 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" aria-hidden />
+    <p className="text-sm text-gray-500 dark:text-gray-400">Carregando dashboard...</p>
+  </div>
+);
+
+const DashboardClinicaEstetica = dynamic(() => import('./templates/clinica-estetica'), { loading: DashboardChunkSkeleton });
+const DashboardClinicaBeleza = dynamic(() => import('./templates/clinica-beleza'), { loading: DashboardChunkSkeleton });
+const DashboardCRMVendas = dynamic(() => import('./templates/crm-vendas'), { loading: DashboardChunkSkeleton });
+const DashboardRestaurante = dynamic(() => import('./templates/restaurante'), { loading: DashboardChunkSkeleton });
+const DashboardServicos = dynamic(() => import('./templates/servicos'), { loading: DashboardChunkSkeleton });
+const DashboardCabeleireiro = dynamic(() => import('./templates/dashboard-cabeleireiro-novo'), { loading: DashboardChunkSkeleton });
 
 interface LojaInfo {
   id: number;
@@ -33,6 +43,8 @@ export default function LojaDashboardDinamicoPage() {
   const [loading, setLoading] = useState(true);
   const [loadingLento, setLoadingLento] = useState(false);
   const [modalSuporteAberto, setModalSuporteAberto] = useState(false);
+  const [chamadosDropdownAberto, setChamadosDropdownAberto] = useState(false);
+  const chamadosDropdownRef = useRef<HTMLDivElement>(null);
 
   // Forçar reload se vier de cache (bfcache)
   useEffect(() => {
@@ -70,6 +82,18 @@ export default function LojaDashboardDinamicoPage() {
   useEffect(() => {
     if (ready && !isLoja) router.push(loginPath);
   }, [ready, isLoja, loginPath, router]);
+
+  // Fechar dropdown Chamados ao clicar fora
+  useEffect(() => {
+    if (!chamadosDropdownAberto) return;
+    const handleClick = (e: MouseEvent) => {
+      if (chamadosDropdownRef.current && !chamadosDropdownRef.current.contains(e.target as Node)) {
+        setChamadosDropdownAberto(false);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [chamadosDropdownAberto]);
 
   // Mostrar dica se o carregamento passar de 8s (ex.: cold start Heroku)
   useEffect(() => {
@@ -140,27 +164,70 @@ export default function LojaDashboardDinamicoPage() {
               <p className="text-xs sm:text-sm opacity-90">{lojaInfo.tipo_loja_nome}</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              <button
-                onClick={() => router.push(`/loja/${slug}/suporte`)}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                title="Ver meus chamados de suporte"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                <span>Chamados</span>
-              </button>
-              <button
-                onClick={() => setModalSuporteAberto(true)}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                title="Abrir novo chamado de suporte"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-                <span className="hidden sm:inline">Abrir Suporte</span>
-                <span className="sm:hidden">Suporte</span>
-              </button>
+              {isClinicaEstetica ? (
+                <>
+                  {/* Chamados: dropdown com "Ver chamados" e "Abrir chamado" */}
+                  <div className="relative flex-1 sm:flex-none" ref={chamadosDropdownRef}>
+                    <button
+                      onClick={() => setChamadosDropdownAberto((v) => !v)}
+                      className="w-full sm:w-auto px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                      title="Chamados"
+                    >
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      <span>Chamados</span>
+                      <svg className="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    {chamadosDropdownAberto && (
+                      <div className="absolute top-full right-0 mt-1 py-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                        <button
+                          onClick={() => { setChamadosDropdownAberto(false); router.push(`/loja/${slug}/suporte`); }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                          Ver meus chamados
+                        </button>
+                        <button
+                          onClick={() => { setChamadosDropdownAberto(false); setModalSuporteAberto(true); }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                          Abrir chamado
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {/* Backup (verde) no lugar do antigo Abrir Suporte */}
+                  <div className="flex-1 sm:flex-none">
+                    <BackupButton lojaId={lojaInfo.id} lojaNome={lojaInfo.nome} className="!min-h-[40px] !px-3 sm:!px-4 !py-2 !rounded-md !bg-green-600 hover:!bg-green-700 !text-white !border-0" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => router.push(`/loja/${slug}/suporte`)}
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                    title="Ver meus chamados de suporte"
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    <span>Chamados</span>
+                  </button>
+                  <button
+                    onClick={() => setModalSuporteAberto(true)}
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                    title="Abrir novo chamado de suporte"
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    <span className="hidden sm:inline">Abrir Suporte</span>
+                    <span className="sm:hidden">Suporte</span>
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => {
                   const html = document.documentElement;

@@ -886,6 +886,8 @@ Sistema Multi-Loja
             response['X-Backup-Id'] = str(historico.id)
             response['X-Total-Registros'] = str(result['total_registros'])
             response['X-Tamanho-MB'] = f"{result['tamanho_mb']:.2f}"
+            if result['total_registros'] == 0:
+                response['X-Backup-Empty'] = 'true'
             
             logger.info(f"✅ Backup exportado com sucesso - {result['arquivo_nome']}")
             

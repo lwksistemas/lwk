@@ -11,33 +11,43 @@ import {
   Legend,
 } from 'recharts';
 
+const ETAPAS_PADRAO = [
+  { stage: 'Prospecção', value: 0 },
+  { stage: 'Qualificação', value: 0 },
+  { stage: 'Proposta', value: 0 },
+  { stage: 'Negociação', value: 0 },
+  { stage: 'Fechado (ganho)', value: 0 },
+];
+
 interface SalesChartProps {
-  data: { name: string; valor: number; quantidade?: number }[];
+  data?: { name: string; valor: number; quantidade?: number }[];
   title?: string;
 }
 
 export default function SalesChart({ data, title = 'Pipeline por etapa' }: SalesChartProps) {
-  if (!data?.length) return null;
-
-  const chartData = data.map((d) => ({
-    name: d.name.replace(/_/g, ' '),
-    Valor: d.valor,
-    Oportunidades: d.quantidade ?? 0,
-  }));
+  const hasData = data && data.length > 0;
+  const chartData = hasData
+    ? data.map((d) => ({
+          stage: d.name.replace(/_/g, ' '),
+          value: d.valor,
+          Valor: d.valor,
+          Oportunidades: d.quantidade ?? 0,
+        }))
+      : ETAPAS_PADRAO;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-100 dark:border-gray-700 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
       {title && (
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
           {title}
-        </h3>
+        </h2>
       )}
-      <div className="h-64">
+      <div style={{ width: '100%', height: 300 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-600" />
             <XAxis
-              dataKey="name"
+              dataKey="stage"
               tick={{ fontSize: 11 }}
               className="text-gray-600 dark:text-gray-400"
             />
@@ -64,7 +74,7 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
               }}
             />
             <Legend />
-            <Bar dataKey="Valor" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Valor (R$)" />
+            <Bar dataKey="value" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="Valor (R$)" />
           </BarChart>
         </ResponsiveContainer>
       </div>

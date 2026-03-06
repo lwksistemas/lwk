@@ -138,8 +138,12 @@ class TenantMiddleware:
                         logger.warning("TenantMiddleware: falha ao configurar banco %s, usando default: %s", db_name, db_err)
                         db_name = 'default'
 
+                    # API CRM Vendas: tabelas (crm_vendas_lead, etc.) ficam no schema default (public),
+                    # não no schema da loja. Usar apenas loja_id para filtro.
+                    use_tenant_db = request.path.startswith('/api/crm-vendas/') is False
+
                     # Verificar se o banco existe nas configurações
-                    if db_name in settings.DATABASES:
+                    if use_tenant_db and db_name in settings.DATABASES:
                         # Limite de tamanho: bloquear escritas se o arquivo SQLite da loja >= 512 MB
                         # NOTA: Isso só se aplica a SQLite local, não PostgreSQL em produção
                         if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):

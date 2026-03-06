@@ -56,7 +56,7 @@ class LojaIsolationManager(models.Manager):
             return qs
         
         # Se não há loja no contexto, retornar queryset vazio (segurança)
-        logger.warning("⚠️ [LojaIsolationManager] Nenhuma loja no contexto - retornando queryset vazio")
+        logger.debug("⚠️ [LojaIsolationManager] Nenhuma loja no contexto - retornando queryset vazio")
         return super().get_queryset().none()
     
     def all_without_filter(self):

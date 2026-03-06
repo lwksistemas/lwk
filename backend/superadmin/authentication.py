@@ -19,7 +19,7 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         """
         Autentica o usuário e verifica sessão única
         """
-        logger.info(f"🔑 SessionAwareJWTAuthentication.authenticate() - Path: {request.path}")
+        logger.debug(f"🔑 SessionAwareJWTAuthentication.authenticate() - Path: {request.path}")
         
         # Autenticação JWT padrão
         result = super().authenticate(request)
@@ -28,7 +28,7 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
             return None
         
         user, token = result
-        logger.info(f"✅ JWT autenticado: {user.username} (ID: {user.id})")
+        logger.debug(f"✅ JWT autenticado: {user.username} (ID: {user.id})")
         
         # Ignorar validação para endpoints de login/logout
         if request.path.startswith('/api/auth/'):
@@ -38,7 +38,7 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
         token_str = auth_header.split(' ')[1] if auth_header.startswith('Bearer ') else str(token.token) if hasattr(token, 'token') else str(token)
         
-        logger.info(f"🔐 Validando sessão única: {user.username} (ID: {user.id})")
+        logger.debug(f"🔐 Validando sessão única: {user.username} (ID: {user.id})")
         
         # Validar sessão usando banco de dados
         validation = SessionManager.validate_session(user.id, token_str)
@@ -51,7 +51,7 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
                 'message': validation['message']
             })
         
-        logger.info(f"✅ Sessão válida para {user.username}")
+        logger.debug(f"✅ Sessão válida para {user.username}")
         
         # Atualizar atividade
         SessionManager.update_activity(user.id)

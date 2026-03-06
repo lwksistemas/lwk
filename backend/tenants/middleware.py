@@ -175,7 +175,7 @@ class TenantMiddleware:
 
                     # Sempre setar loja_id para o LojaIsolationManager (funciona com default DB)
                     set_current_loja_id(loja_id)
-                    logger.info(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={getattr(_thread_locals, 'current_tenant_db', 'default')}")
+                    logger.debug(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={getattr(_thread_locals, 'current_tenant_db', 'default')}")
 
                 except Loja.DoesNotExist:
                     # Não logar aviso se for requisição de API sem tenant (ex: /api/superadmin/)

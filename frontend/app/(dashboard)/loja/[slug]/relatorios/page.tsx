@@ -257,7 +257,7 @@ export default function RelatoriosPage() {
                 <select
                   value={periodoSelecionado}
                   onChange={(e) => setPeriodoSelecionado(e.target.value)}
-                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:!bg-gray-700 text-gray-900 dark:!text-white [color-scheme:light] dark:[color-scheme:dark]"
                 >
                   <option value="hoje">Hoje</option>
                   <option value="semana_atual">Semana Atual</option>
@@ -277,7 +277,7 @@ export default function RelatoriosPage() {
                   type="date"
                   value={dataInicio}
                   onChange={(e) => setDataInicio(e.target.value)}
-                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:!bg-gray-700 text-gray-900 dark:!text-white [color-scheme:light] dark:[color-scheme:dark]"
                 />
               </div>
 
@@ -289,7 +289,7 @@ export default function RelatoriosPage() {
                   type="date"
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
-                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:!bg-gray-700 text-gray-900 dark:!text-white [color-scheme:light] dark:[color-scheme:dark]"
                 />
               </div>
             </div>
@@ -310,26 +310,26 @@ export default function RelatoriosPage() {
               📊 Resumo Financeiro
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Receita Total</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Receita Total</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Despesas</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Despesas</p>
                 <p className="text-lg sm:text-2xl font-bold text-red-600">
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Lucro Líquido</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Lucro Líquido</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Margem</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Margem</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0%
                 </p>
@@ -343,20 +343,20 @@ export default function RelatoriosPage() {
               📅 Relatório de Agendamentos
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Total de Agendamentos</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Total de Agendamentos</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Realizados</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Realizados</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0 (0%)
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Cancelados</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Cancelados</p>
                 <p className="text-lg sm:text-2xl font-bold text-red-600">
                   0 (0%)
                 </p>
@@ -374,26 +374,26 @@ export default function RelatoriosPage() {
               👥 Relatório de Clientes
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Total de Clientes</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Total de Clientes</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Novos no Período</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Novos no Período</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Clientes Ativos</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Clientes Ativos</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Taxa de Retorno</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-transparent dark:border-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1">Taxa de Retorno</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0%
                 </p>

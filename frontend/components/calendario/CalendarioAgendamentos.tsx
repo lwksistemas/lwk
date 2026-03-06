@@ -161,17 +161,32 @@ interface CalendarioAgendamentosProps {
   onViewTitleChange?: (title: string) => void;
 }
 
+const MOBILE_BREAKPOINT = 640;
+
 export default function CalendarioAgendamentos({ loja, headerInBar = false, onViewTitleChange }: CalendarioAgendamentosProps) {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [bloqueios, setBloqueios] = useState<BloqueioAgenda[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [profissionalSelecionado, setProfissionalSelecionado] = useState<string>(''); // '' = todos
-  // No mobile (Clínica de Estética), visualização "Dia" é mais usável que semana/mês
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT);
+  // No mobile (especialmente agenda página dedicada), só "Dia" é usável; desktop começa em "Semana"
   const [visualizacao, setVisualizacao] = useState<VisualizacaoTipo>(() => {
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches) return 'dia';
+    if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) return 'dia';
     return 'semana';
   });
   const [dataAtual, setDataAtual] = useState(new Date());
+
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const handle = () => {
+      const mobile = mql.matches;
+      setIsMobile(mobile);
+      if (mobile && headerInBar && visualizacao === 'semana') setVisualizacao('dia');
+    };
+    mql.addEventListener('change', handle);
+    handle();
+    return () => mql.removeEventListener('change', handle);
+  }, [headerInBar, visualizacao]);
   const [loading, setLoading] = useState(true);
   const [showModalAgendamento, setShowModalAgendamento] = useState(false);
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
@@ -984,10 +999,10 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
               );
             })()}
             <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden touch-manipulation">
-              {(['dia', 'semana', 'mes'] as VisualizacaoTipo[]).map((tipo) => (
+              {(isMobile && headerInBar ? ['dia', 'mes'] : ['dia', 'semana', 'mes']).map((tipo) => (
                 <button
                   key={tipo}
-                  onClick={() => setVisualizacao(tipo)}
+                  onClick={() => setVisualizacao(tipo as VisualizacaoTipo)}
                   className={`flex-1 min-h-[44px] px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium capitalize ${
                     visualizacao === tipo
                       ? 'text-white'

@@ -87,7 +87,8 @@ class SuperAdminSecurityMiddleware:
                 '/financeiro/',                      # Dados financeiros da própria loja
                 '/exportar_backup/',                 # Backup: exportar (loja)
                 '/importar_backup/',                 # Backup: importar (loja)
-                '/configuracao_backup',              # Backup: config (GET/PATCH)
+                '/configuracao_backup/',             # Backup: config GET
+                '/atualizar_configuracao_backup/',   # Backup: config PATCH/PUT
                 '/historico_backups/',               # Backup: histórico
                 '/reenviar_backup_email/',           # Backup: reenviar email
             ]

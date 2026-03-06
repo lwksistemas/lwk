@@ -79,7 +79,6 @@ POST /api/auth/loja/login/
   - Clínica de Estética → `Funcionario` (cargo: Administrador)
   - Serviços → `Funcionario` (cargo: Administrador)
   - Restaurante → `Funcionario` (cargo: Gerente)
-  - CRM Vendas → `Vendedor` (cargo: Gerente de Vendas)
   - E-commerce → Não tem modelo de funcionário
 
 **Observação Importante:**

@@ -116,8 +116,6 @@ def aplicar_migrations(loja):
         # Migrations específicas
         if tipo_loja_nome == 'Clínica de Estética':
             call_command('migrate', 'clinica_estetica', '--database', db_name, verbosity=0)
-        elif tipo_loja_nome == 'CRM Vendas':
-            call_command('migrate', 'crm_vendas', '--database', db_name, verbosity=0)
         elif tipo_loja_nome == 'Restaurante':
             call_command('migrate', 'restaurante', '--database', db_name, verbosity=0)
         elif tipo_loja_nome == 'Serviços':

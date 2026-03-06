@@ -53,15 +53,6 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.WARNING(f'   ⚠️ Clínica: {e}'))
 
-        # CRM
-        try:
-            from crm_vendas.models import Vendedor
-            count = Vendedor.objects.all_without_filter().count()
-            Vendedor.objects.all_without_filter().delete()
-            self.stdout.write(self.style.SUCCESS(f'   ✅ CRM: {count} vendedores deletados'))
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ CRM: {e}'))
-
         # Restaurante
         try:
             from restaurante.models import Funcionario as FuncionarioRestaurante
@@ -98,19 +89,6 @@ class Command(BaseCommand):
             ))
         except Exception as e:
             self.stdout.write(self.style.WARNING(f'   ⚠️ Clínica: {e}'))
-
-        # Leads, Clientes do CRM
-        try:
-            from crm_vendas.models import Lead, Cliente as ClienteCRM
-            leads = Lead.objects.all_without_filter().count()
-            Lead.objects.all_without_filter().delete()
-            clientes_crm = ClienteCRM.objects.all_without_filter().count()
-            ClienteCRM.objects.all_without_filter().delete()
-            self.stdout.write(self.style.SUCCESS(
-                f'   ✅ CRM: {leads} leads, {clientes_crm} clientes deletados'
-            ))
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ CRM: {e}'))
 
         # 5. Limpar sessões antigas
         self.stdout.write('5️⃣ Limpando sessões...')

@@ -29,7 +29,6 @@ INSTALLED_APPS = [
     'superadmin',  # App de super admin
     'asaas_integration',  # App de integração com Asaas
     'clinica_estetica',  # App de clínica de estética
-    'crm_vendas',  # App de CRM vendas
     'ecommerce',  # App de e-commerce
     'restaurante',  # App de restaurante
     'servicos',  # App de serviços

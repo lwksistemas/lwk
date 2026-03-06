@@ -64,14 +64,6 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                 funcionario_data['cargo'] = 'Gerente'
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
                 
-        elif tipo_loja_nome == 'CRM Vendas':
-            from crm_vendas.models import Vendedor
-            
-            if not Vendedor.objects.filter(email=owner.email, loja_id=instance.id).exists():
-                funcionario_data['cargo'] = 'Gerente de Vendas'
-                funcionario_data['meta_mensal'] = 10000.00  # Meta padrão
-                funcionario_criado = Vendedor.objects.create(**funcionario_data)
-                
         elif tipo_loja_nome == 'E-commerce':
             # E-commerce não tem modelo de funcionário
             logger.info(f"E-commerce não possui modelo de funcionário. Loja: {instance.nome}")
@@ -219,59 +211,6 @@ def delete_all_loja_data(sender, instance, **kwargs):
             proc_count = qs.count()
             qs.delete()
             logger.info(f"   ✅ {proc_count} procedimentos deletados")
-            
-        elif tipo_loja_nome == 'CRM Vendas':
-            from crm_vendas.models import Vendedor, Cliente, Lead, Venda, Pipeline, Produto
-            _db = db_alias
-
-            qs = Vendedor.objects.all_without_filter().filter(loja_id=loja_id)
-            if _db:
-                qs = qs.using(_db)
-            vend_count = qs.count()
-            qs.delete()
-            logger.info(f"   ✅ {vend_count} vendedores deletados")
-
-            qs = Cliente.objects.all_without_filter().filter(loja_id=loja_id)
-            if _db:
-                qs = qs.using(_db)
-            cli_count = qs.count()
-            qs.delete()
-            logger.info(f"   ✅ {cli_count} clientes deletados")
-
-            qs = Lead.objects.all_without_filter().filter(loja_id=loja_id)
-            if _db:
-                qs = qs.using(_db)
-            lead_count = qs.count()
-            qs.delete()
-            logger.info(f"   ✅ {lead_count} leads deletados")
-
-            try:
-                qs = Venda.objects.all_without_filter().filter(loja_id=loja_id)
-                if _db:
-                    qs = qs.using(_db)
-                venda_count = qs.count()
-                qs.delete()
-                logger.info(f"   ✅ {venda_count} vendas deletadas")
-            except Exception as e:
-                logger.warning(f"   ⚠️ Erro ao deletar vendas CRM: {e}")
-            try:
-                qs = Pipeline.objects.all_without_filter().filter(loja_id=loja_id)
-                if _db:
-                    qs = qs.using(_db)
-                pipe_count = qs.count()
-                qs.delete()
-                logger.info(f"   ✅ {pipe_count} etapas pipeline deletadas")
-            except Exception as e:
-                logger.warning(f"   ⚠️ Erro ao deletar pipeline: {e}")
-            try:
-                qs = Produto.objects.all_without_filter().filter(loja_id=loja_id)
-                if _db:
-                    qs = qs.using(_db)
-                prod_count = qs.count()
-                qs.delete()
-                logger.info(f"   ✅ {prod_count} produtos CRM deletados")
-            except Exception as e:
-                logger.warning(f"   ⚠️ Erro ao deletar produtos CRM: {e}")
             
         elif tipo_loja_nome == 'Restaurante':
             from restaurante.models import (

@@ -47,7 +47,6 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios.
    - Cabeleireiro ✅ (novo em v349)
    - Serviços ✅
    - Restaurante ✅
-   - CRM Vendas ✅
    - E-commerce ✅
 
 3. **Segurança**

@@ -130,25 +130,6 @@ class Command(BaseCommand):
                         func.save(using=db_alias)
                         funcionario_criado = True
                         
-                elif tipo_loja_nome == 'CRM Vendas':
-                    from crm_vendas.models import Vendedor
-                    from django.db import connections
-                    
-                    conn = connections[db_alias]
-                    with conn.cursor() as cursor:
-                        cursor.execute("SELECT COUNT(*) FROM crm_vendedores WHERE email = %s AND loja_id = %s", [owner.email, loja.id])
-                        count = cursor.fetchone()[0]
-                    
-                    if count > 0:
-                        ja_existentes += 1
-                        self.stdout.write(self.style.WARNING(f'   ⚠️ Vendedor já existe'))
-                    else:
-                        funcionario_data['cargo'] = 'Gerente de Vendas'
-                        funcionario_data['meta_mensal'] = 10000.00
-                        func = Vendedor(**funcionario_data)
-                        func.save(using=db_alias)
-                        funcionario_criado = True
-                        
                 elif tipo_loja_nome == 'E-commerce':
                     self.stdout.write(self.style.WARNING(f'   ⚠️ E-commerce não possui modelo de funcionário'))
                     continue

@@ -39,14 +39,6 @@ TABELAS_TENANT_LOJA_ID = {
         'clinica_bloqueios_agenda',
         'clinica_horarios_funcionamento',
     ],
-    'crm_vendas': [
-        'crm_vendas_vendedor',
-        'crm_vendas_cliente',
-        'crm_vendas_lead',
-        'crm_vendas_venda',
-        'crm_vendas_pipeline',
-        'crm_vendas_produto',
-    ],
     'restaurante': [
         'restaurante_funcionario',
         'restaurante_reserva',

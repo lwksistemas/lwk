@@ -55,7 +55,6 @@ BACKUP_TABLE_PREFIX_BLACKLIST = (
 BACKUP_TIPO_APP_TABLE_PREFIXES = {
     'clinica-de-estetica': ('stores_', 'products_', 'clinica_'),  # clinica_* da app clinica_estetica
     'clinica-da-beleza': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_'),
-    'crm-vendas': ('stores_', 'products_', 'crm_'),
     'e-commerce': ('stores_', 'products_', 'ecommerce_'),
     'restaurante': ('stores_', 'products_', 'restaurante_'),
     'servicos': ('stores_', 'products_', 'servicos_'),

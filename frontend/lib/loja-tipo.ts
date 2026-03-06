@@ -29,11 +29,6 @@ export function isTipoCommerce(tipoLojaNome: string): boolean {
   return normalizarTipo(tipoLojaNome).includes('commerce');
 }
 
-export function isTipoCRMVendas(tipoLojaNome: string): boolean {
-  const s = normalizarTipo(tipoLojaNome);
-  return s.includes('crm') || s.includes('vendas');
-}
-
 export function isTipoServicos(tipoLojaNome: string): boolean {
   const s = normalizarTipo(tipoLojaNome);
   return s.includes('servicos') || s.includes('servico');

@@ -65,7 +65,6 @@ def create_indexes():
     apps_to_migrate = [
         'clinica_estetica',
         'restaurante',
-        'crm_vendas',
         'ecommerce',
         'servicos',
         'superadmin',
@@ -132,7 +131,7 @@ def analyze_queries():
     test_cases = [
         ('clinica_estetica', 'Agendamento'),
         ('restaurante', 'Pedido'),
-        ('crm_vendas', 'Lead'),
+        ('servicos', 'Agendamento'),
     ]
     
     for app, model_name in test_cases:

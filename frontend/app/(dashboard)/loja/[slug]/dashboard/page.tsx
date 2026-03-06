@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos } from '@/lib/loja-tipo';
+import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoServicos } from '@/lib/loja-tipo';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import BackupButton from '@/components/loja/BackupButton';
 
@@ -18,7 +18,6 @@ const DashboardChunkSkeleton = () => (
 
 const DashboardClinicaEstetica = dynamic(() => import('./templates/clinica-estetica'), { loading: DashboardChunkSkeleton });
 const DashboardClinicaBeleza = dynamic(() => import('./templates/clinica-beleza'), { loading: DashboardChunkSkeleton });
-const DashboardCRMVendas = dynamic(() => import('./templates/crm-vendas'), { loading: DashboardChunkSkeleton });
 const DashboardRestaurante = dynamic(() => import('./templates/restaurante'), { loading: DashboardChunkSkeleton });
 const DashboardServicos = dynamic(() => import('./templates/servicos'), { loading: DashboardChunkSkeleton });
 const DashboardCabeleireiro = dynamic(() => import('./templates/dashboard-cabeleireiro-novo'), { loading: DashboardChunkSkeleton });
@@ -290,7 +289,6 @@ function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoClinicaEstetica(loja.tipo_loja_nome)) return <DashboardClinicaEstetica loja={loja} onLogout={onLogout} />;
   if (isTipoCommerce(loja.tipo_loja_nome)) return <DashboardEcommerce loja={loja} />;
   if (isTipoRestaurante(loja.tipo_loja_nome)) return <DashboardRestaurante loja={loja} />;
-  if (isTipoCRMVendas(loja.tipo_loja_nome)) return <DashboardCRMVendas loja={loja} />;
   if (isTipoServicos(loja.tipo_loja_nome)) return <DashboardServicos loja={loja} />;
   if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} />;
   return <DashboardGenerico loja={loja} />;

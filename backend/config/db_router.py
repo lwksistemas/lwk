@@ -23,7 +23,6 @@ class MultiTenantRouter:
         'clinica_estetica',
         'clinica_beleza',  # Clínica da Beleza - tabelas isoladas por schema
         'cabeleireiro',
-        'crm_vendas',
         'ecommerce',
         'restaurante',
         'servicos',

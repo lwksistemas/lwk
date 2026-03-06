@@ -90,7 +90,7 @@ class ProfessionalService:
         
         # Outros tipos: funcionário é criado automaticamente pelo signal
         # (create_funcionario_for_loja_owner em superadmin/signals.py)
-        if tipo_loja_nome in ('Clínica de Estética', 'Serviços', 'Restaurante', 'CRM Vendas'):
+        if tipo_loja_nome in ('Clínica de Estética', 'Serviços', 'Restaurante'):
             logger.info(f"Funcionário admin será criado pelo signal para {tipo_loja_nome}")
             return True
         

@@ -90,7 +90,6 @@ class Command(BaseCommand):
         tipo_apps = {
             'clinica-de-estetica': ['clinica_estetica'],
             'clinica-da-beleza': ['clinica_beleza'],
-            'crm-vendas': ['crm_vendas'],
             'e-commerce': ['ecommerce'],
             'restaurante': ['restaurante'],
             'servicos': ['servicos'],

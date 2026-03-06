@@ -9,7 +9,7 @@ interface EmptyStateProps {
   icon?: string;
 }
 
-/** Estado vazio com CTA. Usado em dashboards (clinica-estetica, crm-vendas, servicos, restaurante). */
+/** Estado vazio com CTA. Usado em dashboards (clinica-estetica, servicos, restaurante). */
 export function EmptyState({ message, subMessage, actionLabel, onAction, cor, icon = '📋' }: EmptyStateProps) {
   return (
     <div className="text-center py-8 sm:py-12 px-4">

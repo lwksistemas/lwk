@@ -25,7 +25,6 @@ def api_root(request):
             'products': '/api/products/',
             'asaas': '/api/asaas/',
             'clinica': '/api/clinica/',
-            'crm': '/api/crm/',
             'ecommerce': '/api/ecommerce/',
             'restaurante': '/api/restaurante/',
             'servicos': '/api/servicos/',
@@ -59,7 +58,6 @@ urlpatterns = [
     
     # APIs dos tipos de app
     path('api/clinica/', include('clinica_estetica.urls')),
-    path('api/crm/', include('crm_vendas.urls')),
     path('api/ecommerce/', include('ecommerce.urls')),
     path('api/restaurante/', include('restaurante.urls')),
     path('api/servicos/', include('servicos.urls')),

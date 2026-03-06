@@ -301,23 +301,11 @@ class TenantMiddleware:
                 f"⚠️ Usuário {request.user.id} ({request.user.email}) não é owner da loja {loja.slug} (owner: {loja.owner_id})"
             )
             
-            # 🔧 PERMITIR acesso se for funcionário da loja (para CRM Vendas, Clínica, etc.)
-            # Verificar se é funcionário em qualquer app
+            # 🔧 PERMITIR acesso se for funcionário da loja (Clínica, Restaurante, etc.)
             try:
-                from crm_vendas.models import Vendedor
                 from clinica_estetica.models import Funcionario as FuncionarioClinica
                 from restaurante.models import Funcionario as FuncionarioRestaurante
                 from servicos.models import Funcionario as FuncionarioServicos
-                
-                # Verificar se é vendedor (CRM Vendas)
-                is_vendedor = Vendedor.objects.all_without_filter().filter(
-                    loja_id=loja.id,
-                    email=request.user.email,
-                    is_active=True
-                ).exists()
-                
-                if is_vendedor:
-                    return True
                 
                 # Verificar se é funcionário (Clínica Estética)
                 is_funcionario_clinica = FuncionarioClinica.objects.all_without_filter().filter(

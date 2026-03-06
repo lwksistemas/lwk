@@ -1,6 +1,6 @@
 'use client';
 
-/** Fallback de loading para modais (lazy). Usado por clinica-estetica, crm-vendas, etc. */
+/** Fallback de loading para modais (lazy). Usado por clinica-estetica, etc. */
 export function ModalLoadingFallback() {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">

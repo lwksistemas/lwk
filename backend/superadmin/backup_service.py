@@ -163,6 +163,19 @@ class DatabaseHelper:
         """Nome da tabela qualificado com schema (PostgreSQL) ou só o nome (SQLite). Uso em SQL."""
         return self._qualified_table(table_name)
     
+    def ensure_pg_schema_exists(self) -> bool:
+        """Cria o schema no PostgreSQL se não existir (usa a conexão da loja). Retorna True se OK."""
+        if self._is_sqlite() or not self._pg_schema or not BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema):
+            return True
+        try:
+            with self.get_connection().cursor() as cursor:
+                cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{self._pg_schema}"')
+            logger.info(f"Schema PostgreSQL '{self._pg_schema}' garantido (CREATE IF NOT EXISTS)")
+            return True
+        except Exception as e:
+            logger.warning(f"Falha ao criar schema '{self._pg_schema}': {e}")
+            return False
+
     def get_all_table_names(self) -> List[str]:
         """Lista todas as tabelas do schema/banco (PostgreSQL ou SQLite). Exclui django_migrations."""
         with self.get_connection().cursor() as cursor:
@@ -413,11 +426,12 @@ class BackupService:
                 logger.warning(f"⚠️ Fallback para lista fixa de tabelas: {e}")
                 table_names = [t.nome for t in self.config.get_tabelas_ordenadas_exportacao()]
 
-            # Se o schema não tem tabelas, tentar aplicar migrations (pode ser loja nova sem tabelas criadas)
+            # Se o schema não tem tabelas: garantir que o schema existe (PostgreSQL), aplicar migrations e listar de novo
             if not table_names and loja.database_created:
                 try:
                     from .services.database_schema_service import DatabaseSchemaService
-                    logger.info(f"🔄 Schema vazio - aplicando migrations para loja {loja.nome} (ID: {loja_id})")
+                    logger.info(f"🔄 Schema vazio - garantindo schema e aplicando migrations para loja {loja.nome} (ID: {loja_id})")
+                    db_helper.ensure_pg_schema_exists()
                     if DatabaseSchemaService.aplicar_migrations(loja):
                         table_names = db_helper.get_all_table_names()
                         if table_names:
@@ -426,7 +440,10 @@ class BackupService:
                     logger.warning(f"⚠️ Falha ao aplicar migrations antes do backup: {e}")
 
             if not table_names:
-                logger.warning(f"⚠️ Nenhuma tabela no schema da loja {loja.nome} (database_name={loja.database_name})")
+                logger.warning(
+                    f"⚠️ Nenhuma tabela no schema da loja {loja.nome} (database_name={loja.database_name}, "
+                    f"schema_pg={getattr(db_helper, '_pg_schema', 'N/A')}). Verifique se o schema existe e se as migrations foram aplicadas."
+                )
 
             for table_name in table_names:
                 if not db_helper.table_exists(table_name):

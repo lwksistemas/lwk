@@ -309,6 +309,15 @@ export default function CalendarioAgendamentos({ loja, headerInBar = false, onVi
   // Mapeia dia da semana JS (0=Dom, 1=Seg, …) para backend (0=Seg, …, 6=Dom).
   const jsDayToBackend = (jsDay: number) => (jsDay + 6) % 7;
 
+  /** Dias da semana em que o profissional selecionado atende (backend: 0=Seg … 6=Dom). Se nenhum profissional ou "Todos", retorna todos. */
+  const getDiasAtivosProfissional = (): number[] => {
+    if (!profissionalSelecionado) return [0, 1, 2, 3, 4, 5, 6];
+    const prof = profissionais.find((p) => String(p.id) === profissionalSelecionado);
+    const ativos = prof?.horarios_trabalho?.filter((h) => h.ativo !== false).map((h) => h.dia_semana) ?? [];
+    if (ativos.length === 0) return [0, 1, 2, 3, 4, 5, 6];
+    return [...new Set(ativos)].sort((a, b) => a - b);
+  };
+
   const bloqueioDeveSerExibido = (bloqueio: BloqueioAgenda) => {
     // Se não tem profissional, é global - sempre exibir
     if (!bloqueio.profissional) return true;
@@ -508,8 +517,41 @@ export default function CalendarioAgendamentos({ loja, headerInBar = false, onVi
   const VisualizacaoDia = () => {
     const agendamentosDoDia = agendamentos.filter(ag => ag.data === formatarData(dataAtual));
     const diaBackendDia = jsDayToBackend(dataAtual.getDay());
+    const diasAtivos = getDiasAtivosProfissional();
+    const profissionalAtendeNesteDia = !profissionalSelecionado || diasAtivos.includes(diaBackendDia);
     const horariosPadrao = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
     const horarios = horariosPadrao;
+
+    if (profissionalSelecionado && !profissionalAtendeNesteDia) {
+      return (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div className="p-3 sm:p-4 border-b dark:border-gray-700">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Agendamentos do Dia</h3>
+          </div>
+          <div className="p-6 sm:p-8 text-center">
+            <p className="text-gray-500 dark:text-gray-400 mb-2">Este profissional não atende neste dia.</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">Configure os dias de atendimento em Gerenciar Profissionais → Configurar horários.</p>
+            {agendamentosDoDia.length > 0 && (
+              <div className="mt-6 text-left border-t dark:border-gray-700 pt-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Agendamentos existentes neste dia:</p>
+                <div className="space-y-2">
+                  {agendamentosDoDia.map((ag) => (
+                    <div
+                      key={ag.id}
+                      className="p-2.5 rounded-lg border-l-4 cursor-pointer hover:opacity-80"
+                      style={{ backgroundColor: `${getStatusClinicaInfo(ag.status).color}20`, borderLeftColor: getStatusClinicaInfo(ag.status).color }}
+                      onClick={() => handleEditarAgendamento(ag)}
+                    >
+                      <span className="font-medium">{ag.cliente_nome}</span> — {ag.horario} · {ag.procedimento_nome}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
@@ -649,45 +691,47 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}20`,
     );
   };
 
-  // Componente para visualização por semana - scroll horizontal no mobile com colunas legíveis
+  // Componente para visualização por semana - ocupa tela inteira; colunas preenchem largura; células grandes para agendar
+  // Com profissional selecionado: só exibe colunas dos dias em que ele atende (não configurados ficam de fora)
   const VisualizacaoSemana = () => {
     const { dataInicio } = calcularPeriodo();
     const inicioSemana = new Date(dataInicio);
     const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const horarios = getHorariosExibicaoSemana();
+    const diasAtivos = getDiasAtivosProfissional();
+    const diasParaExibir = Array.from({ length: 7 }, (_, i) => {
+      const dia = new Date(inicioSemana);
+      dia.setDate(inicioSemana.getDate() + i);
+      return { dia, backendDay: jsDayToBackend(dia.getDay()) };
+    }).filter(({ backendDay }) => diasAtivos.includes(backendDay));
+
+    const gridCols = `minmax(56px, 72px) repeat(${diasParaExibir.length}, minmax(120px, 1fr))`;
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto overflow-y-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="min-w-[min(100%,720px)] sm:min-w-0">
-          {/* Cabeçalho dos dias - coluna hora fixa + 7 dias com largura mínima no mobile */}
-          <div className="grid grid-cols-8 border-b dark:border-gray-700" style={{ minWidth: 'max-content' }}>
-            <div className="sticky left-0 z-10 bg-white dark:bg-gray-800 p-2 sm:p-3 text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400 border-r dark:border-gray-700 min-w-[52px] sm:min-w-[64px]">Hora</div>
-            {Array.from({ length: 7 }, (_, i) => {
-              const dia = new Date(inicioSemana);
-              dia.setDate(inicioSemana.getDate() + i);
-              
-              return (
-                <div key={i} className="p-2 sm:p-3 text-center border-l dark:border-gray-700 min-w-[88px] sm:min-w-[100px]">
-                  <div className="text-[10px] sm:text-sm font-semibold text-gray-900 dark:text-white">
-                    {diasSemana[dia.getDay()]}
-                  </div>
-                  <div className="text-base sm:text-lg font-bold" style={{ color: loja.cor_primaria }}>
-                    {dia.getDate()}
-                  </div>
+      <div className="flex-1 min-h-0 flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {/* Cabeçalho dos dias - coluna hora + dias; colunas com 1fr para preencher a tela */}
+          <div className="grid border-b dark:border-gray-700 flex-shrink-0" style={{ gridTemplateColumns: gridCols }}>
+            <div className="sticky left-0 z-10 bg-white dark:bg-gray-800 p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-400 border-r dark:border-gray-700">Hora</div>
+            {diasParaExibir.map(({ dia }, idx) => (
+              <div key={idx} className="p-3 sm:p-4 text-center border-l dark:border-gray-700">
+                <div className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                  {diasSemana[dia.getDay()]}
                 </div>
-              );
-            })}
+                <div className="text-lg sm:text-xl font-bold mt-0.5" style={{ color: loja.cor_primaria }}>
+                  {dia.getDate()}
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Grade de horários - mesma grid para alinhar com o cabeçalho */}
+          {/* Grade de horários - células altas (min 72px) para facilitar toque/agendamento */}
           {horarios.map(horario => (
-            <div key={horario} className="grid grid-cols-8 border-b dark:border-gray-700" style={{ minWidth: 'max-content' }}>
-              <div className="sticky left-0 z-10 p-2 sm:p-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-mono border-r dark:border-gray-700 bg-white dark:bg-gray-800 min-w-[52px] sm:min-w-[64px]">
+            <div key={horario} className="grid border-b dark:border-gray-700 flex-shrink-0" style={{ gridTemplateColumns: gridCols }}>
+              <div className="sticky left-0 z-10 p-3 sm:p-4 text-sm text-gray-600 dark:text-gray-400 font-mono border-r dark:border-gray-700 bg-white dark:bg-gray-800">
                 {horario}
               </div>
-              {Array.from({ length: 7 }, (_, i) => {
-                const dia = new Date(inicioSemana);
-                dia.setDate(inicioSemana.getDate() + i);
+              {diasParaExibir.map(({ dia }, idx) => {
                 const dataStr = formatarData(dia);
                 const diaBackend = jsDayToBackend(dia.getDay());
                 const dentroHorario = slotDentroDoHorarioProfissional(diaBackend, horario);
@@ -700,7 +744,7 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}20`,
                 const bloqueiaNoContexto = bloqueio ? bloqueioImpedeCriacaoNoContextoAtual(bloqueio) : false;
 
                 return (
-                  <div key={i} className="p-2 border-l dark:border-gray-700 min-h-[60px] min-w-[88px] sm:min-w-[100px] relative group">
+                  <div key={idx} className="p-3 sm:p-4 border-l dark:border-gray-700 min-h-[72px] sm:min-h-[80px] relative group">
                     {agendamento ? (
                       <div
                         className="p-2 rounded text-xs cursor-pointer hover:opacity-80 border-l-2 relative"
@@ -773,15 +817,17 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}20`,
                       </div>
                     ) : !dentroHorario ? (
                       <div
-                        className="w-full h-full rounded bg-gray-100 dark:bg-gray-700/50 border border-dashed border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs"
+                        className="w-full min-h-[72px] sm:min-h-[80px] rounded bg-gray-100 dark:bg-gray-700/50 border border-dashed border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm"
                         title="Fora do horário de atendimento do profissional"
                       >
                         —
                       </div>
                     ) : (
                       <button
+                        type="button"
                         onClick={() => handleNovoAgendamento(dataStr, horario)}
-                        className="w-full h-full text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded border border-dashed border-transparent hover:border-gray-300 dark:hover:border-gray-600"
+                        className="w-full min-h-[72px] sm:min-h-[80px] flex items-center justify-center text-2xl sm:text-3xl text-gray-300 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded border-2 border-dashed border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 touch-manipulation"
+                        title="Clique para agendar"
                       >
                         +
                       </button>
@@ -998,8 +1044,8 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
         </div>
       </div>
 
-      {/* Área do calendário - scroll suave no mobile (Clínica de Estética) */}
-      <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2 sm:mx-0 sm:px-0 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Área do calendário - na semana ocupa tela inteira (flex-1); scroll suave no mobile */}
+      <div className={`flex-1 min-h-0 overflow-auto overscroll-contain ${visualizacao === 'semana' ? 'flex flex-col' : '-mx-2 px-2 sm:mx-0 sm:px-0'}`} style={{ WebkitOverflowScrolling: 'touch' }}>
         {loading ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 sm:p-12 text-center min-h-[200px] flex items-center justify-center">
             <div className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Carregando agendamentos...</div>

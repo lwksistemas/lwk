@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
+import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos } from '@/lib/loja-tipo';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import BackupButton from '@/components/loja/BackupButton';
 
@@ -136,12 +137,10 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
-  // Descobrir se é clínica de estética, restaurante, cabeleireiro ou clínica da beleza para layout em tela cheia (sem faixas laterais)
-  const tipoSlug = lojaInfo.tipo_loja_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const isClinicaEstetica = tipoSlug.includes('clinica') && tipoSlug.includes('estetica');
-  const isClinicaBeleza = tipoSlug.includes('clinica') && tipoSlug.includes('beleza');
-  const isRestaurante = tipoSlug.includes('restaurante');
-  const isCabeleireiro = tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia');
+  const isClinicaEstetica = isTipoClinicaEstetica(lojaInfo.tipo_loja_nome);
+  const isClinicaBeleza = isTipoClinicaBeleza(lojaInfo.tipo_loja_nome);
+  const isRestaurante = isTipoRestaurante(lojaInfo.tipo_loja_nome);
+  const isCabeleireiro = isTipoCabeleireiro(lojaInfo.tipo_loja_nome);
   const isFullWidth = isClinicaEstetica || isClinicaBeleza || isRestaurante || isCabeleireiro;
 
   // Renderizar dashboard específico por tipo de app
@@ -287,29 +286,13 @@ export default function LojaDashboardDinamicoPage() {
 }
 
 function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
-  const tipoSlug = loja.tipo_loja_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  
-  if (tipoSlug.includes('clinica') && tipoSlug.includes('beleza')) {
-    return <DashboardClinicaBeleza loja={loja} onLogout={onLogout} />;
-  }
-  if (tipoSlug.includes('clinica') && tipoSlug.includes('estetica')) {
-    return <DashboardClinicaEstetica loja={loja} onLogout={onLogout} />;
-  }
-  if (tipoSlug.includes('commerce')) {
-    return <DashboardEcommerce loja={loja} />;
-  }
-  if (tipoSlug.includes('restaurante')) {
-    return <DashboardRestaurante loja={loja} />;
-  }
-  if (tipoSlug.includes('crm') || tipoSlug.includes('vendas')) {
-    return <DashboardCRMVendas loja={loja} />;
-  }
-  if (tipoSlug.includes('servicos') || tipoSlug.includes('servico')) {
-    return <DashboardServicos loja={loja} />;
-  }
-  if (tipoSlug.includes('cabeleireiro') || tipoSlug.includes('salao') || tipoSlug.includes('barbearia')) {
-    return <DashboardCabeleireiro loja={loja} />;
-  }
+  if (isTipoClinicaBeleza(loja.tipo_loja_nome)) return <DashboardClinicaBeleza loja={loja} onLogout={onLogout} />;
+  if (isTipoClinicaEstetica(loja.tipo_loja_nome)) return <DashboardClinicaEstetica loja={loja} onLogout={onLogout} />;
+  if (isTipoCommerce(loja.tipo_loja_nome)) return <DashboardEcommerce loja={loja} />;
+  if (isTipoRestaurante(loja.tipo_loja_nome)) return <DashboardRestaurante loja={loja} />;
+  if (isTipoCRMVendas(loja.tipo_loja_nome)) return <DashboardCRMVendas loja={loja} />;
+  if (isTipoServicos(loja.tipo_loja_nome)) return <DashboardServicos loja={loja} />;
+  if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} />;
   return <DashboardGenerico loja={loja} />;
 }
 

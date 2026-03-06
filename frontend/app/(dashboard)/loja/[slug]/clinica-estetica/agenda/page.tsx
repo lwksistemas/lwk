@@ -11,6 +11,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
+import { isTipoClinicaEstetica } from '@/lib/loja-tipo';
 import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
 
 interface LojaInfo {
@@ -70,12 +71,21 @@ export default function AgendaClinicaEsteticaPage() {
     if (ready && !isLoja) router.push(loginPath);
   }, [ready, isLoja, loginPath, router]);
 
+  // Rota dedicada a lojas do tipo Clínica de Estética; demais tipos redirecionam ao dashboard
+  useEffect(() => {
+    if (!loja) return;
+    if (!isTipoClinicaEstetica(loja.tipo_loja_nome)) {
+      router.replace(`/loja/${slug}/dashboard`);
+    }
+  }, [loja, slug, router]);
+
   const handleLogout = () => {
     sessionStorage.clear();
     router.push(`/loja/${slug}/login`);
   };
 
-  if (!ready || loading || !loja) {
+  const isClinicaEstetica = loja ? isTipoClinicaEstetica(loja.tipo_loja_nome) : false;
+  if (!ready || loading || !loja || !isClinicaEstetica) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="w-10 h-10 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
@@ -149,8 +159,8 @@ export default function AgendaClinicaEsteticaPage() {
         </div>
       </header>
 
-      {/* Conteúdo: apenas o calendário (cabeçalho duplicado omitido via headerInBar) */}
-      <main className="flex-1 min-h-0 flex flex-col overflow-hidden px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
+      {/* Conteúdo: tela inteira para o calendário (semana usa todo o espaço disponível) */}
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <CalendarioAgendamentos
           loja={loja}
           headerInBar

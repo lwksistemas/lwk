@@ -6,8 +6,11 @@ IMPORTANTE: Sem rodar este comando, a loja NÃO terá tabelas no schema isolado
 e nada será salvo (agendamentos, pacientes, etc.). Sempre rodar após criar uma nova loja.
 
 Uso (produção Heroku):
-  heroku run "python backend/manage.py setup_loja_schema SLUG_DA_LOJA" --app lwksistemas
-  Ex.: heroku run "python backend/manage.py setup_loja_schema teste-5889" --app lwksistemas
+  heroku run "cd backend && python manage.py setup_loja_schema SLUG_DA_LOJA" --app lwksistemas
+  Ex.: heroku run "cd backend && python manage.py setup_loja_schema felix-representacoes-000172" --app lwksistemas
+
+Se a loja CRM já existia antes do schema por loja e dá "relation crm_vendas_lead does not exist":
+  heroku run "cd backend && python manage.py setup_loja_schema SLUG_DA_LOJA --force-crm" --app lwksistemas
 
 Uso (local):
   python backend/manage.py setup_loja_schema SLUG_DA_LOJA
@@ -26,6 +29,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('slug', type=str, help='Slug da loja (ex: teste-5889)')
+        parser.add_argument(
+            '--force-crm',
+            action='store_true',
+            help='Remove estado de migração do crm_vendas no schema e reaplica (corrige "relation does not exist")',
+        )
 
     def handle(self, *args, **options):
         slug = options['slug'].strip()
@@ -84,7 +92,22 @@ class Command(BaseCommand):
             }
             self.stdout.write(self.style.SUCCESS('✅ Banco configurado em settings.DATABASES'))
 
-        # 3. Aplicar migrations no schema da loja
+        # 3. (Opcional) Forçar reaplicação do CRM: remove estado de migração no schema
+        force_crm = options.get('force_crm', False)
+        if force_crm and db_name in settings.DATABASES:
+            from django.db import connections
+            try:
+                with connections[db_name].cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM django_migrations WHERE app = %s",
+                        ['crm_vendas'],
+                    )
+                    n = cursor.rowcount
+                self.stdout.write(self.style.WARNING(f'  Estado crm_vendas removido ({n} registros). Reaplicando migrações.\n'))
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f'  force-crm: {e}\n'))
+
+        # 4. Aplicar migrations no schema da loja
         tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
         base_apps = ['stores', 'products']
         tipo_apps = {

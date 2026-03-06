@@ -91,7 +91,7 @@ class TipoLoja(models.Model):
         if not self.codigo and self.slug:
             slug_to_codigo = {
                 'clinica-de-estetica': 'CLIEST', 'clinica-da-beleza': 'CLIBEL',
-                'e-commerce': 'ECOMM', 'ecommerce': 'ECOMM',
+                'crm-vendas': 'CRMVND', 'e-commerce': 'ECOMM', 'ecommerce': 'ECOMM',
                 'restaurante': 'REST', 'servicos': 'SERV', 'cabeleireiro': 'CABEL',
                 'clinica-estetica': 'CLIEST',
             }

@@ -32,6 +32,7 @@ def api_root(request):
             'clinica_beleza': '/api/clinica-beleza/',
             'notificacoes': '/api/notificacoes/',
             'push': '/api/push/',
+            'crm_vendas': '/api/crm-vendas/',
         },
         'documentacao': 'Sistema Multi-Tenant para gestão de lojas',
         'schema': '/api/schema/',
@@ -65,4 +66,5 @@ urlpatterns = [
     path('api/clinica-beleza/', include('clinica_beleza.urls')),
     path('api/notificacoes/', include('notificacoes.urls')),
     path('api/push/', include('push.urls')),
+    path('api/crm-vendas/', include('crm_vendas.urls')),
 ]

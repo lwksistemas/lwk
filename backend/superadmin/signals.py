@@ -64,6 +64,13 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                 funcionario_data['cargo'] = 'Gerente'
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
                 
+        elif tipo_loja_nome == 'CRM Vendas':
+            from crm_vendas.models import Vendedor
+            if not Vendedor.objects.filter(email=owner.email, loja_id=instance.id).exists():
+                funcionario_data['cargo'] = 'Gerente de Vendas'
+                funcionario_data['is_admin'] = True
+                funcionario_criado = Vendedor.objects.create(**funcionario_data)
+
         elif tipo_loja_nome == 'E-commerce':
             # E-commerce não tem modelo de funcionário
             logger.info(f"E-commerce não possui modelo de funcionário. Loja: {instance.nome}")
@@ -212,6 +219,31 @@ def delete_all_loja_data(sender, instance, **kwargs):
             qs.delete()
             logger.info(f"   ✅ {proc_count} procedimentos deletados")
             
+        elif tipo_loja_nome == 'CRM Vendas':
+            from crm_vendas.models import Atividade, Oportunidade, Lead, Contato, Conta, Vendedor
+            _db = db_alias
+
+            def _delete_crm(model, nome):
+                try:
+                    if hasattr(model.objects, 'all_without_filter'):
+                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
+                    else:
+                        qs = model.objects.filter(loja_id=loja_id)
+                    if _db:
+                        qs = qs.using(_db)
+                    count = qs.count()
+                    qs.delete()
+                    logger.info(f"   ✅ {count} {nome} (CRM Vendas) deletados")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Erro ao deletar {nome} CRM Vendas: {e}")
+
+            _delete_crm(Atividade, 'atividades')
+            _delete_crm(Oportunidade, 'oportunidades')
+            _delete_crm(Lead, 'leads')
+            _delete_crm(Contato, 'contatos')
+            _delete_crm(Conta, 'contas')
+            _delete_crm(Vendedor, 'vendedores')
+
         elif tipo_loja_nome == 'Restaurante':
             from restaurante.models import (
                 Funcionario, Reserva, Pedido, ItemCardapio, Categoria, Mesa, Cliente,

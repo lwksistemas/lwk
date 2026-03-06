@@ -25,6 +25,13 @@ TABELAS_LOJA_ID_DEFAULT = [
     # Rules (Regras Automáticas)
     ('rules_regra', 'loja_id'),
     ('rules_execucaoregra', 'loja_id'),
+    # CRM Vendas
+    ('crm_vendas_vendedor', 'loja_id'),
+    ('crm_vendas_conta', 'loja_id'),
+    ('crm_vendas_lead', 'loja_id'),
+    ('crm_vendas_contato', 'loja_id'),
+    ('crm_vendas_oportunidade', 'loja_id'),
+    ('crm_vendas_atividade', 'loja_id'),
 ]
 
 # Tabelas em schemas de loja (tenant) - verificadas via ORM com .using(db_alias)

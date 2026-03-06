@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoServicos } from '@/lib/loja-tipo';
+import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos } from '@/lib/loja-tipo';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import BackupButton from '@/components/loja/BackupButton';
 
@@ -289,6 +289,16 @@ function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoClinicaEstetica(loja.tipo_loja_nome)) return <DashboardClinicaEstetica loja={loja} onLogout={onLogout} />;
   if (isTipoCommerce(loja.tipo_loja_nome)) return <DashboardEcommerce loja={loja} />;
   if (isTipoRestaurante(loja.tipo_loja_nome)) return <DashboardRestaurante loja={loja} />;
+  if (isTipoCRMVendas(loja.tipo_loja_nome)) {
+    if (typeof window !== 'undefined') {
+      window.location.href = `/loja/${loja.slug}/crm-vendas`;
+    }
+    return (
+      <div className="flex items-center justify-center min-h-[200px] text-gray-500 dark:text-gray-400">
+        Redirecionando ao CRM...
+      </div>
+    );
+  }
   if (isTipoServicos(loja.tipo_loja_nome)) return <DashboardServicos loja={loja} />;
   if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} />;
   return <DashboardGenerico loja={loja} />;

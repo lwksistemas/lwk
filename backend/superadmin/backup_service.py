@@ -59,6 +59,7 @@ BACKUP_TIPO_APP_TABLE_PREFIXES = {
     'restaurante': ('stores_', 'products_', 'restaurante_'),
     'servicos': ('stores_', 'products_', 'servicos_'),
     'cabeleireiro': ('stores_', 'products_', 'cabeleireiro_'),
+    'crm-vendas': ('stores_', 'products_', 'crm_vendas_'),
 }
 # Prefixos a excluir por tipo de app (ex.: clinica_beleza_ não é da clínica de estética)
 BACKUP_TIPO_APP_EXCLUDED_PREFIXES = {

@@ -61,6 +61,7 @@ class Command(BaseCommand):
                 'restaurante': ['restaurante'],
                 'servicos': ['servicos'],
                 'cabeleireiro': ['cabeleireiro'],
+                'crm-vendas': ['crm_vendas'],
             }
             
             apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])

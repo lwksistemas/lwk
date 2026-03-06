@@ -27,6 +27,7 @@ class MultiTenantRouter:
         'restaurante',
         'servicos',
         'whatsapp',  # Config e log WhatsApp isolados por loja (1 tabela por schema)
+        'crm_vendas',  # CRM Vendas - leads, contas, oportunidades no schema da loja
     }
     
     def db_for_read(self, model, **hints):

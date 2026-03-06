@@ -1,6 +1,12 @@
 """
-Serviço para gerenciamento de schemas de banco de dados
-Centraliza lógica de criação e configuração de schemas PostgreSQL
+Serviço para gerenciamento de schemas de banco de dados.
+Centraliza lógica de criação e configuração de schemas PostgreSQL.
+
+Isolamento por loja:
+- Ao criar uma loja (LojaCreateSerializer), é chamado configurar_schema_completo(loja).
+- Isso cria um schema PostgreSQL exclusivo (ex: loja_clinica_vida_5889) e aplica as
+  migrations nesse schema. Assim o backup e a aplicação usam apenas as tabelas desse
+  schema, sem risco de misturar dados de outras lojas ou do superadmin.
 """
 import logging
 import os
@@ -181,11 +187,15 @@ class DatabaseSchemaService:
     @staticmethod
     def configurar_schema_completo(loja) -> bool:
         """
-        Executa todo o processo de configuração do schema
-        
+        Executa todo o processo de configuração do schema individual da loja.
+        Deve ser chamado na criação da loja para garantir banco/schema isolado
+        e evitar que o backup exporte dados de outras lojas ou do superadmin.
+
+        Passos: criar schema -> marcar database_created -> config Django -> migrations.
+
         Args:
             loja: Objeto Loja
-            
+
         Returns:
             True se configurado com sucesso
         """

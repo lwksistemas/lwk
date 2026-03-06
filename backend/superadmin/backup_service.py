@@ -40,6 +40,16 @@ BACKUP_SYSTEM_TABLES_EXCLUDE = {
     'auth_permission',
     'auth_group',
 }
+# Prefixos de tabelas que NUNCA devem entrar no backup (superadmin, auth, django, etc.)
+BACKUP_TABLE_PREFIX_BLACKLIST = (
+    'auth_',
+    'django_',
+    'admin_',
+    'superadmin_',
+    'sessions_',
+    'account_',
+    'socialaccount_',
+)
 # Regex para validar nome de tabela/coluna (segurança SQL: apenas alfanumérico e underscore)
 BACKUP_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
@@ -245,7 +255,12 @@ class DatabaseHelper:
                         f"Backup: 0 tabelas em current_schema e em schema '{self._pg_schema}'; "
                         f"current_schema()='{current}'"
                     )
-        return [t for t in tables if t not in BACKUP_SYSTEM_TABLES_EXCLUDE]
+        # Excluir tabelas de sistema e prefixos proibidos (superadmin, auth, django, etc.)
+        def _allow_table(name: str) -> bool:
+            if name in BACKUP_SYSTEM_TABLES_EXCLUDE:
+                return False
+            return not any(name.startswith(prefix) for prefix in BACKUP_TABLE_PREFIX_BLACKLIST)
+        return [t for t in tables if _allow_table(t)]
     
     @staticmethod
     def is_safe_table_name(name: str) -> bool:
@@ -518,6 +533,15 @@ class BackupService:
                             logger.info(f"✅ Migrations aplicadas - {len(table_names)} tabela(s) encontrada(s)")
                 except Exception as e:
                     logger.warning(f"⚠️ Falha ao aplicar migrations antes do backup: {e}")
+
+            # Quando o backup usa schema PUBLIC (fallback): exportar APENAS tabelas com coluna loja_id,
+            # para não incluir dados de outras lojas nem do superadmin.
+            if getattr(db_helper, '_pg_schema', None) == 'public':
+                table_names = [t for t in table_names if db_helper._table_has_loja_id(t)]
+                if table_names:
+                    logger.info(
+                        f"Backup (schema public): exportando apenas {len(table_names)} tabela(s) com loja_id (isolamento por loja)"
+                    )
 
             if not table_names:
                 logger.warning(

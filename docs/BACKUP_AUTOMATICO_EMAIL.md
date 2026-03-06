@@ -11,7 +11,8 @@ O sistema não dispara o backup sozinho: é preciso rodar o comando **a cada hor
 3. Abra o Scheduler → **Create job**.
 4. Configure:
    - **Comando:** `cd backend && python manage.py executar_backups_automaticos`
-   - **Frequência:** a cada hora (Every hour).
+   - **Frequência:** Every hour (a cada hora).
+5. Clique em **Save** para criar o job.
 
 Assim, todo horário cheio (ex.: 21:00, 22:00) o comando verifica quais lojas têm backup automático ativo e estão no horário configurado; quem estiver na janela (ex.: 21:33–22:33) roda o backup e envia o email.
 

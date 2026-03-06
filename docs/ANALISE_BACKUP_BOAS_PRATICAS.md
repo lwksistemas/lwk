@@ -173,4 +173,19 @@ O recurso de backup está bem estruturado no que diz respeito a separação de r
    - **Apenas tabelas com `loja_id`:** quando o schema efetivo é `public`, o backup exporta somente tabelas que possuem a coluna `loja_id` e aplica `WHERE loja_id = %s` (já existente). Assim não saem no ZIP tabelas de sistema nem dados de outras lojas.
 
 Com isso, o backup da loja contém apenas os cadastros daquela loja, mesmo em bancos onde parte das tabelas está no `public`.
+
+---
+
+## Importar o mesmo backup em outro sistema limpo
+
+**Cenário:** Você exporta o backup da loja no sistema A e quer importar esse ZIP em outro sistema (B), por exemplo um ambiente limpo ou outro servidor.
+
+**O que o sistema faz:**
+
+1. **No sistema B:** crie uma loja do mesmo tipo de app (ex.: Clínica de Estética), com schema/banco já configurado.
+2. **Importar backup:** na tela dessa loja, use "Importar backup" e envie o ZIP exportado do sistema A.
+3. **Remapeamento de `loja_id`:** na importação, o serviço substitui o valor da coluna `loja_id` do CSV pelo **ID da loja de destino** no sistema B. Assim, todos os registros passam a pertencer à loja correta no novo sistema.
+4. **Sequences (PostgreSQL):** após os INSERTs, as sequences das tabelas com coluna `id` são ajustadas (setval) para o máximo ID inserido, evitando conflito em novos cadastros depois da importação.
+
+Assim, o **mesmo arquivo de backup** pode ser importado em outro sistema limpo: basta ter uma loja do mesmo tipo criada nesse sistema e importar o ZIP nela.
 - **Tasks:** `get_or_create(loja=loja, defaults={'frequencia': 'diario'})` em `processar_backup_loja`.

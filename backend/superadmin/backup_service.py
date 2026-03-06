@@ -707,8 +707,10 @@ class BackupService:
                     logger.warning("⚠️ Arquivo de metadados não encontrado no backup")
                     metadata = {}
                 
-                # Inicializar helper
+                # Inicializar helper (conexão da loja de DESTINO)
                 db_helper = DatabaseHelper(loja.database_name)
+                # Para importar em outro sistema limpo: usar sempre o loja_id da loja de destino
+                loja_id_destino = loja.id
                 
                 # Estatísticas
                 total_registros = 0
@@ -779,7 +781,11 @@ class BackupService:
                                 for row in rows:
                                     values = []
                                     for col in cols_for_insert:
-                                        val = row.get(col, "")
+                                        # Ao importar em outro sistema (ou na mesma loja): usar sempre loja_id da loja de destino
+                                        if col == 'loja_id':
+                                            val = loja_id_destino
+                                        else:
+                                            val = row.get(col, "")
                                         if val == "" and col != "id":
                                             values.append(None)
                                         else:
@@ -795,6 +801,25 @@ class BackupService:
                         except Exception as e:
                             logger.error(f"❌ Erro ao importar tabela {table_name}: {e}")
                             raise BackupImportError(f"Erro ao importar {table_name}: {str(e)}")
+                
+                # PostgreSQL: resetar sequences após INSERT com IDs explícitos (evita conflito em novos registros)
+                if not db_helper._is_sqlite() and db_helper._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(db_helper._pg_schema):
+                    with db_helper.get_connection().cursor() as cursor:
+                        for table_name, _ in processar:
+                            if not DatabaseHelper.is_safe_table_name(table_name) or not db_helper.table_exists(table_name):
+                                continue
+                            cols = db_helper.get_table_columns(table_name)
+                            if 'id' not in cols:
+                                continue
+                            qual = db_helper.qualified_table_name(table_name)
+                            try:
+                                # schema e table_name já validados (safe)
+                                cursor.execute(
+                                    f"SELECT setval(pg_get_serial_sequence('{db_helper._pg_schema}.{table_name}', 'id'), "
+                                    f"(SELECT COALESCE(MAX(id), 1) FROM {qual}))"
+                                )
+                            except Exception as e:
+                                logger.warning(f"⚠️ Não foi possível resetar sequence de {table_name}: {e}")
                 
                 logger.info(f"✅ Importação concluída - {total_registros} registros importados")
                 

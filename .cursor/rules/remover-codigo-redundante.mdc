@@ -1,0 +1,26 @@
+---
+description: Ao fazer correções e melhorias, remover código antigo, redundante ou duplicado
+alwaysApply: true
+---
+
+# Remoção de código redundante
+
+Ao implementar correções, melhorias ou novas funcionalidades:
+
+1. **Remover código substituído**  
+   Quando uma lógica for reescrita ou movida (ex.: para outro arquivo ou componente), apague o trecho antigo em vez de deixá-lo comentado ou duplicado.
+
+2. **Evitar duplicação**  
+   Se a mesma lógica, constante ou texto aparecer em mais de um lugar, extrair para uma única fonte (função, constante, componente ou tipo) e reutilizar.
+
+3. **Limpar após refatorar**  
+   Após refatoração, revisar o arquivo e remover:
+   - imports não utilizados
+   - variáveis ou estados órfãos
+   - comentários que só descrevem código já óbvio
+   - blocos comentados que não forem mais necessários
+
+4. **Não manter “código morto”**  
+   Remover funções, componentes ou rotas que não são mais referenciados.
+
+Aplicar em todo o projeto (frontend e backend).

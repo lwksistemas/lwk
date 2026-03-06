@@ -57,7 +57,7 @@ urlpatterns = [
     path('api/superadmin/', include('superadmin.urls')),  # API Super Admin
     path('api/asaas/', include('asaas_integration.urls')),  # API Asaas
     
-    # APIs dos tipos de loja
+    # APIs dos tipos de app
     path('api/clinica/', include('clinica_estetica.urls')),
     path('api/crm/', include('crm_vendas.urls')),
     path('api/ecommerce/', include('ecommerce.urls')),

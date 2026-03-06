@@ -153,10 +153,10 @@ class DatabaseSchemaService:
         
         tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
         
-        # Apps base
+        # Apps base (comuns a todos os tipos de app)
         base_apps = ['stores', 'products']
         
-        # Apps por tipo de app
+        # Apps por tipo de app (slug do TipoLoja)
         tipo_apps = {
             'clinica-de-estetica': ['clinica_estetica'],
             'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],

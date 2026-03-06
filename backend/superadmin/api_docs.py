@@ -139,10 +139,10 @@ LOJA_DELETE_SCHEMA = extend_schema(
     tags=["Lojas"]
 )
 
-# Tipos de Loja
+# Tipos de App
 TIPO_LOJA_LIST_SCHEMA = extend_schema(
     summary="Listar Tipos de App",
-    description="Lista todos os tipos de app (anteriormente tipos de loja) disponíveis",
+    description="Lista todos os tipos de app disponíveis",
     examples=[
         OpenApiExample(
             "Exemplo de Tipo",

@@ -114,7 +114,7 @@ from drf_spectacular.utils import extend_schema_view
 )
 class TipoLojaViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gerenciar Tipos de App (anteriormente Tipos de Loja).
+    ViewSet para gerenciar Tipos de App.
     
     Tipos de App definem as funcionalidades e aparência de cada loja.
     """

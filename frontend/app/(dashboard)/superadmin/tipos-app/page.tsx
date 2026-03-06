@@ -1,5 +1,5 @@
 /**
- * Página de Tipos de App (anteriormente Tipos de Loja)
+ * Página de Tipos de App
  * ✅ REFATORADO v770: Código reduzido de 600+ para ~100 linhas usando hooks e componentes
  */
 'use client';

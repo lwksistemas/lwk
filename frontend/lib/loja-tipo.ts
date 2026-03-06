@@ -1,6 +1,6 @@
 /**
- * Helpers para tipo de loja.
- * Regras centralizadas: valem para todas as lojas criadas no sistema (por tipo_loja_nome).
+ * Helpers para tipo de app.
+ * Regras centralizadas: valem para todas as lojas criadas no sistema (por tipo_loja_nome da API).
  */
 
 const normalizarTipo = (tipo: string) =>

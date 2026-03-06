@@ -50,6 +50,21 @@ BACKUP_TABLE_PREFIX_BLACKLIST = (
     'account_',
     'socialaccount_',
 )
+# Quando o backup usa schema PUBLIC: só exportar tabelas cujo prefixo pertence ao tipo de app da loja.
+# Evita incluir cabeleireiro_*, clinica_beleza_*, crm_*, etc. no backup de uma clínica de estética.
+BACKUP_TIPO_APP_TABLE_PREFIXES = {
+    'clinica-de-estetica': ('stores_', 'products_', 'clinica_'),  # clinica_* da app clinica_estetica
+    'clinica-da-beleza': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_'),
+    'crm-vendas': ('stores_', 'products_', 'crm_'),
+    'e-commerce': ('stores_', 'products_', 'ecommerce_'),
+    'restaurante': ('stores_', 'products_', 'restaurante_'),
+    'servicos': ('stores_', 'products_', 'servicos_'),
+    'cabeleireiro': ('stores_', 'products_', 'cabeleireiro_'),
+}
+# Prefixos a excluir por tipo de app (ex.: clinica_beleza_ não é da clínica de estética)
+BACKUP_TIPO_APP_EXCLUDED_PREFIXES = {
+    'clinica-de-estetica': ('clinica_beleza_',),
+}
 # Regex para validar nome de tabela/coluna (segurança SQL: apenas alfanumérico e underscore)
 BACKUP_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
@@ -489,8 +504,8 @@ class BackupService:
         from .models import Loja
         
         try:
-            # Buscar loja
-            loja = Loja.objects.get(id=loja_id)
+            # Buscar loja (com tipo de app para filtrar tabelas quando schema=public)
+            loja = Loja.objects.select_related('tipo_loja').get(id=loja_id)
             
             if not loja.database_created:
                 raise BackupExportError("Banco de dados da loja não foi criado")
@@ -514,7 +529,7 @@ class BackupService:
                 except Exception as e:
                     logger.warning(f"Backup: não foi possível SET search_path: {e}")
 
-            # Listar tabelas dinamicamente (qualquer tipo de loja: clínica, loja, etc.)
+            # Listar tabelas dinamicamente (qualquer tipo de app: clínica, loja, etc.)
             try:
                 table_names = db_helper.get_all_table_names()
             except Exception as e:
@@ -534,13 +549,22 @@ class BackupService:
                 except Exception as e:
                     logger.warning(f"⚠️ Falha ao aplicar migrations antes do backup: {e}")
 
-            # Quando o backup usa schema PUBLIC (fallback): exportar APENAS tabelas com coluna loja_id,
-            # para não incluir dados de outras lojas nem do superadmin.
+            # Quando o backup usa schema PUBLIC (fallback): exportar APENAS tabelas com coluna loja_id
+            # e cujo prefixo pertence ao tipo de app da loja (evita cabeleireiro_*, clinica_beleza_*, crm_*, etc.).
             if getattr(db_helper, '_pg_schema', None) == 'public':
                 table_names = [t for t in table_names if db_helper._table_has_loja_id(t)]
+                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or ''
+                allowed_prefixes = BACKUP_TIPO_APP_TABLE_PREFIXES.get(tipo_slug, ())
+                excluded_prefixes = BACKUP_TIPO_APP_EXCLUDED_PREFIXES.get(tipo_slug, ())
+                if allowed_prefixes:
+                    def _table_belongs_to_tipo(name: str) -> bool:
+                        if any(name.startswith(p) for p in excluded_prefixes):
+                            return False
+                        return any(name.startswith(p) for p in allowed_prefixes)
+                    table_names = [t for t in table_names if _table_belongs_to_tipo(t)]
                 if table_names:
                     logger.info(
-                        f"Backup (schema public): exportando apenas {len(table_names)} tabela(s) com loja_id (isolamento por loja)"
+                        f"Backup (schema public): exportando {len(table_names)} tabela(s) do tipo '{tipo_slug}' (prefixos: {allowed_prefixes})"
                     )
 
             if not table_names:

@@ -8,7 +8,7 @@ from decimal import Decimal
 
 
 class Command(BaseCommand):
-    help = 'Cria dados iniciais do sistema (tipos de loja e planos)'
+    help = 'Cria dados iniciais do sistema (tipos de app e planos)'
 
     def handle(self, *args, **options):
         self.stdout.write('🚀 Iniciando setup de dados iniciais...\n')
@@ -16,7 +16,7 @@ class Command(BaseCommand):
         # Criar superusuário se não existir
         self.create_superuser()
         
-        # Criar tipos de loja
+        # Criar tipos de app
         self.create_tipos_loja()
         
         # Criar planos
@@ -37,7 +37,7 @@ class Command(BaseCommand):
             self.stdout.write('ℹ️  Superusuário já existe')
 
     def create_tipos_loja(self):
-        """Cria tipos de loja padrão"""
+        """Cria tipos de app padrão"""
         tipos = [
             {
                 'nome': 'Clínica de Estética',
@@ -117,13 +117,13 @@ class Command(BaseCommand):
                 self.stdout.write(f'  ✅ Tipo criado: {tipo.nome}')
         
         if created_count > 0:
-            self.stdout.write(self.style.SUCCESS(f'✅ {created_count} tipos de loja criados'))
+            self.stdout.write(self.style.SUCCESS(f'✅ {created_count} tipos de app criados'))
         else:
-            self.stdout.write('ℹ️  Tipos de loja já existem')
+            self.stdout.write('ℹ️  Tipos de app já existem')
 
     def create_planos(self):
         """Cria planos de assinatura padrão"""
-        # Buscar tipos de loja
+        # Buscar tipos de app
         tipos = {tipo.slug: tipo for tipo in TipoLoja.objects.all()}
         
         planos = [

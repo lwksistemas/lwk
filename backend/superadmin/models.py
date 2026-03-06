@@ -44,9 +44,18 @@ class UserSession(models.Model):
 
 
 class TipoLoja(models.Model):
-    """Tipos de loja com dashboard específico"""
+    """Tipos de app com dashboard específico (ex.: Clínica de Estética, Cabeleireiro)."""
     nome = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True)
+    # Código único imutável para uso em lógica sensível (backup, migrations, segurança).
+    # Não usar slug para isso: codigo é estável e não deve ser alterado.
+    codigo = models.CharField(
+        max_length=20,
+        unique=True,
+        db_index=True,
+        blank=True,
+        help_text='Código único do tipo (ex: CLIEST, CABEL). Usado em backup e isolamento de dados.'
+    )
     descricao = models.TextField(blank=True)
     
     # Configuração do Dashboard
@@ -78,6 +87,15 @@ class TipoLoja(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.nome)
+        # Atribuir código único a partir do slug se estiver vazio (novos tipos de app)
+        if not self.codigo and self.slug:
+            slug_to_codigo = {
+                'clinica-de-estetica': 'CLIEST', 'clinica-da-beleza': 'CLIBEL',
+                'crm-vendas': 'CRMVND', 'e-commerce': 'ECOMM', 'ecommerce': 'ECOMM',
+                'restaurante': 'REST', 'servicos': 'SERV', 'cabeleireiro': 'CABEL',
+                'clinica-estetica': 'CLIEST',
+            }
+            self.codigo = slug_to_codigo.get((self.slug or '').strip(), '')
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -90,9 +108,9 @@ class PlanoAssinatura(models.Model):
     slug = models.SlugField(unique=True)
     descricao = models.TextField()
     
-    # Vinculação com tipos de loja
-    tipos_loja = models.ManyToManyField(TipoLoja, related_name='planos', blank=True, 
-                                       help_text='Tipos de loja que podem usar este plano')
+    # Vinculação com tipos de app
+    tipos_loja = models.ManyToManyField(TipoLoja, related_name='planos', blank=True,
+                                       help_text='Tipos de app que podem usar este plano')
     
     # Preços
     preco_mensal = models.DecimalField(max_digits=10, decimal_places=2)

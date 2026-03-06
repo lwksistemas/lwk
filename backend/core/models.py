@@ -150,7 +150,7 @@ class HistoricoAcao(BaseModel):
     """
     Modelo base para histórico de ações dos usuários
     Registra login, logout e ações realizadas no sistema
-    Reutilizável por todos os tipos de loja
+    Reutilizável por todos os tipos de app
     """
     ACAO_CHOICES = [
         ('login', 'Login'),

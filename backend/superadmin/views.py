@@ -78,7 +78,7 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
         if hasattr(obj, 'id'):
             from .models import UsuarioSistema
             action = getattr(view, 'action', None)
-            if action in ('exportar_backup', 'importar_backup', 'configuracao_backup', 'atualizar_configuracao_backup', 'historico_backups'):
+            if action in ('exportar_backup', 'importar_backup', 'enviar_backup_agora', 'configuracao_backup', 'atualizar_configuracao_backup', 'historico_backups'):
                 if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():
                     return True
                 if UsuarioSistema.objects.filter(user=request.user, loja=obj, is_active=True).exists():
@@ -900,7 +900,92 @@ Sistema Multi-Loja
                 'success': False,
                 'error': f'Erro ao exportar backup: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin], url_path='enviar_backup_agora')
+    def enviar_backup_agora(self, request, pk=None):
+        """
+        Gera o backup da loja agora e envia por email para o proprietário.
+        Usado pelo botão "Enviar agora" na tela de configurar backup automático.
+
+        Permissões: SuperAdmin ou Owner da Loja
+
+        Returns:
+            { "success": true, "message": "Backup enviado para email@example.com" }
+        """
+        from .backup_service import BackupService
+        from .backup_email_service import BackupEmailService
+        from .models import HistoricoBackup, ConfiguracaoBackup
+        from .tasks import _salvar_arquivo_backup
+
+        loja = self.get_object()
+        ok, err_response = self._ensure_loja_database_available(loja)
+        if not ok:
+            return err_response
+
+        logger.info(f"📤 Enviar backup agora - Loja: {loja.nome} (ID: {loja.id})")
+
+        historico = HistoricoBackup.objects.create(
+            loja=loja,
+            tipo='manual',
+            status='processando',
+            solicitado_por=request.user,
+            arquivo_nome='processando...'
+        )
+
+        try:
+            service = BackupService()
+            result = service.exportar_loja(
+                loja_id=loja.id,
+                incluir_imagens=request.data.get('incluir_imagens', False)
+            )
+
+            if not result.get('success'):
+                historico.marcar_como_erro(result.get('erro', 'Erro desconhecido'))
+                return Response({
+                    'success': False,
+                    'error': result.get('erro')
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            arquivo_path = _salvar_arquivo_backup(
+                loja=loja,
+                arquivo_nome=result['arquivo_nome'],
+                arquivo_bytes=result['arquivo_bytes']
+            )
+            historico.arquivo_nome = result['arquivo_nome']
+            historico.arquivo_path = arquivo_path
+            historico.marcar_como_concluido(
+                tamanho_mb=result['tamanho_mb'],
+                total_registros=result['total_registros'],
+                tabelas=result['tabelas']
+            )
+
+            try:
+                config = ConfiguracaoBackup.objects.get(loja=loja)
+                config.incrementar_contador()
+            except ConfiguracaoBackup.DoesNotExist:
+                pass
+
+            email_service = BackupEmailService()
+            if email_service.enviar_backup_email(loja_id=loja.id, historico_backup_id=historico.id):
+                logger.info(f"✅ Backup enviado por email - {loja.nome}")
+                return Response({
+                    'success': True,
+                    'message': f'Backup enviado para {loja.owner.email}',
+                    'historico_id': historico.id
+                })
+            return Response({
+                'success': False,
+                'error': 'Backup gerado, mas falha ao enviar email. Verifique o email do proprietário e os logs.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception(f"❌ Erro em enviar_backup_agora: {e}")
+            historico.marcar_como_erro(str(e))
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
     def importar_backup(self, request, pk=None):
         """

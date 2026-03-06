@@ -86,6 +86,7 @@ class SuperAdminSecurityMiddleware:
                 '/reenviar_senha/',                  # Reenviar senha por email
                 '/financeiro/',                      # Dados financeiros da própria loja
                 '/exportar_backup/',                 # Backup: exportar (loja)
+                '/enviar_backup_agora/',             # Backup: enviar por email agora
                 '/importar_backup/',                 # Backup: importar (loja)
                 '/configuracao_backup/',             # Backup: config GET
                 '/atualizar_configuracao_backup/',   # Backup: config PATCH/PUT

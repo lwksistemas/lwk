@@ -225,7 +225,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                 >
                   <span>⚙️</span>
-                  <span>Configurar Automático</span>
+                  <span>Backup por email (automático ou manual)</span>
                 </button>
               </div>
             </div>

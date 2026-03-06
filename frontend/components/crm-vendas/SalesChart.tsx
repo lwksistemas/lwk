@@ -47,12 +47,14 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
               className="text-gray-600 dark:text-gray-400"
             />
             <Tooltip
-              formatter={(value: number) => [
-                new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                  minimumFractionDigits: 0,
-                }).format(value),
+              formatter={(value: number | undefined) => [
+                value != null
+                  ? new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                      minimumFractionDigits: 0,
+                    }).format(value)
+                  : '',
                 '',
               ]}
               contentStyle={{

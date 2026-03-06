@@ -32,6 +32,15 @@ const maxWidthClasses = {
   '4xl': 'max-w-4xl',
 };
 
+const maxWidthSmClasses = {
+  md: 'sm:max-w-md',
+  lg: 'sm:max-w-lg',
+  xl: 'sm:max-w-xl',
+  '2xl': 'sm:max-w-2xl',
+  '3xl': 'sm:max-w-3xl',
+  '4xl': 'sm:max-w-4xl',
+};
+
 export function CrudModal({
   loja,
   onClose,
@@ -86,15 +95,16 @@ export function CrudModal({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fade-in"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-0 sm:p-4 animate-fade-in"
       onClick={handleBackdropClick}
     >
       <div 
         className={`
           bg-white dark:bg-gray-800 
-          rounded-lg sm:rounded-xl shadow-2xl p-4 sm:p-6 md:p-8 
-          ${maxWidthClasses[maxWidth]} w-full 
-          max-h-[95vh] sm:max-h-[90vh] overflow-y-auto
+          rounded-none sm:rounded-xl shadow-2xl p-4 sm:p-6 md:p-8 
+          w-full h-full max-h-full sm:h-auto sm:max-h-[90vh] sm:max-w-[95vw]
+          ${maxWidthSmClasses[maxWidth]}
+          overflow-y-auto
           animate-scale-in
         `}
       >

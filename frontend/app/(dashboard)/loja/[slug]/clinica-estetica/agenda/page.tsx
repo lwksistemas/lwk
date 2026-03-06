@@ -94,7 +94,7 @@ export default function AgendaClinicaEsteticaPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 min-w-0 max-w-full overflow-x-hidden">
       {/* Menu superior: cor da loja (roxo para clínica de estética), título, período e legenda */}
       <header
         className="text-white shadow-lg flex-shrink-0 px-3 sm:px-4 py-2 sm:py-3"
@@ -160,7 +160,7 @@ export default function AgendaClinicaEsteticaPage() {
       </header>
 
       {/* Conteúdo: tela inteira para o calendário (semana usa todo o espaço disponível) */}
-      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden max-w-full">
         <CalendarioAgendamentos
           loja={loja}
           headerInBar

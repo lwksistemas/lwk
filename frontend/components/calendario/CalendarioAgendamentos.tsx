@@ -941,7 +941,7 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
   };
 
   return (
-    <div className="space-y-3 sm:space-y-6 min-h-0 flex flex-col h-full">
+    <div className="space-y-3 sm:space-y-6 min-h-0 min-w-0 flex flex-col h-full max-w-full overflow-hidden">
       <div className={`${headerInBar ? '' : 'bg-white dark:bg-gray-800 rounded-xl shadow p-3 sm:p-6'} flex-shrink-0`}>
         <div className={`flex flex-col ${headerInBar ? 'gap-2' : 'gap-3 sm:gap-4'}`}>
           {/* Título + período + legenda: só quando não está no menu superior (headerInBar) */}
@@ -1045,7 +1045,7 @@ backgroundColor: `${getStatusClinicaInfo(agendamento.status).color}15`,
       </div>
 
       {/* Área do calendário - na semana ocupa tela inteira (flex-1); scroll suave no mobile */}
-      <div className={`flex-1 min-h-0 overflow-auto overscroll-contain ${visualizacao === 'semana' ? 'flex flex-col' : '-mx-2 px-2 sm:mx-0 sm:px-0'}`} style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className={`flex-1 min-h-0 min-w-0 overflow-auto overscroll-contain ${visualizacao === 'semana' ? 'flex flex-col' : '-mx-2 px-2 sm:mx-0 sm:px-0'}`} style={{ WebkitOverflowScrolling: 'touch' }}>
         {loading ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 sm:p-12 text-center min-h-[200px] flex items-center justify-center">
             <div className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Carregando agendamentos...</div>

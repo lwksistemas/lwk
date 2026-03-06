@@ -381,7 +381,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setModoFullscreen(false)}
-              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
             >
               📋 Ver Lista
             </button>
@@ -395,14 +395,14 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
         </div>
 
         {/* Tabs */}
-        <div className="bg-white border-b px-6">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6">
           <div className="flex">
             <button
               onClick={() => setActiveTab('consultas')}
-              className={`px-6 py-3 font-medium border-b-2 ${
+              className={`px-4 sm:px-6 py-3 font-medium border-b-2 ${
                 activeTab === 'consultas'
                   ? 'border-current text-current'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
               style={{
                 borderBottomColor: activeTab === 'consultas' ? loja.cor_primaria : 'transparent',
@@ -413,10 +413,10 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
             </button>
             <button
               onClick={() => setActiveTab('evolucao')}
-              className={`px-6 py-3 font-medium border-b-2 ${
+              className={`px-4 sm:px-6 py-3 font-medium border-b-2 ${
                 activeTab === 'evolucao'
                   ? 'border-current text-current'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
               style={{
                 borderBottomColor: activeTab === 'evolucao' ? loja.cor_primaria : 'transparent',
@@ -603,7 +603,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
                         <>
                           <button
                             onClick={() => selecionarConsulta(consulta)}
-                            className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 font-medium"
+                            className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-gray-900 dark:text-white"
                           >
                             👁️ Ver Histórico
                           </button>
@@ -634,28 +634,28 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
 
         {/* Modal de Detalhes - Apenas quando uma consulta for selecionada */}
         {consultaSelecionada && !modoFullscreen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 sm:p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-xl border border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold" style={{ color: loja.cor_primaria }}>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white" style={{ color: loja.cor_primaria }}>
                   📋 Detalhes da Consulta - {consultaSelecionada.cliente_nome}
                 </h3>
                 <button
                   onClick={() => setConsultaSelecionada(null)}
-                  className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                  className="px-4 py-2 bg-gray-500 dark:bg-gray-600 text-white rounded-md hover:bg-gray-600 dark:hover:bg-gray-500"
                 >
                   ✕ Fechar
                 </button>
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b mb-4">
+              <div className="flex border-b border-gray-200 dark:border-gray-600 mb-4">
                 <button
                   onClick={() => setActiveTab('consultas')}
                   className={`px-4 py-2 font-medium ${
                     activeTab === 'consultas'
-                      ? 'border-b-2 text-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'border-b-2'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                   style={{
                     borderBottomColor: activeTab === 'consultas' ? loja.cor_primaria : 'transparent',
@@ -668,8 +668,8 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
                   onClick={() => setActiveTab('evolucao')}
                   className={`px-4 py-2 font-medium ${
                     activeTab === 'evolucao'
-                      ? 'border-b-2 text-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'border-b-2'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                   style={{
                     borderBottomColor: activeTab === 'evolucao' ? loja.cor_primaria : 'transparent',

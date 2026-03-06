@@ -179,17 +179,17 @@ export default function RelatoriosPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-xl text-gray-600">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-xl text-gray-600 dark:text-gray-400">Carregando...</div>
       </div>
     );
   }
 
   if (!lojaInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Erro ao carregar loja</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Erro ao carregar loja</h2>
           <button
             onClick={() => router.push(loginPath)}
             className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -202,7 +202,7 @@ export default function RelatoriosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <nav 
         className="text-white shadow-lg"
@@ -238,26 +238,26 @@ export default function RelatoriosPage() {
           
           {/* Cabeçalho para impressão */}
           <div className="hidden print:block mb-6">
-            <h1 className="text-3xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
+            <h1 className="text-3xl font-bold text-gray-900" style={{ color: lojaInfo.cor_primaria }}>
               {lojaInfo.nome}
             </h1>
             <p className="text-lg text-gray-600">Relatório de Atividades</p>
             <p className="text-sm text-gray-500">Período: {dataInicio} a {dataFim}</p>
-            <hr className="my-4" />
+            <hr className="my-4 border-gray-300" />
           </div>
           
           {/* Filtros */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6 no-print">
-            <h3 className="text-base sm:text-lg font-semibold mb-4">Filtros</h3>
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6 no-print border border-gray-200 dark:border-gray-700">
+            <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-white">Filtros</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Período
                 </label>
                 <select
                   value={periodoSelecionado}
                   onChange={(e) => setPeriodoSelecionado(e.target.value)}
-                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="hoje">Hoje</option>
                   <option value="semana_atual">Semana Atual</option>
@@ -270,26 +270,26 @@ export default function RelatoriosPage() {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Data Início
                 </label>
                 <input
                   type="date"
                   value={dataInicio}
                   onChange={(e) => setDataInicio(e.target.value)}
-                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Data Fim
                 </label>
                 <input
                   type="date"
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
-                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+                  className="w-full px-3 py-2 min-h-[44px] text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
             </div>
@@ -305,31 +305,31 @@ export default function RelatoriosPage() {
           </div>
 
           {/* Resumo Financeiro */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
-            <h3 className="text-base sm:text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-white" style={{ color: lojaInfo.cor_primaria }}>
               📊 Resumo Financeiro
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Receita Total</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Receita Total</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Despesas</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Despesas</p>
                 <p className="text-lg sm:text-2xl font-bold text-red-600">
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Lucro Líquido</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Lucro Líquido</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   R$ 0,00
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Margem</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Margem</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0%
                 </p>
@@ -338,62 +338,62 @@ export default function RelatoriosPage() {
           </div>
 
           {/* Agendamentos */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
-            <h3 className="text-base sm:text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-white" style={{ color: lojaInfo.cor_primaria }}>
               📅 Relatório de Agendamentos
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Total de Agendamentos</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Total de Agendamentos</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Realizados</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Realizados</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0 (0%)
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Cancelados</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Cancelados</p>
                 <p className="text-lg sm:text-2xl font-bold text-red-600">
                   0 (0%)
                 </p>
               </div>
             </div>
 
-            <div className="text-center py-6 sm:py-8 text-gray-500">
+            <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400">
               <p className="text-sm sm:text-lg">Nenhum agendamento registrado no período</p>
             </div>
           </div>
 
           {/* Clientes */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
-            <h3 className="text-base sm:text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-white" style={{ color: lojaInfo.cor_primaria }}>
               👥 Relatório de Clientes
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Total de Clientes</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Total de Clientes</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Novos no Período</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Novos no Período</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Clientes Ativos</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Clientes Ativos</p>
                 <p className="text-lg sm:text-2xl font-bold" style={{ color: lojaInfo.cor_primaria }}>
                   0
                 </p>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Taxa de Retorno</p>
+              <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Taxa de Retorno</p>
                 <p className="text-lg sm:text-2xl font-bold text-green-600">
                   0%
                 </p>
@@ -402,18 +402,18 @@ export default function RelatoriosPage() {
           </div>
 
           {/* Profissionais */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
-            <h3 className="text-base sm:text-lg font-semibold mb-4" style={{ color: lojaInfo.cor_primaria }}>
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-white" style={{ color: lojaInfo.cor_primaria }}>
               👨‍⚕️ Desempenho dos Profissionais
             </h3>
-            <div className="text-center py-6 sm:py-8 text-gray-500">
+            <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400">
               <p className="text-sm sm:text-lg">Nenhum profissional cadastrado</p>
             </div>
           </div>
 
           {/* Botões de Exportação */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow no-print">
-            <h3 className="text-base sm:text-lg font-semibold mb-4">Exportar Relatórios</h3>
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow no-print border border-gray-200 dark:border-gray-700">
+            <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-white">Exportar Relatórios</h3>
             <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
               <button
                 onClick={handleExportarExcel}
@@ -500,15 +500,15 @@ function ModalEnviarEmail({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-8 max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-6" style={{ color: lojaInfo.cor_primaria }}>
+    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 sm:p-8 max-w-md w-full shadow-xl border border-gray-200 dark:border-gray-700">
+        <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white" style={{ color: lojaInfo.cor_primaria }}>
           📧 Enviar Relatório por Email
         </h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email do Destinatário *
             </label>
             <input
@@ -517,13 +517,13 @@ function ModalEnviarEmail({
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               placeholder="email@exemplo.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Assunto
             </label>
             <input
@@ -531,12 +531,12 @@ function ModalEnviarEmail({
               name="assunto"
               value={formData.assunto}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Mensagem
             </label>
             <textarea
@@ -544,15 +544,15 @@ function ModalEnviarEmail({
               value={formData.mensagem}
               onChange={handleChange}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-offset-0"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-offset-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-md">
-            <p className="text-sm text-gray-600">
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md border border-gray-200 dark:border-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               <strong>Período:</strong> {dataInicio} a {dataFim}
             </p>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               <strong>Formato:</strong> PDF
             </p>
           </div>
@@ -562,7 +562,7 @@ function ModalEnviarEmail({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-900 dark:text-white"
             >
               Cancelar
             </button>

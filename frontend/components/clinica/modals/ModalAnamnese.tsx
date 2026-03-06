@@ -425,7 +425,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
 
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h4 className="text-lg font-semibold text-gray-700">Perguntas</h4>
+              <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Perguntas</h4>
               <button type="button" onClick={addPergunta} className="px-4 py-2 text-sm text-white rounded-md hover:opacity-90" style={{ backgroundColor: loja.cor_primaria }}>
                 + Adicionar Pergunta
               </button>
@@ -433,11 +433,11 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
 
             <div className="space-y-4">
               {formData.perguntas.map((pergunta, index) => (
-                <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700/50">
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-sm font-medium text-gray-600">Pergunta {index + 1}</span>
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Pergunta {index + 1}</span>
                     {formData.perguntas.length > 1 && (
-                      <button type="button" onClick={() => removePergunta(index)} className="text-red-500 hover:text-red-700 text-sm">
+                      <button type="button" onClick={() => removePergunta(index)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm">
                         🗑️ Remover
                       </button>
                     )}
@@ -445,23 +445,23 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Pergunta *</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pergunta *</label>
                       <input
                         type="text"
                         value={pergunta.pergunta}
                         onChange={(e) => handlePerguntaChange(index, 'pergunta', e.target.value)}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         placeholder="Ex: Possui alguma alergia conhecida?"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Resposta</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Resposta</label>
                       <select
                         value={pergunta.tipo}
                         onChange={(e) => handlePerguntaChange(index, 'tipo', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       >
                         <option value="texto">Texto</option>
                         <option value="sim_nao">Sim/Não</option>
@@ -479,7 +479,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
                           onChange={(e) => handlePerguntaChange(index, 'obrigatoria', e.target.checked)}
                           className="mr-2"
                         />
-                        <span className="text-sm text-gray-700">Pergunta obrigatória</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Pergunta obrigatória</span>
                       </label>
                     </div>
                   </div>
@@ -488,8 +488,8 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
             </div>
           </div>
 
-          <div className="flex justify-end space-x-4 pt-4 border-t">
-            <button type="button" onClick={resetForm} disabled={submitting} className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50">
+          <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button type="button" onClick={resetForm} disabled={submitting} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-900 dark:text-white">
               Cancelar
             </button>
             <button type="submit" disabled={submitting} className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: loja.cor_primaria }}>

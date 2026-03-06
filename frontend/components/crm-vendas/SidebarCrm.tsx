@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useCRMUIStore } from '@/store/crm-ui';
 import {
   LayoutDashboard,
@@ -20,8 +20,10 @@ interface SidebarCrmProps {
 
 export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
   const { collapsed, toggle } = useCRMUIStore();
+  const router = useRouter();
   const params = useParams();
-  const slug = params.slug as string;
+  const pathname = usePathname();
+  const slug = (params?.slug as string) || (typeof pathname === 'string' && pathname.startsWith('/loja/') ? pathname.split('/')[2] : '') || '';
   const base = `/loja/${slug}/crm-vendas`;
 
   return (
@@ -66,13 +68,16 @@ export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
       </nav>
 
       <div className="p-2 border-t border-gray-200 dark:border-gray-800 space-y-1">
-        <Link
-          href={`/loja/${slug}/dashboard`}
-          className="crm-menu-item text-gray-500 dark:text-gray-400"
+        <button
+          type="button"
+          onClick={() => slug && router.push(`/loja/${slug}/dashboard`)}
+          className="crm-menu-item w-full text-left text-gray-500 dark:text-gray-400"
+          disabled={!slug}
+          title={slug ? 'Voltar ao dashboard da loja' : 'Carregando...'}
         >
           <ArrowLeft size={20} className="shrink-0" />
           {!collapsed && <span>Voltar à loja</span>}
-        </Link>
+        </button>
         {onLogout && (
           <button
             type="button"

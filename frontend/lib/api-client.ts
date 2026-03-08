@@ -9,8 +9,13 @@ const ENABLE_LOJA_FAILOVER = process.env.NEXT_PUBLIC_ENABLE_LOJA_FAILOVER === 't
 const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000');
 
 // ✅ NOVO v787: Suporte para troca manual de servidor
+// Rotas de loja SEMPRE usam Heroku (primário); superadmin pode usar Render
 function getInitialAPI(): string {
   if (typeof window !== 'undefined') {
+    const path = window.location.pathname || '';
+    if (path.includes('/loja/')) {
+      return PRIMARY_API;
+    }
     const savedServer = localStorage.getItem('backend_servidor');
     if (savedServer === 'render' && BACKUP_API) {
       return BACKUP_API;
@@ -236,6 +241,33 @@ function applyLojaInterceptors(instance: AxiosInstance) {
         } catch (backupError) {
           console.error('❌ Servidor backup também falhou:', backupError);
           return Promise.reject(backupError);
+        }
+      }
+
+      // Troca automática: 503 do Render (ex: credenciais Google) → tentar Heroku e repetir
+      const is503FromBackup =
+        BACKUP_API &&
+        currentAPI === BACKUP_API &&
+        error.response?.status === 503 &&
+        !originalRequest?._primaryRetry;
+      const detail = (error.response?.data?.detail ?? '') + '';
+      const isConfigError = detail.includes('GOOGLE_CLIENT_ID') || detail.includes('configurados');
+      if (is503FromBackup && isConfigError && originalRequest) {
+        originalRequest._primaryRetry = true;
+        console.warn('⚠️ Backup retornou 503 (config). Trocando automaticamente para Heroku...');
+        currentAPI = PRIMARY_API;
+        failoverCount = 0;
+        lastFailoverTime = null;
+        const primaryBaseURL = PRIMARY_API.endsWith('/api') ? PRIMARY_API : `${PRIMARY_API}/api`;
+        originalRequest.baseURL = primaryBaseURL;
+        updateInstancesBaseURL();
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('backend_servidor', 'heroku');
+        }
+        try {
+          return instance(originalRequest);
+        } catch (primaryError) {
+          return Promise.reject(primaryError);
         }
       }
       

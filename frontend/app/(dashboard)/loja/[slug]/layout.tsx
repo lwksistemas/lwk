@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import RouteGuard from '@/components/RouteGuard';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
 import { registrarSincronizacaoAoVoltarOnline } from '@/lib/offline-sync';
+import { resetToPrimaryAPI } from '@/lib/api-client';
 import CapturaErrosNavegador from '@/components/suporte/CapturaErrosNavegador';
 
 const PWA_LOJA_SLUG_KEY = 'pwa_loja_slug';
@@ -19,6 +20,11 @@ export default function LojaLayout({
 
   // Monitorar sessão em tempo real
   useSessionMonitor();
+
+  // Lojas sempre usam Heroku; ao entrar em rota de loja, forçar servidor principal
+  useEffect(() => {
+    resetToPrimaryAPI();
+  }, []);
 
   // Modo offline: ao voltar online, sincronizar fila de agendamentos (e demais itens) pendentes
   useEffect(() => {

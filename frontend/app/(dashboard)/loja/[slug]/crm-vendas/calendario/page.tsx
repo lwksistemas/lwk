@@ -194,6 +194,7 @@ export default function CalendarioCrmPage() {
         'Erro ao sincronizar com o Google Calendar.';
       setSyncError(msg);
       if (msg.includes('Token expirado') || msg.includes('inválido')) {
+        setGoogleStatus({ connected: false, email: null });
         loadGoogleStatus();
       }
     } finally {

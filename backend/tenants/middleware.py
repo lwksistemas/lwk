@@ -220,20 +220,18 @@ class TenantMiddleware:
         logger = logging.getLogger(__name__)
         
         # 1. Tentar pegar do header X-Loja-ID (PRIORIDADE - ID único)
+        # SEGURANÇA: Exige autenticação para evitar acesso indevido
         loja_id = request.headers.get('X-Loja-ID')
-        
         if loja_id:
+            if not hasattr(request, 'user') or not request.user.is_authenticated:
+                logger.debug("X-Loja-ID ignorado: usuário não autenticado")
+                return None
             try:
                 from superadmin.models import Loja
                 loja = Loja.objects.get(id=int(loja_id))
-                
-                # SEGURANÇA: Validar que o usuário pertence a esta loja
-                # IMPORTANTE: Só validar se o usuário estiver autenticado
-                if hasattr(request, 'user') and request.user.is_authenticated:
-                    if not self._validate_user_owns_loja(request, loja):
-                        logger.warning(f"⚠️ [_get_tenant_slug] Usuário {request.user.id} não tem permissão para loja {loja_id}")
-                        return None
-                
+                if not self._validate_user_owns_loja(request, loja):
+                    logger.warning(f"⚠️ [_get_tenant_slug] Usuário {request.user.id} não tem permissão para loja {loja_id}")
+                    return None
                 return loja.slug
             except (Loja.DoesNotExist, ValueError):
                 logger.warning(f"⚠️ [_get_tenant_slug] Loja {loja_id} não encontrada")

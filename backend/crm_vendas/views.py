@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -112,6 +112,26 @@ class AtividadeViewSet(BaseModelViewSet):
         return qs
 
 
+def _empty_dashboard_response():
+    """Resposta vazia padrão quando não há contexto de loja."""
+    return {
+        'leads': 0,
+        'oportunidades': 0,
+        'receita': 0,
+        'pipeline_aberto': 0,
+        'meta_vendas': 0,
+        'taxa_conversao': 0,
+        'pipeline_por_etapa': [],
+        'atividades_hoje': [],
+        'performance_vendedores': [],
+    }
+
+
+ETAPAS_PIPELINE = [
+    'prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won',
+]
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def dashboard_data(request):
@@ -120,91 +140,84 @@ def dashboard_data(request):
     Retorna: leads, oportunidades, receita, pipeline por etapa,
     atividades do dia, performance por vendedor.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     loja_id = get_current_loja_id()
     if not loja_id:
+        return Response(_empty_dashboard_response(), status=200)
+
+    try:
+        from .models import Lead, Oportunidade, Atividade, Vendedor
+
+        # LojaIsolationManager já filtra por loja_id; usar .all() para respeitar o manager
+        leads_qs = Lead.objects.all()
+        opp_qs = Oportunidade.objects.all()
+        atividades_qs = Atividade.objects.all()
+        vendedores_qs = Vendedor.objects.filter(is_active=True)
+
+        # Totais (1 query cada)
+        total_leads = leads_qs.count()
+        total_oportunidades = opp_qs.count()
+        receita = opp_qs.filter(etapa='closed_won').aggregate(total=Sum('valor'))['total'] or 0
+        pipeline_aberto = opp_qs.exclude(
+            etapa__in=['closed_won', 'closed_lost']
+        ).aggregate(total=Sum('valor'))['total'] or 0
+
+        # Pipeline por etapa: 1 query por etapa (agregado)
+        pipeline_por_etapa = []
+        for etapa in ETAPAS_PIPELINE:
+            agg = opp_qs.filter(etapa=etapa).aggregate(
+                valor=Sum('valor'),
+                qtd=Count('id'),
+            )
+            pipeline_por_etapa.append({
+                'etapa': etapa,
+                'valor': float(agg['valor'] or 0),
+                'quantidade': agg['qtd'] or 0,
+            })
+
+        # Atividades de hoje (limitado, com select_related)
+        hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        hoje_fim = hoje_inicio + timedelta(days=1)
+        atividades_hoje = atividades_qs.filter(
+            data__gte=hoje_inicio,
+            data__lt=hoje_fim,
+        ).select_related('oportunidade', 'lead').order_by('concluido', 'data')[:20]
+        atividades_hoje_data = AtividadeSerializer(atividades_hoje, many=True).data
+
+        # Performance por vendedor: 1 query com annotate (evita loop de queries)
+        mes_inicio = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        perf_qs = vendedores_qs.annotate(
+            receita_mes=Sum(
+                'oportunidades__valor',
+                filter=Q(oportunidades__etapa='closed_won') & Q(oportunidades__data_fechamento__gte=mes_inicio),
+            ),
+        )
+        performance_vendedores = [
+            {'id': v.id, 'nome': v.nome, 'receita_mes': float(v.receita_mes or 0)}
+            for v in perf_qs
+        ]
+
+        # Taxa de conversão
+        total_fechados = opp_qs.filter(etapa__in=['closed_won', 'closed_lost']).count()
+        total_ganhos = opp_qs.filter(etapa='closed_won').count()
+        taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
+
         return Response({
-            'leads': 0,
-            'oportunidades': 0,
-            'receita': 0,
-            'pipeline_aberto': 0,
+            'leads': total_leads,
+            'oportunidades': total_oportunidades,
+            'receita': float(receita),
+            'pipeline_aberto': float(pipeline_aberto),
             'meta_vendas': 0,
-            'taxa_conversao': 0,
-            'pipeline_por_etapa': [],
-            'atividades_hoje': [],
-            'performance_vendedores': [],
-        }, status=200)
-
-    # Base querysets filtrados por loja
-    from .models import Lead, Oportunidade, Atividade, Vendedor
-
-    leads_qs = Lead.objects.filter(loja_id=loja_id)
-    opp_qs = Oportunidade.objects.filter(loja_id=loja_id)
-    atividades_qs = Atividade.objects.filter(loja_id=loja_id)
-    vendedores_qs = Vendedor.objects.filter(loja_id=loja_id, is_active=True)
-
-    # Totais
-    total_leads = leads_qs.count()
-    total_oportunidades = opp_qs.count()
-    receita = opp_qs.filter(etapa='closed_won').aggregate(
-        total=Sum('valor')
-    )['total'] or 0
-    pipeline_aberto = opp_qs.exclude(
-        etapa__in=['closed_won', 'closed_lost']
-    ).aggregate(total=Sum('valor'))['total'] or 0
-
-    # Pipeline por etapa (valores)
-    etapas = [
-        'prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won',
-    ]
-    pipeline_por_etapa = []
-    for etapa in etapas:
-        valor = opp_qs.filter(etapa=etapa).aggregate(s=Sum('valor'))['s'] or 0
-        pipeline_por_etapa.append({
-            'etapa': etapa,
-            'valor': float(valor),
-            'quantidade': opp_qs.filter(etapa=etapa).count(),
+            'taxa_conversao': taxa_conversao,
+            'pipeline_por_etapa': pipeline_por_etapa,
+            'atividades_hoje': atividades_hoje_data,
+            'performance_vendedores': performance_vendedores,
         })
-
-    # Atividades de hoje (não concluídas primeiro)
-    hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    hoje_fim = hoje_inicio + timedelta(days=1)
-    atividades_hoje = atividades_qs.filter(
-        data__gte=hoje_inicio,
-        data__lt=hoje_fim,
-    ).select_related('oportunidade', 'lead').order_by('concluido', 'data')[:20]
-    atividades_hoje_data = AtividadeSerializer(atividades_hoje, many=True).data
-
-    # Performance por vendedor (receita fechada no mês)
-    mes_inicio = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    performance_vendedores = []
-    for v in vendedores_qs:
-        receita_v = Oportunidade.objects.filter(
-            loja_id=loja_id,
-            vendedor=v,
-            etapa='closed_won',
-            data_fechamento__gte=mes_inicio,
-        ).aggregate(s=Sum('valor'))['s'] or 0
-        performance_vendedores.append({
-            'id': v.id,
-            'nome': v.nome,
-            'receita_mes': float(receita_v),
-        })
-
-    # Taxa de conversão (simplificada: fechados ganhos / total oportunidades com etapa fechada)
-    total_fechados = opp_qs.filter(
-        etapa__in=['closed_won', 'closed_lost']
-    ).count()
-    total_ganhos = opp_qs.filter(etapa='closed_won').count()
-    taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
-
-    return Response({
-        'leads': total_leads,
-        'oportunidades': total_oportunidades,
-        'receita': float(receita),
-        'pipeline_aberto': float(pipeline_aberto),
-        'meta_vendas': 0,  # Pode vir de configuração da loja depois
-        'taxa_conversao': taxa_conversao,
-        'pipeline_por_etapa': pipeline_por_etapa,
-        'atividades_hoje': atividades_hoje_data,
-        'performance_vendedores': performance_vendedores,
-    })
+    except Exception as e:
+        logger.exception('Erro no dashboard CRM: %s', e)
+        return Response(
+            {'detail': 'Erro ao carregar dashboard. Tente novamente.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

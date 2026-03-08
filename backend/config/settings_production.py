@@ -49,10 +49,9 @@ INSTALLED_APPS = [
     'crm_vendas.apps.CrmVendasConfig',  # CRM Vendas (Leads, Oportunidades, Pipeline)
 ]
 
-# MIDDLEWARE
+# MIDDLEWARE - JWT deve rodar ANTES do TenantMiddleware para X-Loja-ID funcionar
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
-    'tenants.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -60,7 +59,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'superadmin.middleware.JWTAuthenticationMiddleware',  # PROCESSA JWT ANTES
+    'superadmin.middleware.JWTAuthenticationMiddleware',  # JWT antes do Tenant (X-Loja-ID)
+    'tenants.middleware.TenantMiddleware',  # Requer usuário autenticado para validar loja
     'superadmin.middleware.SuperAdminSecurityMiddleware',  # APÓS AUTENTICAÇÃO
     'superadmin.historico_middleware.HistoricoAcessoMiddleware',  # ✅ Histórico de acessos
     'django.contrib.messages.middleware.MessageMiddleware',

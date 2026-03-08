@@ -5,11 +5,18 @@ from django.db import migrations
 
 
 def add_google_event_id_column(apps, schema_editor):
-    """Adiciona google_event_id usando a conexão do schema_editor (tenant correto)."""
+    """Adiciona google_event_id em schemas onde a tabela existe (tenant)."""
     conn = schema_editor.connection
     if conn.vendor != 'postgresql':
         return
     with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = current_schema()
+            AND table_name = 'crm_vendas_atividade'
+        """)
+        if not cursor.fetchone():
+            return  # tabela não existe neste schema (ex: default)
         cursor.execute("""
             SELECT 1 FROM information_schema.columns
             WHERE table_schema = current_schema()
@@ -25,11 +32,18 @@ def add_google_event_id_column(apps, schema_editor):
 
 
 def reverse_add_google_event_id_column(apps, schema_editor):
-    """Remove coluna google_event_id."""
+    """Remove coluna google_event_id se existir."""
     conn = schema_editor.connection
     if conn.vendor != 'postgresql':
         return
     with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = current_schema()
+            AND table_name = 'crm_vendas_atividade'
+        """)
+        if not cursor.fetchone():
+            return
         cursor.execute("""
             SELECT 1 FROM information_schema.columns
             WHERE table_schema = current_schema()

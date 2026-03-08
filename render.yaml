@@ -53,8 +53,10 @@ services:
         value: admin@lwksistemas.com.br,seguranca@lwksistemas.com.br
       - key: SITE_URL
         value: https://lwksistemas.com.br
-      # Google Calendar OAuth (CRM Vendas): adicionar GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET
-      # no Dashboard do Render → Environment. Ver docs/GOOGLE_CALENDAR_SETUP.md
+      # Google Calendar OAuth (CRM Vendas)
+      - key: GOOGLE_CLIENT_ID
+        value: 950950871340-0sqbgpotnfjql8svrgckhf3guo7jupc4.apps.googleusercontent.com
+      # GOOGLE_CLIENT_SECRET: adicionar no Dashboard do Render → Environment (não commitar)
       - key: FRONTEND_URL
         value: https://lwksistemas.com.br
       - key: USE_REDIS

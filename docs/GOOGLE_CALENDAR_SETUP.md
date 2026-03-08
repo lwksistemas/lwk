@@ -17,16 +17,16 @@ Para a integração com Google Calendar funcionar, é necessário configurar cre
 
 ### Render (lwksistemas-backup)
 
-1. Acesse [Render Dashboard](https://dashboard.render.com) → **lwksistemas-backup** → **Environment**
-2. Adicione ou edite:
-   - `GOOGLE_CLIENT_ID` = ID do cliente (ex: `123456789-xxx.apps.googleusercontent.com`)
-   - `GOOGLE_CLIENT_SECRET` = Segredo do cliente
-3. Faça um novo deploy para aplicar as alterações
+O `GOOGLE_CLIENT_ID` já está definido no `render.yaml`. No Dashboard do Render → **lwksistemas-backup** → **Environment**, adicione apenas:
+- `GOOGLE_CLIENT_SECRET` = Segredo do cliente (obtido no Google Cloud Console)
+
+Faça um novo deploy após adicionar o secret.
 
 ### Heroku (produção principal)
 
+O `GOOGLE_CLIENT_ID` já está configurado. Adicione apenas o secret:
+
 ```bash
-heroku config:set GOOGLE_CLIENT_ID="seu-client-id" -a lwksistemas
 heroku config:set GOOGLE_CLIENT_SECRET="seu-client-secret" -a lwksistemas
 ```
 

@@ -50,6 +50,7 @@ def get_credentials(connection):
     """Converte GoogleCalendarConnection em Credentials do google-auth (com refresh)."""
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
+    from google.auth.exceptions import RefreshError
 
     creds = Credentials(
         token=connection.access_token,
@@ -62,10 +63,17 @@ def get_credentials(connection):
     if connection.token_expiry:
         creds.expiry = connection.token_expiry
     if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-        connection.access_token = creds.token
-        connection.token_expiry = creds.expiry
-        connection.save(update_fields=['access_token', 'token_expiry', 'updated_at'])
+        try:
+            creds.refresh(Request())
+            connection.access_token = creds.token
+            connection.token_expiry = creds.expiry
+            connection.save(update_fields=['access_token', 'token_expiry', 'updated_at'])
+        except RefreshError as e:
+            logger.warning('Refresh token falhou, removendo conexão inválida: %s', e)
+            connection.delete()
+            raise ValueError(
+                'Token expirado ou inválido. Desconecte e conecte o Google Calendar novamente.'
+            ) from e
     return creds
 
 

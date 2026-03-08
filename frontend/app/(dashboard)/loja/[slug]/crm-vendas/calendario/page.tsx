@@ -193,10 +193,13 @@ export default function CalendarioCrmPage() {
         (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         'Erro ao sincronizar com o Google Calendar.';
       setSyncError(msg);
+      if (msg.includes('Token expirado') || msg.includes('inválido')) {
+        loadGoogleStatus();
+      }
     } finally {
       setGoogleLoading(false);
     }
-  }, [range, fetchAtividades]);
+  }, [range, fetchAtividades, loadGoogleStatus]);
 
   const handleDisconnectGoogle = useCallback(async () => {
     if (

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
+import { isTipoCRMVendas } from '@/lib/loja-tipo';
 import apiClient from '@/lib/api-client';
 import PasswordInput from '@/components/auth/PasswordInput';
 import ErrorAlert from '@/components/auth/ErrorAlert';
@@ -117,12 +118,15 @@ export default function LojaLoginDinamicoPage() {
         window.location.replace('/loja/trocar-senha');
         return;
       }
-      
-      console.log('🚀 Redirecionando para dashboard...');
+
+      // Loja tipo CRM Vendas: ir direto para o Dashboard de Vendas (CRM)
+      const destino = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome)
+        ? `/loja/${slug}/crm-vendas`
+        : `/loja/${slug}/dashboard`;
+      console.log('🚀 Redirecionando para', destino);
       markInternalNavigation();
-      // Adicionar timestamp para forçar reload e evitar cache
       const timestamp = new Date().getTime();
-      window.location.replace(`/loja/${slug}/dashboard?_t=${timestamp}`);
+      window.location.replace(`${destino}?_t=${timestamp}`);
     } catch (err: any) {
       console.error('❌ Erro no login:', err);
       setError(err.message || 'Erro ao fazer login. Tente novamente.');

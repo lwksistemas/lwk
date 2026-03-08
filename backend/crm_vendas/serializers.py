@@ -74,6 +74,6 @@ class AtividadeSerializer(serializers.ModelSerializer):
         model = Atividade
         fields = [
             'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'data', 'concluido',
-            'observacoes', 'created_at', 'updated_at',
+            'observacoes', 'google_event_id', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']

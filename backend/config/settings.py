@@ -325,3 +325,8 @@ VAPID_CLAIM_MAILTO = config('VAPID_CLAIM_MAILTO', default='mailto:admin@lwksiste
 WHATSAPP_API_URL = config('WHATSAPP_API_URL', default='https://graph.facebook.com/v19.0')
 WHATSAPP_PHONE_ID = config('WHATSAPP_PHONE_ID', default='')
 WHATSAPP_TOKEN = config('WHATSAPP_TOKEN', default='')
+
+# Google Calendar (OAuth2 + API) - CRM Vendas
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
+GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
+FRONTEND_URL = config('FRONTEND_URL', default='https://lwksistemas.com.br')  # Base URL do front (redirect pós-OAuth)

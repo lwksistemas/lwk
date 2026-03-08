@@ -1,9 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import StatCard from '@/components/crm-vendas/StatCard';
 import SalesChart from '@/components/crm-vendas/SalesChart';
+import {
+  Wallet,
+  Users,
+  Briefcase,
+  Percent,
+  Calendar,
+  Phone,
+  FileText,
+  Flag,
+  ChevronRight,
+  DollarSign,
+} from 'lucide-react';
 
 interface DashboardData {
   leads: number;
@@ -25,7 +39,26 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
+const ETAPAS_ORDER = ['prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won'];
+const ETAPAS_LABEL: Record<string, string> = {
+  prospecting: 'Prospecção',
+  qualification: 'Qualificação',
+  proposal: 'Proposta',
+  negotiation: 'Negociação',
+  closed_won: 'Fechado (ganho)',
+};
+
+function iconPorTipo(tipo: string) {
+  const t = (tipo || '').toLowerCase();
+  if (t.includes('reunião') || t.includes('reuniao')) return Calendar;
+  if (t.includes('ligar') || t.includes('call')) return Phone;
+  if (t.includes('proposta') || t.includes('enviar')) return FileText;
+  return Flag;
+}
+
 export default function CrmVendasDashboardPage() {
+  const params = useParams();
+  const slug = (params?.slug as string) ?? '';
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,76 +98,233 @@ export default function CrmVendasDashboardPage() {
       quantidade: p.quantidade,
     })) ?? [];
 
+  const pipelineMap = new Map(
+    (data.pipeline_por_etapa || []).map((p) => [p.etapa, { valor: p.valor, quantidade: p.quantidade }])
+  );
+  const etapasComValor = ETAPAS_ORDER.map((key) => ({
+    key,
+    label: ETAPAS_LABEL[key] || key,
+    ...(pipelineMap.get(key) || { valor: 0, quantidade: 0 }),
+  }));
+
+  const atividades = (data.atividades_hoje || []) as {
+    id: number;
+    titulo: string;
+    tipo: string;
+    data: string;
+  }[];
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-        Dashboard de Vendas
-      </h1>
+    <div className="space-y-5">
+      {/* Page Header - Estilo Salesforce */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Home
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Visão geral do seu pipeline de vendas
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#16325c] border border-gray-300 dark:border-[#0d1f3c] rounded hover:bg-gray-50 dark:hover:bg-[#0d1f3c] transition-colors">
+            Filtrar
+          </button>
+          <button className="px-4 py-2 text-sm font-medium text-white bg-[#0176d3] hover:bg-[#0159a8] rounded transition-colors">
+            + Novo Lead
+          </button>
+        </div>
+      </div>
 
+      {/* Cards de métricas – estilo Salesforce Lightning */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Receita do mês" value={formatMoney(data.receita)} />
-        <StatCard title="Novos Leads" value={String(data.leads)} />
-        <StatCard title="Negócios em aberto" value={String(data.oportunidades)} />
-        <StatCard title="Taxa de conversão" value={`${data.taxa_conversao}%`} />
+        <StatCard
+          title="Receita do mês"
+          value={formatMoney(data.receita)}
+          icon={Wallet}
+          iconColor="text-[#0176d3]"
+          iconBgColor="bg-[#e3f3ff]"
+          trend="up"
+          trendValue="+12%"
+        />
+        <StatCard
+          title="Novos Leads"
+          value={String(data.leads)}
+          subtitle={`${data.oportunidades} em negociação`}
+          icon={Users}
+          iconColor="text-[#06a59a]"
+          iconBgColor="bg-[#d9f5f3]"
+        />
+        <StatCard
+          title="Taxa de conversão"
+          value={`${data.taxa_conversao}%`}
+          icon={Percent}
+          iconColor="text-[#ffb75d]"
+          iconBgColor="bg-[#fff4e6]"
+          trend={data.taxa_conversao > 20 ? 'up' : 'down'}
+          trendValue={data.taxa_conversao > 20 ? '+5%' : '-2%'}
+        />
+        <StatCard
+          title="Negócios em aberto"
+          value={String(data.oportunidades)}
+          icon={Briefcase}
+          iconColor="text-[#e287b2]"
+          iconBgColor="bg-[#fef0f7]"
+        />
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-100 dark:border-gray-700 p-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-          Pipeline aberto
-        </h3>
-        <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-          {formatMoney(data.pipeline_aberto)}
-        </p>
+      {/* Pipeline aberto + resumo por etapa - Estilo Salesforce */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Card de Pipeline Aberto */}
+        <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-[#d9f5f3] dark:bg-opacity-20">
+              <DollarSign size={20} className="text-[#06a59a]" />
+            </div>
+            <h2 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+              Pipeline aberto
+            </h2>
+          </div>
+          <p className="text-3xl font-bold text-[#06a59a] dark:text-[#06a59a]">
+            {formatMoney(data.pipeline_aberto)}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            {data.oportunidades} oportunidades ativas
+          </p>
+        </div>
+
+        {/* Pipeline por Etapa */}
+        <div className="lg:col-span-2 bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-5 overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Pipeline de vendas
+            </h2>
+            <Link
+              href={`/loja/${slug}/crm-vendas/pipeline`}
+              className="text-sm font-medium text-[#0176d3] hover:text-[#0159a8] inline-flex items-center gap-1 transition-colors"
+            >
+              Ver pipeline
+              <ChevronRight size={16} />
+            </Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2">
+            {etapasComValor.map((e, i) => (
+              <div
+                key={e.key}
+                className={`flex-shrink-0 w-32 rounded-lg border p-4 text-center transition-all hover:shadow-md ${
+                  i === etapasComValor.length - 1
+                    ? 'bg-[#d9f5f3] dark:bg-[#06a59a]/20 border-[#06a59a]/30'
+                    : 'bg-gray-50 dark:bg-[#0d1f3c] border-gray-200 dark:border-[#0d1f3c]'
+                }`}
+              >
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate mb-2">
+                  {e.label}
+                </p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {formatMoney(e.valor)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {e.quantidade} {e.quantidade === 1 ? 'negócio' : 'negócios'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {chartData.length > 0 && (
-        <SalesChart data={chartData} title="Pipeline por etapa" />
-      )}
+      {/* Gráfico Pipeline por etapa */}
+      <SalesChart data={chartData.length > 0 ? chartData : undefined} title="Pipeline por etapa" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Atividades de hoje + Top Vendedores – duas colunas - Estilo Salesforce */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Atividades de hoje */}
+        <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <div className="p-1.5 rounded bg-[#e3f3ff] dark:bg-opacity-20">
+                <Calendar size={18} className="text-[#0176d3]" />
+              </div>
+              Atividades de hoje
+            </h2>
+            <button className="text-sm text-[#0176d3] hover:text-[#0159a8] font-medium">
+              Ver todas
+            </button>
+          </div>
+          {atividades.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 dark:bg-[#0d1f3c] flex items-center justify-center">
+                <Calendar size={24} className="text-gray-400" />
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Nenhuma atividade para hoje
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {atividades.slice(0, 5).map((a) => {
+                const Icon = iconPorTipo(a.tipo);
+                return (
+                  <li
+                    key={a.id}
+                    className="flex items-center gap-3 py-2.5 border-b border-gray-100 dark:border-[#0d1f3c] last:border-0 hover:bg-gray-50 dark:hover:bg-[#0d1f3c] -mx-2 px-2 rounded transition-colors"
+                  >
+                    <div className="p-2 rounded bg-[#e3f3ff] dark:bg-opacity-20 text-[#0176d3]">
+                      <Icon size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {a.titulo}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                        {a.tipo}
+                        {a.data && ` • ${a.data}`}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Top Vendedores */}
         {data.performance_vendedores && data.performance_vendedores.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-100 dark:border-gray-700 p-4">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-              Performance por vendedor (mês)
-            </h3>
-            <ul className="space-y-2">
-              {data.performance_vendedores.map((v) => (
+          <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <div className="p-1.5 rounded bg-[#d9f5f3] dark:bg-opacity-20">
+                  <DollarSign size={18} className="text-[#06a59a]" />
+                </div>
+                Top vendedores (mês)
+              </h2>
+            </div>
+            <ul className="space-y-3">
+              {data.performance_vendedores.map((v, i) => (
                 <li
                   key={v.id}
-                  className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                  className="flex items-center gap-3 py-2.5 border-b border-gray-100 dark:border-[#0d1f3c] last:border-0 hover:bg-gray-50 dark:hover:bg-[#0d1f3c] -mx-2 px-2 rounded transition-colors"
                 >
-                  <span className="text-gray-900 dark:text-white">{v.nome}</span>
-                  <span className="font-medium text-green-600 dark:text-green-400">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0176d3] to-[#0d9dda] flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                      {v.nome.charAt(0).toUpperCase()}
+                    </div>
+                    {i < 3 && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#ffb75d] text-white text-xs font-bold flex items-center justify-center">
+                        {i + 1}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {v.nome}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Vendedor
+                    </p>
+                  </div>
+                  <span className="font-semibold text-[#06a59a] text-sm shrink-0">
                     {formatMoney(v.receita_mes)}
                   </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {data.atividades_hoje && data.atividades_hoje.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-100 dark:border-gray-700 p-4">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-              Atividades de hoje
-            </h3>
-            <ul className="space-y-2">
-              {(
-                data.atividades_hoje as {
-                  id: number;
-                  titulo: string;
-                  tipo: string;
-                  data: string;
-                }[]
-              ).map((a) => (
-                <li
-                  key={a.id}
-                  className="flex justify-between items-center py-1 text-sm"
-                >
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {a.titulo}
-                  </span>
-                  <span className="text-gray-500 capitalize">{a.tipo}</span>
                 </li>
               ))}
             </ul>

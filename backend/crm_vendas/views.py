@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from datetime import timedelta
 
 from core.views import BaseModelViewSet
@@ -98,6 +99,16 @@ class AtividadeViewSet(BaseModelViewSet):
         lead_id = self.request.query_params.get('lead_id')
         if lead_id:
             qs = qs.filter(lead_id=lead_id)
+        data_inicio = self.request.query_params.get('data_inicio')
+        if data_inicio:
+            dt = parse_datetime(data_inicio)
+            if dt:
+                qs = qs.filter(data__gte=dt)
+        data_fim = self.request.query_params.get('data_fim')
+        if data_fim:
+            dt = parse_datetime(data_fim)
+            if dt:
+                qs = qs.filter(data__lte=dt)
         return qs
 
 

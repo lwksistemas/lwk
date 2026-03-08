@@ -122,7 +122,9 @@
   animation: glow 2s ease-in-out infinite;
 }
 
-/* ========== CRM SaaS – menu lateral ========== */
+/* ========== CRM SaaS – layout estilo Salesforce/HubSpot ========== */
+
+/* Menu lateral – item ativo e hover */
 .crm-menu-item {
   display: flex;
   align-items: center;
@@ -132,13 +134,44 @@
   cursor: pointer;
   font-size: 0.875rem;
   color: hsl(var(--foreground));
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 .crm-menu-item:hover {
   background: hsl(var(--muted));
 }
 .dark .crm-menu-item:hover {
   background: hsl(var(--muted) / 0.5);
+}
+.crm-menu-item.crm-menu-item-active {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-weight: 500;
+}
+.dark .crm-menu-item.crm-menu-item-active {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+/* Cards modernos – sombras suaves (paleta azul CRM) */
+.crm-card {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.crm-card:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  border-color: #e0e7ff;
+}
+.dark .crm-card {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.dark .crm-card:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+  border-color: #475569;
 }
 
 /* Ícones do dashboard - animação suave contínua */
@@ -382,4 +415,20 @@
   .tablet-mode .text-xl.tablet-text {
     font-size: 1.25rem;
   }
+}
+
+/* Animação para toast de notificações */
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
 }

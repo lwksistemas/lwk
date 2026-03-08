@@ -1509,3 +1509,23 @@ class HistoricoBackup(models.Model):
         if minutos > 0:
             return f"{minutos}m {segundos}s"
         return f"{segundos}s"
+
+
+class GoogleCalendarConnection(models.Model):
+    """
+    Conexão OAuth com Google Calendar por loja (CRM Vendas).
+    Armazenado no banco default para que o callback OAuth (sem tenant na URL) possa salvar.
+    """
+    loja_id = models.IntegerField(db_index=True, unique=True)
+    access_token = models.TextField(blank=True)
+    refresh_token = models.TextField(blank=True)
+    token_expiry = models.DateTimeField(null=True, blank=True)
+    calendar_id = models.CharField(max_length=255, default='primary')
+    email = models.EmailField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'superadmin_google_calendar_connection'
+        verbose_name = 'Conexão Google Calendar (CRM)'
+        verbose_name_plural = 'Conexões Google Calendar (CRM)'

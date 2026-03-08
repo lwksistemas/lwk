@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, PagamentoLoja,
     UsuarioSistema, UserSession, MercadoPagoConfig, EmailRetry,
+    GoogleCalendarConnection,
 )
 
 @admin.register(UserSession)
@@ -60,6 +61,13 @@ class UsuarioSistemaAdmin(admin.ModelAdmin):
     list_display = ['user', 'tipo', 'is_active', 'created_at']
     list_filter = ['tipo', 'is_active']
 
+
+@admin.register(GoogleCalendarConnection)
+class GoogleCalendarConnectionAdmin(admin.ModelAdmin):
+    list_display = ['loja_id', 'email', 'calendar_id', 'updated_at']
+    list_filter = ['updated_at']
+    readonly_fields = ['token_expiry', 'created_at', 'updated_at']
+    exclude = ['access_token', 'refresh_token']
 
 @admin.register(EmailRetry)
 class EmailRetryAdmin(admin.ModelAdmin):

@@ -204,6 +204,7 @@ class Atividade(LojaIsolationMixin, models.Model):
     observacoes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    google_event_id = models.CharField(max_length=255, blank=True, null=True, help_text='ID do evento no Google Calendar (sincronização)')
 
     objects = LojaIsolationManager()
 

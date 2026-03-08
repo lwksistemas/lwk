@@ -40,14 +40,14 @@ export default function CrmVendasLayout({
   if (!ready || !isLoja) return null;
 
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="flex min-h-screen bg-[#f3f2f2] dark:bg-[#0d1f3c]">
       <SidebarCrm lojaNome={lojaInfo?.nome} onLogout={handleLogout} />
       <div className="flex-1 flex flex-col min-w-0">
         <HeaderCrm
-          title={lojaInfo ? `${lojaInfo.nome} – CRM` : 'CRM Vendas'}
+          title={lojaInfo ? `${lojaInfo.nome}` : 'Sales Cloud'}
           userName={lojaInfo?.nome ?? 'Admin'}
         />
-        <main className="p-4 sm:p-6 flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900">
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c]">
           {children}
         </main>
       </div>

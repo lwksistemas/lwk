@@ -36,25 +36,29 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
       : ETAPAS_PADRAO;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+    <div className="bg-blue-50/40 dark:bg-blue-900/10 rounded-2xl border-2 border-blue-200 dark:border-blue-800 border-l-4 border-l-blue-500 shadow-md p-6">
       {title && (
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+        <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-5">
           {title}
         </h2>
       )}
-      <div style={{ width: '100%', height: 300 }}>
+      <div style={{ width: '100%', height: 320 }} className="bg-white/60 dark:bg-slate-800/60 rounded-xl p-3">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-600" />
+          <BarChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.4} vertical={false} />
             <XAxis
               dataKey="stage"
-              tick={{ fontSize: 11 }}
-              className="text-gray-600 dark:text-gray-400"
+              tick={{ fontSize: 12, fill: '#1e40af' }}
+              axisLine={{ stroke: '#3b82f6', strokeWidth: 1 }}
+              tickLine={false}
+              className="text-blue-800 dark:text-blue-300"
             />
             <YAxis
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 11, fill: '#1e40af' }}
               tickFormatter={(v) => (v >= 1000 ? `R$${v / 1000}k` : `R$${v}`)}
-              className="text-gray-600 dark:text-gray-400"
+              axisLine={false}
+              tickLine={false}
+              className="text-blue-800 dark:text-blue-300"
             />
             <Tooltip
               formatter={(value: number | undefined) => [
@@ -65,16 +69,26 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
                       minimumFractionDigits: 0,
                     }).format(value)
                   : '',
-                '',
+                'Valor',
               ]}
               contentStyle={{
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
+                backgroundColor: 'white',
+                border: '1px solid rgba(0,0,0,0.08)',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.06)',
+                padding: '12px 16px',
               }}
+              labelStyle={{ fontWeight: 600, marginBottom: 4 }}
             />
-            <Legend />
-            <Bar dataKey="value" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="Valor (R$)" />
+            <Legend wrapperStyle={{ paddingTop: 8 }} />
+            <Bar
+              dataKey="value"
+              fill="#2563eb"
+              radius={[8, 8, 0, 0]}
+              name="Valor (R$)"
+              maxBarSize={56}
+              minPointSize={3}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

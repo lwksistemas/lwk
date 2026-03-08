@@ -9,6 +9,13 @@ from .views import (
     AtividadeViewSet,
     dashboard_data,
 )
+from .views_google_calendar import (
+    google_calendar_auth,
+    google_calendar_callback,
+    google_calendar_status,
+    google_calendar_sync,
+    google_calendar_disconnect,
+)
 
 router = DefaultRouter()
 router.register(r'vendedores', VendedorViewSet, basename='crm-vendedores')
@@ -20,5 +27,10 @@ router.register(r'atividades', AtividadeViewSet, basename='crm-atividades')
 
 urlpatterns = [
     path('dashboard/', dashboard_data),
+    path('google-calendar/auth/', google_calendar_auth),
+    path('google-calendar/callback/', google_calendar_callback),
+    path('google-calendar/status/', google_calendar_status),
+    path('google-calendar/sync/', google_calendar_sync),
+    path('google-calendar/disconnect/', google_calendar_disconnect),
     path('', include(router.urls)),
 ]

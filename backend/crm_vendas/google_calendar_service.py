@@ -61,12 +61,20 @@ def get_credentials(connection):
         scopes=SCOPES,
     )
     if connection.token_expiry:
-        creds.expiry = connection.token_expiry
+        expiry = connection.token_expiry
+        if timezone.is_naive(expiry):
+            expiry = timezone.make_aware(expiry, timezone.utc)
+        else:
+            expiry = expiry.astimezone(timezone.utc)
+        creds.expiry = expiry
     if creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
             connection.access_token = creds.token
-            connection.token_expiry = creds.expiry
+            expiry = creds.expiry
+            if expiry and timezone.is_naive(expiry):
+                expiry = timezone.make_aware(expiry, timezone.utc)
+            connection.token_expiry = expiry
             connection.save(update_fields=['access_token', 'token_expiry', 'updated_at'])
         except RefreshError as e:
             logger.warning('Refresh token falhou, removendo conexão inválida: %s', e)

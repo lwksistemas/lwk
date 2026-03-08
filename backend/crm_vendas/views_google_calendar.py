@@ -92,7 +92,14 @@ def google_calendar_auth(request):
     except Exception as e:
         logger.exception('Erro ao iniciar OAuth Google Calendar: %s', e)
         return Response(
-            {'detail': 'Erro ao configurar autenticação Google.'},
+            {
+                'detail': (
+                    'Para usar o Google Calendar, autorize sua conta Google. '
+                    'Clique em "Conectar Google Calendar" e faça login na tela do Google quando solicitado. '
+                    'Se o erro persistir, entre em contato com o suporte.'
+                ),
+                'error': str(e) if settings.DEBUG else None,
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

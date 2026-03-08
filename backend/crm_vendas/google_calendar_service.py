@@ -46,6 +46,22 @@ def get_flow(redirect_uri):
     return flow
 
 
+def _is_token_expired(expiry):
+    """Verifica se o token está expirado (evita creds.expired que causa TypeError naive/aware)."""
+    if not expiry:
+        return True
+    now = timezone.now()
+    if timezone.is_naive(expiry):
+        expiry = timezone.make_aware(expiry, timezone.utc)
+    else:
+        expiry = expiry.astimezone(timezone.utc)
+    if timezone.is_naive(now):
+        now = timezone.make_aware(now, timezone.utc)
+    else:
+        now = now.astimezone(timezone.utc)
+    return now >= expiry
+
+
 def get_credentials(connection):
     """Converte GoogleCalendarConnection em Credentials do google-auth (com refresh)."""
     from google.oauth2.credentials import Credentials
@@ -67,7 +83,7 @@ def get_credentials(connection):
         else:
             expiry = expiry.astimezone(timezone.utc)
         creds.expiry = expiry
-    if creds.expired and creds.refresh_token:
+    if _is_token_expired(connection.token_expiry) and creds.refresh_token:
         try:
             creds.refresh(Request())
             connection.access_token = creds.token

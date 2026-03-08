@@ -17,6 +17,7 @@ from .serializers import (
     ContatoSerializer,
     OportunidadeSerializer,
     AtividadeSerializer,
+    AtividadeListSerializer,
 )
 from tenants.middleware import get_current_loja_id
 
@@ -85,8 +86,17 @@ class OportunidadeViewSet(BaseModelViewSet):
 
 
 class AtividadeViewSet(BaseModelViewSet):
-    queryset = Atividade.objects.select_related('oportunidade', 'lead').all()
-    serializer_class = AtividadeSerializer
+    queryset = (
+        Atividade.objects.select_related('oportunidade', 'lead')
+        .defer('google_event_id')  # Evita coluna que pode não existir em schemas antigos
+        .all()
+    )
+    serializer_class = AtividadeListSerializer
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return AtividadeSerializer
+        return AtividadeListSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()

@@ -158,14 +158,18 @@ export default function CalendarioCrmPage() {
 
   const handleConnectGoogle = useCallback(async () => {
     setGoogleLoading(true);
+    setSyncError(null);
     try {
       const res = await apiClient.get<{ auth_url: string }>(API_GOOGLE_AUTH);
       if (res.data?.auth_url) {
         window.location.href = res.data.auth_url;
         return;
       }
-    } catch {
-      // mantém loading false no finally
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        'Google Calendar não configurado. Entre em contato com o suporte.';
+      setSyncError(msg);
     } finally {
       setGoogleLoading(false);
     }

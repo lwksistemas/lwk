@@ -297,3 +297,8 @@ SECURITY_NOTIFICATION_EMAILS = os.environ.get(
     ''
 ).split(',') if os.environ.get('SECURITY_NOTIFICATION_EMAILS') else []
 SITE_URL = os.environ.get('SITE_URL', 'https://lwksistemas-38ad47519238.herokuapp.com')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://lwksistemas.com.br')
+
+# Google Calendar (OAuth2 + API) - CRM Vendas
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')

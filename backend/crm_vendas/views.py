@@ -177,14 +177,20 @@ def dashboard_data(request):
                 'quantidade': agg['qtd'] or 0,
             })
 
-        # Atividades de hoje (limitado, com select_related)
+        # Atividades de hoje: values() evita coluna google_event_id (pode não existir em schemas antigos)
         hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
         hoje_fim = hoje_inicio + timedelta(days=1)
-        atividades_hoje = atividades_qs.filter(
-            data__gte=hoje_inicio,
-            data__lt=hoje_fim,
-        ).select_related('oportunidade', 'lead').order_by('concluido', 'data')[:20]
-        atividades_hoje_data = AtividadeSerializer(atividades_hoje, many=True).data
+        atividades_hoje_data = list(
+            atividades_qs.filter(
+                data__gte=hoje_inicio,
+                data__lt=hoje_fim,
+            )
+            .order_by('concluido', 'data')
+            .values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:20]
+        )
+        for a in atividades_hoje_data:
+            if a.get('data'):
+                a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
 
         # Performance por vendedor: 1 query com annotate (evita loop de queries)
         mes_inicio = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)

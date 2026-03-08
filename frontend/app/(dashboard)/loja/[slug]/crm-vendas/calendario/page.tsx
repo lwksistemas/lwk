@@ -357,10 +357,21 @@ export default function CalendarioCrmPage() {
               </button>
             </>
           ) : (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Para sincronizar, conecte sua conta Google e autorize o acesso ao calendário.
               </p>
+              <details className="text-xs text-gray-500 dark:text-gray-400 group">
+                <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 list-none [&::-webkit-details-marker]:hidden">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="group-open:rotate-90 transition-transform">▶</span>
+                    Ver aviso sobre a tela do Google
+                  </span>
+                </summary>
+                <p className="mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                  O Google pode exibir &quot;O app não foi verificado&quot; — isso é normal. O LWK Sistemas usa a integração de forma segura apenas para sincronizar seu calendário. Clique em <strong>Continuar</strong> ou <strong>Avançado → Acessar</strong> para autorizar.
+                </p>
+              </details>
               <button
                 type="button"
                 onClick={handleConnectGoogle}

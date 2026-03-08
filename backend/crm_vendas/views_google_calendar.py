@@ -39,6 +39,8 @@ MAX_SYNC_ERRORS_RETURNED = 10
 def _get_redirect_uri(request):
     """Monta a URL de callback para OAuth (deve coincidir com a configurada no Google Cloud)."""
     scheme = request.META.get('HTTP_X_FORWARDED_PROTO', request.scheme)
+    if not getattr(settings, 'DEBUG', False) and scheme != 'https':
+        scheme = 'https'
     host = request.get_host()
     return f'{scheme}://{host}/api/crm-vendas/google-calendar/callback/'
 

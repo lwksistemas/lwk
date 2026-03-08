@@ -36,6 +36,16 @@ heroku config:set GOOGLE_CLIENT_SECRET="seu-client-secret" -a lwksistemas
 No Google Cloud Console, acesse [APIs e Serviços → Biblioteca](https://console.cloud.google.com/apis/library) e habilite:
 - **Google Calendar API**
 
+## Mensagem "O Google não verificou este app"
+
+É normal o Google exibir esse aviso enquanto o app está em modo de teste. O usuário pode clicar em **Continuar** ou **Avançado → Acessar** para autorizar. Para remover o aviso permanentemente:
+
+1. No [Google Cloud Console](https://console.cloud.google.com/apis/credentials), vá em **Tela de consentimento OAuth**
+2. Clique em **PUBLICAR APP** e siga o processo de verificação do Google
+3. Será necessário: site com política de privacidade, domínio verificado e formulário de consentimento preenchido
+
+Enquanto não verificado, adicione os usuários em **Usuários de teste** na tela de consentimento.
+
 ## Erro comum
 
 Se aparecer `"GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET devem estar configurados"` (503), as variáveis não estão definidas ou estão vazias no ambiente do backend. Verifique no Dashboard do Render/Heroku.

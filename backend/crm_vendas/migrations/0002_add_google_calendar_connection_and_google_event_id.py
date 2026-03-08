@@ -6,9 +6,9 @@ from django.db import migrations, models
 
 def add_google_event_id_if_table_exists(apps, schema_editor):
     """Adiciona coluna google_event_id apenas se a tabela crm_vendas_atividade existir."""
-    from django.db import connection
-    vendor = connection.vendor
-    with connection.cursor() as cursor:
+    conn = schema_editor.connection
+    vendor = conn.vendor
+    with conn.cursor() as cursor:
         if vendor == 'postgresql':
             cursor.execute("""
                 SELECT 1 FROM information_schema.tables
@@ -35,10 +35,10 @@ def add_google_event_id_if_table_exists(apps, schema_editor):
 
 def reverse_add_google_event_id(apps, schema_editor):
     """Remove coluna google_event_id se a tabela existir (apenas PostgreSQL suporta DROP COLUMN)."""
-    from django.db import connection
-    if connection.vendor != 'postgresql':
+    conn = schema_editor.connection
+    if conn.vendor != 'postgresql':
         return
-    with connection.cursor() as cursor:
+    with conn.cursor() as cursor:
         cursor.execute("""
             SELECT 1 FROM information_schema.columns
             WHERE table_name = 'crm_vendas_atividade'

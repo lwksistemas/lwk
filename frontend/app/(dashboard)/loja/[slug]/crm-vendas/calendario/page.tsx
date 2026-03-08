@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import apiClient from '@/lib/api-client';
@@ -94,6 +94,7 @@ export default function CalendarioCrmPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleSyncResult, setGoogleSyncResult] = useState<{ pushed: number; pulled: number } | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const syncingRef = useRef(false);
   const searchParams = useSearchParams();
 
   const loadPlugins = useCallback(async () => {
@@ -176,6 +177,8 @@ export default function CalendarioCrmPage() {
   }, []);
 
   const handleSyncGoogle = useCallback(async () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
     setGoogleLoading(true);
     setGoogleSyncResult(null);
     setSyncError(null);
@@ -198,6 +201,7 @@ export default function CalendarioCrmPage() {
         loadGoogleStatus();
       }
     } finally {
+      syncingRef.current = false;
       setGoogleLoading(false);
     }
   }, [range, fetchAtividades, loadGoogleStatus]);

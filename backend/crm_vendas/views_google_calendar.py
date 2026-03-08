@@ -36,6 +36,15 @@ PULL_EVENTS_DAYS = 365
 MAX_SYNC_ERRORS_RETURNED = 10
 
 
+def _normalize_token_expiry(expiry):
+    """Normaliza expiry para UTC aware (evita erro naive/aware no refresh)."""
+    if not expiry:
+        return None
+    if timezone.is_naive(expiry):
+        return timezone.make_aware(expiry, timezone.utc)
+    return expiry.astimezone(timezone.utc)
+
+
 def _get_redirect_uri(request):
     """Monta a URL de callback para OAuth (deve coincidir com a configurada no Google Cloud)."""
     scheme = request.META.get('HTTP_X_FORWARDED_PROTO', request.scheme)
@@ -142,16 +151,27 @@ def google_calendar_callback(request):
         flow.fetch_token(code=code)
         credentials = flow.credentials
         email = _extract_email_from_credentials(credentials)
-        GoogleCalendarConnection.objects.using('default').update_or_create(
+        token_expiry = _normalize_token_expiry(credentials.expiry)
+        conn, created = GoogleCalendarConnection.objects.using('default').get_or_create(
             loja_id=loja_id,
             defaults={
                 'access_token': credentials.token,
                 'refresh_token': credentials.refresh_token or '',
-                'token_expiry': credentials.expiry,
+                'token_expiry': token_expiry,
                 'calendar_id': 'primary',
                 'email': email,
             },
         )
+        if not created:
+            conn.access_token = credentials.token
+            conn.token_expiry = token_expiry
+            conn.calendar_id = 'primary'
+            conn.email = email
+            update_fields = ['access_token', 'token_expiry', 'calendar_id', 'email', 'updated_at']
+            if credentials.refresh_token:
+                conn.refresh_token = credentials.refresh_token
+                update_fields.append('refresh_token')
+            conn.save(update_fields=update_fields)
         slug = _get_loja_slug_by_id(loja_id)
         return _redirect_calendario(slug, success=True)
     except Exception as e:

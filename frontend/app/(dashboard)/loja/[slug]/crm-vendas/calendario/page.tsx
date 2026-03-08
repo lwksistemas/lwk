@@ -291,12 +291,15 @@ export default function CalendarioCrmPage() {
       }
       handleCloseModal();
       if (range) fetchAtividades(range.start, range.end);
+      if (googleStatus.connected && !syncingRef.current) {
+        handleSyncGoogle();
+      }
     } catch (e: any) {
       setError(e.response?.data?.titulo?.[0] || e.response?.data?.detail || 'Erro ao salvar.');
     } finally {
       setSaving(false);
     }
-  }, [form, modalAtividade, range, fetchAtividades, handleCloseModal]);
+  }, [form, modalAtividade, range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
 
   const handleToggleConcluido = useCallback(async () => {
     if (!modalAtividade) return;
@@ -308,12 +311,15 @@ export default function CalendarioCrmPage() {
       });
       handleCloseModal();
       if (range) fetchAtividades(range.start, range.end);
+      if (googleStatus.connected && !syncingRef.current) {
+        handleSyncGoogle();
+      }
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Erro ao atualizar.');
     } finally {
       setSaving(false);
     }
-  }, [modalAtividade, range, fetchAtividades, handleCloseModal]);
+  }, [modalAtividade, range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
 
   const handleDelete = useCallback(async () => {
     if (!modalAtividade || !confirm('Excluir esta atividade?')) return;
@@ -323,12 +329,15 @@ export default function CalendarioCrmPage() {
       await apiClient.delete(`${API_CRM}/atividades/${modalAtividade.id}/`);
       handleCloseModal();
       if (range) fetchAtividades(range.start, range.end);
+      if (googleStatus.connected && !syncingRef.current) {
+        handleSyncGoogle();
+      }
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Erro ao excluir.');
     } finally {
       setSaving(false);
     }
-  }, [modalAtividade, range, fetchAtividades, handleCloseModal]);
+  }, [modalAtividade, range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
 
   return (
     <div className="h-full flex flex-col">

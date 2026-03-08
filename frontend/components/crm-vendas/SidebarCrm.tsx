@@ -70,11 +70,6 @@ export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
     return currentPath.startsWith(href);
   };
 
-  const handleNotifications = () => {
-    setShowNotifications(true);
-    setTimeout(() => setShowNotifications(false), 3000);
-  };
-
   const handleHelp = () => {
     setShowHelp(true);
   };

@@ -79,5 +79,13 @@ class Command(BaseCommand):
                 except Exception as e:
                     self.stdout.write(self.style.WARNING(f"  ⚠️ Erro em {app}: {e}"))
         
+        # Corrige coluna google_event_id em schemas que têm crm_vendas_atividade mas não têm a coluna
+        self.stdout.write(f"\n{'='*60}")
+        self.stdout.write("🔧 Verificando coluna google_event_id em schemas com CRM...")
+        try:
+            call_command('fix_google_event_id_column', verbosity=1)
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"  ⚠️ fix_google_event_id_column: {e}"))
+        
         self.stdout.write(f"\n{'='*60}")
         self.stdout.write(self.style.SUCCESS("\n✅ Processo concluído!"))

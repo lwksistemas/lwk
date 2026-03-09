@@ -15,9 +15,8 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/calendar.events',
 ]
-# Fuso e duração padrão para eventos
+# Fuso padrão para eventos
 TIMEZONE_DEFAULT = 'America/Sao_Paulo'
-EVENT_DURATION_HOURS = 1
 TOKEN_URI = 'https://oauth2.googleapis.com/token'
 
 
@@ -114,7 +113,8 @@ def atividade_to_google_event(atividade):
     start_dt = atividade.data
     if start_dt.tzinfo is None:
         start_dt = timezone.make_aware(start_dt)
-    end_dt = start_dt + timedelta(hours=EVENT_DURATION_HOURS)
+    duracao_min = getattr(atividade, 'duracao_minutos', None) or 60
+    end_dt = start_dt + timedelta(minutes=duracao_min)
     desc = (atividade.observacoes or '').strip()
     desc = f'[CRM - {atividade.get_tipo_display()}]\n{desc}'.strip() or None
     return {

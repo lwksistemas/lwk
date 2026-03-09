@@ -31,6 +31,7 @@ export interface Atividade {
   oportunidade: number | null;
   lead: number | null;
   data: string;
+  duracao_minutos?: number;
   concluido: boolean;
   observacoes: string;
   created_at: string;
@@ -68,7 +69,8 @@ function toISO(date: Date): string {
 function atividadeToEvent(a: Atividade): CalendarEvent {
   const d = new Date(a.data);
   const end = new Date(d);
-  end.setMinutes(end.getMinutes() + 60);
+  const duracao = a.duracao_minutos ?? 60;
+  end.setMinutes(end.getMinutes() + duracao);
   const cor = TIPO_COR[a.tipo] ?? TIPO_COR.task;
   return {
     id: String(a.id),
@@ -92,7 +94,7 @@ export default function CalendarioCrmPage() {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAtividade, setModalAtividade] = useState<Atividade | null>(null);
-  const [form, setForm] = useState({ titulo: '', tipo: 'task' as Atividade['tipo'], data: '', observacoes: '' });
+  const [form, setForm] = useState({ titulo: '', tipo: 'task' as Atividade['tipo'], data: '', duracao_minutos: 60, observacoes: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email: string | null }>({ connected: false, email: null });
@@ -256,6 +258,7 @@ export default function CalendarioCrmPage() {
       titulo: '',
       tipo: 'task',
       data: arg.start.toISOString().slice(0, 16),
+      duracao_minutos: 60,
       observacoes: '',
     });
     setModalOpen(true);
@@ -271,6 +274,7 @@ export default function CalendarioCrmPage() {
       titulo: a.titulo,
       tipo: a.tipo,
       data: a.data.slice(0, 16),
+      duracao_minutos: a.duracao_minutos ?? 60,
       observacoes: a.observacoes || '',
     });
     setModalOpen(true);
@@ -295,6 +299,7 @@ export default function CalendarioCrmPage() {
         titulo: form.titulo.trim(),
         tipo: form.tipo,
         data: new Date(form.data).toISOString(),
+        duracao_minutos: form.duracao_minutos,
         observacoes: form.observacoes.trim(),
       };
       if (modalAtividade) {
@@ -520,6 +525,25 @@ export default function CalendarioCrmPage() {
                     onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Duração (minutos)
+                  </label>
+                  <select
+                    value={form.duracao_minutos}
+                    onChange={(e) => setForm((f) => ({ ...f, duracao_minutos: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value={15}>15 min</option>
+                    <option value={30}>30 min</option>
+                    <option value={45}>45 min</option>
+                    <option value={60}>1 hora</option>
+                    <option value={90}>1h 30min</option>
+                    <option value={120}>2 horas</option>
+                    <option value={180}>3 horas</option>
+                    <option value={240}>4 horas</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

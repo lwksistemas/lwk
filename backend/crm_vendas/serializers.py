@@ -73,8 +73,8 @@ class AtividadeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Atividade
         fields = [
-            'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'data', 'concluido',
-            'observacoes', 'google_event_id', 'created_at', 'updated_at',
+            'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'data', 'duracao_minutos',
+            'concluido', 'observacoes', 'google_event_id', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
 
@@ -84,6 +84,6 @@ class AtividadeListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Atividade
         fields = [
-            'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'data', 'concluido',
-            'observacoes', 'created_at', 'updated_at',
+            'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'data', 'duracao_minutos',
+            'concluido', 'observacoes', 'created_at', 'updated_at',
         ]

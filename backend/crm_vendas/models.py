@@ -200,6 +200,10 @@ class Atividade(LojaIsolationMixin, models.Model):
         blank=True,
     )
     data = models.DateTimeField()
+    duracao_minutos = models.PositiveIntegerField(
+        default=60,
+        help_text='Duração estimada da atividade em minutos'
+    )
     concluido = models.BooleanField(default=False)
     observacoes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

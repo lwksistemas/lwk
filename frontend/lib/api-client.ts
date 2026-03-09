@@ -74,7 +74,9 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   }
   const token = sessionStorage.getItem('access_token');
   if (token) config.headers.set('Authorization', `Bearer ${token}`);
-  logger.log('API Request:', config.method?.toUpperCase(), config.url);
+  if (process.env.NODE_ENV === 'development') {
+    logger.log('API Request:', config.method?.toUpperCase(), config.url);
+  }
   return config;
 }
 
@@ -173,7 +175,9 @@ function applyLojaInterceptors(instance: AxiosInstance) {
   );
   instance.interceptors.response.use(
     (response) => {
-      logger.log('API Response:', response.status, response.config.url);
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('API Response:', response.status, response.config.url);
+      }
       
       // ✅ FAILOVER v750: Se sucesso e estamos no backup, tentar voltar ao primary após 5 minutos
       if (BACKUP_API && currentAPI === BACKUP_API && lastFailoverTime) {

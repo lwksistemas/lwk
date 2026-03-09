@@ -1,11 +1,20 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import StatCard from '@/components/crm-vendas/StatCard';
-import SalesChart from '@/components/crm-vendas/SalesChart';
+
+const SalesChart = dynamic(() => import('@/components/crm-vendas/SalesChart'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-[320px] bg-blue-50/40 dark:bg-blue-900/10 rounded-2xl border-2 border-blue-200 dark:border-blue-800 animate-pulse">
+      <span className="text-sm text-gray-500">Carregando gráfico...</span>
+    </div>
+  ),
+});
 import {
   Wallet,
   Users,

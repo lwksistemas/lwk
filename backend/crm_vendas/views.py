@@ -255,22 +255,25 @@ ETAPAS_PIPELINE = [
 def dashboard_data(request):
     """
     Dados do dashboard CRM (estilo Salesforce).
-    Retorna: leads, oportunidades, receita, pipeline por etapa,
-    atividades do dia, performance por vendedor.
+    Otimizado: cache 60s, queries consolidadas (pipeline em 1 query).
     """
     import logging
-    logger = logging.getLogger(__name__)
+    from django.core.cache import cache
 
+    logger = logging.getLogger(__name__)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response(_empty_dashboard_response(), status=200)
 
     vendedor_id = get_current_vendedor_id(request)
+    cache_key = f'crm_dashboard:{loja_id}:{vendedor_id or "owner"}'
+    cached = cache.get(cache_key)
+    if cached:
+        return Response(cached)
 
     try:
         from .models import Lead, Oportunidade, Atividade, Vendedor
 
-        # LojaIsolationManager já filtra por loja_id; usar .all() para respeitar o manager
         leads_qs = Lead.objects.all()
         opp_qs = Oportunidade.objects.all()
         atividades_qs = Atividade.objects.all()
@@ -284,35 +287,41 @@ def dashboard_data(request):
             ).distinct()
             vendedores_qs = vendedores_qs.filter(id=vendedor_id)
 
-        # Totais (1 query cada)
+        # 1 query: totais agregados (receita, pipeline, fechados)
+        agg = opp_qs.aggregate(
+            total_oportunidades=Count('id'),
+            receita=Sum('valor', filter=Q(etapa='closed_won')),
+            pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_PIPELINE)),
+            total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost'])),
+            total_ganhos=Count('id', filter=Q(etapa='closed_won')),
+        )
+        total_oportunidades = agg['total_oportunidades'] or 0
+        receita = float(agg['receita'] or 0)
+        pipeline_aberto = float(agg['pipeline_aberto'] or 0)
+        total_fechados = agg['total_fechados'] or 0
+        total_ganhos = agg['total_ganhos'] or 0
+        taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
+
+        # 1 query: pipeline por etapa (values + annotate)
+        pipeline_map = {
+            row['etapa']: {'valor': float(row['valor'] or 0), 'quantidade': row['qtd'] or 0}
+            for row in opp_qs.filter(etapa__in=ETAPAS_PIPELINE)
+            .values('etapa')
+            .annotate(valor=Sum('valor'), qtd=Count('id'))
+        }
+        pipeline_por_etapa = [
+            {'etapa': e, **(pipeline_map.get(e, {'valor': 0, 'quantidade': 0}))}
+            for e in ETAPAS_PIPELINE
+        ]
+
+        # 1 query: total leads
         total_leads = leads_qs.count()
-        total_oportunidades = opp_qs.count()
-        receita = opp_qs.filter(etapa='closed_won').aggregate(total=Sum('valor'))['total'] or 0
-        pipeline_aberto = opp_qs.exclude(
-            etapa__in=['closed_won', 'closed_lost']
-        ).aggregate(total=Sum('valor'))['total'] or 0
 
-        # Pipeline por etapa: 1 query por etapa (agregado)
-        pipeline_por_etapa = []
-        for etapa in ETAPAS_PIPELINE:
-            agg = opp_qs.filter(etapa=etapa).aggregate(
-                valor=Sum('valor'),
-                qtd=Count('id'),
-            )
-            pipeline_por_etapa.append({
-                'etapa': etapa,
-                'valor': float(agg['valor'] or 0),
-                'quantidade': agg['qtd'] or 0,
-            })
-
-        # Atividades de hoje: values() evita coluna google_event_id (pode não existir em schemas antigos)
+        # 1 query: atividades de hoje
         hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
         hoje_fim = hoje_inicio + timedelta(days=1)
         atividades_hoje_data = list(
-            atividades_qs.filter(
-                data__gte=hoje_inicio,
-                data__lt=hoje_fim,
-            )
+            atividades_qs.filter(data__gte=hoje_inicio, data__lt=hoje_fim)
             .order_by('concluido', 'data')
             .values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:20]
         )
@@ -320,7 +329,7 @@ def dashboard_data(request):
             if a.get('data'):
                 a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
 
-        # Performance por vendedor: 1 query com annotate (evita loop de queries)
+        # 1 query: performance vendedores
         mes_inicio = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         perf_qs = vendedores_qs.annotate(
             receita_mes=Sum(
@@ -333,22 +342,19 @@ def dashboard_data(request):
             for v in perf_qs
         ]
 
-        # Taxa de conversão
-        total_fechados = opp_qs.filter(etapa__in=['closed_won', 'closed_lost']).count()
-        total_ganhos = opp_qs.filter(etapa='closed_won').count()
-        taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
-
-        return Response({
+        payload = {
             'leads': total_leads,
             'oportunidades': total_oportunidades,
-            'receita': float(receita),
-            'pipeline_aberto': float(pipeline_aberto),
+            'receita': receita,
+            'pipeline_aberto': pipeline_aberto,
             'meta_vendas': 0,
             'taxa_conversao': taxa_conversao,
             'pipeline_por_etapa': pipeline_por_etapa,
             'atividades_hoje': atividades_hoje_data,
             'performance_vendedores': performance_vendedores,
-        })
+        }
+        cache.set(cache_key, payload, 60)
+        return Response(payload)
     except Exception as e:
         logger.exception('Erro no dashboard CRM: %s', e)
         return Response(

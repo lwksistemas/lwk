@@ -78,9 +78,9 @@ export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
   };
 
 
-  // Fechar sidebar em mobile ao mudar de rota
+  // Fechar sidebar em mobile ao mudar de rota (evita re-renders desnecessários)
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    if (typeof window !== 'undefined' && window.innerWidth < 768 && !collapsed) {
       toggle();
     }
   }, [currentPath]);

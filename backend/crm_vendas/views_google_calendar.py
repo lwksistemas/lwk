@@ -235,8 +235,13 @@ def google_calendar_sync(request):
     """
     loja_id = get_current_loja_id()
     if not loja_id:
+        logger.warning(
+            'google_calendar_sync: contexto de loja ausente. Headers: X-Loja-ID=%s, X-Tenant-Slug=%s',
+            request.headers.get('X-Loja-ID'),
+            request.headers.get('X-Tenant-Slug'),
+        )
         return Response(
-            {'detail': 'Contexto de loja não identificado.'},
+            {'detail': 'Contexto de loja não identificado. Atualize a página e tente novamente.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
     conn = _get_connection_for_loja(loja_id)

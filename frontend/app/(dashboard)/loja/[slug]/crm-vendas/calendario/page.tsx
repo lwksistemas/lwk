@@ -207,9 +207,13 @@ export default function CalendarioCrmPage() {
         window.setTimeout(() => setGoogleSyncResult(null), SYNC_RESULT_DISPLAY_MS);
       }
     } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Erro ao sincronizar com o Google Calendar.';
+      const err = e as { response?: { data?: { detail?: string }; status?: number } };
+      let msg = err?.response?.data?.detail || 'Erro ao sincronizar com o Google Calendar.';
+      if (msg.includes('Contexto de loja') || msg.includes('não identificado')) {
+        msg += ' Atualize a página e tente novamente.';
+      } else if (err?.response?.status === 502 || err?.response?.status === 503) {
+        msg = 'Servidor temporariamente indisponível. Tente novamente em alguns segundos.';
+      }
       setSyncError(msg);
       if (msg.includes('Token expirado') || msg.includes('inválido')) {
         setGoogleStatus({ connected: false, email: null });

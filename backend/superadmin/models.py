@@ -1538,8 +1538,10 @@ class GoogleCalendarConnection(models.Model):
     """
     Conexão OAuth com Google Calendar por loja (CRM Vendas).
     Armazenado no banco default para que o callback OAuth (sem tenant na URL) possa salvar.
+    vendedor_id=None = conexão do proprietário; vendedor_id preenchido = conexão do vendedor.
     """
-    loja_id = models.IntegerField(db_index=True, unique=True)
+    loja_id = models.IntegerField(db_index=True)
+    vendedor_id = models.IntegerField(null=True, blank=True, db_index=True)
     access_token = models.TextField(blank=True)
     refresh_token = models.TextField(blank=True)
     token_expiry = models.DateTimeField(null=True, blank=True)
@@ -1552,3 +1554,15 @@ class GoogleCalendarConnection(models.Model):
         db_table = 'superadmin_google_calendar_connection'
         verbose_name = 'Conexão Google Calendar (CRM)'
         verbose_name_plural = 'Conexões Google Calendar (CRM)'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['loja_id'],
+                condition=models.Q(vendedor_id__isnull=True),
+                name='gcal_loja_owner_uniq',
+            ),
+            models.UniqueConstraint(
+                fields=['loja_id', 'vendedor_id'],
+                condition=models.Q(vendedor_id__isnull=False),
+                name='gcal_loja_vendedor_uniq',
+            ),
+        ]

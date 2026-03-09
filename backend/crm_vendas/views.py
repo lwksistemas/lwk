@@ -21,6 +21,7 @@ from .serializers import (
     AtividadeListSerializer,
 )
 from tenants.middleware import get_current_loja_id
+from .utils import get_current_vendedor_id
 
 
 class VendedorViewSet(BaseModelViewSet):
@@ -114,6 +115,9 @@ class LeadViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is not None:
+            qs = qs.filter(oportunidades__vendedor_id=vendedor_id).distinct()
         status = self.request.query_params.get('status')
         if status:
             qs = qs.filter(status=status)
@@ -141,12 +145,16 @@ class OportunidadeViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is not None:
+            qs = qs.filter(vendedor_id=vendedor_id)
+        else:
+            vendedor_id = self.request.query_params.get('vendedor_id')
+            if vendedor_id:
+                qs = qs.filter(vendedor_id=vendedor_id)
         etapa = self.request.query_params.get('etapa')
         if etapa:
             qs = qs.filter(etapa=etapa)
-        vendedor_id = self.request.query_params.get('vendedor_id')
-        if vendedor_id:
-            qs = qs.filter(vendedor_id=vendedor_id)
         return qs
 
 
@@ -191,6 +199,11 @@ class AtividadeViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is not None:
+            qs = qs.filter(
+                Q(oportunidade__vendedor_id=vendedor_id) | Q(lead__oportunidades__vendedor_id=vendedor_id)
+            ).distinct()
         concluido = self.request.query_params.get('concluido')
         if concluido is not None:
             qs = qs.filter(concluido=concluido.lower() == 'true')
@@ -252,6 +265,8 @@ def dashboard_data(request):
     if not loja_id:
         return Response(_empty_dashboard_response(), status=200)
 
+    vendedor_id = get_current_vendedor_id(request)
+
     try:
         from .models import Lead, Oportunidade, Atividade, Vendedor
 
@@ -260,6 +275,14 @@ def dashboard_data(request):
         opp_qs = Oportunidade.objects.all()
         atividades_qs = Atividade.objects.all()
         vendedores_qs = Vendedor.objects.filter(is_active=True)
+
+        if vendedor_id is not None:
+            leads_qs = leads_qs.filter(oportunidades__vendedor_id=vendedor_id).distinct()
+            opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
+            atividades_qs = atividades_qs.filter(
+                Q(oportunidade__vendedor_id=vendedor_id) | Q(lead__oportunidades__vendedor_id=vendedor_id)
+            ).distinct()
+            vendedores_qs = vendedores_qs.filter(id=vendedor_id)
 
         # Totais (1 query cada)
         total_leads = leads_qs.count()

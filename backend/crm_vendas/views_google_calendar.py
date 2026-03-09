@@ -16,6 +16,8 @@ from rest_framework.response import Response
 from superadmin.models import GoogleCalendarConnection, Loja
 from tenants.middleware import get_current_loja_id, set_current_loja_id
 
+from .utils import get_current_vendedor_id
+
 from .google_calendar_service import (
     build_calendar_service,
     get_flow,
@@ -62,11 +64,19 @@ def _get_loja_slug_by_id(loja_id):
     return loja.slug if loja else None
 
 
-def _get_connection_for_loja(loja_id):
-    """Retorna a conexão Google Calendar da loja, se existir."""
+def _get_connection_for_loja_and_vendedor(loja_id, vendedor_id=None):
+    """
+    Retorna a conexão Google Calendar da loja (e vendedor, se houver).
+    vendedor_id=None = conexão do proprietário.
+    """
     if not loja_id:
         return None
-    return GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id).first()
+    qs = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id)
+    if vendedor_id is None:
+        qs = qs.filter(vendedor_id__isnull=True)
+    else:
+        qs = qs.filter(vendedor_id=vendedor_id)
+    return qs.first()
 
 
 def _redirect_calendario(slug, success=True):
@@ -88,13 +98,14 @@ def google_calendar_auth(request):
             {'detail': 'Contexto de loja não identificado.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    vendedor_id = get_current_vendedor_id(request)
     try:
         redirect_uri = _get_redirect_uri(request)
         flow = get_flow(redirect_uri)
         auth_url, _ = flow.authorization_url(
             access_type='offline',
             prompt='consent',
-            state=str(loja_id),
+            state=_encode_oauth_state(loja_id, vendedor_id),
             include_granted_scopes='true',
         )
         return Response({'auth_url': auth_url})
@@ -126,7 +137,7 @@ def google_calendar_callback(request):
     if error:
         logger.warning('Google OAuth error: %s', error)
         state = request.GET.get('state')
-        loja_id = _parse_loja_id_from_state(state)
+        loja_id, _ = _parse_oauth_state(state)
         slug = _get_loja_slug_by_id(loja_id)
         return _redirect_calendario(slug, success=False)
 
@@ -137,7 +148,7 @@ def google_calendar_callback(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    loja_id = _parse_loja_id_from_state(request.GET.get('state'))
+    loja_id, vendedor_id = _parse_oauth_state(request.GET.get('state'))
     if not loja_id:
         return Response(
             {'detail': 'Estado inválido (loja).'},
@@ -152,15 +163,21 @@ def google_calendar_callback(request):
         credentials = flow.credentials
         email = _extract_email_from_credentials(credentials)
         token_expiry = _normalize_token_expiry(credentials.expiry)
+        defaults = {
+            'access_token': credentials.token,
+            'refresh_token': credentials.refresh_token or '',
+            'token_expiry': token_expiry,
+            'calendar_id': 'primary',
+            'email': email,
+        }
+        lookup = {'loja_id': loja_id}
+        if vendedor_id is not None:
+            lookup['vendedor_id'] = vendedor_id
+        else:
+            lookup['vendedor_id__isnull'] = True
         conn, created = GoogleCalendarConnection.objects.using('default').get_or_create(
-            loja_id=loja_id,
-            defaults={
-                'access_token': credentials.token,
-                'refresh_token': credentials.refresh_token or '',
-                'token_expiry': token_expiry,
-                'calendar_id': 'primary',
-                'email': email,
-            },
+            defaults=defaults,
+            **lookup,
         )
         if not created:
             conn.access_token = credentials.token
@@ -180,14 +197,31 @@ def google_calendar_callback(request):
         return _redirect_calendario(slug, success=False)
 
 
-def _parse_loja_id_from_state(state):
-    """Extrai loja_id do parâmetro state (string numérica)."""
+def _encode_oauth_state(loja_id, vendedor_id=None):
+    """Codifica loja_id e vendedor_id no state do OAuth. Formato: loja_id ou loja_id:vendedor_id."""
+    if not loja_id:
+        return None
+    if vendedor_id is not None:
+        return f'{loja_id}:{vendedor_id}'
+    return str(loja_id)
+
+
+def _parse_oauth_state(state):
+    """Extrai (loja_id, vendedor_id) do state. vendedor_id=None se não houver."""
     if not state:
-        return None
+        return None, None
+    parts = str(state).strip().split(':')
     try:
-        return int(state)
-    except (TypeError, ValueError):
-        return None
+        loja_id = int(parts[0])
+    except (TypeError, ValueError, IndexError):
+        return None, None
+    vendedor_id = None
+    if len(parts) >= 2 and parts[1]:
+        try:
+            vendedor_id = int(parts[1])
+        except (TypeError, ValueError):
+            pass
+    return loja_id, vendedor_id
 
 
 def _extract_email_from_credentials(credentials):
@@ -211,11 +245,12 @@ def _extract_email_from_credentials(credentials):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def google_calendar_status(request):
-    """Retorna se a loja tem conexão com Google Calendar e email (se houver)."""
+    """Retorna se a loja (ou vendedor) tem conexão com Google Calendar e email (se houver)."""
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'connected': False, 'email': None})
-    conn = _get_connection_for_loja(loja_id)
+    vendedor_id = get_current_vendedor_id(request)
+    conn = _get_connection_for_loja_and_vendedor(loja_id, vendedor_id)
     if not conn:
         return Response({'connected': False, 'email': None})
     return Response({
@@ -244,7 +279,8 @@ def google_calendar_sync(request):
             {'detail': 'Contexto de loja não identificado. Atualize a página e tente novamente.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    conn = _get_connection_for_loja(loja_id)
+    vendedor_id = get_current_vendedor_id(request)
+    conn = _get_connection_for_loja_and_vendedor(loja_id, vendedor_id)
     if not conn:
         return Response(
             {'detail': 'Conecte o Google Calendar antes de sincronizar.'},
@@ -266,7 +302,13 @@ def google_calendar_sync(request):
                 {'detail': 'Token expirado ou inválido. Desconecte e conecte o Google Calendar novamente.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        for at in Atividade.objects.filter(loja_id=loja_id).order_by('data'):
+        from django.db.models import Q
+        atividades_qs = Atividade.objects.filter(loja_id=loja_id).order_by('data')
+        if vendedor_id is not None:
+            atividades_qs = atividades_qs.filter(
+                Q(oportunidade__vendedor_id=vendedor_id) | Q(lead__oportunidades__vendedor_id=vendedor_id)
+            ).distinct()
+        for at in atividades_qs:
             event_id = push_atividade_to_google(conn, at)
             if event_id:
                 at.google_event_id = event_id
@@ -336,12 +378,18 @@ def _parse_google_event_start(ev):
 @api_view(['DELETE', 'POST'])
 @permission_classes([IsAuthenticated])
 def google_calendar_disconnect(request):
-    """Remove a conexão com o Google Calendar da loja. Não remove eventos já criados no Google."""
+    """Remove a conexão com o Google Calendar da loja (ou do vendedor). Não remove eventos já criados no Google."""
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response(
             {'detail': 'Contexto de loja não identificado.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    deleted, _ = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id).delete()
+    vendedor_id = get_current_vendedor_id(request)
+    qs = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id)
+    if vendedor_id is None:
+        qs = qs.filter(vendedor_id__isnull=True)
+    else:
+        qs = qs.filter(vendedor_id=vendedor_id)
+    deleted, _ = qs.delete()
     return Response({'disconnected': deleted > 0})

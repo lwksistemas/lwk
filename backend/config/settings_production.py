@@ -50,8 +50,10 @@ INSTALLED_APPS = [
 ]
 
 # MIDDLEWARE - JWT deve rodar ANTES do TenantMiddleware para X-Loja-ID funcionar
+# CorsFallbackMiddleware: garante CORS em respostas /api/ quando corsheaders não adiciona (ex: 401/500)
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'config.cors_fallback_middleware.CorsFallbackMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',

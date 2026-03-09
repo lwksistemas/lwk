@@ -4,12 +4,67 @@ Signals para superadmin - Criação e exclusão automática
 IMPORTANTE: 
 1. Quando uma loja é CRIADA, cria automaticamente um funcionário para o admin
 2. Quando uma loja é EXCLUÍDA, deleta TODOS os dados relacionados (cascata)
+3. Arquivos (backups, media) são removidos para evitar órfãos
 """
 from django.db.models.signals import post_save, pre_delete, post_delete
 from django.dispatch import receiver
 import logging
+import os
+import shutil
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _limpar_arquivos_orfaos_loja(loja):
+    """
+    Remove arquivos órfãos ao excluir loja:
+    - Diretório backups/{slug}/ (arquivos de backup)
+    - Arquivos em media/nfe_restaurante/ com prefixo loja_{id}_
+    """
+    from django.conf import settings
+    base_dir = Path(settings.BASE_DIR)
+
+    # Diretório de backups da loja
+    backups_dir = base_dir / 'backups' / loja.slug
+    if backups_dir.exists():
+        try:
+            shutil.rmtree(backups_dir)
+            logger.info(f"   ✅ Diretório backups removido: {backups_dir}")
+        except OSError as e:
+            logger.warning(f"   ⚠️ Erro ao remover backups/{loja.slug}: {e}")
+
+    # Arquivos NF-e em media/nfe_restaurante/ com prefixo loja_{id}_
+    media_root = getattr(settings, 'MEDIA_ROOT', base_dir / 'media')
+    nfe_base = Path(media_root) / 'nfe_restaurante'
+    if nfe_base.exists():
+        prefix = f'loja_{loja.id}_'
+        removidos = 0
+        for subdir in nfe_base.rglob('*'):
+            if subdir.is_file() and prefix in subdir.name:
+                try:
+                    subdir.unlink()
+                    removidos += 1
+                except OSError as e:
+                    logger.warning(f"   ⚠️ Erro ao remover NF-e {subdir}: {e}")
+        if removidos:
+            logger.info(f"   ✅ {removidos} arquivo(s) NF-e órfão(s) removido(s)")
+
+
+@receiver(pre_delete, sender='superadmin.HistoricoBackup')
+def remover_arquivo_backup_ao_deletar(sender, instance, **kwargs):
+    """
+    Remove o arquivo de backup do disco quando HistoricoBackup é excluído.
+    Evita arquivos órfãos em backups/{slug}/.
+    """
+    if instance.arquivo_path:
+        try:
+            if os.path.exists(instance.arquivo_path):
+                os.remove(instance.arquivo_path)
+                logger.debug(f"🗑️ Arquivo backup removido: {instance.arquivo_nome}")
+        except (ValueError, OSError) as e:
+            logger.warning(f"⚠️ Erro ao remover arquivo backup: {e}")
+
 
 @receiver(post_save, sender='superadmin.Loja')
 def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
@@ -473,6 +528,9 @@ def delete_all_loja_data(sender, instance, **kwargs):
                 logger.info(f"   ✅ Config do banco removida do settings: {db_name}")
             except Exception as e:
                 logger.warning(f"   ⚠️ Erro ao remover config do banco: {e}")
+
+        # 7. Remover arquivos órfãos: diretório de backups e media da loja
+        _limpar_arquivos_orfaos_loja(instance)
         
         logger.info(f"✅ Exclusão em cascata concluída para loja: {loja_nome}")
         

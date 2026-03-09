@@ -10,7 +10,9 @@ para garantir que não existam registros com loja_id inválido (órfãos).
 TABELAS_LOJA_ID_DEFAULT = [
     # Superadmin
     ('superadmin_loja', 'id'),  # A própria tabela de lojas
-    
+    ('superadmin_historicobackup', 'loja_id'),
+    ('superadmin_configuracaobackup', 'loja_id'),
+
     # Asaas Integration
     ('asaas_integration_lojaassinatura', 'loja_id'),
     
@@ -92,3 +94,9 @@ TABELAS_TENANT_LOJA_ID = {
         'cabeleireiro_bloqueioagenda',
     ],
 }
+
+# Alias para compatibilidade com comandos verificar_dados_orfaos e validar_config_orfaos
+TABELAS_LOJA_ID = TABELAS_LOJA_ID_DEFAULT
+
+# Ordem de limpeza de FKs antes de deletar tabela pai (evita violação de FK)
+LIMPAR_REFERENCIAS_ANTES = {}

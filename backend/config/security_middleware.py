@@ -98,11 +98,12 @@ class SecurityIsolationMiddleware:
                     'grupo_requerido': 'superadmin'
                 }, status=401)
             
-            # Endpoints permitidos para proprietários de lojas
+            # Endpoints permitidos para proprietários de lojas (acessar seus próprios dados)
             owner_allowed_patterns = [
                 '/alterar_senha_primeiro_acesso/',
                 '/reenviar_senha/',
                 '/financeiro/',
+                '/loja-pagamentos/',  # baixar_boleto_pdf, gerar_pix, etc. (IsLojaOwner verifica)
             ]
             
             is_owner_allowed = any(pattern in path for pattern in owner_allowed_patterns)

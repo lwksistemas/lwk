@@ -80,11 +80,12 @@ class SuperAdminSecurityMiddleware:
             ]
             
             # Endpoints que proprietários/usuários da loja podem acessar (com autenticação)
-            # A view (IsOwnerOrSuperAdmin) verifica se é owner, admin ou profissional da loja
+            # A view (IsLojaOwner) verifica se é owner da loja do pagamento
             owner_allowed_patterns = [
                 '/alterar_senha_primeiro_acesso/',  # Trocar senha provisória
                 '/reenviar_senha/',                  # Reenviar senha por email
                 '/financeiro/',                      # Dados financeiros da própria loja
+                '/loja-pagamentos/',                 # baixar_boleto_pdf, gerar_pix (IsLojaOwner)
                 '/exportar_backup/',                 # Backup: exportar (loja)
                 '/enviar_backup_agora/',             # Backup: enviar por email agora
                 '/importar_backup/',                 # Backup: importar (loja)

@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import apiClient from '@/lib/api-client';
 
+const MOBILE_BREAKPOINT = 640;
+
 const FullCalendar = dynamic(() => import('@fullcalendar/react'), {
   ssr: false,
   loading: () => (
@@ -85,6 +87,9 @@ export default function CalendarioCrmPage() {
   const [plugins, setPlugins] = useState<any[]>([]);
   const [locale, setLocale] = useState<any>(null);
   const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAtividade, setModalAtividade] = useState<Atividade | null>(null);
   const [form, setForm] = useState({ titulo: '', tipo: 'task' as Atividade['tipo'], data: '', observacoes: '' });
@@ -141,6 +146,14 @@ export default function CalendarioCrmPage() {
   useEffect(() => {
     loadGoogleStatus();
   }, [loadGoogleStatus]);
+
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const handle = () => setIsMobile(mql.matches);
+    mql.addEventListener('change', handle);
+    handle();
+    return () => mql.removeEventListener('change', handle);
+  }, []);
 
   useEffect(() => {
     const connected = searchParams.get('google_connected');
@@ -340,35 +353,35 @@ export default function CalendarioCrmPage() {
   }, [modalAtividade, range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+    <div className="h-full min-h-0 flex flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4 shrink-0">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">
             Calendário
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
             Sincronizado com as atividades do CRM
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
           {googleStatus.connected ? (
             <>
-              <span className="text-sm text-gray-600 dark:text-gray-300" title={googleStatus.email ?? undefined}>
+              <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 truncate max-w-[120px] sm:max-w-none" title={googleStatus.email ?? undefined}>
                 {googleStatus.email ? `Google: ${googleStatus.email}` : 'Google conectado'}
               </span>
               <button
                 type="button"
                 onClick={handleSyncGoogle}
                 disabled={googleLoading}
-                className="px-3 py-2 rounded-lg text-sm font-medium bg-[#0176d3] hover:bg-[#0159a8] text-white disabled:opacity-50"
+                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#0176d3] hover:bg-[#0159a8] text-white disabled:opacity-50 touch-manipulation"
               >
-                {googleLoading ? 'Sincronizando...' : 'Sincronizar agora'}
+                {googleLoading ? '...' : 'Sincronizar'}
               </button>
               <button
                 type="button"
                 onClick={handleDisconnectGoogle}
                 disabled={googleLoading}
-                className="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 touch-manipulation"
               >
                 Desconectar
               </button>
@@ -413,30 +426,31 @@ export default function CalendarioCrmPage() {
         </p>
       )}
 
-      <div className="flex-1 min-h-[500px] rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="flex-1 min-h-[400px] sm:min-h-[500px] rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden fc-agenda-mobile">
         {plugins.length > 0 && locale && (
           <FullCalendar
+            key={isMobile ? 'mobile' : 'desktop'}
             plugins={plugins}
             locale={locale}
-            initialView="dayGridMonth"
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay',
-            }}
-            buttonText={{
-              today: 'Hoje',
-              month: 'Mês',
-              week: 'Semana',
-              day: 'Dia',
-            }}
+            themeSystem="standard"
+            initialView={isMobile ? 'timeGridDay' : 'dayGridMonth'}
+            headerToolbar={
+              isMobile
+                ? { left: 'prev,next', center: 'title', right: 'today' }
+                : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }
+            }
+            buttonText={
+              isMobile
+                ? { today: 'Hoje' }
+                : { today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }
+            }
             slotMinTime="06:00:00"
             slotMaxTime="22:00:00"
             allDaySlot={false}
             editable
             selectable
             selectMirror
-            dayMaxEvents={4}
+            dayMaxEvents={isMobile ? 6 : 4}
             weekends
             events={events}
             datesSet={handleDatesSet}

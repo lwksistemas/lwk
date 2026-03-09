@@ -47,7 +47,7 @@ export default function CrmVendasLayout({
           title={lojaInfo ? `${lojaInfo.nome}` : 'Sales Cloud'}
           userName={lojaInfo?.nome ?? 'Admin'}
         />
-        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c]">
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 min-h-0 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c]">
           {children}
         </main>
       </div>

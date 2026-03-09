@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { authService } from '@/lib/auth';
 
 interface LoginConfigData {
   logo: string;
@@ -23,6 +24,7 @@ const CORES_PRE_DEFINIDAS = [
 
 export default function ConfiguracoesLoginPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
 
@@ -49,8 +51,12 @@ export default function ConfiguracoesLoginPage() {
   };
 
   useEffect(() => {
+    if (authService.isVendedor()) {
+      router.replace(`/loja/${slug}/crm-vendas`);
+      return;
+    }
     loadConfig();
-  }, []);
+  }, [router, slug]);
 
   const saveConfig = async () => {
     setSaving(true);

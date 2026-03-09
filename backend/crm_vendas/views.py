@@ -28,6 +28,51 @@ class VendedorViewSet(BaseModelViewSet):
     queryset = Vendedor.objects.all()
     serializer_class = VendedorSerializer
 
+    def _bloquear_vendedor(self, request):
+        """Retorna Response 403 se o usuário for vendedor (não pode gerenciar equipe)."""
+        if get_current_vendedor_id(request) is not None:
+            return Response(
+                {'detail': 'Vendedores não têm permissão para acessar configurações de funcionários.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def list(self, request, *args, **kwargs):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
+        return super().list(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
+        return super().create(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
+        return super().retrieve(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
+        return super().destroy(request, *args, **kwargs)
+
     def get_queryset(self):
         qs = super().get_queryset()
         if hasattr(Vendedor, 'is_active'):
@@ -37,6 +82,9 @@ class VendedorViewSet(BaseModelViewSet):
     @action(detail=True, methods=['post'])
     def reenviar_senha(self, request, pk=None):
         """Gera nova senha provisória e envia por e-mail para o vendedor."""
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
         vendedor = self.get_object()
         if not vendedor.email:
             return Response(
@@ -103,12 +151,20 @@ class ContaViewSet(BaseModelViewSet):
     queryset = Conta.objects.all()
     serializer_class = ContaSerializer
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is not None:
+            qs = qs.filter(leads__oportunidades__vendedor_id=vendedor_id).distinct()
+        return qs
+
     def list(self, request, *args, **kwargs):
         from django.core.cache import cache
         from rest_framework.response import Response
 
         loja_id = get_current_loja_id()
-        cache_key = f'crm_contas_list:{loja_id}' if loja_id else None
+        vendedor_id = get_current_vendedor_id(request)
+        cache_key = f'crm_contas_list:{loja_id}' if (loja_id and vendedor_id is None) else None
         if cache_key:
             cached = cache.get(cache_key)
             if cached is not None:
@@ -166,6 +222,9 @@ class ContatoViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is not None:
+            qs = qs.filter(conta__leads__oportunidades__vendedor_id=vendedor_id).distinct()
         conta_id = self.request.query_params.get('conta_id')
         if conta_id:
             qs = qs.filter(conta_id=conta_id)
@@ -443,6 +502,14 @@ class WhatsAppConfigView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    def _bloquear_vendedor(self, request):
+        if get_current_vendedor_id(request) is not None:
+            return Response(
+                {'detail': 'Vendedores não têm permissão para acessar configurações.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
     def _get_config(self, request=None):
         import logging
         logger = logging.getLogger(__name__)
@@ -489,6 +556,9 @@ class WhatsAppConfigView(APIView):
             return None
 
     def get(self, request):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
         config = self._get_config(request)
         if config is None:
             return Response(
@@ -511,6 +581,9 @@ class WhatsAppConfigView(APIView):
         })
 
     def patch(self, request):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
         config = self._get_config(request)
         if config is None:
             return Response(
@@ -558,6 +631,14 @@ class LoginConfigView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    def _bloquear_vendedor(self, request):
+        if get_current_vendedor_id(request) is not None:
+            return Response(
+                {'detail': 'Vendedores não têm permissão para acessar configurações.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
     def _get_loja(self, request=None):
         import logging
         logger = logging.getLogger(__name__)
@@ -586,6 +667,9 @@ class LoginConfigView(APIView):
             return None
 
     def get(self, request):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
         loja = self._get_loja(request)
         if loja is None:
             return Response(
@@ -603,6 +687,9 @@ class LoginConfigView(APIView):
         })
 
     def patch(self, request):
+        bloqueio = self._bloquear_vendedor(request)
+        if bloqueio:
+            return bloqueio
         loja = self._get_loja(request)
         if loja is None:
             return Response(

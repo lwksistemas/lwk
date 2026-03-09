@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { useCRMUIStore } from '@/store/crm-ui';
+import { authService } from '@/lib/auth';
 import {
   LayoutDashboard,
   Users,
@@ -246,18 +247,20 @@ export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
 
         {/* Footer da Sidebar - Estilo Salesforce */}
         <div className="p-2 border-t border-gray-200 dark:border-[#0d1f3c] space-y-1">
-          <Link
-            href={`${base}/configuracoes`}
-            className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
-              isActive(`${base}/configuracoes`)
-                ? 'bg-[#0176d3] text-white shadow-sm'
-                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
-            }`}
-            title={collapsed ? 'Configurações' : undefined}
-          >
-            <Settings size={18} className="shrink-0" />
-            {!collapsed && <span>Configurações</span>}
-          </Link>
+          {!authService.isVendedor() && (
+            <Link
+              href={`${base}/configuracoes`}
+              className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
+                isActive(`${base}/configuracoes`)
+                  ? 'bg-[#0176d3] text-white shadow-sm'
+                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
+              }`}
+              title={collapsed ? 'Configurações' : undefined}
+            >
+              <Settings size={18} className="shrink-0" />
+              {!collapsed && <span>Configurações</span>}
+            </Link>
+          )}
 
           {onLogout && (
             <button

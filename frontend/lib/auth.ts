@@ -84,6 +84,11 @@ class AuthService {
       this.setRefreshToken(data.refresh);
       if (responseUserType) this.setUserType(responseUserType);
       if (lojaSlug) this.setLojaSlug(lojaSlug);
+      if ((data as any).is_vendedor === true) {
+        sessionStorage.setItem('is_vendedor', '1');
+      } else {
+        sessionStorage.removeItem('is_vendedor');
+      }
 
       // Salvar session_id se vier do backend
       if (typeof window !== 'undefined' && (data as any).session_id) {
@@ -128,6 +133,7 @@ class AuthService {
       sessionStorage.removeItem(this.REFRESH_KEY);
       sessionStorage.removeItem(this.USER_TYPE_KEY);
       sessionStorage.removeItem(this.LOJA_SLUG_KEY);
+      sessionStorage.removeItem('is_vendedor');
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
       localStorage.removeItem('token');
       
@@ -197,6 +203,14 @@ class AuthService {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(this.USER_TYPE_KEY, userType);
     }
+  }
+
+  /**
+   * Verifica se o usuário é vendedor (grupo vendedor do CRM)
+   */
+  isVendedor(): boolean {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem('is_vendedor') === '1';
   }
 
   /**

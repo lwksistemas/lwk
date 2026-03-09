@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { authService } from '@/lib/auth';
 import {
   CreditCard,
   LogIn,
@@ -18,11 +19,16 @@ import BackupButton from '@/components/loja/BackupButton';
 
 export default function CrmVendasConfiguracoesPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
   const [lojaInfo, setLojaInfo] = useState<{ id: number; nome: string } | null>(null);
 
   useEffect(() => {
+    if (authService.isVendedor()) {
+      router.replace(`/loja/${slug}/crm-vendas`);
+      return;
+    }
     apiClient
       .get(`/superadmin/lojas/info_publica/?slug=${slug}`)
       .then((r) => {
@@ -30,7 +36,7 @@ export default function CrmVendasConfiguracoesPage() {
         if (data?.id && data?.nome) setLojaInfo({ id: data.id, nome: data.nome });
       })
       .catch(() => setLojaInfo(null));
-  }, [slug]);
+  }, [router, slug]);
 
   const opcoes = [
     {

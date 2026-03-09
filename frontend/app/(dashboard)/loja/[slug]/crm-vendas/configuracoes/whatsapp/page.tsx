@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { authService } from '@/lib/auth';
 
 interface WhatsAppConfigData {
   enviar_confirmacao: boolean;
@@ -20,6 +21,7 @@ interface WhatsAppConfigData {
 
 export default function ConfiguracoesWhatsappPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
 
@@ -54,8 +56,12 @@ export default function ConfiguracoesWhatsappPage() {
   };
 
   useEffect(() => {
+    if (authService.isVendedor()) {
+      router.replace(`/loja/${slug}/crm-vendas`);
+      return;
+    }
     loadConfig();
-  }, []);
+  }, [router, slug]);
 
   const saveConfig = async () => {
     setSaving(true);

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { authService } from '@/lib/auth';
 import { ArrowLeft, Users, Plus, X, Mail } from 'lucide-react';
 
 interface Vendedor {
@@ -19,6 +20,7 @@ interface Vendedor {
 
 export default function ConfiguracoesFuncionariosPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
 
@@ -53,8 +55,12 @@ export default function ConfiguracoesFuncionariosPage() {
   };
 
   useEffect(() => {
+    if (authService.isVendedor()) {
+      router.replace(`/loja/${slug}/crm-vendas`);
+      return;
+    }
     carregar();
-  }, []);
+  }, [router, slug]);
 
   const abrirNovo = () => {
     setEditando(null);

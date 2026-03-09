@@ -115,6 +115,24 @@ class HistoricoAcessoMiddleware:
         if user:
             usuario_email = user.email or ''
             usuario_nome = user.get_full_name() or user.username or ''
+            loja_id = getattr(request, '_historico_loja_id', None)
+            if loja_id and (not usuario_nome or usuario_nome == user.username):
+                try:
+                    from superadmin.models import VendedorUsuario, Loja
+                    vu = VendedorUsuario.objects.using('default').filter(
+                        user=user, loja_id=loja_id
+                    ).first()
+                    if vu:
+                        loja = Loja.objects.using('default').filter(id=loja_id).first()
+                        if loja and getattr(loja, 'database_name', None):
+                            from crm_vendas.models import Vendedor
+                            vendedor = Vendedor.objects.using(loja.database_name).filter(
+                                id=vu.vendedor_id
+                            ).values_list('nome', flat=True).first()
+                            if vendedor:
+                                usuario_nome = vendedor
+                except Exception:
+                    pass
         elif request.path.startswith('/api/asaas/'):
             # Webhook e chamadas da API Asaas: identificar como sistema, não Anônimo
             usuario_email = 'api@asaas.sistema'

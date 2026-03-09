@@ -24,6 +24,7 @@ class Notification(models.Model):
         ('cancelamento', 'Cancelamento'),
         ('lembrete', 'Lembrete'),
         ('financeiro', 'Financeiro'),
+        ('tarefa', 'Tarefa'),
         ('sistema', 'Sistema'),
     )
 

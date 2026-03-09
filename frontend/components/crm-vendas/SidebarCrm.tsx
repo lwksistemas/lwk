@@ -282,7 +282,7 @@ export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
                 Notificações
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Sincronizado com o sistema (agendamentos, lembretes, financeiro)
+                Sincronizado com o sistema (agendamentos, tarefas, lembretes, financeiro)
               </p>
             </div>
             <button

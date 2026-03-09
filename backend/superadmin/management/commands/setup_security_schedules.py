@@ -8,6 +8,9 @@ Este comando cria/atualiza os schedules para:
 1. Detecção de violações de segurança (a cada 5 minutos)
 2. Limpeza de logs antigos (diariamente às 3h)
 3. Envio de notificações (a cada 15 minutos)
+4. Resumo diário de violações (diariamente às 8h)
+5. WhatsApp: lembretes 24h e 2h antes
+6. CRM Vendas: notificações de tarefas pendentes (a cada hora)
 """
 from django.core.management.base import BaseCommand
 from django_q.models import Schedule
@@ -159,6 +162,24 @@ class Command(BaseCommand):
             schedules_atualizados += 1
         self.stdout.write(
             self.style.SUCCESS(f'✅ Schedule: {schedule.name} (a cada 30 min)')
+        )
+
+        # 7. CRM Vendas: notificações de tarefas pendentes (a cada hora)
+        schedule, created = Schedule.objects.update_or_create(
+            name='notificar_tarefas_crm',
+            defaults={
+                'func': 'crm_vendas.tasks.notificar_tarefas_crm',
+                'schedule_type': Schedule.MINUTES,
+                'minutes': 60,
+                'repeats': -1,
+            }
+        )
+        if created:
+            schedules_criados += 1
+        else:
+            schedules_atualizados += 1
+        self.stdout.write(
+            self.style.SUCCESS(f'✅ Schedule: {schedule.name} (a cada hora)')
         )
         
         # Resumo

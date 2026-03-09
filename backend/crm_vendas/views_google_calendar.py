@@ -190,6 +190,10 @@ def google_calendar_callback(request):
                 update_fields.append('refresh_token')
             conn.save(update_fields=update_fields)
         slug = _get_loja_slug_by_id(loja_id)
+        from django.core.cache import cache
+        cache.delete(f'gcal_status:{loja_id}:owner')
+        if vendedor_id is not None:
+            cache.delete(f'gcal_status:{loja_id}:{vendedor_id}')
         return _redirect_calendario(slug, success=True)
     except Exception as e:
         logger.exception('Erro no callback Google Calendar: %s', e)
@@ -246,18 +250,27 @@ def _extract_email_from_credentials(credentials):
 @permission_classes([IsAuthenticated])
 def google_calendar_status(request):
     """Retorna se a loja (ou vendedor) tem conexão com Google Calendar e email (se houver)."""
+    from django.core.cache import cache
+
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'connected': False, 'email': None})
     vendedor_id = get_current_vendedor_id(request)
+    cache_key = f'gcal_status:{loja_id}:{vendedor_id or "owner"}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response(cached)
     conn = _get_connection_for_loja_and_vendedor(loja_id, vendedor_id)
     if not conn:
-        return Response({'connected': False, 'email': None})
-    return Response({
-        'connected': True,
-        'email': conn.email or None,
-        'calendar_id': conn.calendar_id,
-    })
+        payload = {'connected': False, 'email': None}
+    else:
+        payload = {
+            'connected': True,
+            'email': conn.email or None,
+            'calendar_id': conn.calendar_id,
+        }
+    cache.set(cache_key, payload, 120)
+    return Response(payload)
 
 
 @api_view(['POST'])
@@ -392,4 +405,9 @@ def google_calendar_disconnect(request):
     else:
         qs = qs.filter(vendedor_id=vendedor_id)
     deleted, _ = qs.delete()
+    if deleted:
+        from django.core.cache import cache
+        cache.delete(f'gcal_status:{loja_id}:owner')
+        if vendedor_id is not None:
+            cache.delete(f'gcal_status:{loja_id}:{vendedor_id}')
     return Response({'disconnected': deleted > 0})

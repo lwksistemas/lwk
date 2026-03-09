@@ -105,7 +105,7 @@ def build_calendar_service(connection):
     from googleapiclient.discovery import build
 
     creds = get_credentials(connection)
-    return build('calendar', 'v3', credentials=creds)
+    return build('calendar', 'v3', credentials=creds, cache_discovery=False)
 
 
 def atividade_to_google_event(atividade):

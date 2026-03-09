@@ -103,6 +103,39 @@ class ContaViewSet(BaseModelViewSet):
     queryset = Conta.objects.all()
     serializer_class = ContaSerializer
 
+    def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        from rest_framework.response import Response
+
+        loja_id = get_current_loja_id()
+        cache_key = f'crm_contas_list:{loja_id}' if loja_id else None
+        if cache_key:
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        if cache_key and response.status_code == 200:
+            cache.set(cache_key, response.data, 45)
+        return response
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        self._invalidate_contas_cache()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._invalidate_contas_cache()
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        self._invalidate_contas_cache()
+
+    def _invalidate_contas_cache(self):
+        loja_id = get_current_loja_id()
+        if loja_id:
+            from django.core.cache import cache
+            cache.delete(f'crm_contas_list:{loja_id}')
+
 
 class LeadViewSet(BaseModelViewSet):
     queryset = Lead.objects.select_related('conta').all()
@@ -191,11 +224,50 @@ class AtividadeViewSet(BaseModelViewSet):
                     )
             except Exception:
                 pass  # Notificação é best-effort; não falha a criação
+        self._invalidate_atividades_cache()
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
             return AtividadeSerializer
         return AtividadeListSerializer
+
+    def list(self, request, *args, **kwargs):
+        from django.core.cache import cache
+        from rest_framework.response import Response
+
+        loja_id = get_current_loja_id()
+        vendedor_id = get_current_vendedor_id(request)
+        data_inicio = request.query_params.get('data_inicio', '')
+        data_fim = request.query_params.get('data_fim', '')
+        cache_key = None
+        if loja_id and data_inicio and data_fim:
+            version = cache.get(f'crm_atividades_v:{loja_id}', 0)
+            cache_key = f'crm_atividades:{loja_id}:{version}:{vendedor_id or "owner"}:{data_inicio}:{data_fim}'
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        if cache_key and response.status_code == 200:
+            cache.set(cache_key, response.data, 45)
+        return response
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._invalidate_atividades_cache()
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        self._invalidate_atividades_cache()
+
+    def _invalidate_atividades_cache(self):
+        loja_id = get_current_loja_id()
+        if loja_id:
+            from django.core.cache import cache
+            try:
+                v = cache.get(f'crm_atividades_v:{loja_id}', 0) + 1
+                cache.set(f'crm_atividades_v:{loja_id}', v, 86400)
+            except Exception:
+                pass
 
     def get_queryset(self):
         qs = super().get_queryset()

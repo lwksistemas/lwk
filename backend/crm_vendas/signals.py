@@ -18,6 +18,17 @@ def _invalidate_dashboard_cache(loja_id):
         pass
 
 
+def _invalidate_atividades_cache(loja_id):
+    if not loja_id:
+        return
+    try:
+        from django.core.cache import cache
+        v = cache.get(f'crm_atividades_v:{loja_id}', 0) + 1
+        cache.set(f'crm_atividades_v:{loja_id}', v, 86400)
+    except Exception:
+        pass
+
+
 def _get_loja_id(instance):
     return getattr(instance, 'loja_id', None)
 
@@ -26,7 +37,13 @@ def _get_loja_id(instance):
 @receiver(post_delete, sender=Lead)
 @receiver(post_save, sender=Oportunidade)
 @receiver(post_delete, sender=Oportunidade)
-@receiver(post_save, sender=Atividade)
-@receiver(post_delete, sender=Atividade)
 def _on_crm_data_change(sender, instance, **kwargs):
     _invalidate_dashboard_cache(_get_loja_id(instance))
+
+
+@receiver(post_save, sender=Atividade)
+@receiver(post_delete, sender=Atividade)
+def _on_atividade_change(sender, instance, **kwargs):
+    loja_id = _get_loja_id(instance)
+    _invalidate_dashboard_cache(loja_id)
+    _invalidate_atividades_cache(loja_id)

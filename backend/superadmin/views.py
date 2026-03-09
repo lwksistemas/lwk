@@ -73,6 +73,9 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
         if hasattr(obj, 'id') and getattr(view, 'action', None) == 'alterar_senha_primeiro_acesso':
             if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():
                 return True
+            from .models import VendedorUsuario
+            if VendedorUsuario.objects.filter(user=request.user, loja=obj).exists():
+                return True
 
         # Profissional ou qualquer usuário da loja: pode exportar/importar backup da própria loja
         if hasattr(obj, 'id'):

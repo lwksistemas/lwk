@@ -115,7 +115,7 @@ export default function LojaLoginDinamicoPage() {
       if (precisaTrocar) {
         console.log('🔄 Redirecionando para trocar senha...');
         markInternalNavigation();
-        window.location.replace('/loja/trocar-senha');
+        window.location.replace(`/loja/${slug}/trocar-senha`);
         return;
       }
 

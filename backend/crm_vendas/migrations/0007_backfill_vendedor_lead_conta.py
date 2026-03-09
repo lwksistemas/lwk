@@ -1,21 +1,28 @@
 # Data migration: preenche vendedor_id em leads e contas antigos
-# a partir das oportunidades vinculadas (para que apareçam para o vendedor)
+# Só executa em schemas onde as tabelas existem (tenants); no public faz no-op.
 from django.db import migrations
 
 
-def backfill_lead_vendedor(apps, schema_editor):
+def backfill_vendedor(apps, schema_editor):
+    conn = schema_editor.connection
+    if conn.vendor != 'postgresql':
+        return
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = current_schema()
+            AND table_name = 'crm_vendas_lead'
+        """)
+        if not cursor.fetchone():
+            return  # Tabelas não existem neste schema (ex: public)
     Lead = apps.get_model('crm_vendas', 'Lead')
     Oportunidade = apps.get_model('crm_vendas', 'Oportunidade')
+    Conta = apps.get_model('crm_vendas', 'Conta')
     for lead in Lead.objects.filter(vendedor_id__isnull=True).iterator():
         opp = Oportunidade.objects.filter(lead=lead, vendedor_id__isnull=False).order_by('id').first()
         if opp:
             lead.vendedor_id = opp.vendedor_id
             lead.save(update_fields=['vendedor_id'])
-
-
-def backfill_conta_vendedor(apps, schema_editor):
-    Conta = apps.get_model('crm_vendas', 'Conta')
-    Lead = apps.get_model('crm_vendas', 'Lead')
     for conta in Conta.objects.filter(vendedor_id__isnull=True).iterator():
         lead = Lead.objects.filter(conta=conta).exclude(vendedor_id__isnull=True).order_by('id').first()
         if lead:
@@ -34,6 +41,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(backfill_lead_vendedor, noop),
-        migrations.RunPython(backfill_conta_vendedor, noop),
+        migrations.RunPython(backfill_vendedor, noop),
     ]

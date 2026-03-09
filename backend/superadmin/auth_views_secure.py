@@ -8,7 +8,7 @@ from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from superadmin.session_manager import SessionManager
-from superadmin.models import Loja, UsuarioSistema, ProfissionalUsuario
+from superadmin.models import Loja, UsuarioSistema, ProfissionalUsuario, VendedorUsuario
 import logging
 
 logger = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ class SecureLoginView(APIView):
                 'endpoint_correto': self._get_correct_endpoint(real_user_type)
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Se for loja, validar slug e obter loja (owner ou profissional)
+        # Se for loja, validar slug e obter loja (owner, profissional ou vendedor)
         if real_user_type == 'loja':
             loja = Loja.objects.filter(owner=user, is_active=True).first()
             if not loja and loja_slug:
@@ -115,6 +115,12 @@ class SecureLoginView(APIView):
                 ).select_related('loja').first()
                 if pu:
                     loja = pu.loja
+                if not loja:
+                    vu = VendedorUsuario.objects.filter(
+                        user=user, loja__slug=loja_slug, loja__is_active=True
+                    ).select_related('loja').first()
+                    if vu:
+                        loja = vu.loja
             if not loja:
                 return Response({
                     'error': 'Usuário não possui loja ativa',
@@ -185,6 +191,15 @@ class SecureLoginView(APIView):
                     response_data['precisa_trocar_senha'] = pu.precisa_trocar_senha
                     response_data['professional_id'] = pu.professional_id
                     response_data['is_professional'] = True
+                if not loja:
+                    vu = VendedorUsuario.objects.filter(
+                        user=user, loja__slug=loja_slug, loja__is_active=True
+                    ).select_related('loja').first()
+                    if vu:
+                        loja = vu.loja
+                        response_data['precisa_trocar_senha'] = vu.precisa_trocar_senha
+                        response_data['vendedor_id'] = vu.vendedor_id
+                        response_data['is_vendedor'] = True
             if loja:
                 if not response_data.get('is_professional'):
                     # Owner: verificar senha provisória da loja
@@ -260,6 +275,10 @@ class SecureLoginView(APIView):
         if loja_slug:
             try:
                 if ProfissionalUsuario.objects.filter(
+                    user=user, loja__slug=loja_slug, loja__is_active=True
+                ).exists():
+                    return 'loja'
+                if VendedorUsuario.objects.filter(
                     user=user, loja__slug=loja_slug, loja__is_active=True
                 ).exists():
                     return 'loja'

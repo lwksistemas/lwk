@@ -423,24 +423,44 @@ class LojaViewSet(viewsets.ModelViewSet):
         # Caso 2: profissional (ProfissionalUsuario) da Clínica da Beleza
         try:
             pu = ProfissionalUsuario.objects.get(user=user, loja=loja)
+            if not pu.precisa_trocar_senha:
+                return Response(
+                    {'error': 'A senha já foi alterada anteriormente'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.set_password(nova_senha)
+            user.save()
+            pu.precisa_trocar_senha = False
+            pu.save(update_fields=['precisa_trocar_senha'])
+            return Response({
+                'message': 'Senha alterada com sucesso!',
+                'loja': loja.nome
+            })
         except ProfissionalUsuario.DoesNotExist:
+            pass
+
+        # Caso 3: vendedor (VendedorUsuario) do CRM Vendas
+        from superadmin.models import VendedorUsuario
+        try:
+            vu = VendedorUsuario.objects.get(user=user, loja=loja)
+            if not vu.precisa_trocar_senha:
+                return Response(
+                    {'error': 'A senha já foi alterada anteriormente'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.set_password(nova_senha)
+            user.save()
+            vu.precisa_trocar_senha = False
+            vu.save(update_fields=['precisa_trocar_senha'])
+            return Response({
+                'message': 'Senha alterada com sucesso!',
+                'loja': loja.nome
+            })
+        except VendedorUsuario.DoesNotExist:
             return Response(
-                {'error': 'Apenas o proprietário ou um profissional desta loja pode alterar a senha aqui'},
+                {'error': 'Apenas o proprietário, um profissional ou vendedor desta loja pode alterar a senha aqui'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        if not pu.precisa_trocar_senha:
-            return Response(
-                {'error': 'A senha já foi alterada anteriormente'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        user.set_password(nova_senha)
-        user.save()
-        pu.precisa_trocar_senha = False
-        pu.save(update_fields=['precisa_trocar_senha'])
-        return Response({
-            'message': 'Senha alterada com sucesso!',
-            'loja': loja.nome
-        })
     
     @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
     def resetar_senha_provisoria(self, request, pk=None):

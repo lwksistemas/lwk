@@ -648,6 +648,29 @@ class ProfissionalUsuario(models.Model):
         return f"{self.user.email} -> loja {self.loja.slug} (prof_id={self.professional_id})"
 
 
+class VendedorUsuario(models.Model):
+    """
+    Vínculo User (Django auth, schema public) <-> Vendedor (crm_vendas, schema tenant).
+    Permite que o vendedor faça login em /loja/{slug}/login e acesse o CRM.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vendedor_lojas')
+    loja = models.ForeignKey(Loja, on_delete=models.CASCADE, related_name='vendedores_usuarios')
+    vendedor_id = models.PositiveIntegerField(help_text='ID do Vendedor no schema da loja (crm_vendas)')
+    precisa_trocar_senha = models.BooleanField(default=True, help_text='Obrigar troca de senha no primeiro acesso')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Vendedor (acesso)'
+        verbose_name_plural = 'Vendedores (acesso)'
+        unique_together = [['user', 'loja']]
+        indexes = [
+            models.Index(fields=['user', 'loja'], name='vend_usuario_loja_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} -> loja {self.loja.slug} (vendedor_id={self.vendedor_id})"
+
+
 class HistoricoAcessoGlobal(models.Model):
     """
     Histórico global de acessos e ações de TODOS os usuários do sistema

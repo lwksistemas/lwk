@@ -1,5 +1,5 @@
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -32,6 +32,70 @@ class VendedorViewSet(BaseModelViewSet):
         if hasattr(Vendedor, 'is_active'):
             return qs.filter(is_active=True)
         return qs
+
+    @action(detail=True, methods=['post'])
+    def reenviar_senha(self, request, pk=None):
+        """Gera nova senha provisória e envia por e-mail para o vendedor."""
+        vendedor = self.get_object()
+        if not vendedor.email:
+            return Response(
+                {'detail': 'Vendedor não possui e-mail cadastrado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from django.contrib.auth import get_user_model
+        from django.utils.crypto import get_random_string
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from superadmin.models import Loja, VendedorUsuario
+
+        User = get_user_model()
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'detail': 'Contexto de loja não encontrado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            vu = VendedorUsuario.objects.using('default').get(
+                loja_id=loja_id,
+                vendedor_id=vendedor.id,
+            )
+        except VendedorUsuario.DoesNotExist:
+            return Response(
+                {'detail': 'Vendedor ainda não possui acesso ao sistema. Use "Criar acesso" ao cadastrar.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        loja = Loja.objects.using('default').get(id=loja_id)
+        senha_provisoria = get_random_string(8)
+        user = vu.user
+        user.set_password(senha_provisoria)
+        user.save(update_fields=['password'])
+        vu.precisa_trocar_senha = True
+        vu.save(update_fields=['precisa_trocar_senha'])
+        site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
+        login_url = f"{site_url}/loja/{loja.slug}/login"
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
+        try:
+            send_mail(
+                subject='Nova senha provisória - CRM Vendas',
+                message=(
+                    f"Olá, {vendedor.nome or 'Vendedor'}!\n\n"
+                    f"Sua senha foi redefinida.\n\n"
+                    f"Login: {vendedor.email}\n"
+                    f"Nova senha provisória: {senha_provisoria}\n\n"
+                    f"Acesse: {login_url}\n\n"
+                    f"Por segurança, altere sua senha no primeiro acesso."
+                ),
+                from_email=from_email,
+                recipient_list=[vendedor.email],
+                fail_silently=True,
+            )
+        except Exception:
+            pass
+        return Response({
+            'detail': f'Senha provisória enviada para {vendedor.email}',
+            'email_enviado': vendedor.email,
+        })
 
 
 class ContaViewSet(BaseModelViewSet):

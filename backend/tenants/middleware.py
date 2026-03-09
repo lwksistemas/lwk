@@ -333,6 +333,15 @@ class TenantMiddleware:
                 ).exists()
                 if is_profissional_loja:
                     return True
+
+                # Verificar se é vendedor do CRM (VendedorUsuario)
+                from superadmin.models import VendedorUsuario
+                is_vendedor_loja = VendedorUsuario.objects.filter(
+                    user=request.user,
+                    loja=loja
+                ).exists()
+                if is_vendedor_loja:
+                    return True
                 
                 # Verificar se é funcionário (Serviços)
                 # Nota: Serviços não usa LojaIsolationMixin, então não tem loja_id

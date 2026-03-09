@@ -46,6 +46,7 @@ const ETAPAS_LABEL: Record<string, string> = {
   proposal: 'Proposta',
   negotiation: 'Negociação',
   closed_won: 'Fechado (ganho)',
+  closed_lost: 'Fechado (perdido)',
 };
 
 function iconPorTipo(tipo: string) {
@@ -105,7 +106,7 @@ export default function CrmVendasDashboardPage() {
 
   const chartData =
     data.pipeline_por_etapa?.map((p) => ({
-      name: p.etapa.replace(/_/g, ' '),
+      name: ETAPAS_LABEL[p.etapa] || p.etapa.replace(/_/g, ' '),
       valor: p.valor,
       quantidade: p.quantidade,
     })) ?? [];

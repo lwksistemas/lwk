@@ -28,7 +28,7 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
   const hasData = data && data.length > 0;
   const chartData = hasData
     ? data.map((d) => ({
-          stage: d.name.replace(/_/g, ' '),
+          stage: d.name,
           value: d.valor,
           Valor: d.valor,
           Oportunidades: d.quantidade ?? 0,

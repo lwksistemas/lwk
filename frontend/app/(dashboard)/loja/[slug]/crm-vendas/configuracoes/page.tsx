@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import apiClient from '@/lib/api-client';
 import {
   CreditCard,
   LogIn,
@@ -10,12 +12,25 @@ import {
   ChevronRight,
   Download,
   History,
+  Database,
 } from 'lucide-react';
+import BackupButton from '@/components/loja/BackupButton';
 
 export default function CrmVendasConfiguracoesPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
+  const [lojaInfo, setLojaInfo] = useState<{ id: number; nome: string } | null>(null);
+
+  useEffect(() => {
+    apiClient
+      .get(`/superadmin/lojas/info_publica/?slug=${slug}`)
+      .then((r) => {
+        const data = r.data;
+        if (data?.id && data?.nome) setLojaInfo({ id: data.id, nome: data.nome });
+      })
+      .catch(() => setLojaInfo(null));
+  }, [slug]);
 
   const opcoes = [
     {
@@ -106,6 +121,45 @@ export default function CrmVendasConfiguracoesPage() {
             </Link>
           );
         })}
+
+        {/* Card Criar e importar backup */}
+        {lojaInfo && (
+          <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6 hover:shadow-md hover:border-[#0176d3]/30 dark:hover:border-[#0176d3]/50 transition-all">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2.5 rounded-lg bg-[#e3f3ff] dark:bg-[#0176d3]/20 text-[#0176d3]">
+                    <Database size={22} />
+                  </div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Criar e importar backup
+                  </h2>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Exporte e importe backup dos dados da loja (leads, contas, oportunidades, calendário)
+                </p>
+                <ul className="space-y-1">
+                  <li className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span>• Exportar backup (ZIP)</span>
+                  </li>
+                  <li className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span>• Importar backup</span>
+                  </li>
+                  <li className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span>• Backup por email</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="shrink-0">
+                <BackupButton
+                  lojaId={lojaInfo.id}
+                  lojaNome={lojaInfo.nome}
+                  className="!min-h-[40px] !px-4 !py-2 !rounded-lg !bg-green-600 hover:!bg-green-700 !text-white !border-0"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from django.db.models import Count
-from superadmin.models import Loja, UserSession, ProfissionalUsuario
+from superadmin.models import Loja, UserSession, ProfissionalUsuario, VendedorUsuario
 
 
 class Command(BaseCommand):
@@ -80,7 +80,7 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(f"⚠️ Erro ao excluir sessões: {e}")
 
-        # Excluir vínculos ProfissionalUsuario (evita órfãos e FK)
+        # Excluir vínculos ProfissionalUsuario e VendedorUsuario (evita órfãos e FK)
         try:
             prof_count = ProfissionalUsuario.objects.filter(user__in=orfaos).count()
             if prof_count > 0:
@@ -88,6 +88,13 @@ class Command(BaseCommand):
                 ProfissionalUsuario.objects.filter(user__in=orfaos).delete()
         except Exception as e:
             self.stdout.write(f"⚠️ Erro ao excluir ProfissionalUsuario: {e}")
+        try:
+            vend_count = VendedorUsuario.objects.filter(user__in=orfaos).count()
+            if vend_count > 0:
+                self.stdout.write(f"👤 Excluindo {vend_count} vínculo(s) VendedorUsuario...")
+                VendedorUsuario.objects.filter(user__in=orfaos).delete()
+        except Exception as e:
+            self.stdout.write(f"⚠️ Erro ao excluir VendedorUsuario: {e}")
 
         # Limpar groups e permissions antes do delete
         for user in orfaos:

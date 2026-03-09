@@ -172,13 +172,14 @@ export default function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', s
                     Administrador
                   </p>
                 </div>
-                <button
-                  type="button"
+                <Link
+                  href={slug ? `/loja/${slug}/trocar-senha` : '/loja/trocar-senha'}
+                  onClick={() => setShowUserMenu(false)}
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] flex items-center gap-2"
                 >
                   <User size={16} />
                   Meu Perfil
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() => {

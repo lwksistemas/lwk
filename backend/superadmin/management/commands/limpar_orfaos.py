@@ -53,7 +53,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f'\n{mode}\n'))
 
         # Importar modelos
-        from superadmin.models import Loja, UserSession, ProfissionalUsuario
+        from superadmin.models import Loja, UserSession, ProfissionalUsuario, VendedorUsuario
 
         # 1. Verificar arquivos SQLite órfãos
         self.stdout.write(self.style.HTTP_INFO('\n1️⃣ Verificando arquivos SQLite órfãos...'))
@@ -119,8 +119,11 @@ class Command(BaseCommand):
         # 3. Verificar usuários órfãos (sem lojas)
         self.stdout.write(self.style.HTTP_INFO('\n3️⃣ Verificando usuários órfãos...'))
         usuarios_com_loja = set(Loja.objects.values_list('owner_id', flat=True))
+        usuarios_prof = set(ProfissionalUsuario.objects.values_list('user_id', flat=True))
+        usuarios_vend = set(VendedorUsuario.objects.values_list('user_id', flat=True))
+        usuarios_validos = usuarios_com_loja | usuarios_prof | usuarios_vend
         usuarios_orfaos = User.objects.exclude(
-            id__in=usuarios_com_loja
+            id__in=usuarios_validos
         ).exclude(
             is_superuser=True
         ).exclude(
@@ -136,6 +139,7 @@ class Command(BaseCommand):
                         # Limpar relacionamentos
                         UserSession.objects.filter(user=user).delete()
                         ProfissionalUsuario.objects.filter(user=user).delete()
+                        VendedorUsuario.objects.filter(user=user).delete()
                         user.groups.clear()
                         user.user_permissions.clear()
                         user.delete()

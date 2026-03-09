@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { ArrowLeft, Users, Plus, X } from 'lucide-react';
+import { ArrowLeft, Users, Plus, X, Mail } from 'lucide-react';
 
 interface Vendedor {
   id: number;
@@ -14,6 +14,7 @@ interface Vendedor {
   cargo: string;
   is_admin: boolean;
   is_active: boolean;
+  tem_acesso?: boolean;
 }
 
 export default function ConfiguracoesFuncionariosPage() {
@@ -33,7 +34,9 @@ export default function ConfiguracoesFuncionariosPage() {
     email: '',
     telefone: '',
     cargo: 'Vendedor',
+    criar_acesso: false,
   });
+  const [reenviando, setReenviando] = useState<number | null>(null);
 
   const carregar = async () => {
     try {
@@ -55,7 +58,7 @@ export default function ConfiguracoesFuncionariosPage() {
 
   const abrirNovo = () => {
     setEditando(null);
-    setForm({ nome: '', email: '', telefone: '', cargo: 'Vendedor' });
+    setForm({ nome: '', email: '', telefone: '', cargo: 'Vendedor', criar_acesso: false });
     setFormErro(null);
     setModalAberto(true);
   };
@@ -67,9 +70,23 @@ export default function ConfiguracoesFuncionariosPage() {
       email: v.email || '',
       telefone: v.telefone || '',
       cargo: v.cargo || 'Vendedor',
+      criar_acesso: false,
     });
     setFormErro(null);
     setModalAberto(true);
+  };
+
+  const handleReenviarSenha = async (v: Vendedor) => {
+    if (!v.email) return;
+    setReenviando(v.id);
+    try {
+      await apiClient.post(`/crm-vendas/vendedores/${v.id}/reenviar_senha/`);
+      carregar();
+    } catch {
+      // erro silencioso ou toast
+    } finally {
+      setReenviando(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,12 +96,17 @@ export default function ConfiguracoesFuncionariosPage() {
       setFormErro('Informe o nome.');
       return;
     }
+    if (form.criar_acesso && !form.email?.trim()) {
+      setFormErro('Para criar acesso, informe o e-mail.');
+      return;
+    }
     setSalvando(true);
     try {
+      const payload = { nome: form.nome, email: form.email, telefone: form.telefone, cargo: form.cargo };
       if (editando) {
-        await apiClient.patch(`/crm-vendas/vendedores/${editando.id}/`, form);
+        await apiClient.patch(`/crm-vendas/vendedores/${editando.id}/`, payload);
       } else {
-        await apiClient.post('/crm-vendas/vendedores/', form);
+        await apiClient.post('/crm-vendas/vendedores/', { ...payload, criar_acesso: form.criar_acesso });
       }
       setModalAberto(false);
       carregar();
@@ -170,14 +192,32 @@ export default function ConfiguracoesFuncionariosPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                     {v.email || v.telefone || v.cargo || '—'}
                   </p>
+                  {v.tem_acesso && v.email && (
+                    <span className="inline-flex items-center gap-1 mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+                      <Mail size={12} />
+                      Acesso ao sistema
+                    </span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => abrirEditar(v)}
-                  className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
-                >
-                  Editar
-                </button>
+                <div className="flex items-center gap-2">
+                  {v.tem_acesso && v.email && (
+                    <button
+                      type="button"
+                      onClick={() => handleReenviarSenha(v)}
+                      disabled={reenviando === v.id}
+                      className="px-3 py-1.5 text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors disabled:opacity-50"
+                    >
+                      {reenviando === v.id ? 'Enviando...' : 'Reenviar senha'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => abrirEditar(v)}
+                    className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
+                  >
+                    Editar
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -259,6 +299,19 @@ export default function ConfiguracoesFuncionariosPage() {
                     placeholder="Vendedor"
                   />
                 </div>
+                {!editando && (
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.criar_acesso}
+                      onChange={(e) => setForm((f) => ({ ...f, criar_acesso: e.target.checked }))}
+                      className="mt-1 rounded border-gray-300 dark:border-gray-600 text-[#0176d3]"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Criar acesso ao sistema e enviar senha provisória por e-mail
+                    </span>
+                  </label>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"

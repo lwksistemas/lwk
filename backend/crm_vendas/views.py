@@ -358,3 +358,87 @@ class WhatsAppConfigView(APIView):
             'whatsapp_phone_id': (config.whatsapp_phone_id or '').strip(),
             'whatsapp_token_set': bool((config.whatsapp_token or '').strip()),
         })
+
+
+class LoginConfigView(APIView):
+    """
+    GET /crm-vendas/login-config/  → retorna logo, cor_primaria, cor_secundaria
+    PATCH /crm-vendas/login-config/ → atualiza personalização da tela de login
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_loja(self, request=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        loja_id = get_current_loja_id()
+        if not loja_id and request:
+            try:
+                lid = request.headers.get('X-Loja-ID')
+                if lid:
+                    loja_id = int(lid)
+            except (ValueError, TypeError):
+                pass
+            if not loja_id:
+                slug = (request.headers.get('X-Tenant-Slug') or '').strip()
+                if slug:
+                    from superadmin.models import Loja
+                    loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
+                    if loja:
+                        loja_id = loja.id
+        if not loja_id:
+            logger.warning("LoginConfigView: contexto de loja não encontrado")
+            return None
+        from superadmin.models import Loja
+        try:
+            return Loja.objects.using('default').get(id=loja_id)
+        except Loja.DoesNotExist:
+            return None
+
+    def get(self, request):
+        loja = self._get_loja(request)
+        if loja is None:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        tipo = getattr(loja, 'tipo_loja', None)
+        cor_default = getattr(tipo, 'cor_primaria', None) if tipo else None
+        cor_primaria = (loja.cor_primaria or '').strip() or cor_default or '#10B981'
+        cor_secundaria = (loja.cor_secundaria or '').strip() or '#059669'
+        return Response({
+            'logo': (loja.logo or '').strip(),
+            'cor_primaria': cor_primaria,
+            'cor_secundaria': cor_secundaria,
+        })
+
+    def patch(self, request):
+        loja = self._get_loja(request)
+        if loja is None:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        update_fields = ['updated_at']
+        if 'logo' in request.data:
+            val = (request.data.get('logo') or '').strip()
+            loja.logo = val[:500] if val else ''
+            update_fields.append('logo')
+        if 'cor_primaria' in request.data:
+            val = (request.data.get('cor_primaria') or '').strip()
+            if val and val.startswith('#') and len(val) <= 7:
+                loja.cor_primaria = val[:7]
+                update_fields.append('cor_primaria')
+        if 'cor_secundaria' in request.data:
+            val = (request.data.get('cor_secundaria') or '').strip()
+            if val and val.startswith('#') and len(val) <= 7:
+                loja.cor_secundaria = val[:7]
+                update_fields.append('cor_secundaria')
+        loja.save(update_fields=update_fields)
+        from django.core.cache import cache
+        cache_key = f'loja_info_publica:{loja.slug}'
+        cache.delete(cache_key)
+        return Response({
+            'logo': (loja.logo or '').strip(),
+            'cor_primaria': loja.cor_primaria or '#10B981',
+            'cor_secundaria': loja.cor_secundaria or '#059669',
+        })

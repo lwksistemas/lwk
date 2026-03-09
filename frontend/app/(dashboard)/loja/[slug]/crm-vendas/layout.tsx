@@ -29,7 +29,14 @@ export default function CrmVendasLayout({
     if (!ready || !isLoja) return;
     apiClient
       .get(`/superadmin/lojas/info_publica/?slug=${slug}`)
-      .then((r) => setLojaInfo(r.data))
+      .then((r) => {
+        const data = r.data;
+        setLojaInfo(data);
+        if (typeof window !== 'undefined' && data?.id) {
+          sessionStorage.setItem('current_loja_id', String(data.id));
+          if (data?.slug) sessionStorage.setItem('loja_slug', data.slug);
+        }
+      })
       .catch(() => setLojaInfo(null));
   }, [ready, isLoja, slug]);
 

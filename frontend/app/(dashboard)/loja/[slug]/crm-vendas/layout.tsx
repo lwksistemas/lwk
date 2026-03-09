@@ -46,6 +46,7 @@ export default function CrmVendasLayout({
         <HeaderCrm
           title={lojaInfo ? `${lojaInfo.nome}` : 'Sales Cloud'}
           userName={lojaInfo?.nome ?? 'Admin'}
+          slug={slug}
         />
         <main className="p-4 sm:p-6 lg:p-8 flex-1 min-h-0 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c]">
           {children}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { DollarSign, Plus, X } from 'lucide-react';
 import LeadsTable, { type Lead } from '@/components/crm-vendas/LeadsTable';
@@ -48,6 +48,7 @@ function loadLeads(setLeads: (l: Lead[]) => void, setError: (e: string | null) =
 export default function CrmVendasLeadsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = (params?.slug as string) ?? '';
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +89,13 @@ export default function CrmVendasLeadsPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') {
+      setModalAberto(true);
+      router.replace(`/loja/${slug}/crm-vendas/leads`, { scroll: false });
+    }
+  }, [searchParams, router, slug]);
 
   if (error) {
     return (

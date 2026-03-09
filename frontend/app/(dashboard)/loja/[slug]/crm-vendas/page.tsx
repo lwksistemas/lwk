@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
@@ -62,6 +62,18 @@ export default function CrmVendasDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showFiltro, setShowFiltro] = useState(false);
+  const filtroRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filtroRef.current && !filtroRef.current.contains(e.target as Node)) {
+        setShowFiltro(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     apiClient
@@ -119,20 +131,53 @@ export default function CrmVendasDashboardPage() {
       {/* Page Header - Estilo Salesforce */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <Link
+            href={`/loja/${slug}/crm-vendas`}
+            className="text-2xl font-bold text-gray-900 dark:text-white hover:text-[#0176d3] dark:hover:text-[#0d9dda] transition-colors"
+          >
             Home
-          </h1>
+          </Link>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Visão geral do seu pipeline de vendas
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#16325c] border border-gray-300 dark:border-[#0d1f3c] rounded hover:bg-gray-50 dark:hover:bg-[#0d1f3c] transition-colors">
-            Filtrar
-          </button>
-          <button className="px-4 py-2 text-sm font-medium text-white bg-[#0176d3] hover:bg-[#0159a8] rounded transition-colors">
+          <div className="relative" ref={filtroRef}>
+            <button
+              type="button"
+              onClick={() => setShowFiltro((v) => !v)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#16325c] border border-gray-300 dark:border-[#0d1f3c] rounded hover:bg-gray-50 dark:hover:bg-[#0d1f3c] transition-colors"
+            >
+              Filtrar
+            </button>
+            {showFiltro && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#16325c] rounded-lg shadow-lg border border-gray-200 dark:border-[#0d1f3c] py-1 z-20">
+                <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-[#0d1f3c]">
+                  Período
+                </div>
+                <button
+                  type="button"
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
+                  onClick={() => setShowFiltro(false)}
+                >
+                  Este mês (padrão)
+                </button>
+                <button
+                  type="button"
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
+                  onClick={() => setShowFiltro(false)}
+                >
+                  Últimos 30 dias
+                </button>
+              </div>
+            )}
+          </div>
+          <Link
+            href={`/loja/${slug}/crm-vendas/leads?novo=1`}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#0176d3] hover:bg-[#0159a8] rounded transition-colors"
+          >
             + Novo Lead
-          </button>
+          </Link>
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { DollarSign, LayoutDashboard, Plus, X } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
@@ -40,6 +40,8 @@ function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setErr
 
 export default function CrmVendasPipelinePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const slug = (params?.slug as string) ?? '';
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +77,13 @@ export default function CrmVendasPipelinePage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') {
+      setModalCriar(true);
+      router.replace(`/loja/${slug}/crm-vendas/pipeline`, { scroll: false });
+    }
+  }, [searchParams, router, slug]);
 
   useEffect(() => {
     if (!modalCriar) return;

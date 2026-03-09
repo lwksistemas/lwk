@@ -94,6 +94,32 @@ class AtividadeViewSet(BaseModelViewSet):
     )
     serializer_class = AtividadeListSerializer
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        atividade = serializer.instance
+        if atividade and getattr(atividade, 'loja_id', None):
+            try:
+                from superadmin.models import Loja
+                from notificacoes.services import notify
+                loja = Loja.objects.using('default').filter(id=atividade.loja_id).select_related('owner').first()
+                if loja and loja.owner_id:
+                    data_str = atividade.data.strftime('%d/%m/%Y %H:%M') if atividade.data else ''
+                    tipo_label = atividade.get_tipo_display() if hasattr(atividade, 'get_tipo_display') else atividade.tipo
+                    notify(
+                        user=loja.owner,
+                        titulo=f'Nova atividade: {atividade.titulo[:50]}{"..." if len(atividade.titulo) > 50 else ""}',
+                        mensagem=f'{tipo_label}: {atividade.titulo} — {data_str}',
+                        tipo='tarefa',
+                        canal='in_app',
+                        metadata={
+                            'url': f'/loja/{loja.slug}/crm-vendas/calendario',
+                            'atividade_id': atividade.id,
+                            'loja_id': loja.id,
+                        },
+                    )
+            except Exception:
+                pass  # Notificação é best-effort; não falha a criação
+
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
             return AtividadeSerializer
@@ -421,7 +447,7 @@ class LoginConfigView(APIView):
         update_fields = ['updated_at']
         if 'logo' in request.data:
             val = (request.data.get('logo') or '').strip()
-            loja.logo = val[:500] if val else ''
+            loja.logo = val[:200] if val else ''  # URLField max_length=200
             update_fields.append('logo')
         if 'cor_primaria' in request.data:
             val = (request.data.get('cor_primaria') or '').strip()

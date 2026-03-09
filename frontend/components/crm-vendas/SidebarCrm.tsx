@@ -45,14 +45,18 @@ export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [notificacoesLoading, setNotificacoesLoading] = useState(false);
+  const [notificacoesErro, setNotificacoesErro] = useState<string | null>(null);
 
   const carregarNotificacoes = useCallback(async () => {
     setNotificacoesLoading(true);
+    setNotificacoesErro(null);
     try {
-      const res = await apiClient.get<Notificacao[]>('/notificacoes/');
+      const res = await apiClient.get<Notificacao[]>('notificacoes/');
       setNotificacoes(Array.isArray(res.data) ? res.data : []);
-    } catch {
+    } catch (err) {
+      console.error('Erro ao carregar notificações:', err);
       setNotificacoes([]);
+      setNotificacoesErro('Não foi possível carregar as notificações.');
     } finally {
       setNotificacoesLoading(false);
     }
@@ -295,6 +299,8 @@ export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
           <div className="mt-3 overflow-y-auto flex-1 min-h-0">
             {notificacoesLoading ? (
               <p className="text-sm text-gray-500 dark:text-gray-400">Carregando...</p>
+            ) : notificacoesErro ? (
+              <p className="text-sm text-amber-600 dark:text-amber-400">{notificacoesErro}</p>
             ) : notificacoes.length === 0 ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Você não tem novas notificações no momento.

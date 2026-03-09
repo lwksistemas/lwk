@@ -113,11 +113,12 @@ export default function ConfiguracoesLoginPage() {
                 type="url"
                 value={logo}
                 onChange={(e) => setLogo(e.target.value)}
+                maxLength={200}
                 placeholder="https://exemplo.com/logo.png"
                 className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Cole a URL do logo da sua loja. O logo será exibido na tela de login.
+                Cole a URL do logo da sua loja. O logo será exibido na tela de login. URL até 200 caracteres. Recomendado: imagem até 500 KB (PNG ou JPG), 200×200 a 400×400 px.
               </p>
             </div>
 

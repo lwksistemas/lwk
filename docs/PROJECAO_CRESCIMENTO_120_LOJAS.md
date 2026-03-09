@@ -10,7 +10,7 @@
 | Métrica | Atual | Recomendado (120 lojas) |
 |---------|-------|--------------------------|
 | Usuários simultâneos | ~30–50 | 600 |
-| Workers Gunicorn | 2 | 4–6 |
+| Workers Gunicorn | 4 | 4–6 |
 | Threads por worker | 4 | 4 |
 | Conexões PostgreSQL | ~20 (Basic) | 120+ (Standard) |
 | Redis | Opcional | **Obrigatório** |
@@ -18,39 +18,66 @@
 
 ---
 
-## 2. Infraestrutura Atual (Heroku, Render, Vercel)
+## 2. Capacidade Máxima de Lojas (estrutura atual)
 
-### 2.1 Heroku (Backend primário)
+Com a configuração atual (4 workers, PostgreSQL Essential/Standard, Redis opcional):
 
-- **Procfile:** `gunicorn --workers 2 --threads 4` → 8 requisições simultâneas
+| Cenário | Lojas máx. | Usuários simultâneos | Observação |
+|---------|------------|----------------------|------------|
+| **Confortável** | **30–40** | ~150–200 (5 por loja) | Velocidade boa, margem de segurança |
+| **Limite prático** | **50–60** | ~250–300 | Pode haver fila em picos |
+| **Máximo teórico** | **80–100** | ~400–500 | Exige PostgreSQL Standard + Redis |
+
+### Gargalos principais
+
+1. **Requisições simultâneas:** 16 req = ~16 usuários atendidos ao mesmo tempo. Com 15–20% de usuários ativos em pico, 16 ÷ 0,2 ≈ 80 usuários totais.
+2. **Conexões PostgreSQL:** Gunicorn (16) + Django-Q (4) + Render (8) ≈ 28 conexões. Essential (20) é insuficiente; Standard (200) suporta 60+ lojas.
+3. **Segurança:** Independente do número de lojas (JWT, CORS, isolamento por schema).
+
+### Recomendações por faixa
+
+| Lojas | Ação | Custo aprox. |
+|-------|------|---------------|
+| **Até 30** | Manter como está (4 workers) | Atual |
+| **30–60** | PostgreSQL Standard + Redis + 6 workers | +~$50/mês |
+| **60–120** | + 2 dynos ou PgBouncer | +~$50/mês |
+| **120+** | Escalar horizontalmente (mais dynos) | Variável |
+
+---
+
+## 3. Infraestrutura Atual (Heroku, Render, Vercel)
+
+### 3.1 Heroku (Backend primário)
+
+- **Procfile:** `gunicorn --workers 4 --threads 4` → 16 requisições simultâneas
 - **PostgreSQL:** plano Basic (~20 conexões) ou Standard (~120)
 - **Redis:** Heroku Redis (se `REDIS_URL` configurado)
 
-### 2.2 Render (Backend backup)
+### 3.2 Render (Backend backup)
 
 - **Workers:** 2
 - **Timeout:** 120s
 - **Banco:** mesmo PostgreSQL do Heroku
 
-### 2.3 Vercel (Frontend)
+### 3.3 Vercel (Frontend)
 
 - Serverless; escala automaticamente.
 - Não é gargalo para 600 usuários.
 
 ---
 
-## 3. Gargalos e Recomendações
+## 4. Gargalos e Recomendações
 
-### 3.1 Backend (Gunicorn)
+### 4.1 Backend (Gunicorn)
 
-**Problema:** 2 workers × 4 threads = **8 requisições simultâneas**.  
-Com 600 usuários, a fila cresce rapidamente.
+**Problema:** 4 workers × 4 threads = **16 requisições simultâneas**.  
+Para 600 usuários, a fila cresce; para 120 lojas recomenda-se 6 workers.
 
 **Solução:**
 
 ```
 # Procfile (atual)
-web: ... --workers 2 --threads 4 ...
+web: ... --workers 4 --threads 4 ...
 
 # Recomendado para 120 lojas
 web: ... --workers 4 --threads 4 ...
@@ -61,7 +88,7 @@ web: ... --workers 6 --threads 4 ...
 - **4 workers:** ~16 requisições simultâneas (mínimo aceitável)
 - **6 workers:** ~24 requisições simultâneas (recomendado)
 
-### 3.2 PostgreSQL
+### 4.2 PostgreSQL
 
 **Problema:** Cada worker/thread pode manter 1 conexão (CONN_MAX_AGE=60).  
 4 workers × 4 threads = 16 conexões. 6 workers = 24 conexões.
@@ -71,7 +98,7 @@ web: ... --workers 6 --threads 4 ...
 - **Heroku Postgres Standard-0** ou superior (120 conexões)
 - Ou **PgBouncer** (add-on) para connection pooling
 
-### 3.3 Redis
+### 4.3 Redis
 
 **Problema:** Sem Redis, o cache usa `LocMemCache` (por processo).  
 Cada worker tem seu próprio cache; não há compartilhamento.
@@ -82,14 +109,14 @@ Cada worker tem seu próprio cache; não há compartilhamento.
 - Sessões (se migrar de DB para Redis)
 - Django-Q (task queue) – já configurado para ORM, mas Redis melhora
 
-### 3.4 Django-Q
+### 4.4 Django-Q
 
 - **Workers:** `DJANGO_Q_WORKERS=4` (atual)
 - Para 120 lojas: considerar **6–8 workers** para backups e jobs em background
 
 ---
 
-## 4. Plano de Ação
+## 5. Plano de Ação
 
 ### Fase 1 – Imediato (sem custo extra)
 
@@ -111,7 +138,7 @@ Cada worker tem seu próprio cache; não há compartilhamento.
 
 ---
 
-## 5. Otimizações de Código (aplicadas)
+## 6. Otimizações de Código (aplicadas)
 
 - **Paginação:** `PAGE_SIZE=50` (já configurado)
 - **GZip:** habilitado no middleware
@@ -127,7 +154,7 @@ Cada worker tem seu próprio cache; não há compartilhamento.
 
 ---
 
-## 6. Estimativa de Custo (Heroku)
+## 7. Estimativa de Custo (Heroku)
 
 | Recurso | Plano | Conexões | Custo aprox. |
 |---------|-------|----------|--------------|
@@ -140,7 +167,7 @@ Cada worker tem seu próprio cache; não há compartilhamento.
 
 ---
 
-## 7. Checklist de Deploy para 120 Lojas
+## 8. Checklist de Deploy para 120 Lojas
 
 - [ ] `Procfile`: `--workers 4` (mínimo) ou `--workers 6`
 - [ ] `REDIS_URL` configurado no Heroku e Render

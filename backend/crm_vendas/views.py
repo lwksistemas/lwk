@@ -112,11 +112,15 @@ class AtividadeViewSet(BaseModelViewSet):
         data_inicio = self.request.query_params.get('data_inicio')
         if data_inicio:
             dt = parse_datetime(data_inicio)
+            if dt and timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.utc)
             if dt:
                 qs = qs.filter(data__gte=dt)
         data_fim = self.request.query_params.get('data_fim')
         if data_fim:
             dt = parse_datetime(data_fim)
+            if dt and timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.utc)
             if dt:
                 qs = qs.filter(data__lte=dt)
         return qs

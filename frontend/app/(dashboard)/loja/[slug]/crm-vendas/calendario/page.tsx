@@ -62,7 +62,7 @@ const TIPO_COR: Record<string, { bg: string; border: string }> = {
 };
 
 function toISO(date: Date): string {
-  return date.toISOString().slice(0, 19);
+  return date.toISOString().slice(0, 19) + 'Z';
 }
 
 function atividadeToEvent(a: Atividade): CalendarEvent {

@@ -252,6 +252,23 @@ export default function CalendarioCrmPage() {
     setRange({ start: arg.start, end: arg.end });
   }, []);
 
+  const openNovaAtividade = useCallback(() => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
+    start.setSeconds(0, 0);
+    setModalAtividade(null);
+    setForm({
+      titulo: '',
+      tipo: 'task',
+      data: start.toISOString().slice(0, 16),
+      duracao_minutos: 60,
+      observacoes: '',
+    });
+    setModalOpen(true);
+    setError(null);
+  }, []);
+
   const handleSelect = useCallback((arg: { start: Date; end: Date }) => {
     setModalAtividade(null);
     setForm({
@@ -431,7 +448,7 @@ export default function CalendarioCrmPage() {
         </p>
       )}
 
-      <div className="flex-1 min-h-[400px] sm:min-h-[500px] rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden fc-agenda-mobile">
+      <div className="relative flex-1 min-h-[400px] sm:min-h-[500px] rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden fc-agenda-mobile">
         {plugins.length > 0 && locale && (
           <FullCalendar
             key={isMobile ? 'mobile' : 'desktop'}
@@ -470,14 +487,26 @@ export default function CalendarioCrmPage() {
             Carregando...
           </div>
         )}
+        {/* Botão flutuante Nova atividade — facilita criação no celular (select no calendário é difícil em touch) */}
+        <button
+          type="button"
+          onClick={openNovaAtividade}
+          className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-14 h-14 rounded-full bg-[#0176d3] hover:bg-[#0159a8] text-white shadow-lg active:scale-95 transition-transform touch-manipulation"
+          aria-label="Nova atividade"
+          title="Nova atividade"
+        >
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
       </div>
 
       {modalOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40" onClick={handleCloseModal} aria-hidden="true" />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
             <div
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md"
+              className="bg-white dark:bg-gray-800 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -497,7 +526,7 @@ export default function CalendarioCrmPage() {
                     type="text"
                     value={form.titulo}
                     onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
                     placeholder="Ex: Ligar para cliente"
                   />
                 </div>
@@ -508,7 +537,7 @@ export default function CalendarioCrmPage() {
                   <select
                     value={form.tipo}
                     onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as Atividade['tipo'] }))}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
                   >
                     {Object.entries(TIPO_LABEL).map(([k, v]) => (
                       <option key={k} value={k}>{v}</option>
@@ -523,7 +552,7 @@ export default function CalendarioCrmPage() {
                     type="datetime-local"
                     value={form.data}
                     onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
                   />
                 </div>
                 <div>
@@ -533,7 +562,7 @@ export default function CalendarioCrmPage() {
                   <select
                     value={form.duracao_minutos}
                     onChange={(e) => setForm((f) => ({ ...f, duracao_minutos: Number(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
                   >
                     <option value={15}>15 min</option>
                     <option value={30}>30 min</option>
@@ -582,7 +611,7 @@ export default function CalendarioCrmPage() {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 touch-manipulation min-h-[44px]"
                 >
                   Cancelar
                 </button>
@@ -590,7 +619,7 @@ export default function CalendarioCrmPage() {
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-[#0176d3] hover:bg-[#0159a8] text-white font-medium disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-lg bg-[#0176d3] hover:bg-[#0159a8] text-white font-medium disabled:opacity-50 touch-manipulation min-h-[44px]"
                 >
                   {saving ? 'Salvando...' : 'Salvar'}
                 </button>

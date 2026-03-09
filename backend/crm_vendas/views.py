@@ -2,6 +2,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -241,3 +242,119 @@ def dashboard_data(request):
             {'detail': 'Erro ao carregar dashboard. Tente novamente.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+class WhatsAppConfigView(APIView):
+    """
+    Configuração WhatsApp da loja (reutiliza WhatsAppConfig da Clínica da Beleza).
+    GET /crm-vendas/whatsapp-config/  → retorna flags
+    PATCH /crm-vendas/whatsapp-config/ → atualiza flags
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_config(self, request=None):
+        import logging
+        logger = logging.getLogger(__name__)
+        loja_id = get_current_loja_id()
+        if not loja_id and request:
+            try:
+                lid = request.headers.get('X-Loja-ID')
+                if lid:
+                    loja_id = int(lid)
+            except (ValueError, TypeError):
+                pass
+            if not loja_id:
+                slug = (request.headers.get('X-Tenant-Slug') or '').strip()
+                if slug:
+                    from superadmin.models import Loja
+                    loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
+                    if loja:
+                        loja_id = loja.id
+        if not loja_id:
+            logger.warning("WhatsAppConfigView: contexto de loja não encontrado (loja_id e headers vazios)")
+            return None
+        from whatsapp.models import WhatsAppConfig
+        from superadmin.models import Loja
+        try:
+            loja = Loja.objects.using('default').get(id=loja_id)
+            owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip()
+            config, created = WhatsAppConfig.objects.get_or_create(
+                loja=loja,
+                defaults={
+                    'enviar_confirmacao': True,
+                    'enviar_lembrete_24h': True,
+                    'enviar_lembrete_2h': True,
+                    'enviar_cobranca': True,
+                    'enviar_lembrete_tarefas': True,
+                    'whatsapp_numero': owner_tel or '',
+                }
+            )
+            if not created and not (config.whatsapp_numero or '').strip() and owner_tel:
+                config.whatsapp_numero = owner_tel
+                config.save(update_fields=['whatsapp_numero', 'updated_at'])
+            return config
+        except Exception as e:
+            logger.exception("WhatsAppConfigView._get_config erro loja_id=%s: %s", loja_id, e)
+            return None
+
+    def get(self, request):
+        config = self._get_config(request)
+        if config is None:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        loja = config.loja
+        owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
+        return Response({
+            'enviar_confirmacao': config.enviar_confirmacao,
+            'enviar_lembrete_24h': config.enviar_lembrete_24h,
+            'enviar_lembrete_2h': config.enviar_lembrete_2h,
+            'enviar_cobranca': config.enviar_cobranca,
+            'enviar_lembrete_tarefas': getattr(config, 'enviar_lembrete_tarefas', True),
+            'owner_telefone': owner_telefone,
+            'whatsapp_numero': (config.whatsapp_numero or '').strip(),
+            'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
+            'whatsapp_phone_id': (getattr(config, 'whatsapp_phone_id', None) or '').strip(),
+            'whatsapp_token_set': bool((getattr(config, 'whatsapp_token', None) or '').strip()),
+        })
+
+    def patch(self, request):
+        config = self._get_config(request)
+        if config is None:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        update_fields = ['updated_at']
+        for key in ('enviar_confirmacao', 'enviar_lembrete_24h', 'enviar_lembrete_2h', 'enviar_cobranca', 'enviar_lembrete_tarefas'):
+            if key in request.data:
+                setattr(config, key, bool(request.data[key]))
+                update_fields.append(key)
+        if 'whatsapp_numero' in request.data:
+            config.whatsapp_numero = (request.data.get('whatsapp_numero') or '').strip()[:20]
+            update_fields.append('whatsapp_numero')
+        if 'whatsapp_ativo' in request.data:
+            config.whatsapp_ativo = bool(request.data['whatsapp_ativo'])
+            update_fields.append('whatsapp_ativo')
+        if 'whatsapp_phone_id' in request.data:
+            config.whatsapp_phone_id = (request.data.get('whatsapp_phone_id') or '').strip()[:64]
+            update_fields.append('whatsapp_phone_id')
+        if 'whatsapp_token' in request.data:
+            config.whatsapp_token = (request.data.get('whatsapp_token') or '').strip()[:512]
+            update_fields.append('whatsapp_token')
+        config.save(update_fields=update_fields)
+        loja = config.loja
+        owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
+        return Response({
+            'enviar_confirmacao': config.enviar_confirmacao,
+            'enviar_lembrete_24h': config.enviar_lembrete_24h,
+            'enviar_lembrete_2h': config.enviar_lembrete_2h,
+            'enviar_cobranca': config.enviar_cobranca,
+            'enviar_lembrete_tarefas': getattr(config, 'enviar_lembrete_tarefas', True),
+            'owner_telefone': owner_telefone,
+            'whatsapp_numero': (config.whatsapp_numero or '').strip(),
+            'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
+            'whatsapp_phone_id': (config.whatsapp_phone_id or '').strip(),
+            'whatsapp_token_set': bool((config.whatsapp_token or '').strip()),
+        })

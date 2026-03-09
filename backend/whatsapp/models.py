@@ -27,6 +27,11 @@ class WhatsAppConfig(models.Model):
     enviar_lembrete_24h = models.BooleanField(default=True, verbose_name='Enviar lembrete 24h antes')
     enviar_lembrete_2h = models.BooleanField(default=True, verbose_name='Enviar lembrete 2h antes')
     enviar_cobranca = models.BooleanField(default=True, verbose_name='Enviar cobrança financeiro')
+    enviar_lembrete_tarefas = models.BooleanField(
+        default=True,
+        verbose_name='Enviar lembrete de tarefas do calendário (CRM)',
+        help_text='Lembretes de atividades do CRM nas próximas 24h',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -136,6 +136,19 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
+  // CRM Vendas: redirecionar imediatamente para crm-vendas (não usar este dashboard)
+  if (isTipoCRMVendas(lojaInfo.tipo_loja_nome)) {
+    if (typeof window !== 'undefined') {
+      document.cookie = 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax';
+      window.location.replace(`/loja/${lojaInfo.slug}/crm-vendas`);
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-400">Redirecionando ao CRM...</p>
+      </div>
+    );
+  }
+
   const isClinicaEstetica = isTipoClinicaEstetica(lojaInfo.tipo_loja_nome);
   const isClinicaBeleza = isTipoClinicaBeleza(lojaInfo.tipo_loja_nome);
   const isRestaurante = isTipoRestaurante(lojaInfo.tipo_loja_nome);
@@ -289,16 +302,6 @@ function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoClinicaEstetica(loja.tipo_loja_nome)) return <DashboardClinicaEstetica loja={loja} onLogout={onLogout} />;
   if (isTipoCommerce(loja.tipo_loja_nome)) return <DashboardEcommerce loja={loja} />;
   if (isTipoRestaurante(loja.tipo_loja_nome)) return <DashboardRestaurante loja={loja} />;
-  if (isTipoCRMVendas(loja.tipo_loja_nome)) {
-    if (typeof window !== 'undefined') {
-      window.location.href = `/loja/${loja.slug}/crm-vendas`;
-    }
-    return (
-      <div className="flex items-center justify-center min-h-[200px] text-gray-500 dark:text-gray-400">
-        Redirecionando ao CRM...
-      </div>
-    );
-  }
   if (isTipoServicos(loja.tipo_loja_nome)) return <DashboardServicos loja={loja} />;
   if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} />;
   return <DashboardGenerico loja={loja} />;

@@ -37,7 +37,7 @@ export function middleware(request: NextRequest) {
     
     // Para outras páginas, verificar se é superadmin
     if (userType && userType !== 'superadmin') {
-      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
+      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug, request), request.url));
     }
     
     return NextResponse.next();
@@ -54,7 +54,7 @@ export function middleware(request: NextRequest) {
     
     // Para outras páginas, verificar se é suporte
     if (userType && userType !== 'suporte') {
-      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
+      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug, request), request.url));
     }
     
     return NextResponse.next();
@@ -84,12 +84,14 @@ export function middleware(request: NextRequest) {
     
     // Para outras páginas de loja, verificar se é loja
     if (userType && userType !== 'loja') {
-      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug), request.url));
+      return NextResponse.redirect(new URL(getRedirectUrl(userType, lojaSlug, request), request.url));
     }
     
     // Se for loja mas tentando acessar outra loja
     if (userType === 'loja' && lojaSlug && requestedSlug && requestedSlug !== lojaSlug) {
-      return NextResponse.redirect(new URL(`/loja/${lojaSlug}/dashboard`, request.url));
+      const usaCrm = request.cookies.get('loja_usa_crm')?.value === '1';
+      const destino = usaCrm ? `/loja/${lojaSlug}/crm-vendas` : `/loja/${lojaSlug}/dashboard`;
+      return NextResponse.redirect(new URL(destino, request.url));
     }
     
     return NextResponse.next();
@@ -98,14 +100,18 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-function getRedirectUrl(userType: string, lojaSlug?: string): string {
+function getRedirectUrl(userType: string, lojaSlug?: string, request?: NextRequest): string {
   switch (userType) {
     case 'superadmin':
       return '/superadmin/dashboard';
     case 'suporte':
       return '/suporte/dashboard';
     case 'loja':
-      return lojaSlug ? `/loja/${lojaSlug}/dashboard` : '/';
+      if (!lojaSlug) return '/';
+      if (request?.cookies.get('loja_usa_crm')?.value === '1') {
+        return `/loja/${lojaSlug}/crm-vendas`;
+      }
+      return `/loja/${lojaSlug}/dashboard`;
     default:
       return '/';
   }

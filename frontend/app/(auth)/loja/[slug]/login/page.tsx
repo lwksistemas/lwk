@@ -120,9 +120,13 @@ export default function LojaLoginDinamicoPage() {
       }
 
       // Loja tipo CRM Vendas: ir direto para o Dashboard de Vendas (CRM)
-      const destino = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome)
-        ? `/loja/${slug}/crm-vendas`
-        : `/loja/${slug}/dashboard`;
+      const usaCrm = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome);
+      const destino = usaCrm ? `/loja/${slug}/crm-vendas` : `/loja/${slug}/dashboard`;
+      if (typeof document !== 'undefined') {
+        document.cookie = usaCrm
+          ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
+          : 'loja_usa_crm=; path=/; max-age=0';
+      }
       console.log('🚀 Redirecionando para', destino);
       markInternalNavigation();
       const timestamp = new Date().getTime();

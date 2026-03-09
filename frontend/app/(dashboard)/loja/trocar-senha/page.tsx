@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { isTipoCRMVendas } from '@/lib/loja-tipo';
 
 export default function TrocarSenhaLojaPage() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function TrocarSenhaLojaPage() {
   const [loadingInfo, setLoadingInfo] = useState(true);
   const [lojaId, setLojaId] = useState<number | null>(null);
   const [lojaSlug, setLojaSlug] = useState<string | null>(null);
+  const [tipoLojaNome, setTipoLojaNome] = useState<string>('');
   const [formData, setFormData] = useState({
     nova_senha: '',
     confirmar_senha: '',
@@ -28,6 +30,7 @@ export default function TrocarSenhaLojaPage() {
       setLojaSlug(slug);
       const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       setLojaId(response.data.id);
+      setTipoLojaNome(response.data.tipo_loja_nome || '');
     } catch (error) {
       console.error('Erro ao carregar informações da loja:', error);
       setErro('Erro ao carregar informações. Faça login novamente.');
@@ -77,7 +80,10 @@ export default function TrocarSenhaLojaPage() {
       });
 
       alert('✅ Senha alterada com sucesso!');
-      router.push(`/loja/${lojaSlug}/dashboard`);
+      const destino = tipoLojaNome && isTipoCRMVendas(tipoLojaNome)
+        ? `/loja/${lojaSlug}/crm-vendas`
+        : `/loja/${lojaSlug}/dashboard`;
+      router.push(destino);
     } catch (error: any) {
       console.error('Erro ao alterar senha:', error);
       setErro(error.response?.data?.error || 'Erro ao alterar senha');

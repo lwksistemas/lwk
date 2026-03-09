@@ -35,6 +35,7 @@ export default function CrmVendasLayout({
         if (typeof window !== 'undefined' && data?.id) {
           sessionStorage.setItem('current_loja_id', String(data.id));
           if (data?.slug) sessionStorage.setItem('loja_slug', data.slug);
+          document.cookie = 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax';
         }
       })
       .catch(() => setLojaInfo(null));

@@ -4,6 +4,13 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { authService, UserType } from '@/lib/auth';
 
+function getLojaDashboardPath(lojaSlug: string): string {
+  if (typeof document === 'undefined') return `/loja/${lojaSlug}/dashboard`;
+  return document.cookie.includes('loja_usa_crm=1')
+    ? `/loja/${lojaSlug}/crm-vendas`
+    : `/loja/${lojaSlug}/dashboard`;
+}
+
 interface RouteGuardProps {
   children: React.ReactNode;
   allowedUserType: UserType;
@@ -40,7 +47,7 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
             break;
           case 'loja':
             if (lojaSlug) {
-              router.replace(`/loja/${lojaSlug}/dashboard`);
+              router.replace(getLojaDashboardPath(lojaSlug));
             } else {
               router.replace('/');
             }
@@ -53,7 +60,7 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
       
       // Se é loja, verificar se está tentando acessar outra loja
       if (allowedUserType === 'loja' && requiredSlug && lojaSlug && requiredSlug !== lojaSlug) {
-        router.replace(`/loja/${lojaSlug}/dashboard`);
+        router.replace(getLojaDashboardPath(lojaSlug));
         return;
       }
     };

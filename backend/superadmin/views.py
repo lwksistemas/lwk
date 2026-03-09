@@ -58,13 +58,18 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
         if hasattr(obj, 'owner') and request.user == obj.owner:
             return True
         
-        # Verificar se é um usuário admin da loja (UsuarioSistema)
+        # Verificar se é usuário suporte com acesso à loja (UsuarioSistema - usa lojas_acesso M2M)
         if hasattr(obj, 'id'):
             from .models import UsuarioSistema
             if UsuarioSistema.objects.filter(
-                user=request.user, 
-                loja=obj, 
-                tipo_usuario='admin',
+                user=request.user,
+                lojas_acesso=obj,
+                is_active=True
+            ).exists():
+                return True
+            if UsuarioSistema.objects.filter(
+                user=request.user,
+                pode_acessar_todas_lojas=True,
                 is_active=True
             ).exists():
                 return True
@@ -84,7 +89,7 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
             if action in ('exportar_backup', 'importar_backup', 'enviar_backup_agora', 'configuracao_backup', 'atualizar_configuracao_backup', 'historico_backups'):
                 if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():
                     return True
-                if UsuarioSistema.objects.filter(user=request.user, loja=obj, is_active=True).exists():
+                if UsuarioSistema.objects.filter(user=request.user, lojas_acesso=obj, is_active=True).exists():
                     return True
 
         return False

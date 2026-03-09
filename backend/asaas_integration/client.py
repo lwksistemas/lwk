@@ -117,41 +117,47 @@ class AsaasClient:
         return self._make_request('GET', endpoint, params)
     
     def get_payment_pdf(self, payment_id: str) -> bytes:
-        """Baixa o PDF do boleto"""
-        # Tentar múltiplas URLs para download do PDF
-        urls_to_try = [
-            f"{self.base_url}/payments/{payment_id}/identificationField",
-            f"{self.base_url}/payments/{payment_id}/bankSlipPdf",
-            f"https://sandbox.asaas.com/b/pdf/{payment_id}" if self.sandbox else f"https://asaas.com/b/pdf/{payment_id}"
-        ]
-        
+        """Baixa o PDF do boleto via bankSlipUrl da API ou URLs alternativas."""
+        urls_to_try = []
+
+        # 1. Obter bankSlipUrl da API (formato correto segundo documentação Asaas)
+        try:
+            payment = self.get_payment(payment_id)
+            bank_slip_url = payment.get('bankSlipUrl')
+            if bank_slip_url:
+                urls_to_try.append(bank_slip_url)  # URL pública do boleto
+        except Exception as e:
+            logger.warning(f"Erro ao obter payment para bankSlipUrl: {e}")
+
+        # 2. URLs alternativas b/pdf (sandbox usa ID sem prefixo pay_ em alguns casos)
+        id_sem_prefixo = payment_id.replace('pay_', '', 1) if payment_id.startswith('pay_') else payment_id
+        base_b_pdf = 'https://sandbox.asaas.com' if self.sandbox else 'https://www.asaas.com'
+        urls_to_try.append(f"{base_b_pdf}/b/pdf/{id_sem_prefixo}")
+        urls_to_try.append(f"{base_b_pdf}/b/pdf/{payment_id}")
+
         for url in urls_to_try:
             try:
                 logger.info(f"Tentando baixar PDF de: {url}")
-                response = requests.get(url, headers=self.headers)
-                
+                # URLs públicas (bankSlipUrl, b/pdf) — User-Agent browser-like para evitar bloqueio
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'application/pdf,*/*',
+                }
+                response = requests.get(url, headers=headers, timeout=15)
+
                 if response.status_code == 200:
-                    # Verificar se o conteúdo é realmente um PDF
                     content_type = response.headers.get('content-type', '')
                     content = response.content
-                    
-                    # Verificar se é PDF pelo content-type ou pelos primeiros bytes
-                    if ('application/pdf' in content_type.lower() or 
-                        (content and content[:4] == b'%PDF')):
+                    if ('application/pdf' in content_type.lower() or
+                            (content and len(content) >= 4 and content[:4] == b'%PDF')):
                         logger.info(f"PDF baixado com sucesso de: {url}")
                         return content
-                    else:
-                        logger.warning(f"Conteúdo retornado não é PDF: {content_type}")
-                        continue
+                    logger.warning(f"Conteúdo retornado não é PDF: {content_type}")
                 else:
                     logger.warning(f"Erro HTTP {response.status_code} ao baixar de: {url}")
-                    continue
-                    
             except requests.exceptions.RequestException as e:
                 logger.warning(f"Erro ao baixar PDF de {url}: {e}")
-                continue
-        
-        # Se chegou aqui, nenhuma URL funcionou
+
         raise Exception("Não foi possível baixar o PDF do boleto de nenhuma URL")
     
     def get_pix_qr_code(self, payment_id: str) -> Dict[str, Any]:

@@ -1,7 +1,7 @@
 """
 Utilitários do CRM Vendas.
 """
-from tenants.middleware import get_current_loja_id
+from tenants.middleware import get_current_loja_id, ensure_loja_context
 
 
 def get_current_vendedor_id(request):
@@ -12,6 +12,9 @@ def get_current_vendedor_id(request):
     if not request or not request.user or not request.user.is_authenticated:
         return None
     loja_id = get_current_loja_id()
+    if not loja_id and request:
+        ensure_loja_context(request)
+        loja_id = get_current_loja_id()
     if not loja_id:
         return None
     try:

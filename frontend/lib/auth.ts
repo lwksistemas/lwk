@@ -72,10 +72,12 @@ class AuthService {
       // user_type/loja_slug podem vir no topo ou dentro de user/loja (compatível com backend antigo)
       const responseUserType = data.user_type ?? (data as any).user?.user_type;
       const lojaSlug = data.loja_slug ?? (data as any).loja?.slug;
+      const lojaId = (data as any).loja?.id;
 
       console.log('✅ Login bem-sucedido:', {
         user_type: responseUserType,
         loja_slug: lojaSlug,
+        loja_id: lojaId,
         precisa_trocar_senha: data.precisa_trocar_senha
       });
 
@@ -84,6 +86,9 @@ class AuthService {
       this.setRefreshToken(data.refresh);
       if (responseUserType) this.setUserType(responseUserType);
       if (lojaSlug) this.setLojaSlug(lojaSlug);
+      if (typeof window !== 'undefined' && lojaId) {
+        sessionStorage.setItem('current_loja_id', String(lojaId));
+      }
       if ((data as any).is_vendedor === true) {
         sessionStorage.setItem('is_vendedor', '1');
       } else {

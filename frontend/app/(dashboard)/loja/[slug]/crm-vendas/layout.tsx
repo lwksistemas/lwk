@@ -77,8 +77,11 @@ export default function CrmVendasLayout({
 
   useEffect(() => {
     if (!ready || !isLoja) return;
+    if (typeof window !== 'undefined' && slug) {
+      sessionStorage.setItem('loja_slug', slug);
+    }
     fetchLojaInfo();
-  }, [ready, isLoja, fetchLojaInfo]);
+  }, [ready, isLoja, fetchLojaInfo, slug]);
 
   useEffect(() => {
     if (ready && !isLoja) window.location.href = loginPath;

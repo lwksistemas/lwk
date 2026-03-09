@@ -26,9 +26,12 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         
         # 🛡️ SEGURANÇA CRÍTICA: Validar isolamento por loja
         if hasattr(self.queryset.model, 'loja_id'):
-            from tenants.middleware import get_current_loja_id
+            from tenants.middleware import get_current_loja_id, ensure_loja_context
             
             loja_id = get_current_loja_id()
+            if not loja_id and hasattr(self, 'request') and self.request:
+                ensure_loja_context(self.request)
+                loja_id = get_current_loja_id()
             
             if not loja_id:
                 logger.critical(
@@ -46,6 +49,9 @@ class BaseModelViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Personaliza a criação de registros"""
+        if hasattr(serializer.Meta.model, 'loja_id'):
+            from tenants.middleware import ensure_loja_context
+            ensure_loja_context(self.request)
         serializer.save()
     
     def perform_update(self, serializer):

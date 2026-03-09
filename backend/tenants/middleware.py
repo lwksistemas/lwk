@@ -31,6 +31,36 @@ def set_current_loja_id(loja_id):
     """Define o ID da loja atual"""
     _thread_locals.current_loja_id = loja_id
 
+
+def ensure_loja_context(request):
+    """
+    Garante que loja_id está no contexto. Se ausente, tenta obter dos headers.
+    Útil quando o TenantMiddleware não conseguiu definir o contexto (ex: race, timeout).
+    """
+    if get_current_loja_id():
+        return True
+    if not request:
+        return False
+    loja_id = None
+    try:
+        lid = request.headers.get('X-Loja-ID')
+        if lid:
+            loja_id = int(lid)
+        if not loja_id:
+            slug = (request.headers.get('X-Tenant-Slug') or '').strip()
+            if slug:
+                from superadmin.models import Loja
+                loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
+                if loja:
+                    loja_id = loja.id
+        if loja_id:
+            set_current_loja_id(loja_id)
+            return True
+    except (ValueError, TypeError):
+        pass
+    return False
+
+
 class TenantMiddleware:
     """
     Middleware que identifica o tenant pela URL ou header
@@ -295,11 +325,7 @@ class TenantMiddleware:
         
         # Validar owner
         if loja.owner_id != request.user.id:
-            logger.warning(
-                f"⚠️ Usuário {request.user.id} ({request.user.email}) não é owner da loja {loja.slug} (owner: {loja.owner_id})"
-            )
-            
-            # 🔧 PERMITIR acesso se for funcionário da loja (Clínica, Restaurante, etc.)
+            # 🔧 PERMITIR acesso se for funcionário/profissional/vendedor (só logar se for bloquear)
             try:
                 from clinica_estetica.models import Funcionario as FuncionarioClinica
                 from restaurante.models import Funcionario as FuncionarioRestaurante
@@ -350,6 +376,9 @@ class TenantMiddleware:
             except Exception as e:
                 logger.error(f"❌ Erro ao verificar se é funcionário: {e}", exc_info=True)
             
+            logger.warning(
+                f"⚠️ Usuário {request.user.id} ({request.user.email}) não tem permissão para loja {loja.slug} (owner: {loja.owner_id})"
+            )
             logger.critical(
                 f"🚨 BLOQUEIO: Usuário {request.user.id} ({request.user.email}) "
                 f"não tem permissão para loja {loja.slug} (ID: {loja.id})"

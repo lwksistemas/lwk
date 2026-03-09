@@ -155,7 +155,11 @@ class ContaViewSet(BaseModelViewSet):
         qs = super().get_queryset()
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
-            qs = qs.filter(leads__oportunidades__vendedor_id=vendedor_id).distinct()
+            qs = qs.filter(
+                Q(leads__oportunidades__vendedor_id=vendedor_id)
+                | Q(leads__vendedor_id=vendedor_id)
+                | Q(vendedor_id=vendedor_id)
+            ).distinct()
         return qs
 
     def list(self, request, *args, **kwargs):
@@ -175,7 +179,11 @@ class ContaViewSet(BaseModelViewSet):
         return response
 
     def perform_create(self, serializer):
-        super().perform_create(serializer)
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is not None:
+            serializer.save(vendedor_id=vendedor_id)
+        else:
+            serializer.save()
         self._invalidate_contas_cache()
 
     def perform_update(self, serializer):
@@ -194,7 +202,7 @@ class ContaViewSet(BaseModelViewSet):
 
 
 class LeadViewSet(BaseModelViewSet):
-    queryset = Lead.objects.select_related('conta').all()
+    queryset = Lead.objects.select_related('conta', 'vendedor').all()
     serializer_class = LeadSerializer
 
     def get_serializer_class(self):
@@ -202,11 +210,20 @@ class LeadViewSet(BaseModelViewSet):
             return LeadListSerializer
         return LeadSerializer
 
+    def perform_create(self, serializer):
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is not None:
+            serializer.save(vendedor_id=vendedor_id)
+        else:
+            serializer.save()
+
     def get_queryset(self):
         qs = super().get_queryset()
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
-            qs = qs.filter(oportunidades__vendedor_id=vendedor_id).distinct()
+            qs = qs.filter(
+                Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
+            ).distinct()
         status = self.request.query_params.get('status')
         if status:
             qs = qs.filter(status=status)
@@ -224,7 +241,11 @@ class ContatoViewSet(BaseModelViewSet):
         qs = super().get_queryset()
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
-            qs = qs.filter(conta__leads__oportunidades__vendedor_id=vendedor_id).distinct()
+            qs = qs.filter(
+                Q(conta__leads__oportunidades__vendedor_id=vendedor_id)
+                | Q(conta__leads__vendedor_id=vendedor_id)
+                | Q(conta__vendedor_id=vendedor_id)
+            ).distinct()
         conta_id = self.request.query_params.get('conta_id')
         if conta_id:
             qs = qs.filter(conta_id=conta_id)
@@ -234,6 +255,14 @@ class ContatoViewSet(BaseModelViewSet):
 class OportunidadeViewSet(BaseModelViewSet):
     queryset = Oportunidade.objects.select_related('lead', 'vendedor').all()
     serializer_class = OportunidadeSerializer
+
+    def perform_create(self, serializer):
+        vendedor_id = get_current_vendedor_id(self.request)
+        data = serializer.validated_data
+        if vendedor_id is not None and not data.get('vendedor'):
+            serializer.save(vendedor_id=vendedor_id)
+        else:
+            serializer.save()
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -411,7 +440,9 @@ def dashboard_data(request):
         vendedores_qs = Vendedor.objects.filter(is_active=True)
 
         if vendedor_id is not None:
-            leads_qs = leads_qs.filter(oportunidades__vendedor_id=vendedor_id).distinct()
+            leads_qs = leads_qs.filter(
+                Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
+            ).distinct()
             opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
             atividades_qs = atividades_qs.filter(
                 Q(oportunidade__vendedor_id=vendedor_id) | Q(lead__oportunidades__vendedor_id=vendedor_id)

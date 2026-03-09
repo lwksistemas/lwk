@@ -84,7 +84,7 @@ export default function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
     if (typeof window !== 'undefined' && window.innerWidth < 768 && !collapsed) {
       toggle();
     }
-  }, [currentPath]);
+  }, [currentPath, collapsed, toggle]);
 
   // Prevenir scroll do body quando sidebar mobile está aberta
   useEffect(() => {

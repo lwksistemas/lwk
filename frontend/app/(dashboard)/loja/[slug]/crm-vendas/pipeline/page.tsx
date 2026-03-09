@@ -98,6 +98,7 @@ export default function CrmVendasPipelinePage() {
         }
       })
       .catch(() => setLeads([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Executar apenas ao abrir modal; formCriar.lead_id é setado dentro do efeito
   }, [modalCriar]);
 
   const handleAbrirCriar = () => {

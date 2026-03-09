@@ -34,6 +34,14 @@ class Vendedor(LojaIsolationMixin, models.Model):
 class Conta(LojaIsolationMixin, models.Model):
     """Conta (empresa)."""
     nome = models.CharField(max_length=255)
+    vendedor = models.ForeignKey(
+        'Vendedor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='contas',
+        help_text='Vendedor responsável pela conta (quando criado por vendedor)',
+    )
     segmento = models.CharField(max_length=100, blank=True)
     telefone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True, null=True)
@@ -85,6 +93,14 @@ class Lead(LojaIsolationMixin, models.Model):
         null=True,
         blank=True,
         related_name='leads',
+    )
+    vendedor = models.ForeignKey(
+        'Vendedor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='leads',
+        help_text='Vendedor responsável pelo lead (quando criado por vendedor)',
     )
     observacoes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -85,6 +85,7 @@ class Command(BaseCommand):
         try:
             call_command('fix_google_event_id_column', verbosity=1)
             call_command('fix_duracao_minutos_column', verbosity=1)
+            call_command('fix_vendedor_column', verbosity=1)
         except Exception as e:
             self.stdout.write(self.style.WARNING(f"  ⚠️ fix columns: {e}"))
         

@@ -166,16 +166,58 @@ WHITENOISE_MAX_AGE = 31536000  # 1 ano de cache
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ✅ CACHE: Usando cache local em memória (temporário até resolver SSL do Redis)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'lwk-cache',
-        'OPTIONS': {
-            'MAX_ENTRIES': 10000,
+# ============================================
+# REDIS CACHE CONFIGURATION
+# ============================================
+import os
+
+USE_REDIS = os.environ.get('USE_REDIS', 'false').lower() == 'true'
+
+if USE_REDIS:
+    REDIS_URL = os.environ.get('REDIS_URL')
+    if REDIS_URL:
+        CACHES = {
+            'default': {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': REDIS_URL,
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'SOCKET_CONNECT_TIMEOUT': 5,
+                    'SOCKET_TIMEOUT': 5,
+                    'CONNECTION_POOL_KWARGS': {
+                        'max_connections': 50,
+                        'retry_on_timeout': True,
+                    },
+                },
+                'KEY_PREFIX': 'lwk',
+                'TIMEOUT': 300,  # 5 minutos padrão
+            }
+        }
+        print("✅ Redis cache ativado:", REDIS_URL[:30] + "...")
+    else:
+        print("⚠️ USE_REDIS=true mas REDIS_URL não encontrado")
+        # Fallback para LocMemCache
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'lwk-cache',
+                'OPTIONS': {
+                    'MAX_ENTRIES': 10000,
+                }
+            }
+        }
+else:
+    # ✅ CACHE: Usando cache local em memória
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'lwk-cache',
+            'OPTIONS': {
+                'MAX_ENTRIES': 10000,
+            }
         }
     }
-}
+    print("ℹ️ Redis cache desativado (USE_REDIS=false)")
 
 # ✅ OTIMIZAÇÃO: GZip compression
 GZIP_COMPRESSIBLE_TYPES = [
@@ -198,14 +240,14 @@ REST_FRAMEWORK = {
     # Paginação otimizada para 40 lojas
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
-    # Throttling para prevenir abuso
+    # Throttling otimizado para 500 usuários simultâneos
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
-        'user': '2000/hour'  # Aumentado para suportar mais usuários
+        'user': '10000/hour',  # 166 req/min = 2.7 req/seg por usuário (suporta 500 usuários)
     }
 }
 

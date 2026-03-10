@@ -1,9 +1,11 @@
 """
 Comando para aplicar migrations em todos os schemas das lojas
+✅ OTIMIZADO: Fecha conexões após cada loja para evitar "too many connections"
 """
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.conf import settings
+from django.db import connections
 from superadmin.models import Loja
 import dj_database_url
 import os
@@ -80,6 +82,20 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f"  ✅ {app} migrado"))
                 except Exception as e:
                     self.stdout.write(self.style.WARNING(f"  ⚠️ Erro em {app}: {e}"))
+            
+            # ✅ CRÍTICO: Fechar todas as conexões desta loja antes de processar a próxima
+            # Evita "too many connections for role" ao processar múltiplas lojas
+            if loja.database_name in connections:
+                try:
+                    connections[loja.database_name].close()
+                    self.stdout.write(f"✅ Conexões fechadas para {loja.database_name}")
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f"⚠️ Erro ao fechar conexões: {e}"))
+            
+            # Remover banco das configurações para liberar memória
+            if loja.database_name in settings.DATABASES:
+                del settings.DATABASES[loja.database_name]
+                self.stdout.write(f"✅ Banco removido das configurações")
         
         # Corrige colunas em schemas que têm crm_vendas_atividade
         self.stdout.write(f"\n{'='*60}")

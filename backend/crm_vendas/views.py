@@ -21,21 +21,15 @@ from .serializers import (
     AtividadeListSerializer,
 )
 from tenants.middleware import get_current_loja_id
-from .utils import get_current_vendedor_id
+from .utils import get_current_vendedor_id, get_loja_from_context
+from .mixins import CRMPermissionMixin, VendedorFilterMixin
+from .cache import CRMCacheManager
+from .decorators import cache_list_response
 
 
-class VendedorViewSet(BaseModelViewSet):
+class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     queryset = Vendedor.objects.all()
     serializer_class = VendedorSerializer
-
-    def _bloquear_vendedor(self, request):
-        """Retorna Response 403 se o usuário for vendedor (não pode gerenciar equipe)."""
-        if get_current_vendedor_id(request) is not None:
-            return Response(
-                {'detail': 'Vendedores não têm permissão para acessar configurações de funcionários.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        return None
 
     def _ensure_owner_vendedor(self):
         """Garante que o administrador da loja exista como vendedor (para lojas antigas)."""
@@ -57,38 +51,38 @@ class VendedorViewSet(BaseModelViewSet):
             pass  # Não falhar a listagem
 
     def list(self, request, *args, **kwargs):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
         self._ensure_owner_vendedor()
         return super().list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
         return super().create(request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
         return super().retrieve(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
         return super().destroy(request, *args, **kwargs)
@@ -102,7 +96,7 @@ class VendedorViewSet(BaseModelViewSet):
     @action(detail=True, methods=['post'])
     def reenviar_senha(self, request, pk=None):
         """Gera nova senha provisória e envia por e-mail para o vendedor."""
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
         vendedor = self.get_object()
@@ -167,36 +161,17 @@ class VendedorViewSet(BaseModelViewSet):
         })
 
 
-class ContaViewSet(BaseModelViewSet):
+class ContaViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = Conta.objects.select_related('vendedor').prefetch_related('leads', 'contatos').all()
     serializer_class = ContaSerializer
+    
+    # Configuração do VendedorFilterMixin
+    vendedor_filter_field = 'vendedor_id'
+    vendedor_filter_related = ['leads__oportunidades__vendedor_id', 'leads__vendedor_id']
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is not None:
-            qs = qs.filter(
-                Q(leads__oportunidades__vendedor_id=vendedor_id)
-                | Q(leads__vendedor_id=vendedor_id)
-                | Q(vendedor_id=vendedor_id)
-            ).distinct()
-        return qs
-
+    @cache_list_response(CRMCacheManager.CONTAS, ttl=120)
     def list(self, request, *args, **kwargs):
-        from django.core.cache import cache
-        from rest_framework.response import Response
-
-        loja_id = get_current_loja_id()
-        vendedor_id = get_current_vendedor_id(request)
-        cache_key = f'crm_contas_list:{loja_id}' if (loja_id and vendedor_id is None) else None
-        if cache_key:
-            cached = cache.get(cache_key)
-            if cached is not None:
-                return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        if cache_key and response.status_code == 200:
-            cache.set(cache_key, response.data, 120)  # Aumentado de 45s para 120s
-        return response
+        return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         vendedor_id = get_current_vendedor_id(self.request)
@@ -204,26 +179,24 @@ class ContaViewSet(BaseModelViewSet):
             serializer.save(vendedor_id=vendedor_id)
         else:
             serializer.save()
-        self._invalidate_contas_cache()
+        CRMCacheManager.invalidate_contas(get_current_loja_id())
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        self._invalidate_contas_cache()
+        CRMCacheManager.invalidate_contas(get_current_loja_id())
 
     def perform_destroy(self, instance):
         super().perform_destroy(instance)
-        self._invalidate_contas_cache()
-
-    def _invalidate_contas_cache(self):
-        loja_id = get_current_loja_id()
-        if loja_id:
-            from django.core.cache import cache
-            cache.delete(f'crm_contas_list:{loja_id}')
+        CRMCacheManager.invalidate_contas(get_current_loja_id())
 
 
-class LeadViewSet(BaseModelViewSet):
+class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()
     serializer_class = LeadSerializer
+    
+    # Configuração do VendedorFilterMixin
+    vendedor_filter_field = 'vendedor_id'
+    vendedor_filter_related = ['oportunidades__vendedor_id']
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -239,11 +212,7 @@ class LeadViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is not None:
-            qs = qs.filter(
-                Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
-            ).distinct()
+        # Filtros adicionais (além do filtro de vendedor do mixin)
         status = self.request.query_params.get('status')
         if status:
             qs = qs.filter(status=status)
@@ -253,28 +222,30 @@ class LeadViewSet(BaseModelViewSet):
         return qs
 
 
-class ContatoViewSet(BaseModelViewSet):
+class ContatoViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = Contato.objects.select_related('conta').all()
     serializer_class = ContatoSerializer
+    
+    # Configuração do VendedorFilterMixin
+    vendedor_filter_field = 'conta__vendedor_id'
+    vendedor_filter_related = ['conta__leads__oportunidades__vendedor_id', 'conta__leads__vendedor_id']
 
     def get_queryset(self):
         qs = super().get_queryset()
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is not None:
-            qs = qs.filter(
-                Q(conta__leads__oportunidades__vendedor_id=vendedor_id)
-                | Q(conta__leads__vendedor_id=vendedor_id)
-                | Q(conta__vendedor_id=vendedor_id)
-            ).distinct()
+        # Filtros adicionais (além do filtro de vendedor do mixin)
         conta_id = self.request.query_params.get('conta_id')
         if conta_id:
             qs = qs.filter(conta_id=conta_id)
         return qs
 
 
-class OportunidadeViewSet(BaseModelViewSet):
+class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = Oportunidade.objects.select_related('lead', 'vendedor', 'lead__conta').prefetch_related('atividades').all()
     serializer_class = OportunidadeSerializer
+    
+    # Configuração do VendedorFilterMixin
+    vendedor_filter_field = 'vendedor_id'
+    vendedor_filter_related = []
 
     def perform_create(self, serializer):
         vendedor_id = get_current_vendedor_id(self.request)
@@ -286,10 +257,9 @@ class OportunidadeViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is not None:
-            qs = qs.filter(vendedor_id=vendedor_id)
-        else:
+        # Filtros adicionais (além do filtro de vendedor do mixin)
+        # Se não for vendedor, permitir filtrar por vendedor_id via query param
+        if get_current_vendedor_id(self.request) is None:
             vendedor_id = self.request.query_params.get('vendedor_id')
             if vendedor_id:
                 qs = qs.filter(vendedor_id=vendedor_id)
@@ -299,13 +269,17 @@ class OportunidadeViewSet(BaseModelViewSet):
         return qs
 
 
-class AtividadeViewSet(BaseModelViewSet):
+class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = (
         Atividade.objects.select_related('oportunidade', 'lead')
         .defer('google_event_id')  # Evita coluna que pode não existir em schemas antigos
         .all()
     )
     serializer_class = AtividadeListSerializer
+    
+    # Configuração do VendedorFilterMixin
+    vendedor_filter_field = 'oportunidade__vendedor_id'
+    vendedor_filter_related = ['lead__oportunidades__vendedor_id']
 
     def perform_create(self, serializer):
         super().perform_create(serializer)
@@ -332,58 +306,28 @@ class AtividadeViewSet(BaseModelViewSet):
                     )
             except Exception:
                 pass  # Notificação é best-effort; não falha a criação
-        self._invalidate_atividades_cache()
+        CRMCacheManager.invalidate_atividades(get_current_loja_id())
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
             return AtividadeSerializer
         return AtividadeListSerializer
 
+    @cache_list_response(CRMCacheManager.ATIVIDADES, ttl=120, extra_keys=['data_inicio', 'data_fim'])
     def list(self, request, *args, **kwargs):
-        from django.core.cache import cache
-        from rest_framework.response import Response
-
-        loja_id = get_current_loja_id()
-        vendedor_id = get_current_vendedor_id(request)
-        data_inicio = request.query_params.get('data_inicio', '')
-        data_fim = request.query_params.get('data_fim', '')
-        cache_key = None
-        if loja_id and data_inicio and data_fim:
-            version = cache.get(f'crm_atividades_v:{loja_id}', 0)
-            cache_key = f'crm_atividades:{loja_id}:{version}:{vendedor_id or "owner"}:{data_inicio}:{data_fim}'
-            cached = cache.get(cache_key)
-            if cached is not None:
-                return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        if cache_key and response.status_code == 200:
-            cache.set(cache_key, response.data, 120)  # Aumentado de 45s para 120s
-        return response
+        return super().list(request, *args, **kwargs)
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        self._invalidate_atividades_cache()
+        CRMCacheManager.invalidate_atividades(get_current_loja_id())
 
     def perform_destroy(self, instance):
         super().perform_destroy(instance)
-        self._invalidate_atividades_cache()
-
-    def _invalidate_atividades_cache(self):
-        loja_id = get_current_loja_id()
-        if loja_id:
-            from django.core.cache import cache
-            try:
-                v = cache.get(f'crm_atividades_v:{loja_id}', 0) + 1
-                cache.set(f'crm_atividades_v:{loja_id}', v, 86400)
-            except Exception:
-                pass
+        CRMCacheManager.invalidate_atividades(get_current_loja_id())
 
     def get_queryset(self):
         qs = super().get_queryset()
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is not None:
-            qs = qs.filter(
-                Q(oportunidade__vendedor_id=vendedor_id) | Q(lead__oportunidades__vendedor_id=vendedor_id)
-            ).distinct()
+        # Filtros adicionais (além do filtro de vendedor do mixin)
         concluido = self.request.query_params.get('concluido')
         if concluido is not None:
             qs = qs.filter(concluido=concluido.lower() == 'true')
@@ -435,10 +379,9 @@ ETAPAS_PIPELINE = [
 def dashboard_data(request):
     """
     Dados do dashboard CRM (estilo Salesforce).
-    Otimizado: cache 60s, queries consolidadas (pipeline em 1 query).
+    Otimizado: cache 120s, queries consolidadas (pipeline em 1 query).
     """
     import logging
-    from django.core.cache import cache
 
     logger = logging.getLogger(__name__)
     loja_id = get_current_loja_id()
@@ -446,10 +389,17 @@ def dashboard_data(request):
         return Response(_empty_dashboard_response(), status=200)
 
     vendedor_id = get_current_vendedor_id(request)
-    cache_key = f'crm_dashboard:{loja_id}:{vendedor_id or "owner"}'
-    cached = cache.get(cache_key)
-    if cached:
-        return Response(cached)
+    cache_key = CRMCacheManager.get_cache_key(
+        CRMCacheManager.DASHBOARD,
+        loja_id,
+        vendedor_id
+    )
+    
+    if cache_key:
+        from django.core.cache import cache
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
 
     try:
         from .models import Lead, Oportunidade, Atividade, Vendedor
@@ -535,7 +485,9 @@ def dashboard_data(request):
             'atividades_hoje': atividades_hoje_data,
             'performance_vendedores': performance_vendedores,
         }
-        cache.set(cache_key, payload, 120)  # Aumentado de 60s para 120s
+        if cache_key:
+            from django.core.cache import cache
+            cache.set(cache_key, payload, 120)  # 2 minutos
         return Response(payload)
     except Exception as e:
         logger.exception('Erro no dashboard CRM: %s', e)
@@ -545,7 +497,7 @@ def dashboard_data(request):
         )
 
 
-class WhatsAppConfigView(APIView):
+class WhatsAppConfigView(CRMPermissionMixin, APIView):
     """
     Configuração WhatsApp da loja (reutiliza WhatsAppConfig da Clínica da Beleza).
     GET /crm-vendas/whatsapp-config/  → retorna flags
@@ -553,39 +505,16 @@ class WhatsAppConfigView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def _bloquear_vendedor(self, request):
-        if get_current_vendedor_id(request) is not None:
-            return Response(
-                {'detail': 'Vendedores não têm permissão para acessar configurações.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        return None
-
     def _get_config(self, request=None):
         import logging
         logger = logging.getLogger(__name__)
-        loja_id = get_current_loja_id()
-        if not loja_id and request:
-            try:
-                lid = request.headers.get('X-Loja-ID')
-                if lid:
-                    loja_id = int(lid)
-            except (ValueError, TypeError):
-                pass
-            if not loja_id:
-                slug = (request.headers.get('X-Tenant-Slug') or '').strip()
-                if slug:
-                    from superadmin.models import Loja
-                    loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
-                    if loja:
-                        loja_id = loja.id
-        if not loja_id:
-            logger.warning("WhatsAppConfigView: contexto de loja não encontrado (loja_id e headers vazios)")
+        loja = get_loja_from_context(request)
+        if not loja:
+            logger.warning("WhatsAppConfigView: contexto de loja não encontrado")
             return None
+        
         from whatsapp.models import WhatsAppConfig
-        from superadmin.models import Loja
         try:
-            loja = Loja.objects.using('default').get(id=loja_id)
             owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip()
             config, created = WhatsAppConfig.objects.get_or_create(
                 loja=loja,
@@ -603,11 +532,11 @@ class WhatsAppConfigView(APIView):
                 config.save(update_fields=['whatsapp_numero', 'updated_at'])
             return config
         except Exception as e:
-            logger.exception("WhatsAppConfigView._get_config erro loja_id=%s: %s", loja_id, e)
+            logger.exception("WhatsAppConfigView._get_config erro: %s", e)
             return None
 
     def get(self, request):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request)
         if bloqueio:
             return bloqueio
         config = self._get_config(request)
@@ -632,7 +561,7 @@ class WhatsAppConfigView(APIView):
         })
 
     def patch(self, request):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request)
         if bloqueio:
             return bloqueio
         config = self._get_config(request)
@@ -675,53 +604,18 @@ class WhatsAppConfigView(APIView):
         })
 
 
-class LoginConfigView(APIView):
+class LoginConfigView(CRMPermissionMixin, APIView):
     """
     GET /crm-vendas/login-config/  → retorna logo, cor_primaria, cor_secundaria
     PATCH /crm-vendas/login-config/ → atualiza personalização da tela de login
     """
     permission_classes = [IsAuthenticated]
 
-    def _bloquear_vendedor(self, request):
-        if get_current_vendedor_id(request) is not None:
-            return Response(
-                {'detail': 'Vendedores não têm permissão para acessar configurações.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        return None
-
-    def _get_loja(self, request=None):
-        import logging
-        logger = logging.getLogger(__name__)
-        loja_id = get_current_loja_id()
-        if not loja_id and request:
-            try:
-                lid = request.headers.get('X-Loja-ID')
-                if lid:
-                    loja_id = int(lid)
-            except (ValueError, TypeError):
-                pass
-            if not loja_id:
-                slug = (request.headers.get('X-Tenant-Slug') or '').strip()
-                if slug:
-                    from superadmin.models import Loja
-                    loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
-                    if loja:
-                        loja_id = loja.id
-        if not loja_id:
-            logger.warning("LoginConfigView: contexto de loja não encontrado")
-            return None
-        from superadmin.models import Loja
-        try:
-            return Loja.objects.using('default').get(id=loja_id)
-        except Loja.DoesNotExist:
-            return None
-
     def get(self, request):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request)
         if bloqueio:
             return bloqueio
-        loja = self._get_loja(request)
+        loja = get_loja_from_context(request)
         if loja is None:
             return Response(
                 {'error': 'Contexto de loja não encontrado'},
@@ -738,10 +632,10 @@ class LoginConfigView(APIView):
         })
 
     def patch(self, request):
-        bloqueio = self._bloquear_vendedor(request)
+        bloqueio = self.bloquear_vendedor(request)
         if bloqueio:
             return bloqueio
-        loja = self._get_loja(request)
+        loja = get_loja_from_context(request)
         if loja is None:
             return Response(
                 {'error': 'Contexto de loja não encontrado'},

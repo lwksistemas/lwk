@@ -1,35 +1,16 @@
-"""Signals do CRM Vendas - invalida cache do dashboard ao alterar dados."""
+"""
+Signals do CRM Vendas - invalida cache do dashboard ao alterar dados.
+Refatorado para usar CRMCacheManager centralizado.
+"""
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from .models import Lead, Oportunidade, Atividade
-
-
-def _invalidate_dashboard_cache(loja_id):
-    if not loja_id:
-        return
-    from django.core.cache import cache
-    cache.delete(f'crm_dashboard:{loja_id}:owner')
-    try:
-        from superadmin.models import VendedorUsuario
-        for vid in VendedorUsuario.objects.filter(loja_id=loja_id).values_list('vendedor_id', flat=True).distinct():
-            cache.delete(f'crm_dashboard:{loja_id}:{vid}')
-    except Exception:
-        pass
-
-
-def _invalidate_atividades_cache(loja_id):
-    if not loja_id:
-        return
-    try:
-        from django.core.cache import cache
-        v = cache.get(f'crm_atividades_v:{loja_id}', 0) + 1
-        cache.set(f'crm_atividades_v:{loja_id}', v, 86400)
-    except Exception:
-        pass
+from .cache import CRMCacheManager
 
 
 def _get_loja_id(instance):
+    """Obtém loja_id da instância."""
     return getattr(instance, 'loja_id', None)
 
 
@@ -38,12 +19,14 @@ def _get_loja_id(instance):
 @receiver(post_save, sender=Oportunidade)
 @receiver(post_delete, sender=Oportunidade)
 def _on_crm_data_change(sender, instance, **kwargs):
-    _invalidate_dashboard_cache(_get_loja_id(instance))
+    """Invalida cache do dashboard quando dados do CRM mudam."""
+    CRMCacheManager.invalidate_dashboard(_get_loja_id(instance))
 
 
 @receiver(post_save, sender=Atividade)
 @receiver(post_delete, sender=Atividade)
 def _on_atividade_change(sender, instance, **kwargs):
+    """Invalida cache do dashboard e atividades quando atividade muda."""
     loja_id = _get_loja_id(instance)
-    _invalidate_dashboard_cache(loja_id)
-    _invalidate_atividades_cache(loja_id)
+    CRMCacheManager.invalidate_dashboard(loja_id)
+    CRMCacheManager.invalidate_atividades(loja_id)

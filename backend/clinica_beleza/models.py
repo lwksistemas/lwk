@@ -217,7 +217,7 @@ class Appointment(LojaIsolationMixin, models.Model):
         ]
 
     def __str__(self):
-        return f"{self.patient.name} - {self.procedure.name} - {self.date.strftime('%d/%m/%Y %H:%M')}"
+        return f"{self.patient.nome} - {self.procedure.nome} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
 
 class BloqueioHorario(BloqueioAgendaBase):

@@ -205,10 +205,10 @@ class ProcedureSerializer(serializers.ModelSerializer):
 
 class AppointmentListSerializer(serializers.ModelSerializer):
     """Serializer simplificado para listagem de agendamentos"""
-    patient_name = serializers.CharField(source='patient.name', read_only=True)
-    professional_name = serializers.CharField(source='professional.name', read_only=True)
-    procedure_name = serializers.CharField(source='procedure.name', read_only=True)
-    procedure_price = serializers.DecimalField(source='procedure.price', max_digits=10, decimal_places=2, read_only=True)
+    patient_name = serializers.CharField(source='patient.nome', read_only=True)
+    professional_name = serializers.CharField(source='professional.nome', read_only=True)
+    procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+    procedure_price = serializers.DecimalField(source='procedure.preco', max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
         model = Appointment
@@ -242,9 +242,9 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     """Serializer para Pagamentos (financeiro da clínica)"""
     appointment_details = AppointmentListSerializer(source='appointment', read_only=True)
-    paciente_nome = serializers.CharField(source='appointment.patient.name', read_only=True)
-    profissional_nome = serializers.CharField(source='appointment.professional.name', read_only=True)
-    procedimento_nome = serializers.CharField(source='appointment.procedure.name', read_only=True)
+    paciente_nome = serializers.CharField(source='appointment.patient.nome', read_only=True)
+    profissional_nome = serializers.CharField(source='appointment.professional.nome', read_only=True)
+    procedimento_nome = serializers.CharField(source='appointment.procedure.nome', read_only=True)
     data_atendimento = serializers.DateTimeField(source='appointment.date', read_only=True)
 
     class Meta:
@@ -265,13 +265,13 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     textColor = serializers.SerializerMethodField()
     
     # Dados extras
-    patient_name = serializers.CharField(source='patient.name', read_only=True)
-    patient_phone = serializers.CharField(source='patient.phone', read_only=True)
-    professional_name = serializers.CharField(source='professional.name', read_only=True)
+    patient_name = serializers.CharField(source='patient.nome', read_only=True)
+    patient_phone = serializers.CharField(source='patient.telefone', read_only=True)
+    professional_name = serializers.CharField(source='professional.nome', read_only=True)
     professional_id = serializers.IntegerField(source='professional.id', read_only=True)
-    procedure_name = serializers.CharField(source='procedure.name', read_only=True)
-    procedure_duration = serializers.IntegerField(source='procedure.duration', read_only=True)
-    procedure_price = serializers.DecimalField(source='procedure.price', max_digits=10, decimal_places=2, read_only=True)
+    procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+    procedure_duration = serializers.IntegerField(source='procedure.duracao_minutos', read_only=True)
+    procedure_price = serializers.DecimalField(source='procedure.preco', max_digits=10, decimal_places=2, read_only=True)
     
     # Sincronização offline: version e updated_at para detecção de conflito
     version = serializers.IntegerField(read_only=True)
@@ -292,12 +292,12 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     
     def get_title(self, obj):
         """Título do evento no calendário"""
-        return f"{obj.patient.name} - {obj.procedure.name}"
+        return f"{obj.patient.nome} - {obj.procedure.nome}"
     
     def get_end(self, obj):
         """Calcula o fim do evento baseado na duração do procedimento"""
         from datetime import timedelta
-        return obj.date + timedelta(minutes=obj.procedure.duration)
+        return obj.date + timedelta(minutes=obj.procedure.duracao_minutos)
     
     def get_backgroundColor(self, obj):
         """Cor de fundo baseada no status"""
@@ -323,7 +323,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
 
 class BloqueioHorarioSerializer(serializers.ModelSerializer):
     """Serializer para Bloqueio de Horário"""
-    professional_name = serializers.CharField(source='professional.name', read_only=True, default=None)
+    professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
 
     class Meta:
         model = BloqueioHorario

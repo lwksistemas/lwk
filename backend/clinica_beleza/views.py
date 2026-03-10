@@ -237,7 +237,7 @@ class PatientDetailView(APIView):
     def delete(self, request, pk):
         try:
             obj = Patient.objects.get(pk=pk)
-            obj.active = False
+            obj.is_active = False
             obj.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Patient.DoesNotExist:
@@ -434,7 +434,7 @@ class ProfessionalDetailView(APIView):
             BloqueioHorario.objects.filter(professional=obj).delete()
             
             # Marcar profissional como inativo
-            obj.active = False
+            obj.is_active = False
             obj.save()
             
             return Response({
@@ -535,7 +535,7 @@ class ProcedureDetailView(APIView):
     def delete(self, request, pk):
         try:
             obj = Procedure.objects.get(pk=pk)
-            obj.active = False
+            obj.is_active = False
             obj.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Procedure.DoesNotExist:
@@ -781,7 +781,7 @@ class AgendaUpdateView(APIView):
                 else:
                     date_start = new_date
 
-                date_end = date_start + timedelta(minutes=appointment.procedure.duration)
+                date_end = date_start + timedelta(minutes=appointment.procedure.duracao_minutos)
                 professional_id = appointment.professional_id
                 bloqueios = BloqueioHorario.objects.filter(
                     Q(professional_id=professional_id) | Q(professional_id__isnull=True)
@@ -875,7 +875,7 @@ class AgendaCreateView(APIView):
             data = serializer.validated_data
             date_start = data['date']
             from datetime import timedelta
-            date_end = date_start + timedelta(minutes=data['procedure'].duration)
+            date_end = date_start + timedelta(minutes=data['procedure'].duracao_minutos)
             professional_id = data['professional'].id
             bloqueios = BloqueioHorario.objects.filter(
                 Q(professional_id=professional_id) | Q(professional_id__isnull=True)
@@ -908,7 +908,7 @@ class AgendaCreateView(APIView):
                     contexto={
                         "profissional": appointment.professional,
                         "date": appointment.date,
-                        "date_end": appointment.date + timedelta(minutes=appointment.procedure.duration),
+                        "date_end": appointment.date + timedelta(minutes=appointment.procedure.duracao_minutos),
                         "appointment_id": appointment.id,
                         "appointment": appointment,
                     },
@@ -1338,13 +1338,13 @@ class CampanhaPromocaoEnviarView(APIView):
         if not config or not getattr(config, 'whatsapp_ativo', False):
             return Response({'error': 'WhatsApp não está ativo. Configure em Configurações.'}, status=status.HTTP_400_BAD_REQUEST)
         from whatsapp.services import send_whatsapp
-        pacientes = Patient.objects.filter(active=True, allow_whatsapp=True).exclude(phone__isnull=True).exclude(phone='')
+        pacientes = Patient.objects.filter(is_active=True, allow_whatsapp=True).exclude(telefone__isnull=True).exclude(telefone='')
         enviados = 0
         for p in pacientes:
-            if not (getattr(p, 'phone', None) or '').strip():
+            if not (getattr(p, 'telefone', None) or '').strip():
                 continue
             try:
-                ok, _ = send_whatsapp(telefone=p.phone, mensagem=campanha.mensagem, user=request.user, config=config)
+                ok, _ = send_whatsapp(telefone=p.telefone, mensagem=campanha.mensagem, user=request.user, config=config)
                 if ok:
                     enviados += 1
             except Exception as e:

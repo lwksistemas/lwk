@@ -32,12 +32,11 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: Hea
     <header className="h-14 bg-white dark:bg-[#16325c] border-b border-gray-200 dark:border-[#0d1f3c] flex items-center px-3 sm:px-4 justify-between gap-2 sm:gap-4 shrink-0 shadow-sm">
       {/* Left Section */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Menu Toggle - onTouchEnd para Android/iOS (click falha em alguns dispositivos) */}
+        {/* Menu Toggle - Mobile friendly */}
         <button
           type="button"
-          onClick={toggle}
-          onTouchEnd={(e) => {
-            e.preventDefault();
+          onClick={(e) => {
+            e.stopPropagation();
             toggle();
           }}
           className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] active:bg-gray-200 dark:active:bg-[#0d1f3c] transition-colors text-gray-600 dark:text-gray-300 cursor-pointer touch-manipulation select-none"

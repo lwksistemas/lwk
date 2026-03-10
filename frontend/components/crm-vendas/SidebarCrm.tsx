@@ -104,13 +104,12 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
 
   return (
     <>
-      {/* Backdrop para mobile - touch-manipulation e cursor-pointer melhoram resposta em iOS/Android */}
+      {/* Backdrop para mobile */}
       {!collapsed && (
         <div
           className="fixed inset-0 bg-black/50 z-[60] md:hidden cursor-pointer touch-manipulation"
-          onClick={toggle}
-          onTouchEnd={(e) => {
-            e.preventDefault();
+          onClick={(e) => {
+            e.stopPropagation();
             toggle();
           }}
           aria-hidden="true"
@@ -147,9 +146,8 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
           {!collapsed && (
             <button
               type="button"
-              onClick={toggle}
-              onTouchEnd={(e) => {
-                e.preventDefault();
+              onClick={(e) => {
+                e.stopPropagation();
                 toggle();
               }}
               className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] text-gray-600 dark:text-gray-300 transition-colors cursor-pointer touch-manipulation -mr-1"

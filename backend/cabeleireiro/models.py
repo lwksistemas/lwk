@@ -2,29 +2,15 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from agenda_base.models import ClienteBase, ProfissionalBase, ServicoBase, BloqueioAgendaBase
 
 
-class Cliente(LojaIsolationMixin, models.Model):
-    """Cliente do cabeleireiro"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField(blank=True, null=True)
-    telefone = models.CharField(max_length=20)
-    cpf = models.CharField(max_length=14, blank=True, null=True)
-    data_nascimento = models.DateField(blank=True, null=True)
-    endereco = models.TextField(blank=True, null=True)
-    cidade = models.CharField(max_length=100, blank=True, null=True)
-    estado = models.CharField(max_length=2, blank=True, null=True)
-    observacoes = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    objects = LojaIsolationManager()
+class Cliente(ClienteBase):
+    """Cliente do cabeleireiro (herda de ClienteBase)"""
 
-    class Meta:
+    class Meta(ClienteBase.Meta):
         app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_clientes'
-        ordering = ['-created_at']
         verbose_name = 'Cliente'
         verbose_name_plural = 'Clientes'
 
@@ -32,23 +18,12 @@ class Cliente(LojaIsolationMixin, models.Model):
         return self.nome
 
 
-class Profissional(LojaIsolationMixin, models.Model):
-    """Profissionais do cabeleireiro (MODELO ANTIGO - Manter para compatibilidade)"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField(blank=True, null=True)
-    telefone = models.CharField(max_length=20)
-    especialidade = models.CharField(max_length=100, blank=True, null=True)
-    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    objects = LojaIsolationManager()
+class Profissional(ProfissionalBase):
+    """Profissionais do cabeleireiro (herda de ProfissionalBase - MODELO ANTIGO para compatibilidade)"""
 
-    class Meta:
+    class Meta(ProfissionalBase.Meta):
         app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_profissionais'
-        ordering = ['nome']
         verbose_name = 'Profissional (Antigo)'
         verbose_name_plural = 'Profissionais (Antigo)'
 
@@ -56,8 +31,8 @@ class Profissional(LojaIsolationMixin, models.Model):
         return self.nome
 
 
-class Servico(LojaIsolationMixin, models.Model):
-    """Serviços oferecidos pelo cabeleireiro"""
+class Servico(ServicoBase):
+    """Serviços oferecidos pelo cabeleireiro (herda de ServicoBase)"""
     CATEGORIA_CHOICES = [
         ('corte', 'Corte'),
         ('coloracao', 'Coloração'),
@@ -70,21 +45,12 @@ class Servico(LojaIsolationMixin, models.Model):
         ('outros', 'Outros'),
     ]
     
-    nome = models.CharField(max_length=200)
-    descricao = models.TextField(blank=True, null=True)
-    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES)
-    duracao_minutos = models.IntegerField(help_text='Duração em minutos')
-    preco = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    objects = LojaIsolationManager()
+    # Sobrescrever categoria com choices específicos
+    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, verbose_name="Categoria")
 
-    class Meta:
+    class Meta(ServicoBase.Meta):
         app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_servicos'
-        ordering = ['categoria', 'nome']
         verbose_name = 'Serviço'
         verbose_name_plural = 'Serviços'
 
@@ -330,25 +296,36 @@ class HorarioFuncionamento(LojaIsolationMixin, models.Model):
         return f"{self.get_dia_semana_display()}: {self.horario_abertura} - {self.horario_fechamento}"
 
 
-class BloqueioAgenda(LojaIsolationMixin, models.Model):
-    """Bloqueios de agenda (férias, folgas, etc)"""
-    profissional = models.ForeignKey('Profissional', on_delete=models.CASCADE, related_name='bloqueios',
-                                     null=True, blank=True,
-                                     help_text='Deixe em branco para bloquear agenda de todos os profissionais')
-    data_inicio = models.DateField()
-    data_fim = models.DateField()
-    motivo = models.CharField(max_length=200)
-    observacoes = models.TextField(blank=True, null=True)
+class BloqueioAgenda(BloqueioAgendaBase):
+    """Bloqueios de agenda (herda de BloqueioAgendaBase - férias, folgas, etc)"""
+    profissional = models.ForeignKey(
+        'Profissional', 
+        on_delete=models.CASCADE, 
+        related_name='bloqueios',
+        null=True, 
+        blank=True,
+        verbose_name="Profissional",
+        help_text='Deixe em branco para bloquear agenda de todos os profissionais'
+    )
     
-    objects = LojaIsolationManager()
+    # Campo adicional para compatibilidade
+    motivo = models.CharField(max_length=200, verbose_name="Motivo")
 
-    class Meta:
+    class Meta(BloqueioAgendaBase.Meta):
         app_label = 'cabeleireiro'
         db_table = 'cabeleireiro_bloqueios'
-        ordering = ['-data_inicio']
         verbose_name = 'Bloqueio de Agenda'
         verbose_name_plural = 'Bloqueios de Agenda'
 
     def __str__(self):
         prof_nome = self.profissional.nome if self.profissional else 'Todos'
         return f"{prof_nome} - {self.data_inicio} a {self.data_fim}"
+    
+    def save(self, *args, **kwargs):
+        # Sincronizar motivo com titulo
+        if not self.titulo:
+            self.titulo = self.motivo
+        # Definir tipo padrão se não especificado
+        if not self.tipo:
+            self.tipo = 'outros'
+        super().save(*args, **kwargs)

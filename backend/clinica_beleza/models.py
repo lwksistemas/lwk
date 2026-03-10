@@ -6,82 +6,176 @@ from decimal import Decimal
 from django.db import models
 from django.contrib.auth import get_user_model
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from agenda_base.models import ClienteBase, ProfissionalBase, ServicoBase, HorarioTrabalhoProfissionalBase, BloqueioAgendaBase
 
 User = get_user_model()
 
 
-class Patient(LojaIsolationMixin, models.Model):
-    """Pacientes da clínica"""
-    name = models.CharField(max_length=150, verbose_name="Nome")
-    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone")
-    email = models.EmailField(blank=True, null=True, verbose_name="E-mail")
-    cpf = models.CharField(max_length=14, blank=True, null=True, verbose_name="CPF")
-    birth_date = models.DateField(blank=True, null=True, verbose_name="Data de Nascimento")
-    address = models.TextField(blank=True, null=True, verbose_name="Endereço")
-    notes = models.TextField(blank=True, null=True, verbose_name="Observações")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
-    active = models.BooleanField(default=True, verbose_name="Ativo")
+class Patient(ClienteBase):
+    """Pacientes da clínica (herda de ClienteBase)"""
     allow_whatsapp = models.BooleanField(
         default=True,
         verbose_name="Permitir WhatsApp",
         help_text="Se desmarcado, o paciente não recebe mensagens por WhatsApp (LGPD).",
     )
     
-    objects = LojaIsolationManager()
+    # Aliases para compatibilidade com código existente
+    @property
+    def name(self):
+        return self.nome
+    
+    @name.setter
+    def name(self, value):
+        self.nome = value
+    
+    @property
+    def phone(self):
+        return self.telefone
+    
+    @phone.setter
+    def phone(self, value):
+        self.telefone = value
+    
+    @property
+    def birth_date(self):
+        return self.data_nascimento
+    
+    @birth_date.setter
+    def birth_date(self, value):
+        self.data_nascimento = value
+    
+    @property
+    def address(self):
+        return self.endereco
+    
+    @address.setter
+    def address(self, value):
+        self.endereco = value
+    
+    @property
+    def notes(self):
+        return self.observacoes
+    
+    @notes.setter
+    def notes(self, value):
+        self.observacoes = value
+    
+    @property
+    def active(self):
+        return self.is_active
+    
+    @active.setter
+    def active(self, value):
+        self.is_active = value
 
-    class Meta:
+    class Meta(ClienteBase.Meta):
         app_label = 'clinica_beleza'
         verbose_name = "Paciente"
         verbose_name_plural = "Pacientes"
-        ordering = ['name']
+        ordering = ['nome']
 
     def __str__(self):
-        return self.name
+        return self.nome
 
 
-class Professional(LojaIsolationMixin, models.Model):
-    """Profissionais da clínica"""
-    name = models.CharField(max_length=150, verbose_name="Nome")
-    specialty = models.CharField(max_length=150, verbose_name="Especialidade")
-    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone")
-    email = models.EmailField(blank=True, null=True, verbose_name="E-mail")
-    active = models.BooleanField(default=True, verbose_name="Ativo")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+class Professional(ProfissionalBase):
+    """Profissionais da clínica (herda de ProfissionalBase)"""
     
-    objects = LojaIsolationManager()
+    # Aliases para compatibilidade com código existente
+    @property
+    def name(self):
+        return self.nome
+    
+    @name.setter
+    def name(self, value):
+        self.nome = value
+    
+    @property
+    def specialty(self):
+        return self.especialidade
+    
+    @specialty.setter
+    def specialty(self, value):
+        self.especialidade = value
+    
+    @property
+    def phone(self):
+        return self.telefone
+    
+    @phone.setter
+    def phone(self, value):
+        self.telefone = value
+    
+    @property
+    def active(self):
+        return self.is_active
+    
+    @active.setter
+    def active(self, value):
+        self.is_active = value
 
-    class Meta:
+    class Meta(ProfissionalBase.Meta):
         app_label = 'clinica_beleza'
         verbose_name = "Profissional"
         verbose_name_plural = "Profissionais"
-        ordering = ['name']
+        ordering = ['nome']
 
     def __str__(self):
-        return f"{self.name} - {self.specialty}"
+        return f"{self.nome} - {self.especialidade}"
 
 
-class Procedure(LojaIsolationMixin, models.Model):
-    """Procedimentos/Serviços oferecidos"""
-    name = models.CharField(max_length=150, verbose_name="Nome")
-    description = models.TextField(blank=True, null=True, verbose_name="Descrição")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Preço")
-    duration = models.IntegerField(help_text="Duração em minutos", verbose_name="Duração")
-    active = models.BooleanField(default=True, verbose_name="Ativo")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+class Procedure(ServicoBase):
+    """Procedimentos/Serviços oferecidos (herda de ServicoBase)"""
     
-    objects = LojaIsolationManager()
+    # Aliases para compatibilidade com código existente
+    @property
+    def name(self):
+        return self.nome
+    
+    @name.setter
+    def name(self, value):
+        self.nome = value
+    
+    @property
+    def description(self):
+        return self.descricao
+    
+    @description.setter
+    def description(self, value):
+        self.descricao = value
+    
+    @property
+    def price(self):
+        return self.preco
+    
+    @price.setter
+    def price(self, value):
+        self.preco = value
+    
+    @property
+    def duration(self):
+        return self.duracao_minutos
+    
+    @duration.setter
+    def duration(self, value):
+        self.duracao_minutos = value
+    
+    @property
+    def active(self):
+        return self.is_active
+    
+    @active.setter
+    def active(self, value):
+        self.is_active = value
 
-    class Meta:
+    class Meta(ServicoBase.Meta):
         app_label = 'clinica_beleza'
         verbose_name = "Procedimento"
         verbose_name_plural = "Procedimentos"
-        ordering = ['name']
+        ordering = ['nome']
 
     def __str__(self):
-        return self.name
+        return self.nome
 
 
 class Appointment(LojaIsolationMixin, models.Model):
@@ -126,9 +220,9 @@ class Appointment(LojaIsolationMixin, models.Model):
         return f"{self.patient.name} - {self.procedure.name} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
 
-class BloqueioHorario(LojaIsolationMixin, models.Model):
+class BloqueioHorario(BloqueioAgendaBase):
     """
-    Bloqueio de horário na agenda (almoço, férias, manutenção, evento).
+    Bloqueio de horário na agenda (herda de BloqueioAgendaBase)
     profissional=None = bloqueio geral (todos os profissionais).
     """
     professional = models.ForeignKey(
@@ -139,15 +233,29 @@ class BloqueioHorario(LojaIsolationMixin, models.Model):
         verbose_name="Profissional",
         help_text="Deixe vazio para bloqueio geral (todos)",
     )
-    data_inicio = models.DateTimeField(verbose_name="Início")
-    data_fim = models.DateTimeField(verbose_name="Fim")
+    
+    # Campos adicionais específicos (mantém compatibilidade)
     motivo = models.CharField(max_length=100, verbose_name="Motivo")
-    observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
     criado_em = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     
-    objects = LojaIsolationManager()
+    # Aliases para compatibilidade
+    @property
+    def data_inicio_dt(self):
+        """Retorna data_inicio como datetime para compatibilidade"""
+        from datetime import datetime, time
+        if self.horario_inicio:
+            return datetime.combine(self.data_inicio, self.horario_inicio)
+        return datetime.combine(self.data_inicio, time.min)
+    
+    @property
+    def data_fim_dt(self):
+        """Retorna data_fim como datetime para compatibilidade"""
+        from datetime import datetime, time
+        if self.horario_fim:
+            return datetime.combine(self.data_fim, self.horario_fim)
+        return datetime.combine(self.data_fim, time.max)
 
-    class Meta:
+    class Meta(BloqueioAgendaBase.Meta):
         app_label = "clinica_beleza"
         verbose_name = "Bloqueio de Horário"
         verbose_name_plural = "Bloqueios de Horário"
@@ -160,46 +268,30 @@ class BloqueioHorario(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.motivo} ({self.data_inicio} - {self.data_fim})"
+    
+    def save(self, *args, **kwargs):
+        # Sincronizar motivo com titulo
+        if not self.titulo:
+            self.titulo = self.motivo
+        # Definir tipo padrão se não especificado
+        if not self.tipo:
+            self.tipo = 'outros'
+        super().save(*args, **kwargs)
 
 
-class HorarioTrabalhoProfissional(LojaIsolationMixin, models.Model):
+class HorarioTrabalhoProfissional(HorarioTrabalhoProfissionalBase):
     """
-    Dias e horários de trabalho por profissional.
+    Dias e horários de trabalho por profissional (herda de HorarioTrabalhoProfissionalBase)
     Um registro por dia da semana em que o profissional trabalha (ex.: Seg 08:00-18:00).
     """
-    DIAS_SEMANA = [
-        (0, 'Segunda-feira'),
-        (1, 'Terça-feira'),
-        (2, 'Quarta-feira'),
-        (3, 'Quinta-feira'),
-        (4, 'Sexta-feira'),
-        (5, 'Sábado'),
-        (6, 'Domingo'),
-    ]
     professional = models.ForeignKey(
         Professional,
         on_delete=models.CASCADE,
         related_name='horarios_trabalho',
         verbose_name="Profissional",
     )
-    dia_semana = models.IntegerField(choices=DIAS_SEMANA, verbose_name="Dia da semana")
-    hora_entrada = models.TimeField(verbose_name="Entrada")
-    hora_saida = models.TimeField(verbose_name="Saída")
-    intervalo_inicio = models.TimeField(
-        blank=True, null=True,
-        verbose_name="Início intervalo (ex.: almoço)",
-        help_text="Opcional",
-    )
-    intervalo_fim = models.TimeField(
-        blank=True, null=True,
-        verbose_name="Fim intervalo",
-        help_text="Opcional",
-    )
-    ativo = models.BooleanField(default=True, verbose_name="Ativo")
 
-    objects = LojaIsolationManager()
-
-    class Meta:
+    class Meta(HorarioTrabalhoProfissionalBase.Meta):
         app_label = 'clinica_beleza'
         verbose_name = "Horário de trabalho (profissional)"
         verbose_name_plural = "Horários de trabalho (profissionais)"
@@ -211,7 +303,7 @@ class HorarioTrabalhoProfissional(LojaIsolationMixin, models.Model):
         ]
 
     def __str__(self):
-        return f"{self.professional.name} - {self.get_dia_semana_display()}: {self.hora_entrada}-{self.hora_saida}"
+        return f"{self.professional.nome} - {self.get_dia_semana_display()}: {self.hora_entrada}-{self.hora_saida}"
 
 
 class Payment(LojaIsolationMixin, models.Model):

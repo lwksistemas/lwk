@@ -33,13 +33,15 @@ class Command(BaseCommand):
         plano_clinica, created = PlanoAssinatura.objects.get_or_create(
             nome='Plano Clínica Estética',
             defaults={
+                'slug': 'plano-clinica-estetica',
                 'descricao': 'Plano completo para clínicas de estética',
                 'preco_mensal': 99.90,
                 'preco_anual': 999.00,
                 'max_usuarios': 10,
-                'max_agendamentos_mes': 1000,
+                'max_pedidos_mes': 1000,
                 'espaco_storage_gb': 5,
-                'suporte_prioritario': True,
+                'tem_suporte_prioritario': True,
+                'tem_relatorios_avancados': True,
                 'is_active': True
             }
         )
@@ -74,13 +76,16 @@ class Command(BaseCommand):
         plano_crm, created = PlanoAssinatura.objects.get_or_create(
             nome='Plano CRM Vendas',
             defaults={
+                'slug': 'plano-crm-vendas',
                 'descricao': 'Plano completo para gestão de vendas e pipeline comercial',
                 'preco_mensal': 149.90,
                 'preco_anual': 1499.00,
                 'max_usuarios': 20,
-                'max_agendamentos_mes': 2000,
+                'max_pedidos_mes': 2000,
                 'espaco_storage_gb': 10,
-                'suporte_prioritario': True,
+                'tem_suporte_prioritario': True,
+                'tem_relatorios_avancados': True,
+                'tem_api_acesso': True,
                 'is_active': True
             }
         )
@@ -115,13 +120,15 @@ class Command(BaseCommand):
         plano_beleza, created = PlanoAssinatura.objects.get_or_create(
             nome='Plano Clínica Beleza',
             defaults={
+                'slug': 'plano-clinica-beleza',
                 'descricao': 'Plano completo para clínicas de beleza e estética',
                 'preco_mensal': 89.90,
                 'preco_anual': 899.00,
                 'max_usuarios': 15,
-                'max_agendamentos_mes': 1500,
+                'max_pedidos_mes': 1500,
                 'espaco_storage_gb': 5,
-                'suporte_prioritario': True,
+                'tem_suporte_prioritario': True,
+                'tem_relatorios_avancados': True,
                 'is_active': True
             }
         )

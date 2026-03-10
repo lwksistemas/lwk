@@ -18,11 +18,38 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
         """
         Autentica o usuário e verifica sessão única
+        ✅ FIX: Retry logic para evitar timeout do PostgreSQL
         """
+        from django.db import OperationalError
+        import time
+        
         logger.debug(f"🔑 SessionAwareJWTAuthentication.authenticate() - Path: {request.path}")
         
-        # Autenticação JWT padrão
-        result = super().authenticate(request)
+        # ✅ FIX: Retry logic para autenticação JWT
+        max_retries = 3
+        retry_delay = 1  # segundos
+        result = None
+        
+        for attempt in range(max_retries):
+            try:
+                # Autenticação JWT padrão
+                result = super().authenticate(request)
+                break  # Sucesso, sair do loop
+                
+            except OperationalError as e:
+                if 'timeout' in str(e).lower() and attempt < max_retries - 1:
+                    logger.warning(
+                        f"⚠️ Timeout na autenticação JWT (tentativa {attempt + 1}/{max_retries}). "
+                        f"Tentando novamente em {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Backoff exponencial
+                else:
+                    logger.error(f"❌ Falha na autenticação JWT após {max_retries} tentativas: {e}")
+                    raise AuthenticationFailed({
+                        'detail': 'Erro ao conectar ao banco de dados. Tente novamente.',
+                        'code': 'database_timeout'
+                    })
         
         if result is None:
             return None
@@ -40,10 +67,30 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         
         logger.debug(f"🔐 Validando sessão única: {user.username} (ID: {user.id})")
         
-        # Validar sessão usando banco de dados
-        validation = SessionManager.validate_session(user.id, token_str)
+        # ✅ FIX: Retry logic para validação de sessão
+        validation = None
+        for attempt in range(max_retries):
+            try:
+                # Validar sessão usando banco de dados
+                validation = SessionManager.validate_session(user.id, token_str)
+                break  # Sucesso, sair do loop
+                
+            except OperationalError as e:
+                if 'timeout' in str(e).lower() and attempt < max_retries - 1:
+                    logger.warning(
+                        f"⚠️ Timeout na validação de sessão (tentativa {attempt + 1}/{max_retries}). "
+                        f"Tentando novamente em {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    logger.error(f"❌ Falha na validação de sessão após {max_retries} tentativas: {e}")
+                    raise AuthenticationFailed({
+                        'detail': 'Erro ao validar sessão. Tente novamente.',
+                        'code': 'database_timeout'
+                    })
         
-        if not validation['valid']:
+        if validation and not validation['valid']:
             logger.warning(f"🚨 SESSÃO INVÁLIDA: {user.username} - Motivo: {validation['reason']}")
             raise AuthenticationFailed({
                 'detail': validation['message'],
@@ -53,7 +100,10 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         
         logger.debug(f"✅ Sessão válida para {user.username}")
         
-        # Atualizar atividade
-        SessionManager.update_activity(user.id)
+        # Atualizar atividade (best-effort, não falha se der timeout)
+        try:
+            SessionManager.update_activity(user.id)
+        except OperationalError:
+            logger.warning(f"⚠️ Timeout ao atualizar atividade do usuário {user.username}")
         
         return user, token

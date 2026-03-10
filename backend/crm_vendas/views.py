@@ -3,7 +3,8 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Sum, Count, Q
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Sum, Count, Q, Exists, OuterRef
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from datetime import timedelta
@@ -27,9 +28,17 @@ from .cache import CRMCacheManager
 from .decorators import cache_list_response
 
 
+# ✅ OTIMIZAÇÃO: Paginação para reduzir tempo de resposta
+class CRMPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     queryset = Vendedor.objects.all()
     serializer_class = VendedorSerializer
+    pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
 
     def _ensure_owner_vendedor(self):
         """Garante que o administrador da loja exista como vendedor (para lojas antigas)."""
@@ -49,6 +58,27 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
             pass
         except Exception:
             pass  # Não falhar a listagem
+
+    def get_queryset(self):
+        """✅ OTIMIZAÇÃO: Anotar tem_acesso para evitar N+1 queries"""
+        qs = super().get_queryset()
+        
+        # Anotar se vendedor tem acesso (evita N+1)
+        from superadmin.models import VendedorUsuario
+        loja_id = get_current_loja_id()
+        if loja_id:
+            qs = qs.annotate(
+                tem_acesso_anotado=Exists(
+                    VendedorUsuario.objects.filter(
+                        loja_id=loja_id,
+                        vendedor_id=OuterRef('id')
+                    )
+                )
+            )
+        
+        if hasattr(Vendedor, 'is_active'):
+            return qs.filter(is_active=True)
+        return qs
 
     def list(self, request, *args, **kwargs):
         bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
@@ -86,12 +116,6 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         if bloqueio:
             return bloqueio
         return super().destroy(request, *args, **kwargs)
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        if hasattr(Vendedor, 'is_active'):
-            return qs.filter(is_active=True)
-        return qs
 
     @action(detail=True, methods=['post'])
     def reenviar_senha(self, request, pk=None):
@@ -164,12 +188,13 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
 class ContaViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = Conta.objects.select_related('vendedor').prefetch_related('leads', 'contatos').all()
     serializer_class = ContaSerializer
+    pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
     
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'vendedor_id'
     vendedor_filter_related = ['leads__oportunidades__vendedor_id', 'leads__vendedor_id']
 
-    @cache_list_response(CRMCacheManager.CONTAS, ttl=120)
+    @cache_list_response(CRMCacheManager.CONTAS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -193,6 +218,7 @@ class ContaViewSet(VendedorFilterMixin, BaseModelViewSet):
 class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()
     serializer_class = LeadSerializer
+    pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
     
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'vendedor_id'
@@ -225,9 +251,11 @@ class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
 class ContatoViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = Contato.objects.select_related('conta').all()
     serializer_class = ContatoSerializer
+    pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
     
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'conta__vendedor_id'
+    vendedor_filter_related = ['conta__leads__oportunidades__vendedor_id', 'conta__leads__vendedor_id']
     vendedor_filter_related = ['conta__leads__oportunidades__vendedor_id', 'conta__leads__vendedor_id']
 
     def get_queryset(self):
@@ -242,6 +270,7 @@ class ContatoViewSet(VendedorFilterMixin, BaseModelViewSet):
 class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     queryset = Oportunidade.objects.select_related('lead', 'vendedor', 'lead__conta').prefetch_related('atividades').all()
     serializer_class = OportunidadeSerializer
+    pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
     
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'vendedor_id'
@@ -276,6 +305,7 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         .all()
     )
     serializer_class = AtividadeListSerializer
+    pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
     
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'oportunidade__vendedor_id'
@@ -313,7 +343,7 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
             return AtividadeSerializer
         return AtividadeListSerializer
 
-    @cache_list_response(CRMCacheManager.ATIVIDADES, ttl=120, extra_keys=['data_inicio', 'data_fim'])
+    @cache_list_response(CRMCacheManager.ATIVIDADES, ttl=300, extra_keys=['data_inicio', 'data_fim'])  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 

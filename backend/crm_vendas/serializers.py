@@ -24,6 +24,12 @@ class VendedorSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
     def get_tem_acesso(self, obj):
+        """✅ OTIMIZAÇÃO: Usa anotação do queryset para evitar N+1"""
+        # Se tem anotação (vem do ViewSet otimizado), usa ela
+        if hasattr(obj, 'tem_acesso_anotado'):
+            return obj.tem_acesso_anotado
+        
+        # Fallback para casos sem anotação (detail view, etc)
         if not obj or not obj.email:
             return False
         from tenants.middleware import get_current_loja_id

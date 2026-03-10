@@ -12,14 +12,16 @@ class Command(BaseCommand):
         # 1. CLÍNICA DE ESTÉTICA
         # ============================================
         clinica_estetica, created = TipoLoja.objects.get_or_create(
-            codigo='clinica_estetica',
+            codigo='CLIEST',
             defaults={
                 'nome': 'Clínica de Estética',
+                'slug': 'clinica-estetica',
                 'descricao': 'Sistema completo para clínicas de estética com agendamentos, prontuários e controle financeiro',
-                'icone': '💆',
                 'cor_primaria': '#10B981',
                 'cor_secundaria': '#059669',
-                'is_active': True
+                'tem_agendamento': True,
+                'tem_servicos': True,
+                'tem_produtos': False
             }
         )
         if created:
@@ -51,14 +53,16 @@ class Command(BaseCommand):
         # 2. CRM VENDAS
         # ============================================
         crm_vendas, created = TipoLoja.objects.get_or_create(
-            codigo='crm_vendas',
+            codigo='CRMVND',
             defaults={
                 'nome': 'CRM Vendas',
+                'slug': 'crm-vendas',
                 'descricao': 'Sistema de CRM para gestão de vendas, leads, oportunidades e pipeline comercial',
-                'icone': '📊',
                 'cor_primaria': '#3B82F6',
                 'cor_secundaria': '#2563EB',
-                'is_active': True
+                'tem_agendamento': True,
+                'tem_servicos': False,
+                'tem_produtos': True
             }
         )
         if created:
@@ -90,14 +94,16 @@ class Command(BaseCommand):
         # 3. CLÍNICA DA BELEZA
         # ============================================
         clinica_beleza, created = TipoLoja.objects.get_or_create(
-            codigo='clinica_beleza',
+            codigo='CLIBEL',
             defaults={
                 'nome': 'Clínica da Beleza',
+                'slug': 'clinica-beleza',
                 'descricao': 'Sistema para clínicas de beleza com agendamentos, profissionais e controle de serviços',
-                'icone': '💅',
                 'cor_primaria': '#EC4899',
                 'cor_secundaria': '#DB2777',
-                'is_active': True
+                'tem_agendamento': True,
+                'tem_servicos': True,
+                'tem_produtos': False
             }
         )
         if created:

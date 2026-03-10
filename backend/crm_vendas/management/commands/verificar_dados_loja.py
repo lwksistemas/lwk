@@ -35,6 +35,9 @@ class Command(BaseCommand):
             **default_db,
             'OPTIONS': {'options': f'-c search_path={schema_name},public'},
             'TIME_ZONE': None,
+            'AUTOCOMMIT': True,
+            'ATOMIC_REQUESTS': False,
+            'CONN_MAX_AGE': 0,
         }
         
         conn = connections[loja.database_name]

@@ -397,7 +397,7 @@ from .models import Cliente, Profissional, Procedimento
 from .serializers import ClienteSerializer, ProfissionalSerializer, ProcedimentoSerializer
 
 class ClienteViewSet(ClienteBaseViewSet):
-    queryset = Cliente.objects.all()
+    queryset = Cliente.objects.all()PostgreSQ
     serializer_class = ClienteSerializer
 
 

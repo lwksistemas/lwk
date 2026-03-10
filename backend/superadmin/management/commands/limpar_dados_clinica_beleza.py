@@ -40,12 +40,13 @@ class Command(BaseCommand):
             return True
         database_url = os.environ.get('DATABASE_URL')
         if not database_url and dj_database_url:
-            database_url = dj_database_url.config(conn_max_age=600)
+            database_url = dj_database_url.config(conn_max_age=0)
         if not database_url:
             self.stdout.write(self.style.ERROR('   DATABASE_URL não definido'))
             return False
         if dj_database_url:
-            default_db = dj_database_url.config(default=database_url, conn_max_age=600)
+            # ✅ CORREÇÃO: conn_max_age=0 para fechar conexões imediatamente
+            default_db = dj_database_url.config(default=database_url, conn_max_age=0)
         else:
             default_db = {'ENGINE': 'django.db.backends.postgresql', 'NAME': os.environ.get('PGDATABASE', 'postgres')}
         settings.DATABASES[db_name] = {

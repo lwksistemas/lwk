@@ -33,7 +33,9 @@ class Command(BaseCommand):
             
             # Adicionar banco às configurações se não existir
             if loja.database_name not in settings.DATABASES:
-                default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+                # ✅ CORREÇÃO: conn_max_age=0 para fechar conexões imediatamente após migrations
+                # Evita "too many connections" ao migrar múltiplas lojas
+                default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
                 settings.DATABASES[loja.database_name] = {
                     **default_db,
                     'OPTIONS': {
@@ -41,8 +43,8 @@ class Command(BaseCommand):
                     },
                     'ATOMIC_REQUESTS': False,
                     'AUTOCOMMIT': True,
-                    'CONN_MAX_AGE': 600,
-                    'CONN_HEALTH_CHECKS': True,
+                    'CONN_MAX_AGE': 0,  # ✅ Fechar conexões imediatamente
+                    'CONN_HEALTH_CHECKS': False,  # ✅ Desabilitar health checks em migrations
                     'TIME_ZONE': None,
                 }
                 self.stdout.write(f"✅ Banco configurado")

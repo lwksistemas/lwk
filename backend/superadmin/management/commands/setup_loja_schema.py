@@ -78,7 +78,8 @@ class Command(BaseCommand):
             return
 
         if db_name not in settings.DATABASES:
-            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+            # ✅ CORREÇÃO: conn_max_age=0 para fechar conexões imediatamente
+            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
             settings.DATABASES[db_name] = {
                 **default_db,
                 'OPTIONS': {

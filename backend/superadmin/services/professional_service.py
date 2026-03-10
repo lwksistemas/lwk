@@ -66,7 +66,54 @@ class ProfessionalService:
         except Exception as e:
             logger.error(f"Erro ao criar profissional (Clínica da Beleza): {e}")
             return False
-    
+
+    @staticmethod
+    def criar_vendedor_admin_crm(loja, owner, owner_telefone: str = '') -> bool:
+        """
+        Cria vendedor admin para CRM Vendas e vincula ao owner.
+        Deve ser chamado APÓS o schema da loja existir (configurar_schema_completo).
+
+        Args:
+            loja: Objeto Loja
+            owner: Objeto User do proprietário
+            owner_telefone: Telefone do proprietário
+
+        Returns:
+            True se criado com sucesso
+        """
+        try:
+            from crm_vendas.models import Vendedor
+
+            if not getattr(loja, 'database_name', None) or not loja.database_created:
+                logger.warning("Schema ainda não criado; vendedor admin não pode ser criado agora")
+                return False
+
+            # Verificar se já existe vendedor com email do owner
+            if Vendedor.objects.using(loja.database_name).filter(
+                email=owner.email, loja_id=loja.id
+            ).exists():
+                logger.info(f"Vendedor admin já existe para {owner.email} na loja {loja.nome}")
+                return True
+
+            nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
+            Vendedor.objects.using(loja.database_name).create(
+                nome=nome,
+                email=owner.email or '',
+                telefone=owner_telefone or '',
+                cargo='Gerente de Vendas',
+                is_admin=True,
+                is_active=True,
+                loja_id=loja.id,
+            )
+
+            # Owner já tem acesso como proprietário; o Vendedor é para aparecer na lista de funcionários
+            logger.info(f"✅ Vendedor admin (CRM Vendas) criado e vinculado ao administrador para {owner.email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Erro ao criar vendedor admin (CRM Vendas): {e}", exc_info=True)
+            return False
+
     @staticmethod
     def criar_profissional_por_tipo(loja, owner, owner_telefone: str = '') -> bool:
         """
@@ -88,11 +135,17 @@ class ProfessionalService:
                 loja, owner, owner_telefone
             )
         
+        # CRM Vendas: criar vendedor admin no schema da loja (após schema existir)
+        if tipo_loja_nome == 'CRM Vendas':
+            return ProfessionalService.criar_vendedor_admin_crm(
+                loja, owner, owner_telefone
+            )
+
         # Outros tipos: funcionário é criado automaticamente pelo signal
         # (create_funcionario_for_loja_owner em superadmin/signals.py)
         if tipo_loja_nome in ('Clínica de Estética', 'Serviços', 'Restaurante'):
             logger.info(f"Funcionário admin será criado pelo signal para {tipo_loja_nome}")
             return True
-        
+
         logger.info(f"Tipo de app '{tipo_loja_nome}' não requer criação de profissional")
         return True

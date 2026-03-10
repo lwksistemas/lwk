@@ -215,6 +215,8 @@ export default function CalendarioAgendamentos({ loja, headerInBar = false, onVi
     } else {
       onViewTitleChange(dataAtual.toLocaleDateString('pt-BR', opcoes));
     }
+    // calcularPeriodo usa dataAtual e visualizacao (já nas deps)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataAtual, visualizacao, onViewTitleChange]);
 
   const carregarProfissionais = async () => {

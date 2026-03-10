@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
@@ -15,7 +16,7 @@ interface StatCardProps {
   trendValue?: string;
 }
 
-export default function StatCard({
+function StatCard({
   title,
   value,
   subtitle,
@@ -77,3 +78,6 @@ export default function StatCard({
     </div>
   );
 }
+
+// Memoização para evitar re-renders desnecessários
+export default React.memo(StatCard);

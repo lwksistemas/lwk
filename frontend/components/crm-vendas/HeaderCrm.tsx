@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { useCRMUIStore } from '@/store/crm-ui';
 import { Menu, Search, Grid, Plus, Bell, HelpCircle, User, Users, DollarSign } from 'lucide-react';
@@ -11,7 +12,7 @@ interface HeaderCrmProps {
   slug?: string;
 }
 
-export default function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: HeaderCrmProps) {
+function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: HeaderCrmProps) {
   const { toggle } = useCRMUIStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNovoMenu, setShowNovoMenu] = useState(false);
@@ -31,12 +32,16 @@ export default function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', s
     <header className="h-14 bg-white dark:bg-[#16325c] border-b border-gray-200 dark:border-[#0d1f3c] flex items-center px-3 sm:px-4 justify-between gap-2 sm:gap-4 shrink-0 shadow-sm">
       {/* Left Section */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Menu Toggle */}
+        {/* Menu Toggle - onTouchEnd para Android/iOS (click falha em alguns dispositivos) */}
         <button
           type="button"
           onClick={toggle}
-          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] transition-colors text-gray-600 dark:text-gray-300"
-          aria-label="Alternar menu"
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            toggle();
+          }}
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] active:bg-gray-200 dark:active:bg-[#0d1f3c] transition-colors text-gray-600 dark:text-gray-300 cursor-pointer touch-manipulation select-none"
+          aria-label="Mostrar menu lateral"
         >
           <Menu size={20} />
         </button>
@@ -208,3 +213,7 @@ export default function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', s
     </header>
   );
 }
+
+// Memoização para evitar re-renders desnecessários
+export default React.memo(HeaderCrm);
+

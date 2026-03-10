@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import StatCard from '@/components/crm-vendas/StatCard';
+import SkeletonDashboard from '@/components/crm-vendas/SkeletonDashboard';
 
 const SalesChart = dynamic(() => import('@/components/crm-vendas/SalesChart'), {
   ssr: false,
@@ -75,15 +76,57 @@ export default function CrmVendasDashboardPage() {
   const [showFiltro, setShowFiltro] = useState(false);
   const filtroRef = useRef<HTMLDivElement>(null);
 
+  // Memoizar cálculos pesados
+  const chartData = useMemo(() => 
+    data?.pipeline_por_etapa?.map((p) => ({
+      name: ETAPAS_LABEL[p.etapa] || p.etapa.replace(/_/g, ' '),
+      valor: p.valor,
+      quantidade: p.quantidade,
+    })) ?? []
+  , [data?.pipeline_por_etapa]);
+
+  const pipelineMap = useMemo(() => 
+    new Map(
+      (data?.pipeline_por_etapa || []).map((p) => [p.etapa, { valor: p.valor, quantidade: p.quantidade }])
+    )
+  , [data?.pipeline_por_etapa]);
+
+  const etapasComValor = useMemo(() => 
+    ETAPAS_ORDER.map((key) => ({
+      key,
+      label: ETAPAS_LABEL[key] || key,
+      ...(pipelineMap.get(key) || { valor: 0, quantidade: 0 }),
+    }))
+  , [pipelineMap]);
+
+  const atividades = useMemo(() => 
+    (data?.atividades_hoje || []) as {
+      id: number;
+      titulo: string;
+      tipo: string;
+      data: string;
+    }[]
+  , [data?.atividades_hoje]);
+
+  // useCallback para event handlers
+  const handleClickOutside = useCallback((e: MouseEvent) => {
+    if (filtroRef.current && !filtroRef.current.contains(e.target as Node)) {
+      setShowFiltro(false);
+    }
+  }, []);
+
+  const toggleFiltro = useCallback(() => {
+    setShowFiltro((v) => !v);
+  }, []);
+
+  const closeFiltro = useCallback(() => {
+    setShowFiltro(false);
+  }, []);
+
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (filtroRef.current && !filtroRef.current.contains(e.target as Node)) {
-        setShowFiltro(false);
-      }
-    };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [handleClickOutside]);
 
   useEffect(() => {
     apiClient
@@ -96,11 +139,7 @@ export default function CrmVendasDashboardPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="text-gray-500 dark:text-gray-400">Carregando...</div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   if (error) {
@@ -112,29 +151,6 @@ export default function CrmVendasDashboardPage() {
   }
 
   if (!data) return null;
-
-  const chartData =
-    data.pipeline_por_etapa?.map((p) => ({
-      name: ETAPAS_LABEL[p.etapa] || p.etapa.replace(/_/g, ' '),
-      valor: p.valor,
-      quantidade: p.quantidade,
-    })) ?? [];
-
-  const pipelineMap = new Map(
-    (data.pipeline_por_etapa || []).map((p) => [p.etapa, { valor: p.valor, quantidade: p.quantidade }])
-  );
-  const etapasComValor = ETAPAS_ORDER.map((key) => ({
-    key,
-    label: ETAPAS_LABEL[key] || key,
-    ...(pipelineMap.get(key) || { valor: 0, quantidade: 0 }),
-  }));
-
-  const atividades = (data.atividades_hoje || []) as {
-    id: number;
-    titulo: string;
-    tipo: string;
-    data: string;
-  }[];
 
   return (
     <div className="space-y-5">
@@ -155,7 +171,7 @@ export default function CrmVendasDashboardPage() {
           <div className="relative" ref={filtroRef}>
             <button
               type="button"
-              onClick={() => setShowFiltro((v) => !v)}
+              onClick={toggleFiltro}
               className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#16325c] border border-gray-300 dark:border-[#0d1f3c] rounded hover:bg-gray-50 dark:hover:bg-[#0d1f3c] transition-colors"
             >
               Filtrar
@@ -168,14 +184,14 @@ export default function CrmVendasDashboardPage() {
                 <button
                   type="button"
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
-                  onClick={() => setShowFiltro(false)}
+                  onClick={closeFiltro}
                 >
                   Este mês (padrão)
                 </button>
                 <button
                   type="button"
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
-                  onClick={() => setShowFiltro(false)}
+                  onClick={closeFiltro}
                 >
                   Últimos 30 dias
                 </button>

@@ -57,15 +57,7 @@ export default function MercadoPagoConfigPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
-      router.push('/superadmin/login')
-      return
-    }
-    loadConfig()
-  }, [router])
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     try {
       setLoading(true)
       const { data } = await apiClient.get('/superadmin/mercadopago-config/')
@@ -82,7 +74,15 @@ export default function MercadoPagoConfigPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [initMercadoPago])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
+      router.push('/superadmin/login')
+      return
+    }
+    loadConfig()
+  }, [router, loadConfig])
 
   const testConnection = async () => {
     setMessage(null)

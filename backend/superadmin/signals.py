@@ -120,11 +120,12 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
                 
         elif tipo_loja_nome == 'CRM Vendas':
-            from crm_vendas.models import Vendedor
-            if not Vendedor.objects.filter(email=owner.email, loja_id=instance.id).exists():
-                funcionario_data['cargo'] = 'Gerente de Vendas'
-                funcionario_data['is_admin'] = True
-                funcionario_criado = Vendedor.objects.create(**funcionario_data)
+            # CRM Vendas: vendedor admin é criado pelo ProfessionalService no LojaCreateSerializer,
+            # APÓS o schema existir (o signal roda antes do schema ser criado).
+            logger.info(
+                f"CRM Vendas: vendedor admin será criado pelo ProfessionalService após schema"
+            )
+            return
 
         elif tipo_loja_nome == 'E-commerce':
             # E-commerce não tem modelo de funcionário

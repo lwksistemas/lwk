@@ -67,11 +67,12 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
     }
   };
 
-  // Polling a cada 30 segundos (apenas ao montar; sem dep que reexecute o efeito)
+  // Polling a cada 30 segundos (apenas ao montar; verificarNovasViolacoes estável)
   useEffect(() => {
     verificarNovasViolacoes();
     const interval = setInterval(verificarNovasViolacoes, INTERVALO_POLLING_MS);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Executar apenas ao montar; reexecutar com verificarNovasViolacoes causaria loop
   }, []);
 
   const mostrarNotificacaoNativa = (violacao: Violacao) => {

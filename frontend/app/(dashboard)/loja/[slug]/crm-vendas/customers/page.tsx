@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { Plus, Eye, Edit2, Trash2, X, Building2, Mail, Phone, MapPin, Tag } from 'lucide-react';
+import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 
 interface Conta {
   id: number;
@@ -141,10 +142,12 @@ export default function CrmVendasCustomersPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="text-gray-500 dark:text-gray-400">
-          Carregando clientes...
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
         </div>
+        <SkeletonTable rows={5} columns={5} />
       </div>
     );
   }

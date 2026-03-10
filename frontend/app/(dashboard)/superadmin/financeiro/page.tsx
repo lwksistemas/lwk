@@ -4,7 +4,7 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { useFinanceiroStats } from '@/hooks/useFinanceiroStats';
@@ -52,6 +52,12 @@ export default function FinanceiroPage() {
   const [showModalExclusao, setShowModalExclusao] = useState(false);
   const [pagamentoParaExcluir, setPagamentoParaExcluir] = useState<Pagamento | null>(null);
 
+  const loadAll = useCallback(() => {
+    reloadStats();
+    reloadAssinaturas();
+    reloadPagamentos();
+  }, [reloadStats, reloadAssinaturas, reloadPagamentos]);
+
   // Verificação de autenticação e carregamento inicial
   useEffect(() => {
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
@@ -59,13 +65,7 @@ export default function FinanceiroPage() {
       return;
     }
     loadAll();
-  }, [router]);
-
-  const loadAll = () => {
-    reloadStats();
-    reloadAssinaturas();
-    reloadPagamentos();
-  };
+  }, [router, loadAll]);
 
   // Handlers de ações Asaas
   const handleUpdateStatusAsaas = (paymentId: number) => {

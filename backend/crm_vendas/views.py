@@ -37,10 +37,30 @@ class VendedorViewSet(BaseModelViewSet):
             )
         return None
 
+    def _ensure_owner_vendedor(self):
+        """Garante que o administrador da loja exista como vendedor (para lojas antigas)."""
+        from superadmin.services import ProfessionalService
+        from superadmin.models import Loja
+
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return
+        try:
+            loja = Loja.objects.select_related('owner', 'tipo_loja').get(id=loja_id)
+            if loja.tipo_loja and loja.tipo_loja.nome == 'CRM Vendas':
+                ProfessionalService.criar_vendedor_admin_crm(
+                    loja, loja.owner, getattr(loja, 'owner_telefone', '') or ''
+                )
+        except Loja.DoesNotExist:
+            pass
+        except Exception:
+            pass  # Não falhar a listagem
+
     def list(self, request, *args, **kwargs):
         bloqueio = self._bloquear_vendedor(request)
         if bloqueio:
             return bloqueio
+        self._ensure_owner_vendedor()
         return super().list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
@@ -148,7 +168,7 @@ class VendedorViewSet(BaseModelViewSet):
 
 
 class ContaViewSet(BaseModelViewSet):
-    queryset = Conta.objects.all()
+    queryset = Conta.objects.select_related('vendedor').prefetch_related('leads', 'contatos').all()
     serializer_class = ContaSerializer
 
     def get_queryset(self):
@@ -175,7 +195,7 @@ class ContaViewSet(BaseModelViewSet):
                 return Response(cached)
         response = super().list(request, *args, **kwargs)
         if cache_key and response.status_code == 200:
-            cache.set(cache_key, response.data, 45)
+            cache.set(cache_key, response.data, 120)  # Aumentado de 45s para 120s
         return response
 
     def perform_create(self, serializer):
@@ -202,7 +222,7 @@ class ContaViewSet(BaseModelViewSet):
 
 
 class LeadViewSet(BaseModelViewSet):
-    queryset = Lead.objects.select_related('conta', 'vendedor').all()
+    queryset = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()
     serializer_class = LeadSerializer
 
     def get_serializer_class(self):
@@ -253,7 +273,7 @@ class ContatoViewSet(BaseModelViewSet):
 
 
 class OportunidadeViewSet(BaseModelViewSet):
-    queryset = Oportunidade.objects.select_related('lead', 'vendedor').all()
+    queryset = Oportunidade.objects.select_related('lead', 'vendedor', 'lead__conta').prefetch_related('atividades').all()
     serializer_class = OportunidadeSerializer
 
     def perform_create(self, serializer):
@@ -336,7 +356,7 @@ class AtividadeViewSet(BaseModelViewSet):
                 return Response(cached)
         response = super().list(request, *args, **kwargs)
         if cache_key and response.status_code == 200:
-            cache.set(cache_key, response.data, 45)
+            cache.set(cache_key, response.data, 120)  # Aumentado de 45s para 120s
         return response
 
     def perform_update(self, serializer):
@@ -515,7 +535,7 @@ def dashboard_data(request):
             'atividades_hoje': atividades_hoje_data,
             'performance_vendedores': performance_vendedores,
         }
-        cache.set(cache_key, payload, 60)
+        cache.set(cache_key, payload, 120)  # Aumentado de 60s para 120s
         return Response(payload)
     except Exception as e:
         logger.exception('Erro no dashboard CRM: %s', e)

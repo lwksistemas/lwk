@@ -26,6 +26,10 @@ class Vendedor(LojaIsolationMixin, models.Model):
         ordering = ['nome']
         verbose_name = 'Vendedor'
         verbose_name_plural = 'Vendedores'
+        indexes = [
+            models.Index(fields=['loja_id', 'is_active'], name='crm_vend_loja_active_idx'),
+            models.Index(fields=['loja_id', 'email'], name='crm_vend_loja_email_idx'),
+        ]
 
     def __str__(self):
         return self.nome
@@ -58,6 +62,11 @@ class Conta(LojaIsolationMixin, models.Model):
         ordering = ['nome']
         verbose_name = 'Conta'
         verbose_name_plural = 'Contas'
+        indexes = [
+            models.Index(fields=['loja_id', 'nome'], name='crm_conta_loja_nome_idx'),
+            models.Index(fields=['loja_id', 'vendedor'], name='crm_conta_loja_vend_idx'),
+            models.Index(fields=['loja_id', 'created_at'], name='crm_conta_loja_created_idx'),
+        ]
 
     def __str__(self):
         return self.nome
@@ -113,6 +122,13 @@ class Lead(LojaIsolationMixin, models.Model):
         ordering = ['-created_at']
         verbose_name = 'Lead'
         verbose_name_plural = 'Leads'
+        indexes = [
+            models.Index(fields=['loja_id', 'status'], name='crm_lead_loja_status_idx'),
+            models.Index(fields=['loja_id', 'origem'], name='crm_lead_loja_origem_idx'),
+            models.Index(fields=['loja_id', 'vendedor'], name='crm_lead_loja_vend_idx'),
+            models.Index(fields=['loja_id', 'created_at'], name='crm_lead_loja_created_idx'),
+            models.Index(fields=['loja_id', 'conta'], name='crm_lead_loja_conta_idx'),
+        ]
 
     def __str__(self):
         return f"{self.nome} ({self.empresa or '-'})"
@@ -140,6 +156,10 @@ class Contato(LojaIsolationMixin, models.Model):
         ordering = ['nome']
         verbose_name = 'Contato'
         verbose_name_plural = 'Contatos'
+        indexes = [
+            models.Index(fields=['loja_id', 'conta'], name='crm_contato_loja_conta_idx'),
+            models.Index(fields=['loja_id', 'email'], name='crm_contato_loja_email_idx'),
+        ]
 
     def __str__(self):
         return self.nome
@@ -185,6 +205,14 @@ class Oportunidade(LojaIsolationMixin, models.Model):
         ordering = ['-created_at']
         verbose_name = 'Oportunidade'
         verbose_name_plural = 'Oportunidades'
+        indexes = [
+            models.Index(fields=['loja_id', 'etapa'], name='crm_opor_loja_etapa_idx'),
+            models.Index(fields=['loja_id', 'vendedor'], name='crm_opor_loja_vend_idx'),
+            models.Index(fields=['loja_id', 'lead'], name='crm_opor_loja_lead_idx'),
+            models.Index(fields=['loja_id', 'data_fechamento'], name='crm_opor_loja_dtfech_idx'),
+            models.Index(fields=['loja_id', 'etapa', 'vendedor'], name='crm_opor_loja_etapa_vend_idx'),
+            models.Index(fields=['loja_id', 'created_at'], name='crm_opor_loja_created_idx'),
+        ]
 
     def __str__(self):
         return f"{self.titulo} - R$ {self.valor}"
@@ -233,6 +261,13 @@ class Atividade(LojaIsolationMixin, models.Model):
         ordering = ['data']
         verbose_name = 'Atividade'
         verbose_name_plural = 'Atividades'
+        indexes = [
+            models.Index(fields=['loja_id', 'data'], name='crm_ativ_loja_data_idx'),
+            models.Index(fields=['loja_id', 'concluido'], name='crm_ativ_loja_concl_idx'),
+            models.Index(fields=['loja_id', 'oportunidade'], name='crm_ativ_loja_opor_idx'),
+            models.Index(fields=['loja_id', 'lead'], name='crm_ativ_loja_lead_idx'),
+            models.Index(fields=['loja_id', 'data', 'concluido'], name='crm_ativ_loja_data_concl_idx'),
+        ]
 
     def __str__(self):
         return f"{self.titulo} ({self.get_tipo_display()})"

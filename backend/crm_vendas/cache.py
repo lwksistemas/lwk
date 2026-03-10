@@ -44,9 +44,10 @@ class CRMCacheManager:
         
         key = f'{prefix}:{loja_id}'
         
+        # Sempre incluir identificador de vendedor ou owner
         if vendedor_id is not None:
             key += f':{vendedor_id}'
-        elif kwargs.get('owner'):
+        else:
             key += ':owner'
         
         # Adicionar parâmetros extras ordenados

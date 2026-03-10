@@ -15,10 +15,45 @@ class Command(BaseCommand):
     help = 'Aplica migrations em todos os schemas das lojas'
 
     def handle(self, *args, **options):
+        """
+        ✅ FIX: Retry logic para evitar timeout do PostgreSQL
+        """
+        from django.db import OperationalError
+        import time
+        
         self.stdout.write("🔧 Aplicando migrations em todas as lojas...\n")
         
-        lojas = Loja.objects.all()
-        self.stdout.write(f"📊 Total de lojas: {lojas.count()}\n")
+        # ✅ FIX: Retry logic para buscar lojas
+        max_retries = 3
+        retry_delay = 2
+        lojas = None
+        
+        for attempt in range(max_retries):
+            try:
+                lojas = list(Loja.objects.all())
+                self.stdout.write(f"📊 Total de lojas: {len(lojas)}\n")
+                break
+            except OperationalError as e:
+                if 'timeout' in str(e).lower() and attempt < max_retries - 1:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"⚠️ Timeout ao buscar lojas (tentativa {attempt + 1}/{max_retries}). "
+                            f"Tentando novamente em {retry_delay}s..."
+                        )
+                    )
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"❌ Falha ao buscar lojas após {max_retries} tentativas: {e}"
+                        )
+                    )
+                    return
+        
+        if not lojas:
+            self.stdout.write(self.style.ERROR("❌ Nenhuma loja encontrada"))
+            return
         
         # Configurar bancos das lojas
         DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -41,7 +76,8 @@ class Command(BaseCommand):
                 settings.DATABASES[loja.database_name] = {
                     **default_db,
                     'OPTIONS': {
-                        'options': f'-c search_path={schema_name},public'
+                        'options': f'-c search_path={schema_name},public',
+                        'connect_timeout': 10,  # ✅ FIX: Timeout de conexão
                     },
                     'ATOMIC_REQUESTS': False,
                     'AUTOCOMMIT': True,
@@ -71,17 +107,37 @@ class Command(BaseCommand):
             apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
             
             for app in apps_to_migrate:
-                try:
-                    self.stdout.write(f"  Migrando {app}...")
-                    call_command(
-                        'migrate', 
-                        app, 
-                        '--database', loja.database_name,
-                        verbosity=0
-                    )
-                    self.stdout.write(self.style.SUCCESS(f"  ✅ {app} migrado"))
-                except Exception as e:
-                    self.stdout.write(self.style.WARNING(f"  ⚠️ Erro em {app}: {e}"))
+                # ✅ FIX: Retry logic para cada migration
+                for attempt in range(max_retries):
+                    try:
+                        self.stdout.write(f"  Migrando {app}... (tentativa {attempt + 1})")
+                        call_command(
+                            'migrate', 
+                            app, 
+                            '--database', loja.database_name,
+                            verbosity=0
+                        )
+                        self.stdout.write(self.style.SUCCESS(f"  ✅ {app} migrado"))
+                        break  # Sucesso, sair do loop
+                    except OperationalError as e:
+                        if 'timeout' in str(e).lower() and attempt < max_retries - 1:
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"  ⚠️ Timeout em {app} (tentativa {attempt + 1}/{max_retries}). "
+                                    f"Tentando novamente em {retry_delay}s..."
+                                )
+                            )
+                            time.sleep(retry_delay)
+                        else:
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"  ⚠️ Erro em {app} após {max_retries} tentativas: {e}"
+                                )
+                            )
+                            break
+                    except Exception as e:
+                        self.stdout.write(self.style.WARNING(f"  ⚠️ Erro em {app}: {e}"))
+                        break
             
             # ✅ CRÍTICO: Fechar todas as conexões desta loja antes de processar a próxima
             # Evita "too many connections for role" ao processar múltiplas lojas

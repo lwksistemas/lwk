@@ -7,7 +7,7 @@ from decimal import Decimal
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_estetica', '0012_alter_agendamento_options_and_more'),
+        ('clinica_estetica', '0013_bloqueioagenda_bloqueio_periodo_idx'),
     ]
 
     operations = [

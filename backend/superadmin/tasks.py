@@ -48,13 +48,50 @@ def executar_backups_automaticos():
     - Evita duplicação (verifica último backup)
     """
     from .models import ConfiguracaoBackup
+    from django.db import OperationalError
+    import time
     
     logger.info("🔄 Iniciando verificação de backups automáticos agendados")
     
-    # Buscar configurações ativas
-    configs = ConfiguracaoBackup.objects.filter(
-        backup_automatico_ativo=True
-    ).select_related('loja')
+    # ✅ FIX: Retry logic para evitar timeout do PostgreSQL
+    max_retries = 3
+    retry_delay = 2  # segundos
+    configs = None
+    
+    for attempt in range(max_retries):
+        try:
+            # Buscar configurações ativas
+            configs = ConfiguracaoBackup.objects.filter(
+                backup_automatico_ativo=True
+            ).select_related('loja')
+            
+            # Forçar execução da query
+            list(configs)
+            break  # Sucesso, sair do loop
+            
+        except OperationalError as e:
+            if 'timeout' in str(e).lower() and attempt < max_retries - 1:
+                logger.warning(
+                    f"⚠️ Timeout ao buscar configurações de backup (tentativa {attempt + 1}/{max_retries}). "
+                    f"Tentando novamente em {retry_delay}s..."
+                )
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Backoff exponencial
+            else:
+                logger.error(f"❌ Falha ao buscar configurações de backup após {max_retries} tentativas: {e}")
+                return {
+                    'total_verificados': 0,
+                    'total_agendados': 0,
+                    'erro': str(e)
+                }
+    
+    if configs is None:
+        logger.error("❌ Não foi possível buscar configurações de backup")
+        return {
+            'total_verificados': 0,
+            'total_agendados': 0,
+            'erro': 'Timeout ao conectar ao banco de dados'
+        }
     
     # Usar horário local (TIME_ZONE, ex.: America/Sao_Paulo) para comparar com o configurado pelo usuário
     now_local = timezone.localtime(timezone.now())

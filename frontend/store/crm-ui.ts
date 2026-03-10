@@ -5,7 +5,8 @@ interface CRMUIState {
   toggle: () => void;
 }
 
+// ✅ FIX: collapsed deve começar como true no mobile (menu fechado por padrão)
 export const useCRMUIStore = create<CRMUIState>((set) => ({
-  collapsed: false,
+  collapsed: true,
   toggle: () => set((s) => ({ collapsed: !s.collapsed })),
 }));

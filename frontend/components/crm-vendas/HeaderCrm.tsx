@@ -39,6 +39,10 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: Hea
             e.stopPropagation();
             toggle();
           }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            toggle();
+          }}
           className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] active:bg-gray-200 dark:active:bg-[#0d1f3c] transition-colors text-gray-600 dark:text-gray-300 cursor-pointer touch-manipulation select-none"
           aria-label="Mostrar menu lateral"
         >

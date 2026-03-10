@@ -28,26 +28,54 @@ class JWTAuthenticationMiddleware:
         self.jwt_authenticator = JWTAuthentication()
     
     def __call__(self, request):
-        # Processar autenticação JWT se não houver usuário autenticado
+        """
+        Processar autenticação JWT com retry logic
+        ✅ FIX v916: Retry logic para evitar timeout do PostgreSQL
+        """
         if not hasattr(request, 'user') or request.user.is_anonymous:
-            try:
-                # Tentar autenticar via JWT
-                auth_result = self.jwt_authenticator.authenticate(request)
-                if auth_result is not None:
-                    user, token = auth_result
-                    request.user = user
-                    request.auth = token
-                else:
-                    # Se não há token JWT, manter usuário anônimo
-                    if not hasattr(request, 'user'):
+            from django.db import OperationalError
+            import time
+            
+            max_retries = 3
+            retry_delay = 1
+            
+            for attempt in range(max_retries):
+                try:
+                    # Tentar autenticar via JWT
+                    auth_result = self.jwt_authenticator.authenticate(request)
+                    if auth_result is not None:
+                        user, token = auth_result
+                        request.user = user
+                        request.auth = token
+                    else:
+                        # Se não há token JWT, manter usuário anônimo
+                        if not hasattr(request, 'user'):
+                            request.user = AnonymousUser()
+                    break  # Sucesso, sair do loop
+                    
+                except (InvalidToken, TokenError):
+                    # Token inválido, manter usuário anônimo
+                    request.user = AnonymousUser()
+                    break
+                    
+                except OperationalError as e:
+                    if 'timeout' in str(e).lower() and attempt < max_retries - 1:
+                        logger.warning(
+                            f"⚠️ Timeout na autenticação JWT (tentativa {attempt + 1}/{max_retries}). "
+                            f"Tentando novamente em {retry_delay}s..."
+                        )
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                    else:
+                        logger.error(f"❌ Falha na autenticação JWT após {max_retries} tentativas: {e}")
                         request.user = AnonymousUser()
-            except (InvalidToken, TokenError) as e:
-                # Token inválido, manter usuário anônimo
-                request.user = AnonymousUser()
-            except Exception as e:
-                # Qualquer outro erro, manter usuário anônimo
-                logger.warning(f"Erro na autenticação JWT: {e}")
-                request.user = AnonymousUser()
+                        break
+                        
+                except Exception as e:
+                    # Qualquer outro erro, manter usuário anônimo
+                    logger.warning(f"Erro na autenticação JWT: {e}")
+                    request.user = AnonymousUser()
+                    break
         
         response = self.get_response(request)
         return response

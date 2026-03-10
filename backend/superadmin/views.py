@@ -230,8 +230,35 @@ class LojaViewSet(viewsets.ModelViewSet):
             logger.debug(f'✅ Cache HIT para loja {slug}')
             return Response(cached_data)
         
+        # ✅ FIX v916: Retry logic para evitar timeout do PostgreSQL
+        from django.db import OperationalError
+        import time
+        
+        max_retries = 3
+        retry_delay = 1
+        loja = None
+        
+        for attempt in range(max_retries):
+            try:
+                loja = Loja.objects.select_related('tipo_loja').filter(slug__iexact=slug, is_active=True).first()
+                break  # Sucesso, sair do loop
+                
+            except OperationalError as e:
+                if 'timeout' in str(e).lower() and attempt < max_retries - 1:
+                    logger.warning(
+                        f"⚠️ Timeout ao buscar loja {slug} (tentativa {attempt + 1}/{max_retries}). "
+                        f"Tentando novamente em {retry_delay}s..."
+                    )
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    logger.error(f"❌ Falha ao buscar loja {slug} após {max_retries} tentativas: {e}")
+                    return Response(
+                        {'error': 'Erro ao conectar ao banco de dados. Tente novamente.'},
+                        status=503
+                    )
+        
         try:
-            loja = Loja.objects.select_related('tipo_loja').filter(slug__iexact=slug, is_active=True).first()
             if not loja:
                 return Response({'error': 'Loja não encontrada'}, status=404)
             tipo = getattr(loja, 'tipo_loja', None)

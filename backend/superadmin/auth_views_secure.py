@@ -9,9 +9,75 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from superadmin.session_manager import SessionManager
 from superadmin.models import Loja, UsuarioSistema, ProfissionalUsuario, VendedorUsuario
+from django.db import connection
+from django.db.utils import OperationalError
 import logging
+import time
 
 logger = logging.getLogger(__name__)
+
+
+def authenticate_with_retry(username, password, max_retries=3):
+    """
+    Autenticar com retry em caso de timeout de conexão
+    
+    Args:
+        username: Nome de usuário
+        password: Senha
+        max_retries: Número máximo de tentativas (padrão: 3)
+    
+    Returns:
+        User object ou None
+    """
+    for attempt in range(max_retries):
+        try:
+            # Testar conexão antes de autenticar
+            connection.ensure_connection()
+            
+            # Autenticar usuário
+            user = authenticate(username=username, password=password)
+            
+            if attempt > 0:
+                logger.info(f"✅ Autenticação bem-sucedida na tentativa {attempt + 1}")
+            
+            return user
+            
+        except OperationalError as e:
+            error_msg = str(e).lower()
+            
+            # Verificar se é erro de timeout
+            if 'timeout' in error_msg or 'timed out' in error_msg:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"⚠️ Timeout na tentativa {attempt + 1}/{max_retries} "
+                        f"para usuário {username}, retrying..."
+                    )
+                    
+                    # Fechar conexão antiga
+                    try:
+                        connection.close()
+                    except Exception:
+                        pass
+                    
+                    # Aguardar antes de retentar (backoff exponencial)
+                    wait_time = (attempt + 1) * 0.5  # 0.5s, 1s, 1.5s
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(
+                        f"❌ Timeout após {max_retries} tentativas para usuário {username}"
+                    )
+            
+            # Se não for timeout ou esgotou tentativas, propagar erro
+            raise
+            
+        except Exception as e:
+            # Outros erros não devem fazer retry
+            logger.error(f"❌ Erro na autenticação: {e}")
+            raise
+    
+    return None
+
 
 
 class SecureLoginView(APIView):
@@ -37,8 +103,33 @@ class SecureLoginView(APIView):
                 'code': 'MISSING_CREDENTIALS'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Autenticar usuário
-        user = authenticate(username=username, password=password)
+        # ✅ CORREÇÃO v895: Autenticar com retry em caso de timeout
+        try:
+            user = authenticate_with_retry(username, password, max_retries=3)
+        except OperationalError as e:
+            error_msg = str(e).lower()
+            
+            # Mensagem amigável para timeout
+            if 'timeout' in error_msg or 'timed out' in error_msg:
+                logger.critical(f"🔴 TIMEOUT: Não foi possível conectar ao banco de dados para {username}")
+                return Response({
+                    'error': 'O sistema está temporariamente indisponível. Por favor, tente novamente em alguns instantes.',
+                    'code': 'DATABASE_TIMEOUT',
+                    'detalhes': 'Não foi possível conectar ao banco de dados. Nossa equipe já foi notificada.'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            
+            # Outros erros operacionais
+            logger.critical(f"🔴 ERRO DE BANCO: {e}")
+            return Response({
+                'error': 'Erro ao acessar o banco de dados. Por favor, tente novamente.',
+                'code': 'DATABASE_ERROR'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.critical(f"🔴 ERRO INESPERADO: {e}")
+            return Response({
+                'error': 'Erro inesperado. Por favor, tente novamente.',
+                'code': 'UNEXPECTED_ERROR'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         if not user:
             logger.warning(f"❌ Tentativa de login falhou: {username}")

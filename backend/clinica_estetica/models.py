@@ -2,96 +2,40 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from agenda_base.models import ClienteBase, ProfissionalBase, ServicoBase, HorarioTrabalhoProfissionalBase
 
 
-class Cliente(LojaIsolationMixin, models.Model):
+class Cliente(ClienteBase):
     """Cliente da clínica de estética"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField(blank=True, null=True)
-    telefone = models.CharField(max_length=20)
-    cpf = models.CharField(max_length=14, blank=True, null=True)
-    data_nascimento = models.DateField(blank=True, null=True)
-    endereco = models.TextField(blank=True, null=True)
-    cidade = models.CharField(max_length=100, blank=True, null=True)
-    estado = models.CharField(max_length=2, blank=True, null=True)
-    observacoes = models.TextField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
-    objects = LojaIsolationManager()
-
-    class Meta:
+    class Meta(ClienteBase.Meta):
         db_table = 'clinica_clientes'
-        ordering = ['-created_at']
         verbose_name = 'Cliente'
         verbose_name_plural = 'Clientes'
 
-    def __str__(self):
-        return self.nome
 
-
-class Profissional(LojaIsolationMixin, models.Model):
+class Profissional(ProfissionalBase):
     """Profissional que realiza procedimentos"""
-    nome = models.CharField(max_length=200)
-    email = models.EmailField(blank=True, null=True)
-    telefone = models.CharField(max_length=20)
-    especialidade = models.CharField(max_length=100)
-    registro_profissional = models.CharField(max_length=50, blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
-    objects = LojaIsolationManager()
-
-    class Meta:
+    class Meta(ProfissionalBase.Meta):
         db_table = 'clinica_profissionais'
-        ordering = ['nome']
         verbose_name = 'Profissional'
         verbose_name_plural = 'Profissionais'
 
-    def __str__(self):
-        return f"{self.nome} - {self.especialidade}"
 
-
-class HorarioTrabalhoProfissional(LojaIsolationMixin, models.Model):
+class HorarioTrabalhoProfissional(HorarioTrabalhoProfissionalBase):
     """
     Dias e horários de atendimento do profissional.
     Um registro por dia da semana em que o profissional atende (ex.: Seg 08:00-18:00).
     """
-    DIAS_SEMANA = [
-        (0, 'Segunda-feira'),
-        (1, 'Terça-feira'),
-        (2, 'Quarta-feira'),
-        (3, 'Quinta-feira'),
-        (4, 'Sexta-feira'),
-        (5, 'Sábado'),
-        (6, 'Domingo'),
-    ]
     profissional = models.ForeignKey(
         Profissional,
         on_delete=models.CASCADE,
         related_name='horarios_trabalho',
         verbose_name='Profissional',
     )
-    dia_semana = models.IntegerField(choices=DIAS_SEMANA, verbose_name='Dia da semana')
-    hora_entrada = models.TimeField(verbose_name='Entrada')
-    hora_saida = models.TimeField(verbose_name='Saída')
-    intervalo_inicio = models.TimeField(
-        blank=True, null=True,
-        verbose_name='Início intervalo (ex.: almoço)',
-        help_text='Opcional',
-    )
-    intervalo_fim = models.TimeField(
-        blank=True, null=True,
-        verbose_name='Fim intervalo',
-        help_text='Opcional',
-    )
-    ativo = models.BooleanField(default=True, verbose_name='Ativo')
 
-    objects = LojaIsolationManager()
-
-    class Meta:
+    class Meta(HorarioTrabalhoProfissionalBase.Meta):
         db_table = 'clinica_horarios_trabalho_profissional'
         verbose_name = 'Horário de atendimento (profissional)'
         verbose_name_plural = 'Horários de atendimento (profissionais)'
@@ -102,27 +46,18 @@ class HorarioTrabalhoProfissional(LojaIsolationMixin, models.Model):
         return f"{self.profissional.nome} - {self.get_dia_semana_display()}: {self.hora_entrada}-{self.hora_saida}"
 
 
-class Procedimento(LojaIsolationMixin, models.Model):
+class Procedimento(ServicoBase):
     """Procedimentos oferecidos pela clínica"""
-    nome = models.CharField(max_length=200)
-    descricao = models.TextField()
-    duracao = models.IntegerField(help_text='Duração em minutos')
-    preco = models.DecimalField(max_digits=10, decimal_places=2)
-    categoria = models.CharField(max_length=100)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
-    objects = LojaIsolationManager()
-
-    class Meta:
+    # Alias para compatibilidade
+    @property
+    def duracao(self):
+        return self.duracao_minutos
+    
+    class Meta(ServicoBase.Meta):
         db_table = 'clinica_procedimentos'
-        ordering = ['categoria', 'nome']
         verbose_name = 'Procedimento'
         verbose_name_plural = 'Procedimentos'
-
-    def __str__(self):
-        return f"{self.nome} - R$ {self.preco}"
 
 
 class Agendamento(LojaIsolationMixin, models.Model):

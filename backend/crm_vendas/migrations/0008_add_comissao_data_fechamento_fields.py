@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0001_initial'),
+        ('crm_vendas', '0007_backfill_vendedor_lead_conta'),
     ]
 
     operations = [

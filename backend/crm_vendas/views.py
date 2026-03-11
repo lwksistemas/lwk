@@ -362,7 +362,7 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         if instance.google_event_id:
             try:
                 from superadmin.models import GoogleCalendarConnection
-                from crm_vendas.google_calendar_service import GoogleCalendarService
+                from crm_vendas.google_calendar_service import delete_google_event
                 loja_id = get_current_loja_id()
                 
                 # Buscar conexão do Google Calendar
@@ -371,10 +371,12 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
                     is_active=True
                 ).first()
                 
-                if connection and connection.access_token:
-                    service = GoogleCalendarService(connection.access_token)
-                    service.delete_event(instance.google_event_id)
-                    logger.info(f"✅ Evento deletado do Google Calendar: {instance.google_event_id}")
+                if connection:
+                    success = delete_google_event(connection, instance.google_event_id)
+                    if success:
+                        logger.info(f"✅ Evento deletado do Google Calendar: {instance.google_event_id}")
+                    else:
+                        logger.warning(f"⚠️ Falha ao deletar evento do Google Calendar: {instance.google_event_id}")
             except Exception as e:
                 logger.warning(f"⚠️ Erro ao deletar evento do Google Calendar: {e}")
                 # Continuar com a exclusão mesmo se falhar no Google Calendar

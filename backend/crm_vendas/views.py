@@ -365,10 +365,11 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
                 from crm_vendas.google_calendar_service import delete_google_event
                 loja_id = get_current_loja_id()
                 
-                # Buscar conexão do Google Calendar
+                # Buscar conexão do Google Calendar (proprietário ou vendedor)
                 connection = GoogleCalendarConnection.objects.filter(
-                    loja_id=loja_id,
-                    is_active=True
+                    loja_id=loja_id
+                ).exclude(
+                    access_token=''
                 ).first()
                 
                 if connection:

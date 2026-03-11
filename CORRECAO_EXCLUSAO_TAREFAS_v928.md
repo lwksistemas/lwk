@@ -93,7 +93,7 @@ def perform_destroy(self, instance):
 ## Status
 
 ✅ **RESOLVIDO** 
-- Backend: Deploy v929 realizado com sucesso no Heroku
+eu queri - Backend: Deploy v929 realizado com sucesso no Heroku
 - Frontend: Deploy v913 realizado com sucesso na Vercel
 
 ## Como Testar

@@ -194,6 +194,9 @@ class Oportunidade(LojaIsolationMixin, models.Model):
     probabilidade = models.IntegerField(default=50)  # 0-100
     data_fechamento_prevista = models.DateField(null=True, blank=True)
     data_fechamento = models.DateField(null=True, blank=True)
+    data_fechamento_ganho = models.DateField(null=True, blank=True, help_text='Data em que a oportunidade foi fechada como ganha')
+    data_fechamento_perdido = models.DateField(null=True, blank=True, help_text='Data em que a oportunidade foi fechada como perdida')
+    valor_comissao = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text='Valor da comissão para esta oportunidade')
     observacoes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -210,6 +213,8 @@ class Oportunidade(LojaIsolationMixin, models.Model):
             models.Index(fields=['loja_id', 'vendedor'], name='crm_opor_loja_vend_idx'),
             models.Index(fields=['loja_id', 'lead'], name='crm_opor_loja_lead_idx'),
             models.Index(fields=['loja_id', 'data_fechamento'], name='crm_opor_loja_dtfech_idx'),
+            models.Index(fields=['loja_id', 'data_fechamento_ganho'], name='crm_opor_loja_dtfechganho_idx'),
+            models.Index(fields=['loja_id', 'data_fechamento_perdido'], name='crm_opor_loja_dtfechperd_idx'),
             models.Index(fields=['loja_id', 'etapa', 'vendedor'], name='crm_opor_loja_etapa_vend_idx'),
             models.Index(fields=['loja_id', 'created_at'], name='crm_opor_loja_created_idx'),
         ]

@@ -182,8 +182,9 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         model = Oportunidade
         fields = [
             'id', 'titulo', 'lead', 'lead_nome', 'valor', 'etapa', 'vendedor', 'vendedor_nome',
-            'probabilidade', 'data_fechamento_prevista', 'data_fechamento', 'observacoes',
-            'created_at', 'updated_at',
+            'probabilidade', 'data_fechamento_prevista', 'data_fechamento', 
+            'data_fechamento_ganho', 'data_fechamento_perdido', 'valor_comissao',
+            'observacoes', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
 

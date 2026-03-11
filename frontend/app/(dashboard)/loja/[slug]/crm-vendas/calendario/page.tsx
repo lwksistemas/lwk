@@ -191,7 +191,7 @@ export default function CalendarioCrmPage() {
     }
   }, []);
 
-  const handleSyncGoogle = useCallback(async () => {
+  const handleSyncGoogle = useCallback(async (direction: 'push_only' | 'pull' | 'both' = 'both') => {
     if (syncingRef.current) return;
     syncingRef.current = true;
     setGoogleLoading(true);
@@ -199,7 +199,7 @@ export default function CalendarioCrmPage() {
     setSyncError(null);
     try {
       const res = await apiClient.post<{ pushed: number; pulled: number }>(API_GOOGLE_SYNC, {
-        direction: 'both',
+        direction,
       });
       setGoogleSyncResult({ pushed: res.data.pushed, pulled: res.data.pulled });
       if (range) await fetchAtividades(range.start, range.end);
@@ -261,11 +261,49 @@ export default function CalendarioCrmPage() {
     const start = new Date(now);
     start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
     start.setSeconds(0, 0);
+    // Converter para formato local (sem ajuste de timezone)
+    const year = start.getFullYear();
+    const month = String(start.getMonth() + 1).padStart(2, '0');
+    const day = String(start.getDate()).padStart(2, '0');
+    const hours = String(start.getHours()).padStart(2, '0');
+    const minutes = String(start.getMinutes()).padStart(2, '0');
+    const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    
     setModalAtividade(null);
     setForm({
       titulo: '',
       tipo: 'task',
-      data: start.toISOString().slice(0, 16),
+      data: localDateTime,
+      duracao_minutos: 60,
+      observacoes: '',
+    });
+    setModalOpen(true);
+    setError(null);
+  }, []);
+
+  const handleDateClick = useCallback((arg: { date: Date; dateStr: string; allDay: boolean }) => {
+    // Função para criar tarefa ao clicar em um dia/horário vazio
+    // Funciona tanto no desktop quanto no mobile
+    const clickedDate = arg.date;
+    
+    // Se for all-day, usar 9:00 como padrão
+    if (arg.allDay) {
+      clickedDate.setHours(9, 0, 0, 0);
+    }
+    
+    // Converter para formato local
+    const year = clickedDate.getFullYear();
+    const month = String(clickedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(clickedDate.getDate()).padStart(2, '0');
+    const hours = String(clickedDate.getHours()).padStart(2, '0');
+    const minutes = String(clickedDate.getMinutes()).padStart(2, '0');
+    const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    
+    setModalAtividade(null);
+    setForm({
+      titulo: '',
+      tipo: 'task',
+      data: localDateTime,
       duracao_minutos: 60,
       observacoes: '',
     });
@@ -274,11 +312,13 @@ export default function CalendarioCrmPage() {
   }, []);
 
   const handleSelect = useCallback((arg: { start: Date; end: Date }) => {
+    // Corrigir timezone: FullCalendar retorna em UTC, precisamos converter para local
+    const localDate = new Date(arg.start.getTime() - arg.start.getTimezoneOffset() * 60000);
     setModalAtividade(null);
     setForm({
       titulo: '',
       tipo: 'task',
-      data: arg.start.toISOString().slice(0, 16),
+      data: localDate.toISOString().slice(0, 16),
       duracao_minutos: 60,
       observacoes: '',
     });
@@ -290,11 +330,21 @@ export default function CalendarioCrmPage() {
     arg.jsEvent.preventDefault();
     const a = arg.event.extendedProps?.atividade;
     if (!a) return;
+    
+    // Converter data UTC para local
+    const dataUTC = new Date(a.data);
+    const year = dataUTC.getFullYear();
+    const month = String(dataUTC.getMonth() + 1).padStart(2, '0');
+    const day = String(dataUTC.getDate()).padStart(2, '0');
+    const hours = String(dataUTC.getHours()).padStart(2, '0');
+    const minutes = String(dataUTC.getMinutes()).padStart(2, '0');
+    const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    
     setModalAtividade(a);
     setForm({
       titulo: a.titulo,
       tipo: a.tipo,
-      data: a.data.slice(0, 16),
+      data: localDateTime,
       duracao_minutos: a.duracao_minutos ?? 60,
       observacoes: a.observacoes || '',
     });
@@ -323,16 +373,27 @@ export default function CalendarioCrmPage() {
         duracao_minutos: form.duracao_minutos,
         observacoes: form.observacoes.trim(),
       };
+      
       if (modalAtividade) {
         await apiClient.patch(`${API_CRM}/atividades/${modalAtividade.id}/`, payload);
       } else {
         await apiClient.post(`${API_CRM}/atividades/`, payload);
       }
-      handleCloseModal();
-      if (range) fetchAtividades(range.start, range.end);
-      if (googleStatus.connected && !syncingRef.current) {
-        handleSyncGoogle();
+      
+      // ESPERAR recarregar antes de fechar o modal
+      if (range) {
+        await fetchAtividades(range.start, range.end);
       }
+      
+      handleCloseModal();
+      
+      // Sincronizar com Google em background (não esperar)
+      if (googleStatus.connected && !syncingRef.current) {
+        setTimeout(() => {
+          handleSyncGoogle('push_only').catch(() => {});
+        }, 100);
+      }
+      
     } catch (e: any) {
       setError(e.response?.data?.titulo?.[0] || e.response?.data?.detail || 'Erro ao salvar.');
     } finally {
@@ -348,11 +409,21 @@ export default function CalendarioCrmPage() {
       await apiClient.patch(`${API_CRM}/atividades/${modalAtividade.id}/`, {
         concluido: !modalAtividade.concluido,
       });
-      handleCloseModal();
-      if (range) fetchAtividades(range.start, range.end);
-      if (googleStatus.connected && !syncingRef.current) {
-        handleSyncGoogle();
+      
+      // ESPERAR recarregar antes de fechar o modal
+      if (range) {
+        await fetchAtividades(range.start, range.end);
       }
+      
+      handleCloseModal();
+      
+      // Sincronizar com Google em background (não esperar)
+      if (googleStatus.connected && !syncingRef.current) {
+        setTimeout(() => {
+          handleSyncGoogle('push_only').catch(() => {});
+        }, 100);
+      }
+      
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Erro ao atualizar.');
     } finally {
@@ -364,13 +435,28 @@ export default function CalendarioCrmPage() {
     if (!modalAtividade || !confirm('Excluir esta atividade?')) return;
     setSaving(true);
     setError(null);
+    
+    // Atualização otimista: remover da UI imediatamente
+    const atividadeId = modalAtividade.id;
+    setEvents(prevEvents => prevEvents.filter(e => e.id !== String(atividadeId)));
+    handleCloseModal();
+    
     try {
-      await apiClient.delete(`${API_CRM}/atividades/${modalAtividade.id}/`);
-      handleCloseModal();
-      if (range) fetchAtividades(range.start, range.end);
-      // Não sincronizar automaticamente após deletar - o backend já remove do Google Calendar
+      await apiClient.delete(`${API_CRM}/atividades/${atividadeId}/`);
+      
+      // Recarregar em background para garantir consistência
+      if (range) {
+        fetchAtividades(range.start, range.end).catch(() => {});
+      }
+      
     } catch (e: any) {
+      // Se falhar, recarregar para restaurar o estado correto
+      if (range) {
+        await fetchAtividades(range.start, range.end);
+      }
       setError(e.response?.data?.detail || 'Erro ao excluir.');
+      setModalOpen(true);
+      setModalAtividade(modalAtividade);
     } finally {
       setSaving(false);
     }
@@ -388,13 +474,22 @@ export default function CalendarioCrmPage() {
         info.revert();
         return;
       }
+      
       await apiClient.patch(`${API_CRM}/atividades/${atividade.id}/`, {
         data: newStart.toISOString(),
       });
-      if (range) fetchAtividades(range.start, range.end);
-      if (googleStatus.connected && !syncingRef.current) {
-        handleSyncGoogle();
-      }
+      
+      // Recarregar e sincronizar em PARALELO
+      const reloadPromise = range ? fetchAtividades(range.start, range.end) : Promise.resolve();
+      const syncPromise = (googleStatus.connected && !syncingRef.current) 
+        ? new Promise<void>(resolve => setTimeout(() => {
+            handleSyncGoogle('push_only').finally(() => resolve());
+          }, 100))
+        : Promise.resolve();
+      
+      // Não esperar - deixar rodar em background
+      Promise.all([reloadPromise, syncPromise]).catch(() => {});
+      
     } catch (e: any) {
       info.revert();
       alert(e.response?.data?.detail || 'Erro ao mover atividade.');
@@ -416,13 +511,22 @@ export default function CalendarioCrmPage() {
       }
       const duracaoMs = newEnd.getTime() - newStart.getTime();
       const duracaoMinutos = Math.round(duracaoMs / 60000);
+      
       await apiClient.patch(`${API_CRM}/atividades/${atividade.id}/`, {
         duracao_minutos: duracaoMinutos,
       });
-      if (range) fetchAtividades(range.start, range.end);
-      if (googleStatus.connected && !syncingRef.current) {
-        handleSyncGoogle();
-      }
+      
+      // Recarregar e sincronizar em PARALELO
+      const reloadPromise = range ? fetchAtividades(range.start, range.end) : Promise.resolve();
+      const syncPromise = (googleStatus.connected && !syncingRef.current) 
+        ? new Promise<void>(resolve => setTimeout(() => {
+            handleSyncGoogle('push_only').finally(() => resolve());
+          }, 100))
+        : Promise.resolve();
+      
+      // Não esperar - deixar rodar em background
+      Promise.all([reloadPromise, syncPromise]).catch(() => {});
+      
     } catch (e: any) {
       info.revert();
       alert(e.response?.data?.detail || 'Erro ao redimensionar atividade.');
@@ -475,7 +579,7 @@ export default function CalendarioCrmPage() {
               </span>
               <button
                 type="button"
-                onClick={handleSyncGoogle}
+                onClick={() => handleSyncGoogle('both')}
                 disabled={googleLoading}
                 className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#0176d3] hover:bg-[#0159a8] text-white disabled:opacity-50 touch-manipulation"
               >
@@ -554,14 +658,15 @@ export default function CalendarioCrmPage() {
             editable
             selectable
             selectMirror
-            dayMaxEvents={isMobile ? 6 : 4}
-            weekends
-            events={events}
-            datesSet={handleDatesSet}
+            dateClick={handleDateClick}
             select={handleSelect}
             eventClick={handleEventClick}
             eventDrop={handleEventDrop}
             eventResize={handleEventResize}
+            dayMaxEvents={isMobile ? 6 : 4}
+            weekends
+            events={events}
+            datesSet={handleDatesSet}
             height="100%"
             eventDisplay="block"
             nowIndicator

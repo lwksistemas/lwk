@@ -376,6 +376,86 @@ export default function CalendarioCrmPage() {
     }
   }, [modalAtividade, range, fetchAtividades, handleCloseModal]);
 
+  const handleEventDrop = useCallback(async (info: { event: any; revert: () => void }) => {
+    const atividade = info.event.extendedProps?.atividade;
+    if (!atividade) {
+      info.revert();
+      return;
+    }
+    try {
+      const newStart = info.event.start;
+      if (!newStart) {
+        info.revert();
+        return;
+      }
+      await apiClient.patch(`${API_CRM}/atividades/${atividade.id}/`, {
+        data: newStart.toISOString(),
+      });
+      if (range) fetchAtividades(range.start, range.end);
+      if (googleStatus.connected && !syncingRef.current) {
+        handleSyncGoogle();
+      }
+    } catch (e: any) {
+      info.revert();
+      alert(e.response?.data?.detail || 'Erro ao mover atividade.');
+    }
+  }, [range, fetchAtividades, googleStatus.connected, handleSyncGoogle]);
+
+  const handleEventResize = useCallback(async (info: { event: any; revert: () => void }) => {
+    const atividade = info.event.extendedProps?.atividade;
+    if (!atividade) {
+      info.revert();
+      return;
+    }
+    try {
+      const newStart = info.event.start;
+      const newEnd = info.event.end;
+      if (!newStart || !newEnd) {
+        info.revert();
+        return;
+      }
+      const duracaoMs = newEnd.getTime() - newStart.getTime();
+      const duracaoMinutos = Math.round(duracaoMs / 60000);
+      await apiClient.patch(`${API_CRM}/atividades/${atividade.id}/`, {
+        duracao_minutos: duracaoMinutos,
+      });
+      if (range) fetchAtividades(range.start, range.end);
+      if (googleStatus.connected && !syncingRef.current) {
+        handleSyncGoogle();
+      }
+    } catch (e: any) {
+      info.revert();
+      alert(e.response?.data?.detail || 'Erro ao redimensionar atividade.');
+    }
+  }, [range, fetchAtividades, googleStatus.connected, handleSyncGoogle]);
+
+  const renderEventContent = useCallback((eventInfo: any) => {
+    const atividade = eventInfo.event.extendedProps?.atividade;
+    if (!atividade) return null;
+
+    const tipoEmoji: Record<string, string> = {
+      call: '📞',
+      meeting: '🤝',
+      email: '📧',
+      task: '✅',
+    };
+
+    const emoji = tipoEmoji[atividade.tipo] || '✅';
+
+    return (
+      <div className="fc-event-main-frame">
+        <div className="fc-event-time">{eventInfo.timeText}</div>
+        <div className="fc-event-title-container">
+          <div className="fc-event-title fc-sticky">
+            <span className="mr-1">{emoji}</span>
+            {atividade.concluido && <span className="mr-1">✓</span>}
+            {eventInfo.event.title.replace(/^(✓\s*)?(📞|🤝|📧|✅)\s*/, '')}
+          </div>
+        </div>
+      </div>
+    );
+  }, []);
+
   return (
     <div className="h-full min-h-0 flex flex-col">
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4 shrink-0">
@@ -480,8 +560,23 @@ export default function CalendarioCrmPage() {
             datesSet={handleDatesSet}
             select={handleSelect}
             eventClick={handleEventClick}
+            eventDrop={handleEventDrop}
+            eventResize={handleEventResize}
             height="100%"
             eventDisplay="block"
+            nowIndicator
+            navLinks
+            eventTimeFormat={{
+              hour: '2-digit',
+              minute: '2-digit',
+              meridiem: false,
+            }}
+            slotLabelFormat={{
+              hour: '2-digit',
+              minute: '2-digit',
+              meridiem: false,
+            }}
+            eventContent={renderEventContent}
           />
         )}
         {loading && plugins.length === 0 && (

@@ -336,6 +336,192 @@
   border-color: rgba(255,255,255,0.2);
 }
 
+/* ========== FULLCALENDAR - ESTILO GOOGLE CALENDAR ========== */
+
+/* Eventos com bordas arredondadas e sombras */
+.fc-event {
+  border-radius: 4px;
+  border-left-width: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.fc-event:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Indicador de "agora" mais visível */
+.fc-timegrid-now-indicator-line {
+  border-color: #ea4335;
+  border-width: 2px;
+}
+
+.fc-timegrid-now-indicator-arrow {
+  border-color: #ea4335;
+  border-width: 6px;
+}
+
+/* Melhorar visualização dos slots de tempo */
+.fc-timegrid-slot {
+  height: 3rem;
+}
+
+.fc-timegrid-slot-label {
+  font-size: 0.75rem;
+  color: #5f6368;
+}
+
+.dark .fc-timegrid-slot-label {
+  color: #9aa0a6;
+}
+
+/* Botões mais modernos */
+.fc-button {
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  transition: all 0.2s ease;
+}
+
+.fc-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fc-button-primary {
+  background-color: #1a73e8;
+  border-color: #1a73e8;
+}
+
+.fc-button-primary:hover {
+  background-color: #1557b0;
+  border-color: #1557b0;
+}
+
+.fc-button-primary:not(:disabled).fc-button-active {
+  background-color: #1557b0;
+  border-color: #1557b0;
+}
+
+/* Toolbar mais espaçada */
+.fc-toolbar {
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+}
+
+.fc-toolbar-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #202124;
+}
+
+.dark .fc-toolbar-title {
+  color: #e8eaed;
+}
+
+/* Dias da semana */
+.fc-col-header-cell {
+  padding: 0.75rem 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  color: #5f6368;
+}
+
+.dark .fc-col-header-cell {
+  color: #9aa0a6;
+}
+
+/* Dia atual destacado */
+.fc-day-today {
+  background-color: rgba(26, 115, 232, 0.05);
+}
+
+.dark .fc-day-today {
+  background-color: rgba(138, 180, 248, 0.1);
+}
+
+/* Links de navegação */
+.fc-daygrid-day-number,
+.fc-col-header-cell-cushion {
+  color: #3c4043;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.fc-daygrid-day-number:hover,
+.fc-col-header-cell-cushion:hover {
+  color: #1a73e8;
+}
+
+.dark .fc-daygrid-day-number,
+.dark .fc-col-header-cell-cushion {
+  color: #e8eaed;
+}
+
+.dark .fc-daygrid-day-number:hover,
+.dark .fc-col-header-cell-cushion:hover {
+  color: #8ab4f8;
+}
+
+/* Eventos no modo mês - mais compactos */
+.fc-daygrid-event {
+  margin: 1px 2px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+
+/* Eventos no modo semana/dia - mais espaçados */
+.fc-timegrid-event {
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 0.8rem;
+}
+
+/* Melhorar seleção de horários */
+.fc-highlight {
+  background-color: rgba(26, 115, 232, 0.1);
+}
+
+.dark .fc-highlight {
+  background-color: rgba(138, 180, 248, 0.15);
+}
+
+/* Scrollbar do calendário */
+.fc-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.fc-scroller::-webkit-scrollbar-track {
+  background: #f1f3f4;
+}
+
+.dark .fc-scroller::-webkit-scrollbar-track {
+  background: #292a2d;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 4px;
+}
+
+.dark .fc-scroller::-webkit-scrollbar-thumb {
+  background: #5f6368;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: #bdc1c6;
+}
+
+.dark .fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: #80868b;
+}
+
 /* ========== FULLCALENDAR MOBILE (Agenda - celular) ========== */
 @media (max-width: 639px) {
   .dark .fc-agenda-mobile .fc-timegrid-slot,

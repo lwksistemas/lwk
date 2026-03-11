@@ -352,6 +352,29 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         CRMCacheManager.invalidate_atividades(get_current_loja_id())
 
     def perform_destroy(self, instance):
+        """
+        Deleta atividade e remove do Google Calendar se tiver google_event_id
+        """
+        # Se tem google_event_id, deletar do Google Calendar
+        if instance.google_event_id:
+            try:
+                from .google_calendar import GoogleCalendarService
+                loja_id = get_current_loja_id()
+                
+                # Buscar conexão do Google Calendar
+                connection = GoogleCalendarConnection.objects.filter(
+                    loja_id=loja_id,
+                    is_active=True
+                ).first()
+                
+                if connection and connection.access_token:
+                    service = GoogleCalendarService(connection.access_token)
+                    service.delete_event(instance.google_event_id)
+                    logger.info(f"✅ Evento deletado do Google Calendar: {instance.google_event_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao deletar evento do Google Calendar: {e}")
+                # Continuar com a exclusão mesmo se falhar no Google Calendar
+        
         super().perform_destroy(instance)
         CRMCacheManager.invalidate_atividades(get_current_loja_id())
 

@@ -1,8 +1,10 @@
-# Correção: Exclusão de Tarefas do Google Calendar (v928)
+# Correção: Exclusão de Tarefas do Google Calendar (v929 Backend + v913 Frontend)
 
 ## Problema Identificado
 
-Tarefas eram deletadas do banco de dados local mas voltavam após sincronizar com o Google Calendar, pois o evento não estava sendo removido do Google Calendar.
+Tarefas eram deletadas do banco de dados local mas:
+1. Não eram removidas do Google Calendar (voltavam após sincronização)
+2. O frontend sincronizava automaticamente após deletar, trazendo o evento de volta antes da exclusão no Google
 
 ## Causa Raiz
 
@@ -24,7 +26,7 @@ O método `perform_destroy` na classe `AtividadeViewSet` não estava deletando o
 - Função correta: `from crm_vendas.google_calendar_service import delete_google_event`
 - **ERRO**: Filtro `is_active=True` não existe no modelo `GoogleCalendarConnection`
 
-### Deploy v929 (Correção Final) ✅
+### Deploy v929 (Correção Backend Final) ✅
 - Removido filtro `is_active` inexistente
 - Filtro correto: `loja_id` + `exclude(access_token='')`
 - Lógica implementada:
@@ -33,6 +35,12 @@ O método `perform_destroy` na classe `AtividadeViewSet` não estava deletando o
   3. Chama `delete_google_event(connection, event_id)`
   4. Loga sucesso ou falha
   5. Continua com a exclusão do banco mesmo se falhar no Google Calendar
+
+### Deploy v913 (Correção Frontend Final) ✅
+- Removida sincronização automática após deletar atividade
+- Motivo: O backend já deleta do Google Calendar, não precisa sincronizar
+- Antes: DELETE → Recarregar → Sincronizar (trazia evento de volta)
+- Depois: DELETE → Recarregar (evento já foi deletado pelo backend)
 
 ## Código Corrigido (v929)
 
@@ -71,7 +79,11 @@ def perform_destroy(self, instance):
 
 ## Arquivos Modificados
 
+### Backend
 - `backend/crm_vendas/views.py` (método `perform_destroy` na classe `AtividadeViewSet`)
+
+### Frontend
+- `frontend/app/(dashboard)/loja/[slug]/crm-vendas/calendario/page.tsx` (função `handleDelete`)
 
 ## Módulo Utilizado
 
@@ -80,7 +92,9 @@ def perform_destroy(self, instance):
 
 ## Status
 
-✅ **RESOLVIDO** - Deploy v929 realizado com sucesso no Heroku
+✅ **RESOLVIDO** 
+- Backend: Deploy v929 realizado com sucesso no Heroku
+- Frontend: Deploy v913 realizado com sucesso na Vercel
 
 ## Como Testar
 

@@ -115,13 +115,43 @@ def atividade_to_google_event(atividade):
         start_dt = timezone.make_aware(start_dt)
     duracao_min = getattr(atividade, 'duracao_minutos', None) or 60
     end_dt = start_dt + timedelta(minutes=duracao_min)
-    desc = (atividade.observacoes or '').strip()
-    desc = f'[CRM - {atividade.get_tipo_display()}]\n{desc}'.strip() or None
+    
+    # Mapeamento de tipos para emojis e cores do Google Calendar
+    tipo_config = {
+        'call': {'emoji': '📞', 'color': '9'},      # Azul claro (#0ea5e9)
+        'meeting': {'emoji': '🤝', 'color': '1'},   # Azul/roxo (#6366f1)
+        'email': {'emoji': '📧', 'color': '3'},     # Roxo (#8b5cf6)
+        'task': {'emoji': '✅', 'color': '10'},     # Verde (#22c55e)
+    }
+    
+    config = tipo_config.get(atividade.tipo, tipo_config['task'])
+    emoji = config['emoji']
+    color_id = config['color']
+    
+    # Adicionar emoji e status de conclusão no título
+    titulo = f"{emoji} {atividade.titulo}"
+    if atividade.concluido:
+        titulo = f"✓ {titulo}"
+    
+    # Descrição com tipo e observações
+    tipo_label = {
+        'call': 'Ligação',
+        'meeting': 'Reunião',
+        'email': 'Email',
+        'task': 'Tarefa',
+    }.get(atividade.tipo, atividade.tipo)
+    
+    desc_parts = [f'[CRM - {tipo_label}]']
+    if atividade.observacoes:
+        desc_parts.append(atividade.observacoes.strip())
+    desc = '\n'.join(desc_parts)
+    
     return {
-        'summary': atividade.titulo,
+        'summary': titulo,
         'description': desc,
         'start': {'dateTime': start_dt.isoformat(), 'timeZone': TIMEZONE_DEFAULT},
         'end': {'dateTime': end_dt.isoformat(), 'timeZone': TIMEZONE_DEFAULT},
+        'colorId': color_id,  # Cor do evento no Google Calendar
     }
 
 

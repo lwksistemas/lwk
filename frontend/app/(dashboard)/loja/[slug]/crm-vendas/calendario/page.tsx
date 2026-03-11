@@ -368,15 +368,13 @@ export default function CalendarioCrmPage() {
       await apiClient.delete(`${API_CRM}/atividades/${modalAtividade.id}/`);
       handleCloseModal();
       if (range) fetchAtividades(range.start, range.end);
-      if (googleStatus.connected && !syncingRef.current) {
-        handleSyncGoogle();
-      }
+      // Não sincronizar automaticamente após deletar - o backend já remove do Google Calendar
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Erro ao excluir.');
     } finally {
       setSaving(false);
     }
-  }, [modalAtividade, range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
+  }, [modalAtividade, range, fetchAtividades, handleCloseModal]);
 
   return (
     <div className="h-full min-h-0 flex flex-col">

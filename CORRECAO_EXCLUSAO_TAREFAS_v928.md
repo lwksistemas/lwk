@@ -19,17 +19,22 @@ O método `perform_destroy` na classe `AtividadeViewSet` não estava deletando o
 - Adicionado `import logging` e `logger`
 - **ERRO**: Import ainda incorreto, tentando usar classe ao invés de função
 
-### Deploy v928 (Correção Final) ✅
+### Deploy v928 (Correção do Import)
 - Corrigido import para usar a função `delete_google_event` ao invés de classe
 - Função correta: `from crm_vendas.google_calendar_service import delete_google_event`
+- **ERRO**: Filtro `is_active=True` não existe no modelo `GoogleCalendarConnection`
+
+### Deploy v929 (Correção Final) ✅
+- Removido filtro `is_active` inexistente
+- Filtro correto: `loja_id` + `exclude(access_token='')`
 - Lógica implementada:
   1. Verifica se a atividade tem `google_event_id`
-  2. Busca a conexão ativa do Google Calendar da loja
+  2. Busca a conexão do Google Calendar da loja com access_token válido
   3. Chama `delete_google_event(connection, event_id)`
   4. Loga sucesso ou falha
   5. Continua com a exclusão do banco mesmo se falhar no Google Calendar
 
-## Código Corrigido
+## Código Corrigido (v929)
 
 ```python
 def perform_destroy(self, instance):
@@ -43,10 +48,11 @@ def perform_destroy(self, instance):
             from crm_vendas.google_calendar_service import delete_google_event
             loja_id = get_current_loja_id()
             
-            # Buscar conexão do Google Calendar
+            # Buscar conexão do Google Calendar (proprietário ou vendedor)
             connection = GoogleCalendarConnection.objects.filter(
-                loja_id=loja_id,
-                is_active=True
+                loja_id=loja_id
+            ).exclude(
+                access_token=''
             ).first()
             
             if connection:
@@ -74,7 +80,7 @@ def perform_destroy(self, instance):
 
 ## Status
 
-✅ **RESOLVIDO** - Deploy v928 realizado com sucesso no Heroku
+✅ **RESOLVIDO** - Deploy v929 realizado com sucesso no Heroku
 
 ## Como Testar
 

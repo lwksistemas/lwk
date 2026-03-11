@@ -8,6 +8,7 @@ from django.db.models import Sum, Count, Q, Exists, OuterRef
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from datetime import timedelta
+import logging
 
 from core.views import BaseModelViewSet
 from .models import Vendedor, Conta, Lead, Contato, Oportunidade, Atividade
@@ -26,6 +27,8 @@ from .utils import get_current_vendedor_id, get_loja_from_context
 from .mixins import CRMPermissionMixin, VendedorFilterMixin
 from .cache import CRMCacheManager
 from .decorators import cache_list_response
+
+logger = logging.getLogger(__name__)
 
 
 # ✅ OTIMIZAÇÃO: Paginação para reduzir tempo de resposta
@@ -358,7 +361,8 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         # Se tem google_event_id, deletar do Google Calendar
         if instance.google_event_id:
             try:
-                from .google_calendar import GoogleCalendarService
+                from superadmin.models import GoogleCalendarConnection
+                from crm_vendas.google_calendar_service import GoogleCalendarService
                 loja_id = get_current_loja_id()
                 
                 # Buscar conexão do Google Calendar

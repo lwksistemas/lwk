@@ -12,14 +12,11 @@ export interface Oportunidade {
   valor_comissao?: string | null;
 }
 
-const ETAPAS = [
-  { key: 'prospecting', label: 'Prospecção' },
-  { key: 'qualification', label: 'Qualificação' },
-  { key: 'proposal', label: 'Proposta' },
-  { key: 'negotiation', label: 'Negociação' },
-  { key: 'closed_won', label: 'Fechado ganho' },
-  { key: 'closed_lost', label: 'Fechado perdido' },
-];
+interface Etapa {
+  key: string;
+  label: string;
+  ordem: number;
+}
 
 function formatMoney(value: string | number): string {
   const n = typeof value === 'string' ? parseFloat(value) : value;
@@ -34,11 +31,24 @@ function formatMoney(value: string | number): string {
 interface PipelineBoardProps {
   oportunidades: Oportunidade[];
   loading?: boolean;
+  etapas?: Etapa[];
   onCardClick?: (oportunidade: Oportunidade) => void;
 }
 
-export default function PipelineBoard({ oportunidades, loading, onCardClick }: PipelineBoardProps) {
-  const byEtapa = ETAPAS.map((e) => ({
+export default function PipelineBoard({ oportunidades, loading, etapas, onCardClick }: PipelineBoardProps) {
+  // Etapas padrão se não fornecidas
+  const ETAPAS_DEFAULT = [
+    { key: 'prospecting', label: 'Prospecção', ordem: 1 },
+    { key: 'qualification', label: 'Qualificação', ordem: 2 },
+    { key: 'proposal', label: 'Proposta', ordem: 3 },
+    { key: 'negotiation', label: 'Negociação', ordem: 4 },
+    { key: 'closed_won', label: 'Fechado ganho', ordem: 5 },
+    { key: 'closed_lost', label: 'Fechado perdido', ordem: 6 },
+  ];
+  
+  const etapasVisiveis = etapas || ETAPAS_DEFAULT;
+  
+  const byEtapa = etapasVisiveis.map((e) => ({
     ...e,
     items: oportunidades.filter((o) => o.etapa === e.key),
   }));
@@ -46,7 +56,7 @@ export default function PipelineBoard({ oportunidades, loading, onCardClick }: P
   if (loading) {
     return (
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {ETAPAS.map((e) => (
+        {etapasVisiveis.map((e) => (
           <div
             key={e.key}
             className="w-72 shrink-0 bg-gray-50 dark:bg-gray-700/50 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 h-64 animate-pulse"

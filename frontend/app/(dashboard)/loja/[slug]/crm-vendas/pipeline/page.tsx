@@ -6,20 +6,12 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { DollarSign, LayoutDashboard, Plus, X } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
 interface LeadOption {
   id: number;
   nome: string;
 }
-
-const ETAPAS_OPCOES = [
-  { value: 'prospecting', label: 'Prospecção' },
-  { value: 'qualification', label: 'Qualificação' },
-  { value: 'proposal', label: 'Proposta' },
-  { value: 'negotiation', label: 'Negociação' },
-  { value: 'closed_won', label: 'Fechado ganho (venda fechada)' },
-  { value: 'closed_lost', label: 'Fechado perdido' },
-];
 
 function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setError: (e: string | null) => void) {
   apiClient
@@ -43,6 +35,8 @@ export default function CrmVendasPipelinePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+  const { etapasAtivas } = useCRMConfig();
+  
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -239,6 +233,7 @@ export default function CrmVendasPipelinePage() {
         <PipelineBoard
           oportunidades={oportunidades}
           loading={loading}
+          etapas={etapasAtivas()}
           onCardClick={handleCardClick}
         />
       </div>
@@ -332,8 +327,8 @@ export default function CrmVendasPipelinePage() {
                   onChange={(e) => setFormCriar((f) => ({ ...f, etapa: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                  {ETAPAS_OPCOES.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {etapasAtivas().map((o) => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
                   ))}
                 </select>
               </div>
@@ -407,8 +402,8 @@ export default function CrmVendasPipelinePage() {
                   onChange={(e) => setEtapaSelecionada(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                  {ETAPAS_OPCOES.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {etapasAtivas().map((o) => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
                   ))}
                 </select>
               </div>

@@ -7,6 +7,8 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Sum, Count, Q, Exists, OuterRef
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.http import HttpResponse
+from django.core.mail import EmailMessage
 from datetime import timedelta
 import logging
 
@@ -892,3 +894,78 @@ def crm_config(request):
             CRMCacheManager.invalidate_dashboard(loja_id)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def gerar_relatorio(request):
+    """
+    Gera relatório de vendas em PDF.
+    
+    POST /crm-vendas/relatorios/gerar/
+    Body: {
+        "tipo": "vendas_total" | "vendas_vendedor" | "comissoes",
+        "periodo": "mes_atual" | "mes_passado" | etc,
+        "vendedor_id": 123 (opcional, apenas para vendas_vendedor),
+        "acao": "pdf" | "email"
+    }
+    """
+    from .relatorios import gerar_relatorio_vendas_total, gerar_relatorio_vendas_vendedor
+    from superadmin.models import Loja
+    
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return Response({'detail': 'Loja não identificada.'}, status=400)
+    
+    tipo = request.data.get('tipo', 'vendas_total')
+    periodo = request.data.get('periodo', 'mes_atual')
+    vendedor_id = request.data.get('vendedor_id')
+    acao = request.data.get('acao', 'pdf')
+    
+    try:
+        # Gerar PDF
+        if tipo == 'vendas_total':
+            pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo)
+            filename = f'relatorio_vendas_total_{periodo}.pdf'
+        elif tipo in ['vendas_vendedor', 'comissoes']:
+            pdf_buffer = gerar_relatorio_vendas_vendedor(loja_id, periodo, vendedor_id)
+            filename = f'relatorio_vendas_vendedor_{periodo}.pdf'
+        else:
+            return Response({'detail': 'Tipo de relatório inválido.'}, status=400)
+        
+        # Se ação for PDF, retornar arquivo
+        if acao == 'pdf':
+            response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        
+        # Se ação for email, enviar por email
+        elif acao == 'email':
+            loja = Loja.objects.using('default').get(id=loja_id)
+            user_email = request.user.email
+            
+            if not user_email:
+                return Response({'detail': 'Usuário não possui email cadastrado.'}, status=400)
+            
+            email = EmailMessage(
+                subject=f'Relatório de Vendas - {loja.nome}',
+                body=f'Segue em anexo o relatório de vendas solicitado.\n\nPeríodo: {periodo}\nTipo: {tipo}',
+                from_email='noreply@lwksistemas.com.br',
+                to=[user_email],
+            )
+            
+            email.attach(filename, pdf_buffer.read(), 'application/pdf')
+            email.send(fail_silently=False)
+            
+            return Response({
+                'success': True,
+                'message': f'Relatório enviado para {user_email}'
+            })
+        
+        else:
+            return Response({'detail': 'Ação inválida.'}, status=400)
+            
+    except Exception as e:
+        logger.exception(f'Erro ao gerar relatório: {e}')
+        return Response({'detail': f'Erro ao gerar relatório: {str(e)}'}, status=500)

@@ -11,6 +11,7 @@ from .views import (
     WhatsAppConfigView,
     LoginConfigView,
     crm_config,
+    gerar_relatorio,
 )
 from .views_google_calendar import (
     google_calendar_auth,
@@ -33,6 +34,7 @@ urlpatterns = [
     path('config/', crm_config),
     path('whatsapp-config/', WhatsAppConfigView.as_view()),
     path('login-config/', LoginConfigView.as_view()),
+    path('relatorios/gerar/', gerar_relatorio),
     path('google-calendar/auth/', google_calendar_auth),
     path('google-calendar/callback/', google_calendar_callback),
     path('google-calendar/status/', google_calendar_status),

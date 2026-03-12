@@ -273,14 +273,124 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Seção: Módulos Ativos (em breve) */}
+      {/* Seção: Módulos Ativos */}
       <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Módulos Ativos
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Em breve: Habilite ou desabilite módulos como Contas, Contatos, etc.
-        </p>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Módulos Ativos
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Habilite ou desabilite módulos do CRM. Módulos desabilitados não aparecerão no menu.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {/* Leads - sempre ativo */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#0d1f3c] rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={true}
+                disabled
+                className="w-4 h-4 text-[#0176d3] rounded opacity-50 cursor-not-allowed"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Leads
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Módulo principal (sempre ativo)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contas */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#0d1f3c] rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={config?.modulos_ativos?.contas !== false}
+                onChange={() => {
+                  const novosModulos = { ...config?.modulos_ativos, contas: !config?.modulos_ativos?.contas };
+                  salvarConfig({ modulos_ativos: novosModulos });
+                }}
+                className="w-4 h-4 text-[#0176d3] rounded"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Contas (Empresas)
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Gerenciar empresas/organizações clientes
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contatos */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#0d1f3c] rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={config?.modulos_ativos?.contatos !== false}
+                onChange={() => {
+                  const novosModulos = { ...config?.modulos_ativos, contatos: !config?.modulos_ativos?.contatos };
+                  salvarConfig({ modulos_ativos: novosModulos });
+                }}
+                className="w-4 h-4 text-[#0176d3] rounded"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Contatos
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Gerenciar pessoas de contato das empresas
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Pipeline - sempre ativo */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#0d1f3c] rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={true}
+                disabled
+                className="w-4 h-4 text-[#0176d3] rounded opacity-50 cursor-not-allowed"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Pipeline de Vendas
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Módulo principal (sempre ativo)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Atividades - sempre ativo */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#0d1f3c] rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={true}
+                disabled
+                className="w-4 h-4 text-[#0176d3] rounded opacity-50 cursor-not-allowed"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Calendário / Atividades
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Módulo principal (sempre ativo)
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Seção: Etapas do Pipeline (em breve) */}

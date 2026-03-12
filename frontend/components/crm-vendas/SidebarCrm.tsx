@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { useCRMUIStore } from '@/store/crm-ui';
 import { authService } from '@/lib/auth';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import {
   LayoutDashboard,
   Users,
@@ -37,6 +38,7 @@ interface SidebarCrmProps {
 
 function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
   const { collapsed, toggle } = useCRMUIStore();
+  const { moduloAtivo } = useCRMConfig();
   const params = useParams();
   const pathname = usePathname();
   const slug = (params?.slug as string) || (typeof pathname === 'string' && pathname.startsWith('/loja/') ? pathname.split('/')[2] : '') || '';
@@ -210,18 +212,20 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
             {!collapsed && <span>Oportunidades</span>}
           </Link>
           
-          <Link
-            href={`${base}/customers`}
-            className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
-              isActive(`${base}/customers`)
-                ? 'bg-[#0176d3] text-white shadow-sm'
-                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
-            }`}
-            title={collapsed ? 'Contas' : undefined}
-          >
-            <User size={18} className="shrink-0" />
-            {!collapsed && <span>Contas</span>}
-          </Link>
+          {moduloAtivo('contas') && (
+            <Link
+              href={`${base}/customers`}
+              className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
+                isActive(`${base}/customers`)
+                  ? 'bg-[#0176d3] text-white shadow-sm'
+                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
+              }`}
+              title={collapsed ? 'Contas' : undefined}
+            >
+              <User size={18} className="shrink-0" />
+              {!collapsed && <span>Contas</span>}
+            </Link>
+          )}
 
           <Link
             href={`${base}/calendario`}

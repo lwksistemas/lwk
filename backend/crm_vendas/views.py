@@ -631,7 +631,9 @@ def dashboard_data(request):
                 a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
 
         # 1 query: performance vendedores
-        mes_inicio = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # DateField: usar .date() para comparação explícita (evita FieldError com __date__)
+        mes_inicio_dt = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        mes_inicio = mes_inicio_dt.date() if hasattr(mes_inicio_dt, 'date') else mes_inicio_dt
         perf_qs = vendedores_qs.annotate(
             receita_mes=Sum(
                 'oportunidades__valor',

@@ -100,7 +100,29 @@ export default function RelatoriosPage() {
       }
     } catch (error: any) {
       console.error('Erro ao gerar relatório:', error);
-      const mensagem = error.response?.data?.detail || 'Erro ao gerar relatório. Tente novamente.';
+      let mensagem = 'Erro ao gerar relatório. Tente novamente.';
+      const data = error.response?.data;
+      if (data) {
+        if (typeof data === 'string') {
+          try {
+            const parsed = JSON.parse(data);
+            mensagem = parsed.detail || mensagem;
+          } catch {
+            mensagem = data || mensagem;
+          }
+        } else if (data instanceof Blob) {
+          // responseType: 'blob' retorna erro como Blob - converter para texto
+          try {
+            const text = await data.text();
+            const parsed = JSON.parse(text);
+            mensagem = parsed.detail || mensagem;
+          } catch {
+            mensagem = 'Erro ao gerar relatório. Tente novamente.';
+          }
+        } else if (typeof data === 'object' && data.detail) {
+          mensagem = data.detail;
+        }
+      }
       alert(mensagem);
     } finally {
       setGerando(false);

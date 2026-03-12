@@ -17,15 +17,6 @@ const ETAPAS_OPORTUNIDADE = [
   { value: 'closed_lost', label: 'Fechado perdido' },
 ];
 
-const ORIGEM_OPCOES = [
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'facebook', label: 'Facebook' },
-  { value: 'instagram', label: 'Instagram' },
-  { value: 'site', label: 'Site' },
-  { value: 'indicacao', label: 'Indicação' },
-  { value: 'outro', label: 'Outro' },
-];
-
 const STATUS_OPCOES = [
   { value: 'novo', label: 'Novo' },
   { value: 'contato', label: 'Contato feito' },
@@ -51,7 +42,7 @@ export default function CrmVendasLeadsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = (params?.slug as string) ?? '';
-  const { colunasLeadsVisiveis } = useCRMConfig();
+  const { colunasLeadsVisiveis, origensAtivas, etapasAtivas } = useCRMConfig();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -269,7 +260,7 @@ export default function CrmVendasLeadsPage() {
       .finally(() => setEnviando(false));
   };
 
-  const origemLabel = (value: string) => ORIGEM_OPCOES.find((o) => o.value === value)?.label ?? value;
+  const origemLabel = (value: string) => origensAtivas().find((o) => o.key === value)?.label ?? value;
   const statusLabel = (value: string) => STATUS_OPCOES.find((o) => o.value === value)?.label ?? value;
   const formatarData = (s: string) => {
     if (!s) return '–';
@@ -477,8 +468,8 @@ export default function CrmVendasLeadsPage() {
                   onChange={(e) => setForm((f) => ({ ...f, origem: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                  {ORIGEM_OPCOES.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {origensAtivas().map((o) => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
                   ))}
                 </select>
               </div>
@@ -766,8 +757,8 @@ export default function CrmVendasLeadsPage() {
                   onChange={(e) => setForm((f) => ({ ...f, origem: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                  {ORIGEM_OPCOES.map((o) => (
-                    <option key={o.value} value={o.value}>
+                  {origensAtivas().map((o) => (
+                    <option key={o.key} value={o.key}>
                       {o.label}
                     </option>
                   ))}

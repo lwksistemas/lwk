@@ -25,8 +25,10 @@ const STATUS_OPCOES = [
 ];
 
 function loadLeads(setLeads: (l: Lead[]) => void, setError: (e: string | null) => void) {
+  // Adicionar timestamp para evitar cache do navegador e forçar dados frescos
+  const timestamp = new Date().getTime();
   apiClient
-    .get<Lead[] | { results: Lead[] }>('/crm-vendas/leads/')
+    .get<Lead[] | { results: Lead[] }>(`/crm-vendas/leads/?_t=${timestamp}`)
     .then((res) => {
       const data = res.data;
       setLeads(Array.isArray(data) ? data : (data as { results: Lead[] }).results || []);
@@ -71,8 +73,9 @@ export default function CrmVendasLeadsPage() {
   });
 
   useEffect(() => {
+    const timestamp = new Date().getTime();
     apiClient
-      .get<Lead[] | { results: Lead[] }>('/crm-vendas/leads/')
+      .get<Lead[] | { results: Lead[] }>(`/crm-vendas/leads/?_t=${timestamp}`)
       .then((res) => {
         const data = res.data;
         setLeads(Array.isArray(data) ? data : (data as { results: Lead[] }).results || []);

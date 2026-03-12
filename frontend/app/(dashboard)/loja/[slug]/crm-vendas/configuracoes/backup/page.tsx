@@ -22,15 +22,15 @@ export default function BackupPage() {
   useEffect(() => {
     const carregarLoja = async () => {
       try {
-        // Obter informações da loja do localStorage (salvo no login)
-        const lojaStr = localStorage.getItem('loja_info');
-        if (lojaStr) {
-          const lojaData = JSON.parse(lojaStr);
-          setLoja({ id: lojaData.id, nome: lojaData.nome });
-        } else {
-          // Fallback: tentar carregar do backend
+        // Obter informações da loja do sessionStorage (salvo no login)
+        const lojaId = sessionStorage.getItem('current_loja_id');
+        
+        if (lojaId) {
+          // Buscar informações completas da loja
           const res = await apiClient.get(`/superadmin/lojas/by-slug/${slug}/`);
           setLoja({ id: res.data.id, nome: res.data.nome });
+        } else {
+          console.error('Loja ID não encontrado no sessionStorage');
         }
       } catch (error) {
         console.error('Erro ao carregar loja:', error);

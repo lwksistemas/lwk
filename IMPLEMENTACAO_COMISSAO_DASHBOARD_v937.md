@@ -29,93 +29,92 @@
 
 ---
 
-## 🔍 ANÁLISE: Problema de Criação de Tarefas
+# Correção: Atividades sem Oportunidade/Lead - Deploy v944
 
-### Problema Relatado
-Usuário reportou: "se não tiver sincronizado com o calendário do Google conectado, não consigo criar tarefas"
+## 🐛 Problema Identificado
 
-### Investigação Realizada
+Usuário reportou: "após salvar não aparece a tarefa no calendário"
 
-#### 1. Backend (AtividadeViewSet)
-```python
-class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
-    def perform_create(self, serializer):
-        super().perform_create(serializer)
-        # ... notificações ...
-        # ✅ NÃO HÁ VALIDAÇÃO DE GOOGLE CALENDAR
-```
+### Causa Raiz
+O `VendedorFilterMixin` estava filtrando atividades apenas por:
+- `oportunidade__vendedor_id`
+- `lead__oportunidades__vendedor_id`
 
-**Conclusão**: Backend permite criar atividades sem Google Calendar conectado.
+Isso significa que **atividades sem oportunidade/lead não apareciam** na listagem!
 
-#### 2. Frontend (calendario/page.tsx)
-```typescript
-const handleSave = useCallback(async () => {
-  // ... validações ...
-  
-  // Salvar atividade
-  if (modalAtividade) {
-    await apiClient.patch(`${API_CRM}/atividades/${modalAtividade.id}/`, payload);
-  } else {
-    await apiClient.post(`${API_CRM}/atividades/`, payload);
-  }
-  
-  // Recarregar
-  if (range) {
-    await fetchAtividades(range.start, range.end);
-  }
-  
-  handleCloseModal();
-  
-  // Sincronizar com Google APENAS SE CONECTADO (não bloqueia)
-  if (googleStatus.connected && !syncingRef.current) {
-    setTimeout(() => {
-      handleSyncGoogle('push_only').catch(() => {});
-    }, 100);
-  }
-}, [/* deps */]);
-```
-
-**Conclusão**: Frontend permite criar atividades sem Google Calendar. A sincronização é opcional e não bloqueia.
-
-#### 3. Dashboard (page.tsx)
-```typescript
-const atividades = useMemo(() => 
-  (data?.atividades_hoje || []) as {
-    id: number;
-    titulo: string;
-    tipo: string;
-    data: string;
-  }[]
-, [data?.atividades_hoje]);
-```
-
-**Conclusão**: Dashboard exibe atividades corretamente quando retornadas pelo backend.
+### Impacto
+- Atividades criadas diretamente no calendário (sem vincular a oportunidade/lead) não eram exibidas
+- Usuários pensavam que o sistema não estava salvando as tarefas
+- Confusão sobre necessidade de Google Calendar conectado
 
 ---
 
-## ✅ CONCLUSÃO
+## ✅ Solução Implementada (v944)
 
-### Sistema Está Funcionando Corretamente
+### Backend: AtividadeViewSet
+Adicionado override do método `filter_by_vendedor` para permitir atividades órfãs:
 
-O sistema **JÁ PERMITE** criar tarefas sem Google Calendar conectado:
+```python
+def filter_by_vendedor(self, queryset):
+    """
+    Override para permitir atividades sem oportunidade/lead.
+    Atividades órfãs (sem oportunidade/lead) são visíveis para todos da loja.
+    """
+    vendedor_id = get_current_vendedor_id(self.request)
+    if vendedor_id is None:
+        # Proprietário: vê tudo
+        return queryset
+    
+    # Vendedor vê:
+    # 1. Atividades vinculadas às suas oportunidades
+    # 2. Atividades vinculadas aos seus leads
+    # 3. Atividades sem oportunidade/lead (órfãs)
+    from django.db.models import Q
+    filters = (
+        Q(oportunidade__vendedor_id=vendedor_id) |
+        Q(lead__oportunidades__vendedor_id=vendedor_id) |
+        Q(oportunidade__isnull=True, lead__isnull=True)  # Atividades órfãs
+    )
+    return queryset.filter(filters).distinct()
+```
 
-1. **Backend**: Não há validação que exige Google Calendar
-2. **Frontend**: Sincronização é opcional e não bloqueia criação
-3. **Dashboard**: Exibe atividades quando existem
+### Comportamento Após Correção
+- ✅ Atividades sem oportunidade/lead agora aparecem no calendário
+- ✅ Atividades vinculadas a oportunidades continuam funcionando normalmente
+- ✅ Vendedores veem suas atividades + atividades órfãs da loja
+- ✅ Proprietários veem todas as atividades
 
-### Possíveis Causas do Problema Relatado
+---
 
-1. **Confusão de UX**: Interface mostra botão "Conectar Google Calendar" de forma proeminente, o que pode dar a impressão de ser obrigatório
-2. **Cache do navegador**: Usuário pode estar vendo versão antiga da página
-3. **Erro de rede**: Pode haver erro ao salvar que não está relacionado ao Google Calendar
-4. **Filtro de vendedor**: Atividades podem estar sendo filtradas por vendedor incorreto
+## 📊 Deploy Status
 
-### Recomendações
+| Deploy | Status | Descrição |
+|---|---|---|
+| Backend v944 | ✅ Heroku | Correção do filtro de atividades |
+| Frontend v943 | ✅ Vercel | Sem alterações necessárias |
 
-1. **Hard refresh no celular**: Limpar cache do navegador (Ctrl+Shift+R ou Cmd+Shift+R)
-2. **Verificar console do navegador**: Procurar por erros JavaScript
-3. **Testar criação de atividade**: Ir em `/loja/felix-5889/crm-vendas/calendario` e criar uma tarefa
-4. **Verificar dashboard**: Ir em `/loja/felix-5889/crm-vendas` e ver se aparece em "Próximas atividades"
+---
+
+## 🧪 Teste
+
+1. Ir em https://lwksistemas.com.br/loja/felix-5889/crm-vendas/calendario
+2. Clicar no botão "+" flutuante (canto inferior direito)
+3. Preencher:
+   - Título: "Teste de tarefa órfã"
+   - Tipo: Tarefa
+   - Data e hora: qualquer data/hora
+   - Duração: 1 hora
+4. Clicar em "Salvar"
+5. ✅ A tarefa deve aparecer imediatamente no calendário
+6. ✅ A tarefa deve aparecer no dashboard em "Próximas atividades"
+
+---
+
+## 📝 Observações
+
+- Não é necessário conectar Google Calendar para criar tarefas
+- Sincronização com Google Calendar é opcional e acontece em background
+- Atividades órfãs são úteis para tarefas gerais não vinculadas a vendas específicas
 
 ---
 
@@ -128,7 +127,7 @@ O sistema **JÁ PERMITE** criar tarefas sem Google Calendar conectado:
 | Vinculação ao vendedor logado | ✅ Completo | v940 |
 | Pipeline em andamento | ✅ Completo | v941 |
 | Próximas atividades | ✅ Completo | v943 |
-| Criação de tarefas sem Google | ✅ Funciona | v943 |
+| Criação de tarefas sem Google | ✅ CORRIGIDO | v944 |
 
 ---
 

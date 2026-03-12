@@ -18,6 +18,7 @@ def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
     - loja_id
     - vendedor_id (ou 'owner')
     - query params especificados em extra_keys
+    - versão (para atividades)
     
     Args:
         cache_prefix: Prefixo do cache (ex: 'crm_contas_list')
@@ -45,6 +46,15 @@ def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
                     value = request.query_params.get(key)
                     if value:
                         cache_kwargs[key] = value
+            
+            # Para atividades, incluir versão na chave
+            if cache_prefix == CRMCacheManager.ATIVIDADES:
+                version_key = CRMCacheManager.get_cache_key(
+                    CRMCacheManager.ATIVIDADES_VERSION,
+                    loja_id
+                )
+                version = cache.get(version_key, 0)
+                cache_kwargs['v'] = version
             
             # Gerar chave de cache
             cache_key = CRMCacheManager.get_cache_key(

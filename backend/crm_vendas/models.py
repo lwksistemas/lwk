@@ -74,6 +74,8 @@ class Conta(LojaIsolationMixin, models.Model):
 
 class Lead(LojaIsolationMixin, models.Model):
     """Lead (potencial cliente)."""
+    # Choices mantidas para referência, mas não mais usadas no campo
+    # As origens são configuráveis via CRMConfig.origens_leads
     ORIGEM_CHOICES = [
         ('whatsapp', 'WhatsApp'),
         ('facebook', 'Facebook'),
@@ -93,7 +95,11 @@ class Lead(LojaIsolationMixin, models.Model):
     empresa = models.CharField(max_length=200, blank=True)
     email = models.EmailField(blank=True, null=True)
     telefone = models.CharField(max_length=20, blank=True)
-    origem = models.CharField(max_length=50, choices=ORIGEM_CHOICES, default='site')
+    origem = models.CharField(
+        max_length=50,
+        default='site',
+        help_text='Origem do lead (valores configuráveis via CRMConfig)'
+    )
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='novo')
     valor_estimado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     conta = models.ForeignKey(

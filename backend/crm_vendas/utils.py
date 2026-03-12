@@ -56,8 +56,10 @@ def get_loja_from_context(request=None):
 
 def get_current_vendedor_id(request):
     """
-    Retorna o ID do vendedor logado (VendedorUsuario) se for vendedor.
-    Retorna None se for proprietário da loja (mostra todos os dados).
+    Retorna o ID do vendedor logado.
+    - Se for vendedor (VendedorUsuario): retorna vendedor_id
+    - Se for proprietário da loja: retorna o vendedor_id do owner (se existir)
+    - Retorna None se não for vendedor nem owner com vendedor cadastrado
     """
     if not request or not request.user or not request.user.is_authenticated:
         return None
@@ -69,10 +71,22 @@ def get_current_vendedor_id(request):
         return None
     try:
         from superadmin.models import VendedorUsuario, Loja
-        # Verificar se é proprietário (owner vê tudo)
+        from crm_vendas.models import Vendedor
+        
+        # Verificar se é proprietário
         loja = Loja.objects.using('default').filter(id=loja_id).first()
         if loja and loja.owner_id == request.user.id:
+            # Owner: buscar se tem vendedor cadastrado
+            vendedor_owner = Vendedor.objects.filter(
+                email=request.user.email,
+                is_active=True
+            ).first()
+            if vendedor_owner:
+                return vendedor_owner.id
+            # Se não tem vendedor cadastrado, retorna None (vê tudo mas não vincula vendas)
             return None
+        
+        # Verificar se é vendedor (VendedorUsuario)
         vu = VendedorUsuario.objects.using('default').filter(
             user=request.user,
             loja_id=loja_id,

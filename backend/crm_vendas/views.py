@@ -287,6 +287,18 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         else:
             serializer.save()
 
+    def perform_update(self, serializer):
+        """Mantém o vendedor ao atualizar se não for especificado"""
+        vendedor_id = get_current_vendedor_id(self.request)
+        instance = serializer.instance
+        data = serializer.validated_data
+        
+        # Se é vendedor logado e a oportunidade não tem vendedor, vincular
+        if vendedor_id is not None and instance.vendedor_id is None and not data.get('vendedor'):
+            serializer.save(vendedor_id=vendedor_id)
+        else:
+            serializer.save()
+
     def get_queryset(self):
         qs = super().get_queryset()
         # Filtros adicionais (além do filtro de vendedor do mixin)

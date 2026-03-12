@@ -85,46 +85,90 @@ class CRMCacheManager:
     @classmethod
     def invalidate_contas(cls, loja_id):
         """
-        Invalida cache de contas.
+        Invalida cache de contas para todos os vendedores.
         
         Args:
             loja_id: ID da loja
         """
-        if loja_id:
-            cache.delete(cls.get_cache_key(cls.CONTAS, loja_id))
+        if not loja_id:
+            return
+        
+        # Invalidar cache do owner
+        cache.delete(cls.get_cache_key(cls.CONTAS, loja_id, None))
+        
+        # Invalidar cache de todos os vendedores
+        try:
+            from superadmin.models import VendedorUsuario
+            for vid in VendedorUsuario.objects.filter(loja_id=loja_id).values_list('vendedor_id', flat=True).distinct():
+                cache.delete(cls.get_cache_key(cls.CONTAS, loja_id, vid))
+        except Exception:
+            pass
     
     @classmethod
     def invalidate_leads(cls, loja_id):
         """
-        Invalida cache de leads.
+        Invalida cache de leads para todos os vendedores.
         
         Args:
             loja_id: ID da loja
         """
-        if loja_id:
-            cache.delete(cls.get_cache_key(cls.LEADS, loja_id))
+        if not loja_id:
+            return
+        
+        # Invalidar cache do owner
+        cache.delete(cls.get_cache_key(cls.LEADS, loja_id, None))
+        
+        # Invalidar cache de todos os vendedores
+        try:
+            from superadmin.models import VendedorUsuario
+            for vid in VendedorUsuario.objects.filter(loja_id=loja_id).values_list('vendedor_id', flat=True).distinct():
+                cache.delete(cls.get_cache_key(cls.LEADS, loja_id, vid))
+        except Exception:
+            pass
     
     @classmethod
     def invalidate_contatos(cls, loja_id):
         """
-        Invalida cache de contatos.
+        Invalida cache de contatos para todos os vendedores.
         
         Args:
             loja_id: ID da loja
         """
-        if loja_id:
-            cache.delete(cls.get_cache_key(cls.CONTATOS, loja_id))
+        if not loja_id:
+            return
+        
+        # Invalidar cache do owner
+        cache.delete(cls.get_cache_key(cls.CONTATOS, loja_id, None))
+        
+        # Invalidar cache de todos os vendedores
+        try:
+            from superadmin.models import VendedorUsuario
+            for vid in VendedorUsuario.objects.filter(loja_id=loja_id).values_list('vendedor_id', flat=True).distinct():
+                cache.delete(cls.get_cache_key(cls.CONTATOS, loja_id, vid))
+        except Exception:
+            pass
     
     @classmethod
     def invalidate_oportunidades(cls, loja_id):
         """
-        Invalida cache de oportunidades.
+        Invalida cache de oportunidades para todos os vendedores.
         
         Args:
             loja_id: ID da loja
         """
-        if loja_id:
-            cache.delete(cls.get_cache_key(cls.OPORTUNIDADES, loja_id))
+        if not loja_id:
+            return
+        
+        # Invalidar cache do owner
+        cache.delete(cls.get_cache_key(cls.OPORTUNIDADES, loja_id, None))
+        
+        # Invalidar cache de todos os vendedores
+        try:
+            from superadmin.models import VendedorUsuario
+            for vid in VendedorUsuario.objects.filter(loja_id=loja_id).values_list('vendedor_id', flat=True).distinct():
+                cache.delete(cls.get_cache_key(cls.OPORTUNIDADES, loja_id, vid))
+        except Exception:
+            pass
     
     @classmethod
     def invalidate_atividades(cls, loja_id):

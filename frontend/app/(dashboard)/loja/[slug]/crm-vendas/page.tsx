@@ -347,8 +347,14 @@ export default function CrmVendasDashboardPage() {
                 <Calendar size={24} className="text-gray-400" />
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Nenhuma atividade pendente
+                Nenhuma atividade cadastrada
               </p>
+              <Link
+                href={`/loja/${slug}/crm-vendas/calendario`}
+                className="text-sm text-[#0176d3] hover:text-[#0159a8] font-medium mt-2 inline-block"
+              >
+                Criar atividade
+              </Link>
             </div>
           ) : (
             <ul className="space-y-3">

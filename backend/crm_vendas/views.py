@@ -544,6 +544,15 @@ def dashboard_data(request):
             for v in perf_qs
         ]
 
+        # Comissão total do mês (todas as oportunidades, independente de vendedor)
+        comissao_total_mes = opp_qs.filter(
+            etapa='closed_won',
+            valor_comissao__isnull=False
+        ).filter(
+            Q(data_fechamento_ganho__gte=mes_inicio) |
+            (Q(data_fechamento_ganho__isnull=True) & Q(data_fechamento__gte=mes_inicio))
+        ).aggregate(total=Sum('valor_comissao'))['total'] or 0
+
         payload = {
             'leads': total_leads,
             'oportunidades': total_oportunidades,
@@ -554,6 +563,7 @@ def dashboard_data(request):
             'pipeline_por_etapa': pipeline_por_etapa,
             'atividades_hoje': atividades_hoje_data,
             'performance_vendedores': performance_vendedores,
+            'comissao_total_mes': float(comissao_total_mes),
         }
         if cache_key:
             from django.core.cache import cache

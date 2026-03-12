@@ -38,6 +38,7 @@ interface DashboardData {
   pipeline_por_etapa: { etapa: string; valor: number; quantidade: number }[];
   atividades_hoje: unknown[];
   performance_vendedores: { id: number; nome: string; receita_mes: number; comissao_mes: number }[];
+  comissao_total_mes: number;
 }
 
 function formatMoney(value: number): string {
@@ -275,9 +276,7 @@ export default function CrmVendasDashboardPage() {
             </h2>
           </div>
           <p className="text-3xl font-bold text-[#e287b2] dark:text-[#e287b2]">
-            {formatMoney(
-              data.performance_vendedores?.reduce((sum, v) => sum + (v.comissao_mes || 0), 0) || 0
-            )}
+            {formatMoney(data.comissao_total_mes || 0)}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             Total de comissões

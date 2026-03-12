@@ -17,6 +17,7 @@ import {
   Settings,
   Bell,
   HelpCircle,
+  FileText,
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
@@ -238,6 +239,19 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
           >
             <Calendar size={18} className="shrink-0" />
             {!collapsed && <span>Calendário</span>}
+          </Link>
+
+          <Link
+            href={`${base}/relatorios`}
+            className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
+              isActive(`${base}/relatorios`)
+                ? 'bg-[#0176d3] text-white shadow-sm'
+                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
+            }`}
+            title={collapsed ? 'Relatórios' : undefined}
+          >
+            <FileText size={18} className="shrink-0" />
+            {!collapsed && <span>Relatórios</span>}
           </Link>
 
           {/* Divider */}

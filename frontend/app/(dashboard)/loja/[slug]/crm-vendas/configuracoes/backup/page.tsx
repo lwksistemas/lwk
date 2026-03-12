@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, Database, Download, Upload, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import apiClient from '@/lib/api-client';
 import BackupButton from '@/components/loja/BackupButton';
 
 interface LojaInfo {
@@ -14,7 +13,6 @@ interface LojaInfo {
 
 export default function BackupPage() {
   const params = useParams();
-  const router = useRouter();
   const slug = (params?.slug as string) ?? '';
   const [loja, setLoja] = useState<LojaInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,13 +20,16 @@ export default function BackupPage() {
   useEffect(() => {
     const carregarLoja = async () => {
       try {
-        // Obter informações da loja do sessionStorage (salvo no login)
-        const lojaId = sessionStorage.getItem('current_loja_id');
+        // Obter ID da loja do sessionStorage (salvo no login)
+        const lojaIdStr = sessionStorage.getItem('current_loja_id');
         
-        if (lojaId) {
-          // Buscar informações completas da loja
-          const res = await apiClient.get(`/superadmin/lojas/by-slug/${slug}/`);
-          setLoja({ id: res.data.id, nome: res.data.nome });
+        if (lojaIdStr) {
+          const lojaId = parseInt(lojaIdStr, 10);
+          // Usar o slug como nome temporário (será usado apenas para o nome do arquivo de backup)
+          setLoja({ 
+            id: lojaId, 
+            nome: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+          });
         } else {
           console.error('Loja ID não encontrado no sessionStorage');
         }

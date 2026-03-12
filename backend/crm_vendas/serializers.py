@@ -157,7 +157,7 @@ class LeadListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = [
-            'id', 'nome', 'empresa', 'email', 'origem', 'status', 'valor_estimado',
+            'id', 'nome', 'empresa', 'email', 'telefone', 'origem', 'status', 'valor_estimado',
             'conta', 'conta_nome', 'created_at',
         ]
 

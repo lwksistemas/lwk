@@ -30,9 +30,10 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
   const carregarConfig = async () => {
     try {
       const res = await apiClient.get<CRMConfig>('/crm-vendas/config/');
+      console.log('✅ CRM Config carregado:', res.data);
       setConfig(res.data);
     } catch (e) {
-      console.error('Erro ao carregar config CRM:', e);
+      console.error('❌ Erro ao carregar config CRM:', e);
       // Se falhar, usar valores padrão
       setConfig({
         id: 0,
@@ -68,8 +69,8 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
   };
 
   const etapasAtivas = () => {
-    if (!config || !config.etapas_pipeline) {
-      // Retornar etapas padrão se não carregou
+    if (!config || !config.etapas_pipeline || config.etapas_pipeline.length === 0) {
+      // Retornar etapas padrão se não carregou ou está vazio
       return [
         { key: 'prospecting', label: 'Prospecção', ordem: 1 },
         { key: 'qualification', label: 'Qualificação', ordem: 2 },
@@ -80,15 +81,29 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
       ];
     }
     
-    return config.etapas_pipeline
+    const ativas = config.etapas_pipeline
       .filter(e => e.ativo)
       .sort((a, b) => a.ordem - b.ordem)
       .map(e => ({ key: e.key, label: e.label, ordem: e.ordem }));
+    
+    // Se não há etapas ativas, retornar padrão
+    if (ativas.length === 0) {
+      return [
+        { key: 'prospecting', label: 'Prospecção', ordem: 1 },
+        { key: 'qualification', label: 'Qualificação', ordem: 2 },
+        { key: 'proposal', label: 'Proposta', ordem: 3 },
+        { key: 'negotiation', label: 'Negociação', ordem: 4 },
+        { key: 'closed_won', label: 'Fechado (ganho)', ordem: 5 },
+        { key: 'closed_lost', label: 'Fechado (perdido)', ordem: 6 },
+      ];
+    }
+    
+    return ativas;
   };
 
   const origensAtivas = () => {
-    if (!config || !config.origens_leads) {
-      // Retornar origens padrão se não carregou
+    if (!config || !config.origens_leads || config.origens_leads.length === 0) {
+      // Retornar origens padrão se não carregou ou está vazio
       return [
         { key: 'whatsapp', label: 'WhatsApp' },
         { key: 'facebook', label: 'Facebook' },
@@ -99,9 +114,23 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
       ];
     }
     
-    return config.origens_leads
+    const ativas = config.origens_leads
       .filter(o => o.ativo)
       .map(o => ({ key: o.key, label: o.label }));
+    
+    // Se não há origens ativas, retornar padrão
+    if (ativas.length === 0) {
+      return [
+        { key: 'whatsapp', label: 'WhatsApp' },
+        { key: 'facebook', label: 'Facebook' },
+        { key: 'instagram', label: 'Instagram' },
+        { key: 'site', label: 'Site' },
+        { key: 'indicacao', label: 'Indicação' },
+        { key: 'outro', label: 'Outro' },
+      ];
+    }
+    
+    return ativas;
   };
 
   const colunasLeadsVisiveis = () => {

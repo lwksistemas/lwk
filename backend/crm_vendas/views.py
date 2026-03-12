@@ -445,6 +445,11 @@ ETAPAS_PIPELINE = [
     'prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won',
 ]
 
+# Etapas em andamento (excluindo fechadas)
+ETAPAS_EM_ANDAMENTO = [
+    'prospecting', 'qualification', 'proposal', 'negotiation',
+]
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -495,13 +500,15 @@ def dashboard_data(request):
         agg = opp_qs.aggregate(
             total_oportunidades=Count('id'),
             receita=Sum('valor', filter=Q(etapa='closed_won')),
-            pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_PIPELINE)),
+            pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),  # Apenas em andamento
+            oportunidades_em_andamento=Count('id', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),  # Contagem em andamento
             total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost'])),
             total_ganhos=Count('id', filter=Q(etapa='closed_won')),
         )
         total_oportunidades = agg['total_oportunidades'] or 0
         receita = float(agg['receita'] or 0)
         pipeline_aberto = float(agg['pipeline_aberto'] or 0)
+        oportunidades_em_andamento = agg['oportunidades_em_andamento'] or 0
         total_fechados = agg['total_fechados'] or 0
         total_ganhos = agg['total_ganhos'] or 0
         taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
@@ -570,6 +577,7 @@ def dashboard_data(request):
             'oportunidades': total_oportunidades,
             'receita': receita,
             'pipeline_aberto': pipeline_aberto,
+            'oportunidades_em_andamento': oportunidades_em_andamento,
             'meta_vendas': 0,
             'taxa_conversao': taxa_conversao,
             'pipeline_por_etapa': pipeline_por_etapa,

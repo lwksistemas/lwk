@@ -34,6 +34,7 @@ interface DashboardData {
   oportunidades: number;
   receita: number;
   pipeline_aberto: number;
+  oportunidades_em_andamento: number;
   taxa_conversao: number;
   pipeline_por_etapa: { etapa: string; valor: number; quantidade: number }[];
   atividades_hoje: unknown[];
@@ -254,14 +255,14 @@ export default function CrmVendasDashboardPage() {
               <DollarSign size={20} className="text-[#06a59a]" />
             </div>
             <h2 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-              Pipeline aberto
+              Pipeline em andamento
             </h2>
           </div>
           <p className="text-3xl font-bold text-[#06a59a] dark:text-[#06a59a]">
             {formatMoney(data.pipeline_aberto)}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {data.oportunidades} oportunidades ativas
+            {data.oportunidades_em_andamento} oportunidade(s) em negociação
           </p>
         </div>
 

@@ -29,30 +29,35 @@
 
 ---
 
-# Correção: Atividades sem Oportunidade/Lead - Deploy v944
+# Correção: Atividades sem Oportunidade/Lead - Deploy v944-v945
 
 ## 🐛 Problema Identificado
 
 Usuário reportou: "após salvar não aparece a tarefa no calendário"
 
-### Causa Raiz
-O `VendedorFilterMixin` estava filtrando atividades apenas por:
-- `oportunidade__vendedor_id`
-- `lead__oportunidades__vendedor_id`
+### Causa Raiz (Dupla)
 
-Isso significa que **atividades sem oportunidade/lead não apareciam** na listagem!
+**Problema 1 (v944)**: Filtro de vendedor bloqueava atividades órfãs
+- O `VendedorFilterMixin` filtrava apenas por `oportunidade__vendedor_id` e `lead__oportunidades__vendedor_id`
+- Atividades sem oportunidade/lead não apareciam na listagem
+
+**Problema 2 (v945)**: Cache não era invalidado corretamente
+- O decorator `cache_list_response` não verificava a versão do cache
+- Mesmo após criar atividade, o cache antigo era retornado
+- Usuário via dados desatualizados por até 5 minutos
 
 ### Impacto
-- Atividades criadas diretamente no calendário (sem vincular a oportunidade/lead) não eram exibidas
-- Usuários pensavam que o sistema não estava salvando as tarefas
+- Atividades criadas no calendário não apareciam imediatamente
+- Usuários pensavam que o sistema não estava salvando
 - Confusão sobre necessidade de Google Calendar conectado
 
 ---
 
-## ✅ Solução Implementada (v944)
+## ✅ Solução Implementada
 
-### Backend: AtividadeViewSet
-Adicionado override do método `filter_by_vendedor` para permitir atividades órfãs:
+### Deploy v944: Permitir Atividades Órfãs
+
+Adicionado override do método `filter_by_vendedor` no `AtividadeViewSet`:
 
 ```python
 def filter_by_vendedor(self, queryset):
@@ -78,9 +83,29 @@ def filter_by_vendedor(self, queryset):
     return queryset.filter(filters).distinct()
 ```
 
+### Deploy v945: Corrigir Invalidação de Cache
+
+Atualizado decorator `cache_list_response` para incluir versão na chave de cache:
+
+```python
+# Para atividades, incluir versão na chave
+if cache_prefix == CRMCacheManager.ATIVIDADES:
+    version_key = CRMCacheManager.get_cache_key(
+        CRMCacheManager.ATIVIDADES_VERSION,
+        loja_id
+    )
+    version = cache.get(version_key, 0)
+    cache_kwargs['v'] = version
+```
+
+Agora quando uma atividade é criada:
+1. `perform_create` chama `CRMCacheManager.invalidate_atividades(loja_id)`
+2. Isso incrementa a versão do cache
+3. Próxima requisição usa nova versão na chave, forçando recarregamento
+
 ### Comportamento Após Correção
-- ✅ Atividades sem oportunidade/lead agora aparecem no calendário
-- ✅ Atividades vinculadas a oportunidades continuam funcionando normalmente
+- ✅ Atividades sem oportunidade/lead aparecem no calendário
+- ✅ Atividades aparecem IMEDIATAMENTE após salvar (sem delay de cache)
 - ✅ Vendedores veem suas atividades + atividades órfãs da loja
 - ✅ Proprietários veem todas as atividades
 
@@ -90,7 +115,8 @@ def filter_by_vendedor(self, queryset):
 
 | Deploy | Status | Descrição |
 |---|---|---|
-| Backend v944 | ✅ Heroku | Correção do filtro de atividades |
+| Backend v944 | ✅ Heroku | Permitir atividades órfãs |
+| Backend v945 | ✅ Heroku | Corrigir invalidação de cache |
 | Frontend v943 | ✅ Vercel | Sem alterações necessárias |
 
 ---
@@ -127,7 +153,7 @@ def filter_by_vendedor(self, queryset):
 | Vinculação ao vendedor logado | ✅ Completo | v940 |
 | Pipeline em andamento | ✅ Completo | v941 |
 | Próximas atividades | ✅ Completo | v943 |
-| Criação de tarefas sem Google | ✅ CORRIGIDO | v944 |
+| Criação de tarefas sem Google | ✅ CORRIGIDO | v944+v945 |
 
 ---
 

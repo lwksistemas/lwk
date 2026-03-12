@@ -373,7 +373,9 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
                     )
             except Exception:
                 pass  # Notificação é best-effort; não falha a criação
-        CRMCacheManager.invalidate_atividades(get_current_loja_id())
+        loja_id = get_current_loja_id()
+        CRMCacheManager.invalidate_atividades(loja_id)
+        CRMCacheManager.invalidate_dashboard(loja_id)  # Invalidar dashboard também
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
@@ -386,7 +388,9 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        CRMCacheManager.invalidate_atividades(get_current_loja_id())
+        loja_id = get_current_loja_id()
+        CRMCacheManager.invalidate_atividades(loja_id)
+        CRMCacheManager.invalidate_dashboard(loja_id)  # Invalidar dashboard também
 
     def perform_destroy(self, instance):
         """
@@ -417,7 +421,9 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
                 # Continuar com a exclusão mesmo se falhar no Google Calendar
         
         super().perform_destroy(instance)
-        CRMCacheManager.invalidate_atividades(get_current_loja_id())
+        loja_id = get_current_loja_id()
+        CRMCacheManager.invalidate_atividades(loja_id)
+        CRMCacheManager.invalidate_dashboard(loja_id)  # Invalidar dashboard também
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -513,8 +519,11 @@ def dashboard_data(request):
                 Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
             ).distinct()
             opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
+            # Atividades: vendedor vê suas atividades + atividades órfãs (sem oportunidade/lead)
             atividades_qs = atividades_qs.filter(
-                Q(oportunidade__vendedor_id=vendedor_id) | Q(lead__oportunidades__vendedor_id=vendedor_id)
+                Q(oportunidade__vendedor_id=vendedor_id) | 
+                Q(lead__oportunidades__vendedor_id=vendedor_id) |
+                Q(oportunidade__isnull=True, lead__isnull=True)  # Atividades órfãs
             ).distinct()
             vendedores_qs = vendedores_qs.filter(id=vendedor_id)
 

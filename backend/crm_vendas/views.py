@@ -806,3 +806,42 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             'cor_primaria': loja.cor_primaria or '#10B981',
             'cor_secundaria': loja.cor_secundaria or '#059669',
         })
+
+
+
+@api_view(['GET', 'PATCH'])
+def crm_config(request):
+    """
+    GET: Retorna configurações do CRM da loja
+    PATCH: Atualiza configurações do CRM
+    """
+    from .models import CRMConfig
+    from .serializers import CRMConfigSerializer
+    
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return Response({'detail': 'Loja não identificada.'}, status=400)
+    
+    # Apenas proprietário pode acessar configurações
+    vendedor_id = get_current_vendedor_id(request)
+    if vendedor_id is not None:
+        return Response(
+            {'detail': 'Apenas o proprietário pode acessar as configurações.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Buscar ou criar configuração
+    config = CRMConfig.get_or_create_for_loja(loja_id)
+    
+    if request.method == 'GET':
+        serializer = CRMConfigSerializer(config)
+        return Response(serializer.data)
+    
+    elif request.method == 'PATCH':
+        serializer = CRMConfigSerializer(config, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            # Invalidar cache do dashboard quando configurações mudarem
+            CRMCacheManager.invalidate_dashboard(loja_id)
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

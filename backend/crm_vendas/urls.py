@@ -10,6 +10,7 @@ from .views import (
     dashboard_data,
     WhatsAppConfigView,
     LoginConfigView,
+    crm_config,
 )
 from .views_google_calendar import (
     google_calendar_auth,
@@ -29,6 +30,7 @@ router.register(r'atividades', AtividadeViewSet, basename='crm-atividades')
 
 urlpatterns = [
     path('dashboard/', dashboard_data),
+    path('config/', crm_config),
     path('whatsapp-config/', WhatsAppConfigView.as_view()),
     path('login-config/', LoginConfigView.as_view()),
     path('google-calendar/auth/', google_calendar_auth),

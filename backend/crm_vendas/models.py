@@ -276,3 +276,7 @@ class Atividade(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.titulo} ({self.get_tipo_display()})"
+
+
+# Importar modelo de configuração
+from .models_config import CRMConfig

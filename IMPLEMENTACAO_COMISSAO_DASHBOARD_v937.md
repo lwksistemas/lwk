@@ -145,7 +145,28 @@ def perform_create(self, serializer):
 | Backend v944 | ✅ Heroku | Permitir atividades órfãs no calendário |
 | Backend v945 | ✅ Heroku | Corrigir invalidação de cache do calendário |
 | Backend v946 | ✅ Heroku | Incluir atividades órfãs no dashboard |
-| Frontend v943 | ✅ Vercel | Sem alterações necessárias |
+| Frontend v947 | ✅ Vercel | Corrigir botão "Ver todas" e formato de data |
+
+---
+
+## 🎨 Melhorias de UX (v947)
+
+### Botão "Ver todas"
+- Alterado de `<button>` para `<Link>` funcional
+- Agora redireciona para `/loja/{slug}/crm-vendas/calendario`
+
+### Formato de Data/Hora
+Antes: `2026-03-12T11:30:00+00:00` (ISO format)
+
+Depois:
+- `Hoje às 11:30` (se for hoje)
+- `Amanhã às 14:30` (se for amanhã)
+- `12/03 às 18:30` (outras datas)
+
+### Tipo de Atividade
+Antes: `call`, `meeting`, `email`, `task` (inglês)
+
+Depois: `Ligação`, `Reunião`, `E-mail`, `Tarefa` (português)
 
 ---
 
@@ -154,13 +175,18 @@ def perform_create(self, serializer):
 1. Ir em https://lwksistemas.com.br/loja/felix-5889/crm-vendas/calendario
 2. Clicar no botão "+" flutuante (canto inferior direito)
 3. Preencher:
-   - Título: "Teste de tarefa órfã"
+   - Título: "Teste de tarefa"
    - Tipo: Tarefa
    - Data e hora: qualquer data/hora
    - Duração: 1 hora
 4. Clicar em "Salvar"
 5. ✅ A tarefa deve aparecer imediatamente no calendário
-6. ✅ A tarefa deve aparecer no dashboard em "Próximas atividades"
+6. Ir em https://lwksistemas.com.br/loja/felix-5889/crm-vendas
+7. ✅ A tarefa deve aparecer em "Próximas atividades" com formato legível:
+   - "Hoje às 14:30" (se for hoje)
+   - "Amanhã às 10:00" (se for amanhã)
+   - "13/03 às 16:00" (outras datas)
+8. ✅ Clicar em "Ver todas" deve redirecionar para o calendário
 
 ---
 

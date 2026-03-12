@@ -5,7 +5,7 @@ from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.conf import settings
 
-from .models import Vendedor, Conta, Lead, Contato, Oportunidade, Atividade
+from .models import Vendedor, Conta, Lead, Contato, Oportunidade, Atividade, CRMConfig
 
 logger = logging.getLogger(__name__)
 
@@ -207,3 +207,14 @@ class AtividadeListSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'data', 'duracao_minutos',
             'concluido', 'observacoes', 'created_at', 'updated_at',
         ]
+
+
+
+class CRMConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CRMConfig
+        fields = [
+            'id', 'origens_leads', 'etapas_pipeline', 'colunas_leads', 
+            'modulos_ativos', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']

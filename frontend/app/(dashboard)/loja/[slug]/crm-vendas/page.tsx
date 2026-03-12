@@ -61,6 +61,13 @@ const ETAPAS_LABEL: Record<string, string> = {
   closed_lost: 'Fechado (perdido)',
 };
 
+const TIPO_LABEL_DASHBOARD: Record<string, string> = {
+  call: 'Ligação',
+  meeting: 'Reunião',
+  email: 'E-mail',
+  task: 'Tarefa',
+};
+
 function iconPorTipo(tipo: string) {
   const t = (tipo || '').toLowerCase();
   if (t.includes('reunião') || t.includes('reuniao')) return Calendar;
@@ -337,9 +344,12 @@ export default function CrmVendasDashboardPage() {
               </div>
               Próximas atividades
             </h2>
-            <button className="text-sm text-[#0176d3] hover:text-[#0159a8] font-medium">
+            <Link
+              href={`/loja/${slug}/crm-vendas/calendario`}
+              className="text-sm text-[#0176d3] hover:text-[#0159a8] font-medium"
+            >
               Ver todas
-            </button>
+            </Link>
           </div>
           {atividades.length === 0 ? (
             <div className="text-center py-8">
@@ -360,6 +370,34 @@ export default function CrmVendasDashboardPage() {
             <ul className="space-y-3">
               {atividades.slice(0, 5).map((a) => {
                 const Icon = iconPorTipo(a.tipo);
+                // Formatar data/hora
+                let dataFormatada = '';
+                if (a.data) {
+                  try {
+                    const date = new Date(a.data);
+                    const hoje = new Date();
+                    const amanha = new Date(hoje);
+                    amanha.setDate(amanha.getDate() + 1);
+                    
+                    // Verificar se é hoje, amanhã ou outra data
+                    const isHoje = date.toDateString() === hoje.toDateString();
+                    const isAmanha = date.toDateString() === amanha.toDateString();
+                    
+                    const hora = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    
+                    if (isHoje) {
+                      dataFormatada = `Hoje às ${hora}`;
+                    } else if (isAmanha) {
+                      dataFormatada = `Amanhã às ${hora}`;
+                    } else {
+                      const dia = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                      dataFormatada = `${dia} às ${hora}`;
+                    }
+                  } catch (e) {
+                    dataFormatada = a.data;
+                  }
+                }
+                
                 return (
                   <li
                     key={a.id}
@@ -372,9 +410,9 @@ export default function CrmVendasDashboardPage() {
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {a.titulo}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                        {a.tipo}
-                        {a.data && ` • ${a.data}`}
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {TIPO_LABEL_DASHBOARD[a.tipo] || a.tipo}
+                        {dataFormatada && ` • ${dataFormatada}`}
                       </p>
                     </div>
                   </li>

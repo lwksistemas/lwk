@@ -29,25 +29,31 @@
 
 ---
 
-# Correção: Atividades sem Oportunidade/Lead - Deploy v944-v945
+# Correção: Atividades sem Oportunidade/Lead - Deploy v944-v946
 
 ## 🐛 Problema Identificado
 
-Usuário reportou: "após salvar não aparece a tarefa no calendário"
+Usuário reportou: "após salvar não aparece a tarefa no calendário" e "não está aparecendo no dashboard"
 
-### Causa Raiz (Dupla)
+### Causa Raiz (Tripla)
 
-**Problema 1 (v944)**: Filtro de vendedor bloqueava atividades órfãs
+**Problema 1 (v944)**: Filtro de vendedor bloqueava atividades órfãs no calendário
 - O `VendedorFilterMixin` filtrava apenas por `oportunidade__vendedor_id` e `lead__oportunidades__vendedor_id`
-- Atividades sem oportunidade/lead não apareciam na listagem
+- Atividades sem oportunidade/lead não apareciam na listagem do calendário
 
-**Problema 2 (v945)**: Cache não era invalidado corretamente
+**Problema 2 (v945)**: Cache não era invalidado corretamente no calendário
 - O decorator `cache_list_response` não verificava a versão do cache
 - Mesmo após criar atividade, o cache antigo era retornado
 - Usuário via dados desatualizados por até 5 minutos
 
+**Problema 3 (v946)**: Dashboard não mostrava atividades órfãs
+- A função `dashboard_data` tinha filtro diferente do calendário
+- Não incluía atividades órfãs no resultado
+- Cache do dashboard não era invalidado ao criar/atualizar/deletar atividades
+
 ### Impacto
 - Atividades criadas no calendário não apareciam imediatamente
+- Dashboard não mostrava atividades sem oportunidade/lead vinculada
 - Usuários pensavam que o sistema não estava salvando
 - Confusão sobre necessidade de Google Calendar conectado
 
@@ -55,7 +61,7 @@ Usuário reportou: "após salvar não aparece a tarefa no calendário"
 
 ## ✅ Solução Implementada
 
-### Deploy v944: Permitir Atividades Órfãs
+### Deploy v944: Permitir Atividades Órfãs no Calendário
 
 Adicionado override do método `filter_by_vendedor` no `AtividadeViewSet`:
 
@@ -83,7 +89,7 @@ def filter_by_vendedor(self, queryset):
     return queryset.filter(filters).distinct()
 ```
 
-### Deploy v945: Corrigir Invalidação de Cache
+### Deploy v945: Corrigir Invalidação de Cache do Calendário
 
 Atualizado decorator `cache_list_response` para incluir versão na chave de cache:
 
@@ -98,16 +104,37 @@ if cache_prefix == CRMCacheManager.ATIVIDADES:
     cache_kwargs['v'] = version
 ```
 
-Agora quando uma atividade é criada:
-1. `perform_create` chama `CRMCacheManager.invalidate_atividades(loja_id)`
-2. Isso incrementa a versão do cache
-3. Próxima requisição usa nova versão na chave, forçando recarregamento
+### Deploy v946: Incluir Atividades Órfãs no Dashboard
+
+Atualizado filtro de atividades na função `dashboard_data`:
+
+```python
+if vendedor_id is not None:
+    # Atividades: vendedor vê suas atividades + atividades órfãs (sem oportunidade/lead)
+    atividades_qs = atividades_qs.filter(
+        Q(oportunidade__vendedor_id=vendedor_id) | 
+        Q(lead__oportunidades__vendedor_id=vendedor_id) |
+        Q(oportunidade__isnull=True, lead__isnull=True)  # Atividades órfãs
+    ).distinct()
+```
+
+Adicionada invalidação de cache do dashboard ao criar/atualizar/deletar atividades:
+
+```python
+def perform_create(self, serializer):
+    # ... código existente ...
+    loja_id = get_current_loja_id()
+    CRMCacheManager.invalidate_atividades(loja_id)
+    CRMCacheManager.invalidate_dashboard(loja_id)  # Invalidar dashboard também
+```
 
 ### Comportamento Após Correção
 - ✅ Atividades sem oportunidade/lead aparecem no calendário
 - ✅ Atividades aparecem IMEDIATAMENTE após salvar (sem delay de cache)
+- ✅ Dashboard mostra atividades órfãs em "Próximas atividades"
 - ✅ Vendedores veem suas atividades + atividades órfãs da loja
 - ✅ Proprietários veem todas as atividades
+- ✅ Cache do dashboard é invalidado ao criar/atualizar/deletar atividades
 
 ---
 
@@ -115,8 +142,9 @@ Agora quando uma atividade é criada:
 
 | Deploy | Status | Descrição |
 |---|---|---|
-| Backend v944 | ✅ Heroku | Permitir atividades órfãs |
-| Backend v945 | ✅ Heroku | Corrigir invalidação de cache |
+| Backend v944 | ✅ Heroku | Permitir atividades órfãs no calendário |
+| Backend v945 | ✅ Heroku | Corrigir invalidação de cache do calendário |
+| Backend v946 | ✅ Heroku | Incluir atividades órfãs no dashboard |
 | Frontend v943 | ✅ Vercel | Sem alterações necessárias |
 
 ---
@@ -153,7 +181,7 @@ Agora quando uma atividade é criada:
 | Vinculação ao vendedor logado | ✅ Completo | v940 |
 | Pipeline em andamento | ✅ Completo | v941 |
 | Próximas atividades | ✅ Completo | v943 |
-| Criação de tarefas sem Google | ✅ CORRIGIDO | v944+v945 |
+| Criação de tarefas sem Google | ✅ CORRIGIDO | v944+v945+v946 |
 
 ---
 

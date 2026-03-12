@@ -140,6 +140,7 @@ export default function BackupPage() {
             lojaId={loja.id} 
             lojaNome={loja.nome}
             className="w-full !bg-green-600 hover:!bg-green-700"
+            exportOnly={true}
           />
         </div>
 
@@ -178,9 +179,12 @@ export default function BackupPage() {
               Processo pode levar alguns minutos
             </li>
           </ul>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Use o botão de backup acima para acessar a opção de importação
-          </div>
+          <BackupButton 
+            lojaId={loja.id} 
+            lojaNome={loja.nome}
+            className="w-full !bg-blue-600 hover:!bg-blue-700"
+            importOnly={true}
+          />
         </div>
       </div>
 

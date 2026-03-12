@@ -10,13 +10,26 @@ interface BackupButtonProps {
   lojaId: number;
   lojaNome: string;
   className?: string;
+  exportOnly?: boolean;
+  importOnly?: boolean;
 }
 
-export default function BackupButton({ lojaId, lojaNome, className = '' }: BackupButtonProps) {
+export default function BackupButton({ lojaId, lojaNome, className = '', exportOnly = false, importOnly = false }: BackupButtonProps) {
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showModalConfig, setShowModalConfig] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
+
+  // Se exportOnly, executar diretamente ao clicar
+  const handleClick = () => {
+    if (exportOnly) {
+      handleExportarBackup();
+    } else if (importOnly) {
+      handleImportarBackup();
+    } else {
+      setShowMenu(!showMenu);
+    }
+  };
 
   const handleExportarBackup = async () => {
     try {
@@ -179,19 +192,33 @@ export default function BackupButton({ lojaId, lojaNome, className = '' }: Backu
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       <div className="relative">
         <button
-          onClick={() => setShowMenu(!showMenu)}
+          onClick={handleClick}
           disabled={loading}
-          className={`flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-          title="Gerenciar backups"
+          className={`flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+          title={exportOnly ? 'Exportar backup' : importOnly ? 'Importar backup' : 'Gerenciar backups'}
         >
-          <span>💾</span>
-          <span className="hidden sm:inline">Backup</span>
+          {exportOnly ? (
+            <>
+              <span>📤</span>
+              <span>Exportar Backup</span>
+            </>
+          ) : importOnly ? (
+            <>
+              <span>📥</span>
+              <span>Importar Backup</span>
+            </>
+          ) : (
+            <>
+              <span>💾</span>
+              <span className="hidden sm:inline">Backup</span>
+            </>
+          )}
           {loading && (
             <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
           )}
         </button>
 
-        {showMenu && !loading && (
+        {showMenu && !loading && !exportOnly && !importOnly && (
           <>
             {/* Overlay para fechar o menu */}
             <div

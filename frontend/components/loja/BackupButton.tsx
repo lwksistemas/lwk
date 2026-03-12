@@ -12,20 +12,23 @@ interface BackupButtonProps {
   className?: string;
   exportOnly?: boolean;
   importOnly?: boolean;
+  configOnly?: boolean;
 }
 
-export default function BackupButton({ lojaId, lojaNome, className = '', exportOnly = false, importOnly = false }: BackupButtonProps) {
+export default function BackupButton({ lojaId, lojaNome, className = '', exportOnly = false, importOnly = false, configOnly = false }: BackupButtonProps) {
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showModalConfig, setShowModalConfig] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
 
-  // Se exportOnly, executar diretamente ao clicar
+  // Se exportOnly, importOnly ou configOnly, executar diretamente ao clicar
   const handleClick = () => {
     if (exportOnly) {
       handleExportarBackup();
     } else if (importOnly) {
       handleImportarBackup();
+    } else if (configOnly) {
+      handleConfigurarBackup();
     } else {
       setShowMenu(!showMenu);
     }
@@ -195,7 +198,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
           onClick={handleClick}
           disabled={loading}
           className={`flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-          title={exportOnly ? 'Exportar backup' : importOnly ? 'Importar backup' : 'Gerenciar backups'}
+          title={exportOnly ? 'Exportar backup' : importOnly ? 'Importar backup' : configOnly ? 'Configurar backup automático' : 'Gerenciar backups'}
         >
           {exportOnly ? (
             <>
@@ -206,6 +209,11 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
             <>
               <span>📥</span>
               <span>Importar Backup</span>
+            </>
+          ) : configOnly ? (
+            <>
+              <span>⚙️</span>
+              <span>Configurar</span>
             </>
           ) : (
             <>
@@ -218,7 +226,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
           )}
         </button>
 
-        {showMenu && !loading && !exportOnly && !importOnly && (
+        {showMenu && !loading && !exportOnly && !importOnly && !configOnly && (
           <>
             {/* Overlay para fechar o menu */}
             <div

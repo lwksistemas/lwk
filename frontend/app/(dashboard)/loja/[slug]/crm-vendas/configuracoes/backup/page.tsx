@@ -102,7 +102,7 @@ export default function BackupPage() {
       </div>
 
       {/* Cards de Ação */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Exportar Backup */}
         <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
           <div className="flex items-start gap-4 mb-4">
@@ -184,6 +184,50 @@ export default function BackupPage() {
             lojaNome={loja.nome}
             className="w-full !bg-blue-600 hover:!bg-blue-700"
             importOnly={true}
+          />
+        </div>
+
+        {/* Configurar Backup Automático */}
+        <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
+          <div className="flex items-start gap-4 mb-4">
+            <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                Backup Automático
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Configure backups automáticos por email
+              </p>
+            </div>
+          </div>
+          <ul className="space-y-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+              Backup diário, semanal ou mensal
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+              Receba por email automaticamente
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+              Configure horário de envio
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+              Backup manual sob demanda
+            </li>
+          </ul>
+          <BackupButton 
+            lojaId={loja.id} 
+            lojaNome={loja.nome}
+            className="w-full !bg-purple-600 hover:!bg-purple-700"
+            configOnly={true}
           />
         </div>
       </div>

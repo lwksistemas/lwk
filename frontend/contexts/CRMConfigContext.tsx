@@ -18,6 +18,7 @@ interface CRMConfigContextType {
   moduloAtivo: (modulo: string) => boolean;
   etapasAtivas: () => Array<{ key: string; label: string; ordem: number }>;
   origensAtivas: () => Array<{ key: string; label: string }>;
+  colunasLeadsVisiveis: () => Array<{ key: string; label: string }>;
 }
 
 const CRMConfigContext = createContext<CRMConfigContextType | undefined>(undefined);
@@ -103,8 +104,30 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
       .map(o => ({ key: o.key, label: o.label }));
   };
 
+  const colunasLeadsVisiveis = () => {
+    // Mapa de labels das colunas
+    const labelMap: Record<string, string> = {
+      nome: 'Nome',
+      empresa: 'Empresa',
+      email: 'E-mail',
+      telefone: 'Telefone',
+      origem: 'Origem',
+      status: 'Status',
+      valor_estimado: 'Valor Estimado',
+      created_at: 'Data de Criação',
+    };
+
+    if (!config || !config.colunas_leads || config.colunas_leads.length === 0) {
+      // Retornar colunas padrão se não carregou
+      const defaultColunas = ['nome', 'empresa', 'telefone', 'email', 'origem', 'status', 'valor_estimado'];
+      return defaultColunas.map(key => ({ key, label: labelMap[key] || key }));
+    }
+    
+    return config.colunas_leads.map(key => ({ key, label: labelMap[key] || key }));
+  };
+
   return (
-    <CRMConfigContext.Provider value={{ config, loading, recarregar: carregarConfig, moduloAtivo, etapasAtivas, origensAtivas }}>
+    <CRMConfigContext.Provider value={{ config, loading, recarregar: carregarConfig, moduloAtivo, etapasAtivas, origensAtivas, colunasLeadsVisiveis }}>
       {children}
     </CRMConfigContext.Provider>
   );

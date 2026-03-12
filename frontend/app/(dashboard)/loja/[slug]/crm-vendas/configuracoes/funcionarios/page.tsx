@@ -55,12 +55,8 @@ export default function ConfiguracoesFuncionariosPage() {
   };
 
   useEffect(() => {
-    if (authService.isVendedor()) {
-      router.replace(`/loja/${slug}/crm-vendas`);
-      return;
-    }
     carregar();
-  }, [router, slug]);
+  }, []);
 
   const abrirNovo = () => {
     setEditando(null);

@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { DollarSign, Plus, X } from 'lucide-react';
 import LeadsTable, { type Lead } from '@/components/crm-vendas/LeadsTable';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
 const ETAPAS_OPORTUNIDADE = [
   { value: 'prospecting', label: 'Prospecção' },
@@ -50,6 +51,7 @@ export default function CrmVendasLeadsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = (params?.slug as string) ?? '';
+  const { colunasLeadsVisiveis } = useCRMConfig();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -296,6 +298,7 @@ export default function CrmVendasLeadsPage() {
       <LeadsTable
         leads={leads}
         loading={loading}
+        colunas={colunasLeadsVisiveis()}
         onVerLead={handleVerLead}
         onEditarLead={handleEditarLead}
         onExcluirLead={handleExcluirLead}

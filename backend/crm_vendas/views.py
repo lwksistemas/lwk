@@ -822,9 +822,9 @@ def crm_config(request):
     if not loja_id:
         return Response({'detail': 'Loja não identificada.'}, status=400)
     
-    # Apenas proprietário pode acessar configurações
-    vendedor_id = get_current_vendedor_id(request)
-    if vendedor_id is not None:
+    # Apenas proprietário pode acessar configurações (vendedores não podem)
+    from .utils import is_vendedor_usuario
+    if is_vendedor_usuario(request):
         return Response(
             {'detail': 'Apenas o proprietário pode acessar as configurações.'},
             status=status.HTTP_403_FORBIDDEN

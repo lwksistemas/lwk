@@ -42,6 +42,7 @@ const ORIGEM_STYLES: Record<string, string> = {
 interface LeadsTableProps {
   leads: Lead[];
   loading?: boolean;
+  colunas?: Array<{ key: string; label: string }>;
   onVerLead?: (lead: Lead) => void;
   onEditarLead?: (lead: Lead) => void;
   onExcluirLead?: (lead: Lead) => void;
@@ -51,6 +52,7 @@ interface LeadsTableProps {
 export default function LeadsTable({
   leads,
   loading = false,
+  colunas,
   onVerLead,
   onEditarLead,
   onExcluirLead,
@@ -62,6 +64,71 @@ export default function LeadsTable({
     status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const origemClass = (origem: string) => ORIGEM_STYLES[origem] || ORIGEM_STYLES.outro;
   const statusClass = (status: string) => STATUS_STYLES[status] || STATUS_STYLES.novo;
+
+  // Colunas padrão se não fornecidas
+  const colunasVisiveis = colunas || [
+    { key: 'nome', label: 'Lead' },
+    { key: 'empresa', label: 'Empresa' },
+    { key: 'email', label: 'Email' },
+    { key: 'origem', label: 'Origem' },
+    { key: 'status', label: 'Status' },
+  ];
+
+  const formatarData = (s: string) => {
+    if (!s) return '–';
+    try {
+      const d = new Date(s);
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return s;
+    }
+  };
+
+  const renderCelula = (lead: Lead, coluna: string) => {
+    switch (coluna) {
+      case 'nome':
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 shrink-0 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-300 font-semibold">
+              {lead.nome.charAt(0).toUpperCase()}
+            </div>
+            <span className="font-medium text-gray-800 dark:text-white">
+              {lead.nome}
+            </span>
+          </div>
+        );
+      case 'empresa':
+        return <span className="text-gray-600 dark:text-gray-400">{lead.empresa || '–'}</span>;
+      case 'email':
+        return <span className="text-gray-600 dark:text-gray-400">{lead.email || '–'}</span>;
+      case 'telefone':
+        return <span className="text-gray-600 dark:text-gray-400">{lead.telefone || '–'}</span>;
+      case 'origem':
+        return (
+          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${origemClass(lead.origem)}`}>
+            {getOrigemLabel(lead.origem)}
+          </span>
+        );
+      case 'status':
+        return (
+          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${statusClass(lead.status)}`}>
+            {getStatusLabel(lead.status)}
+          </span>
+        );
+      case 'valor_estimado':
+        return (
+          <span className="text-gray-800 dark:text-white font-medium">
+            {lead.valor_estimado 
+              ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(lead.valor_estimado))
+              : '–'}
+          </span>
+        );
+      case 'created_at':
+        return <span className="text-gray-600 dark:text-gray-400">{formatarData(lead.created_at)}</span>;
+      default:
+        return <span className="text-gray-600 dark:text-gray-400">–</span>;
+    }
+  };
 
   if (loading) {
     return (
@@ -80,21 +147,14 @@ export default function LeadsTable({
         <table className="w-full min-w-[680px]">
           <thead className="bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-slate-600">
             <tr>
-              <th className="p-4 text-left text-gray-500 dark:text-gray-400 text-sm font-medium">
-                Lead
-              </th>
-              <th className="p-4 text-left text-gray-500 dark:text-gray-400 text-sm font-medium">
-                Empresa
-              </th>
-              <th className="p-4 text-left text-gray-500 dark:text-gray-400 text-sm font-medium">
-                Email
-              </th>
-              <th className="p-4 text-left text-gray-500 dark:text-gray-400 text-sm font-medium">
-                Origem
-              </th>
-              <th className="p-4 text-left text-gray-500 dark:text-gray-400 text-sm font-medium">
-                Status
-              </th>
+              {colunasVisiveis.map((coluna) => (
+                <th
+                  key={coluna.key}
+                  className="p-4 text-left text-gray-500 dark:text-gray-400 text-sm font-medium"
+                >
+                  {coluna.label}
+                </th>
+              ))}
               <th className="p-4 text-right text-gray-500 dark:text-gray-400 text-sm font-medium">
                 Ações
               </th>
@@ -104,7 +164,7 @@ export default function LeadsTable({
             {leads.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={colunasVisiveis.length + 1}
                   className="py-16 text-center text-gray-500 dark:text-gray-400 text-sm"
                 >
                   Nenhum lead cadastrado. Clique em &quot;Novo Lead&quot; para começar.
@@ -116,36 +176,11 @@ export default function LeadsTable({
                   key={lead.id}
                   className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors"
                 >
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 shrink-0 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-300 font-semibold">
-                        {lead.nome.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-gray-800 dark:text-white">
-                        {lead.nome}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-gray-600 dark:text-gray-400">
-                    {lead.empresa || '–'}
-                  </td>
-                  <td className="p-4 text-gray-600 dark:text-gray-400">
-                    {lead.email || '–'}
-                  </td>
-                  <td className="p-4">
-                    <span
-                      className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${origemClass(lead.origem)}`}
-                    >
-                      {getOrigemLabel(lead.origem)}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span
-                      className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${statusClass(lead.status)}`}
-                    >
-                      {getStatusLabel(lead.status)}
-                    </span>
-                  </td>
+                  {colunasVisiveis.map((coluna) => (
+                    <td key={coluna.key} className="p-4">
+                      {renderCelula(lead, coluna.key)}
+                    </td>
+                  ))}
                   <td className="p-4">
                     <div className="flex justify-end gap-4 text-sm">
                       <button

@@ -250,11 +250,20 @@ class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
 
     @invalidate_cache_on_change('leads')
     def perform_create(self, serializer):
+        import logging
+        logger = logging.getLogger(__name__)
+
         vendedor_id = get_current_vendedor_id(self.request)
+        loja_id = get_current_loja_id()
+
+        logger.info(f"🔵 CRIANDO LEAD - loja_id={loja_id}, vendedor_id={vendedor_id}, user={self.request.user.id}")
+
         if vendedor_id is not None:
-            serializer.save(vendedor_id=vendedor_id)
+            lead = serializer.save(vendedor_id=vendedor_id)
         else:
-            serializer.save()
+            lead = serializer.save()
+
+        logger.info(f"✅ LEAD CRIADO - id={lead.id}, nome={lead.nome}, vendedor_id={lead.vendedor_id}, loja_id={lead.loja_id}")
 
     @invalidate_cache_on_change('leads')
     def perform_update(self, serializer):

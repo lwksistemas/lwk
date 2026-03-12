@@ -106,18 +106,46 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
+        
+        # Impedir edição do vendedor admin (is_admin=True)
+        instance = self.get_object()
+        if instance.is_admin:
+            return Response(
+                {'detail': 'O vendedor administrador não pode ser editado. Para alterar dados do administrador, acesse as configurações da loja.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
         bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
+        
+        # Impedir edição do vendedor admin (is_admin=True)
+        instance = self.get_object()
+        if instance.is_admin:
+            return Response(
+                {'detail': 'O vendedor administrador não pode ser editado. Para alterar dados do administrador, acesse as configurações da loja.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
         if bloqueio:
             return bloqueio
+        
+        # Impedir exclusão do vendedor admin (is_admin=True)
+        instance = self.get_object()
+        if instance.is_admin:
+            return Response(
+                {'detail': 'O vendedor administrador não pode ser excluído.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        return super().destroy(request, *args, **kwargs)
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'])

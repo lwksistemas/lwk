@@ -66,6 +66,13 @@ export default function ConfiguracoesFuncionariosPage() {
   };
 
   const abrirEditar = (v: Vendedor) => {
+    // Impedir edição do vendedor admin
+    if (v.is_admin) {
+      setFormErro('O vendedor administrador não pode ser editado. Para alterar dados do administrador, acesse as configurações da loja.');
+      setTimeout(() => setFormErro(null), 5000);
+      return;
+    }
+    
     setEditando(v);
     setForm({
       nome: v.nome,
@@ -187,10 +194,17 @@ export default function ConfiguracoesFuncionariosPage() {
                 key={v.id}
                 className="flex items-center justify-between gap-4 p-4 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50 transition-colors"
               >
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900 dark:text-white truncate">
-                    {v.nome}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-gray-900 dark:text-white truncate">
+                      {v.nome}
+                    </p>
+                    {v.is_admin && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        Administrador
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                     {v.email || v.telefone || v.cargo || '—'}
                   </p>
@@ -202,7 +216,7 @@ export default function ConfiguracoesFuncionariosPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {v.tem_acesso && v.email && (
+                  {v.tem_acesso && v.email && !v.is_admin && (
                     <button
                       type="button"
                       onClick={() => handleReenviarSenha(v)}
@@ -212,13 +226,20 @@ export default function ConfiguracoesFuncionariosPage() {
                       {reenviando === v.id ? 'Enviando...' : 'Reenviar senha'}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => abrirEditar(v)}
-                    className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
-                  >
-                    Editar
-                  </button>
+                  {!v.is_admin && (
+                    <button
+                      type="button"
+                      onClick={() => abrirEditar(v)}
+                      className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
+                    >
+                      Editar
+                    </button>
+                  )}
+                  {v.is_admin && (
+                    <span className="px-3 py-1.5 text-sm text-gray-400 dark:text-gray-500">
+                      Não editável
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

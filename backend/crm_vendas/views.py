@@ -28,7 +28,7 @@ from tenants.middleware import get_current_loja_id
 from .utils import get_current_vendedor_id, get_loja_from_context
 from .mixins import CRMPermissionMixin, VendedorFilterMixin
 from .cache import CRMCacheManager
-from .decorators import cache_list_response
+from .decorators import cache_list_response, require_admin_access, invalidate_cache_on_change
 
 logger = logging.getLogger(__name__)
 
@@ -85,30 +85,21 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
             return qs.filter(is_active=True)
         return qs
 
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def list(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
-        if bloqueio:
-            return bloqueio
         self._ensure_owner_vendedor()
         return super().list(request, *args, **kwargs)
 
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def create(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
-        if bloqueio:
-            return bloqueio
         return super().create(request, *args, **kwargs)
 
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def retrieve(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
-        if bloqueio:
-            return bloqueio
         return super().retrieve(request, *args, **kwargs)
 
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def update(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
-        if bloqueio:
-            return bloqueio
-        
         # Impedir edição do vendedor admin (is_admin=True)
         instance = self.get_object()
         if instance.is_admin:
@@ -119,11 +110,8 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         
         return super().update(request, *args, **kwargs)
 
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def partial_update(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
-        if bloqueio:
-            return bloqueio
-        
         # Impedir edição do vendedor admin (is_admin=True)
         instance = self.get_object()
         if instance.is_admin:
@@ -134,11 +122,8 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         
         return super().partial_update(request, *args, **kwargs)
 
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def destroy(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
-        if bloqueio:
-            return bloqueio
-        
         # Impedir exclusão do vendedor admin (is_admin=True)
         instance = self.get_object()
         if instance.is_admin:
@@ -148,14 +133,11 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
             )
         
         return super().destroy(request, *args, **kwargs)
-        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'])
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def reenviar_senha(self, request, pk=None):
         """Gera nova senha provisória e envia por e-mail para o vendedor."""
-        bloqueio = self.bloquear_vendedor(request, 'Vendedores não têm permissão para acessar configurações de funcionários.')
-        if bloqueio:
-            return bloqueio
         vendedor = self.get_object()
         if not vendedor.email:
             return Response(
@@ -231,21 +213,21 @@ class ContaViewSet(VendedorFilterMixin, BaseModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
+    @invalidate_cache_on_change('contas')
     def perform_create(self, serializer):
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
             serializer.save(vendedor_id=vendedor_id)
         else:
             serializer.save()
-        CRMCacheManager.invalidate_contas(get_current_loja_id())
 
+    @invalidate_cache_on_change('contas')
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        CRMCacheManager.invalidate_contas(get_current_loja_id())
 
+    @invalidate_cache_on_change('contas')
     def perform_destroy(self, instance):
         super().perform_destroy(instance)
-        CRMCacheManager.invalidate_contas(get_current_loja_id())
 
 
 class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
@@ -262,12 +244,25 @@ class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
             return LeadListSerializer
         return LeadSerializer
 
+    @cache_list_response(CRMCacheManager.LEADS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @invalidate_cache_on_change('leads')
     def perform_create(self, serializer):
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
             serializer.save(vendedor_id=vendedor_id)
         else:
             serializer.save()
+
+    @invalidate_cache_on_change('leads')
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+
+    @invalidate_cache_on_change('leads')
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -289,7 +284,22 @@ class ContatoViewSet(VendedorFilterMixin, BaseModelViewSet):
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'conta__vendedor_id'
     vendedor_filter_related = ['conta__leads__oportunidades__vendedor_id', 'conta__leads__vendedor_id']
-    vendedor_filter_related = ['conta__leads__oportunidades__vendedor_id', 'conta__leads__vendedor_id']
+
+    @cache_list_response(CRMCacheManager.CONTATOS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @invalidate_cache_on_change('contatos')
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+
+    @invalidate_cache_on_change('contatos')
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+
+    @invalidate_cache_on_change('contatos')
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -309,6 +319,11 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     vendedor_filter_field = 'vendedor_id'
     vendedor_filter_related = []
 
+    @cache_list_response(CRMCacheManager.OPORTUNIDADES, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @invalidate_cache_on_change('oportunidades', 'dashboard')
     def perform_create(self, serializer):
         vendedor_id = get_current_vendedor_id(self.request)
         data = serializer.validated_data
@@ -317,6 +332,7 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         else:
             serializer.save()
 
+    @invalidate_cache_on_change('oportunidades', 'dashboard')
     def perform_update(self, serializer):
         """Mantém o vendedor ao atualizar se não for especificado"""
         vendedor_id = get_current_vendedor_id(self.request)
@@ -328,6 +344,10 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
             serializer.save(vendedor_id=vendedor_id)
         else:
             serializer.save()
+
+    @invalidate_cache_on_change('oportunidades', 'dashboard')
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -378,6 +398,7 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         )
         return queryset.filter(filters).distinct()
 
+    @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_create(self, serializer):
         super().perform_create(serializer)
         atividade = serializer.instance
@@ -403,9 +424,6 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
                     )
             except Exception:
                 pass  # Notificação é best-effort; não falha a criação
-        loja_id = get_current_loja_id()
-        CRMCacheManager.invalidate_atividades(loja_id)
-        CRMCacheManager.invalidate_dashboard(loja_id)  # Invalidar dashboard também
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
@@ -416,12 +434,11 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
+    @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_update(self, serializer):
         super().perform_update(serializer)
-        loja_id = get_current_loja_id()
-        CRMCacheManager.invalidate_atividades(loja_id)
-        CRMCacheManager.invalidate_dashboard(loja_id)  # Invalidar dashboard também
 
+    @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_destroy(self, instance):
         """
         Deleta atividade e remove do Google Calendar se tiver google_event_id.
@@ -470,9 +487,6 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
                 # Continuar com a exclusão mesmo se falhar no Google Calendar
         
         super().perform_destroy(instance)
-        loja_id = get_current_loja_id()
-        CRMCacheManager.invalidate_atividades(loja_id)
-        CRMCacheManager.invalidate_dashboard(loja_id)  # Invalidar dashboard também
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -727,10 +741,8 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
             logger.exception("WhatsAppConfigView._get_config erro: %s", e)
             return None
 
+    @require_admin_access()
     def get(self, request):
-        bloqueio = self.bloquear_vendedor(request)
-        if bloqueio:
-            return bloqueio
         config = self._get_config(request)
         if config is None:
             return Response(
@@ -752,10 +764,8 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
             'whatsapp_token_set': bool((getattr(config, 'whatsapp_token', None) or '').strip()),
         })
 
+    @require_admin_access()
     def patch(self, request):
-        bloqueio = self.bloquear_vendedor(request)
-        if bloqueio:
-            return bloqueio
         config = self._get_config(request)
         if config is None:
             return Response(
@@ -803,10 +813,8 @@ class LoginConfigView(CRMPermissionMixin, APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @require_admin_access()
     def get(self, request):
-        bloqueio = self.bloquear_vendedor(request)
-        if bloqueio:
-            return bloqueio
         loja = get_loja_from_context(request)
         if loja is None:
             return Response(
@@ -823,10 +831,8 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             'cor_secundaria': cor_secundaria,
         })
 
+    @require_admin_access()
     def patch(self, request):
-        bloqueio = self.bloquear_vendedor(request)
-        if bloqueio:
-            return bloqueio
         loja = get_loja_from_context(request)
         if loja is None:
             return Response(

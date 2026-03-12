@@ -1,12 +1,13 @@
 """
 Decorators reutilizáveis para CRM Vendas.
-Elimina código duplicado de cache em list().
+Elimina código duplicado de cache em list() e bloqueio de vendedor.
 """
 from functools import wraps
 from django.core.cache import cache
 from rest_framework.response import Response
+from rest_framework import status
 from .cache import CRMCacheManager
-from .utils import get_current_vendedor_id
+from .utils import get_current_vendedor_id, is_vendedor_usuario
 from tenants.middleware import get_current_loja_id
 
 
@@ -78,5 +79,84 @@ def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
                 cache.set(cache_key, response.data, ttl)
             
             return response
+        return wrapper
+    return decorator
+
+
+
+def require_admin_access(message='Vendedores não têm permissão para acessar esta funcionalidade.'):
+    """
+    Decorator para bloquear acesso de vendedores a funcionalidades administrativas.
+    
+    Elimina código duplicado de verificação de permissão em múltiplos métodos.
+    
+    Args:
+        message: Mensagem de erro personalizada (opcional)
+    
+    Usage:
+        @require_admin_access('Vendedores não podem editar funcionários.')
+        def update(self, request, *args, **kwargs):
+            return super().update(request, *args, **kwargs)
+    
+    Returns:
+        Decorator function que retorna 403 se usuário for vendedor
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, request, *args, **kwargs):
+            # Verificar se é vendedor
+            if is_vendedor_usuario(request):
+                return Response(
+                    {'detail': message},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Executar função original se não for vendedor
+            return func(self, request, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def invalidate_cache_on_change(*cache_types):
+    """
+    Decorator para invalidar cache automaticamente após operações de escrita.
+    
+    Elimina código duplicado de invalidação de cache em perform_create/update/destroy.
+    
+    Args:
+        *cache_types: Tipos de cache para invalidar (ex: 'contas', 'atividades', 'dashboard')
+    
+    Usage:
+        @invalidate_cache_on_change('contas', 'dashboard')
+        def perform_create(self, serializer):
+            serializer.save()
+    
+    Returns:
+        Decorator function que invalida cache após execução
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # Executar função original
+            result = func(self, *args, **kwargs)
+            
+            # Invalidar caches especificados
+            loja_id = get_current_loja_id()
+            if loja_id:
+                for cache_type in cache_types:
+                    if cache_type == 'contas':
+                        CRMCacheManager.invalidate_contas(loja_id)
+                    elif cache_type == 'leads':
+                        CRMCacheManager.invalidate_leads(loja_id)
+                    elif cache_type == 'contatos':
+                        CRMCacheManager.invalidate_contatos(loja_id)
+                    elif cache_type == 'oportunidades':
+                        CRMCacheManager.invalidate_oportunidades(loja_id)
+                    elif cache_type == 'atividades':
+                        CRMCacheManager.invalidate_atividades(loja_id)
+                    elif cache_type == 'dashboard':
+                        CRMCacheManager.invalidate_dashboard(loja_id)
+            
+            return result
         return wrapper
     return decorator

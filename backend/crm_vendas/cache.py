@@ -19,6 +19,9 @@ class CRMCacheManager:
     # Prefixos de cache
     DASHBOARD = 'crm_dashboard'
     CONTAS = 'crm_contas_list'
+    LEADS = 'crm_leads_list'
+    CONTATOS = 'crm_contatos_list'
+    OPORTUNIDADES = 'crm_oportunidades_list'
     ATIVIDADES = 'crm_atividades'
     ATIVIDADES_VERSION = 'crm_atividades_v'
     
@@ -89,6 +92,39 @@ class CRMCacheManager:
         """
         if loja_id:
             cache.delete(cls.get_cache_key(cls.CONTAS, loja_id))
+    
+    @classmethod
+    def invalidate_leads(cls, loja_id):
+        """
+        Invalida cache de leads.
+        
+        Args:
+            loja_id: ID da loja
+        """
+        if loja_id:
+            cache.delete(cls.get_cache_key(cls.LEADS, loja_id))
+    
+    @classmethod
+    def invalidate_contatos(cls, loja_id):
+        """
+        Invalida cache de contatos.
+        
+        Args:
+            loja_id: ID da loja
+        """
+        if loja_id:
+            cache.delete(cls.get_cache_key(cls.CONTATOS, loja_id))
+    
+    @classmethod
+    def invalidate_oportunidades(cls, loja_id):
+        """
+        Invalida cache de oportunidades.
+        
+        Args:
+            loja_id: ID da loja
+        """
+        if loja_id:
+            cache.delete(cls.get_cache_key(cls.OPORTUNIDADES, loja_id))
     
     @classmethod
     def invalidate_atividades(cls, loja_id):

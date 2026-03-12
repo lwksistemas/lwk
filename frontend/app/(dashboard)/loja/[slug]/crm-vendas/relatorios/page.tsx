@@ -1,13 +1,69 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Download, Mail, Calendar, DollarSign, Users, TrendingUp } from 'lucide-react';
+import apiClient from '@/lib/api-client';
+
+interface Vendedor {
+  id: number;
+  nome: string;
+  email: string;
+}
+
+interface DashboardData {
+  receita: number;
+  comissao_total_mes: number;
+  performance_vendedores: Array<{
+    id: number;
+    nome: string;
+    receita_mes: number;
+    comissao_mes: number;
+  }>;
+}
 
 export default function RelatoriosPage() {
   const [periodo, setPeriodo] = useState('mes_atual');
   const [tipoRelatorio, setTipoRelatorio] = useState('vendas_total');
   const [vendedorSelecionado, setVendedorSelecionado] = useState('todos');
   const [gerando, setGerando] = useState(false);
+  
+  // Estados para dados
+  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        setLoading(true);
+        
+        // Carregar vendedores
+        const resVendedores = await apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/');
+        const vendedoresData = Array.isArray(resVendedores.data) 
+          ? resVendedores.data 
+          : resVendedores.data.results || [];
+        setVendedores(vendedoresData);
+        
+        // Carregar dados do dashboard (contém receita e comissões)
+        const resDashboard = await apiClient.get<DashboardData>('/crm-vendas/dashboard/');
+        setDashboardData(resDashboard.data);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    carregarDados();
+  }, []);
+
+  const formatarMoeda = (valor: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(valor);
+  };
 
   const handleGerarRelatorio = async (acao: 'pdf' | 'email') => {
     setGerando(true);
@@ -23,6 +79,10 @@ export default function RelatoriosPage() {
     
     setGerando(false);
   };
+
+  const totalVendas = dashboardData?.receita || 0;
+  const totalComissoes = dashboardData?.comissao_total_mes || 0;
+  const vendedoresAtivos = dashboardData?.performance_vendedores?.length || 0;
 
   return (
     <div className="space-y-6">
@@ -45,8 +105,14 @@ export default function RelatoriosPage() {
               <DollarSign size={20} />
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Total de Vendas</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">R$ 0,00</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Total de Vendas (Mês)</p>
+              {loading ? (
+                <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+              ) : (
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {formatarMoeda(totalVendas)}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -58,7 +124,13 @@ export default function RelatoriosPage() {
             </div>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Vendedores Ativos</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">0</p>
+              {loading ? (
+                <div className="h-6 w-12 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+              ) : (
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {vendedoresAtivos}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -69,8 +141,14 @@ export default function RelatoriosPage() {
               <TrendingUp size={20} />
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Comissões</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">R$ 0,00</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Comissões (Mês)</p>
+              {loading ? (
+                <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+              ) : (
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {formatarMoeda(totalComissoes)}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -184,10 +262,14 @@ export default function RelatoriosPage() {
                 value={vendedorSelecionado}
                 onChange={(e) => setVendedorSelecionado(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                disabled={loading}
               >
                 <option value="todos">Todos os Vendedores</option>
-                <option value="1">Vendedor 1</option>
-                <option value="2">Vendedor 2</option>
+                {vendedores.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.nome}
+                  </option>
+                ))}
               </select>
             </div>
           )}

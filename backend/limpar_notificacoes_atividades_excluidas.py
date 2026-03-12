@@ -7,13 +7,13 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
-from notificacoes.models import Notificacao
+from notificacoes.models import Notification
 from crm_vendas.models import Atividade
 
 print("🔍 Buscando notificações de atividades...")
 
 # Buscar todas as notificações de atividades
-notificacoes = Notificacao.objects.filter(
+notificacoes = Notification.objects.filter(
     tipo='tarefa',
     metadata__atividade_id__isnull=False
 )

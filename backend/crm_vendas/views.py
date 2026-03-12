@@ -427,7 +427,7 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         """
         # Remover notificação associada à atividade
         try:
-            from notificacoes.models import Notificacao
+            from notificacoes.models import Notification
             from superadmin.models import Loja
             
             loja_id = get_current_loja_id()
@@ -435,7 +435,7 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
             
             if loja and loja.owner_id:
                 # Deletar notificações relacionadas a esta atividade
-                Notificacao.objects.filter(
+                Notification.objects.filter(
                     user=loja.owner,
                     metadata__atividade_id=instance.id
                 ).delete()

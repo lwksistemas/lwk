@@ -244,8 +244,8 @@ export default function CrmVendasDashboardPage() {
         />
       </div>
 
-      {/* Pipeline aberto + resumo por etapa - Estilo Salesforce */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Pipeline aberto + Comissão Total + resumo por etapa - Estilo Salesforce */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Card de Pipeline Aberto */}
         <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
           <div className="flex items-center gap-3 mb-2">
@@ -261,6 +261,26 @@ export default function CrmVendasDashboardPage() {
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             {data.oportunidades} oportunidades ativas
+          </p>
+        </div>
+
+        {/* Card de Comissão Total do Mês */}
+        <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-[#fef0f7] dark:bg-opacity-20">
+              <DollarSign size={20} className="text-[#e287b2]" />
+            </div>
+            <h2 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+              Comissão do mês
+            </h2>
+          </div>
+          <p className="text-3xl font-bold text-[#e287b2] dark:text-[#e287b2]">
+            {formatMoney(
+              data.performance_vendedores?.reduce((sum, v) => sum + (v.comissao_mes || 0), 0) || 0
+            )}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            Total de comissões
           </p>
         </div>
 

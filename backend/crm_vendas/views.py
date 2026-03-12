@@ -526,11 +526,17 @@ def dashboard_data(request):
         perf_qs = vendedores_qs.annotate(
             receita_mes=Sum(
                 'oportunidades__valor',
-                filter=Q(oportunidades__etapa='closed_won') & Q(oportunidades__data_fechamento__gte=mes_inicio),
+                filter=Q(oportunidades__etapa='closed_won') & (
+                    Q(oportunidades__data_fechamento_ganho__gte=mes_inicio) |
+                    (Q(oportunidades__data_fechamento_ganho__isnull=True) & Q(oportunidades__data_fechamento__gte=mes_inicio))
+                ),
             ),
             comissao_mes=Sum(
                 'oportunidades__valor_comissao',
-                filter=Q(oportunidades__etapa='closed_won') & Q(oportunidades__data_fechamento__gte=mes_inicio),
+                filter=Q(oportunidades__etapa='closed_won') & (
+                    Q(oportunidades__data_fechamento_ganho__gte=mes_inicio) |
+                    (Q(oportunidades__data_fechamento_ganho__isnull=True) & Q(oportunidades__data_fechamento__gte=mes_inicio))
+                ),
             ),
         )
         performance_vendedores = [

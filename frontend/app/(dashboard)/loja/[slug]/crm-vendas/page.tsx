@@ -335,7 +335,7 @@ export default function CrmVendasDashboardPage() {
               <div className="p-1.5 rounded bg-[#e3f3ff] dark:bg-opacity-20">
                 <Calendar size={18} className="text-[#0176d3]" />
               </div>
-              Atividades de hoje
+              Próximas atividades
             </h2>
             <button className="text-sm text-[#0176d3] hover:text-[#0159a8] font-medium">
               Ver todas
@@ -347,7 +347,7 @@ export default function CrmVendasDashboardPage() {
                 <Calendar size={24} className="text-gray-400" />
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Nenhuma atividade para hoje
+                Nenhuma atividade pendente
               </p>
             </div>
           ) : (

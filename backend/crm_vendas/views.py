@@ -528,12 +528,12 @@ def dashboard_data(request):
         # 1 query: total leads
         total_leads = leads_qs.count()
 
-        # 1 query: atividades de hoje
+        # 1 query: atividades próximas (hoje + próximos 7 dias)
         hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        hoje_fim = hoje_inicio + timedelta(days=1)
+        proximos_7_dias = hoje_inicio + timedelta(days=7)
         atividades_hoje_data = list(
-            atividades_qs.filter(data__gte=hoje_inicio, data__lt=hoje_fim)
-            .order_by('concluido', 'data')
+            atividades_qs.filter(data__gte=hoje_inicio, data__lt=proximos_7_dias, concluido=False)
+            .order_by('data')
             .values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:20]
         )
         for a in atividades_hoje_data:

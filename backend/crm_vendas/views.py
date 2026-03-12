@@ -325,6 +325,28 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'oportunidade__vendedor_id'
     vendedor_filter_related = ['lead__oportunidades__vendedor_id']
+    
+    def filter_by_vendedor(self, queryset):
+        """
+        Override para permitir atividades sem oportunidade/lead.
+        Atividades órfãs (sem oportunidade/lead) são visíveis para todos da loja.
+        """
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is None:
+            # Proprietário: vê tudo
+            return queryset
+        
+        # Vendedor vê:
+        # 1. Atividades vinculadas às suas oportunidades
+        # 2. Atividades vinculadas aos seus leads
+        # 3. Atividades sem oportunidade/lead (órfãs)
+        from django.db.models import Q
+        filters = (
+            Q(oportunidade__vendedor_id=vendedor_id) |
+            Q(lead__oportunidades__vendedor_id=vendedor_id) |
+            Q(oportunidade__isnull=True, lead__isnull=True)  # Atividades órfãs
+        )
+        return queryset.filter(filters).distinct()
 
     def perform_create(self, serializer):
         super().perform_create(serializer)

@@ -16,6 +16,8 @@ interface CRMConfigContextType {
   loading: boolean;
   recarregar: () => Promise<void>;
   moduloAtivo: (modulo: string) => boolean;
+  etapasAtivas: () => Array<{ key: string; label: string; ordem: number }>;
+  origensAtivas: () => Array<{ key: string; label: string }>;
 }
 
 const CRMConfigContext = createContext<CRMConfigContextType | undefined>(undefined);
@@ -64,8 +66,45 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
     return config.modulos_ativos?.[modulo] !== false;
   };
 
+  const etapasAtivas = () => {
+    if (!config || !config.etapas_pipeline) {
+      // Retornar etapas padrão se não carregou
+      return [
+        { key: 'prospecting', label: 'Prospecção', ordem: 1 },
+        { key: 'qualification', label: 'Qualificação', ordem: 2 },
+        { key: 'proposal', label: 'Proposta', ordem: 3 },
+        { key: 'negotiation', label: 'Negociação', ordem: 4 },
+        { key: 'closed_won', label: 'Fechado (ganho)', ordem: 5 },
+        { key: 'closed_lost', label: 'Fechado (perdido)', ordem: 6 },
+      ];
+    }
+    
+    return config.etapas_pipeline
+      .filter(e => e.ativo)
+      .sort((a, b) => a.ordem - b.ordem)
+      .map(e => ({ key: e.key, label: e.label, ordem: e.ordem }));
+  };
+
+  const origensAtivas = () => {
+    if (!config || !config.origens_leads) {
+      // Retornar origens padrão se não carregou
+      return [
+        { key: 'whatsapp', label: 'WhatsApp' },
+        { key: 'facebook', label: 'Facebook' },
+        { key: 'instagram', label: 'Instagram' },
+        { key: 'site', label: 'Site' },
+        { key: 'indicacao', label: 'Indicação' },
+        { key: 'outro', label: 'Outro' },
+      ];
+    }
+    
+    return config.origens_leads
+      .filter(o => o.ativo)
+      .map(o => ({ key: o.key, label: o.label }));
+  };
+
   return (
-    <CRMConfigContext.Provider value={{ config, loading, recarregar: carregarConfig, moduloAtivo }}>
+    <CRMConfigContext.Provider value={{ config, loading, recarregar: carregarConfig, moduloAtivo, etapasAtivas, origensAtivas }}>
       {children}
     </CRMConfigContext.Provider>
   );

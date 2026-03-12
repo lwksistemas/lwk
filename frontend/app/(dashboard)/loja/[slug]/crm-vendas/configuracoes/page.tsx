@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { Settings, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import { Settings, Plus, Trash2, Edit2, Save, X, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface Origem {
   key: string;
@@ -11,10 +11,17 @@ interface Origem {
   ativo: boolean;
 }
 
+interface Etapa {
+  key: string;
+  label: string;
+  ativo: boolean;
+  ordem: number;
+}
+
 interface CRMConfig {
   id: number;
   origens_leads: Origem[];
-  etapas_pipeline: any[];
+  etapas_pipeline: Etapa[];
   colunas_leads: string[];
   modulos_ativos: Record<string, boolean>;
 }
@@ -33,6 +40,9 @@ export default function ConfiguracoesPage() {
   const [editandoOrigem, setEditandoOrigem] = useState<string | null>(null);
   const [novaOrigem, setNovaOrigem] = useState({ key: '', label: '' });
   const [mostrarNovaOrigem, setMostrarNovaOrigem] = useState(false);
+  
+  // Estado para edição de etapas
+  const [editandoEtapa, setEditandoEtapa] = useState<string | null>(null);
 
   useEffect(() => {
     carregarConfig();
@@ -108,6 +118,48 @@ export default function ConfiguracoesPage() {
     );
     salvarConfig({ origens_leads: novasOrigens });
     setEditandoOrigem(null);
+  };
+
+  // Funções para gerenciar etapas
+  const toggleEtapaAtiva = (key: string) => {
+    const etapas = config?.etapas_pipeline || [];
+    
+    // Não permitir desabilitar closed_won e closed_lost
+    if (['closed_won', 'closed_lost'].includes(key)) {
+      setError('As etapas de fechamento não podem ser desabilitadas.');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    const novasEtapas = etapas.map(e => 
+      e.key === key ? { ...e, ativo: !e.ativo } : e
+    );
+    salvarConfig({ etapas_pipeline: novasEtapas });
+  };
+
+  const editarEtapa = (key: string, novoLabel: string) => {
+    const etapas = config?.etapas_pipeline || [];
+    const novasEtapas = etapas.map(e => 
+      e.key === key ? { ...e, label: novoLabel } : e
+    );
+    salvarConfig({ etapas_pipeline: novasEtapas });
+    setEditandoEtapa(null);
+  };
+
+  const moverEtapa = (key: string, direcao: 'up' | 'down') => {
+    const etapas = [...(config?.etapas_pipeline || [])];
+    const index = etapas.findIndex(e => e.key === key);
+    
+    if (index === -1) return;
+    if (direcao === 'up' && index === 0) return;
+    if (direcao === 'down' && index === etapas.length - 1) return;
+    
+    const newIndex = direcao === 'up' ? index - 1 : index + 1;
+    [etapas[index], etapas[newIndex]] = [etapas[newIndex], etapas[index]];
+    
+    // Atualizar ordem
+    const novasEtapas = etapas.map((e, i) => ({ ...e, ordem: i + 1 }));
+    salvarConfig({ etapas_pipeline: novasEtapas });
   };
 
   if (loading) {
@@ -393,14 +445,108 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Seção: Etapas do Pipeline (em breve) */}
+      {/* Seção: Etapas do Pipeline */}
       <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Etapas do Pipeline
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Em breve: Personalize as etapas do seu pipeline de vendas
-        </p>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Etapas do Pipeline
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Personalize as etapas do seu pipeline de vendas. Arraste para reordenar.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          {config?.etapas_pipeline
+            .sort((a, b) => a.ordem - b.ordem)
+            .map((etapa, index) => {
+              const isFirst = index === 0;
+              const isLast = index === config.etapas_pipeline.length - 1;
+              const isFechamento = ['closed_won', 'closed_lost'].includes(etapa.key);
+              
+              return (
+                <div
+                  key={etapa.key}
+                  className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-[#0d1f3c] rounded-lg border border-gray-200 dark:border-gray-700"
+                >
+                  {/* Ordem */}
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => moverEtapa(etapa.key, 'up')}
+                      disabled={isFirst}
+                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Mover para cima"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                    <button
+                      onClick={() => moverEtapa(etapa.key, 'down')}
+                      disabled={isLast}
+                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Mover para baixo"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
+
+                  {/* Checkbox e Nome */}
+                  <div className="flex items-center gap-3 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={etapa.ativo}
+                      onChange={() => toggleEtapaAtiva(etapa.key)}
+                      disabled={isFechamento}
+                      className="w-4 h-4 text-[#0176d3] rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={isFechamento ? 'Etapas de fechamento não podem ser desabilitadas' : ''}
+                    />
+                    {editandoEtapa === etapa.key ? (
+                      <input
+                        type="text"
+                        defaultValue={etapa.label}
+                        onBlur={(e) => editarEtapa(etapa.key, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            editarEtapa(etapa.key, e.currentTarget.value);
+                          }
+                        }}
+                        autoFocus
+                        className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    ) : (
+                      <span className={`text-sm font-medium ${etapa.ativo ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500 line-through'}`}>
+                        {etapa.label}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      ({etapa.key})
+                    </span>
+                    {isFechamento && (
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded">
+                        Obrigatória
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Ações */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditandoEtapa(etapa.key)}
+                      className="p-2 text-gray-600 hover:text-[#0176d3] dark:text-gray-400 dark:hover:text-[#0176d3]"
+                      title="Editar nome"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            <strong>💡 Dica:</strong> As etapas desabilitadas não aparecerão no pipeline, mas oportunidades existentes nessas etapas continuarão visíveis.
+          </p>
+        </div>
       </div>
     </div>
   );

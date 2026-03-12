@@ -93,12 +93,31 @@ export default function ConfiguracoesPage() {
   };
 
   const adicionarOrigem = () => {
-    if (!novaOrigem.key || !novaOrigem.label) {
-      setError('Preencha todos os campos da origem.');
+    if (!novaOrigem.label) {
+      setError('Preencha o nome da origem.');
       return;
     }
     
-    const key = novaOrigem.key.toLowerCase().replace(/\s+/g, '_');
+    // Se key não foi preenchida, gerar automaticamente do label
+    let key = novaOrigem.key.trim();
+    if (!key) {
+      key = novaOrigem.label;
+    }
+    
+    // Sanitizar a chave: remover caracteres especiais, converter para lowercase e substituir espaços
+    key = key
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^a-z0-9\s_-]/g, '') // Remove caracteres especiais exceto espaços, _ e -
+      .replace(/\s+/g, '_') // Substitui espaços por _
+      .replace(/_+/g, '_') // Remove underscores duplicados
+      .replace(/^_|_$/g, ''); // Remove underscores no início e fim
+    
+    if (!key) {
+      setError('Não foi possível gerar uma chave válida. Use apenas letras, números e espaços.');
+      return;
+    }
+    
     const origens = config?.origens_leads || [];
     
     if (origens.some(o => o.key === key)) {
@@ -273,27 +292,33 @@ export default function ConfiguracoesPage() {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Chave (identificador)
-                </label>
-                <input
-                  type="text"
-                  value={novaOrigem.key}
-                  onChange={(e) => setNovaOrigem({ ...novaOrigem, key: e.target.value })}
-                  placeholder="ex: linkedin"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nome (exibição)
+                  Nome (exibição) *
                 </label>
                 <input
                   type="text"
                   value={novaOrigem.label}
                   onChange={(e) => setNovaOrigem({ ...novaOrigem, label: e.target.value })}
-                  placeholder="ex: LinkedIn"
+                  placeholder="ex: Fatesa (escola)"
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Nome que aparecerá no formulário
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Chave (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={novaOrigem.key}
+                  onChange={(e) => setNovaOrigem({ ...novaOrigem, key: e.target.value })}
+                  placeholder="ex: fatesa_escola"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Deixe vazio para gerar automaticamente
+                </p>
               </div>
             </div>
             <div className="flex gap-2">

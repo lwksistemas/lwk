@@ -425,6 +425,31 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
             except Exception:
                 pass  # Notificação é best-effort; não falha a criação
 
+            # Sincronização automática com Google Calendar
+            try:
+                from superadmin.models import GoogleCalendarConnection
+                from crm_vendas.google_calendar_service import push_atividade_to_google
+
+                loja_id = get_current_loja_id()
+                vendedor_id = get_current_vendedor_id(self.request)
+
+                # Buscar conexão do Google Calendar (proprietário ou vendedor)
+                qs = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id)
+                if vendedor_id is None:
+                    qs = qs.filter(vendedor_id__isnull=True)
+                else:
+                    qs = qs.filter(vendedor_id=vendedor_id)
+                connection = qs.first()
+
+                if connection:
+                    event_id = push_atividade_to_google(connection, atividade)
+                    if event_id:
+                        atividade.google_event_id = event_id
+                        atividade.save(update_fields=['google_event_id'])
+                        logger.info(f"✅ Atividade {atividade.id} sincronizada com Google Calendar: {event_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao sincronizar atividade com Google Calendar: {e}")
+
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
             return AtividadeSerializer
@@ -437,6 +462,33 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_update(self, serializer):
         super().perform_update(serializer)
+        atividade = serializer.instance
+
+        # Sincronização automática com Google Calendar
+        if atividade and getattr(atividade, 'loja_id', None):
+            try:
+                from superadmin.models import GoogleCalendarConnection
+                from crm_vendas.google_calendar_service import push_atividade_to_google
+
+                loja_id = get_current_loja_id()
+                vendedor_id = get_current_vendedor_id(self.request)
+
+                # Buscar conexão do Google Calendar (proprietário ou vendedor)
+                qs = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id)
+                if vendedor_id is None:
+                    qs = qs.filter(vendedor_id__isnull=True)
+                else:
+                    qs = qs.filter(vendedor_id=vendedor_id)
+                connection = qs.first()
+
+                if connection:
+                    event_id = push_atividade_to_google(connection, atividade)
+                    if event_id and not atividade.google_event_id:
+                        atividade.google_event_id = event_id
+                        atividade.save(update_fields=['google_event_id'])
+                    logger.info(f"✅ Atividade {atividade.id} atualizada no Google Calendar: {event_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao atualizar atividade no Google Calendar: {e}")
 
     @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_destroy(self, instance):

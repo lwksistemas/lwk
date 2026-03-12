@@ -5,7 +5,7 @@ Elimina código duplicado e padroniza comportamento.
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.response import Response
-from .utils import get_current_vendedor_id
+from .utils import get_current_vendedor_id, is_vendedor_usuario
 
 
 class CRMPermissionMixin:
@@ -26,7 +26,7 @@ class CRMPermissionMixin:
     
     def bloquear_vendedor(self, request, mensagem=None):
         """
-        Retorna Response 403 se o usuário for vendedor.
+        Retorna Response 403 se o usuário for vendedor (VendedorUsuario).
         Retorna None se for proprietário (permitido).
         
         Args:
@@ -36,7 +36,7 @@ class CRMPermissionMixin:
         Returns:
             Response 403 se vendedor, None se proprietário
         """
-        if get_current_vendedor_id(request) is not None:
+        if is_vendedor_usuario(request):
             msg = mensagem or 'Vendedores não têm permissão para acessar configurações.'
             return Response(
                 {'detail': msg},

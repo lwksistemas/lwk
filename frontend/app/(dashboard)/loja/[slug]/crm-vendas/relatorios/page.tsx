@@ -68,16 +68,43 @@ export default function RelatoriosPage() {
   const handleGerarRelatorio = async (acao: 'pdf' | 'email') => {
     setGerando(true);
     
-    // Simular geração
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    if (acao === 'pdf') {
-      alert('PDF gerado com sucesso! (funcionalidade em desenvolvimento)');
-    } else {
-      alert('Relatório enviado por email! (funcionalidade em desenvolvimento)');
+    try {
+      const payload = {
+        tipo: tipoRelatorio,
+        periodo: periodo,
+        vendedor_id: vendedorSelecionado !== 'todos' ? vendedorSelecionado : null,
+        acao: acao,
+      };
+
+      if (acao === 'pdf') {
+        // Download do PDF
+        const response = await apiClient.post('/crm-vendas/relatorios/gerar/', payload, {
+          responseType: 'blob',
+        });
+        
+        // Criar URL do blob e fazer download
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `relatorio_${tipoRelatorio}_${periodo}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
+        alert('PDF gerado com sucesso!');
+      } else {
+        // Enviar por email
+        const response = await apiClient.post('/crm-vendas/relatorios/gerar/', payload);
+        alert(response.data.message || 'Relatório enviado por email com sucesso!');
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar relatório:', error);
+      const mensagem = error.response?.data?.detail || 'Erro ao gerar relatório. Tente novamente.';
+      alert(mensagem);
+    } finally {
+      setGerando(false);
     }
-    
-    setGerando(false);
   };
 
   const totalVendas = dashboardData?.receita || 0;

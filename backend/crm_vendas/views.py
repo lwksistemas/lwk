@@ -911,7 +911,14 @@ def gerar_relatorio(request):
         "acao": "pdf" | "email"
     }
     """
-    from .relatorios import gerar_relatorio_vendas_total, gerar_relatorio_vendas_vendedor
+    try:
+        from .relatorios import gerar_relatorio_vendas_total, gerar_relatorio_vendas_vendedor
+    except ImportError as e:
+        logger.error(f'Erro ao importar módulo de relatórios: {e}')
+        return Response({
+            'detail': 'Módulo de relatórios não disponível. Entre em contato com o suporte.'
+        }, status=500)
+    
     from superadmin.models import Loja
     
     loja_id = get_current_loja_id()

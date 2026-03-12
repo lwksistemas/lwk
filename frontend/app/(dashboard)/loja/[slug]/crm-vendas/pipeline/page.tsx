@@ -48,6 +48,9 @@ export default function CrmVendasPipelinePage() {
   const [error, setError] = useState<string | null>(null);
   const [oportunidadeEditar, setOportunidadeEditar] = useState<Oportunidade | null>(null);
   const [etapaSelecionada, setEtapaSelecionada] = useState('');
+  const [valorComissaoEdit, setValorComissaoEdit] = useState('');
+  const [dataFechamentoGanho, setDataFechamentoGanho] = useState('');
+  const [dataFechamentoPerdido, setDataFechamentoPerdido] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [modalCriar, setModalCriar] = useState(false);
@@ -57,6 +60,7 @@ export default function CrmVendasPipelinePage() {
     titulo: '',
     valor: '0',
     etapa: 'prospecting',
+    valor_comissao: '',
   });
 
   useEffect(() => {
@@ -103,7 +107,7 @@ export default function CrmVendasPipelinePage() {
 
   const handleAbrirCriar = () => {
     setModalCriar(true);
-    setFormCriar({ lead_id: '', titulo: '', valor: '0', etapa: 'prospecting' });
+    setFormCriar({ lead_id: '', titulo: '', valor: '0', etapa: 'prospecting', valor_comissao: '' });
     setFormErro(null);
   };
 
@@ -120,6 +124,7 @@ export default function CrmVendasPipelinePage() {
       return;
     }
     const valor = parseFloat(formCriar.valor) || 0;
+    const valor_comissao = formCriar.valor_comissao ? parseFloat(formCriar.valor_comissao) : null;
     setEnviando(true);
     apiClient
       .post('/crm-vendas/oportunidades/', {
@@ -127,6 +132,7 @@ export default function CrmVendasPipelinePage() {
         titulo: formCriar.titulo.trim(),
         valor,
         etapa: formCriar.etapa,
+        valor_comissao,
       })
       .then(() => {
         setModalCriar(false);
@@ -145,6 +151,9 @@ export default function CrmVendasPipelinePage() {
   const handleCardClick = (op: Oportunidade) => {
     setOportunidadeEditar(op);
     setEtapaSelecionada(op.etapa);
+    setValorComissaoEdit(op.valor_comissao || '');
+    setDataFechamentoGanho(op.data_fechamento_ganho || '');
+    setDataFechamentoPerdido(op.data_fechamento_perdido || '');
     setFormErro(null);
   };
 
@@ -153,8 +162,30 @@ export default function CrmVendasPipelinePage() {
     if (!oportunidadeEditar) return;
     setFormErro(null);
     setEnviando(true);
+    
+    const payload: Record<string, unknown> = { etapa: etapaSelecionada };
+    
+    // Adiciona valor_comissao se preenchido
+    if (valorComissaoEdit) {
+      payload.valor_comissao = parseFloat(valorComissaoEdit);
+    }
+    
+    // Se mudou para closed_won, sugere data_fechamento_ganho
+    if (etapaSelecionada === 'closed_won' && !dataFechamentoGanho) {
+      payload.data_fechamento_ganho = new Date().toISOString().split('T')[0];
+    } else if (dataFechamentoGanho) {
+      payload.data_fechamento_ganho = dataFechamentoGanho;
+    }
+    
+    // Se mudou para closed_lost, sugere data_fechamento_perdido
+    if (etapaSelecionada === 'closed_lost' && !dataFechamentoPerdido) {
+      payload.data_fechamento_perdido = new Date().toISOString().split('T')[0];
+    } else if (dataFechamentoPerdido) {
+      payload.data_fechamento_perdido = dataFechamentoPerdido;
+    }
+    
     apiClient
-      .patch(`/crm-vendas/oportunidades/${oportunidadeEditar.id}/`, { etapa: etapaSelecionada })
+      .patch(`/crm-vendas/oportunidades/${oportunidadeEditar.id}/`, payload)
       .then(() => {
         setOportunidadeEditar(null);
         loadOportunidades(setOportunidades, setError);
@@ -283,6 +314,18 @@ export default function CrmVendasPipelinePage() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor da Comissão (R$)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formCriar.valor_comissao}
+                  onChange={(e) => setFormCriar((f) => ({ ...f, valor_comissao: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="0"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etapa inicial</label>
                 <select
                   value={formCriar.etapa}
@@ -343,6 +386,11 @@ export default function CrmVendasPipelinePage() {
               <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(String(oportunidadeEditar.valor)))}
               </p>
+              {oportunidadeEditar.valor_comissao && (
+                <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
+                  Comissão: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(String(oportunidadeEditar.valor_comissao)))}
+                </p>
+              )}
             </div>
             <form onSubmit={handleSalvarEtapa} className="p-4 pt-0 space-y-4">
               {formErro && (
@@ -364,6 +412,46 @@ export default function CrmVendasPipelinePage() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Valor da Comissão (R$)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={valorComissaoEdit}
+                  onChange={(e) => setValorComissaoEdit(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="0"
+                />
+              </div>
+              {(etapaSelecionada === 'closed_won' || oportunidadeEditar.data_fechamento_ganho) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Data Fechamento Ganho
+                  </label>
+                  <input
+                    type="date"
+                    value={dataFechamentoGanho}
+                    onChange={(e) => setDataFechamentoGanho(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              )}
+              {(etapaSelecionada === 'closed_lost' || oportunidadeEditar.data_fechamento_perdido) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Data Fechamento Perdido
+                  </label>
+                  <input
+                    type="date"
+                    value={dataFechamentoPerdido}
+                    onChange={(e) => setDataFechamentoPerdido(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              )}
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -374,7 +462,12 @@ export default function CrmVendasPipelinePage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={enviando || etapaSelecionada === oportunidadeEditar.etapa}
+                  disabled={enviando || (
+                    etapaSelecionada === oportunidadeEditar.etapa &&
+                    valorComissaoEdit === (oportunidadeEditar.valor_comissao || '') &&
+                    dataFechamentoGanho === (oportunidadeEditar.data_fechamento_ganho || '') &&
+                    dataFechamentoPerdido === (oportunidadeEditar.data_fechamento_perdido || '')
+                  )}
                   className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
                 >
                   {enviando ? 'Salvando...' : 'Salvar'}

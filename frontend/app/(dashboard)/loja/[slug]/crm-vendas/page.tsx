@@ -37,7 +37,7 @@ interface DashboardData {
   taxa_conversao: number;
   pipeline_por_etapa: { etapa: string; valor: number; quantidade: number }[];
   atividades_hoje: unknown[];
-  performance_vendedores: { id: number; nome: string; receita_mes: number }[];
+  performance_vendedores: { id: number; nome: string; receita_mes: number; comissao_mes: number }[];
 }
 
 function formatMoney(value: number): string {
@@ -393,9 +393,16 @@ export default function CrmVendasDashboardPage() {
                       Vendedor
                     </p>
                   </div>
-                  <span className="font-semibold text-[#06a59a] text-sm shrink-0">
-                    {formatMoney(v.receita_mes)}
-                  </span>
+                  <div className="text-right shrink-0">
+                    <p className="font-semibold text-[#06a59a] text-sm">
+                      {formatMoney(v.receita_mes)}
+                    </p>
+                    {v.comissao_mes > 0 && (
+                      <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
+                        Comissão: {formatMoney(v.comissao_mes)}
+                      </p>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

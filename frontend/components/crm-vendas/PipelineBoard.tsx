@@ -7,6 +7,9 @@ export interface Oportunidade {
   etapa: string;
   lead_nome: string;
   vendedor_nome?: string;
+  data_fechamento_ganho?: string | null;
+  data_fechamento_perdido?: string | null;
+  valor_comissao?: string | null;
 }
 
 const ETAPAS = [
@@ -101,6 +104,21 @@ export default function PipelineBoard({ oportunidades, loading, onCardClick }: P
                   {o.vendedor_nome && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {o.vendedor_nome}
+                    </p>
+                  )}
+                  {o.valor_comissao && (
+                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                      Comissão: {formatMoney(o.valor_comissao)}
+                    </p>
+                  )}
+                  {o.data_fechamento_ganho && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      Ganho em: {new Date(o.data_fechamento_ganho).toLocaleDateString('pt-BR')}
+                    </p>
+                  )}
+                  {o.data_fechamento_perdido && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                      Perdido em: {new Date(o.data_fechamento_perdido).toLocaleDateString('pt-BR')}
                     </p>
                   )}
                   <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Clique para editar / fechar venda</p>

@@ -528,9 +528,13 @@ def dashboard_data(request):
                 'oportunidades__valor',
                 filter=Q(oportunidades__etapa='closed_won') & Q(oportunidades__data_fechamento__gte=mes_inicio),
             ),
+            comissao_mes=Sum(
+                'oportunidades__valor_comissao',
+                filter=Q(oportunidades__etapa='closed_won') & Q(oportunidades__data_fechamento__gte=mes_inicio),
+            ),
         )
         performance_vendedores = [
-            {'id': v.id, 'nome': v.nome, 'receita_mes': float(v.receita_mes or 0)}
+            {'id': v.id, 'nome': v.nome, 'receita_mes': float(v.receita_mes or 0), 'comissao_mes': float(v.comissao_mes or 0)}
             for v in perf_qs
         ]
 

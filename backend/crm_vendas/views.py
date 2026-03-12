@@ -422,8 +422,27 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
 
     def perform_destroy(self, instance):
         """
-        Deleta atividade e remove do Google Calendar se tiver google_event_id
+        Deleta atividade e remove do Google Calendar se tiver google_event_id.
+        Também remove a notificação associada.
         """
+        # Remover notificação associada à atividade
+        try:
+            from notificacoes.models import Notificacao
+            from superadmin.models import Loja
+            
+            loja_id = get_current_loja_id()
+            loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
+            
+            if loja and loja.owner_id:
+                # Deletar notificações relacionadas a esta atividade
+                Notificacao.objects.filter(
+                    user=loja.owner,
+                    metadata__atividade_id=instance.id
+                ).delete()
+                logger.info(f"✅ Notificações da atividade {instance.id} removidas")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao remover notificações da atividade: {e}")
+        
         # Se tem google_event_id, deletar do Google Calendar
         if instance.google_event_id:
             try:

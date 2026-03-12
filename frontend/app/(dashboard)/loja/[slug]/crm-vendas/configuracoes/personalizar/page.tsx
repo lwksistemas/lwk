@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { Settings, Plus, Trash2, Edit2, Save, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
 interface Origem {
   key: string;
@@ -29,6 +30,7 @@ interface CRMConfig {
 export default function ConfiguracoesPage() {
   const params = useParams();
   const slug = params?.slug as string;
+  const { recarregar } = useCRMConfig();
   
   const [config, setConfig] = useState<CRMConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +82,9 @@ export default function ConfiguracoesPage() {
       setConfig(res.data);
       setSuccess('Configurações salvas com sucesso!');
       setTimeout(() => setSuccess(null), 3000);
+      
+      // Recarregar o context global para atualizar todas as páginas
+      await recarregar();
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Erro ao salvar configurações.');
     } finally {

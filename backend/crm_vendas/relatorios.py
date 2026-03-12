@@ -88,12 +88,13 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str) -> BytesIO:
     elements.append(Spacer(1, 0.5*cm))
     
     # Buscar oportunidades fechadas ganhas no período
+    # Nota: data_fechamento_ganho e data_fechamento são DateField, não DateTimeField - comparar direto
     oportunidades = Oportunidade.objects.filter(
         loja_id=loja_id,
         etapa='closed_won',
     ).filter(
-        Q(data_fechamento_ganho__date__gte=data_inicio, data_fechamento_ganho__date__lte=data_fim) |
-        (Q(data_fechamento_ganho__isnull=True) & Q(data_fechamento__date__gte=data_inicio, data_fechamento__date__lte=data_fim))
+        Q(data_fechamento_ganho__gte=data_inicio, data_fechamento_ganho__lte=data_fim) |
+        (Q(data_fechamento_ganho__isnull=True) & Q(data_fechamento__gte=data_inicio, data_fechamento__lte=data_fim))
     ).select_related('vendedor', 'lead')
     
     # Calcular totais
@@ -217,13 +218,13 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
     ))
     elements.append(Spacer(1, 0.5*cm))
     
-    # Filtrar oportunidades
+    # Filtrar oportunidades (DateField - comparar direto, sem __date__)
     oportunidades_qs = Oportunidade.objects.filter(
         loja_id=loja_id,
         etapa='closed_won',
     ).filter(
-        Q(data_fechamento_ganho__date__gte=data_inicio, data_fechamento_ganho__date__lte=data_fim) |
-        (Q(data_fechamento_ganho__isnull=True) & Q(data_fechamento__date__gte=data_inicio, data_fechamento__date__lte=data_fim))
+        Q(data_fechamento_ganho__gte=data_inicio, data_fechamento_ganho__lte=data_fim) |
+        (Q(data_fechamento_ganho__isnull=True) & Q(data_fechamento__gte=data_inicio, data_fechamento__lte=data_fim))
     )
     
     if vendedor_id and vendedor_id != 'todos':

@@ -82,14 +82,17 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
             if VendedorUsuario.objects.filter(user=request.user, loja=obj).exists():
                 return True
 
-        # Profissional ou qualquer usuário da loja: pode exportar/importar backup da própria loja
+        # Profissional, Vendedor (CRM) ou UsuarioSistema: pode exportar/importar backup da própria loja
         if hasattr(obj, 'id'):
-            from .models import UsuarioSistema
+            from .models import UsuarioSistema, VendedorUsuario
             action = getattr(view, 'action', None)
             if action in ('exportar_backup', 'importar_backup', 'enviar_backup_agora', 'configuracao_backup', 'atualizar_configuracao_backup', 'historico_backups'):
                 if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():
                     return True
                 if UsuarioSistema.objects.filter(user=request.user, lojas_acesso=obj, is_active=True).exists():
+                    return True
+                # CRM Vendas: vendedor (incl. admin/owner) pode exportar/importar backup
+                if VendedorUsuario.objects.filter(user=request.user, loja=obj).exists():
                     return True
 
         return False

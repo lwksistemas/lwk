@@ -212,12 +212,100 @@ class DatabaseSchemaService:
                         logger.error(f"Erro crítico ao aplicar migration crm_vendas para loja {loja.slug}: {e}")
                         raise
                     logger.warning(f"Erro ao aplicar migration {app}: {e}")
+            # Fallback: se migrate criou tabelas em public (search_path ignorado), mover para o schema
+            DatabaseSchemaService._mover_tabelas_public_para_schema(loja, schema_name, apps_to_migrate)
             logger.info(f"Tabelas criadas no schema '{loja.database_name}' via migrations")
             return True
         except Exception as e:
             logger.error(f"Erro ao aplicar migrations: {e}")
             return False
     
+    @staticmethod
+    def _mover_tabelas_public_para_schema(loja, schema_name: str, apps_to_migrate: list) -> None:
+        """
+        Fallback: se migrate criou tabelas em public (search_path ignorado, ex: PgBouncer),
+        move-as para o schema da loja.
+        """
+        from django.db import connections
+
+        try:
+            DatabaseSchemaService.validar_nome_schema(schema_name)
+        except ValueError:
+            return
+        # Prefixos de tabela por app (Django: app_label + '_')
+        app_prefixes = [f"{app}_" for app in apps_to_migrate]
+        try:
+            conn = connections[loja.database_name]
+            conn.ensure_connection()
+            with conn.cursor() as cur:
+                # Contar tabelas no schema da loja
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM information_schema.tables
+                    WHERE table_schema = %s AND table_type = 'BASE TABLE'
+                    AND table_name NOT LIKE 'django_%%'
+                    """,
+                    [schema_name],
+                )
+                count_schema = cur.fetchone()[0]
+                if count_schema > 0:
+                    return  # Schema já tem tabelas, nada a fazer
+                # Listar tabelas em public que pertencem aos nossos apps
+                cur.execute(
+                    """
+                    SELECT table_name FROM information_schema.tables
+                    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+                    ORDER BY table_name
+                    """,
+                )
+                todas_public = [r[0] for r in cur.fetchall()]
+                tabelas_mover = [
+                    t for t in todas_public
+                    if any(t.startswith(p) for p in app_prefixes)
+                ]
+                if not tabelas_mover:
+                    return
+                logger.info(f"Fallback: movendo {len(tabelas_mover)} tabela(s) de public para '{schema_name}'")
+                # Mover django_migrations primeiro (se existir e tiver registros dos nossos apps)
+                cur.execute(
+                    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'django_migrations')"
+                )
+                if cur.fetchone()[0]:
+                    cur.execute(
+                        "SELECT app, name, applied FROM public.django_migrations WHERE app = ANY(%s)",
+                        [apps_to_migrate],
+                    )
+                    migracoes_loja = cur.fetchall()
+                    if migracoes_loja:
+                        cur.execute(
+                            f'''CREATE TABLE IF NOT EXISTS "{schema_name}".django_migrations (
+                                id SERIAL PRIMARY KEY,
+                                app VARCHAR(255) NOT NULL,
+                                name VARCHAR(255) NOT NULL,
+                                applied TIMESTAMPTZ NOT NULL
+                            )'''
+                        )
+                        for app, name, applied in migracoes_loja:
+                            cur.execute(
+                                f'INSERT INTO "{schema_name}".django_migrations (app, name, applied) VALUES (%s, %s, %s)',
+                                [app, name, applied],
+                            )
+                        cur.execute(
+                            "DELETE FROM public.django_migrations WHERE app = ANY(%s)",
+                            [apps_to_migrate],
+                        )
+                # Mover tabelas dos apps
+                for table_name in tabelas_mover:
+                    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+                        continue
+                    try:
+                        cur.execute(f'ALTER TABLE public."{table_name}" SET SCHEMA "{schema_name}"')
+                        logger.info(f"Tabela {table_name} movida para schema {schema_name}")
+                    except Exception as e:
+                        logger.warning(f"Erro ao mover tabela {table_name}: {e}")
+        except Exception as e:
+            logger.warning(f"Fallback mover tabelas: {e}")
+
     @staticmethod
     def configurar_schema_completo(loja) -> bool:
         """

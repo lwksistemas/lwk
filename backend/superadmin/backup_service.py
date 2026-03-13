@@ -536,19 +536,6 @@ class BackupService:
                 logger.warning(f"⚠️ Fallback para lista fixa de tabelas: {e}")
                 table_names = [t.nome for t in self.config.get_tabelas_ordenadas_exportacao()]
 
-            # Se o schema não tem tabelas: garantir que o schema existe (PostgreSQL), aplicar migrations e listar de novo
-            if not table_names and loja.database_created:
-                try:
-                    from .services.database_schema_service import DatabaseSchemaService
-                    logger.info(f"🔄 Schema vazio - garantindo schema e aplicando migrations para loja {loja.nome} (ID: {loja_id})")
-                    db_helper.ensure_pg_schema_exists()
-                    if DatabaseSchemaService.aplicar_migrations(loja):
-                        table_names = db_helper.get_all_table_names()
-                        if table_names:
-                            logger.info(f"✅ Migrations aplicadas - {len(table_names)} tabela(s) encontrada(s)")
-                except Exception as e:
-                    logger.warning(f"⚠️ Falha ao aplicar migrations antes do backup: {e}")
-
             # Quando o backup usa schema PUBLIC (fallback): exportar APENAS tabelas com coluna loja_id
             # e cujo prefixo pertence ao tipo de app da loja (evita cabeleireiro_*, clinica_beleza_*, crm_*, etc.).
             if getattr(db_helper, '_pg_schema', None) == 'public':
@@ -689,46 +676,6 @@ class BackupService:
             
             logger.info(f"🔄 Iniciando importação de backup - Loja: {loja.nome} (ID: {loja_id})")
             
-            # v982: Garantir que schema da LOJA tenha tabelas antes de importar.
-            # NÃO usar get_all_table_names() - ele faz fallback para 'public' quando o schema está vazio,
-            # retornando tabelas de outras lojas e impedindo que apliquemos migrations.
-            from django.db import connections
-            from .services.database_schema_service import DatabaseSchemaService
-            if not DatabaseSchemaService.adicionar_configuracao_django(loja):
-                raise BackupImportError("Não foi possível conectar ao banco de dados da loja")
-            schema_nominal = loja.database_name.replace('-', '_')
-            try:
-                with connections[loja.database_name].cursor() as cursor:
-                    cursor.execute(
-                        """
-                        SELECT COUNT(*) FROM information_schema.tables
-                        WHERE table_schema = %s AND table_type = 'BASE TABLE'
-                        AND table_name NOT LIKE 'django_%%'
-                        """,
-                        [schema_nominal]
-                    )
-                    count = cursor.fetchone()[0]
-                if count == 0:
-                    logger.info(f"🔄 Schema '{schema_nominal}' vazio - aplicando migrations antes da importação em {loja.nome}")
-                    if DatabaseSchemaService.aplicar_migrations(loja):
-                        logger.info("✅ Migrations aplicadas - schema pronto para importação")
-                        # Fechar conexão para forçar nova conexão que veja as tabelas recém-criadas
-                        try:
-                            connections[loja.database_name].close()
-                        except Exception:
-                            pass
-                    else:
-                        raise BackupImportError(
-                            "Schema da loja está vazio e não foi possível aplicar migrations. "
-                            "Execute: python manage.py verificar_schema_loja <loja_id> --fix"
-                        )
-            except BackupImportError:
-                raise
-            except Exception as e:
-                if "DATABASE_URL" in str(e) or "config" in str(e).lower():
-                    raise BackupImportError(f"Não foi possível configurar o banco da loja: {e}")
-                raise
-            
             # Validar ZIP
             zip_buffer = io.BytesIO(arquivo_zip)
             zip_file = None
@@ -737,35 +684,40 @@ class BackupService:
             except zipfile.BadZipFile:
                 raise BackupImportError("Arquivo ZIP inválido ou corrompido")
             try:
-                # Ler metadados
+                import json
                 try:
-                    import json
                     metadata_content = zip_file.read('_metadata.json')
                     metadata = json.loads(metadata_content)
                     logger.info(f"📋 Metadados do backup: {metadata.get('data_backup')}")
                 except KeyError:
-                    logger.warning("⚠️ Arquivo de metadados não encontrado no backup")
-                    metadata = {}
+                    raise BackupImportError("Arquivo de backup inválido (metadados ausentes)")
+                # Restrição: só importar backup na mesma loja de origem
+                backup_loja_id = metadata.get('loja_id')
+                if backup_loja_id is None:
+                    raise BackupImportError("Arquivo de backup inválido (loja de origem não identificada)")
+                if int(backup_loja_id) != int(loja_id):
+                    raise BackupImportError(
+                        f"Este backup pertence à loja '{metadata.get('loja_nome', 'outra')}'. "
+                        "Só é possível importar backups exportados desta loja."
+                    )
+                # Configurar conexão da loja
+                from .services.database_schema_service import DatabaseSchemaService
+                if not DatabaseSchemaService.adicionar_configuracao_django(loja):
+                    raise BackupImportError("Não foi possível conectar ao banco de dados da loja")
                 
-                # Inicializar helper (conexão da loja de DESTINO)
                 db_helper = DatabaseHelper(loja.database_name)
-                # Garantir search_path e reconectar para ver tabelas recém-criadas (PostgreSQL)
-                if not db_helper._is_sqlite() and db_helper._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(db_helper._pg_schema):
-                    try:
-                        conn = db_helper.get_connection()
-                        conn.close()
-                        with conn.cursor() as cur:
-                            cur.execute(f'SET search_path TO "{db_helper._pg_schema}", public')
-                            cur.execute(
-                                "SELECT table_name FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' ORDER BY table_name",
-                                [db_helper._pg_schema]
+                # Verificar se schema tem tabelas (mesma loja = schema já configurado)
+                if not db_helper._is_sqlite() and db_helper._pg_schema:
+                    with db_helper.get_connection().cursor() as cur:
+                        cur.execute(
+                            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'",
+                            [db_helper._pg_schema],
+                        )
+                        if cur.fetchone()[0] == 0:
+                            raise BackupImportError(
+                                "A loja não possui tabelas configuradas. "
+                                "Entre em contato com o suporte para configurar o banco."
                             )
-                            tabelas_existentes = [r[0] for r in cur.fetchall()]
-                            logger.info(f"Import: schema '{db_helper._pg_schema}' tem {len(tabelas_existentes)} tabela(s): {tabelas_existentes[:15]}{'...' if len(tabelas_existentes) > 15 else ''}")
-                    except Exception as e:
-                        logger.warning(f"Import: verificação de tabelas: {e}")
-                # Para importar em outro sistema limpo: usar sempre o loja_id da loja de destino
-                loja_id_destino = loja.id
                 
                 # Estatísticas
                 total_registros = 0
@@ -836,9 +788,9 @@ class BackupService:
                                 for row in rows:
                                     values = []
                                     for col in cols_for_insert:
-                                        # Ao importar em outro sistema (ou na mesma loja): usar sempre loja_id da loja de destino
+                                        # Usar loja_id da loja atual (mesma loja de origem)
                                         if col == 'loja_id':
-                                            val = loja_id_destino
+                                            val = loja.id
                                         else:
                                             val = row.get(col, "")
                                         if val == "" and col != "id":

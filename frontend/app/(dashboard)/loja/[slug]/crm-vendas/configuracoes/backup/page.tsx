@@ -165,7 +165,7 @@ export default function BackupPage() {
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
             <p className="text-xs text-red-700 dark:text-red-400">
               <strong>Atenção:</strong> A importação irá substituir todos os dados atuais. 
-              Recomendamos exportar um backup antes de importar.
+              Só é possível importar backups exportados desta loja.
             </p>
           </div>
           <ul className="space-y-2 mb-4 text-sm text-gray-600 dark:text-gray-400">

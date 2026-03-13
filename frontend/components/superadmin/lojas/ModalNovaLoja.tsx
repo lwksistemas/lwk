@@ -453,7 +453,10 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="minha-loja-123456"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">URL: /loja/{formData.slug || '…'}/login — sugestão automática; você pode editar</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    URL: /loja/{formData.slug || '…'}/login — sugestão automática; você pode editar. 
+                    Para importar backup de loja excluída, use o mesmo slug da loja original (ex: felix-5889).
+                  </p>
                 </div>
 
                 <div className="flex gap-2 items-end">

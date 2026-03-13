@@ -689,15 +689,27 @@ class BackupService:
             
             logger.info(f"🔄 Iniciando importação de backup - Loja: {loja.nome} (ID: {loja_id})")
             
-            # v982: Garantir que schema tenha tabelas antes de importar (corrige lojas com schema vazio)
+            # v982: Garantir que schema da LOJA tenha tabelas antes de importar.
+            # NÃO usar get_all_table_names() - ele faz fallback para 'public' quando o schema está vazio,
+            # retornando tabelas de outras lojas e impedindo que apliquemos migrations.
+            from django.db import connections
             from .services.database_schema_service import DatabaseSchemaService
             if not DatabaseSchemaService.adicionar_configuracao_django(loja):
                 raise BackupImportError("Não foi possível conectar ao banco de dados da loja")
-            db_helper_pre = DatabaseHelper(loja.database_name)
+            schema_nominal = loja.database_name.replace('-', '_')
             try:
-                table_names_pre = db_helper_pre.get_all_table_names()
-                if not table_names_pre:
-                    logger.info(f"🔄 Schema vazio - aplicando migrations antes da importação em {loja.nome}")
+                with connections[loja.database_name].cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*) FROM information_schema.tables
+                        WHERE table_schema = %s AND table_type = 'BASE TABLE'
+                        AND table_name NOT LIKE 'django_%%'
+                        """,
+                        [schema_nominal]
+                    )
+                    count = cursor.fetchone()[0]
+                if count == 0:
+                    logger.info(f"🔄 Schema '{schema_nominal}' vazio - aplicando migrations antes da importação em {loja.nome}")
                     if DatabaseSchemaService.aplicar_migrations(loja):
                         logger.info("✅ Migrations aplicadas - schema pronto para importação")
                     else:
@@ -705,6 +717,8 @@ class BackupService:
                             "Schema da loja está vazio e não foi possível aplicar migrations. "
                             "Execute: python manage.py verificar_schema_loja <loja_id> --fix"
                         )
+            except BackupImportError:
+                raise
             except Exception as e:
                 if "DATABASE_URL" in str(e) or "config" in str(e).lower():
                     raise BackupImportError(f"Não foi possível configurar o banco da loja: {e}")

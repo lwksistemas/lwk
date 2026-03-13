@@ -134,6 +134,14 @@ class BackupConfig:
         TabelaConfig('vendas', ordem_exportacao=40, ordem_importacao=40),
         TabelaConfig('itens_venda', ordem_exportacao=41, ordem_importacao=41),
         TabelaConfig('pagamentos', ordem_exportacao=42, ordem_importacao=42),
+        # CRM Vendas (ordem: vendedor antes de conta/lead; conta antes de lead/contato; lead antes de oportunidade/atividade)
+        TabelaConfig('crm_vendas_vendedor', ordem_exportacao=100, ordem_importacao=100),
+        TabelaConfig('crm_vendas_conta', ordem_exportacao=101, ordem_importacao=101),
+        TabelaConfig('crm_vendas_lead', ordem_exportacao=102, ordem_importacao=102),
+        TabelaConfig('crm_vendas_contato', ordem_exportacao=103, ordem_importacao=103),
+        TabelaConfig('crm_vendas_oportunidade', ordem_exportacao=104, ordem_importacao=104),
+        TabelaConfig('crm_vendas_atividade', ordem_exportacao=105, ordem_importacao=105),
+        TabelaConfig('crm_vendas_config', ordem_exportacao=106, ordem_importacao=106),
     ]
     
     @classmethod

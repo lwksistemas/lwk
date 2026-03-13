@@ -192,11 +192,18 @@ class DatabaseSchemaService:
         
         apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
         
+        schema_name = loja.database_name.replace('-', '_')
         try:
             for app in apps_to_migrate:
                 # Re-adicionar config antes de cada app (garantia extra contra volatilidade)
                 DatabaseSchemaService.adicionar_configuracao_django(loja)
                 try:
+                    # search_path em OPTIONS nem sempre é respeitado pelo migrate (ex: PgBouncer).
+                    # Definir explicitamente na conexão antes de cada migrate.
+                    conn = connections[loja.database_name]
+                    conn.ensure_connection()
+                    with conn.cursor() as cur:
+                        cur.execute(f'SET search_path TO "{schema_name}", public')
                     call_command('migrate', app, '--database', loja.database_name, verbosity=0)
                     logger.info(f"Migrations aplicadas: {app}")
                 except Exception as e:

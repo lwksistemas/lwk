@@ -691,11 +691,15 @@ class BackupService:
                     logger.info(f"📋 Metadados do backup: {metadata.get('data_backup')}")
                 except KeyError:
                     raise BackupImportError("Arquivo de backup inválido (metadados ausentes)")
-                # Restrição: só importar backup na mesma loja de origem
+                # Restrição: só importar backup na mesma loja de origem (ou loja recriada com mesmo slug)
                 backup_loja_id = metadata.get('loja_id')
+                backup_loja_slug = metadata.get('loja_slug', '').strip()
                 if backup_loja_id is None:
                     raise BackupImportError("Arquivo de backup inválido (loja de origem não identificada)")
-                if int(backup_loja_id) != int(loja_id):
+                # Permitir: mesmo loja_id OU mesmo slug (loja recriada após exclusão)
+                mesmo_id = int(backup_loja_id) == int(loja_id)
+                mesmo_slug = backup_loja_slug and backup_loja_slug == (loja.slug or '')
+                if not mesmo_id and not mesmo_slug:
                     raise BackupImportError(
                         f"Este backup pertence à loja '{metadata.get('loja_nome', 'outra')}'. "
                         "Só é possível importar backups exportados desta loja."

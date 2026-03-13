@@ -689,6 +689,27 @@ class BackupService:
             
             logger.info(f"🔄 Iniciando importação de backup - Loja: {loja.nome} (ID: {loja_id})")
             
+            # v982: Garantir que schema tenha tabelas antes de importar (corrige lojas com schema vazio)
+            from .services.database_schema_service import DatabaseSchemaService
+            if not DatabaseSchemaService.adicionar_configuracao_django(loja):
+                raise BackupImportError("Não foi possível conectar ao banco de dados da loja")
+            db_helper_pre = DatabaseHelper(loja.database_name)
+            try:
+                table_names_pre = db_helper_pre.get_all_table_names()
+                if not table_names_pre:
+                    logger.info(f"🔄 Schema vazio - aplicando migrations antes da importação em {loja.nome}")
+                    if DatabaseSchemaService.aplicar_migrations(loja):
+                        logger.info("✅ Migrations aplicadas - schema pronto para importação")
+                    else:
+                        raise BackupImportError(
+                            "Schema da loja está vazio e não foi possível aplicar migrations. "
+                            "Execute: python manage.py verificar_schema_loja <loja_id> --fix"
+                        )
+            except Exception as e:
+                if "DATABASE_URL" in str(e) or "config" in str(e).lower():
+                    raise BackupImportError(f"Não foi possível configurar o banco da loja: {e}")
+                raise
+            
             # Validar ZIP
             zip_buffer = io.BytesIO(arquivo_zip)
             zip_file = None

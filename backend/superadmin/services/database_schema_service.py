@@ -141,7 +141,11 @@ class DatabaseSchemaService:
     @staticmethod
     def aplicar_migrations(loja) -> bool:
         """
-        Aplica migrations no schema da loja
+        Aplica migrations no schema da loja.
+        
+        CORREÇÃO v982: Garante que a configuração Django exista antes de cada migration
+        e fecha conexões antigas para evitar que o Django use cache com schema errado.
+        O problema era: config volátil + migrations criando tabelas no schema 'public'.
         
         Args:
             loja: Objeto Loja
@@ -150,6 +154,25 @@ class DatabaseSchemaService:
             True se aplicado com sucesso
         """
         from django.core.management import call_command
+        from django.db import connections
+        
+        # 1. SEMPRE adicionar config antes de migrations (config é volátil na memória)
+        if not DatabaseSchemaService.adicionar_configuracao_django(loja):
+            raise RuntimeError(
+                f"Não foi possível adicionar configuração do banco '{loja.database_name}'. "
+                "Verifique se DATABASE_URL está definida."
+            )
+        
+        # 2. Verificar que a config existe
+        if loja.database_name not in settings.DATABASES:
+            raise RuntimeError(f"Config do banco '{loja.database_name}' não encontrada em settings.DATABASES!")
+        
+        # 3. Fechar conexão existente para forçar nova conexão com search_path correto
+        if loja.database_name in connections:
+            try:
+                connections[loja.database_name].close()
+            except Exception as e:
+                logger.warning(f"Erro ao fechar conexão {loja.database_name}: {e}")
         
         tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
         
@@ -171,6 +194,8 @@ class DatabaseSchemaService:
         
         try:
             for app in apps_to_migrate:
+                # Re-adicionar config antes de cada app (garantia extra contra volatilidade)
+                DatabaseSchemaService.adicionar_configuracao_django(loja)
                 try:
                     call_command('migrate', app, '--database', loja.database_name, verbosity=0)
                     logger.info(f"Migrations aplicadas: {app}")

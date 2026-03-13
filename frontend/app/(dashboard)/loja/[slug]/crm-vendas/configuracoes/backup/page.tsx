@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Database, Download, Upload, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import BackupButton from '@/components/loja/BackupButton';
+import apiClient from '@/lib/api-client';
 
 interface LojaInfo {
   id: number;
@@ -19,19 +20,21 @@ export default function BackupPage() {
 
   useEffect(() => {
     const carregarLoja = async () => {
+      if (!slug) {
+        setLoading(false);
+        return;
+      }
       try {
-        // Obter ID da loja do sessionStorage (salvo no login)
-        const lojaIdStr = sessionStorage.getItem('current_loja_id');
-        
-        if (lojaIdStr) {
-          const lojaId = parseInt(lojaIdStr, 10);
-          // Usar o slug como nome temporário (será usado apenas para o nome do arquivo de backup)
-          setLoja({ 
-            id: lojaId, 
-            nome: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        // Buscar loja pela API usando o slug da URL (evita sessionStorage desatualizado)
+        const { data } = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
+        if (data?.id) {
+          setLoja({
+            id: data.id,
+            nome: data.nome || slug.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
           });
+          sessionStorage.setItem('current_loja_id', String(data.id));
         } else {
-          console.error('Loja ID não encontrado no sessionStorage');
+          console.error('Loja não encontrada para slug:', slug);
         }
       } catch (error) {
         console.error('Erro ao carregar loja:', error);

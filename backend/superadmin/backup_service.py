@@ -324,6 +324,25 @@ class DatabaseHelper:
                 [self._pg_schema, table_name]
             )
             return [row[0] for row in cursor.fetchall()]
+
+    def get_columns_nullable_and_type(self, table_name: str) -> Dict[str, Tuple[bool, str]]:
+        """Retorna dict col -> (is_nullable, data_type) para colunas da tabela."""
+        if not self.is_safe_table_name(table_name):
+            return {}
+        with self.get_connection().cursor() as cursor:
+            if self._is_sqlite():
+                cursor.execute(f"PRAGMA table_info({table_name})")
+                return {row[1]: (row[3] == 0, row[2] or '') for row in cursor.fetchall()}
+            cursor.execute(
+                """
+                SELECT column_name, is_nullable, data_type
+                FROM information_schema.columns
+                WHERE table_schema = %s AND table_name = %s
+                ORDER BY ordinal_position
+                """,
+                [self._pg_schema, table_name]
+            )
+            return {row[0]: (row[1] == 'YES', row[2] or '') for row in cursor.fetchall()}
     
     def count_records(self, table_name: str) -> int:
         """Conta registros em uma tabela"""
@@ -780,6 +799,7 @@ class BackupService:
                             if not db_columns:
                                 logger.warning(f"⚠️ Não foi possível obter colunas da tabela {table_name}")
                                 continue
+                            col_info = db_helper.get_columns_nullable_and_type(table_name)
                             
                             # Usar apenas colunas que existem no CSV e na tabela (ordem da tabela)
                             # Filtrar também por nome seguro (defesa em profundidade)
@@ -812,9 +832,13 @@ class BackupService:
                                         else:
                                             val = row.get(col, "")
                                         if val == "" and col != "id":
-                                            values.append(None)
-                                        else:
-                                            values.append(val)
+                                            val = None
+                                        # Colunas NOT NULL text/char: converter None para '' (backup antigo pode ter null)
+                                        if val is None and col != "id":
+                                            nullable, dtype = col_info.get(col, (True, ''))
+                                            if not nullable and dtype in ('text', 'character varying', 'varchar', 'char'):
+                                                val = ''
+                                        values.append(val)
                                     cursor.execute(insert_sql, values)
                             
                             count = len(rows)

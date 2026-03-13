@@ -712,6 +712,11 @@ class BackupService:
                     logger.info(f"🔄 Schema '{schema_nominal}' vazio - aplicando migrations antes da importação em {loja.nome}")
                     if DatabaseSchemaService.aplicar_migrations(loja):
                         logger.info("✅ Migrations aplicadas - schema pronto para importação")
+                        # Fechar conexão para forçar nova conexão que veja as tabelas recém-criadas
+                        try:
+                            connections[loja.database_name].close()
+                        except Exception:
+                            pass
                     else:
                         raise BackupImportError(
                             "Schema da loja está vazio e não foi possível aplicar migrations. "
@@ -744,6 +749,21 @@ class BackupService:
                 
                 # Inicializar helper (conexão da loja de DESTINO)
                 db_helper = DatabaseHelper(loja.database_name)
+                # Garantir search_path e reconectar para ver tabelas recém-criadas (PostgreSQL)
+                if not db_helper._is_sqlite() and db_helper._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(db_helper._pg_schema):
+                    try:
+                        conn = db_helper.get_connection()
+                        conn.close()
+                        with conn.cursor() as cur:
+                            cur.execute(f'SET search_path TO "{db_helper._pg_schema}", public')
+                            cur.execute(
+                                "SELECT table_name FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' ORDER BY table_name",
+                                [db_helper._pg_schema]
+                            )
+                            tabelas_existentes = [r[0] for r in cur.fetchall()]
+                            logger.info(f"Import: schema '{db_helper._pg_schema}' tem {len(tabelas_existentes)} tabela(s): {tabelas_existentes[:15]}{'...' if len(tabelas_existentes) > 15 else ''}")
+                    except Exception as e:
+                        logger.warning(f"Import: verificação de tabelas: {e}")
                 # Para importar em outro sistema limpo: usar sempre o loja_id da loja de destino
                 loja_id_destino = loja.id
                 

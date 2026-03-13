@@ -710,7 +710,7 @@ class BackupService:
                     raise BackupImportError("Não foi possível conectar ao banco de dados da loja")
                 
                 db_helper = DatabaseHelper(loja.database_name)
-                # Verificar se schema tem tabelas (mesma loja = schema já configurado)
+                # Se schema vazio (loja recém-criada, migrate pode ter criado em public): aplicar migrations + fallback
                 if not db_helper._is_sqlite() and db_helper._pg_schema:
                     with db_helper.get_connection().cursor() as cur:
                         cur.execute(
@@ -718,10 +718,24 @@ class BackupService:
                             [db_helper._pg_schema],
                         )
                         if cur.fetchone()[0] == 0:
-                            raise BackupImportError(
-                                "A loja não possui tabelas configuradas. "
-                                "Entre em contato com o suporte para configurar o banco."
-                            )
+                            logger.info(f"Schema '{db_helper._pg_schema}' vazio - aplicando migrations antes da importação")
+                            from django.db import connections
+                            DatabaseSchemaService.aplicar_migrations(loja)
+                            try:
+                                connections[loja.database_name].close()
+                            except Exception:
+                                pass
+                            # Re-verificar
+                            with db_helper.get_connection().cursor() as cur2:
+                                cur2.execute(
+                                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'",
+                                    [db_helper._pg_schema],
+                                )
+                                if cur2.fetchone()[0] == 0:
+                                    raise BackupImportError(
+                                        "A loja não possui tabelas configuradas. "
+                                        "Entre em contato com o suporte para configurar o banco."
+                                    )
                 
                 # Estatísticas
                 total_registros = 0

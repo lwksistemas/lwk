@@ -880,6 +880,19 @@ class BackupService:
                 
                 logger.info(f"✅ Importação concluída - {total_registros} registros importados")
                 
+                # Invalidar cache do CRM para que o frontend exiba dados atualizados
+                try:
+                    from crm_vendas.cache import CRMCacheManager
+                    CRMCacheManager.invalidate_dashboard(loja.id)
+                    CRMCacheManager.invalidate_leads(loja.id)
+                    CRMCacheManager.invalidate_contas(loja.id)
+                    CRMCacheManager.invalidate_contatos(loja.id)
+                    CRMCacheManager.invalidate_oportunidades(loja.id)
+                    CRMCacheManager.invalidate_atividades(loja.id)
+                    logger.info(f"Cache CRM invalidado para loja {loja.nome}")
+                except Exception as e:
+                    logger.warning(f"Cache invalidation: {e}")
+                
                 return {
                     'success': True,
                     'message': f'Backup importado com sucesso. {total_registros} registros restaurados.',

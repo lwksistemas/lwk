@@ -7,28 +7,19 @@ para garantir que não existam registros com loja_id inválido (órfãos).
 
 # Tabelas no banco DEFAULT (public) que têm loja_id
 # Formato: (nome_tabela, nome_coluna_loja_id)
+# NOTA: LojaAssinatura usa loja_slug (não loja_id) - tratada no signal e verificar_dados_orfaos
+# NOTA: CRM Vendas, Rules etc podem estar em schemas tenant - não incluir se não existirem em public
 TABELAS_LOJA_ID_DEFAULT = [
     # Superadmin
     # NOTA: superadmin_loja é deletada automaticamente pelo Django, não incluir aqui
-    # para evitar conflito de transação no signal pre_delete
     ('superadmin_historicobackup', 'loja_id'),
     ('superadmin_configuracaobackup', 'loja_id'),
 
-    # Asaas Integration
-    ('asaas_integration_lojaassinatura', 'loja_id'),
-    
-    # Notificações
-    ('notificacoes_notificacao', 'loja_id'),
-    
-    # WhatsApp
+    # WhatsApp (modelos reais: WhatsAppConfig, WhatsAppLog)
     ('whatsapp_whatsappconfig', 'loja_id'),
-    ('whatsapp_mensagemwhatsapp', 'loja_id'),
-    ('whatsapp_templatewhatsapp', 'loja_id'),
-    
-    # Rules (Regras Automáticas)
-    ('rules_regra', 'loja_id'),
-    ('rules_execucaoregra', 'loja_id'),
-    # CRM Vendas
+    ('whatsapp_whatsapplog', 'loja_id'),
+
+    # CRM Vendas - em schemas tenant; incluir para safety net (ignora se tabela não existir)
     ('crm_vendas_vendedor', 'loja_id'),
     ('crm_vendas_conta', 'loja_id'),
     ('crm_vendas_lead', 'loja_id'),

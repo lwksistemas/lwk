@@ -17,6 +17,7 @@ settings.DATABASES[loja.database_name] = {
     **cfg,
     'OPTIONS': {'options': f'-c search_path={schema},public'},
     'CONN_MAX_AGE': 0,
+    'TIME_ZONE': None,
 }
 from django.db import connections
 conn = connections[loja.database_name]

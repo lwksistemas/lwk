@@ -167,6 +167,10 @@ def delete_all_loja_data(sender, instance, **kwargs):
     """
     Deleta TODOS os dados relacionados quando uma loja é excluída.
     
+    IMPORTANTE (v993): NÃO usar transaction.atomic() neste signal. O pre_delete
+    já roda dentro da transação do loja.delete(). Transações aninhadas criam
+    savepoints e podem causar rollback silencioso, impedindo a exclusão da loja.
+    
     Este signal garante que nenhum dado órfão fique no banco quando uma loja é deletada.
     Deleta em cascata:
     - Funcionários/Vendedores
@@ -380,7 +384,6 @@ def delete_all_loja_data(sender, instance, **kwargs):
             _delete_servicos(Funcionario, 'funcionários')
             
         elif tipo_loja_nome == 'Clínica da Beleza':
-            from django.db import transaction as tx
             from clinica_beleza.models import (
                 Patient, Professional, Procedure, Appointment, BloqueioHorario,
                 HorarioTrabalhoProfissional, Payment, CampanhaPromocao
@@ -388,17 +391,17 @@ def delete_all_loja_data(sender, instance, **kwargs):
             _db = db_alias
 
             def _delete_clinica_beleza(model, nome):
+                """Sem transaction.atomic() - signal já está na transação do loja.delete()"""
                 try:
-                    with tx.atomic():
-                        if hasattr(model.objects, 'all_without_filter'):
-                            qs = model.objects.all_without_filter().filter(loja_id=loja_id)
-                        else:
-                            qs = model.objects.filter(loja_id=loja_id)
-                        if _db:
-                            qs = qs.using(_db)
-                        count = qs.count()
-                        qs.delete()
-                        logger.info(f"   ✅ {count} {nome} (Clínica da Beleza) deletados")
+                    if hasattr(model.objects, 'all_without_filter'):
+                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
+                    else:
+                        qs = model.objects.filter(loja_id=loja_id)
+                    if _db:
+                        qs = qs.using(_db)
+                    count = qs.count()
+                    qs.delete()
+                    logger.info(f"   ✅ {count} {nome} (Clínica da Beleza) deletados")
                 except Exception as e:
                     logger.warning(f"   ⚠️ Erro ao deletar {nome} Clínica da Beleza: {e}")
             # Ordem: dependentes primeiro (Payment -> Appointment; BloqueioHorario, HorarioTrabalhoProfissional)
@@ -503,19 +506,19 @@ def delete_all_loja_data(sender, instance, **kwargs):
         # 5. Rede de segurança: limpar só tabelas do default (public) com loja_id.
         # Dados operacionais da loja estão no schema da loja (já limpos acima com .using());
         # no default ficam só superadmin/asaas (TABELAS_LOJA_ID_DEFAULT).
+        # SEM transaction.atomic() - evita transações aninhadas que revertem o delete da loja
         try:
-            from django.db import connection, transaction
+            from django.db import connection
             from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT
             for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
                 try:
-                    with transaction.atomic():
-                        with connection.cursor() as cursor:
-                            cursor.execute(
-                                f'DELETE FROM {tabela} WHERE {coluna} = %s',
-                                [loja_id]
-                            )
-                            if cursor.rowcount:
-                                logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            f'DELETE FROM {tabela} WHERE {coluna} = %s',
+                            [loja_id]
+                        )
+                        if cursor.rowcount:
+                            logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
                 except Exception as e:
                     logger.warning(f"   ⚠️ Safety net {tabela}: {e}")
         except Exception as e:

@@ -1,24 +1,25 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
+import { ModalLoadingFallback, ActionButton, StatCard, EmptyState } from '@/components/dashboard';
 import { LojaInfo, EstatisticasServicos, Agendamento } from '@/types/dashboard';
 import { formatCurrency } from '@/lib/financeiro-helpers';
-import { STATUS_AGENDAMENTO, STATUS_OS } from '@/constants/status';
-import { 
-  ModalAgendamentos, 
-  ModalClientes,
-  ModalServicos,
-  ModalProfissionais,
-  ModalOrdensServico,
-  ModalOrcamentos,
-  ModalFuncionarios
-} from '@/components/servicos/modals';
+import { STATUS_AGENDAMENTO } from '@/constants/status';
 import BackupButton from '@/components/loja/BackupButton';
+
+// Lazy loading dos modais - carrega apenas quando necessário
+const ModalAgendamentos = lazy(() => import('@/components/servicos/modals/ModalAgendamentos').then(m => ({ default: m.ModalAgendamentos })));
+const ModalClientes = lazy(() => import('@/components/servicos/modals/ModalClientes').then(m => ({ default: m.ModalClientes })));
+const ModalServicos = lazy(() => import('@/components/servicos/modals/ModalServicos').then(m => ({ default: m.ModalServicos })));
+const ModalProfissionais = lazy(() => import('@/components/servicos/modals/ModalProfissionais').then(m => ({ default: m.ModalProfissionais })));
+const ModalOrdensServico = lazy(() => import('@/components/servicos/modals/ModalOrdensServico').then(m => ({ default: m.ModalOrdensServico })));
+const ModalOrcamentos = lazy(() => import('@/components/servicos/modals/ModalOrcamentos').then(m => ({ default: m.ModalOrcamentos })));
+const ModalFuncionarios = lazy(() => import('@/components/servicos/modals/ModalFuncionarios').then(m => ({ default: m.ModalFuncionarios })));
 
 export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
   const router = useRouter();
@@ -142,53 +143,21 @@ export default function DashboardServicos({ loja }: { loja: LojaInfo }) {
         )}
       </div>
 
-      {/* Modais */}
-      {modals.agendamento && <ModalAgendamentos loja={loja} onClose={() => closeModal('agendamento')} onSuccess={reload} />}
-      {modals.cliente && <ModalClientes loja={loja} onClose={() => closeModal('cliente')} />}
-      {modals.servico && <ModalServicos loja={loja} onClose={() => closeModal('servico')} />}
-      {modals.profissional && <ModalProfissionais loja={loja} onClose={() => closeModal('profissional')} />}
-      {modals.os && <ModalOrdensServico loja={loja} onClose={() => closeModal('os')} />}
-      {modals.orcamento && <ModalOrcamentos loja={loja} onClose={() => closeModal('orcamento')} />}
-      {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => closeModal('funcionarios')} />}
+      {/* Modais - lazy loaded */}
+      <Suspense fallback={<ModalLoadingFallback />}>
+        {modals.agendamento && <ModalAgendamentos loja={loja} onClose={() => closeModal('agendamento')} onSuccess={reload} />}
+        {modals.cliente && <ModalClientes loja={loja} onClose={() => closeModal('cliente')} />}
+        {modals.servico && <ModalServicos loja={loja} onClose={() => closeModal('servico')} />}
+        {modals.profissional && <ModalProfissionais loja={loja} onClose={() => closeModal('profissional')} />}
+        {modals.os && <ModalOrdensServico loja={loja} onClose={() => closeModal('os')} />}
+        {modals.orcamento && <ModalOrcamentos loja={loja} onClose={() => closeModal('orcamento')} />}
+        {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => closeModal('funcionarios')} />}
+      </Suspense>
     </div>
   );
 }
 
-// Componentes auxiliares
-function ActionButton({ onClick, color, icon, label }: { onClick: () => void; color: string; icon: string; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className="group p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl text-white font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-md sm:shadow-lg hover:shadow-xl btn-press relative overflow-hidden min-h-[70px] sm:min-h-[80px] md:min-h-[100px]"
-      style={{ backgroundColor: color }}
-    >
-      <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
-      <div className="relative flex flex-col items-center justify-center h-full">
-        <div className="text-xl sm:text-2xl md:text-3xl mb-1 sm:mb-2">{icon}</div>
-        <div className="text-[10px] sm:text-xs md:text-sm leading-tight text-center">{label}</div>
-      </div>
-    </button>
-  );
-}
-
-function StatCard({ title, value, icon, cor }: { title: string; value: string | number; icon: string; cor: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 md:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 card-hover group">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium truncate">{title}</h3>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 text-gray-900 dark:text-white truncate" style={{ color: cor }}>
-            {value}
-          </p>
-        </div>
-        <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${cor}20` }}>
-          <span className="text-xl sm:text-2xl md:text-3xl">{icon}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
+// Card de agendamento específico para Serviços (layout com valor e status)
 function AgendamentoCard({ agendamento, cor }: { agendamento: Agendamento; cor: string }) {
   const statusInfo = STATUS_AGENDAMENTO.find(s => s.value === agendamento.status);
   return (
@@ -199,7 +168,7 @@ function AgendamentoCard({ agendamento, cor }: { agendamento: Agendamento; cor: 
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">{agendamento.cliente_nome}</p>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{agendamento.servico_nome}</p>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">{agendamento.servico_nome || agendamento.procedimento_nome}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400">{agendamento.horario} • {agendamento.profissional_nome}</p>
         </div>
       </div>

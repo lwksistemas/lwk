@@ -2,12 +2,19 @@
 
 // v576 - DASHBOARD COM CONTROLE DE ACESSO + MOBILE OTIMIZADO (Simplificado)
 
+import { lazy, Suspense } from 'react';
 import { CalendarDays, Scissors, Users, Wallet } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { useModals } from '@/hooks/useModals';
 import { LojaInfo } from '@/types/dashboard';
-import { ModalClientes, ModalServicos, ModalAgendamentos, ModalFuncionarios } from '@/components/cabeleireiro/modals';
 import { DashboardHeader, StatCard, AppointmentsTable, ShortcutCard } from '@/components/cabeleireiro/dashboard';
+import { ModalLoadingFallback } from '@/components/dashboard';
+
+// Lazy loading dos modais - carrega apenas quando necessário
+const ModalAgendamentos = lazy(() => import('@/components/cabeleireiro/modals/ModalAgendamentos').then(m => ({ default: m.ModalAgendamentos })));
+const ModalClientes = lazy(() => import('@/components/cabeleireiro/modals/ModalClientes').then(m => ({ default: m.ModalClientes })));
+const ModalServicos = lazy(() => import('@/components/cabeleireiro/modals/ModalServicos').then(m => ({ default: m.ModalServicos })));
+const ModalFuncionarios = lazy(() => import('@/components/cabeleireiro/modals/ModalFuncionarios').then(m => ({ default: m.ModalFuncionarios })));
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { getRolePermissions, canView, UserRole } from '@/lib/roles-cabeleireiro';
 
@@ -162,11 +169,13 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       {/* Padding bottom para não sobrepor bottom nav em mobile */}
       <div className="h-20 lg:hidden"></div>
 
-      {/* Modais */}
-      {modals.agendamento && <ModalAgendamentos loja={loja} onClose={() => { closeModal('agendamento'); reload(); }} />}
-      {modals.cliente && <ModalClientes loja={loja} onClose={() => { closeModal('cliente'); reload(); }} />}
-      {modals.servico && <ModalServicos loja={loja} onClose={() => { closeModal('servico'); reload(); }} />}
-      {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => { closeModal('funcionarios'); reload(); }} />}
+      {/* Modais - lazy loaded */}
+      <Suspense fallback={<ModalLoadingFallback />}>
+        {modals.agendamento && <ModalAgendamentos loja={loja} onClose={() => { closeModal('agendamento'); reload(); }} />}
+        {modals.cliente && <ModalClientes loja={loja} onClose={() => { closeModal('cliente'); reload(); }} />}
+        {modals.servico && <ModalServicos loja={loja} onClose={() => { closeModal('servico'); reload(); }} />}
+        {modals.funcionarios && <ModalFuncionarios loja={loja} onClose={() => { closeModal('funcionarios'); reload(); }} />}
+      </Suspense>
     </div>
   );
 }

@@ -506,19 +506,21 @@ def delete_all_loja_data(sender, instance, **kwargs):
         # 5. Rede de segurança: limpar só tabelas do default (public) com loja_id.
         # Dados operacionais da loja estão no schema da loja (já limpos acima com .using());
         # no default ficam só superadmin/asaas (TABELAS_LOJA_ID_DEFAULT).
-        # SEM transaction.atomic() - evita transações aninhadas que revertem o delete da loja
+        # Cada tabela usa transaction.atomic() (savepoint) para que falha em uma (ex: tabela
+        # inexistente) não aborte a transação principal do loja.delete()
         try:
-            from django.db import connection
+            from django.db import connection, transaction
             from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT
             for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
                 try:
-                    with connection.cursor() as cursor:
-                        cursor.execute(
-                            f'DELETE FROM {tabela} WHERE {coluna} = %s',
-                            [loja_id]
-                        )
-                        if cursor.rowcount:
-                            logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
+                    with transaction.atomic():
+                        with connection.cursor() as cursor:
+                            cursor.execute(
+                                f'DELETE FROM {tabela} WHERE {coluna} = %s',
+                                [loja_id]
+                            )
+                            if cursor.rowcount:
+                                logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
                 except Exception as e:
                     logger.warning(f"   ⚠️ Safety net {tabela}: {e}")
         except Exception as e:

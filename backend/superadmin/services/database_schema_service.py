@@ -214,6 +214,64 @@ class DatabaseSchemaService:
                     logger.warning(f"Erro ao aplicar migration {app}: {e}")
             # Fallback: migrate pode criar em public (search_path ignorado). Mover para o schema.
             DatabaseSchemaService._mover_tabelas_public_para_schema(loja, schema_name, apps_to_migrate)
+            
+            # CORREÇÃO v983: Verificar se tabelas foram criadas no schema
+            conn = connections[loja.database_name]
+            conn.ensure_connection()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) 
+                    FROM information_schema.tables 
+                    WHERE table_schema = %s 
+                    AND table_type = 'BASE TABLE' 
+                    AND table_name NOT LIKE 'django_%%'
+                    """,
+                    [schema_name]
+                )
+                tabelas_count = cur.fetchone()[0]
+                
+                if tabelas_count == 0:
+                    # Schema vazio após migrations - ERRO CRÍTICO
+                    logger.error(
+                        f"❌ ERRO CRÍTICO: Schema '{schema_name}' está VAZIO após migrations! "
+                        f"Apps tentados: {apps_to_migrate}. "
+                        "Verifique se o search_path está correto ou se as tabelas foram criadas em 'public'."
+                    )
+                    
+                    # Verificar se tabelas estão em public
+                    cur.execute(
+                        """
+                        SELECT table_name 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_type = 'BASE TABLE'
+                        ORDER BY table_name
+                        """
+                    )
+                    tabelas_public = [r[0] for r in cur.fetchall()]
+                    app_prefixes = [f"{app}_" for app in apps_to_migrate]
+                    tabelas_app_em_public = [
+                        t for t in tabelas_public 
+                        if any(t.startswith(p) for p in app_prefixes)
+                    ]
+                    
+                    if tabelas_app_em_public:
+                        logger.error(
+                            f"❌ Encontradas {len(tabelas_app_em_public)} tabela(s) em 'public' "
+                            f"que deveriam estar em '{schema_name}': {tabelas_app_em_public[:5]}"
+                        )
+                    
+                    raise RuntimeError(
+                        f"Schema '{schema_name}' está vazio após migrations. "
+                        "As tabelas não foram criadas no schema correto. "
+                        "Entre em contato com o suporte técnico."
+                    )
+                else:
+                    logger.info(
+                        f"✅ Schema '{schema_name}' criado com sucesso: {tabelas_count} tabela(s)"
+                    )
+            
             logger.info(f"Tabelas criadas no schema '{loja.database_name}' via migrations")
             return True
         except Exception as e:
@@ -222,53 +280,134 @@ class DatabaseSchemaService:
 
     @staticmethod
     def _mover_tabelas_public_para_schema(loja, schema_name: str, apps_to_migrate: list) -> None:
-        """Fallback: se migrate criou tabelas em public, move-as para o schema da loja."""
+        """
+        Fallback: se migrate criou tabelas em public, move-as para o schema da loja.
+        
+        CORREÇÃO v983: Melhorado para ser mais robusto e informativo.
+        """
         from django.db import connections
         try:
             DatabaseSchemaService.validar_nome_schema(schema_name)
         except ValueError:
+            logger.warning(f"Nome de schema inválido: {schema_name}")
             return
+        
         app_prefixes = [f"{app}_" for app in apps_to_migrate]
+        
         try:
             conn = connections[loja.database_name]
             conn.ensure_connection()
             with conn.cursor() as cur:
+                # Verificar se schema já tem tabelas (não precisa mover)
                 cur.execute(
-                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'",
+                    """
+                    SELECT COUNT(*) 
+                    FROM information_schema.tables 
+                    WHERE table_schema = %s 
+                    AND table_type = 'BASE TABLE' 
+                    AND table_name NOT LIKE 'django_%%'
+                    """,
                     [schema_name],
                 )
                 if cur.fetchone()[0] > 0:
+                    logger.info(f"Schema '{schema_name}' já possui tabelas, não precisa mover")
                     return
+                
+                # Buscar tabelas em public que pertencem aos apps da loja
                 cur.execute(
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name",
+                    """
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_type = 'BASE TABLE' 
+                    ORDER BY table_name
+                    """
                 )
                 todas = [r[0] for r in cur.fetchall()]
                 tabelas_mover = [t for t in todas if any(t.startswith(p) for p in app_prefixes)]
+                
                 if not tabelas_mover:
+                    logger.warning(
+                        f"⚠️  Nenhuma tabela encontrada em 'public' para mover para '{schema_name}'. "
+                        f"Apps esperados: {apps_to_migrate}"
+                    )
                     return
-                logger.info(f"Fallback: movendo {len(tabelas_mover)} tabela(s) de public para '{schema_name}'")
-                cur.execute(
-                    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'django_migrations')",
+                
+                logger.info(
+                    f"🔄 Fallback ativado: movendo {len(tabelas_mover)} tabela(s) "
+                    f"de 'public' para '{schema_name}'"
                 )
+                
+                # Mover django_migrations primeiro (se existir)
+                cur.execute(
+                    """
+                    SELECT EXISTS (
+                        SELECT 1 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'django_migrations'
+                    )
+                    """
+                )
+                
                 if cur.fetchone()[0]:
-                    cur.execute("SELECT app, name, applied FROM public.django_migrations WHERE app = ANY(%s)", [apps_to_migrate])
+                    # Buscar migrations dos apps da loja
+                    cur.execute(
+                        "SELECT app, name, applied FROM public.django_migrations WHERE app = ANY(%s)",
+                        [apps_to_migrate]
+                    )
                     migracoes = cur.fetchall()
+                    
                     if migracoes:
+                        # Criar tabela django_migrations no schema
                         cur.execute(
-                            f'''CREATE TABLE IF NOT EXISTS "{schema_name}".django_migrations (id SERIAL PRIMARY KEY, app VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, applied TIMESTAMPTZ NOT NULL)'''
+                            f'''
+                            CREATE TABLE IF NOT EXISTS "{schema_name}".django_migrations (
+                                id SERIAL PRIMARY KEY,
+                                app VARCHAR(255) NOT NULL,
+                                name VARCHAR(255) NOT NULL,
+                                applied TIMESTAMPTZ NOT NULL
+                            )
+                            '''
                         )
+                        
+                        # Copiar migrations
                         for app, name, applied in migracoes:
-                            cur.execute(f'INSERT INTO "{schema_name}".django_migrations (app, name, applied) VALUES (%s, %s, %s)', [app, name, applied])
-                        cur.execute("DELETE FROM public.django_migrations WHERE app = ANY(%s)", [apps_to_migrate])
+                            cur.execute(
+                                f'INSERT INTO "{schema_name}".django_migrations (app, name, applied) VALUES (%s, %s, %s)',
+                                [app, name, applied]
+                            )
+                        
+                        # Remover de public
+                        cur.execute(
+                            "DELETE FROM public.django_migrations WHERE app = ANY(%s)",
+                            [apps_to_migrate]
+                        )
+                        
+                        logger.info(f"✅ {len(migracoes)} migration(s) movida(s) para '{schema_name}'")
+                
+                # Mover tabelas
+                tabelas_movidas = 0
                 for table_name in tabelas_mover:
                     if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
                         try:
                             cur.execute(f'ALTER TABLE public."{table_name}" SET SCHEMA "{schema_name}"')
-                            logger.info(f"Tabela {table_name} movida para {schema_name}")
+                            tabelas_movidas += 1
+                            logger.info(f"✅ Tabela {table_name} movida para {schema_name}")
                         except Exception as e:
-                            logger.warning(f"Erro ao mover {table_name}: {e}")
+                            logger.error(f"❌ Erro ao mover {table_name}: {e}")
+                    else:
+                        logger.warning(f"⚠️  Nome de tabela inválido (ignorado): {table_name}")
+                
+                logger.info(
+                    f"✅ Fallback concluído: {tabelas_movidas}/{len(tabelas_mover)} tabela(s) "
+                    f"movida(s) para '{schema_name}'"
+                )
+                
         except Exception as e:
-            logger.warning(f"Fallback mover tabelas: {e}")
+            logger.error(f"❌ Erro no fallback de movimentação de tabelas: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     @staticmethod
     def configurar_schema_completo(loja) -> bool:

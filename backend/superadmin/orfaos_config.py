@@ -9,7 +9,8 @@ para garantir que não existam registros com loja_id inválido (órfãos).
 # Formato: (nome_tabela, nome_coluna_loja_id)
 TABELAS_LOJA_ID_DEFAULT = [
     # Superadmin
-    ('superadmin_loja', 'id'),  # A própria tabela de lojas
+    # NOTA: superadmin_loja é deletada automaticamente pelo Django, não incluir aqui
+    # para evitar conflito de transação no signal pre_delete
     ('superadmin_historicobackup', 'loja_id'),
     ('superadmin_configuracaobackup', 'loja_id'),
 

@@ -25,5 +25,5 @@ settings.DATABASES[loja.database_name] = {
 from django.db import connections
 conn = connections[loja.database_name]
 with conn.cursor() as c:
-    c.execute("DELETE FROM django_migrations WHERE app = %s AND name = %s", ['servicos', '0005_add_loja_isolation'])
+    c.execute("DELETE FROM django_migrations WHERE app = 'servicos' AND name IN ('0005_add_loja_isolation', '0006_fix_loja_id_to_integerfield')")
     print('Deleted:', c.rowcount)

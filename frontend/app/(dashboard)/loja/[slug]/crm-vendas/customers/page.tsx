@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { normalizeListResponse } from '@/lib/crm-utils';
 import { Plus, Eye, Edit2, Trash2, X, Building2, Mail, Phone, MapPin, Tag } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 
@@ -42,8 +43,7 @@ export default function CrmVendasCustomersPage() {
     try {
       setLoading(true);
       const res = await apiClient.get<Conta[] | { results: Conta[] }>('/crm-vendas/contas/');
-      const data = res.data;
-      setContas(Array.isArray(data) ? data : (data as { results: Conta[] }).results ?? []);
+      setContas(normalizeListResponse(res.data));
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao carregar clientes.');

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import apiClient from '@/lib/api-client';
+import { normalizeListResponse } from '@/lib/crm-utils';
 
 const MOBILE_BREAKPOINT = 640;
 
@@ -124,7 +125,7 @@ export default function CalendarioCrmPage() {
           `${API_CRM}/atividades/`,
           { params: { data_inicio: dataInicio, data_fim: dataFim } }
         );
-        const list = Array.isArray(res.data) ? res.data : (res.data as { results: Atividade[] }).results ?? [];
+        const list = normalizeListResponse(res.data);
         setEvents(list.map(atividadeToEvent));
       } catch (e) {
         setError('Erro ao carregar atividades.');

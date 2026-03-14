@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, Download, Mail, Calendar, DollarSign, Users, TrendingUp } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { normalizeListResponse } from '@/lib/crm-utils';
 
 interface Vendedor {
   id: number;
@@ -40,10 +41,7 @@ export default function RelatoriosPage() {
         
         // Carregar vendedores
         const resVendedores = await apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/');
-        const vendedoresData = Array.isArray(resVendedores.data) 
-          ? resVendedores.data 
-          : resVendedores.data.results || [];
-        setVendedores(vendedoresData);
+        setVendedores(normalizeListResponse(resVendedores.data));
         
         // Carregar dados do dashboard (contém receita e comissões)
         const resDashboard = await apiClient.get<DashboardData>('/crm-vendas/dashboard/');

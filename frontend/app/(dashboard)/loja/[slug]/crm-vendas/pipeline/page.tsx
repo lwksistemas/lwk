@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { normalizeListResponse } from '@/lib/crm-utils';
 import { DollarSign, LayoutDashboard, Plus, X } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
@@ -17,12 +18,7 @@ function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setErr
   apiClient
     .get<Oportunidade[] | { results: Oportunidade[] }>('/crm-vendas/oportunidades/')
     .then((res) => {
-      const data = res.data;
-      setOportunidades(
-        Array.isArray(data)
-          ? data
-          : (data as { results: Oportunidade[] }).results ?? []
-      );
+      setOportunidades(normalizeListResponse(res.data));
       setError(null);
     })
     .catch((err) => {
@@ -60,14 +56,7 @@ export default function CrmVendasPipelinePage() {
   useEffect(() => {
     apiClient
       .get<Oportunidade[] | { results: Oportunidade[] }>('/crm-vendas/oportunidades/')
-      .then((res) => {
-        const data = res.data;
-        setOportunidades(
-          Array.isArray(data)
-            ? data
-            : (data as { results: Oportunidade[] }).results ?? []
-        );
-      })
+      .then((res) => setOportunidades(normalizeListResponse(res.data)))
       .catch((err) => {
         setError(
           err.response?.data?.detail || 'Erro ao carregar oportunidades.'
@@ -88,8 +77,7 @@ export default function CrmVendasPipelinePage() {
     apiClient
       .get<LeadOption[] | { results: LeadOption[] }>('/crm-vendas/leads/')
       .then((res) => {
-        const data = res.data;
-        const list = Array.isArray(data) ? data : (data as { results: LeadOption[] }).results ?? [];
+        const list = normalizeListResponse(res.data);
         setLeads(list);
         if (list.length > 0 && !formCriar.lead_id) {
           setFormCriar((f) => ({ ...f, lead_id: String(list[0].id) }));

@@ -29,6 +29,7 @@ from .utils import get_current_vendedor_id, get_loja_from_context
 from .mixins import CRMPermissionMixin, VendedorFilterMixin
 from .cache import CRMCacheManager
 from .decorators import cache_list_response, require_admin_access, invalidate_cache_on_change
+from .activities_google_sync import sync_atividade_create, sync_atividade_update, sync_atividade_delete
 
 logger = logging.getLogger(__name__)
 
@@ -425,30 +426,7 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
             except Exception:
                 pass  # Notificação é best-effort; não falha a criação
 
-            # Sincronização automática com Google Calendar
-            try:
-                from superadmin.models import GoogleCalendarConnection
-                from crm_vendas.google_calendar_service import push_atividade_to_google
-
-                loja_id = get_current_loja_id()
-                vendedor_id = get_current_vendedor_id(self.request)
-
-                # Buscar conexão do Google Calendar (proprietário ou vendedor)
-                qs = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id)
-                if vendedor_id is None:
-                    qs = qs.filter(vendedor_id__isnull=True)
-                else:
-                    qs = qs.filter(vendedor_id=vendedor_id)
-                connection = qs.first()
-
-                if connection:
-                    event_id = push_atividade_to_google(connection, atividade)
-                    if event_id:
-                        atividade.google_event_id = event_id
-                        atividade.save(update_fields=['google_event_id'])
-                        logger.info(f"✅ Atividade {atividade.id} sincronizada com Google Calendar: {event_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Erro ao sincronizar atividade com Google Calendar: {e}")
+            sync_atividade_create(self.request, atividade)
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
@@ -464,31 +442,8 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         super().perform_update(serializer)
         atividade = serializer.instance
 
-        # Sincronização automática com Google Calendar
         if atividade and getattr(atividade, 'loja_id', None):
-            try:
-                from superadmin.models import GoogleCalendarConnection
-                from crm_vendas.google_calendar_service import push_atividade_to_google
-
-                loja_id = get_current_loja_id()
-                vendedor_id = get_current_vendedor_id(self.request)
-
-                # Buscar conexão do Google Calendar (proprietário ou vendedor)
-                qs = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id)
-                if vendedor_id is None:
-                    qs = qs.filter(vendedor_id__isnull=True)
-                else:
-                    qs = qs.filter(vendedor_id=vendedor_id)
-                connection = qs.first()
-
-                if connection:
-                    event_id = push_atividade_to_google(connection, atividade)
-                    if event_id and not atividade.google_event_id:
-                        atividade.google_event_id = event_id
-                        atividade.save(update_fields=['google_event_id'])
-                    logger.info(f"✅ Atividade {atividade.id} atualizada no Google Calendar: {event_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Erro ao atualizar atividade no Google Calendar: {e}")
+            sync_atividade_update(self.request, atividade)
 
     @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_destroy(self, instance):
@@ -514,30 +469,9 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         except Exception as e:
             logger.warning(f"⚠️ Erro ao remover notificações da atividade: {e}")
         
-        # Se tem google_event_id, deletar do Google Calendar
         if instance.google_event_id:
-            try:
-                from superadmin.models import GoogleCalendarConnection
-                from crm_vendas.google_calendar_service import delete_google_event
-                loja_id = get_current_loja_id()
-                
-                # Buscar conexão do Google Calendar (proprietário ou vendedor)
-                connection = GoogleCalendarConnection.objects.filter(
-                    loja_id=loja_id
-                ).exclude(
-                    access_token=''
-                ).first()
-                
-                if connection:
-                    success = delete_google_event(connection, instance.google_event_id)
-                    if success:
-                        logger.info(f"✅ Evento deletado do Google Calendar: {instance.google_event_id}")
-                    else:
-                        logger.warning(f"⚠️ Falha ao deletar evento do Google Calendar: {instance.google_event_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Erro ao deletar evento do Google Calendar: {e}")
-                # Continuar com a exclusão mesmo se falhar no Google Calendar
-        
+            sync_atividade_delete(get_current_loja_id(), instance)
+
         super().perform_destroy(instance)
 
     def get_queryset(self):

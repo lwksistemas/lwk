@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { normalizeListResponse } from '@/lib/crm-utils';
 import { authService } from '@/lib/auth';
 import { ArrowLeft, Users, Plus, X, Mail } from 'lucide-react';
 
@@ -44,8 +45,7 @@ export default function ConfiguracoesFuncionariosPage() {
     try {
       setLoading(true);
       const res = await apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/');
-      const data = res.data;
-      setVendedores(Array.isArray(data) ? data : (data as { results: Vendedor[] }).results ?? []);
+      setVendedores(normalizeListResponse(res.data));
       setError(null);
     } catch (err) {
       setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erro ao carregar.');

@@ -16,7 +16,10 @@ cfg = dj_database_url.config(default=db_url, conn_max_age=0)
 settings.DATABASES[loja.database_name] = {
     **cfg,
     'OPTIONS': {'options': f'-c search_path={schema},public'},
+    'ATOMIC_REQUESTS': False,
+    'AUTOCOMMIT': True,
     'CONN_MAX_AGE': 0,
+    'CONN_HEALTH_CHECKS': False,
     'TIME_ZONE': None,
 }
 from django.db import connections

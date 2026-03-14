@@ -553,29 +553,37 @@ def remove_owner_if_orphan(sender, instance, **kwargs):
     Após excluir uma loja, remove o usuário proprietário se ele ficar órfão
     (não for dono de mais nenhuma loja). Evita usuários órfãos que bloqueiam
     criar nova loja com o mesmo login.
+
+    IMPORTANTE: Usa transaction.on_commit() para executar APÓS o commit do delete.
+    Caso contrário, se user.delete() falhar (ex: tabela stores_store inexistente),
+    a transação do PostgreSQL seria abortada e o delete da loja seria revertido.
     """
-    from django.contrib.auth.models import User
-    from superadmin.models import UserSession, ProfissionalUsuario
+    from django.db import transaction
 
     owner_id = getattr(instance, 'owner_id', None)
     if not owner_id:
         return
-    # Após o delete da loja, contar se o owner ainda tem outras lojas
-    from superadmin.models import Loja
-    if Loja.objects.filter(owner_id=owner_id).exists():
-        return
-    try:
-        user = User.objects.filter(id=owner_id).first()
-        if not user or user.is_superuser:
+
+    def _remover_owner_apos_commit():
+        from django.contrib.auth.models import User
+        from superadmin.models import UserSession, ProfissionalUsuario, Loja
+
+        if Loja.objects.filter(owner_id=owner_id).exists():
             return
-        UserSession.objects.filter(user=user).delete()
-        ProfissionalUsuario.objects.filter(user=user).delete()
-        user.groups.clear()
-        user.user_permissions.clear()
-        user.delete()
-        logger.info(f"   ✅ Usuário órfão removido (owner da loja excluída): {user.username}")
-    except Exception as e:
-        logger.warning(f"   ⚠️ Erro ao remover owner órfão: {e}")
+        try:
+            user = User.objects.filter(id=owner_id).first()
+            if not user or user.is_superuser:
+                return
+            UserSession.objects.filter(user=user).delete()
+            ProfissionalUsuario.objects.filter(user=user).delete()
+            user.groups.clear()
+            user.user_permissions.clear()
+            user.delete()
+            logger.info(f"   ✅ Usuário órfão removido (owner da loja excluída): {user.username}")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro ao remover owner órfão: {e}")
+
+    transaction.on_commit(_remover_owner_apos_commit)
 
 
 

@@ -125,7 +125,10 @@ class Command(BaseCommand):
         self.stdout.write(f'\nMigrando apps: {", ".join(apps_to_migrate)}\n')
         for app in apps_to_migrate:
             try:
-                call_command('migrate', app, '--database', db_name, verbosity=1)
+                extra = {}
+                if app == 'crm_vendas' and force_crm:
+                    extra['fake_initial'] = True
+                call_command('migrate', app, '--database', db_name, verbosity=1, **extra)
                 self.stdout.write(self.style.SUCCESS(f'  ✅ {app}'))
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f'  ⚠️ {app}: {e}'))

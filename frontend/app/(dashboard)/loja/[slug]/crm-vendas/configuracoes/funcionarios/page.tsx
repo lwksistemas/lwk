@@ -105,11 +105,14 @@ export default function ConfiguracoesFuncionariosPage() {
   const handleReenviarSenha = async (v: Vendedor) => {
     if (!v.email) return;
     setReenviando(v.id);
+    setFormErro(null);
     try {
       await apiClient.post(`/crm-vendas/vendedores/${v.id}/reenviar_senha/`);
       carregar();
-    } catch {
-      // erro silencioso ou toast
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erro ao reenviar senha.';
+      setFormErro(msg);
+      setTimeout(() => setFormErro(null), 5000);
     } finally {
       setReenviando(null);
     }
@@ -178,9 +181,9 @@ export default function ConfiguracoesFuncionariosPage() {
         </button>
       </div>
 
-      {error && (
+      {(error || formErro) && (
         <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 text-sm">
-          {error}
+          {error || formErro}
         </div>
       )}
 
@@ -233,12 +236,13 @@ export default function ConfiguracoesFuncionariosPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {v.tem_acesso && v.email && !v.is_admin && (
+                  {v.email && (
                     <button
                       type="button"
                       onClick={() => handleReenviarSenha(v)}
                       disabled={reenviando === v.id}
                       className="px-3 py-1.5 text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors disabled:opacity-50"
+                      title={v.is_admin ? 'Reenviar sua senha (administrador)' : 'Reenviar senha ao vendedor'}
                     >
                       {reenviando === v.id ? 'Enviando...' : 'Reenviar senha'}
                     </button>

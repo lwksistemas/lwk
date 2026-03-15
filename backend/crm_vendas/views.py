@@ -138,7 +138,7 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     @action(detail=True, methods=['post'])
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def reenviar_senha(self, request, pk=None):
-        """Gera nova senha provisória e envia por e-mail para o vendedor."""
+        """Gera nova senha provisória e envia por e-mail. Funciona para vendedores e para o admin (owner)."""
         vendedor = self.get_object()
         if not vendedor.email:
             return Response(
@@ -158,26 +158,41 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                 {'detail': 'Contexto de loja não encontrado.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        try:
-            vu = VendedorUsuario.objects.using('default').get(
-                loja_id=loja_id,
-                vendedor_id=vendedor.id,
-            )
-        except VendedorUsuario.DoesNotExist:
-            return Response(
-                {'detail': 'Vendedor ainda não possui acesso ao sistema. Use "Criar acesso" ao cadastrar.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        loja = Loja.objects.using('default').get(id=loja_id)
+        loja = Loja.objects.using('default').select_related('owner').get(id=loja_id)
         senha_provisoria = get_random_string(8)
-        user = vu.user
-        user.set_password(senha_provisoria)
-        user.save(update_fields=['password'])
-        vu.precisa_trocar_senha = True
-        vu.save(update_fields=['precisa_trocar_senha'])
         site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
         login_url = f"{site_url}/loja/{loja.slug}/login"
         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
+
+        # Admin (owner): usa Loja.owner, não VendedorUsuario
+        if vendedor.is_admin:
+            if loja.owner.email.lower() != (vendedor.email or '').strip().lower():
+                return Response(
+                    {'detail': 'E-mail do administrador não corresponde ao proprietário da loja.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            loja.owner.set_password(senha_provisoria)
+            loja.owner.save(update_fields=['password'])
+            loja.senha_provisoria = senha_provisoria
+            loja.senha_foi_alterada = False
+            loja.save(update_fields=['senha_provisoria', 'senha_foi_alterada'])
+        else:
+            # Vendedor comum: usa VendedorUsuario
+            try:
+                vu = VendedorUsuario.objects.using('default').get(
+                    loja_id=loja_id,
+                    vendedor_id=vendedor.id,
+                )
+            except VendedorUsuario.DoesNotExist:
+                return Response(
+                    {'detail': 'Vendedor ainda não possui acesso ao sistema. Use "Criar acesso" ao editar.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            vu.user.set_password(senha_provisoria)
+            vu.user.save(update_fields=['password'])
+            vu.precisa_trocar_senha = True
+            vu.save(update_fields=['precisa_trocar_senha'])
+
         try:
             send_mail(
                 subject='Nova senha provisória - CRM Vendas',

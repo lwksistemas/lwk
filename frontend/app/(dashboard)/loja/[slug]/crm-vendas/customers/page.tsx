@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { Plus, Eye, Edit2, Trash2, X, Building2, Mail, Phone, MapPin, Tag } from 'lucide-react';
@@ -22,6 +23,10 @@ interface Conta {
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
 
 export default function CrmVendasCustomersPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const slug = (params?.slug as string) ?? '';
   const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +60,27 @@ export default function CrmVendasCustomersPage() {
   useEffect(() => {
     loadContas();
   }, []);
+
+  // Abrir modal de visualização quando ?ver=ID (ex.: vindo da busca global)
+  useEffect(() => {
+    const verId = searchParams.get('ver');
+    if (!verId) return;
+    const id = parseInt(verId, 10);
+    if (isNaN(id)) return;
+    const found = contas.find((c) => c.id === id);
+    if (found) {
+      openModal('view', found);
+      router.replace(`/loja/${slug}/crm-vendas/customers`, { scroll: false });
+    } else if (!loading) {
+      apiClient
+        .get<Conta>(`/crm-vendas/contas/${id}/`)
+        .then((res) => {
+          openModal('view', res.data);
+          router.replace(`/loja/${slug}/crm-vendas/customers`, { scroll: false });
+        })
+        .catch(() => {});
+    }
+  }, [searchParams.get('ver'), contas, loading, slug, router]);
 
   const openModal = (type: ModalType, conta?: Conta) => {
     setModalType(type);

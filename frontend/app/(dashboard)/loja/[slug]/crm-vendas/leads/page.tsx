@@ -95,6 +95,27 @@ export default function CrmVendasLeadsPage() {
     }
   }, [searchParams, router, slug]);
 
+  // Abrir modal de visualização quando ?ver=ID (ex.: vindo da busca global)
+  useEffect(() => {
+    const verId = searchParams.get('ver');
+    if (!verId) return;
+    const id = parseInt(verId, 10);
+    if (isNaN(id)) return;
+    const found = leads.find((l) => l.id === id);
+    if (found) {
+      setLeadVer(found);
+      router.replace(`/loja/${slug}/crm-vendas/leads`, { scroll: false });
+    } else if (!loading) {
+      apiClient
+        .get<Lead>(`/crm-vendas/leads/${id}/`)
+        .then((res) => {
+          setLeadVer(res.data);
+          router.replace(`/loja/${slug}/crm-vendas/leads`, { scroll: false });
+        })
+        .catch(() => {});
+    }
+  }, [searchParams.get('ver'), leads, loading, router, slug]);
+
   const origemLabel = (value: string) => origensAtivas().find((o) => o.key === value)?.label ?? value;
   const statusLabel = (value: string) => STATUS_LEAD_OPCOES.find((o) => o.value === value)?.label ?? value;
 

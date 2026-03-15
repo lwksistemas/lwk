@@ -871,6 +871,76 @@ class LoginConfigView(CRMPermissionMixin, APIView):
 
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def crm_busca(request):
+    """
+    Busca global no CRM: Leads, Oportunidades e Contas.
+    GET /crm-vendas/busca/?q=termo&limit=5
+    Respeita isolamento por loja e filtro por vendedor.
+    """
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return Response({'leads': [], 'oportunidades': [], 'contas': []})
+
+    q = (request.GET.get('q') or '').strip()
+    if len(q) < 2:
+        return Response({'leads': [], 'oportunidades': [], 'contas': []})
+
+    limit = min(int(request.GET.get('limit', 5) or 5), 10)
+    term = q
+    vendedor_id = get_current_vendedor_id(request)
+
+    from .models import Lead, Oportunidade, Conta
+
+    q_filter = Q(nome__icontains=term) | Q(empresa__icontains=term) | Q(email__icontains=term) | Q(telefone__icontains=term)
+    leads_qs = Lead.objects.filter(q_filter)
+    if vendedor_id is not None:
+        leads_qs = leads_qs.filter(
+            Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
+        ).distinct()
+    leads_qs = list(leads_qs.values('id', 'nome', 'empresa', 'status')[:limit])
+
+    opp_filter = (
+        Q(titulo__icontains=term) |
+        Q(lead__nome__icontains=term) |
+        Q(lead__empresa__icontains=term) |
+        Q(lead__conta__nome__icontains=term)
+    )
+    opp_qs = Oportunidade.objects.filter(opp_filter)
+    if vendedor_id is not None:
+        opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
+    opp_qs = list(opp_qs.values('id', 'titulo', 'valor', 'etapa', 'lead__nome', 'lead__empresa')[:limit])
+
+    conta_filter = Q(nome__icontains=term) | Q(email__icontains=term) | Q(telefone__icontains=term)
+    contas_qs = Conta.objects.filter(conta_filter)
+    if vendedor_id is not None:
+        contas_qs = contas_qs.filter(vendedor_id=vendedor_id)
+    contas_qs = list(contas_qs.values('id', 'nome', 'segmento')[:limit])
+
+    def lead_item(r):
+        return {'id': r['id'], 'nome': r['nome'], 'empresa': r['empresa'] or '', 'status': r['status']}
+
+    def opp_item(r):
+        return {
+            'id': r['id'],
+            'titulo': r['titulo'],
+            'valor': str(r['valor']),
+            'etapa': r['etapa'],
+            'lead_nome': r['lead__nome'] or '',
+            'lead_empresa': r['lead__empresa'] or '',
+        }
+
+    def conta_item(r):
+        return {'id': r['id'], 'nome': r['nome'], 'segmento': r['segmento'] or ''}
+
+    return Response({
+        'leads': [lead_item(r) for r in leads_qs],
+        'oportunidades': [opp_item(r) for r in opp_qs],
+        'contas': [conta_item(r) for r in contas_qs],
+    })
+
+
 @api_view(['GET', 'PATCH'])
 def crm_config(request):
     """

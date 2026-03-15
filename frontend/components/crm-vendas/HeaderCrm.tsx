@@ -2,9 +2,17 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCRMUIStore } from '@/store/crm-ui';
-import { Menu, Search, Grid, Plus, Bell, HelpCircle, User, Users, DollarSign } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { Menu, Search, Grid, Plus, Bell, HelpCircle, User, Users, DollarSign, Building2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import apiClient from '@/lib/api-client';
+
+interface BuscaResult {
+  leads: { id: number; nome: string; empresa: string; status: string }[];
+  oportunidades: { id: number; titulo: string; valor: string; etapa: string; lead_nome: string; lead_empresa: string }[];
+  contas: { id: number; nome: string; segmento: string }[];
+}
 
 interface HeaderCrmProps {
   title?: string;
@@ -12,21 +20,81 @@ interface HeaderCrmProps {
   slug?: string;
 }
 
+const DEBOUNCE_MS = 300;
+const MIN_QUERY_LEN = 2;
+
 function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: HeaderCrmProps) {
+  const router = useRouter();
   const { toggle } = useCRMUIStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNovoMenu, setShowNovoMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<BuscaResult | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const novoRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchBusca = useCallback(async (q: string) => {
+    if (!q || q.length < MIN_QUERY_LEN) {
+      setSearchResults(null);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const res = await apiClient.get<BuscaResult>('/crm-vendas/busca/', {
+        params: { q: q.trim(), limit: 5 },
+      });
+      setSearchResults(res.data);
+    } catch {
+      setSearchResults({ leads: [], oportunidades: [], contas: [] });
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (searchQuery.length < MIN_QUERY_LEN) {
+      setSearchResults(null);
+      setShowSearchDropdown(false);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      fetchBusca(searchQuery);
+      setShowSearchDropdown(true);
+      debounceRef.current = null;
+    }, DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchQuery, fetchBusca]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (novoRef.current && !novoRef.current.contains(e.target as Node)) {
         setShowNovoMenu(false);
       }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleSearchSelect = useCallback(() => {
+    setSearchQuery('');
+    setSearchResults(null);
+    setShowSearchDropdown(false);
+  }, []);
+
+  const hasResults = searchResults && (
+    searchResults.leads.length > 0 ||
+    searchResults.oportunidades.length > 0 ||
+    searchResults.contas.length > 0
+  );
 
   return (
     <header className="h-14 bg-white dark:bg-[#16325c] border-b border-gray-200 dark:border-[#0d1f3c] flex items-center px-3 sm:px-4 justify-between gap-2 sm:gap-4 shrink-0 shadow-sm">
@@ -68,7 +136,7 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: Hea
       </div>
 
       {/* Center Section - Search */}
-      <div className="flex-1 max-w-2xl hidden sm:block">
+      <div className="flex-1 max-w-2xl hidden sm:block" ref={searchRef}>
         <div className="relative">
           <Search
             size={16}
@@ -76,9 +144,98 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: Hea
           />
           <input
             type="search"
-            placeholder="Buscar em Sales Cloud..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => searchQuery.length >= MIN_QUERY_LEN && setShowSearchDropdown(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowSearchDropdown(false);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            placeholder="Buscar leads, oportunidades, contas..."
             className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-[#0d1f3c] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0176d3] focus:border-transparent text-sm transition-all"
+            aria-label="Buscar no CRM"
           />
+          {showSearchDropdown && searchQuery.length >= MIN_QUERY_LEN && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] py-2 z-30 max-h-80 overflow-y-auto">
+              {searchLoading ? (
+                <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Buscando...
+                </div>
+              ) : !hasResults ? (
+                <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Nenhum resultado encontrado
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {searchResults!.leads.length > 0 && (
+                    <div className="px-3 py-1">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                        Leads
+                      </p>
+                      {searchResults!.leads.map((l) => (
+                        <Link
+                          key={`lead-${l.id}`}
+                          href={slug ? `/loja/${slug}/crm-vendas/leads?ver=${l.id}` : '#'}
+                          onClick={handleSearchSelect}
+                          className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] text-sm text-gray-900 dark:text-white"
+                        >
+                          <Users size={14} className="text-[#06a59a] shrink-0" />
+                          <span className="truncate">{l.nome}</span>
+                          {l.empresa && (
+                            <span className="text-gray-500 dark:text-gray-400 truncate">• {l.empresa}</span>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults!.oportunidades.length > 0 && (
+                    <div className="px-3 py-1">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                        Oportunidades
+                      </p>
+                      {searchResults!.oportunidades.map((o) => (
+                        <Link
+                          key={`opp-${o.id}`}
+                          href={slug ? `/loja/${slug}/crm-vendas/pipeline` : '#'}
+                          onClick={handleSearchSelect}
+                          className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] text-sm text-gray-900 dark:text-white"
+                        >
+                          <DollarSign size={14} className="text-[#e287b2] shrink-0" />
+                          <span className="truncate">{o.titulo}</span>
+                          <span className="text-gray-500 dark:text-gray-400 shrink-0">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(o.valor))}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults!.contas.length > 0 && (
+                    <div className="px-3 py-1">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                        Contas
+                      </p>
+                      {searchResults!.contas.map((c) => (
+                        <Link
+                          key={`conta-${c.id}`}
+                          href={slug ? `/loja/${slug}/crm-vendas/customers?ver=${c.id}` : '#'}
+                          onClick={handleSearchSelect}
+                          className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] text-sm text-gray-900 dark:text-white"
+                        >
+                          <Building2 size={14} className="text-[#0176d3] shrink-0" />
+                          <span className="truncate">{c.nome}</span>
+                          {c.segmento && (
+                            <span className="text-gray-500 dark:text-gray-400 truncate">• {c.segmento}</span>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

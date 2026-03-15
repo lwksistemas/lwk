@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { authService } from '@/lib/auth';
-import { ArrowLeft, Users, Plus, X, Mail } from 'lucide-react';
+import { ArrowLeft, Users, Plus, X, Mail, Trash2 } from 'lucide-react';
 
 interface Vendedor {
   id: number;
@@ -40,6 +40,8 @@ export default function ConfiguracoesFuncionariosPage() {
     criar_acesso: false,
   });
   const [reenviando, setReenviando] = useState<number | null>(null);
+  const [excluindo, setExcluindo] = useState<number | null>(null);
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Vendedor | null>(null);
 
   const carregar = async () => {
     try {
@@ -85,6 +87,21 @@ export default function ConfiguracoesFuncionariosPage() {
     setModalAberto(true);
   };
 
+  const handleExcluir = async (v: Vendedor) => {
+    if (!confirmarExcluir || confirmarExcluir.id !== v.id) return;
+    setExcluindo(v.id);
+    try {
+      await apiClient.delete(`/crm-vendas/vendedores/${v.id}/`);
+      setConfirmarExcluir(null);
+      carregar();
+    } catch {
+      setFormErro('Erro ao excluir. Tente novamente.');
+      setTimeout(() => setFormErro(null), 5000);
+    } finally {
+      setExcluindo(null);
+    }
+  };
+
   const handleReenviarSenha = async (v: Vendedor) => {
     if (!v.email) return;
     setReenviando(v.id);
@@ -111,11 +128,11 @@ export default function ConfiguracoesFuncionariosPage() {
     }
     setSalvando(true);
     try {
-      const payload = { nome: form.nome, email: form.email, telefone: form.telefone, cargo: form.cargo };
+      const payload = { nome: form.nome, email: form.email, telefone: form.telefone, cargo: form.cargo, criar_acesso: form.criar_acesso };
       if (editando) {
         await apiClient.patch(`/crm-vendas/vendedores/${editando.id}/`, payload);
       } else {
-        await apiClient.post('/crm-vendas/vendedores/', { ...payload, criar_acesso: form.criar_acesso });
+        await apiClient.post('/crm-vendas/vendedores/', payload);
       }
       setModalAberto(false);
       carregar();
@@ -227,13 +244,23 @@ export default function ConfiguracoesFuncionariosPage() {
                     </button>
                   )}
                   {!v.is_admin && (
-                    <button
-                      type="button"
-                      onClick={() => abrirEditar(v)}
-                      className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
-                    >
-                      Editar
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => abrirEditar(v)}
+                        className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmarExcluir(v)}
+                        className="p-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </>
                   )}
                   {v.is_admin && (
                     <span className="px-3 py-1.5 text-sm text-gray-400 dark:text-gray-500">
@@ -322,19 +349,19 @@ export default function ConfiguracoesFuncionariosPage() {
                     placeholder="Vendedor"
                   />
                 </div>
-                {!editando && (
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.criar_acesso}
-                      onChange={(e) => setForm((f) => ({ ...f, criar_acesso: e.target.checked }))}
-                      className="mt-1 rounded border-gray-300 dark:border-gray-600 text-[#0176d3]"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      Criar acesso ao sistema e enviar senha provisória por e-mail
-                    </span>
-                  </label>
-                )}
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.criar_acesso}
+                    onChange={(e) => setForm((f) => ({ ...f, criar_acesso: e.target.checked }))}
+                    className="mt-1 rounded border-gray-300 dark:border-gray-600 text-[#0176d3]"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {editando
+                      ? 'Criar ou reenviar acesso ao sistema e enviar senha provisória por e-mail'
+                      : 'Criar acesso ao sistema e enviar senha provisória por e-mail'}
+                  </span>
+                </label>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
@@ -353,6 +380,46 @@ export default function ConfiguracoesFuncionariosPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </>
+      )}
+
+      {confirmarExcluir && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => !excluindo && setConfirmarExcluir(null)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="bg-white dark:bg-[#16325c] rounded-xl shadow-xl w-full max-w-sm p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Excluir vendedor
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Tem certeza que deseja excluir <strong>{confirmarExcluir.nome}</strong>? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmarExcluir(null)}
+                  disabled={!!excluindo}
+                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#0d1f3c] disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExcluir(confirmarExcluir)}
+                  disabled={!!excluindo}
+                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-50"
+                >
+                  {excluindo ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
             </div>
           </div>
         </>

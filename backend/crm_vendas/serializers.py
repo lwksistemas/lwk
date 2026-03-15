@@ -53,6 +53,16 @@ class VendedorSerializer(serializers.ModelSerializer):
                 raise
         return vendedor
 
+    def update(self, instance, validated_data):
+        criar_acesso = validated_data.pop('criar_acesso', False)
+        vendedor = super().update(instance, validated_data)
+        if criar_acesso and vendedor.email:
+            try:
+                self._criar_acesso_e_enviar_email(vendedor)
+            except serializers.ValidationError:
+                raise
+        return vendedor
+
     def _criar_acesso_e_enviar_email(self, vendedor):
         User = get_user_model()
         from superadmin.models import Loja, VendedorUsuario
@@ -68,7 +78,21 @@ class VendedorSerializer(serializers.ModelSerializer):
 
         email = vendedor.email.strip().lower()
         senha_provisoria = get_random_string(8)
-        user = None
+
+        # Se já tem VendedorUsuario: apenas reenviar senha
+        vu_existente = VendedorUsuario.objects.using('default').filter(
+            loja_id=loja_id,
+            vendedor_id=vendedor.id,
+        ).select_related('user').first()
+        if vu_existente:
+            user = vu_existente.user
+            user.set_password(senha_provisoria)
+            user.first_name = vendedor.nome or user.first_name or ''
+            user.save(update_fields=['password', 'first_name'])
+            vu_existente.precisa_trocar_senha = True
+            vu_existente.save(update_fields=['precisa_trocar_senha'])
+            _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Nova senha provisória - CRM Vendas', reenviar=True)
+            return
 
         existing_user = User.objects.using('default').filter(username=email).first()
         if existing_user:
@@ -85,12 +109,11 @@ class VendedorSerializer(serializers.ModelSerializer):
                     'email': 'Já existe um usuário (proprietário de loja) com este e-mail. Use outro ou não marque "Criar acesso".',
                     'detail': 'E-mail já utilizado como proprietário.',
                 })
-            user = existing_user
-            user.set_password(senha_provisoria)
-            user.first_name = vendedor.nome or user.first_name or ''
-            user.save(update_fields=['password', 'first_name'])
+            existing_user.set_password(senha_provisoria)
+            existing_user.first_name = vendedor.nome or existing_user.first_name or ''
+            existing_user.save(update_fields=['password', 'first_name'])
             VendedorUsuario.objects.using('default').create(
-                user=user,
+                user=existing_user,
                 loja=loja,
                 vendedor_id=vendedor.id,
                 precisa_trocar_senha=True,
@@ -109,26 +132,31 @@ class VendedorSerializer(serializers.ModelSerializer):
                 precisa_trocar_senha=True,
             )
 
-        site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
-        login_url = f"{site_url}/loja/{loja.slug}/login"
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
-        try:
-            send_mail(
-                subject='Acesso ao sistema - CRM Vendas',
-                message=(
-                    f"Olá, {vendedor.nome or 'Vendedor'}!\n\n"
-                    f"Seu acesso ao sistema foi criado.\n\n"
-                    f"Login: {email}\n"
-                    f"Senha provisória: {senha_provisoria}\n\n"
-                    f"Acesse: {login_url}\n\n"
-                    f"Por segurança, altere sua senha no primeiro acesso."
-                ),
-                from_email=from_email,
-                recipient_list=[email],
-                fail_silently=True,
-            )
-        except Exception as mail_err:
-            logger.warning('Envio de e-mail ao criar vendedor falhou: %s', mail_err)
+        _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao sistema - CRM Vendas')
+
+
+def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao sistema - CRM Vendas', reenviar=False):
+    site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
+    login_url = f"{site_url}/loja/{loja.slug}/login"
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
+    intro = 'Sua senha foi redefinida.' if reenviar else 'Seu acesso ao sistema foi criado.'
+    try:
+        send_mail(
+            subject=assunto,
+            message=(
+                f"Olá, {vendedor.nome or 'Vendedor'}!\n\n"
+                f"{intro}\n\n"
+                f"Login: {email}\n"
+                f"Senha provisória: {senha_provisoria}\n\n"
+                f"Acesse: {login_url}\n\n"
+                f"Por segurança, altere sua senha no primeiro acesso."
+            ),
+            from_email=from_email,
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception as mail_err:
+        logger.warning('Envio de e-mail ao criar vendedor falhou: %s', mail_err)
 
 
 class ContaSerializer(serializers.ModelSerializer):

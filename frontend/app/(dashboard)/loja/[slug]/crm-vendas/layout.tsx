@@ -51,6 +51,20 @@ export default function CrmVendasLayout({
   const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(() => getCachedLojaInfo(slug));
 
+  /** Busca vendedor_id do backend (fallback quando login não retornou). Garante que Nayara e vendedores tenham vendedor_id ao criar oportunidades. */
+  const fetchCrmMe = useCallback(async () => {
+    try {
+      const r = await apiClient.get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/');
+      const d = r.data;
+      if (typeof window !== 'undefined' && d?.is_vendedor && typeof d?.vendedor_id === 'number') {
+        sessionStorage.setItem('is_vendedor', '1');
+        sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
+      }
+    } catch {
+      /* ignore - vendedor_id permanece do login ou vazio */
+    }
+  }, []);
+
   const fetchLojaInfo = useCallback(async () => {
     const cached = getCachedLojaInfo(slug);
     if (cached) {
@@ -59,6 +73,7 @@ export default function CrmVendasLayout({
         sessionStorage.setItem('current_loja_id', String(cached.id));
         if (cached.slug) sessionStorage.setItem('loja_slug', cached.slug);
       }
+      await fetchCrmMe();
       return;
     }
     try {
@@ -71,10 +86,11 @@ export default function CrmVendasLayout({
         if (data?.slug) sessionStorage.setItem('loja_slug', data.slug);
         document.cookie = 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax';
       }
+      await fetchCrmMe();
     } catch {
       setLojaInfo(null);
     }
-  }, [slug]);
+  }, [slug, fetchCrmMe]);
 
   useEffect(() => {
     if (!ready || !isLoja) return;

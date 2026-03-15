@@ -7,6 +7,7 @@ from .views import (
     ContatoViewSet,
     OportunidadeViewSet,
     AtividadeViewSet,
+    crm_me,
     dashboard_data,
     crm_busca,
     WhatsAppConfigView,
@@ -31,6 +32,7 @@ router.register(r'oportunidades', OportunidadeViewSet, basename='crm-oportunidad
 router.register(r'atividades', AtividadeViewSet, basename='crm-atividades')
 
 urlpatterns = [
+    path('me/', crm_me),
     path('dashboard/', dashboard_data),
     path('busca/', crm_busca),
     path('config/', crm_config),

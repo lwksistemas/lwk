@@ -598,6 +598,25 @@ ETAPAS_EM_ANDAMENTO = [
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def crm_me(request):
+    """
+    Retorna o contexto do usuário logado no CRM.
+    Usado pelo frontend para obter vendedor_id quando o login não o retornou
+    (ex: sessão antiga, refresh). Garante que vendedores sempre tenham vendedor_id
+    ao criar oportunidades.
+    """
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return Response({'vendedor_id': None, 'is_vendedor': False}, status=200)
+    vendedor_id = get_current_vendedor_id(request)
+    return Response({
+        'vendedor_id': vendedor_id,
+        'is_vendedor': vendedor_id is not None,
+    }, status=200)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def dashboard_data(request):
     """
     Dados do dashboard CRM (estilo Salesforce).

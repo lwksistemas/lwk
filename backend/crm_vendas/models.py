@@ -272,6 +272,12 @@ class Atividade(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     google_event_id = models.CharField(max_length=255, blank=True, null=True, help_text='ID do evento no Google Calendar (sincronização)')
+    criado_por_vendedor_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Vendedor que criou/importou esta atividade (órfã). Null = proprietário. Usado para filtrar calendário por vendedor.',
+    )
 
     objects = LojaIsolationManager()
 

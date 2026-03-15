@@ -356,6 +356,7 @@ def google_calendar_sync(request):
                 data=dt,
                 observacoes=f"Importado do Google Calendar (event_id: {gid})",
                 google_event_id=gid,
+                criado_por_vendedor_id=vendedor_id,
             )
             pulled += 1
             existing_ids.add(gid)

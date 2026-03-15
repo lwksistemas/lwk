@@ -447,7 +447,8 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     def filter_by_vendedor(self, queryset):
         """
         Override para permitir atividades sem oportunidade/lead.
-        Atividades órfãs (sem oportunidade/lead) são visíveis para todos da loja.
+        Atividades órfãs: cada vendedor vê apenas as suas (criado_por_vendedor_id).
+        Proprietário vê todas.
         """
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is None:
@@ -457,18 +458,22 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         # Vendedor vê:
         # 1. Atividades vinculadas às suas oportunidades
         # 2. Atividades vinculadas aos seus leads
-        # 3. Atividades sem oportunidade/lead (órfãs)
+        # 3. Atividades órfãs criadas/importadas por ele (criado_por_vendedor_id=vendedor_id)
         from django.db.models import Q
         filters = (
             Q(oportunidade__vendedor_id=vendedor_id) |
             Q(lead__oportunidades__vendedor_id=vendedor_id) |
-            Q(oportunidade__isnull=True, lead__isnull=True)  # Atividades órfãs
+            Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
         )
         return queryset.filter(filters).distinct()
 
     @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_create(self, serializer):
-        super().perform_create(serializer)
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is not None:
+            serializer.save(criado_por_vendedor_id=vendedor_id)
+        else:
+            serializer.save()
         atividade = serializer.instance
         if atividade and getattr(atividade, 'loja_id', None):
             try:
@@ -655,11 +660,11 @@ def dashboard_data(request):
                 Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
             ).distinct()
             opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
-            # Atividades: vendedor vê suas atividades + atividades órfãs (sem oportunidade/lead)
+            # Atividades: vendedor vê suas atividades + órfãs criadas por ele
             atividades_qs = atividades_qs.filter(
                 Q(oportunidade__vendedor_id=vendedor_id) | 
                 Q(lead__oportunidades__vendedor_id=vendedor_id) |
-                Q(oportunidade__isnull=True, lead__isnull=True)  # Atividades órfãs
+                Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
             ).distinct()
             vendedores_qs = vendedores_qs.filter(id=vendedor_id)
 

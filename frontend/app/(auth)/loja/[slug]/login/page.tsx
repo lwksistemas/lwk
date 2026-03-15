@@ -26,6 +26,7 @@ export default function LojaLoginDinamicoPage() {
   const slug = params.slug as string;
   
   const [credentials, setCredentials] = useState({ username: '', password: '', cpf_cnpj: '' });
+  const [lembrarCpfCnpj, setLembrarCpfCnpj] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
@@ -56,7 +57,15 @@ export default function LojaLoginDinamicoPage() {
   // Respeitar servidor selecionado (Heroku ou Render); Render usa o mesmo banco.
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      if (slug) localStorage.setItem('pwa_loja_slug', slug);
+      if (slug) {
+        localStorage.setItem('pwa_loja_slug', slug);
+        // Carregar CPF/CNPJ salvo (lembrar)
+        const saved = localStorage.getItem(`login_lembrar_cpf_${slug}`);
+        if (saved) {
+          setCredentials((c) => ({ ...c, cpf_cnpj: saved }));
+          setLembrarCpfCnpj(true);
+        }
+      }
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');
@@ -117,6 +126,16 @@ export default function LojaLoginDinamicoPage() {
         markInternalNavigation();
         window.location.replace(`/loja/${slug}/trocar-senha`);
         return;
+      }
+
+      // Salvar ou remover CPF/CNPJ conforme checkbox "Lembrar"
+      if (typeof window !== 'undefined' && slug) {
+        const key = `login_lembrar_cpf_${slug}`;
+        if (lembrarCpfCnpj && credentials.cpf_cnpj) {
+          localStorage.setItem(key, credentials.cpf_cnpj);
+        } else {
+          localStorage.removeItem(key);
+        }
       }
 
       // Loja tipo CRM Vendas: ir direto para o Dashboard de Vendas (CRM)
@@ -263,6 +282,16 @@ export default function LojaLoginDinamicoPage() {
                 disabled={loading}
                 maxLength={18}
               />
+              <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={lembrarCpfCnpj}
+                  onChange={(e) => setLembrarCpfCnpj(e.target.checked)}
+                  className="rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-2 focus:ring-offset-0"
+                  disabled={loading}
+                />
+                <span className="text-sm text-gray-600 dark:text-gray-400">Lembrar CPF/CNPJ neste dispositivo</span>
+              </label>
             </div>
             
             {/* Password */}

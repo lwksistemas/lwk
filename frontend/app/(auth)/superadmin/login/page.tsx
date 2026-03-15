@@ -10,21 +10,26 @@ import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
 export default function SuperAdminLoginPage() {
   const router = useRouter();
   const [credentials, setCredentials] = useState({ username: '', password: '', cpf_cnpj: '' });
+  const [lembrarCpf, setLembrarCpf] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
-  // Limpar sessões antigas ao carregar a página de login
+  const STORAGE_KEY = 'login_lembrar_cpf_superadmin';
+
+  // Limpar sessões antigas e carregar CPF salvo
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Limpar sessionStorage
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setCredentials((c) => ({ ...c, cpf_cnpj: saved }));
+        setLembrarCpf(true);
+      }
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');
       sessionStorage.removeItem('loja_slug');
       sessionStorage.removeItem('session_id');
-      
-      // Limpar cookies
       document.cookie = 'user_type=; path=/; max-age=0';
       document.cookie = 'loja_slug=; path=/; max-age=0';
     }
@@ -133,6 +138,16 @@ export default function SuperAdminLoginPage() {
                 disabled={loading}
                 maxLength={14}
               />
+              <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={lembrarCpf}
+                  onChange={(e) => setLembrarCpf(e.target.checked)}
+                  className="rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-purple-500 focus:ring-offset-0"
+                  disabled={loading}
+                />
+                <span className="text-sm text-gray-600">Lembrar CPF neste dispositivo</span>
+              </label>
             </div>
 
             <PasswordInput

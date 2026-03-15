@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
+import PasswordInput from '@/components/auth/PasswordInput';
 
 export default function TrocarSenhaLojaPage() {
   const router = useRouter();
@@ -43,14 +44,6 @@ export default function TrocarSenhaLojaPage() {
   useEffect(() => {
     loadLojaInfo();
   }, [loadLojaInfo]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-    setErro('');
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,41 +136,24 @@ export default function TrocarSenhaLojaPage() {
             </div>
           )}
 
-          <div>
-            <label htmlFor="nova_senha" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Nova Senha *
-            </label>
-            <input
-              id="nova_senha"
-              name="nova_senha"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:focus:ring-offset-gray-800"
-              value={formData.nova_senha}
-              onChange={handleChange}
-              placeholder="Mínimo 6 caracteres"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="confirmar_senha" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Confirmar Nova Senha *
-            </label>
-            <input
-              id="confirmar_senha"
-              name="confirmar_senha"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:focus:ring-offset-gray-800"
-              value={formData.confirmar_senha}
-              onChange={handleChange}
-              placeholder="Digite a senha novamente"
-            />
-          </div>
+          <PasswordInput
+            id="nova_senha"
+            value={formData.nova_senha}
+            onChange={(v) => { setFormData(prev => ({ ...prev, nova_senha: v })); setErro(''); }}
+            label="Nova Senha *"
+            placeholder="Mínimo 6 caracteres"
+            autoComplete="new-password"
+            required
+          />
+          <PasswordInput
+            id="confirmar_senha"
+            value={formData.confirmar_senha}
+            onChange={(v) => { setFormData(prev => ({ ...prev, confirmar_senha: v })); setErro(''); }}
+            label="Confirmar Nova Senha *"
+            placeholder="Digite a senha novamente"
+            autoComplete="new-password"
+            required
+          />
 
           {/* Dicas de senha */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">

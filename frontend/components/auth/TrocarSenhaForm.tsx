@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import PasswordInput from '@/components/auth/PasswordInput';
 
 interface TrocarSenhaFormProps {
   /** Tipo de usuário: 'loja', 'suporte' ou 'superadmin' */
@@ -150,41 +151,24 @@ export default function TrocarSenhaForm({
           )}
 
           <div className="space-y-4">
-            <div>
-              <label htmlFor="nova_senha" className="block text-sm font-medium text-gray-700 mb-2">
-                Nova Senha *
-              </label>
-              <input
-                id="nova_senha"
-                name="nova_senha"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={6}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${colors.ring}`}
-                value={formData.nova_senha}
-                onChange={handleChange}
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirmar_senha" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirmar Nova Senha *
-              </label>
-              <input
-                id="confirmar_senha"
-                name="confirmar_senha"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={6}
-                className={`w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${colors.ring}`}
-                value={formData.confirmar_senha}
-                onChange={handleChange}
-                placeholder="Digite a senha novamente"
-              />
-            </div>
+            <PasswordInput
+              id="nova_senha"
+              value={formData.nova_senha}
+              onChange={(v) => { setFormData(prev => ({ ...prev, nova_senha: v })); setErro(''); }}
+              label="Nova Senha *"
+              placeholder="Mínimo 6 caracteres"
+              autoComplete="new-password"
+              required
+            />
+            <PasswordInput
+              id="confirmar_senha"
+              value={formData.confirmar_senha}
+              onChange={(v) => { setFormData(prev => ({ ...prev, confirmar_senha: v })); setErro(''); }}
+              label="Confirmar Nova Senha *"
+              placeholder="Digite a senha novamente"
+              autoComplete="new-password"
+              required
+            />
           </div>
 
           {/* Dicas de senha (opcional) */}

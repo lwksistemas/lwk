@@ -13,7 +13,8 @@ interface Procedimento {
   id: number;
   nome: string;
   descricao: string;
-  duracao: number;
+  duracao?: number;
+  duracao_minutos?: number;
   preco: string;
   categoria: string;
 }
@@ -72,11 +73,13 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
 
   const handleEdit = (procedimento: Procedimento) => {
     setEditingProcedimento(procedimento);
+    const dur = (procedimento as { duracao?: number; duracao_minutos?: number }).duracao
+      ?? (procedimento as { duracao_minutos?: number }).duracao_minutos;
     setFormData({
       nome: procedimento.nome || '',
       descricao: procedimento.descricao || '',
-      duracao: procedimento.duracao?.toString() || '',
-      preco: procedimento.preco || '',
+      duracao: dur != null ? String(dur) : '',
+      preco: procedimento.preco ?? '',
       categoria: procedimento.categoria || ''
     });
     setShowForm(true);
@@ -113,21 +116,40 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
     try {
       const cleanedData = Object.fromEntries(
         Object.entries(formData).map(([key, value]) => [key, value === '' ? null : value])
-      );
+      ) as Record<string, unknown>;
+
+      // Garantir tipos corretos para a API
+      if (cleanedData.duracao != null && cleanedData.duracao !== '') {
+        cleanedData.duracao = parseInt(String(cleanedData.duracao), 10) || 0;
+      }
+      if (cleanedData.preco != null && cleanedData.preco !== '') {
+        cleanedData.preco = parseFloat(String(cleanedData.preco)) || 0;
+      }
 
       if (editingProcedimento) {
         await clinicaApiClient.put(`/clinica/procedimentos/${editingProcedimento.id}/`, cleanedData);
-        alert('✅ Procedimento atualizado com sucesso!');
+        toast.success('Procedimento atualizado com sucesso!');
       } else {
         await clinicaApiClient.post('/clinica/procedimentos/', cleanedData);
-        alert('✅ Procedimento cadastrado com sucesso!');
+        toast.success('Procedimento cadastrado com sucesso!');
       }
       loadProcedimentos();
       onSuccess();
       resetForm();
-    } catch (error) {
-      console.error('Erro ao salvar procedimento:', error);
-      alert('❌ Erro ao salvar procedimento');
+    } catch (err: unknown) {
+      console.error('Erro ao salvar procedimento:', err);
+      const axErr = err as { response?: { data?: Record<string, unknown> | string } };
+      const data = axErr.response?.data;
+      let msg = 'Erro ao salvar procedimento.';
+      if (typeof data === 'object' && data?.detail) {
+        msg = String(data.detail);
+      } else if (typeof data === 'object' && data) {
+        const parts = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+        msg = parts.length ? parts.join('; ') : msg;
+      } else if (typeof data === 'string') {
+        msg = data;
+      }
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -186,7 +208,7 @@ export function ModalProcedimentos({ loja, onClose, onSuccess }: ModalProcedimen
             <div key={proc.id} className="flex items-center justify-between p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 bg-white dark:bg-gray-700/30">
               <div className="flex-1">
                 <p className="font-semibold text-lg text-gray-900 dark:text-white">{proc.nome}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{proc.duracao} min • {proc.categoria}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{(proc.duracao ?? proc.duracao_minutos ?? '-')} min • {proc.categoria}</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300">{proc.descricao}</p>
               </div>
               <div className="flex items-center space-x-4">

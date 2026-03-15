@@ -58,7 +58,9 @@ class ProfissionalSerializer(BaseLojaSerializer):
 
 
 class ProcedimentoSerializer(BaseLojaSerializer):
-    """Serializer de Procedimento."""
+    """Serializer de Procedimento.
+    Aceita 'duracao' como alias de 'duracao_minutos' para compatibilidade com o frontend.
+    """
 
     total_protocolos = serializers.SerializerMethodField()
 
@@ -69,6 +71,18 @@ class ProcedimentoSerializer(BaseLojaSerializer):
 
     def get_total_protocolos(self, obj):
         return obj.protocolos.filter(is_active=True).count()
+
+    def to_internal_value(self, data):
+        """Aceita duracao como alias de duracao_minutos (frontend envia duracao)."""
+        data = dict(data) if data else {}
+        if 'duracao' in data and 'duracao_minutos' not in data:
+            val = data.pop('duracao')
+            if val is not None and val != '':
+                try:
+                    data['duracao_minutos'] = int(val) if isinstance(val, (int, float)) else int(str(val).strip())
+                except (ValueError, TypeError):
+                    pass  # Deixa a validação do campo tratar
+        return super().to_internal_value(data)
 
 
 class ProtocoloProcedimentoSerializer(BaseLojaSerializer):

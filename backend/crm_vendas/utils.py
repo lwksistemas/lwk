@@ -64,12 +64,18 @@ def get_current_vendedor_id(request):
     mesmo que tenha um vendedor cadastrado com seu email.
     """
     if not request or not request.user or not request.user.is_authenticated:
+        logger.debug('get_current_vendedor_id: usuário não autenticado')
         return None
     loja_id = get_current_loja_id()
     if not loja_id and request:
         ensure_loja_context(request)
         loja_id = get_current_loja_id()
     if not loja_id:
+        logger.warning(
+            'get_current_vendedor_id: loja_id ausente no contexto (user_id=%s). '
+            'Vendedor não será atribuído em criações.',
+            getattr(request.user, 'id', None),
+        )
         return None
     try:
         from superadmin.models import VendedorUsuario, Loja
@@ -87,8 +93,12 @@ def get_current_vendedor_id(request):
         ).first()
         if vu:
             return vu.vendedor_id
-    except Exception:
-        pass
+        logger.debug(
+            'get_current_vendedor_id: VendedorUsuario não encontrado para user_id=%s, loja_id=%s',
+            request.user.id, loja_id,
+        )
+    except Exception as e:
+        logger.warning('get_current_vendedor_id: erro ao buscar vendedor: %s', e)
     return None
 
 

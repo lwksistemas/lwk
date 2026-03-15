@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { authService } from '@/lib/auth';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { DollarSign, LayoutDashboard, Plus, X } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
@@ -108,14 +109,17 @@ export default function CrmVendasPipelinePage() {
     const valor = parseFloat(formCriar.valor) || 0;
     const valor_comissao = formCriar.valor_comissao ? parseFloat(formCriar.valor_comissao) : null;
     setEnviando(true);
+    const payload: Record<string, unknown> = {
+      lead: leadId,
+      titulo: formCriar.titulo.trim(),
+      valor,
+      etapa: formCriar.etapa,
+      valor_comissao,
+    };
+    const vendedorId = authService.getVendedorId();
+    if (vendedorId) payload.vendedor = vendedorId;
     apiClient
-      .post('/crm-vendas/oportunidades/', {
-        lead: leadId,
-        titulo: formCriar.titulo.trim(),
-        valor,
-        etapa: formCriar.etapa,
-        valor_comissao,
-      })
+      .post('/crm-vendas/oportunidades/', payload)
       .then(() => {
         setModalCriar(false);
         loadOportunidades(setOportunidades, setError);

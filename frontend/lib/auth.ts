@@ -91,8 +91,12 @@ class AuthService {
       }
       if ((data as any).is_vendedor === true) {
         sessionStorage.setItem('is_vendedor', '1');
+        if (typeof (data as any).vendedor_id === 'number') {
+          sessionStorage.setItem('current_vendedor_id', String((data as any).vendedor_id));
+        }
       } else {
         sessionStorage.removeItem('is_vendedor');
+        sessionStorage.removeItem('current_vendedor_id');
       }
 
       // Salvar session_id se vier do backend
@@ -139,6 +143,7 @@ class AuthService {
       sessionStorage.removeItem(this.USER_TYPE_KEY);
       sessionStorage.removeItem(this.LOJA_SLUG_KEY);
       sessionStorage.removeItem('is_vendedor');
+      sessionStorage.removeItem('current_vendedor_id');
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
       localStorage.removeItem('token');
       
@@ -216,6 +221,18 @@ class AuthService {
   isVendedor(): boolean {
     if (typeof window === 'undefined') return false;
     return sessionStorage.getItem('is_vendedor') === '1';
+  }
+
+  /**
+   * Obtém o ID do vendedor logado (quando is_vendedor=true).
+   * Usado para associar oportunidades/leads ao vendedor ao criar.
+   */
+  getVendedorId(): number | null {
+    if (typeof window === 'undefined') return null;
+    const id = sessionStorage.getItem('current_vendedor_id');
+    if (!id) return null;
+    const n = parseInt(id, 10);
+    return Number.isNaN(n) ? null : n;
   }
 
   /**

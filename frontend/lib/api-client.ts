@@ -47,6 +47,7 @@ export function clearSessionAndRedirect(loginUrl: string, message?: string) {
   sessionStorage.removeItem('loja_slug');
   sessionStorage.removeItem('session_id');
   sessionStorage.removeItem('current_loja_id');
+  sessionStorage.removeItem('current_vendedor_id');
   document.cookie = 'user_type=; path=/; max-age=0';
   document.cookie = 'loja_slug=; path=/; max-age=0';
   document.cookie = 'loja_usa_crm=; path=/; max-age=0';

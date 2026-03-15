@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { authService } from '@/lib/auth';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { Plus } from 'lucide-react';
@@ -286,13 +287,16 @@ export default function CrmVendasLeadsPage() {
       return;
     }
     setEnviando(true);
+    const payload: Record<string, unknown> = {
+      lead: leadCriarOportunidade.id,
+      titulo: formOportunidade.titulo.trim(),
+      valor,
+      etapa: formOportunidade.etapa,
+    };
+    const vendedorId = authService.getVendedorId();
+    if (vendedorId) payload.vendedor = vendedorId;
     apiClient
-      .post('/crm-vendas/oportunidades/', {
-        lead: leadCriarOportunidade.id,
-        titulo: formOportunidade.titulo.trim(),
-        valor,
-        etapa: formOportunidade.etapa,
-      })
+      .post('/crm-vendas/oportunidades/', payload)
       .then(() => {
         setLeadCriarOportunidade(null);
         loadLeads(setLeads, setError);

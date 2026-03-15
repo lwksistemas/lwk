@@ -343,10 +343,29 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     def perform_create(self, serializer):
         vendedor_id = get_current_vendedor_id(self.request)
         data = serializer.validated_data
+        # 1. Usar vendedor logado (VendedorUsuario)
         if vendedor_id is not None and not data.get('vendedor'):
             serializer.save(vendedor_id=vendedor_id)
-        else:
-            serializer.save()
+            return
+        # 2. Fallback: herdar vendedor do lead (ex: quando get_current_vendedor_id retorna None)
+        lead = data.get('lead')
+        if lead and not data.get('vendedor') and getattr(lead, 'vendedor_id', None):
+            serializer.save(vendedor_id=lead.vendedor_id)
+            logger.info(
+                'Oportunidade criada com vendedor herdado do lead: lead_id=%s, vendedor_id=%s',
+                lead.id, lead.vendedor_id
+            )
+            return
+        # 3. Log quando oportunidade é criada sem vendedor (vendedor não vê na lista)
+        if not data.get('vendedor') and (vendedor_id is None or not lead or not getattr(lead, 'vendedor_id', None)):
+            logger.warning(
+                'Oportunidade criada SEM vendedor: user_id=%s, loja_id=%s, lead_id=%s. '
+                'Vendedores não verão esta oportunidade na lista.',
+                getattr(self.request.user, 'id', None),
+                get_current_loja_id(),
+                lead.id if lead else None,
+            )
+        serializer.save()
 
     @invalidate_cache_on_change('oportunidades', 'dashboard')
     def perform_update(self, serializer):

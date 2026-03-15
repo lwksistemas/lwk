@@ -352,6 +352,14 @@
   transform: translateY(-1px);
 }
 
+/* Feriados: texto escuro para legibilidade no fundo âmbar */
+.fc-event-feriado,
+.fc-event-feriado .fc-event-title,
+.fc-event-feriado .fc-event-main {
+  color: #78350f !important;
+  font-weight: 600;
+}
+
 /* Indicador de "agora" mais visível */
 .fc-timegrid-now-indicator-line {
   border-color: #ea4335;

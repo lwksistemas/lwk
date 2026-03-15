@@ -11,6 +11,8 @@ export interface FeriadoEvent {
   allDay: boolean;
   backgroundColor: string;
   borderColor: string;
+  textColor: string;
+  classNames?: string[];
   display?: 'background' | 'auto' | 'block' | 'list-item';
   editable: boolean;
   extendedProps?: { tipo: 'feriado' };
@@ -55,6 +57,7 @@ export function obterFeriadosBrasil(start: Date, end: Date): FeriadoEvent[] {
 
   const corBg = '#fef3c7'; // âmbar claro (estilo Google)
   const corBorder = '#d97706';
+  const corTexto = '#78350f'; // âmbar escuro - boa legibilidade
 
   for (let ano = anoInicio; ano <= anoFim; ano++) {
     // Feriados fixos
@@ -70,6 +73,8 @@ export function obterFeriadosBrasil(start: Date, end: Date): FeriadoEvent[] {
           allDay: true,
           backgroundColor: corBg,
           borderColor: corBorder,
+          textColor: corTexto,
+          classNames: ['fc-event-feriado'],
           display: 'block',
           editable: false,
           extendedProps: { tipo: 'feriado' },
@@ -109,6 +114,8 @@ export function obterFeriadosBrasil(start: Date, end: Date): FeriadoEvent[] {
           allDay: true,
           backgroundColor: corBg,
           borderColor: corBorder,
+          textColor: corTexto,
+          classNames: ['fc-event-feriado'],
           display: 'block',
           editable: false,
           extendedProps: { tipo: 'feriado' },

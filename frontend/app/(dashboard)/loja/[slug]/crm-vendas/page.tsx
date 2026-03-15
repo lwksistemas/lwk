@@ -29,6 +29,7 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
+import { authService } from '@/lib/auth';
 
 interface DashboardData {
   leads: number;
@@ -81,6 +82,7 @@ export default function CrmVendasDashboardPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
   const { etapasAtivas } = useCRMConfig();
+  const isVendedor = authService.isVendedor();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -424,8 +426,8 @@ export default function CrmVendasDashboardPage() {
           )}
         </div>
 
-        {/* Top Vendedores */}
-        {data.performance_vendedores && data.performance_vendedores.length > 0 && (
+        {/* Top Vendedores – oculto para vendedores (informação já disponível em relatórios) */}
+        {!isVendedor && data.performance_vendedores && data.performance_vendedores.length > 0 && (
           <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">

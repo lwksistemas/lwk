@@ -125,11 +125,16 @@ export default function CrmVendasPipelinePage() {
         loadOportunidades(setOportunidades, setError);
       })
       .catch((err) => {
-        setFormErro(
-          err.response?.data?.titulo?.[0] ||
-            err.response?.data?.detail ||
-            'Erro ao criar oportunidade.'
-        );
+        const d = err.response?.data;
+        const msg =
+          d?.titulo?.[0] ||
+          d?.valor?.[0] ||
+          d?.lead?.[0] ||
+          d?.vendedor?.[0] ||
+          d?.etapa?.[0] ||
+          (typeof d?.detail === 'string' ? d.detail : null) ||
+          'Erro ao criar oportunidade.';
+        setFormErro(msg);
       })
       .finally(() => setEnviando(false));
   };

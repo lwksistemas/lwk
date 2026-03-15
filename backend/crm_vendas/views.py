@@ -335,6 +335,39 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     vendedor_filter_field = 'vendedor_id'
     vendedor_filter_related = []
 
+    def _sanitize_vendedor_for_create(self, data):
+        """
+        Remove vendedor do payload se for inválido (não existe no tenant).
+        Evita erro 400 quando frontend envia vendedor_id de outra loja ou inexistente.
+        """
+        vendedor_id = data.get('vendedor')
+        if vendedor_id is None:
+            return data
+        try:
+            vid = int(vendedor_id) if not isinstance(vendedor_id, int) else vendedor_id
+        except (TypeError, ValueError):
+            data = data.copy()
+            data.pop('vendedor', None)
+            return data
+        if not Vendedor.objects.filter(id=vid).exists():
+            logger.warning(
+                'Oportunidade create: vendedor_id=%s não existe no tenant, removendo do payload',
+                vid,
+            )
+            data = data.copy()
+            data.pop('vendedor', None)
+        return data
+
+    def create(self, request, *args, **kwargs):
+        """Override para sanitizar vendedor inválido antes da validação."""
+        raw = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data = self._sanitize_vendedor_for_create(raw)
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     @cache_list_response(CRMCacheManager.OPORTUNIDADES, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)

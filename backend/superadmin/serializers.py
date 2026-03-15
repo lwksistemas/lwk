@@ -328,10 +328,22 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 raise
 
             # 8. CRIAR PROFISSIONAL/FUNCIONÁRIO ADMIN
+            # Re-fetch loja para garantir database_created atualizado após configurar_schema
+            loja.refresh_from_db()
             try:
-                ProfessionalService.criar_profissional_por_tipo(loja, owner, owner_telefone)
+                ok = ProfessionalService.criar_profissional_por_tipo(loja, owner, owner_telefone)
+                if not ok:
+                    logger.warning(
+                        "ProfessionalService não criou profissional/vendedor para loja=%s (owner=%s). "
+                        "Execute: python manage.py criar_funcionarios_admins para corrigir.",
+                        loja.slug, owner.email
+                    )
             except Exception as e:
-                logger.warning(f"Erro ao criar profissional/funcionário: {e}")
+                logger.warning(
+                    "Erro ao criar profissional/funcionário para loja=%s: %s. "
+                    "Execute: python manage.py criar_funcionarios_admins para corrigir.",
+                    loja.slug, e
+                )
                 # Não falhar a criação da loja
 
             # 9. INTEGRAÇÃO ASAAS

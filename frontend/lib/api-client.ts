@@ -65,6 +65,15 @@ export function getLoginUrlForRedirect(): string {
 /** Adiciona X-Loja-ID / X-Tenant-Slug e Authorization em todas as requisições de loja. */
 function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
   if (typeof window === 'undefined') return config;
+  // Em páginas de loja, SEMPRE usar Heroku - Render não tem dados tenant
+  if (window.location.pathname.includes('/loja/') && currentAPI === BACKUP_API) {
+    currentAPI = PRIMARY_API;
+    failoverCount = 0;
+    lastFailoverTime = null;
+    updateInstancesBaseURL();
+    const base = PRIMARY_API.endsWith('/api') ? PRIMARY_API : `${PRIMARY_API}/api`;
+    config.baseURL = base;
+  }
   const lojaId = sessionStorage.getItem('current_loja_id');
   if (lojaId) {
     config.headers.set('X-Loja-ID', lojaId);
@@ -211,11 +220,16 @@ function applyLojaInterceptors(instance: AxiosInstance) {
           error.message.includes('Access-Control')
         ));
       const requestUrl = (originalRequest?.baseURL || '') + (originalRequest?.url || '');
+      // Rotas de loja: NUNCA fazer failover para Render - backup não tem dados tenant
+      const isOnLojaPage = typeof window !== 'undefined' && window.location.pathname.includes('/loja/');
       const isLojaRoute =
+        isOnLojaPage ||
         requestUrl.includes('info_publica') ||
         requestUrl.includes('auth/loja') ||
         requestUrl.includes('lojas/verificar_senha') ||
-        requestUrl.includes('lojas/recuperar_senha');
+        requestUrl.includes('lojas/recuperar_senha') ||
+        requestUrl.includes('crm-vendas') ||
+        requestUrl.includes('notificacoes');
       const shouldFailover =
         BACKUP_API &&
         !originalRequest?._failoverRetry &&

@@ -41,6 +41,7 @@ class Command(BaseCommand):
             **default_db,
             'OPTIONS': {'options': f'-c search_path={schema_name},public'},
             'CONN_MAX_AGE': 0,
+            'TIME_ZONE': None,
         }
 
         from django.db import connections

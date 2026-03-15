@@ -85,7 +85,11 @@ class ProfessionalService:
             from crm_vendas.models import Vendedor
 
             if not getattr(loja, 'database_name', None) or not loja.database_created:
-                logger.warning("Schema ainda não criado; vendedor admin não pode ser criado agora")
+                logger.warning(
+                    "Schema ainda não criado; vendedor admin não pode ser criado agora. "
+                    "loja=%s database_name=%s database_created=%s",
+                    loja.slug, getattr(loja, 'database_name', None), getattr(loja, 'database_created', False)
+                )
                 return False
 
             # Verificar se já existe vendedor com email do owner
@@ -111,7 +115,10 @@ class ProfessionalService:
             return True
 
         except Exception as e:
-            logger.error(f"Erro ao criar vendedor admin (CRM Vendas): {e}", exc_info=True)
+            logger.error(
+                "Erro ao criar vendedor admin (CRM Vendas): loja=%s owner=%s erro=%s",
+                loja.slug, owner.email, e, exc_info=True
+            )
             return False
 
     @staticmethod

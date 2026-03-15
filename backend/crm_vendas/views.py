@@ -525,6 +525,7 @@ def _empty_dashboard_response():
         'oportunidades': 0,
         'receita': 0,
         'pipeline_aberto': 0,
+        'valor_perdido': 0,
         'meta_vendas': 0,
         'taxa_conversao': 0,
         'pipeline_por_etapa': [],
@@ -534,7 +535,7 @@ def _empty_dashboard_response():
 
 
 ETAPAS_PIPELINE = [
-    'prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won',
+    'prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost',
 ]
 
 # Etapas em andamento (excluindo fechadas)
@@ -599,6 +600,7 @@ def dashboard_data(request):
             oportunidades_em_andamento=Count('id', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),  # Contagem em andamento
             total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost'])),
             total_ganhos=Count('id', filter=Q(etapa='closed_won')),
+            valor_perdido=Sum('valor', filter=Q(etapa='closed_lost')),
         )
         total_oportunidades = agg['total_oportunidades'] or 0
         receita = float(agg['receita'] or 0)
@@ -615,6 +617,7 @@ def dashboard_data(request):
             .values('etapa')
             .annotate(valor=Sum('valor'), qtd=Count('id'))
         }
+        valor_perdido = float(agg.get('valor_perdido') or 0)
         pipeline_por_etapa = [
             {'etapa': e, **(pipeline_map.get(e, {'valor': 0, 'quantidade': 0}))}
             for e in ETAPAS_PIPELINE
@@ -685,6 +688,7 @@ def dashboard_data(request):
             'receita': receita,
             'pipeline_aberto': pipeline_aberto,
             'oportunidades_em_andamento': oportunidades_em_andamento,
+            'valor_perdido': valor_perdido,
             'meta_vendas': 0,
             'taxa_conversao': taxa_conversao,
             'pipeline_por_etapa': pipeline_por_etapa,

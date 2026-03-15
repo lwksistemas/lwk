@@ -19,7 +19,6 @@ const SalesChart = dynamic(() => import('@/components/crm-vendas/SalesChart'), {
 import {
   Wallet,
   Users,
-  Briefcase,
   Percent,
   Calendar,
   Phone,
@@ -27,7 +26,9 @@ import {
   Flag,
   ChevronRight,
   DollarSign,
+  TrendingDown,
 } from 'lucide-react';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
 interface DashboardData {
   leads: number;
@@ -35,6 +36,7 @@ interface DashboardData {
   receita: number;
   pipeline_aberto: number;
   oportunidades_em_andamento: number;
+  valor_perdido?: number;
   taxa_conversao: number;
   pipeline_por_etapa: { etapa: string; valor: number; quantidade: number }[];
   atividades_hoje: unknown[];
@@ -51,7 +53,6 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
-const ETAPAS_ORDER = ['prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won'];
 const ETAPAS_LABEL: Record<string, string> = {
   prospecting: 'Prospecção',
   qualification: 'Qualificação',
@@ -79,20 +80,12 @@ function iconPorTipo(tipo: string) {
 export default function CrmVendasDashboardPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
+  const { etapasAtivas } = useCRMConfig();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFiltro, setShowFiltro] = useState(false);
   const filtroRef = useRef<HTMLDivElement>(null);
-
-  // Memoizar cálculos pesados
-  const chartData = useMemo(() => 
-    data?.pipeline_por_etapa?.map((p) => ({
-      name: ETAPAS_LABEL[p.etapa] || p.etapa.replace(/_/g, ' '),
-      valor: p.valor,
-      quantidade: p.quantidade,
-    })) ?? []
-  , [data?.pipeline_por_etapa]);
 
   const pipelineMap = useMemo(() => 
     new Map(
@@ -100,13 +93,22 @@ export default function CrmVendasDashboardPage() {
     )
   , [data?.pipeline_por_etapa]);
 
+  // Apenas etapas ativas na configuração (respeita desmarcar em Personalizar)
   const etapasComValor = useMemo(() => 
-    ETAPAS_ORDER.map((key) => ({
-      key,
-      label: ETAPAS_LABEL[key] || key,
-      ...(pipelineMap.get(key) || { valor: 0, quantidade: 0 }),
+    etapasAtivas().map((e) => ({
+      key: e.key,
+      label: e.label,
+      ...(pipelineMap.get(e.key) || { valor: 0, quantidade: 0 }),
     }))
-  , [pipelineMap]);
+  , [etapasAtivas, pipelineMap]);
+
+  const chartData = useMemo(() => 
+    etapasComValor.map((p) => ({
+      name: p.label,
+      valor: p.valor,
+      quantidade: p.quantidade,
+    }))
+  , [etapasComValor]);
 
   const atividades = useMemo(() => 
     (data?.atividades_hoje || []) as {
@@ -245,9 +247,9 @@ export default function CrmVendasDashboardPage() {
           trendValue={data.taxa_conversao > 20 ? '+5%' : '-2%'}
         />
         <StatCard
-          title="Negócios em aberto"
-          value={String(data.oportunidades)}
-          icon={Briefcase}
+          title="Valor das vendas (perdido)"
+          value={formatMoney(data.valor_perdido ?? 0)}
+          icon={TrendingDown}
           iconColor="text-[#e287b2]"
           iconBgColor="bg-[#fef0f7]"
         />

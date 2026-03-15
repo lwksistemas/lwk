@@ -875,7 +875,8 @@ class LoginConfigView(CRMPermissionMixin, APIView):
 def crm_config(request):
     """
     GET: Retorna configurações do CRM da loja
-    PATCH: Atualiza configurações do CRM
+    PATCH: Atualiza configurações do CRM (personalizar: origens, etapas, colunas, módulos)
+    Admin e vendedores podem acessar e personalizar.
     """
     from .models import CRMConfig
     from .serializers import CRMConfigSerializer
@@ -883,14 +884,6 @@ def crm_config(request):
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'detail': 'Loja não identificada.'}, status=400)
-    
-    # Apenas proprietário pode acessar configurações (vendedores não podem)
-    from .utils import is_vendedor_usuario
-    if is_vendedor_usuario(request):
-        return Response(
-            {'detail': 'Apenas o proprietário pode acessar as configurações.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
     
     # Buscar ou criar configuração
     config = CRMConfig.get_or_create_for_loja(loja_id)

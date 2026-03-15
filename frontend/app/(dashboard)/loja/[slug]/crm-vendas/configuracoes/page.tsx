@@ -10,17 +10,18 @@ import {
   ChevronRight,
   Download,
   History,
-  Settings,
   Sliders,
   Database,
 } from 'lucide-react';
+import { authService } from '@/lib/auth';
 
 export default function CrmVendasConfiguracoesPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
+  const isVendedor = authService.isVendedor();
 
-  const opcoes = [
+  const opcoesAdmin = [
     {
       titulo: 'Pagar assinatura',
       descricao: 'Baixar boleto e ver histórico de pagamentos',
@@ -64,6 +65,11 @@ export default function CrmVendasConfiguracoesPage() {
       itens: ['Origens de leads', 'Etapas do pipeline', 'Colunas visíveis', 'Módulos ativos'],
     },
   ];
+
+  // Vendedores veem apenas Personalizar; admin vê todas as opções
+  const opcoes = isVendedor
+    ? opcoesAdmin.filter((o) => o.href.includes('/personalizar'))
+    : opcoesAdmin;
 
   return (
     <div className="space-y-6">

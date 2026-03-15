@@ -65,6 +65,13 @@ export default function CrmVendasLeadsPage() {
     telefone: '',
     origem: 'site',
     status: 'novo',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    uf: '',
   });
   const [formOportunidade, setFormOportunidade] = useState({
     titulo: '',
@@ -107,10 +114,31 @@ export default function CrmVendasLeadsPage() {
         telefone: form.telefone.trim() || undefined,
         origem: form.origem,
         status: form.status,
+        cep: form.cep.trim() || undefined,
+        logradouro: form.logradouro.trim() || undefined,
+        numero: form.numero.trim() || undefined,
+        complemento: form.complemento.trim() || undefined,
+        bairro: form.bairro.trim() || undefined,
+        cidade: form.cidade.trim() || undefined,
+        uf: form.uf.trim().toUpperCase() || undefined,
       })
       .then(() => {
         setModalAberto(false);
-        setForm({ nome: '', empresa: '', email: '', telefone: '', origem: 'site', status: 'novo' });
+        setForm({
+          nome: '',
+          empresa: '',
+          email: '',
+          telefone: '',
+          origem: 'site',
+          status: 'novo',
+          cep: '',
+          logradouro: '',
+          numero: '',
+          complemento: '',
+          bairro: '',
+          cidade: '',
+          uf: '',
+        });
         loadLeads(setLeads, setError);
       })
       .catch((err) => {
@@ -130,6 +158,13 @@ export default function CrmVendasLeadsPage() {
       telefone: lead.telefone || '',
       origem: lead.origem,
       status: lead.status,
+      cep: lead.cep || '',
+      logradouro: lead.logradouro || '',
+      numero: lead.numero || '',
+      complemento: lead.complemento || '',
+      bairro: lead.bairro || '',
+      cidade: lead.cidade || '',
+      uf: lead.uf || '',
     });
     setFormErro(null);
   };
@@ -151,6 +186,13 @@ export default function CrmVendasLeadsPage() {
         telefone: form.telefone.trim() || undefined,
         origem: form.origem,
         status: form.status,
+        cep: form.cep.trim() || undefined,
+        logradouro: form.logradouro.trim() || undefined,
+        numero: form.numero.trim() || undefined,
+        complemento: form.complemento.trim() || undefined,
+        bairro: form.bairro.trim() || undefined,
+        cidade: form.cidade.trim() || undefined,
+        uf: form.uf.trim().toUpperCase() || undefined,
       })
       .then(() => {
         setLeadEditar(null);

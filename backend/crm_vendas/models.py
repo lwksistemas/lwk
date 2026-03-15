@@ -118,6 +118,14 @@ class Lead(LojaIsolationMixin, models.Model):
         help_text='Vendedor responsável pelo lead (quando criado por vendedor)',
     )
     observacoes = models.TextField(blank=True)
+    # Endereço
+    cep = models.CharField(max_length=10, blank=True)
+    logradouro = models.CharField(max_length=200, blank=True)
+    numero = models.CharField(max_length=20, blank=True)
+    complemento = models.CharField(max_length=100, blank=True)
+    bairro = models.CharField(max_length=100, blank=True)
+    cidade = models.CharField(max_length=100, blank=True)
+    uf = models.CharField(max_length=2, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

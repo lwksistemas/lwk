@@ -11,6 +11,13 @@ export interface Lead {
   origem: string;
   status: string;
   valor_estimado?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
   created_at: string;
 }
 

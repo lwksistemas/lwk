@@ -78,6 +78,23 @@ export default function ModalLeadVer({
               <dt className="text-gray-500 dark:text-gray-400 font-medium">Telefone</dt>
               <dd className="text-gray-900 dark:text-white mt-0.5">{lead.telefone || '–'}</dd>
             </div>
+            {(lead.cep || lead.logradouro || lead.cidade) && (
+              <div>
+                <dt className="text-gray-500 dark:text-gray-400 font-medium">Endereço</dt>
+                <dd className="text-gray-900 dark:text-white mt-0.5">
+                  {[
+                    lead.logradouro,
+                    lead.numero && `nº ${lead.numero}`,
+                    lead.complemento,
+                    lead.bairro,
+                    lead.cidade && lead.uf ? `${lead.cidade}/${lead.uf}` : lead.cidade || lead.uf,
+                    lead.cep,
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || '–'}
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="text-gray-500 dark:text-gray-400 font-medium">Origem</dt>
               <dd className="mt-0.5">

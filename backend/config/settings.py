@@ -146,33 +146,44 @@ DATABASES = {
 }
 
 # ✅ CORREÇÃO v895: Configuração PostgreSQL para Produção (Heroku)
-# Sobrescrever 'default' se DATABASE_URL estiver presente
+# Sobrescrever 'default' e 'suporte' se DATABASE_URL estiver presente
 if 'DATABASE_URL' in os.environ:
     DATABASE_URL = os.environ['DATABASE_URL']
     
-    # Configurar PostgreSQL com timeouts otimizados
-    DATABASES['default'] = dj_database_url.config(
+    default_db_config = dj_database_url.config(
         default=DATABASE_URL,
         conn_max_age=60,  # Reduzir de 600 para 60 segundos
         ssl_require=True,
         conn_health_checks=True,
     )
     
-    # ✅ CRÍTICO: Adicionar timeouts para evitar H12 Request Timeout
-    DATABASES['default']['OPTIONS'] = {
-        'connect_timeout': 10,  # Timeout de conexão: 10 segundos
-        'options': '-c statement_timeout=25000',  # Timeout de query: 25 segundos
+    # Configurar PostgreSQL com timeouts otimizados
+    DATABASES['default'] = {
+        **default_db_config,
+        'OPTIONS': {
+            'connect_timeout': 10,
+            'options': '-c statement_timeout=25000',
+        },
+        'ATOMIC_REQUESTS': False,
+        'AUTOCOMMIT': True,
+        'CONN_HEALTH_CHECKS': True,
     }
     
-    # ✅ OTIMIZAÇÃO: Configurações adicionais para PostgreSQL
-    DATABASES['default']['ATOMIC_REQUESTS'] = False
-    DATABASES['default']['AUTOCOMMIT'] = True
-    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+    # ✅ Banco suporte: mesmo PostgreSQL, schema isolado (evita SQLite efêmero no Heroku)
+    DATABASES['suporte'] = {
+        **default_db_config,
+        'OPTIONS': {
+            'connect_timeout': 10,
+            'options': '-c search_path=suporte,public',
+        },
+        'ATOMIC_REQUESTS': False,
+        'AUTOCOMMIT': True,
+        'CONN_HEALTH_CHECKS': True,
+    }
     
     print(f"✅ PostgreSQL configurado com timeouts otimizados")
-    print(f"   - connect_timeout: 10s")
-    print(f"   - statement_timeout: 25s")
-    print(f"   - conn_max_age: 60s")
+    print(f"   - default: connect_timeout=10s, statement_timeout=25s")
+    print(f"   - suporte: schema isolado (search_path=suporte,public)")
 
 # Database Router para isolamento
 DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']

@@ -5,28 +5,18 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import Chamado, RespostaChamado, ErroFrontend
 from .serializers import ChamadoSerializer, RespostaChamadoSerializer
+from .services import get_chamados_queryset_for_user
 
 logger = logging.getLogger(__name__)
+
 
 class ChamadoViewSet(viewsets.ModelViewSet):
     """ViewSet para gerenciar chamados de suporte - Banco 'suporte'"""
     serializer_class = ChamadoSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
-        user = self.request.user
-        
-        # Super admin vê todos os chamados
-        if user.is_superuser:
-            return Chamado.objects.all()
-        
-        # Usuários do grupo 'suporte' veem todos
-        if user.groups.filter(name='suporte').exists():
-            return Chamado.objects.all()
-        
-        # Usuários de loja veem apenas seus chamados
-        # (filtrar por loja_slug do contexto)
-        return Chamado.objects.filter(usuario_email=user.email)
+        return get_chamados_queryset_for_user(self.request.user)
     
     def perform_create(self, serializer):
         serializer.save()
@@ -151,7 +141,6 @@ def criar_chamado_rapido(request):
             loja_slug = loja.slug
             loja_nome = loja.nome
         
-        # Criar chamado no banco default (temporário até resolver problema do banco suporte)
         chamado = Chamado.objects.create(
             titulo=titulo,
             descricao=descricao,
@@ -183,28 +172,10 @@ def criar_chamado_rapido(request):
 @permission_classes([permissions.IsAuthenticated])
 def meus_chamados(request):
     """
-    Listar chamados do usuário logado (filtrado por loja)
+    Listar chamados do usuário logado (filtrado por permissões e loja).
     """
-    user = request.user
-    
-    # Super admin vê todos
-    if user.is_superuser:
-        chamados = Chamado.objects.all()
-    # Suporte vê todos
-    elif user.groups.filter(name='suporte').exists():
-        chamados = Chamado.objects.all()
-    # Usuário comum vê apenas seus chamados DA SUA LOJA
-    else:
-        # Buscar loja do usuário
-        try:
-            from superadmin.models import Loja
-            loja = Loja.objects.get(owner=user, is_active=True)
-            # Filtrar por loja_slug (não por objeto loja)
-            chamados = Chamado.objects.filter(loja_slug=loja.slug, usuario_email=user.email)
-        except Loja.DoesNotExist:
-            # Se não encontrar loja, retornar vazio
-            chamados = Chamado.objects.none()
-    
+    chamados = get_chamados_queryset_for_user(request.user)
+
     # Filtros opcionais
     status_filter = request.query_params.get('status')
     if status_filter:

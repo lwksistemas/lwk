@@ -33,12 +33,12 @@ class Chamado(models.Model):
     prioridade = models.CharField(max_length=20, choices=PRIORIDADE_CHOICES, default='media')
     
     # Referência à loja (slug da loja)
-    loja_slug = models.CharField(max_length=100)
+    loja_slug = models.CharField(max_length=100, db_index=True)
     loja_nome = models.CharField(max_length=200)
-    
+
     # Usuário que abriu o chamado
     usuario_nome = models.CharField(max_length=200)
-    usuario_email = models.EmailField()
+    usuario_email = models.EmailField(db_index=True)
     
     # Atendente do suporte
     atendente = models.ForeignKey(
@@ -60,7 +60,10 @@ class Chamado(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Chamado'
         verbose_name_plural = 'Chamados'
-    
+        indexes = [
+            models.Index(fields=['status', '-created_at'], name='chamado_status_created_idx'),
+        ]
+
     def __str__(self):
         return f"#{self.id} - {self.titulo} ({self.loja_nome})"
 
@@ -81,6 +84,9 @@ class ErroFrontend(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Erro frontend'
         verbose_name_plural = 'Erros frontend'
+        indexes = [
+            models.Index(fields=['loja_slug', '-created_at'], name='errofrontend_loja_created_idx'),
+        ]
 
 
 class RespostaChamado(models.Model):

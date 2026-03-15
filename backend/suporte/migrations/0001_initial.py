@@ -10,6 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ('suporte', '0000_create_schema_suporte'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

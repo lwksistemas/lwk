@@ -109,6 +109,17 @@ DATABASES['default'].setdefault('TIME_ZONE', None)
 if 'OPTIONS' not in DATABASES['default']:
     DATABASES['default']['OPTIONS'] = {}
 DATABASES['default']['OPTIONS']['connect_timeout'] = 10
+DATABASES['default']['OPTIONS']['options'] = '-c statement_timeout=25000'
+
+# Banco suporte: mesmo PostgreSQL, schema isolado (chamados, erros frontend)
+_default_db = dict(DATABASES['default'])
+DATABASES['suporte'] = {
+    **_default_db,
+    'OPTIONS': {
+        **_default_db.get('OPTIONS', {}),
+        'options': '-c search_path=suporte,public -c statement_timeout=25000',
+    },
+}
 
 # CACHE - Redis se REDIS_URL existir (Heroku Redis), senão LocMem (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
 _redis_url = os.environ.get('REDIS_URL')

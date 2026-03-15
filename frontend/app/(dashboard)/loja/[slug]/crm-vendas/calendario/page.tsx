@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
+import { obterFeriadosBrasil } from '@/lib/feriados-brasil';
 
 const MOBILE_BREAKPOINT = 640;
 
@@ -257,6 +258,11 @@ export default function CalendarioCrmPage() {
     setRange({ start: arg.start, end: arg.end });
   }, []);
 
+  const eventosComFeriados = useMemo(() => {
+    const feriados = range ? obterFeriadosBrasil(range.start, range.end) : [];
+    return [...events, ...feriados];
+  }, [events, range]);
+
   const openNovaAtividade = useCallback(() => {
     const now = new Date();
     const start = new Date(now);
@@ -327,8 +333,9 @@ export default function CalendarioCrmPage() {
     setError(null);
   }, []);
 
-  const handleEventClick = useCallback((arg: { event: { extendedProps?: { atividade?: Atividade } }; jsEvent: MouseEvent }) => {
+  const handleEventClick = useCallback((arg: { event: { extendedProps?: { atividade?: Atividade; tipo?: string } }; jsEvent: MouseEvent }) => {
     arg.jsEvent.preventDefault();
+    if (arg.event.extendedProps?.tipo === 'feriado') return;
     const a = arg.event.extendedProps?.atividade;
     if (!a) return;
     
@@ -536,6 +543,18 @@ export default function CalendarioCrmPage() {
 
   const renderEventContent = useCallback((eventInfo: any) => {
     const atividade = eventInfo.event.extendedProps?.atividade;
+    const isFeriado = eventInfo.event.extendedProps?.tipo === 'feriado';
+
+    if (isFeriado) {
+      return (
+        <div className="fc-event-main-frame">
+          <div className="fc-event-title-container">
+            <div className="fc-event-title fc-sticky">{eventInfo.event.title}</div>
+          </div>
+        </div>
+      );
+    }
+
     if (!atividade) return null;
 
     const tipoEmoji: Record<string, string> = {
@@ -569,7 +588,7 @@ export default function CalendarioCrmPage() {
             Calendário
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
-            Sincronizado com as atividades do CRM
+            Sincronizado com as atividades do CRM • Feriados nacionais exibidos
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
@@ -655,7 +674,7 @@ export default function CalendarioCrmPage() {
             }
             slotMinTime="06:00:00"
             slotMaxTime="22:00:00"
-            allDaySlot={false}
+            allDaySlot={true}
             editable
             selectable
             selectMirror
@@ -666,7 +685,7 @@ export default function CalendarioCrmPage() {
             eventResize={handleEventResize}
             dayMaxEvents={isMobile ? 6 : 4}
             weekends
-            events={events}
+            events={eventosComFeriados}
             datesSet={handleDatesSet}
             height="100%"
             eventDisplay="block"

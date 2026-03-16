@@ -12,6 +12,9 @@ class FuncionalidadeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Funcionalidade
         fields = ['id', 'titulo', 'descricao', 'icone', 'ordem', 'ativo']
+        extra_kwargs = {
+            'icone': {'allow_blank': True, 'required': False},
+        }
 
 
 class ModuloSerializer(serializers.ModelSerializer):

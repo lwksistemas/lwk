@@ -29,7 +29,7 @@ class Funcionalidade(models.Model):
     """Funcionalidade/destaque exibido na homepage."""
     titulo = models.CharField(max_length=100)
     descricao = models.TextField()
-    icone = models.CharField(max_length=50, help_text='Nome do ícone (ex: Users, BarChart) ou emoji')
+    icone = models.CharField(max_length=50, blank=True, default='', help_text='Nome do ícone (ex: Users, BarChart) ou emoji')
     ordem = models.PositiveIntegerField(default=0)
     ativo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -152,21 +152,42 @@ export default function HomepageConfigPage() {
       showMsg('error', 'Título é obrigatório');
       return;
     }
+    if (!data.descricao?.trim()) {
+      showMsg('error', 'Descrição é obrigatória');
+      return;
+    }
     setSaving(true);
     try {
       if (data.id) {
-        await apiClient.patch(`${API.funcionalidades}${data.id}/`, data);
+        await apiClient.patch(`${API.funcionalidades}${data.id}/`, {
+          titulo: data.titulo.trim(),
+          descricao: data.descricao?.trim() || '',
+          icone: data.icone?.trim() || '',
+        });
         showMsg('success', 'Funcionalidade atualizada!');
       } else {
-        await apiClient.post(API.funcionalidades, { ...data, ativo: true, ordem: 0 });
+        await apiClient.post(API.funcionalidades, {
+          titulo: data.titulo.trim(),
+          descricao: data.descricao?.trim() || '',
+          icone: data.icone?.trim() || '📦',
+          ativo: true,
+          ordem: 0,
+        });
         showMsg('success', 'Funcionalidade criada!');
       }
       setEditingFunc(null);
       setShowAddFunc(false);
       loadData();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      showMsg('error', e.response?.data?.detail || 'Erro ao salvar');
+      const e = err as { response?: { data?: Record<string, unknown> } };
+      const data = e.response?.data;
+      const msg = typeof data?.detail === 'string'
+        ? data.detail
+        : (Array.isArray(data?.titulo) ? data.titulo[0] : null)
+          || (Array.isArray(data?.descricao) ? data.descricao[0] : null)
+          || (Array.isArray(data?.icone) ? data.icone[0] : null)
+          || 'Erro ao salvar';
+      showMsg('error', String(msg));
     } finally {
       setSaving(false);
     }

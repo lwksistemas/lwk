@@ -2,8 +2,8 @@ import Link from "next/link";
 
 export default function Header() {
   return (
-    <header className="bg-white shadow">
-      <div className="max-w-7xl mx-auto flex justify-between items-center p-4">
+    <header className="bg-white shadow w-full">
+      <div className="w-full max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4">
         <Link href="/" className="text-2xl font-bold text-blue-600">
           LWKS SISTEMAS
         </Link>

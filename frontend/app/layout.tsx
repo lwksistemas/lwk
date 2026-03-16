@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning className="w-full min-w-full m-0 p-0 overflow-x-hidden">
       <head>
         <link rel="apple-touch-icon" href="/icons/icon.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -57,7 +57,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} bg-gray-50 dark:bg-gray-900 transition-colors duration-200`}>
+      <body className={`${inter.className} bg-white dark:bg-gray-900 transition-colors duration-200 w-full min-w-full m-0 p-0 overflow-x-hidden antialiased`}>
         <Providers>{children}</Providers>
         <InstallPWA />
       </body>

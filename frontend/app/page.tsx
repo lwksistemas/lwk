@@ -34,7 +34,7 @@ export default async function HomePage() {
 
   return (
     <PwaRedirect>
-      <main>
+      <main className="w-screen min-w-screen max-w-none overflow-x-hidden">
         <Header />
         <Hero hero={hero} />
         <Features funcionalidades={funcionalidades} />
@@ -42,7 +42,7 @@ export default async function HomePage() {
         <WhyUs />
         <Modules modulos={modulos} />
         <CtaSection />
-        <footer className="bg-blue-900 text-white text-center p-6">
+        <footer className="w-full bg-blue-900 text-white text-center p-6">
           © 2026 LWKS Sistemas - Todos os direitos reservados
         </footer>
       </main>

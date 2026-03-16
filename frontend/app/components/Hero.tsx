@@ -13,8 +13,8 @@ export default function Hero({ hero }: HeroProps) {
   const botaoTexto = hero?.botao_texto ?? "Testar Gratuitamente";
 
   return (
-    <section className="bg-gradient-to-br from-blue-50 via-white to-blue-50 py-20">
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center px-4">
+    <section className="w-full min-w-full bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100 py-16 md:py-24">
+      <div className="w-full max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center px-4 sm:px-6 lg:px-8">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight">
             {titulo}

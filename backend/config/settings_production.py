@@ -180,6 +180,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 _DEFAULT_CORS_ORIGINS = [
     'https://lwksistemas.com.br',
     'https://www.lwksistemas.com.br',
+    'https://lwksistemas.vercel.app',
     'https://frontend-r3q0a1lw4-lwks-projects-48afd555.vercel.app',
 ]
 _raw = os.environ.get('CORS_ORIGINS', '').strip()

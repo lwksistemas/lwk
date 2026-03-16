@@ -42,6 +42,95 @@ def _normalize_phone(telefone):
     return digits[:15]
 
 
+def send_whatsapp_document(telefone, document_url, filename, caption=None, user=None, config=None):
+    """
+    Envia documento (PDF) via WhatsApp Cloud API.
+    document_url: URL pública HTTPS do documento (Meta precisa conseguir baixar).
+    filename: nome do arquivo (ex: proposta.pdf)
+    caption: legenda opcional (máx 1024 caracteres)
+    Retorna (True, None) ou (False, mensagem_erro).
+    """
+    phone = _normalize_phone(telefone)
+    loja = config.loja if config else None
+    if not phone:
+        logger.warning("WhatsApp documento: telefone inválido: %s", telefone)
+        WhatsAppLog.objects.create(
+            loja=loja,
+            user=user,
+            telefone=telefone or '',
+            mensagem=f"[documento] {filename}",
+            status='falhou',
+            response={'error': 'telefone_invalido'},
+        )
+        return False, "Telefone inválido ou incompleto."
+
+    api_url = getattr(settings, 'WHATSAPP_API_URL', None) or 'https://graph.facebook.com/v19.0'
+    phone_id = None
+    token = None
+    if config and getattr(config, 'whatsapp_ativo', False):
+        phone_id = (getattr(config, 'whatsapp_phone_id', None) or '').strip()
+        token = (getattr(config, 'whatsapp_token', None) or '').strip()
+    if not phone_id or not token:
+        phone_id = phone_id or getattr(settings, 'WHATSAPP_PHONE_ID', None)
+        token = token or getattr(settings, 'WHATSAPP_TOKEN', None)
+
+    if not phone_id or not token:
+        WhatsAppLog.objects.create(
+            loja=loja,
+            user=user,
+            telefone=phone,
+            mensagem=f"[documento] {filename}",
+            status='falhou',
+            response={'error': 'config_missing'},
+        )
+        return False, "Phone Number ID e Token não configurados. Configure em Configurações → WhatsApp."
+
+    url = f"{api_url.rstrip('/')}/{phone_id}/messages"
+    doc_payload = {"link": document_url, "filename": filename}
+    if caption:
+        doc_payload["caption"] = str(caption)[:1024]
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "document",
+        "document": doc_payload,
+    }
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+    except Exception as e:
+        logger.exception("WhatsApp documento: erro de requisição")
+        WhatsAppLog.objects.create(
+            loja=loja,
+            user=user,
+            telefone=phone,
+            mensagem=f"[documento] {filename}",
+            status='falhou',
+            response={'error': str(e)},
+        )
+        return False, f"Erro de conexão: {str(e)}"
+
+    ok = response.ok and bool(data.get('messages'))
+    WhatsAppLog.objects.create(
+        loja=loja,
+        user=user,
+        telefone=phone,
+        mensagem=f"[documento] {filename}",
+        status='enviado' if ok else 'falhou',
+        response=data,
+    )
+    if ok:
+        return True, None
+    err = data.get('error') or {}
+    msg = (err.get('message') or err.get('error_user_msg') or '').strip()
+    return False, msg or "Erro ao enviar documento pelo WhatsApp."
+
+
 def send_whatsapp(telefone, mensagem, user=None, config=None):
     """
     Envia mensagem de texto via WhatsApp Cloud API.

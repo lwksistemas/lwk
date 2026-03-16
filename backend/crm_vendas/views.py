@@ -37,6 +37,7 @@ from .mixins import CRMPermissionMixin, VendedorFilterMixin
 from .cache import CRMCacheManager
 from .decorators import cache_list_response, require_admin_access, invalidate_cache_on_change
 from .activities_google_sync import sync_atividade_create, sync_atividade_update, sync_atividade_delete
+from .views_enviar_cliente import _enviar_proposta_contrato_cliente
 
 logger = logging.getLogger(__name__)
 
@@ -635,6 +636,21 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
             qs = qs.filter(status=status_filter)
         return qs
 
+    @action(detail=True, methods=['post'])
+    def enviar_cliente(self, request, pk=None):
+        """Envia proposta ao cliente por email ou WhatsApp."""
+        instance = self.get_object()
+        canal = (request.data.get('canal') or '').strip().lower()
+        if canal not in ('email', 'whatsapp'):
+            return Response(
+                {'detail': 'Informe o canal: email ou whatsapp'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        ok, err = _enviar_proposta_contrato_cliente(instance, canal, request)
+        if ok:
+            return Response({'message': f'Proposta enviada ao cliente por {canal} com sucesso.'})
+        return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ContratoViewSet(VendedorFilterMixin, BaseModelViewSet):
     """Contratos gerados a partir de oportunidades fechadas."""
@@ -655,33 +671,20 @@ class ContratoViewSet(VendedorFilterMixin, BaseModelViewSet):
             qs = qs.filter(status=status_filter)
         return qs
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        # Filtros adicionais (além do filtro de vendedor do mixin)
-        concluido = self.request.query_params.get('concluido')
-        if concluido is not None:
-            qs = qs.filter(concluido=concluido.lower() == 'true')
-        oportunidade_id = self.request.query_params.get('oportunidade_id')
-        if oportunidade_id:
-            qs = qs.filter(oportunidade_id=oportunidade_id)
-        lead_id = self.request.query_params.get('lead_id')
-        if lead_id:
-            qs = qs.filter(lead_id=lead_id)
-        data_inicio = self.request.query_params.get('data_inicio')
-        if data_inicio:
-            dt = parse_datetime(data_inicio)
-            if dt and timezone.is_naive(dt):
-                dt = timezone.make_aware(dt, timezone.utc)
-            if dt:
-                qs = qs.filter(data__gte=dt)
-        data_fim = self.request.query_params.get('data_fim')
-        if data_fim:
-            dt = parse_datetime(data_fim)
-            if dt and timezone.is_naive(dt):
-                dt = timezone.make_aware(dt, timezone.utc)
-            if dt:
-                qs = qs.filter(data__lte=dt)
-        return qs
+    @action(detail=True, methods=['post'])
+    def enviar_cliente(self, request, pk=None):
+        """Envia contrato ao cliente por email ou WhatsApp."""
+        instance = self.get_object()
+        canal = (request.data.get('canal') or '').strip().lower()
+        if canal not in ('email', 'whatsapp'):
+            return Response(
+                {'detail': 'Informe o canal: email ou whatsapp'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        ok, err = _enviar_proposta_contrato_cliente(instance, canal, request)
+        if ok:
+            return Response({'message': f'Contrato enviado ao cliente por {canal} com sucesso.'})
+        return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def _empty_dashboard_response():

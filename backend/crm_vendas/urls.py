@@ -19,6 +19,7 @@ from .views import (
     crm_config,
     gerar_relatorio,
 )
+from .views_enviar_cliente import DocumentoPdfPublicView
 from .views_google_calendar import (
     google_calendar_auth,
     google_calendar_callback,
@@ -40,6 +41,7 @@ router.register(r'propostas', PropostaViewSet, basename='crm-propostas')
 router.register(r'contratos', ContratoViewSet, basename='crm-contratos')
 
 urlpatterns = [
+    path('documento-pdf/', DocumentoPdfPublicView.as_view()),
     path('me/', crm_me),
     path('dashboard/', dashboard_data),
     path('busca/', crm_busca),

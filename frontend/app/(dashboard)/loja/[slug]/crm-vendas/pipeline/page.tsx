@@ -6,7 +6,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { DollarSign, LayoutDashboard, Plus, X } from 'lucide-react';
+import { DollarSign, LayoutDashboard, Plus, X, Mail, MessageCircle } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
@@ -52,6 +52,9 @@ export default function CrmVendasPipelinePage() {
   const [enviando, setEnviando] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [modalCriar, setModalCriar] = useState(false);
+  const [propostasOportunidade, setPropostasOportunidade] = useState<{ id: number; titulo: string }[]>([]);
+  const [contratoOportunidade, setContratoOportunidade] = useState<{ id: number; titulo: string } | null>(null);
+  const [enviandoEnvio, setEnviandoEnvio] = useState(false);
   const [leads, setLeads] = useState<LeadOption[]>([]);
   const [produtosServicos, setProdutosServicos] = useState<ProdutoServicoOption[]>([]);
   const [formCriar, setFormCriar] = useState({
@@ -215,6 +218,39 @@ export default function CrmVendasPipelinePage() {
     setDataFechamentoGanho(op.data_fechamento_ganho || '');
     setDataFechamentoPerdido(op.data_fechamento_perdido || '');
     setFormErro(null);
+    setPropostasOportunidade([]);
+    setContratoOportunidade(null);
+  };
+
+  useEffect(() => {
+    if (!oportunidadeEditar) return;
+    const isClosedWon = oportunidadeEditar.etapa === 'closed_won' || etapaSelecionada === 'closed_won';
+    if (!isClosedWon) return;
+    apiClient
+      .get<{ results: { id: number; titulo: string }[] }>(`/crm-vendas/propostas/?oportunidade_id=${oportunidadeEditar.id}`)
+      .then((r) => setPropostasOportunidade(normalizeListResponse(r.data)))
+      .catch(() => setPropostasOportunidade([]));
+    apiClient
+      .get<{ results: { id: number; titulo: string }[] }>(`/crm-vendas/contratos/?oportunidade_id=${oportunidadeEditar.id}`)
+      .then((r) => {
+        const list = normalizeListResponse(r.data);
+        setContratoOportunidade(list.length > 0 ? list[0] : null);
+      })
+      .catch(() => setContratoOportunidade(null));
+  }, [oportunidadeEditar, etapaSelecionada]);
+
+  const handleEnviarCliente = async (tipo: 'proposta' | 'contrato', id: number, canal: 'email' | 'whatsapp') => {
+    setEnviandoEnvio(true);
+    try {
+      const url = tipo === 'proposta' ? `/crm-vendas/propostas/${id}/enviar_cliente/` : `/crm-vendas/contratos/${id}/enviar_cliente/`;
+      await apiClient.post(url, { canal });
+      alert(`Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e.response?.data?.detail || 'Erro ao enviar.');
+    } finally {
+      setEnviandoEnvio(false);
+    }
   };
 
   const handleSalvarEtapa = (e: React.FormEvent) => {
@@ -585,6 +621,75 @@ export default function CrmVendasPipelinePage() {
                     onChange={(e) => setDataFechamentoPerdido(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                </div>
+              )}
+              {(etapaSelecionada === 'closed_won' || oportunidadeEditar.etapa === 'closed_won') && (
+                <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Enviar ao cliente
+                  </label>
+                  {(propostasOportunidade.length > 0 || contratoOportunidade) ? (
+                    <div className="space-y-2">
+                      {propostasOportunidade.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                          <span className="text-sm truncate">Proposta: {p.titulo || `#${p.id}`}</span>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleEnviarCliente('proposta', p.id, 'email')}
+                              disabled={enviandoEnvio}
+                              className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50"
+                              title="Enviar por e-mail"
+                            >
+                              <Mail size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEnviarCliente('proposta', p.id, 'whatsapp')}
+                              disabled={enviandoEnvio}
+                              className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50"
+                              title="Enviar por WhatsApp"
+                            >
+                              <MessageCircle size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {contratoOportunidade && (
+                        <div className="flex items-center justify-between gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                          <span className="text-sm truncate">Contrato: {contratoOportunidade.titulo || `#${contratoOportunidade.id}`}</span>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleEnviarCliente('contrato', contratoOportunidade.id, 'email')}
+                              disabled={enviandoEnvio}
+                              className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50"
+                              title="Enviar por e-mail"
+                            >
+                              <Mail size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEnviarCliente('contrato', contratoOportunidade.id, 'whatsapp')}
+                              disabled={enviandoEnvio}
+                              className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50"
+                              title="Enviar por WhatsApp"
+                            >
+                              <MessageCircle size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Crie uma proposta ou contrato em{' '}
+                      <Link href={`/loja/${slug}/crm-vendas/propostas`} className="text-[#0176d3] hover:underline">Propostas</Link>
+                      {' ou '}
+                      <Link href={`/loja/${slug}/crm-vendas/contratos`} className="text-[#0176d3] hover:underline">Contratos</Link>
+                      {' para enviar ao cliente.'}
+                    </p>
+                  )}
                 </div>
               )}
               <div className="flex gap-2">

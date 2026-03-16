@@ -11,6 +11,7 @@ export default function Hero({ hero }: HeroProps) {
     hero?.subtitulo ??
     "Gerencie clientes, vendas, financeiro e relatórios em um CRM moderno e fácil de usar.";
   const botaoTexto = hero?.botao_texto ?? "Testar Gratuitamente";
+  const mostrarBotaoPrincipal = hero?.botao_principal_ativo !== false;
 
   return (
     <section className="w-full min-w-full bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100 py-16 md:py-24">
@@ -21,12 +22,14 @@ export default function Hero({ hero }: HeroProps) {
           </h1>
           <p className="text-lg text-gray-600 mb-8">{subtitulo}</p>
           <div className="flex flex-wrap gap-4">
-            <Link
-              href="/superadmin/login"
-              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              {botaoTexto}
-            </Link>
+            {mostrarBotaoPrincipal && (
+              <Link
+                href="/superadmin/login"
+                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                {botaoTexto}
+              </Link>
+            )}
             <Link
               href="#funcionalidades"
               className="inline-block bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"

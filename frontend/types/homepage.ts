@@ -3,6 +3,7 @@ export interface Hero {
   titulo: string;
   subtitulo: string;
   botao_texto: string;
+  botao_principal_ativo?: boolean;
 }
 
 export interface Funcionalidade {

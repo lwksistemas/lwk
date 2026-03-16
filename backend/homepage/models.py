@@ -10,6 +10,7 @@ class HeroSection(models.Model):
     titulo = models.CharField(max_length=200)
     subtitulo = models.TextField()
     botao_texto = models.CharField(max_length=100, default='Testar grátis')
+    botao_principal_ativo = models.BooleanField(default=True, help_text='Exibir botão principal (ex: Testar grátis)')
     ativo = models.BooleanField(default=True)
     ordem = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

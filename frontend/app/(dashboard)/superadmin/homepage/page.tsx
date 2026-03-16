@@ -29,6 +29,7 @@ interface HeroData {
   titulo: string;
   subtitulo: string;
   botao_texto: string;
+  botao_principal_ativo?: boolean;
   ativo?: boolean;
 }
 
@@ -70,6 +71,7 @@ export default function HomepageConfigPage() {
     titulo: '',
     subtitulo: '',
     botao_texto: 'Testar grátis',
+    botao_principal_ativo: true,
   });
   const [editingFunc, setEditingFunc] = useState<FuncionalidadeData | null>(null);
   const [editingMod, setEditingMod] = useState<ModuloData | null>(null);
@@ -98,10 +100,11 @@ export default function HomepageConfigPage() {
           titulo: firstHero.titulo,
           subtitulo: firstHero.subtitulo,
           botao_texto: firstHero.botao_texto || 'Testar grátis',
+          botao_principal_ativo: firstHero.botao_principal_ativo !== false,
         });
       } else {
         setHero(null);
-        setHeroForm({ titulo: '', subtitulo: '', botao_texto: 'Testar grátis' });
+        setHeroForm({ titulo: '', subtitulo: '', botao_texto: 'Testar grátis', botao_principal_ativo: true });
       }
 
       const funcList = Array.isArray(funcRes.data) ? funcRes.data : funcRes.data?.results ?? [];
@@ -318,6 +321,18 @@ export default function HomepageConfigPage() {
                     onChange={(e) => setHeroForm((f) => ({ ...f, botao_texto: e.target.value }))}
                     placeholder="Ex: Testar grátis"
                   />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="botao_principal_ativo"
+                    checked={heroForm.botao_principal_ativo !== false}
+                    onChange={(e) => setHeroForm((f) => ({ ...f, botao_principal_ativo: e.target.checked }))}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="botao_principal_ativo" className="cursor-pointer font-normal">
+                    Exibir botão &quot;Testar grátis&quot; na homepage
+                  </Label>
                 </div>
                 <Button onClick={saveHero} disabled={saving}>
                   <Save className="w-4 h-4 mr-2" />

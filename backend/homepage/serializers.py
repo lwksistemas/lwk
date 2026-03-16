@@ -5,7 +5,7 @@ from .models import HeroSection, Funcionalidade, ModuloSistema
 class HeroSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeroSection
-        fields = ['id', 'titulo', 'subtitulo', 'botao_texto', 'ordem', 'ativo']
+        fields = ['id', 'titulo', 'subtitulo', 'botao_texto', 'botao_principal_ativo', 'ordem', 'ativo']
 
 
 class FuncionalidadeSerializer(serializers.ModelSerializer):

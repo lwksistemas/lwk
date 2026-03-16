@@ -6,38 +6,55 @@ interface HeroProps {
 }
 
 export default function Hero({ hero }: HeroProps) {
-  if (!hero) return null;
+  const titulo = hero?.titulo ?? "Controle total da sua empresa em um único sistema";
+  const subtitulo =
+    hero?.subtitulo ??
+    "Gerencie clientes, vendas, financeiro e relatórios em um CRM moderno e fácil de usar.";
+  const botaoTexto = hero?.botao_texto ?? "Testar Gratuitamente";
 
   return (
-    <section className="bg-white py-24">
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center px-4">
+    <section className="bg-gradient-to-br from-blue-50 via-white to-blue-50 py-20">
+      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center px-4">
         <div>
-          <h1 className="text-5xl font-bold mb-6 text-gray-900">
-            {hero.titulo}
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight">
+            {titulo}
           </h1>
-          <p className="text-lg text-gray-600 mb-8">{hero.subtitulo}</p>
-          <Link
-            href="/superadmin/login"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            {hero.botao_texto}
-          </Link>
+          <p className="text-lg text-gray-600 mb-8">{subtitulo}</p>
+          <div className="flex flex-wrap gap-4">
+            <Link
+              href="/superadmin/login"
+              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              {botaoTexto}
+            </Link>
+            <Link
+              href="#funcionalidades"
+              className="inline-block bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"
+            >
+              Ver Demonstração
+            </Link>
+          </div>
         </div>
         <div className="hidden md:block">
-          <div className="rounded-lg shadow-xl bg-gradient-to-br from-blue-100 to-blue-200 aspect-video flex items-center justify-center">
-            <svg
-              className="w-32 h-32 text-blue-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
+          <div className="rounded-xl shadow-2xl bg-white p-4 border border-gray-100 overflow-hidden">
+            <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center">
+              <div className="text-center p-8">
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  {[40, 70, 55].map((h, i) => (
+                    <div
+                      key={i}
+                      className="bg-blue-200/60 rounded"
+                      style={{ height: `${h}px` }}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <div className="w-16 h-16 rounded-full bg-blue-300/50" />
+                  <div className="w-24 h-12 rounded bg-blue-200/50" />
+                </div>
+                <p className="text-blue-700 font-semibold mt-4 text-lg">Dashboard</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

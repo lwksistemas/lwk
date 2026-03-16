@@ -4,6 +4,13 @@ interface FeaturesProps {
   funcionalidades: Funcionalidade[];
 }
 
+const DEFAULT_FUNCIONALIDADES: Omit<Funcionalidade, "id">[] = [
+  { titulo: "CRM de Clientes", descricao: "Gestão de contatos e leads", icone: "👥" },
+  { titulo: "Gestão de Vendas", descricao: "Controle de oportunidades", icone: "📊" },
+  { titulo: "Relatórios Inteligentes", descricao: "Análises e métricas detalhadas", icone: "📈" },
+  { titulo: "Controle Financeiro", descricao: "Gestão de contas e faturamento", icone: "💰" },
+];
+
 function renderIcon(icone?: string) {
   if (!icone || icone.length <= 2) {
     return <span className="text-4xl">{icone || "📦"}</span>;
@@ -19,19 +26,21 @@ function renderIcon(icone?: string) {
 }
 
 export default function Features({ funcionalidades }: FeaturesProps) {
-  if (!funcionalidades?.length) return null;
+  const items = funcionalidades?.length
+    ? funcionalidades
+    : DEFAULT_FUNCIONALIDADES.map((f, i) => ({ ...f, id: i }));
 
   return (
-    <section id="funcionalidades" className="py-20 bg-gray-50">
+    <section id="funcionalidades" className="py-20 bg-white">
       <div className="max-w-6xl mx-auto px-4">
         <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
-          Funcionalidades
+          Funcionalidades do Sistema
         </h2>
-        <div className="grid md:grid-cols-3 gap-8">
-          {funcionalidades.map((f) => (
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {items.map((f, i) => (
             <div
-              key={f.id}
-              className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition-shadow"
+              key={f.id ?? i}
+              className="bg-gray-50 p-6 rounded-xl border border-gray-100 hover:shadow-lg transition-shadow"
             >
               <div className="mb-4">{renderIcon(f.icone)}</div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">{f.titulo}</h3>

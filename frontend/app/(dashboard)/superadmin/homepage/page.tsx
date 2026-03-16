@@ -2,56 +2,114 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Home, RefreshCw, Settings } from 'lucide-react';
-import apiClient, { getCurrentApiBaseUrl } from '@/lib/api-client';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Modal } from '@/components/ui/Modal';
+import {
+  Home,
+  RefreshCw,
+  Plus,
+  Pencil,
+  Trash2,
+  Save,
+} from 'lucide-react';
+import apiClient from '@/lib/api-client';
 
 interface HeroData {
-  id: number;
+  id?: number;
   titulo: string;
   subtitulo: string;
   botao_texto: string;
+  ativo?: boolean;
 }
 
 interface FuncionalidadeData {
-  id: number;
+  id?: number;
   titulo: string;
   descricao: string;
   icone: string;
+  ordem?: number;
+  ativo?: boolean;
 }
 
 interface ModuloData {
-  id: number;
+  id?: number;
   nome: string;
   descricao: string;
   slug: string;
   icone: string;
+  ordem?: number;
+  ativo?: boolean;
 }
 
-interface HomepageData {
-  hero: HeroData | null;
-  funcionalidades: FuncionalidadeData[];
-  modulos: ModuloData[];
-}
-
-function getAdminHomepageUrl(): string {
-  const base = getCurrentApiBaseUrl();
-  const adminBase = base.replace(/\/api\/?$/, '');
-  return `${adminBase}/admin/homepage/`;
-}
+const API = {
+  hero: '/superadmin/homepage/hero/',
+  funcionalidades: '/superadmin/homepage/funcionalidades/',
+  modulos: '/superadmin/homepage/modulos/',
+};
 
 export default function HomepageConfigPage() {
-  const [data, setData] = useState<HomepageData | null>(null);
+  const [hero, setHero] = useState<HeroData | null>(null);
+  const [funcionalidades, setFuncionalidades] = useState<FuncionalidadeData[]>([]);
+  const [modulos, setModulos] = useState<ModuloData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Form states
+  const [heroForm, setHeroForm] = useState<HeroData>({
+    titulo: '',
+    subtitulo: '',
+    botao_texto: 'Testar grátis',
+  });
+  const [editingFunc, setEditingFunc] = useState<FuncionalidadeData | null>(null);
+  const [editingMod, setEditingMod] = useState<ModuloData | null>(null);
+  const [showAddFunc, setShowAddFunc] = useState(false);
+  const [showAddMod, setShowAddMod] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: 'func' | 'mod';
+    id: number;
+    nome: string;
+  } | null>(null);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get<HomepageData>('/homepage/');
-      setData(res.data);
-    } catch {
-      setData(null);
+      const [heroRes, funcRes, modRes] = await Promise.all([
+        apiClient.get(API.hero),
+        apiClient.get(API.funcionalidades),
+        apiClient.get(API.modulos),
+      ]);
+
+      const heroList = Array.isArray(heroRes.data) ? heroRes.data : heroRes.data?.results ?? [];
+      const firstHero = heroList[0];
+      if (firstHero) {
+        setHero(firstHero);
+        setHeroForm({
+          titulo: firstHero.titulo,
+          subtitulo: firstHero.subtitulo,
+          botao_texto: firstHero.botao_texto || 'Testar grátis',
+        });
+      } else {
+        setHero(null);
+        setHeroForm({ titulo: '', subtitulo: '', botao_texto: 'Testar grátis' });
+      }
+
+      const funcList = Array.isArray(funcRes.data) ? funcRes.data : funcRes.data?.results ?? [];
+      const modList = Array.isArray(modRes.data) ? modRes.data : modRes.data?.results ?? [];
+      setFuncionalidades(funcList);
+      setModulos(modList);
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Erro ao carregar dados' });
     } finally {
       setLoading(false);
     }
@@ -61,7 +119,112 @@ export default function HomepageConfigPage() {
     loadData();
   }, []);
 
-  const adminUrl = typeof window !== 'undefined' ? getAdminHomepageUrl() : '';
+  const showMsg = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 4000);
+  };
+
+  const saveHero = async () => {
+    if (!heroForm.titulo.trim()) {
+      showMsg('error', 'Título é obrigatório');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (hero?.id) {
+        await apiClient.patch(`${API.hero}${hero.id}/`, heroForm);
+        showMsg('success', 'Hero atualizado!');
+      } else {
+        await apiClient.post(API.hero, { ...heroForm, ativo: true });
+        showMsg('success', 'Hero criado!');
+      }
+      loadData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      showMsg('error', e.response?.data?.detail || 'Erro ao salvar hero');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveFuncionalidade = async (data: FuncionalidadeData) => {
+    if (!data.titulo.trim()) {
+      showMsg('error', 'Título é obrigatório');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (data.id) {
+        await apiClient.patch(`${API.funcionalidades}${data.id}/`, data);
+        showMsg('success', 'Funcionalidade atualizada!');
+      } else {
+        await apiClient.post(API.funcionalidades, { ...data, ativo: true, ordem: 0 });
+        showMsg('success', 'Funcionalidade criada!');
+      }
+      setEditingFunc(null);
+      setShowAddFunc(false);
+      loadData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      showMsg('error', e.response?.data?.detail || 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveModulo = async (data: ModuloData) => {
+    if (!data.nome.trim()) {
+      showMsg('error', 'Nome é obrigatório');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (data.id) {
+        await apiClient.patch(`${API.modulos}${data.id}/`, data);
+        showMsg('success', 'Módulo atualizado!');
+      } else {
+        await apiClient.post(API.modulos, { ...data, ativo: true, ordem: 0 });
+        showMsg('success', 'Módulo criado!');
+      }
+      setEditingMod(null);
+      setShowAddMod(false);
+      loadData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      showMsg('error', e.response?.data?.detail || 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteItem = async () => {
+    if (!deleteConfirm) return;
+    setSaving(true);
+    try {
+      if (deleteConfirm.type === 'func') {
+        await apiClient.delete(`${API.funcionalidades}${deleteConfirm.id}/`);
+        showMsg('success', 'Funcionalidade excluída!');
+      } else {
+        await apiClient.delete(`${API.modulos}${deleteConfirm.id}/`);
+        showMsg('success', 'Módulo excluído!');
+      }
+      setDeleteConfirm(null);
+      loadData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      showMsg('error', e.response?.data?.detail || 'Erro ao excluir');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading && !hero && funcionalidades.length === 0 && modulos.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -73,117 +236,387 @@ export default function HomepageConfigPage() {
               Configurar Homepage
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Edite textos, funcionalidades e módulos da página inicial pelo painel admin.
+              Edite textos, funcionalidades e módulos da página inicial.
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
-            <Button asChild>
-              <a href={adminUrl} target="_blank" rel="noopener noreferrer">
-                <Settings className="w-4 h-4 mr-2" />
-                Abrir Admin
-                <ExternalLink className="w-4 h-4 ml-2" />
-              </a>
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
         </div>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Como configurar</CardTitle>
-            <CardDescription>
-              Clique em &quot;Abrir Admin&quot; para acessar o painel Django. Lá você pode cadastrar e editar:
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-            <ul className="list-disc list-inside space-y-1">
-              <li><strong>Hero Section</strong> – Título, subtítulo e texto do botão principal</li>
-              <li><strong>Funcionalidades</strong> – Destaques exibidos na homepage (título, descrição, ícone)</li>
-              <li><strong>Módulos do Sistema</strong> – Sistemas disponíveis com links para login (ex: CRM Vendas, Clínica)</li>
-            </ul>
-            <p className="pt-2">
-              Após salvar no admin, a página inicial será atualizada automaticamente.
+        {message && (
+          <div
+            className={`mb-4 p-4 rounded-lg ${
+              message.type === 'success'
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+                : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
+        <Tabs defaultValue="hero" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="hero">Hero</TabsTrigger>
+            <TabsTrigger value="funcionalidades">Funcionalidades</TabsTrigger>
+            <TabsTrigger value="modulos">Módulos</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="hero">
+            <Card>
+              <CardHeader>
+                <CardTitle>Hero Section</CardTitle>
+                <CardDescription>
+                  Título, subtítulo e texto do botão principal da página inicial
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Título</Label>
+                  <Input
+                    value={heroForm.titulo}
+                    onChange={(e) => setHeroForm((f) => ({ ...f, titulo: e.target.value }))}
+                    placeholder="Ex: LWK SISTEMAS"
+                  />
+                </div>
+                <div>
+                  <Label>Subtítulo</Label>
+                  <textarea
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={heroForm.subtitulo}
+                    onChange={(e) => setHeroForm((f) => ({ ...f, subtitulo: e.target.value }))}
+                    placeholder="Ex: Gestão de Lojas"
+                  />
+                </div>
+                <div>
+                  <Label>Texto do botão</Label>
+                  <Input
+                    value={heroForm.botao_texto}
+                    onChange={(e) => setHeroForm((f) => ({ ...f, botao_texto: e.target.value }))}
+                    placeholder="Ex: Testar grátis"
+                  />
+                </div>
+                <Button onClick={saveHero} disabled={saving}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {saving ? 'Salvando...' : 'Salvar Hero'}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="funcionalidades">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Funcionalidades</CardTitle>
+                  <CardDescription>
+                    Destaques exibidos na homepage (título, descrição, ícone)
+                  </CardDescription>
+                </div>
+                <Button size="sm" onClick={() => setShowAddFunc(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {funcionalidades.map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium">{f.titulo}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{f.descricao}</p>
+                        {f.icone && (
+                          <span className="text-xs text-gray-500">Ícone: {f.icone}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setEditingFunc({
+                              id: f.id,
+                              titulo: f.titulo,
+                              descricao: f.descricao,
+                              icone: f.icone || '',
+                            })
+                          }
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600"
+                          onClick={() => setDeleteConfirm({ type: 'func', id: f.id!, nome: f.titulo })}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {funcionalidades.length === 0 && !showAddFunc && (
+                    <p className="text-gray-500 italic">Nenhuma funcionalidade. Clique em Nova para adicionar.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="modulos">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Módulos do Sistema</CardTitle>
+                  <CardDescription>
+                    Sistemas disponíveis com links para login (slug = /loja/slug/login)
+                  </CardDescription>
+                </div>
+                <Button size="sm" onClick={() => setShowAddMod(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {modulos.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium">{m.nome}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{m.descricao}</p>
+                        {m.slug && (
+                          <p className="text-xs text-gray-500">/loja/{m.slug}/login</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setEditingMod({
+                              id: m.id,
+                              nome: m.nome,
+                              descricao: m.descricao,
+                              slug: m.slug || '',
+                              icone: m.icone || '',
+                            })
+                          }
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600"
+                          onClick={() => setDeleteConfirm({ type: 'mod', id: m.id!, nome: m.nome })}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {modulos.length === 0 && !showAddMod && (
+                    <p className="text-gray-500 italic">Nenhum módulo. Clique em Novo para adicionar.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Modal Adicionar/Editar Funcionalidade */}
+        <Modal
+          isOpen={showAddFunc || !!editingFunc}
+          onClose={() => {
+            setShowAddFunc(false);
+            setEditingFunc(null);
+          }}
+        >
+          <div className="p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              {editingFunc ? 'Editar Funcionalidade' : 'Nova Funcionalidade'}
+            </h3>
+            <FuncForm
+              key={editingFunc?.id ?? 'new'}
+              initial={editingFunc ?? { titulo: '', descricao: '', icone: '' }}
+              onSave={saveFuncionalidade}
+              onCancel={() => {
+                setShowAddFunc(false);
+                setEditingFunc(null);
+              }}
+              saving={saving}
+            />
+          </div>
+        </Modal>
+
+        {/* Modal Adicionar/Editar Módulo */}
+        <Modal
+          isOpen={showAddMod || !!editingMod}
+          onClose={() => {
+            setShowAddMod(false);
+            setEditingMod(null);
+          }}
+        >
+          <div className="p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              {editingMod ? 'Editar Módulo' : 'Novo Módulo'}
+            </h3>
+            <ModForm
+              key={editingMod?.id ?? 'new'}
+              initial={editingMod ?? { nome: '', descricao: '', slug: '', icone: '' }}
+              onSave={saveModulo}
+              onCancel={() => {
+                setShowAddMod(false);
+                setEditingMod(null);
+              }}
+              saving={saving}
+            />
+          </div>
+        </Modal>
+
+        {/* Modal Confirmar Exclusão */}
+        <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)}>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold mb-2">Excluir?</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Tem certeza que deseja excluir &quot;{deleteConfirm?.nome}&quot;?
             </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Pré-visualização atual</CardTitle>
-            <CardDescription>
-              Dados exibidos na página inicial (somente leitura)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-gray-500">Carregando...</p>
-            ) : (
-              <div className="space-y-6">
-                {/* Hero */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Hero</h3>
-                  {data?.hero ? (
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                      <p className="font-semibold text-lg">{data.hero.titulo}</p>
-                      <p className="text-gray-600 dark:text-gray-300">{data.hero.subtitulo}</p>
-                      <p className="text-sm text-gray-500 mt-2">Botão: {data.hero.botao_texto}</p>
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 italic">Nenhum hero cadastrado</p>
-                  )}
-                </div>
-
-                {/* Funcionalidades */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Funcionalidades</h3>
-                  {data?.funcionalidades && data.funcionalidades.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {data.funcionalidades.map((f) => (
-                        <div key={f.id} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                          <p className="font-medium">{f.titulo}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{f.descricao}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 italic">Nenhuma funcionalidade cadastrada</p>
-                  )}
-                </div>
-
-                {/* Módulos */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Módulos</h3>
-                  {data?.modulos && data.modulos.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {data.modulos.map((m) => (
-                        <div key={m.id} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                          <p className="font-medium">{m.nome}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{m.descricao}</p>
-                          {m.slug && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Link: /loja/{m.slug}/login
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 italic">Nenhum módulo cadastrado</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={deleteItem} disabled={saving}>
+                {saving ? 'Excluindo...' : 'Excluir'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         <div className="mt-6">
           <Link href="/superadmin/dashboard">
             <Button variant="outline">← Voltar ao Dashboard</Button>
           </Link>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function FuncForm({
+  initial,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  initial: FuncionalidadeData;
+  onSave: (d: FuncionalidadeData) => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const [form, setForm] = useState(initial);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Título</Label>
+        <Input
+          value={form.titulo}
+          onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+          placeholder="Ex: CRM de Clientes"
+        />
+      </div>
+      <div>
+        <Label>Descrição</Label>
+        <textarea
+          className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.descricao}
+          onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+          placeholder="Ex: Gestão completa de clientes"
+        />
+      </div>
+      <div>
+        <Label>Ícone (emoji ou nome: Users, BarChart, etc.)</Label>
+        <Input
+          value={form.icone}
+          onChange={(e) => setForm((f) => ({ ...f, icone: e.target.value }))}
+          placeholder="Ex: 👥 ou Users"
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button onClick={() => onSave(form)} disabled={saving}>
+          Salvar
+        </Button>
+        <Button variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ModForm({
+  initial,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  initial: ModuloData;
+  onSave: (d: ModuloData) => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const [form, setForm] = useState(initial);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Nome</Label>
+        <Input
+          value={form.nome}
+          onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+          placeholder="Ex: CRM Vendas"
+        />
+      </div>
+      <div>
+        <Label>Descrição</Label>
+        <textarea
+          className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.descricao}
+          onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+          placeholder="Ex: Gestão de vendas e leads"
+        />
+      </div>
+      <div>
+        <Label>Slug (para link /loja/slug/login)</Label>
+        <Input
+          value={form.slug}
+          onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
+          placeholder="Ex: crm-vendas"
+        />
+      </div>
+      <div>
+        <Label>Ícone (emoji ou nome)</Label>
+        <Input
+          value={form.icone}
+          onChange={(e) => setForm((f) => ({ ...f, icone: e.target.value }))}
+          placeholder="Ex: 📊"
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button onClick={() => onSave(form)} disabled={saving}>
+          Salvar
+        </Button>
+        <Button variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
       </div>
     </div>
   );

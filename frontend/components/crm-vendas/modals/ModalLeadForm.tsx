@@ -81,13 +81,13 @@ export default function ModalLeadForm({
 
   return (
     <div
-      className={`fixed inset-0 z-[80] bg-black/50 ${fullScreenOnDesktop ? 'md:p-0 md:relative flex md:block' : 'flex items-center justify-center p-4'}`}
+      className={`fixed inset-0 z-[80] bg-black/50 flex items-center justify-center ${fullScreenOnDesktop ? 'md:p-0' : 'p-4'}`}
       onClick={() => !enviando && onClose()}
     >
       <div
         className={`bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 w-full overflow-y-auto
           ${fullScreenOnDesktop
-            ? 'max-w-md max-h-[90vh] rounded-2xl md:absolute md:inset-4 md:max-w-none md:max-h-none md:rounded-xl'
+            ? 'max-w-md max-h-[90vh] rounded-2xl md:w-[calc(100vw-2rem)] md:max-w-4xl md:h-[calc(100vh-2rem)] md:max-h-none md:rounded-xl'
             : 'max-w-md max-h-[90vh] rounded-2xl'
           }`}
         onClick={(e) => e.stopPropagation()}

@@ -35,13 +35,11 @@ class MultiTenantRouter:
         if model._meta.app_label in self.suporte_apps:
             return 'suporte'
         
-        # Se há um tenant ativo no contexto, usa o banco da loja
-        from threading import local
-        _thread_locals = local()
-        if hasattr(_thread_locals, 'current_tenant_db'):
-            if model._meta.app_label in self.loja_apps:
-                return _thread_locals.current_tenant_db
-        
+        # Usar get_current_tenant_db do middleware (mesmo storage de thread)
+        from tenants.middleware import get_current_tenant_db
+        tenant_db = get_current_tenant_db()
+        if tenant_db and tenant_db != 'default' and model._meta.app_label in self.loja_apps:
+            return tenant_db
         return 'default'
     
     def db_for_write(self, model, **hints):
@@ -49,12 +47,10 @@ class MultiTenantRouter:
         if model._meta.app_label in self.suporte_apps:
             return 'suporte'
         
-        from threading import local
-        _thread_locals = local()
-        if hasattr(_thread_locals, 'current_tenant_db'):
-            if model._meta.app_label in self.loja_apps:
-                return _thread_locals.current_tenant_db
-        
+        from tenants.middleware import get_current_tenant_db
+        tenant_db = get_current_tenant_db()
+        if tenant_db and tenant_db != 'default' and model._meta.app_label in self.loja_apps:
+            return tenant_db
         return 'default'
     
     def allow_relation(self, obj1, obj2, **hints):

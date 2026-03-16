@@ -6,7 +6,6 @@ export interface LojaInfo {
   id: number;
   nome: string;
   slug: string;
-  tipo_loja_nome?: string;
   cor_primaria?: string;
   endereco?: string | null;
   cpf_cnpj?: string | null;
@@ -113,36 +112,36 @@ export default function ModalPropostaForm({
             </p>
           )}
 
-          {/* Dados da Loja */}
+          {/* Dados da Loja - nome, endereço, CPF/CNPJ, administrador (sem Site e Tipo) */}
           <div className={`${sectionClass} md:col-span-2`}>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Dados da Loja</p>
             {lojaInfo ? (
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <span className={labelClass}>Nome</span>
+                  <span className={labelClass}>Nome da loja</span>
                   <p className="font-medium">{lojaInfo.nome}</p>
                 </div>
                 {lojaInfo.endereco && (
                   <div className="col-span-2">
-                    <span className={labelClass}>Endereço</span>
+                    <span className={labelClass}>Endereço da loja</span>
                     <p>{lojaInfo.endereco}</p>
                   </div>
                 )}
                 {lojaInfo.cpf_cnpj && (
                   <div>
-                    <span className={labelClass}>CPF/CNPJ</span>
+                    <span className={labelClass}>CPF ou CNPJ da loja</span>
                     <p>{lojaInfo.cpf_cnpj}</p>
                   </div>
                 )}
                 {lojaInfo.admin_nome && (
                   <div>
-                    <span className={labelClass}>Admin</span>
+                    <span className={labelClass}>Nome do administrador</span>
                     <p>{lojaInfo.admin_nome}</p>
                   </div>
                 )}
                 {lojaInfo.admin_email && (
                   <div>
-                    <span className={labelClass}>Email do Admin</span>
+                    <span className={labelClass}>Email do administrador</span>
                     <p>{lojaInfo.admin_email}</p>
                   </div>
                 )}

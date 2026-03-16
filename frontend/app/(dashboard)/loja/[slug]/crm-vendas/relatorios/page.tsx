@@ -32,6 +32,8 @@ export default function RelatoriosPage() {
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isVendedor, setIsVendedor] = useState(false);
+  const [meuVendedorId, setMeuVendedorId] = useState<number | null>(null);
 
   // Carregar dados ao montar o componente
   useEffect(() => {
@@ -39,9 +41,19 @@ export default function RelatoriosPage() {
       try {
         setLoading(true);
         
-        // Carregar vendedores
-        const resVendedores = await apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/');
-        setVendedores(normalizeListResponse(resVendedores.data));
+        // Verificar se é vendedor (vendedores só veem suas próprias vendas)
+        const resMe = await apiClient.get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/');
+        const isVend = !!resMe.data?.is_vendedor;
+        setIsVendedor(isVend);
+        setMeuVendedorId(resMe.data?.vendedor_id ?? null);
+        
+        // Carregar vendedores (apenas admin tem acesso; vendedores recebem 403)
+        try {
+          const resVendedores = await apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/');
+          setVendedores(normalizeListResponse(resVendedores.data));
+        } catch {
+          setVendedores([]);
+        }
         
         // Carregar dados do dashboard (contém receita e comissões)
         const resDashboard = await apiClient.get<DashboardData>('/crm-vendas/dashboard/');
@@ -56,6 +68,13 @@ export default function RelatoriosPage() {
     carregarDados();
   }, []);
 
+  // Vendedores não podem ver "Total de Vendas" - ajustar tipo se necessário
+  useEffect(() => {
+    if (isVendedor && tipoRelatorio === 'vendas_total') {
+      setTipoRelatorio('vendas_vendedor');
+    }
+  }, [isVendedor, tipoRelatorio]);
+
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -67,10 +86,15 @@ export default function RelatoriosPage() {
     setGerando(true);
     
     try {
+      // Vendedores: sempre enviar apenas suas vendas (backend também valida)
+      const vendedorIdPayload = isVendedor
+        ? meuVendedorId
+        : (vendedorSelecionado !== 'todos' ? vendedorSelecionado : null);
+      
       const payload = {
         tipo: tipoRelatorio,
         periodo: periodo,
-        vendedor_id: vendedorSelecionado !== 'todos' ? vendedorSelecionado : null,
+        vendedor_id: vendedorIdPayload,
         acao: acao,
       };
 
@@ -214,25 +238,27 @@ export default function RelatoriosPage() {
               Tipo de Relatório
             </label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setTipoRelatorio('vendas_total')}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  tipoRelatorio === 'vendas_total'
-                    ? 'border-[#0176d3] bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <DollarSign size={18} className="text-[#0176d3]" />
-                  <span className="font-medium text-gray-900 dark:text-white text-sm">
-                    Total de Vendas
-                  </span>
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Todos os vendedores
-                </p>
-              </button>
+              {!isVendedor && (
+                <button
+                  type="button"
+                  onClick={() => setTipoRelatorio('vendas_total')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    tipoRelatorio === 'vendas_total'
+                      ? 'border-[#0176d3] bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign size={18} className="text-[#0176d3]" />
+                    <span className="font-medium text-gray-900 dark:text-white text-sm">
+                      Total de Vendas
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Todos os vendedores
+                  </p>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -299,8 +325,8 @@ export default function RelatoriosPage() {
             </select>
           </div>
 
-          {/* Vendedor (apenas se tipo for vendas_vendedor) */}
-          {tipoRelatorio === 'vendas_vendedor' && (
+          {/* Vendedor (apenas admin; vendedores veem apenas suas vendas) */}
+          {tipoRelatorio === 'vendas_vendedor' && !isVendedor && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Vendedor
@@ -319,6 +345,11 @@ export default function RelatoriosPage() {
                 ))}
               </select>
             </div>
+          )}
+          {tipoRelatorio === 'vendas_vendedor' && isVendedor && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Relatório das suas vendas
+            </p>
           )}
 
           {/* Ações */}

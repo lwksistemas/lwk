@@ -1062,6 +1062,9 @@ def gerar_relatorio(request):
         "vendedor_id": 123 (opcional, apenas para vendas_vendedor),
         "acao": "pdf" | "email"
     }
+    
+    Vendedores só podem gerar relatórios das próprias vendas.
+    Admin (proprietário) vê todos os relatórios.
     """
     try:
         from .relatorios import gerar_relatorio_vendas_total, gerar_relatorio_vendas_vendedor
@@ -1077,10 +1080,21 @@ def gerar_relatorio(request):
     if not loja_id:
         return Response({'detail': 'Loja não identificada.'}, status=400)
     
+    current_vendedor_id = get_current_vendedor_id(request)
     tipo = request.data.get('tipo', 'vendas_total')
     periodo = request.data.get('periodo', 'mes_atual')
     vendedor_id = request.data.get('vendedor_id')
     acao = request.data.get('acao', 'pdf')
+    
+    # Vendedores: restringir a apenas suas próprias vendas
+    if current_vendedor_id is not None:
+        if tipo == 'vendas_total':
+            return Response(
+                {'detail': 'Vendedores só podem gerar relatórios das próprias vendas. Use "Vendas por Vendedor" ou "Comissões".'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        # Forçar vendedor_id = próprio (ignorar o que veio no request)
+        vendedor_id = current_vendedor_id
     
     try:
         # Gerar PDF

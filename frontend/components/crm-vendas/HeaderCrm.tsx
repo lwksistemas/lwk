@@ -17,13 +17,14 @@ interface BuscaResult {
 interface HeaderCrmProps {
   title?: string;
   userName?: string;
+  userRole?: 'vendedor' | 'administrador';
   slug?: string;
 }
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LEN = 2;
 
-function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: HeaderCrmProps) {
+function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'administrador', slug = '' }: HeaderCrmProps) {
   const router = useRouter();
   const { toggle } = useCRMUIStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -334,7 +335,7 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', slug = '' }: Hea
                     {userName}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Administrador
+                    {userRole === 'vendedor' ? 'Vendedor' : 'Administrador'}
                   </p>
                 </div>
                 <Link

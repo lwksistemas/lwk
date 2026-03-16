@@ -609,14 +609,36 @@ def crm_me(request):
     Usado pelo frontend para obter vendedor_id quando o login não o retornou
     (ex: sessão antiga, refresh). Garante que vendedores sempre tenham vendedor_id
     ao criar oportunidades.
+    Inclui user_display_name e user_role para exibir no menu (Nayara vs Felix).
     """
     loja_id = get_current_loja_id()
     if not loja_id:
-        return Response({'vendedor_id': None, 'is_vendedor': False}, status=200)
+        return Response({
+            'vendedor_id': None,
+            'is_vendedor': False,
+            'user_display_name': None,
+            'user_role': 'administrador',
+        }, status=200)
     vendedor_id = get_current_vendedor_id(request)
+    user_display_name = None
+    user_role = 'administrador'
+    try:
+        from superadmin.models import Loja
+        loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
+        if vendedor_id is not None:
+            vendedor = Vendedor.objects.filter(id=vendedor_id, loja_id=loja_id).first()
+            user_display_name = vendedor.nome if vendedor else request.user.get_full_name() or request.user.username
+            user_role = 'vendedor'
+        elif loja and loja.owner_id:
+            owner = loja.owner
+            user_display_name = (owner.get_full_name() or owner.username or '').strip() or owner.username
+    except Exception as e:
+        logger.warning('crm_me: erro ao obter display_name: %s', e)
     return Response({
         'vendedor_id': vendedor_id,
         'is_vendedor': vendedor_id is not None,
+        'user_display_name': user_display_name,
+        'user_role': user_role,
     }, status=200)
 
 

@@ -50,16 +50,25 @@ export default function CrmVendasLayout({
   const slug = params.slug as string;
   const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(() => getCachedLojaInfo(slug));
+  const [userDisplayName, setUserDisplayName] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<'vendedor' | 'administrador'>('administrador');
 
-  /** Busca vendedor_id do backend (fallback quando login não retornou). Garante que Nayara e vendedores tenham vendedor_id ao criar oportunidades. */
+  /** Busca vendedor_id e nome do usuário (para menu: Nayara vs Felix). */
   const fetchCrmMe = useCallback(async () => {
     try {
-      const r = await apiClient.get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/');
+      const r = await apiClient.get<{
+        vendedor_id: number | null;
+        is_vendedor: boolean;
+        user_display_name?: string | null;
+        user_role?: 'vendedor' | 'administrador';
+      }>('/crm-vendas/me/');
       const d = r.data;
       if (typeof window !== 'undefined' && d?.is_vendedor && typeof d?.vendedor_id === 'number') {
         sessionStorage.setItem('is_vendedor', '1');
         sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
       }
+      setUserDisplayName(d?.user_display_name ?? null);
+      setUserRole(d?.user_role === 'vendedor' ? 'vendedor' : 'administrador');
     } catch {
       /* ignore - vendedor_id permanece do login ou vazio */
     }
@@ -113,7 +122,8 @@ export default function CrmVendasLayout({
         <div className="flex-1 flex flex-col min-w-0">
           <HeaderCrm
             title={lojaInfo ? `${lojaInfo.nome}` : 'Sales Cloud'}
-            userName={lojaInfo?.nome ?? 'Admin'}
+            userName={userDisplayName ?? lojaInfo?.nome ?? 'Admin'}
+            userRole={userRole}
             slug={slug}
           />
           <main className="p-4 sm:p-6 lg:p-8 flex-1 min-h-0 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c]">

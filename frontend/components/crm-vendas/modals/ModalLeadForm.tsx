@@ -149,7 +149,96 @@ export default function ModalLeadForm({
               {formErro}
             </p>
           )}
-          <div className={`space-y-3 border-b border-gray-200 dark:border-gray-600 pb-4 ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>
+          <div className={`space-y-3 ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Dados do lead</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
+              <input
+                type="text"
+                value={form.nome}
+                onChange={(e) => onFormChange((f) => ({ ...f, nome: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Nome do lead"
+                required
+              />
+            </div>
+            <div className={fullScreenOnDesktop ? 'md:col-span-2' : ''}>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CPF ou CNPJ</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.cpf_cnpj}
+                  onChange={(e) => handleCpfCnpjChange(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="000.000.000-00 ou 00.000.000/0001-00"
+                />
+                <button
+                  type="button"
+                  onClick={handleBuscarCnpj}
+                  disabled={buscarCnpjLoading || form.cpf_cnpj.replace(/\D/g, '').length !== 14}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm"
+                  title="Buscar dados do CNPJ na Receita Federal"
+                >
+                  {buscarCnpjLoading ? '...' : 'Buscar CNPJ'}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa</label>
+              <input
+                type="text"
+                value={form.empresa}
+                onChange={(e) => onFormChange((f) => ({ ...f, empresa: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Empresa"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => onFormChange((f) => ({ ...f, email: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="email@exemplo.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label>
+              <input
+                type="text"
+                value={form.telefone}
+                onChange={(e) => onFormChange((f) => ({ ...f, telefone: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origem</label>
+              <select
+                value={form.origem}
+                onChange={(e) => onFormChange((f) => ({ ...f, origem: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                {origensAtivas().map((o) => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+              <select
+                value={form.status}
+                onChange={(e) => onFormChange((f) => ({ ...f, status: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                {statusOpcoes.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className={`space-y-3 border-t border-gray-200 dark:border-gray-600 pt-4 ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Endereço</p>
             <div className="flex gap-2">
               <div className="flex-1">
@@ -241,92 +330,6 @@ export default function ModalLeadForm({
                 placeholder="UF"
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
-            <input
-              type="text"
-              value={form.nome}
-              onChange={(e) => onFormChange((f) => ({ ...f, nome: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="Nome do lead"
-              required
-            />
-          </div>
-          <div className={fullScreenOnDesktop ? 'md:col-span-2' : ''}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CPF ou CNPJ</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={form.cpf_cnpj}
-                onChange={(e) => handleCpfCnpjChange(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="000.000.000-00 ou 00.000.000/0001-00"
-              />
-              <button
-                type="button"
-                onClick={handleBuscarCnpj}
-                disabled={buscarCnpjLoading || form.cpf_cnpj.replace(/\D/g, '').length !== 14}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm"
-                title="Buscar dados do CNPJ na Receita Federal"
-              >
-                {buscarCnpjLoading ? '...' : 'Buscar CNPJ'}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa</label>
-            <input
-              type="text"
-              value={form.empresa}
-              onChange={(e) => onFormChange((f) => ({ ...f, empresa: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="Empresa"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => onFormChange((f) => ({ ...f, email: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="email@exemplo.com"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label>
-            <input
-              type="text"
-              value={form.telefone}
-              onChange={(e) => onFormChange((f) => ({ ...f, telefone: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="(00) 00000-0000"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origem</label>
-            <select
-              value={form.origem}
-              onChange={(e) => onFormChange((f) => ({ ...f, origem: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              {origensAtivas().map((o) => (
-                <option key={o.key} value={o.key}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-            <select
-              value={form.status}
-              onChange={(e) => onFormChange((f) => ({ ...f, status: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              {statusOpcoes.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
           </div>
           <div className={`flex gap-2 pt-2 ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>
             <button

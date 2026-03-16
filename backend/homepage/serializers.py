@@ -6,6 +6,9 @@ class HeroSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeroSection
         fields = ['id', 'titulo', 'subtitulo', 'botao_texto', 'botao_principal_ativo', 'ordem', 'ativo']
+        extra_kwargs = {
+            'botao_principal_ativo': {'required': False, 'default': True},
+        }
 
 
 class FuncionalidadeSerializer(serializers.ModelSerializer):

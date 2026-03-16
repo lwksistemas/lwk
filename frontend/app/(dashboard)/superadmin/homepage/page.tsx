@@ -134,17 +134,25 @@ export default function HomepageConfigPage() {
     }
     setSaving(true);
     try {
+      const payload = {
+        titulo: heroForm.titulo.trim(),
+        subtitulo: heroForm.subtitulo?.trim() || '',
+        botao_texto: heroForm.botao_texto?.trim() || 'Testar grátis',
+        botao_principal_ativo: heroForm.botao_principal_ativo !== false,
+      };
       if (hero?.id) {
-        await apiClient.patch(`${API.hero}${hero.id}/`, heroForm);
+        await apiClient.patch(`${API.hero}${hero.id}/`, payload);
         showMsg('success', 'Hero atualizado!');
       } else {
-        await apiClient.post(API.hero, { ...heroForm, ativo: true });
+        await apiClient.post(API.hero, { ...payload, ativo: true });
         showMsg('success', 'Hero criado!');
       }
       loadData();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      showMsg('error', e.response?.data?.detail || 'Erro ao salvar hero');
+      const e = err as { response?: { data?: { detail?: string }; status?: number } };
+      const detail = e.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0] : 'Erro ao salvar hero';
+      showMsg('error', String(msg));
     } finally {
       setSaving(false);
     }

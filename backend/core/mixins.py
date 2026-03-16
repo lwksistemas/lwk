@@ -64,6 +64,20 @@ class LojaIsolationManager(models.Manager):
         logger.warning("⚠️ [LojaIsolationManager] Usando all_without_filter() - CUIDADO!")
         return super().get_queryset()
 
+    def create(self, **kwargs):
+        """
+        Cria objeto no banco do tenant (schema isolado).
+        Sem isso, create() usaria o banco default e o registro não apareceria na listagem.
+        """
+        from tenants.middleware import get_current_tenant_db
+        tenant_db = get_current_tenant_db()
+        obj = self.model(**kwargs)
+        if tenant_db and tenant_db != 'default':
+            obj.save(using=tenant_db, force_insert=True)
+        else:
+            obj.save(force_insert=True)
+        return obj
+
 
 class LojaIsolationMixin(models.Model):
     """

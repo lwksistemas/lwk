@@ -81,7 +81,7 @@ export default function ModalLeadForm({
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-black/50 ${fullScreenOnDesktop ? 'md:p-0 md:relative flex md:block' : 'flex items-center justify-center p-4'}`}
+      className={`fixed inset-0 z-[80] bg-black/50 ${fullScreenOnDesktop ? 'md:p-0 md:relative flex md:block' : 'flex items-center justify-center p-4'}`}
       onClick={() => !enviando && onClose()}
     >
       <div

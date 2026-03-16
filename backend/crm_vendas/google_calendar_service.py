@@ -159,20 +159,37 @@ def push_atividade_to_google(connection, atividade, calendar_id=None):
     """
     Cria ou atualiza um evento no Google Calendar para a atividade.
     Retorna o event_id do Google ou None em caso de erro.
+    Se o evento foi deletado no Google (404), recria como novo.
     """
+    from googleapiclient.errors import HttpError
+
     cal_id = calendar_id or connection.calendar_id
     try:
         service = build_calendar_service(connection)
         body = atividade_to_google_event(atividade)
-        if getattr(atividade, 'google_event_id', None):
-            event = service.events().update(
-                calendarId=cal_id,
-                eventId=atividade.google_event_id,
-                body=body,
-            ).execute()
-        else:
-            event = service.events().insert(calendarId=cal_id, body=body).execute()
+        google_event_id = getattr(atividade, 'google_event_id', None)
+        if google_event_id:
+            try:
+                event = service.events().update(
+                    calendarId=cal_id,
+                    eventId=google_event_id,
+                    body=body,
+                ).execute()
+                return event.get('id')
+            except HttpError as e:
+                if e.resp.status == 404:
+                    # Evento deletado no Google - recriar como novo
+                    logger.info(
+                        'Evento %s não existe mais no Google Calendar, recriando...',
+                        google_event_id,
+                    )
+                else:
+                    raise
+        event = service.events().insert(calendarId=cal_id, body=body).execute()
         return event.get('id')
+    except HttpError as e:
+        logger.exception('Erro ao enviar atividade para Google Calendar: %s', e)
+        return None
     except Exception as e:
         logger.exception('Erro ao enviar atividade para Google Calendar: %s', e)
         return None

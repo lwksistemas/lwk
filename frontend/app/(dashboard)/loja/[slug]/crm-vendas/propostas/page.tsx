@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { Plus, Eye, Edit2, Trash2, X, ClipboardList, ArrowRight } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, X, ClipboardList, ArrowRight, Mail, MessageCircle } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 
 interface Proposta {
@@ -56,6 +56,21 @@ export default function CrmVendasPropostasPage() {
     status: 'rascunho' as string,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [enviandoId, setEnviandoId] = useState<number | null>(null);
+
+  const handleEnviarCliente = async (propostaId: number, canal: 'email' | 'whatsapp') => {
+    setEnviandoId(propostaId);
+    try {
+      await apiClient.post(`/crm-vendas/propostas/${propostaId}/enviar_cliente/`, { canal });
+      alert(`Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`);
+      await loadPropostas();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e.response?.data?.detail || 'Erro ao enviar.');
+    } finally {
+      setEnviandoId(null);
+    }
+  };
 
   const loadPropostas = useCallback(async () => {
     try {
@@ -245,7 +260,9 @@ export default function CrmVendasPropostasPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-1 flex-wrap">
+                        <button type="button" onClick={() => handleEnviarCliente(p.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
+                        <button type="button" onClick={() => handleEnviarCliente(p.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
                         <button type="button" onClick={() => openModal('view', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
                         <button type="button" onClick={() => openModal('edit', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
                         <button type="button" onClick={() => openModal('delete', p)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600" title="Excluir"><Trash2 size={16} /></button>

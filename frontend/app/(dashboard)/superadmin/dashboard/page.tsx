@@ -104,6 +104,13 @@ const MENU_CARDS: MenuCardProps[] = [
     href: '/superadmin/dashboard/storage',
     color: 'purple',
   },
+  {
+    title: 'Configurar Homepage',
+    description: 'Editar textos, funcionalidades e módulos da página inicial',
+    icon: '🏠',
+    href: '/superadmin/homepage',
+    color: 'purple',
+  },
 ];
 
 // Configuração das cores - DRY (Don't Repeat Yourself)

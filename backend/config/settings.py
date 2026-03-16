@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'whatsapp.apps.WhatsappConfig',  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
     'rules.apps.RulesConfig',  # Motor de regras automáticas - ETAPA 5
     'crm_vendas.apps.CrmVendasConfig',  # CRM Vendas (Leads, Oportunidades, Pipeline)
+    'homepage.apps.HomepageConfig',  # Homepage configurável (hero, funcionalidades, módulos)
 ]
 
 MIDDLEWARE = [

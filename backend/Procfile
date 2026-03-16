@@ -1,2 +1,2 @@
 web: cd backend && gunicorn config.wsgi --log-file -
-release: cd backend && python manage.py migrate --noinput && python manage.py setup_initial_data
+release: cd backend && python fix_suporte_migration.py 2>/dev/null || true && python manage.py migrate --noinput && python manage.py setup_initial_data

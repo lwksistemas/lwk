@@ -33,6 +33,7 @@ def api_root(request):
             'notificacoes': '/api/notificacoes/',
             'push': '/api/push/',
             'crm_vendas': '/api/crm-vendas/',
+            'homepage': '/api/homepage/',
         },
         'documentacao': 'Sistema Multi-Tenant para gestão de lojas',
         'schema': '/api/schema/',
@@ -67,4 +68,5 @@ urlpatterns = [
     path('api/notificacoes/', include('notificacoes.urls')),
     path('api/push/', include('push.urls')),
     path('api/crm-vendas/', include('crm_vendas.urls')),
+    path('api/homepage/', include('homepage.urls')),
 ]

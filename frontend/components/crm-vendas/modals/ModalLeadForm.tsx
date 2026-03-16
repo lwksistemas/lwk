@@ -30,6 +30,8 @@ interface ModalLeadFormProps {
   onFormChange: (updater: (f: FormDataLead) => FormDataLead) => void;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
+  /** Tela cheia no desktop (computador) */
+  fullScreenOnDesktop?: boolean;
 }
 
 export default function ModalLeadForm({
@@ -42,6 +44,7 @@ export default function ModalLeadForm({
   onFormChange,
   onSubmit,
   onClose,
+  fullScreenOnDesktop = false,
 }: ModalLeadFormProps) {
   const [buscarCepLoading, setBuscarCepLoading] = useState(false);
 
@@ -78,14 +81,18 @@ export default function ModalLeadForm({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      className={`fixed inset-0 z-50 bg-black/50 ${fullScreenOnDesktop ? 'md:p-0 md:relative flex md:block' : 'flex items-center justify-center p-4'}`}
       onClick={() => !enviando && onClose()}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md max-h-[90vh] overflow-y-auto"
+        className={`bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 w-full overflow-y-auto
+          ${fullScreenOnDesktop
+            ? 'max-w-md max-h-[90vh] rounded-2xl md:absolute md:inset-4 md:max-w-none md:max-h-none md:rounded-xl'
+            : 'max-w-md max-h-[90vh] rounded-2xl'
+          }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
           <button
             type="button"
@@ -96,13 +103,13 @@ export default function ModalLeadForm({
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={onSubmit} className="p-4 space-y-4">
+        <form onSubmit={onSubmit} className={`p-4 space-y-4 ${fullScreenOnDesktop ? 'md:max-w-3xl md:mx-auto md:grid md:grid-cols-2 md:gap-x-6' : ''}`}>
           {formErro && (
-            <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
+            <p className={`text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>
               {formErro}
             </p>
           )}
-          <div className="space-y-3 border-b border-gray-200 dark:border-gray-600 pb-4">
+          <div className={`space-y-3 border-b border-gray-200 dark:border-gray-600 pb-4 ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Endereço</p>
             <div className="flex gap-2">
               <div className="flex-1">
@@ -260,7 +267,7 @@ export default function ModalLeadForm({
               ))}
             </select>
           </div>
-          <div className="flex gap-2 pt-2">
+          <div className={`flex gap-2 pt-2 ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>
             <button
               type="button"
               onClick={() => !enviando && onClose()}

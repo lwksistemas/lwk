@@ -423,6 +423,7 @@ export default function CrmVendasLeadsPage() {
           onFormChange={setForm}
           onSubmit={handleCriarLead}
           onClose={() => !enviando && setModalAberto(false)}
+          fullScreenOnDesktop
         />
       )}
     </div>

@@ -283,13 +283,13 @@ export default function CrmVendasLeadsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Leads</h1>
-        <Link
+        <a
           href={`/loja/${slug}/crm-vendas/leads/novo`}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition text-sm inline-flex items-center gap-2"
         >
           <Plus size={18} />
           Novo Lead
-        </Link>
+        </a>
       </div>
 
       <LeadsTable

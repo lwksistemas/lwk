@@ -212,7 +212,7 @@ export default function CrmVendasDashboardPage() {
             )}
           </div>
           <Link
-            href={`/loja/${slug}/crm-vendas/leads?novo=1`}
+            href={`/loja/${slug}/crm-vendas/leads/novo`}
             className="px-4 py-2 text-sm font-medium text-white bg-[#0176d3] hover:bg-[#0159a8] rounded transition-colors"
           >
             + Novo Lead

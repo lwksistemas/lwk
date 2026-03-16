@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
@@ -49,7 +50,6 @@ export default function CrmVendasLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modalAberto, setModalAberto] = useState(false);
   const [leadVer, setLeadVer] = useState<Lead | null>(null);
   const [leadEditar, setLeadEditar] = useState<Lead | null>(null);
   const [leadExcluir, setLeadExcluir] = useState<Lead | null>(null);
@@ -92,8 +92,7 @@ export default function CrmVendasLeadsPage() {
 
   useEffect(() => {
     if (searchParams.get('novo') === '1') {
-      setModalAberto(true);
-      router.replace(`/loja/${slug}/crm-vendas/leads`, { scroll: false });
+      router.replace(`/loja/${slug}/crm-vendas/leads/novo`, { scroll: false });
     }
   }, [searchParams, router, slug]);
 
@@ -120,59 +119,6 @@ export default function CrmVendasLeadsPage() {
 
   const origemLabel = (value: string) => origensAtivas().find((o) => o.key === value)?.label ?? value;
   const statusLabel = (value: string) => STATUS_LEAD_OPCOES.find((o) => o.value === value)?.label ?? value;
-
-  const handleCriarLead = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormErro(null);
-    if (!form.nome.trim()) {
-      setFormErro('Informe o nome.');
-      return;
-    }
-    setEnviando(true);
-    apiClient
-      .post('/crm-vendas/leads/', {
-        nome: form.nome.trim(),
-        empresa: form.empresa.trim() || undefined,
-        cpf_cnpj: form.cpf_cnpj.trim() || undefined,
-        email: form.email.trim() || undefined,
-        telefone: form.telefone.trim() || undefined,
-        origem: form.origem,
-        status: form.status,
-        cep: form.cep.trim() || undefined,
-        logradouro: form.logradouro.trim() || undefined,
-        numero: form.numero.trim() || undefined,
-        complemento: form.complemento.trim() || undefined,
-        bairro: form.bairro.trim() || undefined,
-        cidade: form.cidade.trim() || undefined,
-        uf: form.uf.trim().toUpperCase() || undefined,
-      })
-      .then(() => {
-        setModalAberto(false);
-        setForm({
-          nome: '',
-          empresa: '',
-          cpf_cnpj: '',
-          email: '',
-          telefone: '',
-          origem: 'site',
-          status: 'novo',
-          cep: '',
-          logradouro: '',
-          numero: '',
-          complemento: '',
-          bairro: '',
-          cidade: '',
-          uf: '',
-        });
-        loadLeads(setLeads, setError);
-      })
-      .catch((err) => {
-        setFormErro(
-          err.response?.data?.nome?.[0] || err.response?.data?.detail || 'Erro ao salvar lead.'
-        );
-      })
-      .finally(() => setEnviando(false));
-  };
 
   const handleEditarLead = (lead: Lead) => {
     setLeadEditar(lead);
@@ -337,14 +283,13 @@ export default function CrmVendasLeadsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Leads</h1>
-        <button
-          type="button"
-          onClick={() => setModalAberto(true)}
+        <Link
+          href={`/loja/${slug}/crm-vendas/leads/novo`}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition text-sm inline-flex items-center gap-2"
         >
           <Plus size={18} />
           Novo Lead
-        </button>
+        </Link>
       </div>
 
       <LeadsTable
@@ -417,20 +362,6 @@ export default function CrmVendasLeadsPage() {
         />
       )}
 
-      {modalAberto && (
-        <ModalLeadForm
-          title="Novo Lead"
-          form={form}
-          formErro={formErro}
-          enviando={enviando}
-          origensAtivas={origensAtivas}
-          statusOpcoes={[...STATUS_LEAD_OPCOES]}
-          onFormChange={setForm}
-          onSubmit={handleCriarLead}
-          onClose={() => !enviando && setModalAberto(false)}
-          fullScreenOnDesktop
-        />
-      )}
     </div>
   );
 }

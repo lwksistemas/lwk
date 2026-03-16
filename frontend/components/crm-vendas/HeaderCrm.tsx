@@ -268,7 +268,7 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
           {showNovoMenu && slug && (
             <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-[#16325c] rounded-lg shadow-lg border border-gray-200 dark:border-[#0d1f3c] py-1 z-20">
               <Link
-                href={`/loja/${slug}/crm-vendas/leads?novo=1`}
+                href={`/loja/${slug}/crm-vendas/leads/novo`}
                 className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
                 onClick={() => setShowNovoMenu(false)}
               >

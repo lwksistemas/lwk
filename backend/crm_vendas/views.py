@@ -619,7 +619,9 @@ class OportunidadeItemViewSet(VendedorFilterMixin, BaseModelViewSet):
 
 class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
     """Propostas comerciais vinculadas a oportunidades."""
-    queryset = Proposta.objects.select_related('oportunidade', 'oportunidade__lead').all()
+    queryset = Proposta.objects.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
+        'oportunidade__itens__produto_servico'
+    ).all()
     serializer_class = PropostaSerializer
     pagination_class = CRMPagination
 
@@ -654,7 +656,9 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
 
 class ContratoViewSet(VendedorFilterMixin, BaseModelViewSet):
     """Contratos gerados a partir de oportunidades fechadas."""
-    queryset = Contrato.objects.select_related('oportunidade', 'oportunidade__lead').all()
+    queryset = Contrato.objects.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
+        'oportunidade__itens__produto_servico'
+    ).all()
     serializer_class = ContratoSerializer
     pagination_class = CRMPagination
 

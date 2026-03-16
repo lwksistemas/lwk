@@ -89,13 +89,17 @@ class DocumentoPdfPublicView(View):
             set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
 
             if tipo == 'proposta':
-                proposta = Proposta.objects.filter(id=doc_id, loja_id=loja_id).select_related('oportunidade', 'oportunidade__lead').first()
+                proposta = Proposta.objects.filter(id=doc_id, loja_id=loja_id).select_related(
+                    'oportunidade', 'oportunidade__lead'
+                ).prefetch_related('oportunidade__itens__produto_servico').first()
                 if not proposta:
                     return HttpResponse('Proposta não encontrada', status=404)
                 pdf_buffer = gerar_pdf_proposta(proposta)
                 filename = f'proposta_{proposta.titulo or doc_id}.pdf'
             elif tipo == 'contrato':
-                contrato = Contrato.objects.filter(id=doc_id, loja_id=loja_id).select_related('oportunidade', 'oportunidade__lead').first()
+                contrato = Contrato.objects.filter(id=doc_id, loja_id=loja_id).select_related(
+                    'oportunidade', 'oportunidade__lead'
+                ).prefetch_related('oportunidade__itens__produto_servico').first()
                 if not contrato:
                     return HttpResponse('Contrato não encontrado', status=404)
                 pdf_buffer = gerar_pdf_contrato(contrato)

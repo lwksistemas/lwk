@@ -101,11 +101,13 @@ export default function CrmVendasLayout({
     }
   }, [slug, fetchCrmMe]);
 
+  // Garantir loja_slug ANTES de qualquer requisição (evita lista vazia em produtos-serviços)
+  if (typeof window !== 'undefined' && slug) {
+    sessionStorage.setItem('loja_slug', slug);
+  }
+
   useEffect(() => {
     if (!ready || !isLoja) return;
-    if (typeof window !== 'undefined' && slug) {
-      sessionStorage.setItem('loja_slug', slug);
-    }
     fetchLojaInfo();
   }, [ready, isLoja, fetchLojaInfo, slug]);
 

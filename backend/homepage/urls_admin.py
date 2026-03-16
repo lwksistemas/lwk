@@ -1,0 +1,12 @@
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views_admin import HeroViewSet, FuncionalidadeViewSet, ModuloSistemaViewSet
+
+router = DefaultRouter()
+router.register(r'hero', HeroViewSet, basename='homepage-hero')
+router.register(r'funcionalidades', FuncionalidadeViewSet, basename='homepage-funcionalidade')
+router.register(r'modulos', ModuloSistemaViewSet, basename='homepage-modulo')
+
+urlpatterns = [
+    path('', include(router.urls)),
+]

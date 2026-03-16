@@ -56,5 +56,8 @@ urlpatterns = [
     path('lojas/<int:loja_id>/verificar-storage/', verificar_storage_loja, name='verificar-storage-loja'),
     path('storage/', listar_storage_lojas, name='listar-storage-lojas'),
     
+    # Configuração da Homepage (CRUD)
+    path('homepage/', include('homepage.urls_admin')),
+    
     path('', include(router.urls)),
 ]

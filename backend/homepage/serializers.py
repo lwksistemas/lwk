@@ -5,16 +5,16 @@ from .models import HeroSection, Funcionalidade, ModuloSistema
 class HeroSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeroSection
-        fields = ['id', 'titulo', 'subtitulo', 'botao_texto', 'ordem']
+        fields = ['id', 'titulo', 'subtitulo', 'botao_texto', 'ordem', 'ativo']
 
 
 class FuncionalidadeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Funcionalidade
-        fields = ['id', 'titulo', 'descricao', 'icone', 'ordem']
+        fields = ['id', 'titulo', 'descricao', 'icone', 'ordem', 'ativo']
 
 
 class ModuloSerializer(serializers.ModelSerializer):
     class Meta:
         model = ModuloSistema
-        fields = ['id', 'nome', 'descricao', 'slug', 'icone', 'ordem']
+        fields = ['id', 'nome', 'descricao', 'slug', 'icone', 'ordem', 'ativo']

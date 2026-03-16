@@ -5,7 +5,10 @@ from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.conf import settings
 
-from .models import Vendedor, Conta, Lead, Contato, Oportunidade, Atividade, CRMConfig
+from .models import (
+    Vendedor, Conta, Lead, Contato, Oportunidade, Atividade,
+    ProdutoServico, OportunidadeItem, Proposta, Contrato, CRMConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +243,62 @@ class AtividadeListSerializer(serializers.ModelSerializer):
             'concluido', 'observacoes', 'created_at', 'updated_at',
         ]
 
+
+class ProdutoServicoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProdutoServico
+        fields = [
+            'id', 'tipo', 'nome', 'descricao', 'preco', 'ativo',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class OportunidadeItemSerializer(serializers.ModelSerializer):
+    produto_servico_nome = serializers.CharField(source='produto_servico.nome', read_only=True)
+    produto_servico_tipo = serializers.CharField(source='produto_servico.tipo', read_only=True)
+    subtotal = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OportunidadeItem
+        fields = [
+            'id', 'oportunidade', 'produto_servico', 'produto_servico_nome', 'produto_servico_tipo',
+            'quantidade', 'preco_unitario', 'subtotal', 'observacao', 'created_at',
+        ]
+        read_only_fields = ['created_at']
+
+    def get_subtotal(self, obj):
+        return float(obj.quantidade * obj.preco_unitario)
+
+
+class PropostaSerializer(serializers.ModelSerializer):
+    oportunidade_titulo = serializers.CharField(source='oportunidade.titulo', read_only=True)
+    lead_nome = serializers.CharField(source='oportunidade.lead.nome', read_only=True)
+
+    class Meta:
+        model = Proposta
+        fields = [
+            'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome',
+            'titulo', 'conteudo', 'valor_total', 'status',
+            'data_envio', 'data_resposta', 'observacoes',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class ContratoSerializer(serializers.ModelSerializer):
+    oportunidade_titulo = serializers.CharField(source='oportunidade.titulo', read_only=True)
+    lead_nome = serializers.CharField(source='oportunidade.lead.nome', read_only=True)
+
+    class Meta:
+        model = Contrato
+        fields = [
+            'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome',
+            'numero', 'titulo', 'conteudo', 'valor_total', 'status',
+            'data_envio', 'data_assinatura', 'observacoes',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class CRMConfigSerializer(serializers.ModelSerializer):

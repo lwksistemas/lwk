@@ -13,7 +13,10 @@ from datetime import timedelta
 import logging
 
 from core.views import BaseModelViewSet
-from .models import Vendedor, Conta, Lead, Contato, Oportunidade, Atividade
+from .models import (
+    Vendedor, Conta, Lead, Contato, Oportunidade, Atividade,
+    ProdutoServico, OportunidadeItem, Proposta, Contrato,
+)
 from .serializers import (
     VendedorSerializer,
     ContaSerializer,
@@ -23,6 +26,10 @@ from .serializers import (
     OportunidadeSerializer,
     AtividadeSerializer,
     AtividadeListSerializer,
+    ProdutoServicoSerializer,
+    OportunidadeItemSerializer,
+    PropostaSerializer,
+    ContratoSerializer,
 )
 from tenants.middleware import get_current_loja_id
 from .utils import get_current_vendedor_id, get_loja_from_context
@@ -545,6 +552,108 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
             sync_atividade_delete(get_current_loja_id(), instance)
 
         super().perform_destroy(instance)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Filtros adicionais (além do filtro de vendedor do mixin)
+        concluido = self.request.query_params.get('concluido')
+        if concluido is not None:
+            qs = qs.filter(concluido=concluido.lower() == 'true')
+        oportunidade_id = self.request.query_params.get('oportunidade_id')
+        if oportunidade_id:
+            qs = qs.filter(oportunidade_id=oportunidade_id)
+        lead_id = self.request.query_params.get('lead_id')
+        if lead_id:
+            qs = qs.filter(lead_id=lead_id)
+        data_inicio = self.request.query_params.get('data_inicio')
+        if data_inicio:
+            dt = parse_datetime(data_inicio)
+            if dt and timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.utc)
+            if dt:
+                qs = qs.filter(data__gte=dt)
+        data_fim = self.request.query_params.get('data_fim')
+        if data_fim:
+            dt = parse_datetime(data_fim)
+            if dt and timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.utc)
+            if dt:
+                qs = qs.filter(data__lte=dt)
+        return qs
+
+
+class ProdutoServicoViewSet(BaseModelViewSet):
+    """CRUD de produtos e serviços para uso em oportunidades."""
+    queryset = ProdutoServico.objects.all()
+    serializer_class = ProdutoServicoSerializer
+    pagination_class = CRMPagination
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        ativo = self.request.query_params.get('ativo')
+        if ativo is not None:
+            qs = qs.filter(ativo=ativo.lower() == 'true')
+        tipo = self.request.query_params.get('tipo')
+        if tipo:
+            qs = qs.filter(tipo=tipo)
+        return qs
+
+
+class OportunidadeItemViewSet(VendedorFilterMixin, BaseModelViewSet):
+    """Itens (produtos/serviços) de uma oportunidade."""
+    queryset = OportunidadeItem.objects.select_related('oportunidade', 'produto_servico').all()
+    serializer_class = OportunidadeItemSerializer
+    pagination_class = CRMPagination
+
+    vendedor_filter_field = 'oportunidade__vendedor_id'
+    vendedor_filter_related = []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        oportunidade_id = self.request.query_params.get('oportunidade_id')
+        if oportunidade_id:
+            qs = qs.filter(oportunidade_id=oportunidade_id)
+        return qs
+
+
+class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
+    """Propostas comerciais vinculadas a oportunidades."""
+    queryset = Proposta.objects.select_related('oportunidade', 'oportunidade__lead').all()
+    serializer_class = PropostaSerializer
+    pagination_class = CRMPagination
+
+    vendedor_filter_field = 'oportunidade__vendedor_id'
+    vendedor_filter_related = []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        oportunidade_id = self.request.query_params.get('oportunidade_id')
+        if oportunidade_id:
+            qs = qs.filter(oportunidade_id=oportunidade_id)
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return qs
+
+
+class ContratoViewSet(VendedorFilterMixin, BaseModelViewSet):
+    """Contratos gerados a partir de oportunidades fechadas."""
+    queryset = Contrato.objects.select_related('oportunidade', 'oportunidade__lead').all()
+    serializer_class = ContratoSerializer
+    pagination_class = CRMPagination
+
+    vendedor_filter_field = 'oportunidade__vendedor_id'
+    vendedor_filter_related = []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        oportunidade_id = self.request.query_params.get('oportunidade_id')
+        if oportunidade_id:
+            qs = qs.filter(oportunidade_id=oportunidade_id)
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return qs
 
     def get_queryset(self):
         qs = super().get_queryset()

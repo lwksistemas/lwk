@@ -18,6 +18,9 @@ import {
   Bell,
   HelpCircle,
   FileText,
+  FileSignature,
+  Package,
+  ClipboardList,
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
@@ -252,6 +255,45 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
           >
             <FileText size={18} className="shrink-0" />
             {!collapsed && <span>Relatórios</span>}
+          </Link>
+
+          <Link
+            href={`${base}/propostas`}
+            className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
+              isActive(`${base}/propostas`)
+                ? 'bg-[#0176d3] text-white shadow-sm'
+                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
+            }`}
+            title={collapsed ? 'Criar Propostas' : undefined}
+          >
+            <ClipboardList size={18} className="shrink-0" />
+            {!collapsed && <span>Criar Propostas</span>}
+          </Link>
+
+          <Link
+            href={`${base}/contratos`}
+            className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
+              isActive(`${base}/contratos`)
+                ? 'bg-[#0176d3] text-white shadow-sm'
+                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
+            }`}
+            title={collapsed ? 'Criar Contrato' : undefined}
+          >
+            <FileSignature size={18} className="shrink-0" />
+            {!collapsed && <span>Criar Contrato</span>}
+          </Link>
+
+          <Link
+            href={`${base}/produtos-servicos`}
+            className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
+              isActive(`${base}/produtos-servicos`)
+                ? 'bg-[#0176d3] text-white shadow-sm'
+                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
+            }`}
+            title={collapsed ? 'Cadastrar Serviço e Produto' : undefined}
+          >
+            <Package size={18} className="shrink-0" />
+            {!collapsed && <span>Cadastrar Serviço e Produto</span>}
           </Link>
 
           {/* Divider */}

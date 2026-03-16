@@ -15,6 +15,13 @@ interface LeadOption {
   nome: string;
 }
 
+interface ProdutoServicoOption {
+  id: number;
+  nome: string;
+  tipo: string;
+  preco: string;
+}
+
 function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setError: (e: string | null) => void) {
   apiClient
     .get<Oportunidade[] | { results: Oportunidade[] }>('/crm-vendas/oportunidades/')
@@ -46,12 +53,14 @@ export default function CrmVendasPipelinePage() {
   const [formErro, setFormErro] = useState<string | null>(null);
   const [modalCriar, setModalCriar] = useState(false);
   const [leads, setLeads] = useState<LeadOption[]>([]);
+  const [produtosServicos, setProdutosServicos] = useState<ProdutoServicoOption[]>([]);
   const [formCriar, setFormCriar] = useState({
     lead_id: '',
     titulo: '',
     valor: '0',
     etapa: 'prospecting',
     valor_comissao: '',
+    itens: [] as { produto_servico_id: number; quantidade: string; preco_unitario: string }[],
   });
 
   useEffect(() => {
@@ -85,13 +94,41 @@ export default function CrmVendasPipelinePage() {
         }
       })
       .catch(() => setLeads([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Executar apenas ao abrir modal; formCriar.lead_id é setado dentro do efeito
+    apiClient
+      .get<ProdutoServicoOption[] | { results: ProdutoServicoOption[] }>('/crm-vendas/produtos-servicos/?ativo=true')
+      .then((res) => setProdutosServicos(normalizeListResponse(res.data)))
+      .catch(() => setProdutosServicos([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Executar apenas ao abrir modal
   }, [modalCriar]);
 
   const handleAbrirCriar = () => {
     setModalCriar(true);
-    setFormCriar({ lead_id: '', titulo: '', valor: '0', etapa: 'prospecting', valor_comissao: '' });
+    setFormCriar({ lead_id: '', titulo: '', valor: '0', etapa: 'prospecting', valor_comissao: '', itens: [] });
     setFormErro(null);
+  };
+
+  const addItemCriar = () => {
+    const first = produtosServicos[0];
+    if (!first) return;
+    setFormCriar((f) => ({
+      ...f,
+      itens: [...f.itens, { produto_servico_id: first.id, quantidade: '1', preco_unitario: first.preco }],
+    }));
+  };
+
+  const updateItemCriar = (idx: number, field: 'produto_servico_id' | 'quantidade' | 'preco_unitario', value: string | number) => {
+    setFormCriar((f) => ({
+      ...f,
+      itens: f.itens.map((item, i) =>
+        i === idx
+          ? { ...item, [field]: field === 'produto_servico_id' ? Number(value) : String(value) }
+          : item
+      ),
+    }));
+  };
+
+  const removeItemCriar = (idx: number) => {
+    setFormCriar((f) => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }));
   };
 
   const handleCriarOportunidade = (e: React.FormEvent) => {
@@ -106,7 +143,14 @@ export default function CrmVendasPipelinePage() {
       setFormErro('Informe o título da oportunidade.');
       return;
     }
-    const valor = parseFloat(formCriar.valor) || 0;
+    let valor = parseFloat(formCriar.valor) || 0;
+    if (formCriar.itens.length > 0) {
+      const totalItens = formCriar.itens.reduce(
+        (s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.preco_unitario) || 0),
+        0
+      );
+      if (totalItens > 0) valor = totalItens;
+    }
     const valor_comissao = formCriar.valor_comissao ? parseFloat(formCriar.valor_comissao) : null;
     setEnviando(true);
     const payload: Record<string, unknown> = {
@@ -119,8 +163,23 @@ export default function CrmVendasPipelinePage() {
     const vendedorId = authService.getVendedorId();
     if (vendedorId) payload.vendedor = vendedorId;
     apiClient
-      .post('/crm-vendas/oportunidades/', payload)
-      .then(() => {
+      .post<{ id: number }>('/crm-vendas/oportunidades/', payload)
+      .then(async (res) => {
+        const oportunidadeId = res.data?.id;
+        if (oportunidadeId && formCriar.itens.length > 0) {
+          for (const item of formCriar.itens) {
+            const qty = parseFloat(item.quantidade) || 1;
+            const preco = parseFloat(item.preco_unitario) || 0;
+            if (qty > 0 && preco >= 0) {
+              await apiClient.post('/crm-vendas/oportunidade-itens/', {
+                oportunidade: oportunidadeId,
+                produto_servico: item.produto_servico_id,
+                quantidade: qty,
+                preco_unitario: preco,
+              });
+            }
+          }
+        }
         setModalCriar(false);
         loadOportunidades(setOportunidades, setError);
       })
@@ -304,6 +363,79 @@ export default function CrmVendasPipelinePage() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   placeholder="0"
                 />
+                {formCriar.itens.length > 0 && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Valor calculado automaticamente pelos itens
+                  </p>
+                )}
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Produtos e Serviços
+                  </label>
+                  <Link
+                    href={`/loja/${slug}/crm-vendas/produtos-servicos`}
+                    className="text-xs text-[#0176d3] hover:underline"
+                  >
+                    Cadastrar
+                  </Link>
+                </div>
+                {formCriar.itens.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 mb-2 items-center">
+                    <select
+                      value={item.produto_servico_id}
+                      onChange={(e) => updateItemCriar(idx, 'produto_servico_id', e.target.value)}
+                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                    >
+                      {produtosServicos.map((ps) => (
+                        <option key={ps.id} value={ps.id}>
+                          {ps.tipo === 'produto' ? 'Produto' : 'Serviço'}: {ps.nome} - {parseFloat(ps.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={item.preco_unitario}
+                      onChange={(e) => updateItemCriar(idx, 'preco_unitario', e.target.value)}
+                      className="w-20 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      placeholder="Preço"
+                    />
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={item.quantidade}
+                      onChange={(e) => updateItemCriar(idx, 'quantidade', e.target.value)}
+                      className="w-16 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      placeholder="Qtd"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeItemCriar(idx)}
+                      className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600"
+                      aria-label="Remover"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+                {produtosServicos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={addItemCriar}
+                    className="text-sm text-[#0176d3] hover:underline"
+                  >
+                    + Adicionar item
+                  </button>
+                )}
+                {produtosServicos.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Cadastre produtos/serviços em <Link href={`/loja/${slug}/crm-vendas/produtos-servicos`} className="underline">Produtos e Serviços</Link>.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor da Comissão (R$)</label>

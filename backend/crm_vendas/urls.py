@@ -7,6 +7,10 @@ from .views import (
     ContatoViewSet,
     OportunidadeViewSet,
     AtividadeViewSet,
+    ProdutoServicoViewSet,
+    OportunidadeItemViewSet,
+    PropostaViewSet,
+    ContratoViewSet,
     crm_me,
     dashboard_data,
     crm_busca,
@@ -30,6 +34,10 @@ router.register(r'leads', LeadViewSet, basename='crm-leads')
 router.register(r'contatos', ContatoViewSet, basename='crm-contatos')
 router.register(r'oportunidades', OportunidadeViewSet, basename='crm-oportunidades')
 router.register(r'atividades', AtividadeViewSet, basename='crm-atividades')
+router.register(r'produtos-servicos', ProdutoServicoViewSet, basename='crm-produtos-servicos')
+router.register(r'oportunidade-itens', OportunidadeItemViewSet, basename='crm-oportunidade-itens')
+router.register(r'propostas', PropostaViewSet, basename='crm-propostas')
+router.register(r'contratos', ContratoViewSet, basename='crm-contratos')
 
 urlpatterns = [
     path('me/', crm_me),

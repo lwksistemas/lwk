@@ -142,6 +142,10 @@ class BackupConfig:
         TabelaConfig('crm_vendas_oportunidade', ordem_exportacao=104, ordem_importacao=104),
         TabelaConfig('crm_vendas_atividade', ordem_exportacao=105, ordem_importacao=105),
         TabelaConfig('crm_vendas_config', ordem_exportacao=106, ordem_importacao=106),
+        TabelaConfig('crm_vendas_produto_servico', ordem_exportacao=107, ordem_importacao=107),
+        TabelaConfig('crm_vendas_oportunidade_item', ordem_exportacao=108, ordem_importacao=108),
+        TabelaConfig('crm_vendas_proposta', ordem_exportacao=109, ordem_importacao=109),
+        TabelaConfig('crm_vendas_contrato', ordem_exportacao=110, ordem_importacao=110),
     ]
     
     @classmethod

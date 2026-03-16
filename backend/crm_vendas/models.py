@@ -298,5 +298,150 @@ class Atividade(LojaIsolationMixin, models.Model):
         return f"{self.titulo} ({self.get_tipo_display()})"
 
 
+class ProdutoServico(LojaIsolationMixin, models.Model):
+    """Produto ou serviço cadastrado para uso em oportunidades e propostas."""
+    TIPO_CHOICES = [
+        ('produto', 'Produto'),
+        ('servico', 'Serviço'),
+    ]
+
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='produto')
+    nome = models.CharField(max_length=255)
+    descricao = models.TextField(blank=True)
+    preco = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ativo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'crm_vendas_produto_servico'
+        ordering = ['tipo', 'nome']
+        verbose_name = 'Produto/Serviço'
+        verbose_name_plural = 'Produtos e Serviços'
+        indexes = [
+            models.Index(fields=['loja_id', 'tipo'], name='crm_ps_loja_tipo_idx'),
+            models.Index(fields=['loja_id', 'ativo'], name='crm_ps_loja_ativo_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()}: {self.nome}"
+
+
+class OportunidadeItem(LojaIsolationMixin, models.Model):
+    """Item (produto/serviço) vinculado a uma oportunidade."""
+    oportunidade = models.ForeignKey(
+        Oportunidade,
+        on_delete=models.CASCADE,
+        related_name='itens',
+    )
+    produto_servico = models.ForeignKey(
+        ProdutoServico,
+        on_delete=models.CASCADE,
+        related_name='oportunidade_itens',
+    )
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, default=1)
+    preco_unitario = models.DecimalField(max_digits=12, decimal_places=2)
+    observacao = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'crm_vendas_oportunidade_item'
+        ordering = ['id']
+        verbose_name = 'Item da Oportunidade'
+        verbose_name_plural = 'Itens da Oportunidade'
+        indexes = [
+            models.Index(fields=['loja_id', 'oportunidade'], name='crm_oi_loja_opor_idx'),
+        ]
+
+    @property
+    def subtotal(self):
+        return self.quantidade * self.preco_unitario
+
+
+class Proposta(LojaIsolationMixin, models.Model):
+    """Proposta comercial vinculada a uma oportunidade."""
+    STATUS_CHOICES = [
+        ('rascunho', 'Rascunho'),
+        ('enviada', 'Enviada'),
+        ('aceita', 'Aceita'),
+        ('rejeitada', 'Rejeitada'),
+    ]
+
+    oportunidade = models.ForeignKey(
+        Oportunidade,
+        on_delete=models.CASCADE,
+        related_name='propostas',
+    )
+    titulo = models.CharField(max_length=255)
+    conteudo = models.TextField(blank=True, help_text='Conteúdo da proposta em texto ou HTML')
+    valor_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='rascunho')
+    data_envio = models.DateTimeField(null=True, blank=True)
+    data_resposta = models.DateTimeField(null=True, blank=True)
+    observacoes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'crm_vendas_proposta'
+        ordering = ['-created_at']
+        verbose_name = 'Proposta'
+        verbose_name_plural = 'Propostas'
+        indexes = [
+            models.Index(fields=['loja_id', 'oportunidade'], name='crm_prop_loja_opor_idx'),
+            models.Index(fields=['loja_id', 'status'], name='crm_prop_loja_status_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.titulo} - {self.get_status_display()}"
+
+
+class Contrato(LojaIsolationMixin, models.Model):
+    """Contrato gerado a partir de oportunidade fechada como ganha."""
+    STATUS_CHOICES = [
+        ('rascunho', 'Rascunho'),
+        ('enviado', 'Enviado'),
+        ('assinado', 'Assinado'),
+        ('cancelado', 'Cancelado'),
+    ]
+
+    oportunidade = models.OneToOneField(
+        Oportunidade,
+        on_delete=models.CASCADE,
+        related_name='contrato',
+    )
+    numero = models.CharField(max_length=50, blank=True)
+    titulo = models.CharField(max_length=255)
+    conteudo = models.TextField(blank=True, help_text='Conteúdo do contrato')
+    valor_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='rascunho')
+    data_envio = models.DateTimeField(null=True, blank=True)
+    data_assinatura = models.DateTimeField(null=True, blank=True)
+    observacoes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'crm_vendas_contrato'
+        ordering = ['-created_at']
+        verbose_name = 'Contrato'
+        verbose_name_plural = 'Contratos'
+        indexes = [
+            models.Index(fields=['loja_id', 'oportunidade'], name='crm_cont_loja_opor_idx'),
+            models.Index(fields=['loja_id', 'status'], name='crm_cont_loja_status_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.titulo or self.numero or 'Contrato'} - {self.get_status_display()}"
+
+
 # Importar modelo de configuração
 from .models_config import CRMConfig

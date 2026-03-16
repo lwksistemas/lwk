@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { Plus, Eye, Edit2, Trash2, X, ClipboardList, ArrowRight, Mail, MessageCircle } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
+import type { LojaInfo, LeadInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+
+const ModalPropostaForm = dynamic(() => import('@/components/crm-vendas/modals/ModalPropostaForm'), { ssr: false });
 
 interface Proposta {
   id: number;
@@ -25,9 +29,21 @@ interface Proposta {
 interface OportunidadeOption {
   id: number;
   titulo: string;
+  lead: number;
   lead_nome: string;
   valor: string;
   etapa: string;
+}
+
+interface OportunidadeItem {
+  id: number;
+  produto_servico: number;
+  produto_servico_nome: string;
+  produto_servico_tipo: string;
+  quantidade: string;
+  preco_unitario: string;
+  subtotal: number;
+  observacao?: string;
 }
 
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
@@ -44,6 +60,9 @@ export default function CrmVendasPropostasPage() {
   const slug = (params?.slug as string) ?? '';
   const [propostas, setPropostas] = useState<Proposta[]>([]);
   const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
+  const [itensOportunidade, setItensOportunidade] = useState<OportunidadeItem[]>([]);
+  const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
+  const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -97,6 +116,43 @@ export default function CrmVendasPropostasPage() {
     }
   }, []);
 
+  const loadItensOportunidade = useCallback(async (oportunidadeId: string) => {
+    if (!oportunidadeId) {
+      setItensOportunidade([]);
+      return;
+    }
+    try {
+      const res = await apiClient.get<OportunidadeItem[] | { results: OportunidadeItem[] }>(
+        `/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidadeId}`
+      );
+      setItensOportunidade(normalizeListResponse(res.data));
+    } catch {
+      setItensOportunidade([]);
+    }
+  }, []);
+
+  const loadLojaInfo = useCallback(async () => {
+    try {
+      const res = await apiClient.get<LojaInfo>(`/superadmin/lojas/info_publica/?slug=${slug}`);
+      setLojaInfo(res.data);
+    } catch {
+      setLojaInfo(null);
+    }
+  }, [slug]);
+
+  const loadLeadInfo = useCallback(async (leadId: number) => {
+    if (!leadId) {
+      setLeadInfo(null);
+      return;
+    }
+    try {
+      const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
+      setLeadInfo(res.data);
+    } catch {
+      setLeadInfo(null);
+    }
+  }, []);
+
   useEffect(() => {
     loadPropostas();
   }, [loadPropostas]);
@@ -104,8 +160,24 @@ export default function CrmVendasPropostasPage() {
   useEffect(() => {
     if (modalType === 'create' || modalType === 'edit') {
       loadOportunidades();
+      loadLojaInfo();
     }
-  }, [modalType, loadOportunidades]);
+  }, [modalType, loadOportunidades, loadLojaInfo]);
+
+  useEffect(() => {
+    if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
+      loadItensOportunidade(formData.oportunidade_id);
+      const opp = oportunidades.find((o) => String(o.id) === formData.oportunidade_id);
+      if (opp?.lead) {
+        loadLeadInfo(opp.lead);
+      } else {
+        setLeadInfo(null);
+      }
+    } else if (!formData.oportunidade_id) {
+      setItensOportunidade([]);
+      setLeadInfo(null);
+    }
+  }, [modalType, formData.oportunidade_id, oportunidades, loadItensOportunidade, loadLeadInfo]);
 
   const openModal = (type: ModalType, item?: Proposta) => {
     setModalType(type);
@@ -126,6 +198,23 @@ export default function CrmVendasPropostasPage() {
         valor_total: '',
         status: 'rascunho',
       });
+      setItensOportunidade([]);
+      setLeadInfo(null);
+    }
+  };
+
+  const handleOportunidadeChange = (id: string) => {
+    const opp = oportunidades.find((o) => String(o.id) === id);
+    setFormData((f) => ({
+      ...f,
+      oportunidade_id: id,
+      valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
+    }));
+    loadItensOportunidade(id);
+    if (opp?.lead) {
+      loadLeadInfo(opp.lead);
+    } else {
+      setLeadInfo(null);
     }
   };
 
@@ -276,97 +365,36 @@ export default function CrmVendasPropostasPage() {
         </div>
       </div>
 
-      {modalType && (
+      {(modalType === 'create' || modalType === 'edit') && (
+        <ModalPropostaForm
+          title={modalType === 'create' ? 'Nova Proposta' : 'Editar Proposta'}
+          form={formData}
+          formErro={null}
+          enviando={submitting}
+          lojaInfo={lojaInfo}
+          leadInfo={leadInfo}
+          oportunidades={oportunidades}
+          itensOportunidade={itensOportunidade}
+          statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
+          onFormChange={setFormData}
+          onOportunidadeChange={handleOportunidadeChange}
+          onSubmit={handleSubmit}
+          onClose={closeModal}
+          isEdit={modalType === 'edit'}
+        />
+      )}
+
+      {modalType === 'view' && (
         <>
           <div className="fixed inset-0 bg-black/50 z-[80]" onClick={closeModal} />
           <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {modalType === 'create' && 'Nova Proposta'}
-                  {modalType === 'edit' && 'Editar Proposta'}
-                  {modalType === 'view' && 'Detalhes'}
-                  {modalType === 'delete' && 'Excluir'}
-                </h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Detalhes</h2>
                 <button type="button" onClick={closeModal} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
               </div>
               <div className="p-6">
-                {(modalType === 'create' || modalType === 'edit') && (
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Oportunidade *</label>
-                      <select
-                        value={formData.oportunidade_id}
-                        onChange={(e) => {
-                          const id = e.target.value;
-                          const opp = oportunidades.find((o) => String(o.id) === id);
-                          setFormData((f) => ({
-                            ...f,
-                            oportunidade_id: id,
-                            valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
-                          }));
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        required
-                        disabled={modalType === 'edit'}
-                      >
-                        <option value="">Selecione</option>
-                        {oportunidades.map((o) => (
-                          <option key={o.id} value={o.id}>{o.titulo} - {o.lead_nome}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título *</label>
-                      <input
-                        type="text"
-                        value={formData.titulo}
-                        onChange={(e) => setFormData((f) => ({ ...f, titulo: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conteúdo</label>
-                      <textarea
-                        value={formData.conteudo}
-                        onChange={(e) => setFormData((f) => ({ ...f, conteudo: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        rows={4}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor total (R$)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.valor_total}
-                        onChange={(e) => setFormData((f) => ({ ...f, valor_total: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData((f) => ({ ...f, status: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                      >
-                        {Object.entries(STATUS_LABEL).map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border rounded-lg">Cancelar</button>
-                      <button type="submit" disabled={submitting} className="flex-1 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded-lg disabled:opacity-50">
-                        {submitting ? 'Salvando...' : 'Salvar'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-                {modalType === 'view' && selected && (
+                {selected && (
                   <div className="space-y-3">
                     <p><span className="font-medium">Título:</span> {selected.titulo}</p>
                     <p><span className="font-medium">Oportunidade:</span> {selected.oportunidade_titulo}</p>
@@ -377,7 +405,23 @@ export default function CrmVendasPropostasPage() {
                     <button type="button" onClick={closeModal} className="w-full mt-4 py-2 border rounded-lg">Fechar</button>
                   </div>
                 )}
-                {modalType === 'delete' && selected && (
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {modalType === 'delete' && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[80]" onClick={closeModal} />
+          <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Excluir</h2>
+                <button type="button" onClick={closeModal} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
+              </div>
+              <div className="p-6">
+                {selected && (
                   <div className="space-y-4">
                     <p className="text-gray-600 dark:text-gray-400">Deseja excluir &quot;{selected.titulo}&quot;?</p>
                     <div className="flex gap-2">

@@ -280,7 +280,15 @@ export default function CrmVendasPropostasPage() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Oportunidade *</label>
                       <select
                         value={formData.oportunidade_id}
-                        onChange={(e) => setFormData((f) => ({ ...f, oportunidade_id: e.target.value }))}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const opp = oportunidades.find((o) => String(o.id) === id);
+                          setFormData((f) => ({
+                            ...f,
+                            oportunidade_id: id,
+                            valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
+                          }));
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                         required
                         disabled={modalType === 'edit'}

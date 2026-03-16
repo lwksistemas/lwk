@@ -82,8 +82,11 @@ class VendedorFilterMixin:
             # Proprietário: vê tudo
             return queryset
         
-        # Construir filtro Q
+        # Construir filtro Q: vendedor OU oportunidades não atribuídas (pool compartilhado)
         filters = Q(**{self.vendedor_filter_field: vendedor_id})
+        # Incluir registros onde o campo de vendedor é NULL (ex: oportunidade sem vendedor)
+        null_field = f'{self.vendedor_filter_field}__isnull'
+        filters |= Q(**{null_field: True})
         for related_field in self.vendedor_filter_related:
             filters |= Q(**{related_field: vendedor_id})
         

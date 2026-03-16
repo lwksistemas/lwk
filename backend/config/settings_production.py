@@ -112,6 +112,10 @@ if 'OPTIONS' not in DATABASES['default']:
 DATABASES['default']['OPTIONS']['connect_timeout'] = 10
 DATABASES['default']['OPTIONS']['options'] = '-c statement_timeout=25000'
 
+# Database Router: evita migrar apps de loja (crm_vendas, clinica_beleza, etc.) no default
+# Esses apps migram apenas nos schemas tenant via setup_loja_schema
+DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
+
 # Banco suporte: mesmo PostgreSQL, schema isolado (chamados, erros frontend)
 _default_db = dict(DATABASES['default'])
 DATABASES['suporte'] = {

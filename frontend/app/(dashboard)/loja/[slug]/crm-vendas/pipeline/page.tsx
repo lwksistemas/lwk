@@ -110,25 +110,35 @@ export default function CrmVendasPipelinePage() {
   const addItemCriar = () => {
     const first = produtosServicos[0];
     if (!first) return;
-    setFormCriar((f) => ({
-      ...f,
-      itens: [...f.itens, { produto_servico_id: first.id, quantidade: '1', preco_unitario: first.preco }],
-    }));
+    setFormCriar((f) => {
+      const newItens = [...f.itens, { produto_servico_id: first.id, quantidade: '1', preco_unitario: first.preco }];
+      const total = newItens.reduce((s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.preco_unitario) || 0), 0);
+      return { ...f, itens: newItens, valor: String(total.toFixed(2)) };
+    });
   };
 
   const updateItemCriar = (idx: number, field: 'produto_servico_id' | 'quantidade' | 'preco_unitario', value: string | number) => {
-    setFormCriar((f) => ({
-      ...f,
-      itens: f.itens.map((item, i) =>
-        i === idx
-          ? { ...item, [field]: field === 'produto_servico_id' ? Number(value) : String(value) }
-          : item
-      ),
-    }));
+    setFormCriar((f) => {
+      const newItens = f.itens.map((item, i) => {
+        if (i !== idx) return item;
+        const updated = { ...item, [field]: field === 'produto_servico_id' ? Number(value) : String(value) };
+        if (field === 'produto_servico_id') {
+          const ps = produtosServicos.find((p) => p.id === Number(value));
+          if (ps) updated.preco_unitario = ps.preco;
+        }
+        return updated;
+      });
+      const total = newItens.reduce((s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.preco_unitario) || 0), 0);
+      return { ...f, itens: newItens, valor: newItens.length > 0 ? String(total.toFixed(2)) : f.valor };
+    });
   };
 
   const removeItemCriar = (idx: number) => {
-    setFormCriar((f) => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }));
+    setFormCriar((f) => {
+      const newItens = f.itens.filter((_, i) => i !== idx);
+      const total = newItens.reduce((s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.preco_unitario) || 0), 0);
+      return { ...f, itens: newItens, valor: newItens.length > 0 ? String(total.toFixed(2)) : '0' };
+    });
   };
 
   const handleCriarOportunidade = (e: React.FormEvent) => {
@@ -296,11 +306,11 @@ export default function CrmVendasPipelinePage() {
 
       {modalCriar && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-0 bg-black/50"
           onClick={() => !enviando && setModalCriar(false)}
         >
           <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md max-h-[90vh] overflow-y-auto md:w-[calc(100vw-2rem)] md:max-w-4xl md:h-[calc(100vh-2rem)] md:max-h-none md:rounded-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -360,7 +370,8 @@ export default function CrmVendasPipelinePage() {
                   step="0.01"
                   value={formCriar.valor}
                   onChange={(e) => setFormCriar((f) => ({ ...f, valor: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  readOnly={formCriar.itens.length > 0}
+                  className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${formCriar.itens.length > 0 ? 'bg-gray-50 dark:bg-gray-600/50 cursor-not-allowed' : ''}`}
                   placeholder="0"
                 />
                 {formCriar.itens.length > 0 && (

@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { consultaCep } from '@/lib/consulta-cep';
+import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj';
 
 export interface FormDataLead {
   nome: string;
   empresa: string;
+  cpf_cnpj: string;
   email: string;
   telefone: string;
   origem: string;
@@ -47,6 +49,44 @@ export default function ModalLeadForm({
   fullScreenOnDesktop = false,
 }: ModalLeadFormProps) {
   const [buscarCepLoading, setBuscarCepLoading] = useState(false);
+  const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false);
+
+  const handleBuscarCnpj = async () => {
+    const cnpj = form.cpf_cnpj.replace(/\D/g, '');
+    if (cnpj.length !== 14) {
+      alert('Informe um CNPJ válido com 14 dígitos para buscar.');
+      return;
+    }
+    setBuscarCnpjLoading(true);
+    try {
+      const data = await consultaCnpj(form.cpf_cnpj);
+      if (data) {
+        onFormChange((f) => ({
+          ...f,
+          nome: data.razao_social || f.nome,
+          empresa: data.nome_fantasia || f.empresa,
+          cep: data.cep || f.cep,
+          logradouro: data.logradouro || f.logradouro,
+          numero: data.numero || f.numero,
+          complemento: data.complemento || f.complemento,
+          bairro: data.bairro || f.bairro,
+          cidade: data.municipio || f.cidade,
+          uf: data.uf || f.uf,
+        }));
+      } else {
+        alert('CNPJ não encontrado ou serviço indisponível.');
+      }
+    } catch {
+      alert('Erro ao consultar CNPJ. Tente novamente.');
+    } finally {
+      setBuscarCnpjLoading(false);
+    }
+  };
+
+  const handleCpfCnpjChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 14);
+    onFormChange((f) => ({ ...f, cpf_cnpj: formatCpfCnpj(digits) }));
+  };
 
   const handleBuscarCep = async () => {
     const cep = form.cep.replace(/\D/g, '');
@@ -212,6 +252,27 @@ export default function ModalLeadForm({
               placeholder="Nome do lead"
               required
             />
+          </div>
+          <div className={fullScreenOnDesktop ? 'md:col-span-2' : ''}>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CPF ou CNPJ</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={form.cpf_cnpj}
+                onChange={(e) => handleCpfCnpjChange(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="000.000.000-00 ou 00.000.000/0001-00"
+              />
+              <button
+                type="button"
+                onClick={handleBuscarCnpj}
+                disabled={buscarCnpjLoading || form.cpf_cnpj.replace(/\D/g, '').length !== 14}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm"
+                title="Buscar dados do CNPJ na Receita Federal"
+              >
+                {buscarCnpjLoading ? '...' : 'Buscar CNPJ'}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa</label>

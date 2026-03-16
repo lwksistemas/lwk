@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { Plus, Eye, Edit2, Trash2, X, FileSignature, ArrowRight } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, X, FileSignature, ArrowRight, Mail, MessageCircle } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
+import type { LojaInfo, LeadInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+
+const ModalContratoForm = dynamic(() => import('@/components/crm-vendas/modals/ModalContratoForm'), { ssr: false });
 
 interface Contrato {
   id: number;
@@ -26,6 +30,7 @@ interface Contrato {
 interface OportunidadeOption {
   id: number;
   titulo: string;
+  lead?: number;
   lead_nome: string;
   valor: string;
   etapa: string;
@@ -45,6 +50,8 @@ export default function CrmVendasContratosPage() {
   const slug = (params?.slug as string) ?? '';
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
+  const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
+  const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -58,6 +65,21 @@ export default function CrmVendasContratosPage() {
     status: 'rascunho' as string,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [enviandoId, setEnviandoId] = useState<number | null>(null);
+
+  const handleEnviarCliente = async (contratoId: number, canal: 'email' | 'whatsapp') => {
+    setEnviandoId(contratoId);
+    try {
+      await apiClient.post(`/crm-vendas/contratos/${contratoId}/enviar_cliente/`, { canal });
+      alert(`Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`);
+      await loadContratos();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e.response?.data?.detail || 'Erro ao enviar.');
+    } finally {
+      setEnviandoId(null);
+    }
+  };
 
   const loadContratos = useCallback(async () => {
     try {
@@ -84,6 +106,28 @@ export default function CrmVendasContratosPage() {
     }
   }, []);
 
+  const loadLojaInfo = useCallback(async () => {
+    try {
+      const res = await apiClient.get<LojaInfo>(`/superadmin/lojas/info_publica/?slug=${slug}`);
+      setLojaInfo(res.data);
+    } catch {
+      setLojaInfo(null);
+    }
+  }, [slug]);
+
+  const loadLeadInfo = useCallback(async (leadId: number) => {
+    if (!leadId) {
+      setLeadInfo(null);
+      return;
+    }
+    try {
+      const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
+      setLeadInfo(res.data);
+    } catch {
+      setLeadInfo(null);
+    }
+  }, []);
+
   useEffect(() => {
     loadContratos();
   }, [loadContratos]);
@@ -91,8 +135,22 @@ export default function CrmVendasContratosPage() {
   useEffect(() => {
     if (modalType === 'create' || modalType === 'edit') {
       loadOportunidades();
+      loadLojaInfo();
     }
-  }, [modalType, loadOportunidades]);
+  }, [modalType, loadOportunidades, loadLojaInfo]);
+
+  useEffect(() => {
+    if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
+      const opp = oportunidades.find((o) => String(o.id) === formData.oportunidade_id);
+      if (opp?.lead) {
+        loadLeadInfo(opp.lead);
+      } else {
+        setLeadInfo(null);
+      }
+    } else if (!formData.oportunidade_id) {
+      setLeadInfo(null);
+    }
+  }, [modalType, formData.oportunidade_id, oportunidades, loadLeadInfo]);
 
   const openModal = (type: ModalType, item?: Contrato) => {
     setModalType(type);
@@ -115,6 +173,21 @@ export default function CrmVendasContratosPage() {
         valor_total: '',
         status: 'rascunho',
       });
+      setLeadInfo(null);
+    }
+  };
+
+  const handleOportunidadeChange = (id: string) => {
+    const opp = oportunidades.find((o) => String(o.id) === id);
+    setFormData((f) => ({
+      ...f,
+      oportunidade_id: id,
+      valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
+    }));
+    if (opp?.lead) {
+      loadLeadInfo(opp.lead);
+    } else {
+      setLeadInfo(null);
     }
   };
 
@@ -250,7 +323,9 @@ export default function CrmVendasContratosPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-1 flex-wrap">
+                        <button type="button" onClick={() => handleEnviarCliente(c.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
+                        <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
                         <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
                         <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
                         <button type="button" onClick={() => openModal('delete', c)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600" title="Excluir"><Trash2 size={16} /></button>
@@ -264,104 +339,35 @@ export default function CrmVendasContratosPage() {
         </div>
       </div>
 
-      {modalType && (
+      {(modalType === 'create' || modalType === 'edit') && (
+        <ModalContratoForm
+          title={modalType === 'create' ? 'Novo Contrato' : 'Editar Contrato'}
+          form={formData}
+          formErro={null}
+          enviando={submitting}
+          lojaInfo={lojaInfo}
+          leadInfo={leadInfo}
+          oportunidades={oportunidades}
+          statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
+          onFormChange={setFormData}
+          onOportunidadeChange={handleOportunidadeChange}
+          onSubmit={handleSubmit}
+          onClose={closeModal}
+          isEdit={modalType === 'edit'}
+        />
+      )}
+
+      {modalType === 'view' && (
         <>
           <div className="fixed inset-0 bg-black/50 z-[80]" onClick={closeModal} />
           <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {modalType === 'create' && 'Novo Contrato'}
-                  {modalType === 'edit' && 'Editar Contrato'}
-                  {modalType === 'view' && 'Detalhes'}
-                  {modalType === 'delete' && 'Excluir'}
-                </h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Detalhes</h2>
                 <button type="button" onClick={closeModal} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
               </div>
               <div className="p-6">
-                {(modalType === 'create' || modalType === 'edit') && (
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Oportunidade (fechada ganha) *</label>
-                      <select
-                        value={formData.oportunidade_id}
-                        onChange={(e) => setFormData((f) => ({ ...f, oportunidade_id: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        required
-                        disabled={modalType === 'edit'}
-                      >
-                        <option value="">Selecione</option>
-                        {oportunidades.map((o) => (
-                          <option key={o.id} value={o.id}>{o.titulo} - {o.lead_nome}</option>
-                        ))}
-                      </select>
-                      {oportunidades.length === 0 && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                          Nenhuma oportunidade fechada como ganha. Feche oportunidades no Pipeline primeiro.
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Número</label>
-                      <input
-                        type="text"
-                        value={formData.numero}
-                        onChange={(e) => setFormData((f) => ({ ...f, numero: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        placeholder="Ex: 001/2025"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título *</label>
-                      <input
-                        type="text"
-                        value={formData.titulo}
-                        onChange={(e) => setFormData((f) => ({ ...f, titulo: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conteúdo</label>
-                      <textarea
-                        value={formData.conteudo}
-                        onChange={(e) => setFormData((f) => ({ ...f, conteudo: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        rows={4}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor total (R$)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.valor_total}
-                        onChange={(e) => setFormData((f) => ({ ...f, valor_total: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData((f) => ({ ...f, status: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                      >
-                        {Object.entries(STATUS_LABEL).map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border rounded-lg">Cancelar</button>
-                      <button type="submit" disabled={submitting || oportunidades.length === 0} className="flex-1 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded-lg disabled:opacity-50">
-                        {submitting ? 'Salvando...' : 'Salvar'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-                {modalType === 'view' && selected && (
+                {selected && (
                   <div className="space-y-3">
                     <p><span className="font-medium">Título:</span> {selected.titulo}</p>
                     <p><span className="font-medium">Oportunidade:</span> {selected.oportunidade_titulo}</p>
@@ -372,7 +378,23 @@ export default function CrmVendasContratosPage() {
                     <button type="button" onClick={closeModal} className="w-full mt-4 py-2 border rounded-lg">Fechar</button>
                   </div>
                 )}
-                {modalType === 'delete' && selected && (
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {modalType === 'delete' && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[80]" onClick={closeModal} />
+          <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Excluir</h2>
+                <button type="button" onClick={closeModal} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
+              </div>
+              <div className="p-6">
+                {selected && (
                   <div className="space-y-4">
                     <p className="text-gray-600 dark:text-gray-400">Deseja excluir &quot;{selected.titulo || selected.numero || 'este contrato'}&quot;?</p>
                     <div className="flex gap-2">

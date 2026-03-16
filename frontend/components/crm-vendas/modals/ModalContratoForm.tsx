@@ -1,72 +1,34 @@
 'use client';
 
 import { X } from 'lucide-react';
+import type { LojaInfo, LeadInfo } from './ModalPropostaForm';
 
-export interface LojaInfo {
-  id: number;
-  nome: string;
-  slug: string;
-  tipo_loja_nome?: string;
-  cor_primaria?: string;
-  endereco?: string | null;
-  cpf_cnpj?: string | null;
-  admin_nome?: string | null;
-  admin_email?: string | null;
-}
-
-export interface LeadInfo {
-  id: number;
-  nome: string;
-  empresa?: string;
-  cpf_cnpj?: string;
-  email?: string;
-  telefone?: string;
-  cep?: string;
-  logradouro?: string;
-  numero?: string;
-  complemento?: string;
-  bairro?: string;
-  cidade?: string;
-  uf?: string;
-}
-
-export interface OportunidadeItem {
-  id: number;
-  produto_servico: number;
-  produto_servico_nome: string;
-  produto_servico_tipo: string;
-  quantidade: string;
-  preco_unitario: string;
-  subtotal: number;
-  observacao?: string;
-}
-
-export interface FormDataProposta {
+export interface FormDataContrato {
   oportunidade_id: string;
+  numero: string;
   titulo: string;
   conteudo: string;
   valor_total: string;
   status: string;
 }
 
-interface ModalPropostaFormProps {
+interface ModalContratoFormProps {
   title: string;
-  form: FormDataProposta;
+  form: FormDataContrato;
   formErro: string | null;
   enviando: boolean;
   lojaInfo: LojaInfo | null;
   leadInfo: LeadInfo | null;
-  oportunidades: Array<{ id: number; titulo: string; lead_nome: string }>;
-  itensOportunidade: OportunidadeItem[];
+  oportunidades: Array<{ id: number; titulo: string; lead_nome: string; lead?: number }>;
   statusOpcoes: Array<{ value: string; label: string }>;
-  onFormChange: (updater: (f: FormDataProposta) => FormDataProposta) => void;
+  onFormChange: (updater: (f: FormDataContrato) => FormDataContrato) => void;
   onOportunidadeChange: (id: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
   isEdit?: boolean;
 }
 
-export default function ModalPropostaForm({
+export default function ModalContratoForm({
   title,
   form,
   formErro,
@@ -74,14 +36,13 @@ export default function ModalPropostaForm({
   lojaInfo,
   leadInfo,
   oportunidades,
-  itensOportunidade,
   statusOpcoes,
   onFormChange,
   onOportunidadeChange,
   onSubmit,
   onClose,
   isEdit = false,
-}: ModalPropostaFormProps) {
+}: ModalContratoFormProps) {
   const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
   const labelClass = 'block text-xs text-gray-500 dark:text-gray-400 mb-0.5';
   const sectionClass = 'space-y-3 border-b border-gray-200 dark:border-gray-600 pb-4';
@@ -165,7 +126,7 @@ export default function ModalPropostaForm({
                   <span className={labelClass}>Empresa</span>
                   <p>{leadInfo.empresa || '—'}</p>
                 </div>
-                {(leadInfo.cpf_cnpj) && (
+                {leadInfo.cpf_cnpj && (
                   <div>
                     <span className={labelClass}>CPF/CNPJ</span>
                     <p>{leadInfo.cpf_cnpj}</p>
@@ -205,7 +166,7 @@ export default function ModalPropostaForm({
 
           {/* Oportunidade */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Oportunidade *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Oportunidade (fechada ganha) *</label>
             <select
               value={form.oportunidade_id}
               onChange={(e) => onOportunidadeChange(e.target.value)}
@@ -220,49 +181,17 @@ export default function ModalPropostaForm({
             </select>
           </div>
 
-          {/* Produtos e Serviços */}
-          {form.oportunidade_id && itensOportunidade.length > 0 && (
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Produtos e Serviços da Oportunidade
-              </label>
-              <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-[#0d1f3c]/50">
-                      <th className="text-left py-2 px-3 font-medium">Item</th>
-                      <th className="text-right py-2 px-3 font-medium">Qtd</th>
-                      <th className="text-right py-2 px-3 font-medium">Preço Unit.</th>
-                      <th className="text-right py-2 px-3 font-medium">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itensOportunidade.map((item) => (
-                      <tr key={item.id} className="border-t border-gray-100 dark:border-[#0d1f3c]">
-                        <td className="py-2 px-3">
-                          <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">
-                            {item.produto_servico_tipo === 'produto' ? 'Produto' : 'Serviço'}:
-                          </span>
-                          {item.produto_servico_nome}
-                        </td>
-                        <td className="py-2 px-3 text-right">{item.quantidade}</td>
-                        <td className="py-2 px-3 text-right">
-                          {parseFloat(item.preco_unitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </td>
-                        <td className="py-2 px-3 text-right font-medium">
-                          {item.subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {form.oportunidade_id && itensOportunidade.length === 0 && (
-            <p className="text-xs text-gray-500 md:col-span-2">Esta oportunidade não possui produtos ou serviços cadastrados.</p>
-          )}
+          {/* Número */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Número</label>
+            <input
+              type="text"
+              value={form.numero}
+              onChange={(e) => onFormChange((f) => ({ ...f, numero: e.target.value }))}
+              className={inputClass}
+              placeholder="Ex: 001/2025"
+            />
+          </div>
 
           {/* Título */}
           <div>
@@ -272,7 +201,7 @@ export default function ModalPropostaForm({
               value={form.titulo}
               onChange={(e) => onFormChange((f) => ({ ...f, titulo: e.target.value }))}
               className={inputClass}
-              placeholder="Título da proposta"
+              placeholder="Título do contrato"
               required
             />
           </div>
@@ -299,7 +228,7 @@ export default function ModalPropostaForm({
               onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}
               className={`${inputClass} min-h-[100px]`}
               rows={4}
-              placeholder="Descrição detalhada da proposta..."
+              placeholder="Descrição detalhada do contrato..."
             />
           </div>
 

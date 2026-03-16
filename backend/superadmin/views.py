@@ -243,7 +243,7 @@ class LojaViewSet(viewsets.ModelViewSet):
         
         for attempt in range(max_retries):
             try:
-                loja = Loja.objects.select_related('tipo_loja').filter(slug__iexact=slug, is_active=True).first()
+                loja = Loja.objects.select_related('tipo_loja', 'owner').filter(slug__iexact=slug, is_active=True).first()
                 break  # Sucesso, sair do loop
                 
             except OperationalError as e:
@@ -266,7 +266,29 @@ class LojaViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Loja não encontrada'}, status=404)
             tipo = getattr(loja, 'tipo_loja', None)
             tipo_nome = tipo.nome if tipo else 'Loja'
-            
+
+            # Endereço formatado para propostas/contratos
+            cidade = getattr(loja, 'cidade', '') or ''
+            uf = getattr(loja, 'uf', '') or ''
+            cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
+            endereco_parts = [
+                getattr(loja, 'logradouro', '') or '',
+                getattr(loja, 'numero', '') or '',
+                getattr(loja, 'complemento', '') or '',
+                getattr(loja, 'bairro', '') or '',
+                cidade_uf,
+                f"CEP {loja.cep}" if getattr(loja, 'cep', '') else '',
+            ]
+            endereco = ', '.join(p for p in endereco_parts if p).strip() or None
+
+            # Admin da loja (owner)
+            owner = getattr(loja, 'owner', None)
+            admin_nome = None
+            admin_email = None
+            if owner:
+                admin_nome = f"{getattr(owner, 'first_name', '') or ''} {getattr(owner, 'last_name', '') or ''}".strip() or getattr(owner, 'username', '') or None
+                admin_email = getattr(owner, 'email', None) or None
+
             data = {
                 'id': loja.id,
                 'nome': getattr(loja, 'nome', '') or '',
@@ -278,6 +300,11 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'login_page_url': getattr(loja, 'login_page_url', None) or '',
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
                 'requer_cpf_cnpj': True,  # SEMPRE requer CPF/CNPJ para maior segurança
+                # Campos para propostas/contratos
+                'endereco': endereco,
+                'cpf_cnpj': getattr(loja, 'cpf_cnpj', '') or None,
+                'admin_nome': admin_nome,
+                'admin_email': admin_email,
             }
             
             # Cachear por 5 minutos (300 segundos)

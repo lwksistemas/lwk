@@ -62,6 +62,7 @@ export default function CrmVendasLeadsPage() {
   const [form, setForm] = useState({
     nome: '',
     empresa: '',
+    cpf_cnpj: '',
     email: '',
     telefone: '',
     origem: 'site',
@@ -132,6 +133,7 @@ export default function CrmVendasLeadsPage() {
       .post('/crm-vendas/leads/', {
         nome: form.nome.trim(),
         empresa: form.empresa.trim() || undefined,
+        cpf_cnpj: form.cpf_cnpj.trim() || undefined,
         email: form.email.trim() || undefined,
         telefone: form.telefone.trim() || undefined,
         origem: form.origem,
@@ -149,6 +151,7 @@ export default function CrmVendasLeadsPage() {
         setForm({
           nome: '',
           empresa: '',
+          cpf_cnpj: '',
           email: '',
           telefone: '',
           origem: 'site',
@@ -176,6 +179,7 @@ export default function CrmVendasLeadsPage() {
     setForm({
       nome: lead.nome,
       empresa: lead.empresa || '',
+      cpf_cnpj: lead.cpf_cnpj || '',
       email: lead.email || '',
       telefone: lead.telefone || '',
       origem: lead.origem,
@@ -204,6 +208,7 @@ export default function CrmVendasLeadsPage() {
       .patch(`/crm-vendas/leads/${leadEditar.id}/`, {
         nome: form.nome.trim(),
         empresa: form.empresa.trim() || undefined,
+        cpf_cnpj: form.cpf_cnpj.trim() || undefined,
         email: form.email.trim() || undefined,
         telefone: form.telefone.trim() || undefined,
         origem: form.origem,

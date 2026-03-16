@@ -6,6 +6,7 @@ export interface Lead {
   id: number;
   nome: string;
   empresa: string;
+  cpf_cnpj?: string;
   email: string;
   telefone?: string;
   origem: string;

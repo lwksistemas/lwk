@@ -93,6 +93,7 @@ class Lead(LojaIsolationMixin, models.Model):
 
     nome = models.CharField(max_length=200)
     empresa = models.CharField(max_length=200, blank=True)
+    cpf_cnpj = models.CharField(max_length=18, blank=True, help_text='CPF ou CNPJ do lead')
     email = models.EmailField(blank=True, null=True)
     telefone = models.CharField(max_length=20, blank=True)
     origem = models.CharField(

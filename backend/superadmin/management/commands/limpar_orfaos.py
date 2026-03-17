@@ -27,6 +27,19 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = 'Detecta e remove dados órfãos (arquivos, schemas, usuários, sessões)'
 
+    def _delete_user_raw(self, user_id):
+        """
+        Remove usuário via SQL quando ORM falha (ex: stores_store inexistente).
+        UserSession, ProfissionalUsuario, VendedorUsuario já foram removidos antes.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute('DELETE FROM auth_user_groups WHERE user_id = %s', [user_id])
+            cursor.execute(
+                'DELETE FROM auth_user_user_permissions WHERE user_id = %s',
+                [user_id]
+            )
+            cursor.execute('DELETE FROM auth_user WHERE id = %s', [user_id])
+
     def add_arguments(self, parser):
         parser.add_argument(
             '--dry-run',
@@ -132,17 +145,20 @@ class Command(BaseCommand):
 
         if usuarios_orfaos.exists():
             self.stdout.write(self.style.WARNING(f'   ⚠️ Encontrados {usuarios_orfaos.count()} usuários órfãos:'))
-            for user in usuarios_orfaos:
-                self.stdout.write(f'      - {user.username} (ID: {user.id}, Email: {user.email})')
+            # Coletar IDs antes de iterar (evita lazy eval que pode tocar stores_store)
+            user_ids = list(usuarios_orfaos.values_list('id', flat=True))
+            user_info = {u.id: (u.username, u.email) for u in usuarios_orfaos}
+            for user_id in user_ids:
+                username, email = user_info.get(user_id, ('?', '?'))
+                self.stdout.write(f'      - {username} (ID: {user_id}, Email: {email})')
                 if execute:
                     try:
-                        # Limpar relacionamentos
-                        UserSession.objects.filter(user=user).delete()
-                        ProfissionalUsuario.objects.filter(user=user).delete()
-                        VendedorUsuario.objects.filter(user=user).delete()
-                        user.groups.clear()
-                        user.user_permissions.clear()
-                        user.delete()
+                        # Usar SQL direto para evitar user.delete() que acessa stores_store
+                        # (app stores legado; sistema usa superadmin.Loja)
+                        UserSession.objects.filter(user_id=user_id).delete()
+                        ProfissionalUsuario.objects.filter(user_id=user_id).delete()
+                        VendedorUsuario.objects.filter(user_id=user_id).delete()
+                        self._delete_user_raw(user_id)
                         self.stdout.write(self.style.SUCCESS(f'         ✅ Removido'))
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))

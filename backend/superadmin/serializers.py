@@ -294,9 +294,18 @@ class LojaCreateSerializer(serializers.ModelSerializer):
                 last_name=last_name
             )
 
-            # 3. PROCESSAR E VALIDAR SLUG
+            # 3. SLUG FIXO: CPF/CNPJ (apenas dígitos) — URL: /loja/41449198000172/login
             slug_enviado = validated_data.pop('slug', None)
-            slug_validado = LojaCreationService.validar_e_processar_slug(slug_enviado)
+            cpf_cnpj = (validated_data.get('cpf_cnpj') or '').strip()
+            cpf_cnpj_digits = ''.join(c for c in cpf_cnpj if c.isdigit()) if cpf_cnpj else ''
+            # Prioridade: slug enviado, ou CPF/CNPJ (11+ dígitos), ou slug enviado vazio
+            if slug_enviado and str(slug_enviado).strip():
+                slug_candidato = str(slug_enviado).strip()
+            elif len(cpf_cnpj_digits) >= 11:
+                slug_candidato = cpf_cnpj_digits
+            else:
+                slug_candidato = slug_enviado
+            slug_validado = LojaCreationService.validar_e_processar_slug(slug_candidato)
             if slug_validado:
                 validated_data['slug'] = slug_validado
 

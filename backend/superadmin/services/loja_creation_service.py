@@ -130,10 +130,11 @@ class LojaCreationService:
     @staticmethod
     def validar_e_processar_slug(slug_enviado: str) -> str:
         """
-        Valida e processa slug da loja
+        Valida e processa slug da loja.
+        Slug fixo: CPF/CNPJ (apenas dígitos) — ex.: 41449198000172
         
         Args:
-            slug_enviado: Slug enviado pelo frontend
+            slug_enviado: Slug enviado (dígitos do CPF/CNPJ ou texto)
             
         Returns:
             Slug processado e validado
@@ -141,28 +142,35 @@ class LojaCreationService:
         Raises:
             serializers.ValidationError: Se slug for inválido ou duplicado
         """
+        import re
         from django.utils.text import slugify
         from superadmin.models import Loja
         
         if not slug_enviado:
             return None
         
-        slug_sanitizado = slugify(slug_enviado.strip())
+        s = str(slug_enviado).strip()
+        # Se for só dígitos (CPF/CNPJ), manter como está
+        if re.match(r'^\d{11,14}$', s):
+            slug_sanitizado = s
+        else:
+            slug_sanitizado = slugify(s) or None
         
         if not slug_sanitizado:
             return None
         
         # Verificar se já existe
-        if Loja.objects.filter(slug=slug_sanitizado).exists():
+        if Loja.objects.filter(slug__iexact=slug_sanitizado).exists():
             raise serializers.ValidationError({
-                'slug': f'Já existe uma loja com o slug "{slug_sanitizado}". Escolha outro.'
+                'slug': f'Já existe uma loja com o CPF/CNPJ "{slug_sanitizado}".'
             })
         
-        # Verificar database_name único
-        proposed_db_name = f"loja_{slug_sanitizado.replace('-', '_')}"
+        # Verificar database_name único (loja_41449198000172)
+        db_slug = slug_sanitizado.replace('-', '_')
+        proposed_db_name = f"loja_{db_slug}"
         if Loja.objects.filter(database_name=proposed_db_name).exists():
             raise serializers.ValidationError({
-                'slug': 'Já existe uma loja com database_name derivado deste slug. O sistema gerará um slug único automaticamente.'
+                'slug': 'Já existe uma loja com este CPF/CNPJ.'
             })
         
         return slug_sanitizado

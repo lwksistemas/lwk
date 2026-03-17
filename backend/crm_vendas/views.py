@@ -916,6 +916,16 @@ def dashboard_data(request):
         return Response(payload)
     except Exception as e:
         logger.exception('Erro no dashboard CRM: %s', e)
+        from django.db.utils import ProgrammingError, OperationalError
+        if isinstance(e, (ProgrammingError, OperationalError)):
+            return Response(
+                {
+                    'detail': 'O banco de dados da loja precisa ser configurado. '
+                    'Entre em contato com o suporte ou execute: python manage.py fix_loja_crm SLUG_DA_LOJA',
+                    'code': 'SCHEMA_NOT_CONFIGURED',
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         return Response(
             {'detail': 'Erro ao carregar dashboard. Tente novamente.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1170,7 +1180,20 @@ def crm_config(request):
         return Response({'detail': 'Loja não identificada.'}, status=400)
     
     # Buscar ou criar configuração
-    config = CRMConfig.get_or_create_for_loja(loja_id)
+    try:
+        config = CRMConfig.get_or_create_for_loja(loja_id)
+    except Exception as e:
+        from django.db.utils import ProgrammingError, OperationalError
+        logger.exception('Erro ao buscar config CRM: %s', e)
+        if isinstance(e, (ProgrammingError, OperationalError)):
+            return Response(
+                {
+                    'detail': 'O banco de dados da loja precisa ser configurado. Entre em contato com o suporte.',
+                    'code': 'SCHEMA_NOT_CONFIGURED',
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        raise
     
     if request.method == 'GET':
         serializer = CRMConfigSerializer(config)

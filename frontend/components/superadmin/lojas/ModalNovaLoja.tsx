@@ -107,20 +107,12 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     }
   };
 
-  /** Sugestão de slug: nome + sufixo do CPF/CNPJ (últimos 6 do CNPJ ou 4 do CPF) para evitar URLs duplicadas. */
-  const getSuggestedSlug = (nome: string, cpfCnpj: string) => {
-    const base = (nome || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '') || 'loja';
+  /** Slug fixo: usa apenas os dígitos do CPF/CNPJ (URL: /loja/41449198000172/login). */
+  const getSuggestedSlug = (_nome: string, cpfCnpj: string) => {
     const digits = (cpfCnpj || '').replace(/\D/g, '');
-    let suffix = '';
-    if (digits.length >= 12) suffix = digits.slice(-6);
-    else if (digits.length >= 4) suffix = digits.slice(-4);
-    else if (digits.length) suffix = digits;
-    return suffix ? `${base}-${suffix}` : base;
+    if (digits.length >= 11) return digits; // CPF (11) ou CNPJ (14)
+    if (digits.length >= 4) return digits;
+    return digits || '';
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -134,7 +126,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     }
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Sugestão de slug (nome + CPF/CNPJ) para evitar duplicidade entre lojas com mesmo nome
+    // Slug fixo: CPF/CNPJ (dígitos)
     if (name === 'nome') {
       setFormData(prev => ({ ...prev, slug: getSuggestedSlug(value, prev.cpf_cnpj) }));
     }
@@ -451,11 +443,11 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     value={formData.slug}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="minha-loja-123456"
+                    placeholder="41449198000172 (CPF/CNPJ sem formatação)"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    URL: /loja/{formData.slug || '…'}/login — sugestão automática; você pode editar. 
-                    Para importar backup de loja excluída, use o mesmo slug da loja original (ex: felix-5889).
+                    URL: /loja/{formData.slug || '…'}/login — usa CPF/CNPJ (apenas dígitos). 
+                    Ex.: CNPJ 41.449.198/0001-72 → /loja/41449198000172/login
                   </p>
                 </div>
 

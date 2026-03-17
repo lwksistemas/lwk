@@ -8,6 +8,8 @@ Verifica:
 4. Sessões de usuários inexistentes
 5. Dados em tabelas com loja_id inválido
 6. Configurações de banco em settings.DATABASES sem loja
+7. Dados em tabelas com loja_id inválido (safety net)
+8. Arquivos órfãos (backups, NF-e, HistoricoBackup)
 
 Uso:
     python manage.py limpar_orfaos --dry-run  # Apenas listar
@@ -18,7 +20,9 @@ from django.conf import settings
 from django.db import connection, transaction
 from django.contrib.auth import get_user_model
 import os
+import shutil
 import logging
+from pathlib import Path
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -263,6 +267,90 @@ class Command(BaseCommand):
 
         if total_orfaos == 0:
             self.stdout.write(self.style.SUCCESS('   ✅ Nenhum dado com loja_id inválido'))
+
+        # 8. Limpar arquivos órfãos (backups, NF-e, HistoricoBackup)
+        self.stdout.write(self.style.HTTP_INFO('\n8️⃣ Verificando arquivos órfãos...'))
+        loja_slugs = set(Loja.objects.values_list('slug', flat=True))
+        loja_ids_set = set(Loja.objects.values_list('id', flat=True))
+        base_dir = Path(settings.BASE_DIR)
+        media_root = Path(getattr(settings, 'MEDIA_ROOT', base_dir / 'media'))
+
+        # 8a. HistoricoBackup e ConfiguracaoBackup órfãos (via ORM para disparar signals)
+        try:
+            from superadmin.models import HistoricoBackup, ConfiguracaoBackup
+            hist_orfaos = HistoricoBackup.objects.exclude(loja_id__in=loja_ids_set)
+            cfg_orfaos = ConfiguracaoBackup.objects.exclude(loja_id__in=loja_ids_set)
+            hist_count = hist_orfaos.count()
+            cfg_count = cfg_orfaos.count()
+            if hist_count or cfg_count:
+                self.stdout.write(self.style.WARNING(
+                    f'   ⚠️ HistoricoBackup órfãos: {hist_count}, ConfiguracaoBackup: {cfg_count}'
+                ))
+                if execute:
+                    hist_orfaos.delete()  # Signal remove arquivo do disco
+                    cfg_orfaos.delete()
+                    self.stdout.write(self.style.SUCCESS(
+                        f'      ✅ {hist_count} HistoricoBackup e {cfg_count} ConfiguracaoBackup removidos'
+                    ))
+            else:
+                self.stdout.write(self.style.SUCCESS('   ✅ Nenhum HistoricoBackup/ConfiguracaoBackup órfão'))
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f'   ℹ️ HistoricoBackup/ConfiguracaoBackup: {e}'))
+
+        # 8b. Diretórios backups/{slug}/ órfãos
+        backups_base = base_dir / 'backups'
+        if backups_base.exists():
+            dirs_orfaos = [
+                d for d in backups_base.iterdir()
+                if d.is_dir() and d.name not in loja_slugs and d.name != 'loja_template'
+            ]
+            if dirs_orfaos:
+                self.stdout.write(self.style.WARNING(
+                    f'   ⚠️ Diretórios backups órfãos: {[d.name for d in dirs_orfaos]}'
+                ))
+                if execute:
+                    for d in dirs_orfaos:
+                        try:
+                            shutil.rmtree(d)
+                            self.stdout.write(self.style.SUCCESS(f'      ✅ Removido: backups/{d.name}'))
+                        except OSError as e:
+                            self.stdout.write(self.style.ERROR(f'      ❌ Erro em backups/{d.name}: {e}'))
+            else:
+                self.stdout.write(self.style.SUCCESS('   ✅ Nenhum diretório backups órfão'))
+        else:
+            self.stdout.write(self.style.SUCCESS('   ✅ Diretório backups não existe'))
+
+        # 8c. Arquivos NF-e órfãos (media/nfe_restaurante/loja_{id}_*)
+        nfe_base = media_root / 'nfe_restaurante'
+        if nfe_base.exists():
+            arquivos_orfaos_nfe = []
+            for f in nfe_base.rglob('*'):
+                if f.is_file() and 'loja_' in f.name:
+                    try:
+                        parts = f.name.split('_')
+                        if len(parts) >= 2 and parts[0] == 'loja' and parts[1].isdigit():
+                            loja_id = int(parts[1])
+                            if loja_id not in loja_ids_set:
+                                arquivos_orfaos_nfe.append(f)
+                    except ValueError:
+                        pass
+            if arquivos_orfaos_nfe:
+                self.stdout.write(self.style.WARNING(
+                    f'   ⚠️ Arquivos NF-e órfãos: {len(arquivos_orfaos_nfe)}'
+                ))
+                if execute:
+                    for f in arquivos_orfaos_nfe:
+                        try:
+                            f.unlink()
+                        except OSError:
+                            pass
+                    self.stdout.write(self.style.SUCCESS(
+                        f'      ✅ {len(arquivos_orfaos_nfe)} arquivo(s) NF-e removido(s)'
+                    ))
+            else:
+                self.stdout.write(self.style.SUCCESS('   ✅ Nenhum arquivo NF-e órfão'))
+        else:
+            self.stdout.write(self.style.SUCCESS('   ✅ Diretório nfe_restaurante não existe'))
 
         # Resumo final
         self.stdout.write(self.style.HTTP_INFO('\n' + '='*60))

@@ -22,7 +22,7 @@ def excluir_loja_108():
         print(f"\n🔍 Loja encontrada:")
         print(f"   - ID: {loja.id}")
         print(f"   - Slug: {loja.slug}")
-        print(f"   - Nome: {loja.nome_loja}")
+        print(f"   - Nome: {loja.nome}")
         print(f"   - Schema: loja_{loja.slug}")
         
         schema_name = f"loja_{loja.slug}"

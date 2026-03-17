@@ -100,13 +100,10 @@ class DatabaseSchemaService:
     @staticmethod
     def adicionar_configuracao_django(loja) -> bool:
         """
-        Adiciona configuração do banco de dados no Django settings
+        Adiciona configuração do banco de dados no Django settings.
         
-        Args:
-            loja: Objeto Loja
-            
-        Returns:
-            True se adicionado com sucesso
+        CORREÇÃO Heroku: OPTIONS pode ser ignorado (PgBouncer). Inclui search_path
+        na URL de conexão para garantir que migrations criem tabelas no schema correto.
         """
         schema_name = loja.database_name.replace('-', '_')
         DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -116,14 +113,35 @@ class DatabaseSchemaService:
             return False
         
         try:
-            # CONN_MAX_AGE=0 para não acumular conexões
-            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
+            from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+            
+            # Incluir search_path na URL (funciona melhor no Heroku que OPTIONS isolado)
+            url_com_schema = DATABASE_URL
+            try:
+                parsed = urlparse(DATABASE_URL)
+                if parsed.scheme and 'postgres' in parsed.scheme.lower():
+                    query = parse_qs(parsed.query)
+                    options_val = f'-c search_path={schema_name},public'
+                    query['options'] = [options_val]
+                    new_query = urlencode(query, doseq=True)
+                    url_com_schema = urlunparse((
+                        parsed.scheme, parsed.netloc, parsed.path,
+                        parsed.params, new_query, parsed.fragment
+                    ))
+            except Exception as url_err:
+                logger.warning(f"URL com options falhou, usando OPTIONS: {url_err}")
+            
+            default_db = dj_database_url.config(default=url_com_schema, conn_max_age=0)
+            
+            # OPTIONS: garantir search_path (URL já tem; OPTIONS é fallback)
+            opts = dict(default_db.get('OPTIONS', {}))
+            if 'options' not in opts or 'search_path' not in str(opts.get('options', '')):
+                opts['options'] = opts.get('options', '') + f' -c search_path={schema_name},public'
+                opts['options'] = opts['options'].strip()
             
             settings.DATABASES[loja.database_name] = {
                 **default_db,
-                'OPTIONS': {
-                    'options': f'-c search_path={schema_name},public'
-                },
+                'OPTIONS': opts,
                 'ATOMIC_REQUESTS': False,
                 'AUTOCOMMIT': True,
                 'CONN_MAX_AGE': 0,

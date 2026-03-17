@@ -68,13 +68,6 @@ export default function ConfiguracoesFuncionariosPage() {
   };
 
   const abrirEditar = (v: Vendedor) => {
-    // Impedir edição do vendedor admin
-    if (v.is_admin) {
-      setFormErro('O vendedor administrador não pode ser editado. Para alterar dados do administrador, acesse as configurações da loja.');
-      setTimeout(() => setFormErro(null), 5000);
-      return;
-    }
-    
     setEditando(v);
     setForm({
       nome: v.nome,
@@ -247,29 +240,22 @@ export default function ConfiguracoesFuncionariosPage() {
                       {reenviando === v.id ? 'Enviando...' : 'Reenviar senha'}
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => abrirEditar(v)}
+                    className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
+                  >
+                    Editar
+                  </button>
                   {!v.is_admin && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => abrirEditar(v)}
-                        className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmarExcluir(v)}
-                        className="p-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </>
-                  )}
-                  {v.is_admin && (
-                    <span className="px-3 py-1.5 text-sm text-gray-400 dark:text-gray-500">
-                      Não editável
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmarExcluir(v)}
+                      className="p-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                      title="Excluir"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   )}
                 </div>
               </div>

@@ -109,26 +109,10 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
 
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def update(self, request, *args, **kwargs):
-        # Impedir edição do vendedor admin (is_admin=True)
-        instance = self.get_object()
-        if instance.is_admin:
-            return Response(
-                {'detail': 'O vendedor administrador não pode ser editado. Para alterar dados do administrador, acesse as configurações da loja.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
         return super().update(request, *args, **kwargs)
 
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def partial_update(self, request, *args, **kwargs):
-        # Impedir edição do vendedor admin (is_admin=True)
-        instance = self.get_object()
-        if instance.is_admin:
-            return Response(
-                {'detail': 'O vendedor administrador não pode ser editado. Para alterar dados do administrador, acesse as configurações da loja.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
         return super().partial_update(request, *args, **kwargs)
 
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')

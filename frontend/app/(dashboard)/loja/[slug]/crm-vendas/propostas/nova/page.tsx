@@ -202,8 +202,8 @@ export default function NovaPropostaPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="w-full max-w-full">
+      <div className="flex items-center gap-4 mb-6">
         <Link
           href={`/loja/${slug}/crm-vendas/propostas`}
           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
@@ -219,8 +219,8 @@ export default function NovaPropostaPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-6">
-        <PropostaFormContent
+      <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-6 w-full">
+          <PropostaFormContent
           form={formData}
           formErro={formErro}
           enviando={submitting}
@@ -237,6 +237,7 @@ export default function NovaPropostaPage() {
           salvandoPadrao={salvandoPadrao}
           showCancel={true}
           onCancel={() => router.push(`/loja/${slug}/crm-vendas/propostas`)}
+          fullWidth
         />
       </div>
     </div>

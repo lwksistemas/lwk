@@ -20,6 +20,8 @@ export interface PropostaFormContentProps {
   /** Se true, mostra botão Cancelar que chama onCancel */
   showCancel?: boolean;
   onCancel?: () => void;
+  /** Se true, formulário ocupa largura total (para página fullscreen) */
+  fullWidth?: boolean;
 }
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
@@ -43,9 +45,13 @@ export default function PropostaFormContent({
   salvandoPadrao = false,
   showCancel = true,
   onCancel,
+  fullWidth = false,
 }: PropostaFormContentProps) {
+  const formClass = fullWidth
+    ? 'space-y-4 w-full md:grid md:grid-cols-2 md:gap-x-6 lg:gap-x-8'
+    : 'space-y-4 md:max-w-3xl md:mx-auto md:grid md:grid-cols-2 md:gap-x-6';
   return (
-    <form onSubmit={onSubmit} className="space-y-4 md:max-w-3xl md:mx-auto md:grid md:grid-cols-2 md:gap-x-6">
+    <form onSubmit={onSubmit} className={formClass}>
       {formErro && (
         <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg md:col-span-2">
           {formErro}
@@ -250,8 +256,8 @@ export default function PropostaFormContent({
         <textarea
           value={form.conteudo}
           onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}
-          className={`${inputClass} min-h-[120px] md:min-h-[180px]`}
-          rows={6}
+          className={`${inputClass} ${fullWidth ? 'min-h-[200px] md:min-h-[300px]' : 'min-h-[120px] md:min-h-[180px]'}`}
+          rows={fullWidth ? 12 : 6}
           placeholder="Descrição detalhada da proposta..."
         />
       </div>

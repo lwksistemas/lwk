@@ -769,151 +769,155 @@ def dashboard_data(request):
         if cached:
             return Response(cached)
 
-    try:
-        from .models import Lead, Oportunidade, Atividade, Vendedor
+    last_error = None
+    for attempt in range(2):
+        try:
+            from .models import Lead, Oportunidade, Atividade, Vendedor
 
-        leads_qs = Lead.objects.all()
-        opp_qs = Oportunidade.objects.all()
-        atividades_qs = Atividade.objects.all()
-        vendedores_qs = Vendedor.objects.filter(is_active=True)
+            leads_qs = Lead.objects.all()
+            opp_qs = Oportunidade.objects.all()
+            atividades_qs = Atividade.objects.all()
+            vendedores_qs = Vendedor.objects.filter(is_active=True)
 
-        if vendedor_id is not None:
-            leads_qs = leads_qs.filter(
-                Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
-            ).distinct()
-            opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
-            # Atividades: vendedor vê suas atividades + órfãs criadas por ele
-            atividades_qs = atividades_qs.filter(
-                Q(oportunidade__vendedor_id=vendedor_id) | 
-                Q(lead__oportunidades__vendedor_id=vendedor_id) |
-                Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
-            ).distinct()
-            vendedores_qs = vendedores_qs.filter(id=vendedor_id)
+            if vendedor_id is not None:
+                leads_qs = leads_qs.filter(
+                    Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
+                ).distinct()
+                opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
+                # Atividades: vendedor vê suas atividades + órfãs criadas por ele
+                atividades_qs = atividades_qs.filter(
+                    Q(oportunidade__vendedor_id=vendedor_id) |
+                    Q(lead__oportunidades__vendedor_id=vendedor_id) |
+                    Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
+                ).distinct()
+                vendedores_qs = vendedores_qs.filter(id=vendedor_id)
 
-        # 1 query: totais agregados (receita, pipeline, fechados)
-        agg = opp_qs.aggregate(
-            total_oportunidades=Count('id'),
-            receita=Sum('valor', filter=Q(etapa='closed_won')),
-            pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),  # Apenas em andamento
-            oportunidades_em_andamento=Count('id', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),  # Contagem em andamento
-            total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost'])),
-            total_ganhos=Count('id', filter=Q(etapa='closed_won')),
-            valor_perdido=Sum('valor', filter=Q(etapa='closed_lost')),
-        )
-        total_oportunidades = agg['total_oportunidades'] or 0
-        receita = float(agg['receita'] or 0)
-        pipeline_aberto = float(agg['pipeline_aberto'] or 0)
-        oportunidades_em_andamento = agg['oportunidades_em_andamento'] or 0
-        total_fechados = agg['total_fechados'] or 0
-        total_ganhos = agg['total_ganhos'] or 0
-        taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
+            # 1 query: totais agregados (receita, pipeline, fechados)
+            agg = opp_qs.aggregate(
+                total_oportunidades=Count('id'),
+                receita=Sum('valor', filter=Q(etapa='closed_won')),
+                pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
+                oportunidades_em_andamento=Count('id', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
+                total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost'])),
+                total_ganhos=Count('id', filter=Q(etapa='closed_won')),
+                valor_perdido=Sum('valor', filter=Q(etapa='closed_lost')),
+            )
+            total_oportunidades = agg['total_oportunidades'] or 0
+            receita = float(agg['receita'] or 0)
+            pipeline_aberto = float(agg['pipeline_aberto'] or 0)
+            oportunidades_em_andamento = agg['oportunidades_em_andamento'] or 0
+            total_fechados = agg['total_fechados'] or 0
+            total_ganhos = agg['total_ganhos'] or 0
+            taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
 
-        # 1 query: pipeline por etapa (values + annotate)
-        pipeline_map = {
-            row['etapa']: {'valor': float(row['valor'] or 0), 'quantidade': row['qtd'] or 0}
-            for row in opp_qs.filter(etapa__in=ETAPAS_PIPELINE)
-            .values('etapa')
-            .annotate(valor=Sum('valor'), qtd=Count('id'))
-        }
-        valor_perdido = float(agg.get('valor_perdido') or 0)
-        pipeline_por_etapa = [
-            {'etapa': e, **(pipeline_map.get(e, {'valor': 0, 'quantidade': 0}))}
-            for e in ETAPAS_PIPELINE
-        ]
+            # 1 query: pipeline por etapa (values + annotate)
+            pipeline_map = {
+                row['etapa']: {'valor': float(row['valor'] or 0), 'quantidade': row['qtd'] or 0}
+                for row in opp_qs.filter(etapa__in=ETAPAS_PIPELINE)
+                .values('etapa')
+                .annotate(valor=Sum('valor'), qtd=Count('id'))
+            }
+            valor_perdido = float(agg.get('valor_perdido') or 0)
+            pipeline_por_etapa = [
+                {'etapa': e, **(pipeline_map.get(e, {'valor': 0, 'quantidade': 0}))}
+                for e in ETAPAS_PIPELINE
+            ]
 
-        # 1 query: total leads
-        total_leads = leads_qs.count()
+            # 1 query: total leads
+            total_leads = leads_qs.count()
 
-        # 1 query: atividades próximas (pendentes + concluídas recentemente)
-        hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        proximos_7_dias = hoje_inicio + timedelta(days=7)
-        
-        # Buscar atividades pendentes dos próximos 7 dias
-        atividades_pendentes = atividades_qs.filter(
-            data__gte=hoje_inicio, 
-            data__lt=proximos_7_dias, 
-            concluido=False
-        ).order_by('data').values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:10]
-        
-        # Se não houver pendentes, buscar as últimas 5 (concluídas ou não)
-        if not atividades_pendentes:
-            atividades_pendentes = atividades_qs.order_by('-data').values(
-                'id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes'
-            )[:5]
-        
-        atividades_hoje_data = list(atividades_pendentes)
-        for a in atividades_hoje_data:
-            if a.get('data'):
-                a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
+            # 1 query: atividades próximas (pendentes + concluídas recentemente)
+            hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            proximos_7_dias = hoje_inicio + timedelta(days=7)
 
-        # 1 query: performance vendedores
-        # DateField: usar .date() para comparação explícita (evita FieldError com __date__)
-        mes_inicio_dt = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        mes_inicio = mes_inicio_dt.date() if hasattr(mes_inicio_dt, 'date') else mes_inicio_dt
-        perf_qs = vendedores_qs.annotate(
-            receita_mes=Sum(
-                'oportunidades__valor',
-                filter=Q(oportunidades__etapa='closed_won') & (
-                    Q(oportunidades__data_fechamento_ganho__gte=mes_inicio) |
-                    (Q(oportunidades__data_fechamento_ganho__isnull=True) & Q(oportunidades__data_fechamento__gte=mes_inicio))
+            atividades_pendentes = atividades_qs.filter(
+                data__gte=hoje_inicio,
+                data__lt=proximos_7_dias,
+                concluido=False
+            ).order_by('data').values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:10]
+
+            if not atividades_pendentes:
+                atividades_pendentes = atividades_qs.order_by('-data').values(
+                    'id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes'
+                )[:5]
+
+            atividades_hoje_data = list(atividades_pendentes)
+            for a in atividades_hoje_data:
+                if a.get('data'):
+                    a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
+
+            # 1 query: performance vendedores
+            mes_inicio_dt = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            mes_inicio = mes_inicio_dt.date() if hasattr(mes_inicio_dt, 'date') else mes_inicio_dt
+            perf_qs = vendedores_qs.annotate(
+                receita_mes=Sum(
+                    'oportunidades__valor',
+                    filter=Q(oportunidades__etapa='closed_won') & (
+                        Q(oportunidades__data_fechamento_ganho__gte=mes_inicio) |
+                        (Q(oportunidades__data_fechamento_ganho__isnull=True) & Q(oportunidades__data_fechamento__gte=mes_inicio))
+                    ),
                 ),
-            ),
-            comissao_mes=Sum(
-                'oportunidades__valor_comissao',
-                filter=Q(oportunidades__etapa='closed_won') & (
-                    Q(oportunidades__data_fechamento_ganho__gte=mes_inicio) |
-                    (Q(oportunidades__data_fechamento_ganho__isnull=True) & Q(oportunidades__data_fechamento__gte=mes_inicio))
+                comissao_mes=Sum(
+                    'oportunidades__valor_comissao',
+                    filter=Q(oportunidades__etapa='closed_won') & (
+                        Q(oportunidades__data_fechamento_ganho__gte=mes_inicio) |
+                        (Q(oportunidades__data_fechamento_ganho__isnull=True) & Q(oportunidades__data_fechamento__gte=mes_inicio))
+                    ),
                 ),
-            ),
-        )
-        performance_vendedores = [
-            {'id': v.id, 'nome': v.nome, 'receita_mes': float(v.receita_mes or 0), 'comissao_mes': float(v.comissao_mes or 0)}
-            for v in perf_qs
-        ]
+            )
+            performance_vendedores = [
+                {'id': v.id, 'nome': v.nome, 'receita_mes': float(v.receita_mes or 0), 'comissao_mes': float(v.comissao_mes or 0)}
+                for v in perf_qs
+            ]
 
-        # Comissão total do mês (todas as oportunidades, independente de vendedor)
-        comissao_total_mes = opp_qs.filter(
-            etapa='closed_won',
-            valor_comissao__isnull=False
-        ).filter(
-            Q(data_fechamento_ganho__gte=mes_inicio) |
-            (Q(data_fechamento_ganho__isnull=True) & Q(data_fechamento__gte=mes_inicio))
-        ).aggregate(total=Sum('valor_comissao'))['total'] or 0
+            comissao_total_mes = opp_qs.filter(
+                etapa='closed_won',
+                valor_comissao__isnull=False
+            ).filter(
+                Q(data_fechamento_ganho__gte=mes_inicio) |
+                (Q(data_fechamento_ganho__isnull=True) & Q(data_fechamento__gte=mes_inicio))
+            ).aggregate(total=Sum('valor_comissao'))['total'] or 0
 
-        payload = {
-            'leads': total_leads,
-            'oportunidades': total_oportunidades,
-            'receita': receita,
-            'pipeline_aberto': pipeline_aberto,
-            'oportunidades_em_andamento': oportunidades_em_andamento,
-            'valor_perdido': valor_perdido,
-            'meta_vendas': 0,
-            'taxa_conversao': taxa_conversao,
-            'pipeline_por_etapa': pipeline_por_etapa,
-            'atividades_hoje': atividades_hoje_data,
-            'performance_vendedores': performance_vendedores,
-            'comissao_total_mes': float(comissao_total_mes),
-        }
-        if cache_key:
-            from django.core.cache import cache
-            cache.set(cache_key, payload, 120)  # 2 minutos
-        return Response(payload)
-    except Exception as e:
-        logger.exception('Erro no dashboard CRM: %s', e)
-        from django.db.utils import ProgrammingError, OperationalError
-        if isinstance(e, (ProgrammingError, OperationalError)):
+            payload = {
+                'leads': total_leads,
+                'oportunidades': total_oportunidades,
+                'receita': receita,
+                'pipeline_aberto': pipeline_aberto,
+                'oportunidades_em_andamento': oportunidades_em_andamento,
+                'valor_perdido': valor_perdido,
+                'meta_vendas': 0,
+                'taxa_conversao': taxa_conversao,
+                'pipeline_por_etapa': pipeline_por_etapa,
+                'atividades_hoje': atividades_hoje_data,
+                'performance_vendedores': performance_vendedores,
+                'comissao_total_mes': float(comissao_total_mes),
+            }
+            if cache_key:
+                from django.core.cache import cache
+                cache.set(cache_key, payload, 120)
+            return Response(payload)
+        except Exception as e:
+            last_error = e
+            from django.db.utils import ProgrammingError, OperationalError
+            if isinstance(e, (ProgrammingError, OperationalError)) and attempt == 0:
+                from superadmin.models import Loja
+                from .schema_service import configurar_schema_crm_loja
+                loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+                if loja and configurar_schema_crm_loja(loja):
+                    continue
+            logger.exception('Erro no dashboard CRM: %s', e)
+            if isinstance(last_error, (ProgrammingError, OperationalError)):
+                return Response(
+                    {
+                        'detail': 'O banco de dados da loja precisa ser configurado. Entre em contato com o suporte.',
+                        'code': 'SCHEMA_NOT_CONFIGURED',
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
             return Response(
-                {
-                    'detail': 'O banco de dados da loja precisa ser configurado. '
-                    'Entre em contato com o suporte ou execute: python manage.py fix_loja_crm SLUG_DA_LOJA',
-                    'code': 'SCHEMA_NOT_CONFIGURED',
-                },
+                {'detail': 'Erro ao carregar dashboard. Tente novamente.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        return Response(
-            {'detail': 'Erro ao carregar dashboard. Tente novamente.'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
 
 
 class WhatsAppConfigView(CRMPermissionMixin, APIView):
@@ -1163,21 +1167,40 @@ def crm_config(request):
     if not loja_id:
         return Response({'detail': 'Loja não identificada.'}, status=400)
     
-    # Buscar ou criar configuração
+    # Buscar ou criar configuração (com auto-recovery se schema não configurado)
     try:
         config = CRMConfig.get_or_create_for_loja(loja_id)
     except Exception as e:
         from django.db.utils import ProgrammingError, OperationalError
-        logger.exception('Erro ao buscar config CRM: %s', e)
         if isinstance(e, (ProgrammingError, OperationalError)):
-            return Response(
-                {
-                    'detail': 'O banco de dados da loja precisa ser configurado. Entre em contato com o suporte.',
-                    'code': 'SCHEMA_NOT_CONFIGURED',
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-        raise
+            # Auto-recovery: tentar configurar schema e retry
+            from superadmin.models import Loja
+            from .schema_service import configurar_schema_crm_loja
+            loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+            if loja and configurar_schema_crm_loja(loja):
+                try:
+                    config = CRMConfig.get_or_create_for_loja(loja_id)
+                except Exception as retry_err:
+                    logger.exception('Erro ao buscar config CRM após recovery: %s', retry_err)
+                    return Response(
+                        {
+                            'detail': 'O banco de dados da loja precisa ser configurado. Entre em contato com o suporte.',
+                            'code': 'SCHEMA_NOT_CONFIGURED',
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+            else:
+                logger.exception('Erro ao buscar config CRM (recovery falhou): %s', e)
+                return Response(
+                    {
+                        'detail': 'O banco de dados da loja precisa ser configurado. Entre em contato com o suporte.',
+                        'code': 'SCHEMA_NOT_CONFIGURED',
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        else:
+            logger.exception('Erro ao buscar config CRM: %s', e)
+            raise
     
     if request.method == 'GET':
         serializer = CRMConfigSerializer(config)

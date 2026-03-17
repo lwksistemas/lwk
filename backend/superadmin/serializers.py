@@ -323,11 +323,18 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             LojaCreationService.log_criacao_loja(loja, owner, owner_password)
 
             # 6. CONFIGURAR SCHEMA DO BANCO DE DADOS
+            tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip()
             try:
                 DatabaseSchemaService.configurar_schema_completo(loja)
             except Exception as e:
-                logger.warning(f"Erro ao configurar schema: {e}")
-                # Não falhar a criação da loja por causa do schema
+                logger.error(f"Erro ao configurar schema para loja {loja.slug}: {e}")
+                # CRM Vendas e outros que dependem de schema: falhar para não criar loja quebrada
+                if tipo_slug in ('crm-vendas', 'clinica-da-beleza', 'clinica-de-estetica', 'restaurante', 'servicos', 'cabeleireiro', 'e-commerce'):
+                    raise serializers.ValidationError(
+                        f"Não foi possível configurar o banco de dados da loja: {str(e)}. "
+                        "Tente novamente ou entre em contato com o suporte."
+                    )
+                logger.warning("Tipo de loja sem schema obrigatório; continuando sem schema")
 
             # 7. CRIAR FINANCEIRO
             try:

@@ -96,8 +96,20 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
 
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def list(self, request, *args, **kwargs):
-        self._ensure_owner_vendedor()
-        return super().list(request, *args, **kwargs)
+        for attempt in range(2):
+            try:
+                self._ensure_owner_vendedor()
+                return super().list(request, *args, **kwargs)
+            except Exception as e:
+                from django.db.utils import ProgrammingError, OperationalError
+                if isinstance(e, (ProgrammingError, OperationalError)) and attempt == 0:
+                    from superadmin.models import Loja
+                    from .schema_service import configurar_schema_crm_loja
+                    loja_id = get_current_loja_id()
+                    loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+                    if loja and configurar_schema_crm_loja(loja):
+                        continue
+                raise
 
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def create(self, request, *args, **kwargs):

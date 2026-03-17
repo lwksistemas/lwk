@@ -85,11 +85,22 @@ def configurar_schema_crm_loja(loja) -> bool:
                     return False
                 logger.warning(f"Erro ao aplicar migration {app}: {e}")
 
+        # 3b. Fallback: migrate pode ter criado tabelas em public; mover para o schema
+        from superadmin.services.database_schema_service import DatabaseSchemaService
+        DatabaseSchemaService._mover_tabelas_public_para_schema(loja, schema_name, apps)
+
         # 4. Marcar database_created na loja
         from superadmin.models import Loja
         if not loja.database_created:
             Loja.objects.filter(pk=loja.pk).update(database_created=True)
             logger.info(f"Loja {loja.slug} marcada como database_created=True")
+
+        # 5. Fechar conexão para forçar nova conexão com schema correto no retry
+        if db_name in connections:
+            try:
+                connections[db_name].close()
+            except Exception:
+                pass
 
         return True
     except Exception as e:

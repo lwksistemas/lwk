@@ -76,6 +76,8 @@ export default function CrmVendasPropostasPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
+  const [salvandoPadrao, setSalvandoPadrao] = useState(false);
+  const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
 
   const handleEnviarCliente = async (propostaId: number, canal: 'email' | 'whatsapp') => {
     setEnviandoId(propostaId);
@@ -140,6 +142,29 @@ export default function CrmVendasPropostasPage() {
     }
   }, [slug]);
 
+  const loadCrmConfig = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ proposta_conteudo_padrao?: string }>('/crm-vendas/config/');
+      setPropostaConteudoPadrao(res.data?.proposta_conteudo_padrao ?? '');
+    } catch {
+      setPropostaConteudoPadrao('');
+    }
+  }, []);
+
+  const handleSalvarComoPadrao = useCallback(async (conteudo: string) => {
+    try {
+      setSalvandoPadrao(true);
+      await apiClient.patch('/crm-vendas/config/', { proposta_conteudo_padrao: conteudo });
+      setPropostaConteudoPadrao(conteudo);
+      alert('Proposta PADRAO salva com sucesso! O conteúdo será usado em novas propostas.');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e.response?.data?.detail || 'Erro ao salvar.');
+    } finally {
+      setSalvandoPadrao(false);
+    }
+  }, []);
+
   const loadLeadInfo = useCallback(async (leadId: number) => {
     if (!leadId) {
       setLeadInfo(null);
@@ -161,8 +186,15 @@ export default function CrmVendasPropostasPage() {
     if (modalType === 'create' || modalType === 'edit') {
       loadOportunidades();
       loadLojaInfo();
+      loadCrmConfig();
     }
-  }, [modalType, loadOportunidades, loadLojaInfo]);
+  }, [modalType, loadOportunidades, loadLojaInfo, loadCrmConfig]);
+
+  useEffect(() => {
+    if (modalType === 'create' && propostaConteudoPadrao && !formData.conteudo) {
+      setFormData((f) => ({ ...f, conteudo: propostaConteudoPadrao }));
+    }
+  }, [propostaConteudoPadrao, modalType]);
 
   useEffect(() => {
     if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
@@ -194,7 +226,7 @@ export default function CrmVendasPropostasPage() {
       setFormData({
         oportunidade_id: '',
         titulo: '',
-        conteudo: '',
+        conteudo: propostaConteudoPadrao,
         valor_total: '',
         status: 'rascunho',
       });
@@ -381,6 +413,8 @@ export default function CrmVendasPropostasPage() {
           onSubmit={handleSubmit}
           onClose={closeModal}
           isEdit={modalType === 'edit'}
+          onSalvarComoPadrao={handleSalvarComoPadrao}
+          salvandoPadrao={salvandoPadrao}
         />
       )}
 

@@ -63,6 +63,9 @@ interface ModalPropostaFormProps {
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
   isEdit?: boolean;
+  /** Callback para salvar o conteúdo atual como Proposta PADRAO */
+  onSalvarComoPadrao?: (conteudo: string) => void;
+  salvandoPadrao?: boolean;
 }
 
 export default function ModalPropostaForm({
@@ -80,6 +83,8 @@ export default function ModalPropostaForm({
   onSubmit,
   onClose,
   isEdit = false,
+  onSalvarComoPadrao,
+  salvandoPadrao = false,
 }: ModalPropostaFormProps) {
   const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
   const labelClass = 'block text-xs text-gray-500 dark:text-gray-400 mb-0.5';
@@ -263,6 +268,22 @@ export default function ModalPropostaForm({
             <p className="text-xs text-gray-500 md:col-span-2">Esta oportunidade não possui produtos ou serviços cadastrados.</p>
           )}
 
+          {/* Valor total - ao final dos Produtos e Serviços */}
+          {form.oportunidade_id && (
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor total (R$)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.valor_total}
+                onChange={(e) => onFormChange((f) => ({ ...f, valor_total: e.target.value }))}
+                className={`${inputClass} max-w-[200px]`}
+                placeholder="0,00"
+              />
+            </div>
+          )}
+
           {/* Título */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título *</label>
@@ -276,23 +297,21 @@ export default function ModalPropostaForm({
             />
           </div>
 
-          {/* Valor total */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor total (R$)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.valor_total}
-              onChange={(e) => onFormChange((f) => ({ ...f, valor_total: e.target.value }))}
-              className={inputClass}
-              placeholder="0,00"
-            />
-          </div>
-
           {/* Conteúdo */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conteúdo</label>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Conteúdo</label>
+              {onSalvarComoPadrao && form.conteudo.trim() && (
+                <button
+                  type="button"
+                  onClick={() => onSalvarComoPadrao(form.conteudo)}
+                  disabled={salvandoPadrao}
+                  className="text-xs text-[#0176d3] hover:underline disabled:opacity-50"
+                >
+                  {salvandoPadrao ? 'Salvando...' : 'Salvar como Proposta PADRAO'}
+                </button>
+              )}
+            </div>
             <textarea
               value={form.conteudo}
               onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}

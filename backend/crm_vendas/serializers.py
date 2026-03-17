@@ -305,7 +305,8 @@ class CRMConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = CRMConfig
         fields = [
-            'id', 'origens_leads', 'etapas_pipeline', 'colunas_leads', 
-            'modulos_ativos', 'created_at', 'updated_at',
+            'id', 'origens_leads', 'etapas_pipeline', 'colunas_leads',
+            'modulos_ativos', 'proposta_conteudo_padrao',
+            'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']

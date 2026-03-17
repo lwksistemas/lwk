@@ -108,8 +108,6 @@ def gerar_pdf_proposta(proposta) -> BytesIO:
 
     elements.append(Paragraph('PROPOSTA COMERCIAL', title_style))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
-    valor_str = _formatar_valor(proposta.valor_total)
-    elements.append(Paragraph(f'<b>Valor total:</b> {valor_str}', styles['Normal']))
     elements.append(Spacer(1, 0.5*cm))
 
     # Dados da Loja
@@ -147,12 +145,12 @@ def gerar_pdf_proposta(proposta) -> BytesIO:
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
         elements.append(Spacer(1, 0.5*cm))
 
-    # Produtos e Serviços da Oportunidade
+    # Produtos e Serviços da Oportunidade (Valor total ao final)
     itens = []
     if proposta.oportunidade:
         itens = list(proposta.oportunidade.itens.all())
+    elements.append(Paragraph('<b>Produtos e Serviços da Oportunidade</b>', section_style))
     if itens:
-        elements.append(Paragraph('<b>Produtos e Serviços da Oportunidade</b>', section_style))
         table_data = [['Item', 'Qtd', 'Preço Unit.', 'Subtotal']]
         for item in itens:
             ps = item.produto_servico
@@ -173,7 +171,12 @@ def gerar_pdf_proposta(proposta) -> BytesIO:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         elements.append(t)
-        elements.append(Spacer(1, 0.5*cm))
+    else:
+        elements.append(Paragraph('Nenhum item cadastrado.', styles['Normal']))
+    # Valor total ao final dos Produtos e Serviços
+    valor_str = _formatar_valor(proposta.valor_total)
+    elements.append(Paragraph(f'<b>Valor total:</b> {valor_str}', styles['Normal']))
+    elements.append(Spacer(1, 0.5*cm))
 
     # Conteúdo
     conteudo = _strip_html(proposta.conteudo) if proposta.conteudo else 'Conteúdo não informado.'

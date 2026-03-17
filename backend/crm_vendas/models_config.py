@@ -48,7 +48,14 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         blank=True,
         help_text='Módulos ativos no CRM'
     )
-    
+
+    # Conteúdo padrão da proposta (Proposta PADRAO) - salvo para reutilizar em novas propostas
+    proposta_conteudo_padrao = models.TextField(
+        blank=True,
+        default='',
+        help_text='Conteúdo padrão da proposta comercial (reutilizado ao criar novas propostas)'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

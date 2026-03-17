@@ -51,6 +51,7 @@ export default function NovaPropostaPage() {
     status: 'rascunho' as string,
   });
   const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
+  const [loadingOportunidades, setLoadingOportunidades] = useState(true);
   const [itensOportunidade, setItensOportunidade] = useState<OportunidadeItem[]>([]);
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
@@ -60,6 +61,7 @@ export default function NovaPropostaPage() {
   const [formErro, setFormErro] = useState<string | null>(null);
 
   const loadOportunidades = useCallback(async () => {
+    setLoadingOportunidades(true);
     try {
       const res = await apiClient.get<OportunidadeOption[] | { results: OportunidadeOption[] }>(
         '/crm-vendas/oportunidades/'
@@ -67,6 +69,8 @@ export default function NovaPropostaPage() {
       setOportunidades(normalizeList(res.data));
     } catch {
       setOportunidades([]);
+    } finally {
+      setLoadingOportunidades(false);
     }
   }, []);
 
@@ -233,6 +237,7 @@ export default function NovaPropostaPage() {
           onOportunidadeChange={handleOportunidadeChange}
           onSubmit={handleSubmit}
           isEdit={false}
+          loadingOportunidades={loadingOportunidades}
           onSalvarComoPadrao={handleSalvarComoPadrao}
           salvandoPadrao={salvandoPadrao}
           showCancel={true}

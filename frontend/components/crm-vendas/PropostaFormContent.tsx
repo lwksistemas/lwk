@@ -22,6 +22,8 @@ export interface PropostaFormContentProps {
   onCancel?: () => void;
   /** Se true, formulário ocupa largura total (para página fullscreen) */
   fullWidth?: boolean;
+  /** Se true, select de oportunidade mostra estado de carregamento */
+  loadingOportunidades?: boolean;
 }
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
@@ -46,6 +48,7 @@ export default function PropostaFormContent({
   showCancel = true,
   onCancel,
   fullWidth = false,
+  loadingOportunidades = false,
 }: PropostaFormContentProps) {
   const formClass = fullWidth
     ? 'space-y-4 w-full md:grid md:grid-cols-2 md:gap-x-6 lg:gap-x-8'
@@ -156,10 +159,12 @@ export default function PropostaFormContent({
           onChange={(e) => onOportunidadeChange(e.target.value)}
           className={inputClass}
           required
-          disabled={isEdit}
+          disabled={isEdit || loadingOportunidades}
         >
-          <option value="">Selecione</option>
-          {oportunidades.map((o) => (
+          <option value="">
+            {loadingOportunidades ? 'Carregando oportunidades...' : 'Selecione'}
+          </option>
+          {!loadingOportunidades && oportunidades.map((o) => (
             <option key={o.id} value={o.id}>{o.titulo} - {o.lead_nome}</option>
           ))}
         </select>

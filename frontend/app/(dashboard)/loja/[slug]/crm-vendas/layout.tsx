@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
+import { clearOrphanStorageForSlug } from '@/lib/storage-cleanup';
 import SidebarCrm from '@/components/crm-vendas/SidebarCrm';
 import HeaderCrm from '@/components/crm-vendas/HeaderCrm';
 import { CRMConfigProvider } from '@/contexts/CRMConfigContext';
@@ -96,8 +97,10 @@ export default function CrmVendasLayout({
         document.cookie = 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax';
       }
       await fetchCrmMe();
-    } catch {
+    } catch (err: unknown) {
       setLojaInfo(null);
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) clearOrphanStorageForSlug(slug);
     }
   }, [slug, fetchCrmMe]);
 

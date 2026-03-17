@@ -107,6 +107,7 @@ export default function RelatoriosPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     
     alert('✅ Relatório exportado com sucesso!');
   };

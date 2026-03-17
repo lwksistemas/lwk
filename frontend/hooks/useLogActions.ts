@@ -49,6 +49,7 @@ export function useLogActions() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erro ao exportar CSV:', error);
     }
@@ -74,6 +75,7 @@ export function useLogActions() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erro ao exportar JSON:', error);
     }

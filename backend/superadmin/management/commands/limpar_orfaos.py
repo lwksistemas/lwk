@@ -29,10 +29,24 @@ class Command(BaseCommand):
 
     def _delete_user_raw(self, user_id):
         """
-        Remove usuário via SQL quando ORM falha (ex: stores_store inexistente).
-        UserSession, ProfissionalUsuario, VendedorUsuario já foram removidos antes.
+        Remove usuário via SQL (evita stores_store inexistente).
+        Ordem: deletar FKs antes de auth_user.
         """
         with connection.cursor() as cursor:
+            # Tabelas que referenciam auth_user (deletar antes de auth_user)
+            tabelas_user_fk = [
+                'superadmin_historico_acesso_global',
+                'notificacoes_notification',
+                'push_pushsubscription',
+            ]
+            for tabela in tabelas_user_fk:
+                try:
+                    cursor.execute(
+                        f'DELETE FROM {tabela} WHERE user_id = %s',
+                        [user_id]
+                    )
+                except Exception:
+                    pass  # Tabela pode não existir (ex: app não migrado)
             cursor.execute('DELETE FROM auth_user_groups WHERE user_id = %s', [user_id])
             cursor.execute(
                 'DELETE FROM auth_user_user_permissions WHERE user_id = %s',

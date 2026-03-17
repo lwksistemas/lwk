@@ -39,8 +39,8 @@ export default function ConfiguracoesFuncionariosPage() {
     cargo: 'Vendedor',
     criar_acesso: false,
   });
-  const [reenviando, setReenviando] = useState<number | null>(null);
-  const [excluindo, setExcluindo] = useState<number | null>(null);
+  const [reenviando, setReenviando] = useState<number | string | null>(null);
+  const [excluindo, setExcluindo] = useState<number | string | null>(null);
   const [confirmarExcluir, setConfirmarExcluir] = useState<Vendedor | null>(null);
 
   const carregar = async () => {

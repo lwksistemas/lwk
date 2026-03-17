@@ -54,24 +54,20 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     serializer_class = VendedorSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
 
-    def _ensure_owner_vendedor(self):
-        """Garante que o administrador da loja exista como vendedor (para lojas antigas)."""
-        from superadmin.services import ProfessionalService
-        from superadmin.models import Loja
-
-        loja_id = get_current_loja_id()
-        if not loja_id:
-            return
-        try:
-            loja = Loja.objects.select_related('owner', 'tipo_loja').get(id=loja_id)
-            if loja.tipo_loja and loja.tipo_loja.nome == 'CRM Vendas':
-                ProfessionalService.criar_vendedor_admin_crm(
-                    loja, loja.owner, getattr(loja, 'owner_telefone', '') or ''
-                )
-        except Loja.DoesNotExist:
-            pass
-        except Exception:
-            pass  # Não falhar a listagem
+    def _get_admin_funcionario(self, loja):
+        """Retorna o admin (owner) como item virtual para a lista de funcionários."""
+        owner = loja.owner
+        nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
+        return {
+            'id': 'admin',
+            'nome': nome,
+            'email': owner.email or '',
+            'telefone': getattr(loja, 'owner_telefone', '') or '',
+            'cargo': 'Administrador',
+            'is_admin': True,
+            'is_active': True,
+            'tem_acesso': True,
+        }
 
     def get_queryset(self):
         """✅ OTIMIZAÇÃO: Anotar tem_acesso para evitar N+1 queries"""
@@ -98,8 +94,32 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     def list(self, request, *args, **kwargs):
         for attempt in range(2):
             try:
-                self._ensure_owner_vendedor()
-                return super().list(request, *args, **kwargs)
+                response = super().list(request, *args, **kwargs)
+                # Prepend admin (owner) como primeiro item - admin não é Vendedor
+                loja_id = get_current_loja_id()
+                if loja_id:
+                    from superadmin.models import Loja
+                    try:
+                        loja = Loja.objects.select_related('owner').get(id=loja_id)
+                        admin_item = self._get_admin_funcionario(loja)
+                        owner_email_lower = (loja.owner.email or '').strip().lower()
+                        data = response.data
+                        results = list(data.get('results', []) if isinstance(data, dict) else (data or []))
+                        # Filtrar vendedores legacy (is_admin) que eram owner - evitar duplicata
+                        if owner_email_lower:
+                            results = [r for r in results if not (
+                                r.get('is_admin') and
+                                (r.get('email') or '').strip().lower() == owner_email_lower
+                            )]
+                        results.insert(0, admin_item)
+                        if isinstance(data, dict):
+                            response.data['results'] = results
+                            response.data['count'] = len(results)
+                        else:
+                            response.data = results
+                    except Loja.DoesNotExist:
+                        pass
+                return response
             except Exception as e:
                 from django.db.utils import ProgrammingError, OperationalError
                 if isinstance(e, (ProgrammingError, OperationalError)) and attempt == 0:
@@ -129,15 +149,73 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
 
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def destroy(self, request, *args, **kwargs):
-        # Impedir exclusão do vendedor admin (is_admin=True)
+        # Impedir exclusão de vendedor admin (legacy: is_admin=True)
         instance = self.get_object()
         if instance.is_admin:
             return Response(
                 {'detail': 'O vendedor administrador não pode ser excluído.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['post'])
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
+    def reenviar_senha_administrador(self, request):
+        """Reenvia senha provisória do administrador (Loja.owner)."""
+        from django.utils.crypto import get_random_string
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from superadmin.models import Loja
+
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'detail': 'Contexto de loja não encontrado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            loja = Loja.objects.select_related('owner').get(id=loja_id)
+        except Loja.DoesNotExist:
+            return Response(
+                {'detail': 'Loja não encontrada.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        owner = loja.owner
+        if not owner.email:
+            return Response(
+                {'detail': 'Administrador não possui e-mail cadastrado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        senha_provisoria = get_random_string(8)
+        owner.set_password(senha_provisoria)
+        owner.save(update_fields=['password'])
+        loja.senha_provisoria = senha_provisoria
+        loja.senha_foi_alterada = False
+        loja.save(update_fields=['senha_provisoria', 'senha_foi_alterada'])
+        site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
+        login_url = f"{site_url}/loja/{loja.slug}/login"
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
+        try:
+            send_mail(
+                subject='Nova senha provisória - CRM Vendas',
+                message=(
+                    f"Olá, {owner.get_full_name() or owner.username}!\n\n"
+                    f"Sua senha foi redefinida.\n\n"
+                    f"Login: {owner.username}\n"
+                    f"Nova senha provisória: {senha_provisoria}\n\n"
+                    f"Acesse: {login_url}\n\n"
+                    f"Por segurança, altere sua senha no primeiro acesso."
+                ),
+                from_email=from_email,
+                recipient_list=[owner.email],
+                fail_silently=True,
+            )
+        except Exception:
+            pass
+        return Response({
+            'detail': f'Senha provisória enviada para {owner.email}',
+            'email_enviado': owner.email,
+        })
 
     @action(detail=True, methods=['post'])
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')

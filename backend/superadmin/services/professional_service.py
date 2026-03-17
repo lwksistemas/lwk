@@ -151,11 +151,14 @@ class ProfessionalService:
                 loja, owner, owner_telefone
             )
         
-        # CRM Vendas: criar vendedor admin no schema da loja (após schema existir)
+        # CRM Vendas: admin NÃO é vendedor - aparece na página de funcionários como
+        # "Administrador" (Loja.owner). Admin cadastra gerentes e vendedores.
         if tipo_loja_nome == 'CRM Vendas':
-            return ProfessionalService.criar_vendedor_admin_crm(
-                loja, owner, owner_telefone
+            logger.info(
+                f"CRM Vendas: admin {owner.username} aparece em funcionários como Administrador "
+                "(não é criado como Vendedor). Admin cadastra gerentes e vendedores."
             )
+            return True
 
         # Outros tipos: funcionário é criado automaticamente pelo signal
         # (create_funcionario_for_loja_owner em superadmin/signals.py)

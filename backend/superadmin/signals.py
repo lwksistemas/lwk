@@ -120,10 +120,10 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
                 
         elif tipo_loja_nome == 'CRM Vendas':
-            # CRM Vendas: vendedor admin é criado pelo ProfessionalService no LojaCreateSerializer,
-            # APÓS o schema existir (o signal roda antes do schema ser criado).
+            # CRM Vendas: admin (owner) NÃO é vendedor - aparece em funcionários como
+            # "Administrador" (Loja.owner). Admin cadastra gerentes e vendedores pela página.
             logger.info(
-                f"CRM Vendas: vendedor admin será criado pelo ProfessionalService após schema"
+                f"CRM Vendas: admin aparece como Administrador em funcionários (não é Vendedor)"
             )
             return
 

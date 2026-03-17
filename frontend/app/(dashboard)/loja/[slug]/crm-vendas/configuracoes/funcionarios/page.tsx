@@ -9,7 +9,7 @@ import { authService } from '@/lib/auth';
 import { ArrowLeft, Users, Plus, X, Mail, Trash2 } from 'lucide-react';
 
 interface Vendedor {
-  id: number;
+  id: number | string;
   nome: string;
   email: string;
   telefone: string;
@@ -68,6 +68,7 @@ export default function ConfiguracoesFuncionariosPage() {
   };
 
   const abrirEditar = (v: Vendedor) => {
+    if (v.id === 'admin' || v.is_admin) return;
     setEditando(v);
     setForm({
       nome: v.nome,
@@ -82,6 +83,7 @@ export default function ConfiguracoesFuncionariosPage() {
 
   const handleExcluir = async (v: Vendedor) => {
     if (!confirmarExcluir || confirmarExcluir.id !== v.id) return;
+    if (v.id === 'admin' || v.is_admin) return;
     setExcluindo(v.id);
     try {
       await apiClient.delete(`/crm-vendas/vendedores/${v.id}/`);
@@ -100,7 +102,11 @@ export default function ConfiguracoesFuncionariosPage() {
     setReenviando(v.id);
     setFormErro(null);
     try {
-      await apiClient.post(`/crm-vendas/vendedores/${v.id}/reenviar_senha/`);
+      const isAdmin = v.id === 'admin' || v.is_admin;
+      const url = isAdmin
+        ? '/crm-vendas/vendedores/reenviar_senha_administrador/'
+        : `/crm-vendas/vendedores/${v.id}/reenviar_senha/`;
+      await apiClient.post(url);
       carregar();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erro ao reenviar senha.';
@@ -189,7 +195,7 @@ export default function ConfiguracoesFuncionariosPage() {
           <div className="p-8 text-center">
             <Users size={40} className="mx-auto text-gray-400 dark:text-gray-500 mb-3" />
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Nenhum vendedor cadastrado
+              Nenhum funcionário cadastrado
             </p>
             <button
               type="button"
@@ -240,26 +246,33 @@ export default function ConfiguracoesFuncionariosPage() {
                       {reenviando === v.id ? 'Enviando...' : 'Reenviar senha'}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => abrirEditar(v)}
-                    className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
-                  >
-                    Editar
-                  </button>
-                  {!v.is_admin && (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmarExcluir(v)}
-                      className="p-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                  {v.id !== 'admin' && !v.is_admin && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => abrirEditar(v)}
+                        className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmarExcluir(v)}
+                        className="p-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
             ))}
+            {vendedores.length === 1 && vendedores[0].id === 'admin' && (
+              <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#0d1f3c]/30">
+                Nenhum vendedor ou gerente cadastrado. Use o botão &quot;Novo vendedor&quot; para adicionar.
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -135,19 +135,15 @@ class Command(BaseCommand):
                         funcionario_criado = True
                         
                 elif tipo_loja_nome == 'CRM Vendas':
-                    from crm_vendas.models import Vendedor
-                    # CRM Vendas usa schema isolado por loja - usar db_alias
-                    # Verificar por email (case-insensitive) e is_admin para evitar duplicados
-                    if Vendedor.objects.using(db_alias).filter(
-                        loja_id=loja.id, is_admin=True, email__iexact=(owner.email or '')
-                    ).exists():
-                        ja_existentes += 1
-                        self.stdout.write(self.style.WARNING(f'   ⚠️ Vendedor já existe'))
-                    else:
-                        funcionario_data['cargo'] = 'Gerente de Vendas'
-                        func = Vendedor(**funcionario_data)
-                        func.save(using=db_alias)
-                        funcionario_criado = True
+                    # CRM Vendas: admin (owner) NÃO é vendedor - aparece em funcionários
+                    # como "Administrador" (Loja.owner). Admin cadastra gerentes e vendedores.
+                    self.stdout.write(
+                        self.style.WARNING(
+                            '   ⚠️ CRM Vendas: admin aparece como Administrador (não é Vendedor). '
+                            'Cadastre gerentes/vendedores pela página de funcionários.'
+                        )
+                    )
+                    continue
 
                 elif tipo_loja_nome == 'E-commerce':
                     self.stdout.write(self.style.WARNING(f'   ⚠️ E-commerce não possui modelo de funcionário'))

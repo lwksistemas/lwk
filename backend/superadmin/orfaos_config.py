@@ -19,13 +19,8 @@ TABELAS_LOJA_ID_DEFAULT = [
     ('whatsapp_whatsappconfig', 'loja_id'),
     ('whatsapp_whatsapplog', 'loja_id'),
 
-    # CRM Vendas - em schemas tenant; incluir para safety net (ignora se tabela não existir)
-    ('crm_vendas_vendedor', 'loja_id'),
-    ('crm_vendas_conta', 'loja_id'),
-    ('crm_vendas_lead', 'loja_id'),
-    ('crm_vendas_contato', 'loja_id'),
-    ('crm_vendas_oportunidade', 'loja_id'),
-    ('crm_vendas_atividade', 'loja_id'),
+    # CRM Vendas: tabelas ficam APENAS no schema da loja (nunca em public).
+    # Não incluir aqui - são limpas no signal via .using(db_alias) antes de dropar o schema.
 ]
 
 # Tabelas em schemas de loja (tenant) - verificadas via ORM com .using(db_alias)

@@ -7,6 +7,7 @@ def backfill_vendedor(apps, schema_editor):
     conn = schema_editor.connection
     if conn.vendor != 'postgresql':
         return
+    db_alias = schema_editor.connection.alias
     with conn.cursor() as cursor:
         cursor.execute("""
             SELECT 1 FROM information_schema.tables
@@ -18,16 +19,17 @@ def backfill_vendedor(apps, schema_editor):
     Lead = apps.get_model('crm_vendas', 'Lead')
     Oportunidade = apps.get_model('crm_vendas', 'Oportunidade')
     Conta = apps.get_model('crm_vendas', 'Conta')
-    for lead in Lead.objects.filter(vendedor_id__isnull=True).iterator():
-        opp = Oportunidade.objects.filter(lead=lead, vendedor_id__isnull=False).order_by('id').first()
+    # Usar .using(db_alias) para tenant schemas
+    for lead in Lead.objects.using(db_alias).filter(vendedor_id__isnull=True).iterator():
+        opp = Oportunidade.objects.using(db_alias).filter(lead=lead, vendedor_id__isnull=False).order_by('id').first()
         if opp:
             lead.vendedor_id = opp.vendedor_id
-            lead.save(update_fields=['vendedor_id'])
-    for conta in Conta.objects.filter(vendedor_id__isnull=True).iterator():
-        lead = Lead.objects.filter(conta=conta).exclude(vendedor_id__isnull=True).order_by('id').first()
+            lead.save(update_fields=['vendedor_id'], using=db_alias)
+    for conta in Conta.objects.using(db_alias).filter(vendedor_id__isnull=True).iterator():
+        lead = Lead.objects.using(db_alias).filter(conta=conta).exclude(vendedor_id__isnull=True).order_by('id').first()
         if lead:
             conta.vendedor_id = lead.vendedor_id
-            conta.save(update_fields=['vendedor_id'])
+            conta.save(update_fields=['vendedor_id'], using=db_alias)
 
 
 def noop(apps, schema_editor):

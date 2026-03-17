@@ -240,11 +240,10 @@ class Command(BaseCommand):
         for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
             try:
                 with connection.cursor() as cursor:
-                    # Contar registros com loja_id inválido
                     cursor.execute(f"""
                         SELECT COUNT(*) FROM {tabela} 
-                        WHERE {coluna} NOT IN %s
-                    """, [tuple(lojas_ids) if lojas_ids else (0,)])
+                        WHERE {coluna} IS NOT NULL AND {coluna} NOT IN (SELECT id FROM superadmin_loja)
+                    """)
                     count = cursor.fetchone()[0]
                     
                     if count > 0:
@@ -254,11 +253,13 @@ class Command(BaseCommand):
                         if execute:
                             cursor.execute(f"""
                                 DELETE FROM {tabela} 
-                                WHERE {coluna} NOT IN %s
-                            """, [tuple(lojas_ids) if lojas_ids else (0,)])
+                                WHERE {coluna} NOT IN (SELECT id FROM superadmin_loja)
+                            """)
                             self.stdout.write(self.style.SUCCESS(f'      ✅ {count} registros removidos'))
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'   ❌ Erro em {tabela}: {e}'))
+                # Tabela pode não existir no schema public (ex: crm_vendas em tenants)
+                if 'does not exist' not in str(e).lower():
+                    self.stdout.write(self.style.ERROR(f'   ❌ Erro em {tabela}: {e}'))
 
         if total_orfaos == 0:
             self.stdout.write(self.style.SUCCESS('   ✅ Nenhum dado com loja_id inválido'))

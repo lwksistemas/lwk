@@ -12,8 +12,8 @@ para garantir que não existam registros com loja_id inválido (órfãos).
 TABELAS_LOJA_ID_DEFAULT = [
     # Superadmin
     # NOTA: superadmin_loja é deletada automaticamente pelo Django, não incluir aqui
-    ('superadmin_historicobackup', 'loja_id'),
-    ('superadmin_configuracaobackup', 'loja_id'),
+    ('superadmin_historico_backup', 'loja_id'),
+    ('superadmin_configuracao_backup', 'loja_id'),
 
     # WhatsApp (modelos reais: WhatsAppConfig, WhatsAppLog)
     ('whatsapp_whatsappconfig', 'loja_id'),

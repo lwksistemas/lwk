@@ -392,7 +392,7 @@ export default function CrmVendasPropostasPage() {
 
       {modalType === 'edit' && (
         <ModalPropostaForm
-          title={modalType === 'create' ? 'Nova Proposta' : 'Editar Proposta'}
+          title="Editar Proposta"
           form={formData}
           formErro={null}
           enviando={submitting}

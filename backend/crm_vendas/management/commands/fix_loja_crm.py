@@ -145,6 +145,34 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.WARNING(f'  cpf_cnpj: {e}'))
 
+        # 5. Adicionar proposta_conteudo_padrao em crm_vendas_config se faltando
+        if tipo_slug == 'crm-vendas':
+            self.stdout.write('\nVerificando coluna proposta_conteudo_padrao em crm_vendas_config...')
+            try:
+                with connections[db_name].cursor() as cursor:
+                    cursor.execute("""
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = %s AND table_name = 'crm_vendas_config'
+                    """, [schema_name])
+                    if cursor.fetchone():
+                        cursor.execute("""
+                            SELECT column_name FROM information_schema.columns
+                            WHERE table_schema = %s AND table_name = 'crm_vendas_config'
+                            AND column_name = 'proposta_conteudo_padrao'
+                        """, [schema_name])
+                        if cursor.fetchone():
+                            self.stdout.write(self.style.SUCCESS('  proposta_conteudo_padrao já existe'))
+                        else:
+                            cursor.execute(
+                                f'ALTER TABLE "{schema_name}"."crm_vendas_config" '
+                                "ADD COLUMN proposta_conteudo_padrao TEXT DEFAULT ''"
+                            )
+                            self.stdout.write(self.style.SUCCESS('  proposta_conteudo_padrao adicionada'))
+                    else:
+                        self.stdout.write(self.style.WARNING('  Tabela crm_vendas_config não existe'))
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f'  proposta_conteudo_padrao: {e}'))
+
         self.stdout.write('\n' + '='*60)
         self.stdout.write(self.style.SUCCESS('✅ Concluído. Teste acessar a loja novamente.'))
         self.stdout.write('='*60 + '\n')

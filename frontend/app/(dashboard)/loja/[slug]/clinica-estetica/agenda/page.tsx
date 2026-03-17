@@ -81,7 +81,9 @@ export default function AgendaClinicaEsteticaPage() {
 
   const handleLogout = () => {
     sessionStorage.clear();
-    router.push(`/loja/${slug}/login`);
+    document.cookie = 'user_type=; path=/; max-age=0';
+    document.cookie = 'loja_slug=; path=/; max-age=0';
+    window.location.href = `/loja/${slug}/login`;
   };
 
   const isClinicaEstetica = loja ? isTipoClinicaEstetica(loja.tipo_loja_nome) : false;

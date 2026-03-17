@@ -58,9 +58,16 @@ export function clearSessionAndRedirect(loginUrl: string, message?: string) {
 /** URL de login para redirecionar (usa storage antes de limpar). Exportado para uso em fetch(). */
 export function getLoginUrlForRedirect(): string {
   if (typeof window === 'undefined') return '/';
-  const userType = sessionStorage.getItem('user_type');
-  const lojaSlug = sessionStorage.getItem('loja_slug');
-  return getLoginUrl(userType as 'superadmin' | 'suporte' | 'loja' | undefined, lojaSlug || undefined);
+  let userType = sessionStorage.getItem('user_type') as 'superadmin' | 'suporte' | 'loja' | null;
+  let lojaSlug = sessionStorage.getItem('loja_slug');
+  // Fallback: extrair slug da URL quando em /loja/ (evita redirecionar para home no logout)
+  if (!lojaSlug && window.location.pathname.includes('/loja/')) {
+    const match = window.location.pathname.match(/^\/loja\/([^/]+)/);
+    if (match) lojaSlug = match[1];
+  }
+  // Se estamos em /loja/ e temos slug, tratar como loja mesmo sem user_type (sessão já limpa)
+  if (!userType && lojaSlug) userType = 'loja';
+  return getLoginUrl(userType || undefined, lojaSlug || undefined);
 }
 
 /** Adiciona X-Loja-ID / X-Tenant-Slug e Authorization em todas as requisições de loja. */

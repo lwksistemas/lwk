@@ -92,12 +92,21 @@ class ProfessionalService:
                 )
                 return False
 
-            # Verificar se já existe vendedor com email do owner
-            if Vendedor.objects.using(loja.database_name).filter(
-                email=owner.email, loja_id=loja.id
-            ).exists():
-                logger.info(f"Vendedor admin já existe para {owner.email} na loja {loja.nome}")
-                return True
+            # Verificar se já existe vendedor admin (evitar duplicados - email case-insensitive)
+            email_owner = (owner.email or '').strip().lower()
+            if email_owner:
+                if Vendedor.objects.using(loja.database_name).filter(
+                    loja_id=loja.id, is_admin=True, email__iexact=email_owner
+                ).exists():
+                    logger.info(f"Vendedor admin já existe para {owner.email} na loja {loja.nome}")
+                    return True
+            else:
+                # Sem email: verificar se já existe algum admin na loja
+                if Vendedor.objects.using(loja.database_name).filter(
+                    loja_id=loja.id, is_admin=True
+                ).exists():
+                    logger.info(f"Vendedor admin já existe na loja {loja.nome}")
+                    return True
 
             nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
             Vendedor.objects.using(loja.database_name).create(

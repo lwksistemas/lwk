@@ -13,7 +13,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 from django.db import connection
-from superadmin.models import Loja, TipoApp, Plano
+from superadmin.models import Loja, TipoLoja, PlanoAssinatura
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -52,12 +52,12 @@ def criar_loja_teste():
             print(f"   - Nome: {loja.nome}")
             return loja
         
-        # Buscar tipo de app
-        tipo_app = TipoApp.objects.get(slug=dados_loja['tipo_app'])
-        print(f"\n✅ Tipo de app encontrado: {tipo_app.nome}")
+        # Buscar tipo de loja
+        tipo_loja = TipoLoja.objects.get(slug=dados_loja['tipo_app'])
+        print(f"\n✅ Tipo de loja encontrado: {tipo_loja.nome}")
         
         # Buscar plano
-        plano = Plano.objects.get(slug=dados_loja['plano'])
+        plano = PlanoAssinatura.objects.get(slug=dados_loja['plano'])
         print(f"✅ Plano encontrado: {plano.nome}")
         
         # Criar owner
@@ -74,7 +74,7 @@ def criar_loja_teste():
             slug=dados_loja['cnpj'],
             nome=dados_loja['nome'],
             cnpj=dados_loja['cnpj'],
-            tipo_app=tipo_app,
+            tipo_loja=tipo_loja,
             plano=plano,
             owner=owner,
             ativo=True

@@ -196,7 +196,13 @@ class LojaCleanupService:
             return 0
     
     def cleanup_database_file(self):
-        """Remove arquivo SQLite do banco de dados isolado"""
+        """
+        Remove configuração do banco de dados da loja.
+        
+        NOTA: Sistema usa PostgreSQL com schemas isolados.
+        A remoção do schema é feita pelo signal pre_delete.
+        Este método apenas remove a configuração do settings.DATABASES.
+        """
         if not self.database_created:
             self.results['banco_dados'] = {
                 'existia': False,
@@ -205,34 +211,26 @@ class LojaCleanupService:
             return
         
         try:
-            import os
-            db_path = settings.BASE_DIR / f'db_{self.database_name}.sqlite3'
-            
-            if db_path.exists():
-                os.remove(db_path)
-                logger.info(f"✅ Arquivo do banco removido: {db_path}")
+            # Remover configuração do settings.DATABASES
+            if self.database_name in settings.DATABASES:
+                del settings.DATABASES[self.database_name]
+                logger.info(f"✅ Configuração do banco removida: {self.database_name}")
                 
                 self.results['banco_dados'] = {
                     'existia': True,
                     'nome': self.database_name,
-                    'arquivo_removido': True,
                     'config_removida': True
                 }
             else:
                 self.results['banco_dados'] = {
                     'existia': True,
                     'nome': self.database_name,
-                    'arquivo_removido': False,
-                    'motivo': 'Arquivo não encontrado'
+                    'config_removida': False,
+                    'motivo': 'Configuração não encontrada'
                 }
                 
-            # Remover configuração do settings.DATABASES
-            if self.database_name in settings.DATABASES:
-                del settings.DATABASES[self.database_name]
-                logger.info(f"✅ Configuração do banco removida: {self.database_name}")
-                
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao remover banco: {e}")
+            logger.warning(f"⚠️ Erro ao remover configuração do banco: {e}")
             self.results['banco_dados'] = {
                 'existia': True,
                 'nome': self.database_name,

@@ -176,54 +176,6 @@ class LojaCreationService:
         return slug_sanitizado
     
     @staticmethod
-    def calcular_valor_mensalidade(loja) -> float:
-        """
-        Calcula valor da mensalidade baseado no tipo de assinatura
-        
-        Args:
-            loja: Objeto Loja
-            
-        Returns:
-            Valor da mensalidade
-        """
-        if loja.tipo_assinatura == 'anual':
-            return loja.plano.preco_anual / 12 if loja.plano.preco_anual else loja.plano.preco_mensal
-        return loja.plano.preco_mensal
-    
-    @staticmethod
-    def calcular_datas_vencimento(dia_vencimento: int) -> Tuple:
-        """
-        Calcula datas de vencimento para primeiro boleto e próxima cobrança
-        
-        Args:
-            dia_vencimento: Dia do mês para vencimento
-            
-        Returns:
-            Tupla (primeiro_vencimento, proxima_cobranca)
-        """
-        from datetime import date, timedelta
-        from calendar import monthrange
-        
-        hoje = date.today()
-        
-        # Primeiro boleto: 3 dias a partir de hoje
-        primeiro_vencimento = hoje + timedelta(days=3)
-        
-        # Próxima cobrança: dia fixo no próximo mês
-        if hoje.month == 12:
-            proximo_mes = 1
-            proximo_ano = hoje.year + 1
-        else:
-            proximo_mes = hoje.month + 1
-            proximo_ano = hoje.year
-        
-        # Ajustar dia se o mês não tiver esse dia
-        ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
-        dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
-        
-        return primeiro_vencimento, primeiro_vencimento
-    
-    @staticmethod
     def log_criacao_loja(loja, owner, senha_provisoria: str):
         """
         Registra log da criação da loja

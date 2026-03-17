@@ -37,7 +37,11 @@ def _db_alias_for_loja(loja):
         settings.DATABASES[db_name] = {
             **default_db,
             'OPTIONS': {'options': f'-c search_path={schema_name},public'},
+            'ATOMIC_REQUESTS': False,
+            'AUTOCOMMIT': True,
             'CONN_MAX_AGE': 0,
+            'CONN_HEALTH_CHECKS': False,
+            'TIME_ZONE': None,
         }
         return db_name
     except Exception:

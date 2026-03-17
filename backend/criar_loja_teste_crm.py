@@ -32,7 +32,7 @@ def criar_loja_teste():
         'email_owner': 'teste@crm.com',
         'nome_owner': 'Teste CRM',
         'senha_owner': 'Teste@123',
-        'tipo_app': 'crm_vendas',
+        'tipo_app': 'crm-vendas',
         'plano': 'basico'
     }
     

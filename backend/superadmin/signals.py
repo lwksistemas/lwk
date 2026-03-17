@@ -566,7 +566,8 @@ def remove_owner_if_orphan(sender, instance, **kwargs):
 
     def _remover_owner_apos_commit():
         from django.contrib.auth.models import User
-        from superadmin.models import UserSession, ProfissionalUsuario, Loja
+        from superadmin.models import Loja
+        from superadmin.utils import delete_user_raw
 
         if Loja.objects.filter(owner_id=owner_id).exists():
             return
@@ -574,11 +575,7 @@ def remove_owner_if_orphan(sender, instance, **kwargs):
             user = User.objects.filter(id=owner_id).first()
             if not user or user.is_superuser:
                 return
-            UserSession.objects.filter(user=user).delete()
-            ProfissionalUsuario.objects.filter(user=user).delete()
-            user.groups.clear()
-            user.user_permissions.clear()
-            user.delete()
+            delete_user_raw(owner_id)
             logger.info(f"   ✅ Usuário órfão removido (owner da loja excluída): {user.username}")
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao remover owner órfão: {e}")

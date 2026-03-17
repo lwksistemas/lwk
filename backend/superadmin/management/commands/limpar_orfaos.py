@@ -31,33 +31,6 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = 'Detecta e remove dados órfãos (arquivos, schemas, usuários, sessões)'
 
-    def _delete_user_raw(self, user_id):
-        """
-        Remove usuário via SQL (evita stores_store inexistente).
-        Ordem: deletar FKs antes de auth_user.
-        """
-        with connection.cursor() as cursor:
-            # Tabelas que referenciam auth_user (deletar antes de auth_user)
-            tabelas_user_fk = [
-                'superadmin_historico_acesso_global',
-                'notificacoes_notification',
-                'push_pushsubscription',
-            ]
-            for tabela in tabelas_user_fk:
-                try:
-                    cursor.execute(
-                        f'DELETE FROM {tabela} WHERE user_id = %s',
-                        [user_id]
-                    )
-                except Exception:
-                    pass  # Tabela pode não existir (ex: app não migrado)
-            cursor.execute('DELETE FROM auth_user_groups WHERE user_id = %s', [user_id])
-            cursor.execute(
-                'DELETE FROM auth_user_user_permissions WHERE user_id = %s',
-                [user_id]
-            )
-            cursor.execute('DELETE FROM auth_user WHERE id = %s', [user_id])
-
     def add_arguments(self, parser):
         parser.add_argument(
             '--dry-run',
@@ -171,12 +144,8 @@ class Command(BaseCommand):
                 self.stdout.write(f'      - {username} (ID: {user_id}, Email: {email})')
                 if execute:
                     try:
-                        # Usar SQL direto para evitar user.delete() que acessa stores_store
-                        # (app stores legado; sistema usa superadmin.Loja)
-                        UserSession.objects.filter(user_id=user_id).delete()
-                        ProfissionalUsuario.objects.filter(user_id=user_id).delete()
-                        VendedorUsuario.objects.filter(user_id=user_id).delete()
-                        self._delete_user_raw(user_id)
+                        from superadmin.utils import delete_user_raw
+                        delete_user_raw(user_id)
                         self.stdout.write(self.style.SUCCESS(f'         ✅ Removido'))
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))

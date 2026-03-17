@@ -85,7 +85,7 @@ class LojaCleanupService:
     def cleanup_logs_and_alerts(self):
         """Remove logs de auditoria e alertas de segurança"""
         try:
-            from .models import HistoricoAcessoGlobal, ViolacaoSeguranca
+            from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca
             from django.db.models import Q
             
             with transaction.atomic():
@@ -240,14 +240,16 @@ class LojaCleanupService:
             }
     
     def cleanup_owner_user(self):
-        """Remove usuário proprietário se não tiver outras lojas"""
-        from django.contrib.auth.models import User
+        """
+        Registra se o usuário proprietário será removido pelo signal post_delete.
+        NÃO remove o usuário aqui: a loja ainda existe (owner_id referencia o user).
+        O signal remove_owner_if_orphan remove o owner órfão após loja.delete().
+        """
         from superadmin.models import Loja
-        
+
         try:
-            # Verificar se o usuário tem outras lojas
             outras_lojas = Loja.objects.filter(owner=self.owner).exclude(id=self.loja_id).count()
-            
+
             if outras_lojas > 0:
                 self.results['usuario_proprietario'] = {
                     'username': self.owner.username,
@@ -255,8 +257,7 @@ class LojaCleanupService:
                     'motivo_nao_removido': 'Possui outras lojas'
                 }
                 return
-            
-            # Verificar se é superuser/staff
+
             if self.owner.is_superuser or self.owner.is_staff:
                 self.results['usuario_proprietario'] = {
                     'username': self.owner.username,
@@ -264,24 +265,14 @@ class LojaCleanupService:
                     'motivo_nao_removido': 'Superuser/Staff'
                 }
                 return
-            
-            # Remover usuário
-            with transaction.atomic():
-                user_to_delete = User.objects.filter(id=self.owner_id).first()
-                if user_to_delete:
-                    user_to_delete.groups.clear()
-                    user_to_delete.user_permissions.clear()
-                    user_to_delete.delete()
-                    
-                    self.results['usuario_proprietario'] = {
-                        'username': self.owner.username,
-                        'removido': True
-                    }
-                    
-                    logger.info(f"✅ Usuário removido: {self.owner.username}")
-                    
+
+            self.results['usuario_proprietario'] = {
+                'username': self.owner.username,
+                'removido': False,
+                'motivo_nao_removido': 'Será removido pelo signal após exclusão da loja'
+            }
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao remover usuário: {e}")
+            logger.warning(f"⚠️ Erro ao verificar usuário: {e}")
             self.results['usuario_proprietario'] = {
                 'username': self.owner.username,
                 'erro': str(e)

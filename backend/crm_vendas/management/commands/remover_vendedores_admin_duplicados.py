@@ -49,7 +49,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        slug_filter = options.get('slug', '').strip()
+        slug_filter = (options.get('slug') or '').strip()
         lojas = Loja.objects.filter(tipo_loja__slug='crm-vendas').select_related('tipo_loja', 'owner')
         if slug_filter:
             lojas = lojas.filter(slug__iexact=slug_filter)
@@ -65,7 +65,7 @@ class Command(BaseCommand):
                 continue
 
             from crm_vendas.models import Vendedor
-            # Buscar admins duplicados: mesmo loja_id + email + is_admin=True
+            # Buscar admins: mesmo loja_id + is_admin=True
             admins = list(
                 Vendedor.objects.using(db_alias)
                 .filter(loja_id=loja.id, is_admin=True)
@@ -73,6 +73,8 @@ class Command(BaseCommand):
             )
             if len(admins) <= 1:
                 continue
+
+            self.stdout.write(f'\n📋 {loja.nome} ({loja.slug}): {len(admins)} admin(s) encontrado(s)')
 
             # Agrupar por email (case-insensitive para comparação)
             por_email = {}
@@ -85,14 +87,14 @@ class Command(BaseCommand):
             removidos_loja = 0
             for key, grupo in por_email.items():
                 if len(grupo) > 1:
-                    # Manter o primeiro (menor id), remover os demais
-                    manter = grupo[0]
+                    # Manter o primeiro (menor id), remover os demais via queryset
+                    ids_remover = [v.id for v in grupo[1:]]
                     for v in grupo[1:]:
-                        v.delete()
-                        removidos_loja += 1
                         self.stdout.write(
-                            self.style.WARNING(f'  Removido duplicado: {v.nome} (id={v.id}) em {loja.nome}')
+                            self.style.WARNING(f'  Removendo duplicado: {v.nome} (id={v.id})')
                         )
+                    Vendedor.objects.using(db_alias).filter(id__in=ids_remover).delete()
+                    removidos_loja += len(ids_remover)
 
             if removidos_loja > 0:
                 total_removidos += removidos_loja

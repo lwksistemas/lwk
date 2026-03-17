@@ -295,7 +295,11 @@ def delete_all_loja_data(sender, instance, **kwargs):
                     qs.delete()
                     logger.info(f"   ✅ {count} {nome} (CRM Vendas) deletados")
                 except Exception as e:
-                    logger.warning(f"   ⚠️ Erro ao deletar {nome} CRM Vendas: {e}")
+                    # Schema vazio (tabelas nunca criadas): esperado, não é erro
+                    if 'does not exist' in str(e).lower():
+                        logger.debug(f"   ℹ️ Schema vazio: {nome} não existem (ok)")
+                    else:
+                        logger.warning(f"   ⚠️ Erro ao deletar {nome} CRM Vendas: {e}")
 
             _delete_crm(Atividade, 'atividades')
             _delete_crm(Oportunidade, 'oportunidades')

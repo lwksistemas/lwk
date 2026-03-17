@@ -183,18 +183,12 @@ export default function CrmVendasPropostasPage() {
   }, [loadPropostas]);
 
   useEffect(() => {
-    if (modalType === 'create' || modalType === 'edit') {
+    if (modalType === 'edit') {
       loadOportunidades();
       loadLojaInfo();
       loadCrmConfig();
     }
   }, [modalType, loadOportunidades, loadLojaInfo, loadCrmConfig]);
-
-  useEffect(() => {
-    if (modalType === 'create' && propostaConteudoPadrao && !formData.conteudo) {
-      setFormData((f) => ({ ...f, conteudo: propostaConteudoPadrao }));
-    }
-  }, [propostaConteudoPadrao, modalType]);
 
   useEffect(() => {
     if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
@@ -322,14 +316,13 @@ export default function CrmVendasPropostasPage() {
             Crie e gerencie propostas comerciais vinculadas às oportunidades
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => openModal('create')}
+        <Link
+          href={`/loja/${slug}/crm-vendas/propostas/nova`}
           className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
         >
           <Plus size={18} />
           <span>Nova Proposta</span>
-        </button>
+        </Link>
       </div>
 
       {error && (
@@ -397,7 +390,7 @@ export default function CrmVendasPropostasPage() {
         </div>
       </div>
 
-      {(modalType === 'create' || modalType === 'edit') && (
+      {modalType === 'edit' && (
         <ModalPropostaForm
           title={modalType === 'create' ? 'Nova Proposta' : 'Editar Proposta'}
           form={formData}

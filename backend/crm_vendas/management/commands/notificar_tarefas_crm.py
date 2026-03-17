@@ -12,7 +12,6 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.conf import settings
 from datetime import timedelta
-import dj_database_url
 import os
 
 
@@ -66,27 +65,19 @@ class Command(BaseCommand):
         criadas = 0
         whatsapp_enviados = 0
 
-        DATABASE_URL = os.environ.get('DATABASE_URL')
-        if not DATABASE_URL:
+        if not os.environ.get('DATABASE_URL'):
             self.stdout.write(self.style.ERROR('DATABASE_URL não configurada'))
             return
+
+        from core.db_config import ensure_loja_database_config
 
         for loja in lojas_crm:
             if not loja.owner_id:
                 continue
 
-            schema_name = loja.database_name.replace('-', '_')
             db_name = loja.database_name
-
-            if db_name not in settings.DATABASES:
-                default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-                settings.DATABASES[db_name] = {
-                    **default_db,
-                    'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-                    'ATOMIC_REQUESTS': False,
-                    'AUTOCOMMIT': True,
-                    'CONN_MAX_AGE': 0,
-                }
+            if not ensure_loja_database_config(db_name, conn_max_age=0):
+                continue
 
             try:
                 atividades = list(

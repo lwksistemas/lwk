@@ -15,28 +15,11 @@ from superadmin.models import Loja
 
 def _configurar_banco_loja(loja):
     """Configura o banco da loja em settings.DATABASES."""
+    from core.db_config import ensure_loja_database_config
     db_name = getattr(loja, 'database_name', None)
-    if not db_name or db_name in settings.DATABASES:
-        return db_name
-    try:
-        import dj_database_url
-        database_url = os.environ.get('DATABASE_URL', '')
-        if 'postgres' not in database_url.lower():
-            return None
-        default_db = dj_database_url.config(default=database_url, conn_max_age=0)
-        schema_name = db_name.replace('-', '_')
-        settings.DATABASES[db_name] = {
-            **default_db,
-            'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-            'ATOMIC_REQUESTS': False,
-            'AUTOCOMMIT': True,
-            'CONN_MAX_AGE': 0,
-            'CONN_HEALTH_CHECKS': False,
-            'TIME_ZONE': None,
-        }
-        return db_name
-    except Exception:
+    if not db_name:
         return None
+    return db_name if ensure_loja_database_config(db_name, conn_max_age=0) else None
 
 
 class Command(BaseCommand):

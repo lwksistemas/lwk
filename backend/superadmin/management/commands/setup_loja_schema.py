@@ -20,7 +20,6 @@ from django.core.management import call_command
 from django.db import connection
 from django.conf import settings
 from superadmin.models import Loja
-import dj_database_url
 import os
 
 
@@ -77,20 +76,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR('❌ DATABASE_URL não configurada'))
             return
 
-        if db_name not in settings.DATABASES:
-            # ✅ CORREÇÃO: conn_max_age=0 para fechar conexões imediatamente
-            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-            settings.DATABASES[db_name] = {
-                **default_db,
-                'OPTIONS': {
-                    'options': f'-c search_path={schema_name},public'
-                },
-                'ATOMIC_REQUESTS': False,
-                'AUTOCOMMIT': True,
-                'CONN_MAX_AGE': 600,
-                'CONN_HEALTH_CHECKS': True,
-                'TIME_ZONE': None,
-            }
+        from core.db_config import ensure_loja_database_config
+        if ensure_loja_database_config(db_name, conn_max_age=600):
             self.stdout.write(self.style.SUCCESS('✅ Banco configurado em settings.DATABASES'))
 
         # 3. (Opcional) Forçar reaplicação do CRM: remove estado de migração no schema

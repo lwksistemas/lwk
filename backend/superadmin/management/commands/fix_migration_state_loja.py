@@ -8,8 +8,6 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connection
 from superadmin.models import Loja
-import dj_database_url
-import os
 
 
 class Command(BaseCommand):
@@ -29,20 +27,11 @@ class Command(BaseCommand):
         self.stdout.write(f'Loja: {loja.nome} (ID: {loja.id})')
         self.stdout.write(f'Schema: {schema_name}\n')
 
-        # Adicionar banco às configurações
-        DATABASE_URL = os.environ.get('DATABASE_URL')
-        if not DATABASE_URL:
-            self.stdout.write(self.style.ERROR('❌ DATABASE_URL não configurada'))
-            return
-
         from django.conf import settings
-        default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-        settings.DATABASES[loja.database_name] = {
-            **default_db,
-            'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-            'CONN_MAX_AGE': 0,
-            'TIME_ZONE': None,
-        }
+        from core.db_config import ensure_loja_database_config
+        if not ensure_loja_database_config(loja.database_name, conn_max_age=0):
+            self.stdout.write(self.style.ERROR('❌ Não foi possível configurar banco (verifique DATABASE_URL)'))
+            return
 
         from django.db import connections
         conn = connections[loja.database_name]

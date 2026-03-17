@@ -5,8 +5,6 @@ Usado por: fix_loja_crm (command), auto-recovery nas views.
 import logging
 import os
 
-import dj_database_url
-from django.conf import settings
 from django.db import connection, connections
 from django.core.management import call_command
 
@@ -35,17 +33,8 @@ def configurar_schema_crm_loja(loja) -> bool:
 
     try:
         # 1. Garantir que o banco está em settings.DATABASES
-        if db_name not in settings.DATABASES:
-            default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-            settings.DATABASES[db_name] = {
-                **default_db,
-                'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-                'ATOMIC_REQUESTS': False,
-                'AUTOCOMMIT': True,
-                'CONN_MAX_AGE': 0,
-                'CONN_HEALTH_CHECKS': False,
-                'TIME_ZONE': None,
-            }
+        from core.db_config import ensure_loja_database_config
+        if ensure_loja_database_config(db_name, conn_max_age=0):
             logger.info(f"Banco '{db_name}' configurado em settings.DATABASES")
 
         # 2. Criar schema se não existir

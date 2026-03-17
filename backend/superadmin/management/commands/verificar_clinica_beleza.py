@@ -5,15 +5,9 @@ Uso:
   python manage.py verificar_clinica_beleza
   python manage.py verificar_clinica_beleza --slug clinica-luiz-000172
 """
-import os
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from superadmin.models import Loja, TipoLoja, PlanoAssinatura
-
-try:
-    import dj_database_url
-except ImportError:
-    dj_database_url = None
 
 
 class Command(BaseCommand):
@@ -28,32 +22,13 @@ class Command(BaseCommand):
         )
 
     def _ensure_database_in_settings(self, loja):
+        from core.db_config import ensure_loja_database_config
         db_name = loja.database_name
         if not db_name:
             return False
-        schema_name = db_name.replace('-', '_')
-        if db_name in settings.DATABASES:
-            return True
-        database_url = os.environ.get('DATABASE_URL')
-        if not database_url and dj_database_url:
-            database_url = dj_database_url.config(conn_max_age=0)
-        if not database_url:
-            self.stdout.write(self.style.ERROR('   DATABASE_URL não definido'))
+        if not ensure_loja_database_config(db_name, conn_max_age=600):
+            self.stdout.write(self.style.ERROR('   DATABASE_URL não definido ou banco não configurado'))
             return False
-        if dj_database_url:
-            # ✅ CORREÇÃO: conn_max_age=0 para fechar conexões imediatamente
-            default_db = dj_database_url.config(default=database_url, conn_max_age=0)
-        else:
-            default_db = {'ENGINE': 'django.db.backends.postgresql', 'NAME': os.environ.get('PGDATABASE', 'postgres')}
-        settings.DATABASES[db_name] = {
-            **default_db,
-            'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-            'ATOMIC_REQUESTS': False,
-            'AUTOCOMMIT': True,
-            'CONN_MAX_AGE': 600,
-            'CONN_HEALTH_CHECKS': True,
-            'TIME_ZONE': None,
-        }
         return True
 
     def handle(self, *args, **options):

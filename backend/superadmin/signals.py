@@ -211,18 +211,8 @@ def delete_all_loja_data(sender, instance, **kwargs):
             DATABASE_URL = os.environ.get('DATABASE_URL', '')
             if 'postgres' in DATABASE_URL.lower() and db_name not in settings.DATABASES:
                 try:
-                    import dj_database_url
-                    default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-                    schema_name = db_name.replace('-', '_')
-                    settings.DATABASES[db_name] = {
-                        **default_db,
-                        'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-                        'CONN_MAX_AGE': 0,
-                        'ATOMIC_REQUESTS': False,
-                        'TIME_ZONE': getattr(settings, 'TIME_ZONE', None),
-                        'AUTOCOMMIT': True,  # obrigatório para Django (evita KeyError em ensure_connection/close)
-                        'CONN_HEALTH_CHECKS': default_db.get('CONN_HEALTH_CHECKS', False),
-                    }
+                    from core.db_config import ensure_loja_database_config
+                    ensure_loja_database_config(db_name, conn_max_age=0)
                 except Exception as e:
                     logger.warning(f"   ⚠️ Não foi possível configurar banco da loja {db_name}: {e}")
             if db_name in settings.DATABASES:

@@ -7,7 +7,6 @@ from django.core.management import call_command
 from django.conf import settings
 from django.db import connections
 from superadmin.models import Loja
-import dj_database_url
 import os
 
 
@@ -65,26 +64,9 @@ class Command(BaseCommand):
             self.stdout.write(f"\n{'='*60}")
             self.stdout.write(f"Loja: {loja.nome} (ID: {loja.id})")
             self.stdout.write(f"Database: {loja.database_name}")
-            # Schema no PostgreSQL = database_name (ex: loja_teste_5889), alinhado ao TenantMiddleware
-            schema_name = loja.database_name.replace('-', '_')
-            
-            # Adicionar banco às configurações se não existir
-            if loja.database_name not in settings.DATABASES:
-                # ✅ CORREÇÃO: conn_max_age=0 para fechar conexões imediatamente após migrations
-                # Evita "too many connections" ao migrar múltiplas lojas
-                default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-                settings.DATABASES[loja.database_name] = {
-                    **default_db,
-                    'OPTIONS': {
-                        'options': f'-c search_path={schema_name},public',
-                        'connect_timeout': 10,  # ✅ FIX: Timeout de conexão
-                    },
-                    'ATOMIC_REQUESTS': False,
-                    'AUTOCOMMIT': True,
-                    'CONN_MAX_AGE': 0,  # ✅ Fechar conexões imediatamente
-                    'CONN_HEALTH_CHECKS': False,  # ✅ Desabilitar health checks em migrations
-                    'TIME_ZONE': None,
-                }
+
+            from core.db_config import ensure_loja_database_config
+            if ensure_loja_database_config(loja.database_name, conn_max_age=0):
                 self.stdout.write(f"✅ Banco configurado")
             
             # Aplicar migrations

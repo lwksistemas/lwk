@@ -1,4 +1,3 @@
-import os
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from cabeleireiro.models import Funcionario, Profissional
@@ -7,26 +6,11 @@ from superadmin.models import Loja
 
 def _ensure_loja_db(loja):
     """Garante que o banco da loja está em settings.DATABASES. Retorna alias ou None."""
+    from core.db_config import ensure_loja_database_config
     db_name = getattr(loja, 'database_name', None)
     if not db_name:
         return None
-    if db_name in settings.DATABASES:
-        return db_name
-    try:
-        import dj_database_url
-        database_url = os.environ.get('DATABASE_URL', '')
-        if 'postgres' not in database_url.lower():
-            return None
-        default_db = dj_database_url.config(default=database_url, conn_max_age=0)
-        schema_name = db_name.replace('-', '_')
-        settings.DATABASES[db_name] = {
-            **default_db,
-            'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-            'CONN_MAX_AGE': 0,
-        }
-        return db_name
-    except Exception:
-        return None
+    return db_name if ensure_loja_database_config(db_name, conn_max_age=0) else None
 
 
 class Command(BaseCommand):

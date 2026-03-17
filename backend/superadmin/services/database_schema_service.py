@@ -4,16 +4,16 @@ Centraliza lógica de criação e configuração de schemas PostgreSQL.
 
 Isolamento por loja:
 - Ao criar uma loja (LojaCreateSerializer), é chamado configurar_schema_completo(loja).
-- Isso cria um schema PostgreSQL exclusivo (ex: loja_clinica_vida_5889) e aplica as
-  migrations nesse schema. Assim o backup e a aplicação usam apenas as tabelas desse
-  schema, sem risco de misturar dados de outras lojas ou do superadmin.
+- Isso cria um schema PostgreSQL exclusivo e aplica migrations nesse schema.
 """
 import logging
 import os
 import re
+
 from django.db import connection
 from django.conf import settings
-import dj_database_url
+
+from core.db_config import ensure_loja_database_config
 
 logger = logging.getLogger(__name__)
 
@@ -100,61 +100,13 @@ class DatabaseSchemaService:
     @staticmethod
     def adicionar_configuracao_django(loja) -> bool:
         """
-        Adiciona configuração do banco de dados no Django settings.
-        
-        CORREÇÃO Heroku: OPTIONS pode ser ignorado (PgBouncer). Inclui search_path
-        na URL de conexão para garantir que migrations criem tabelas no schema correto.
+        Adiciona configuração do banco da loja no Django settings.
+        CONN_MAX_AGE=60 para migrations (evita nova conexão sem search_path).
         """
-        schema_name = loja.database_name.replace('-', '_')
-        DATABASE_URL = os.environ.get('DATABASE_URL')
-        
-        if not DATABASE_URL:
-            logger.warning("DATABASE_URL não encontrada")
-            return False
-        
-        try:
-            from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
-            
-            # Incluir search_path na URL (funciona melhor no Heroku que OPTIONS isolado)
-            url_com_schema = DATABASE_URL
-            try:
-                parsed = urlparse(DATABASE_URL)
-                if parsed.scheme and 'postgres' in parsed.scheme.lower():
-                    query = parse_qs(parsed.query)
-                    options_val = f'-c search_path={schema_name},public'
-                    query['options'] = [options_val]
-                    new_query = urlencode(query, doseq=True)
-                    url_com_schema = urlunparse((
-                        parsed.scheme, parsed.netloc, parsed.path,
-                        parsed.params, new_query, parsed.fragment
-                    ))
-            except Exception as url_err:
-                logger.warning(f"URL com options falhou, usando OPTIONS: {url_err}")
-            
-            default_db = dj_database_url.config(default=url_com_schema, conn_max_age=0)
-            
-            # OPTIONS: garantir search_path (URL já tem; OPTIONS é fallback)
-            opts = dict(default_db.get('OPTIONS', {}))
-            if 'options' not in opts or 'search_path' not in str(opts.get('options', '')):
-                opts['options'] = opts.get('options', '') + f' -c search_path={schema_name},public'
-                opts['options'] = opts['options'].strip()
-            
-            settings.DATABASES[loja.database_name] = {
-                **default_db,
-                'OPTIONS': opts,
-                'ATOMIC_REQUESTS': False,
-                'AUTOCOMMIT': True,
-                'CONN_MAX_AGE': 0,
-                'CONN_HEALTH_CHECKS': False,
-                'TIME_ZONE': None,
-            }
-            
+        ok = ensure_loja_database_config(loja.database_name, conn_max_age=60)
+        if ok:
             logger.info(f"Configuração de banco adicionada para '{loja.database_name}'")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Erro ao adicionar configuração: {e}")
-            return False
+        return ok
     
     @staticmethod
     def aplicar_migrations(loja) -> bool:
@@ -185,12 +137,27 @@ class DatabaseSchemaService:
         if loja.database_name not in settings.DATABASES:
             raise RuntimeError(f"Config do banco '{loja.database_name}' não encontrada em settings.DATABASES!")
         
-        # 3. Fechar conexão existente para forçar nova conexão com search_path correto
+        schema_name = loja.database_name.replace('-', '_')
+        
+        # 3. Fechar conexão existente para forçar nova conexão com config atualizada
         if loja.database_name in connections:
             try:
                 connections[loja.database_name].close()
             except Exception as e:
                 logger.warning(f"Erro ao fechar conexão {loja.database_name}: {e}")
+        
+        # 4. Verificar search_path na conexão (diagnóstico)
+        try:
+            conn = connections[loja.database_name]
+            conn.ensure_connection()
+            with conn.cursor() as cur:
+                cur.execute('SHOW search_path')
+                sp = cur.fetchone()[0]
+                logger.info(f"   search_path da conexão {loja.database_name}: {sp}")
+                if schema_name not in sp:
+                    logger.warning(f"   ⚠️ search_path não contém {schema_name}! OPTIONS pode estar sendo ignorado.")
+        except Exception as e:
+            logger.warning(f"   Verificação search_path: {e}")
         
         tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
         
@@ -210,7 +177,6 @@ class DatabaseSchemaService:
         
         apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
         
-        schema_name = loja.database_name.replace('-', '_')
         try:
             for app in apps_to_migrate:
                 # Re-adicionar config antes de cada app (garantia extra contra volatilidade)

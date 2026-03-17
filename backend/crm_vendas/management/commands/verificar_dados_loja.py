@@ -5,8 +5,6 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db import connections
 from superadmin.models import Loja
-import dj_database_url
-import os
 
 
 class Command(BaseCommand):
@@ -27,18 +25,10 @@ class Command(BaseCommand):
         self.stdout.write(f"🏪 Loja: {loja.nome}")
         self.stdout.write(f"📊 Database: {loja.database_name}")
         
-        # Configurar banco
-        DATABASE_URL = os.environ.get('DATABASE_URL')
-        schema_name = loja.database_name.replace('-', '_')
-        default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-        settings.DATABASES[loja.database_name] = {
-            **default_db,
-            'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-            'TIME_ZONE': None,
-            'AUTOCOMMIT': True,
-            'ATOMIC_REQUESTS': False,
-            'CONN_MAX_AGE': 0,
-        }
+        from core.db_config import ensure_loja_database_config
+        if not ensure_loja_database_config(loja.database_name, conn_max_age=0):
+            self.stdout.write(self.style.ERROR('DATABASE_URL não configurada'))
+            return
         
         conn = connections[loja.database_name]
         

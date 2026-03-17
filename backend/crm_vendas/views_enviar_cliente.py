@@ -77,15 +77,8 @@ class DocumentoPdfPublicView(View):
             schema_name = db_name.replace('-', '_') if db_name else 'default'
             set_current_loja_id(loja_id)
 
-            if db_name not in settings.DATABASES:
-                DATABASE_URL = os.environ.get('DATABASE_URL')
-                if DATABASE_URL:
-                    default_db = dj_database_url.config(default=DATABASE_URL, conn_max_age=0)
-                    settings.DATABASES[db_name] = {
-                        **default_db,
-                        'OPTIONS': {'options': f'-c search_path={schema_name},public'},
-                        'CONN_MAX_AGE': 0,
-                    }
+            from core.db_config import ensure_loja_database_config
+            ensure_loja_database_config(db_name, conn_max_age=0)
             set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
 
             if tipo == 'proposta':

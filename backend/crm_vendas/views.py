@@ -16,7 +16,7 @@ from core.views import BaseModelViewSet
 from .models import (
     Vendedor, Conta, Lead, Contato, Oportunidade, Atividade,
     ProdutoServico, OportunidadeItem, Proposta, Contrato,
-    PropostaTemplate,
+    PropostaTemplate, ContratoTemplate,
 )
 from .serializers import (
     VendedorSerializer,
@@ -31,6 +31,7 @@ from .serializers import (
     OportunidadeItemSerializer,
     PropostaSerializer,
     PropostaTemplateSerializer,
+    ContratoTemplateSerializer,
     ContratoSerializer,
 )
 from tenants.middleware import get_current_loja_id
@@ -794,6 +795,42 @@ class PropostaTemplateViewSet(BaseModelViewSet):
         
         # Filtrar por loja_id explicitamente
         qs = PropostaTemplate.objects.filter(loja_id=loja_id)
+        
+        # Filtrar apenas ativos por padrão
+        ativo = self.request.query_params.get('ativo')
+        if ativo is None or ativo.lower() == 'true':
+            qs = qs.filter(ativo=True)
+        elif ativo.lower() == 'false':
+            qs = qs.filter(ativo=False)
+        
+        return qs
+
+    @action(detail=True, methods=['post'])
+    def marcar_padrao(self, request, pk=None):
+        """Marca este template como padrão (desmarca outros)."""
+        template = self.get_object()
+        template.is_padrao = True
+        template.save()  # O método save() do modelo já desmarca outros
+        return Response({'message': 'Template marcado como padrão.'})
+
+
+class ContratoTemplateViewSet(BaseModelViewSet):
+    """Templates de contratos para reutilização."""
+    queryset = ContratoTemplate.objects.all()
+    serializer_class = ContratoTemplateSerializer
+    pagination_class = CRMPagination
+
+    def get_queryset(self):
+        """Filtra templates por loja_id e aplica filtros adicionais."""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        
+        if not loja_id:
+            logger.warning(f"[ContratoTemplateViewSet] Acesso sem loja_id no contexto")
+            return ContratoTemplate.objects.none()
+        
+        # Filtrar por loja_id explicitamente
+        qs = ContratoTemplate.objects.filter(loja_id=loja_id)
         
         # Filtrar apenas ativos por padrão
         ativo = self.request.query_params.get('ativo')

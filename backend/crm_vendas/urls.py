@@ -12,6 +12,7 @@ from .views import (
     PropostaViewSet,
     PropostaTemplateViewSet,
     ContratoViewSet,
+    ContratoTemplateViewSet,
     crm_me,
     dashboard_data,
     crm_busca,
@@ -41,6 +42,7 @@ router.register(r'oportunidade-itens', OportunidadeItemViewSet, basename='crm-op
 router.register(r'propostas', PropostaViewSet, basename='crm-propostas')
 router.register(r'proposta-templates', PropostaTemplateViewSet, basename='crm-proposta-templates')
 router.register(r'contratos', ContratoViewSet, basename='crm-contratos')
+router.register(r'contrato-templates', ContratoTemplateViewSet, basename='crm-contrato-templates')
 
 urlpatterns = [
     path('documento-pdf/', DocumentoPdfPublicView.as_view()),

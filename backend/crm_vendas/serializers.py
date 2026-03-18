@@ -8,7 +8,7 @@ from django.conf import settings
 from .models import (
     Vendedor, Conta, Lead, Contato, Oportunidade, Atividade,
     ProdutoServico, OportunidadeItem, Proposta, Contrato, CRMConfig,
-    PropostaTemplate,
+    PropostaTemplate, ContratoTemplate,
 )
 
 logger = logging.getLogger(__name__)
@@ -290,6 +290,16 @@ class PropostaSerializer(serializers.ModelSerializer):
 class PropostaTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PropostaTemplate
+        fields = [
+            'id', 'nome', 'conteudo', 'is_padrao', 'ativo',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class ContratoTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContratoTemplate
         fields = [
             'id', 'nome', 'conteudo', 'is_padrao', 'ativo',
             'created_at', 'updated_at',

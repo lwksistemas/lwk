@@ -67,6 +67,10 @@ interface ModalPropostaFormProps {
   /** Callback para salvar o conteúdo atual como Proposta PADRAO */
   onSalvarComoPadrao?: (conteudo: string) => void;
   salvandoPadrao?: boolean;
+  /** Templates disponíveis */
+  templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
+  /** Callback quando seleciona template */
+  onSelecionarTemplate?: (conteudo: string) => void;
 }
 
 export default function ModalPropostaForm({
@@ -86,6 +90,8 @@ export default function ModalPropostaForm({
   isEdit = false,
   onSalvarComoPadrao,
   salvandoPadrao = false,
+  templates = [],
+  onSelecionarTemplate,
 }: ModalPropostaFormProps) {
   return (
     <div
@@ -125,6 +131,8 @@ export default function ModalPropostaForm({
             salvandoPadrao={salvandoPadrao}
             showCancel={true}
             onCancel={onClose}
+            templates={templates}
+            onSelecionarTemplate={onSelecionarTemplate}
           />
         </div>
       </div>

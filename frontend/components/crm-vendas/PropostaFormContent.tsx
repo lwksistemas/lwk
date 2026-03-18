@@ -24,6 +24,10 @@ export interface PropostaFormContentProps {
   fullWidth?: boolean;
   /** Se true, select de oportunidade mostra estado de carregamento */
   loadingOportunidades?: boolean;
+  /** Templates disponíveis para seleção */
+  templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
+  /** Callback quando seleciona um template */
+  onSelecionarTemplate?: (conteudo: string) => void;
 }
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
@@ -49,6 +53,8 @@ export default function PropostaFormContent({
   onCancel,
   fullWidth = false,
   loadingOportunidades = false,
+  templates = [],
+  onSelecionarTemplate,
 }: PropostaFormContentProps) {
   const formClass = fullWidth
     ? 'space-y-4 w-full md:grid md:grid-cols-2 md:gap-x-6 lg:gap-x-8'
@@ -242,6 +248,36 @@ export default function PropostaFormContent({
           required
         />
       </div>
+
+      {/* Seletor de Template */}
+      {templates.length > 0 && onSelecionarTemplate && (
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Usar template
+          </label>
+          <select
+            onChange={(e) => {
+              const template = templates.find(t => String(t.id) === e.target.value);
+              if (template) {
+                onSelecionarTemplate(template.conteudo);
+              }
+              e.target.value = ''; // Reset select
+            }}
+            className={inputClass}
+            defaultValue=""
+          >
+            <option value="">Selecione um template (opcional)</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nome} {t.is_padrao ? '(PADRÃO)' : ''}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Selecione um template para preencher o conteúdo automaticamente
+          </p>
+        </div>
+      )}
 
       {/* Conteúdo */}
       <div className="md:col-span-2">

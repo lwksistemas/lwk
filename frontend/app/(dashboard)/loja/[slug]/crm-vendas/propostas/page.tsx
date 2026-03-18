@@ -46,6 +46,14 @@ interface OportunidadeItem {
   observacao?: string;
 }
 
+interface PropostaTemplate {
+  id: number;
+  nome: string;
+  conteudo: string;
+  is_padrao: boolean;
+  ativo: boolean;
+}
+
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
 
 const STATUS_LABEL: Record<string, string> = {
@@ -78,6 +86,7 @@ export default function CrmVendasPropostasPage() {
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
+  const [templates, setTemplates] = useState<PropostaTemplate[]>([]);
 
   const handleEnviarCliente = async (propostaId: number, canal: 'email' | 'whatsapp') => {
     setEnviandoId(propostaId);
@@ -151,6 +160,15 @@ export default function CrmVendasPropostasPage() {
     }
   }, []);
 
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await apiClient.get<PropostaTemplate[] | { results: PropostaTemplate[] }>('/crm-vendas/proposta-templates/');
+      setTemplates(normalizeListResponse(res.data));
+    } catch {
+      setTemplates([]);
+    }
+  }, []);
+
   const handleSalvarComoPadrao = useCallback(async (conteudo: string) => {
     try {
       setSalvandoPadrao(true);
@@ -187,8 +205,9 @@ export default function CrmVendasPropostasPage() {
       loadOportunidades();
       loadLojaInfo();
       loadCrmConfig();
+      loadTemplates();
     }
-  }, [modalType, loadOportunidades, loadLojaInfo, loadCrmConfig]);
+  }, [modalType, loadOportunidades, loadLojaInfo, loadCrmConfig, loadTemplates]);
 
   useEffect(() => {
     if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
@@ -217,10 +236,14 @@ export default function CrmVendasPropostasPage() {
         status: item.status || 'rascunho',
       });
     } else if (type === 'create') {
+      // Usar template padrão se existir, senão usar proposta_conteudo_padrao
+      const templatePadrao = templates.find(t => t.is_padrao);
+      const conteudoInicial = templatePadrao?.conteudo || propostaConteudoPadrao;
+      
       setFormData({
         oportunidade_id: '',
         titulo: '',
-        conteudo: propostaConteudoPadrao,
+        conteudo: conteudoInicial,
         valor_total: '',
         status: 'rascunho',
       });
@@ -408,6 +431,8 @@ export default function CrmVendasPropostasPage() {
           isEdit={modalType === 'edit'}
           onSalvarComoPadrao={handleSalvarComoPadrao}
           salvandoPadrao={salvandoPadrao}
+          templates={templates}
+          onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
         />
       )}
 

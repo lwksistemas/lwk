@@ -675,6 +675,15 @@ class ProdutoServicoViewSet(BaseModelViewSet):
     serializer_class = ProdutoServicoSerializer
     pagination_class = CRMPagination
 
+    def perform_create(self, serializer):
+        """Garante que loja_id seja definido ao criar produto/serviço."""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        if loja_id:
+            serializer.save(loja_id=loja_id)
+        else:
+            serializer.save()
+
     def get_queryset(self):
         qs = super().get_queryset()
         ativo = self.request.query_params.get('ativo')

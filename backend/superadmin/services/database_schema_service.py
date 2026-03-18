@@ -181,13 +181,18 @@ class DatabaseSchemaService:
             for app in apps_to_migrate:
                 # Re-adicionar config antes de cada app (garantia extra contra volatilidade)
                 DatabaseSchemaService.adicionar_configuracao_django(loja)
+                
+                # CORREÇÃO v1003: Fechar conexão antes de migrate para forçar nova conexão
+                # com backend customizado que define search_path
+                if loja.database_name in connections:
+                    try:
+                        connections[loja.database_name].close()
+                        logger.info(f"   Conexão {loja.database_name} fechada antes de migrate {app}")
+                    except Exception as e:
+                        logger.warning(f"   Erro ao fechar conexão: {e}")
+                
                 try:
-                    # search_path em OPTIONS nem sempre é respeitado pelo migrate (ex: PgBouncer).
-                    # Definir explicitamente na conexão antes de cada migrate.
-                    conn = connections[loja.database_name]
-                    conn.ensure_connection()
-                    with conn.cursor() as cur:
-                        cur.execute(f'SET search_path TO "{schema_name}", public')
+                    # call_command cria nova conexão - backend customizado define search_path
                     call_command('migrate', app, '--database', loja.database_name, verbosity=0)
                     logger.info(f"Migrations aplicadas: {app}")
                 except Exception as e:

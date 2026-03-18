@@ -182,6 +182,30 @@ def gerar_pdf_proposta(proposta) -> BytesIO:
     conteudo = _strip_html(proposta.conteudo) if proposta.conteudo else 'Conteúdo não informado.'
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
+    elements.append(Spacer(1, 1*cm))
+
+    # Assinaturas
+    nome_vendedor = getattr(proposta, 'nome_vendedor_assinatura', None) or '___________________________'
+    nome_cliente = getattr(proposta, 'nome_cliente_assinatura', None) or '___________________________'
+    
+    elements.append(Paragraph('<b>Assinaturas</b>', section_style))
+    elements.append(Spacer(1, 0.5*cm))
+    
+    # Tabela de assinaturas (2 colunas)
+    assinatura_data = [
+        ['___________________________', '___________________________'],
+        [nome_vendedor, nome_cliente],
+        ['Vendedor', 'Cliente'],
+    ]
+    assinatura_table = Table(assinatura_data, colWidths=[8*cm, 8*cm])
+    assinatura_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, 0), 20),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 5),
+    ]))
+    elements.append(assinatura_table)
 
     doc.build(elements)
     buffer.seek(0)
@@ -285,6 +309,30 @@ def gerar_pdf_contrato(contrato) -> BytesIO:
     conteudo = _strip_html(contrato.conteudo) if contrato.conteudo else 'Conteúdo não informado.'
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
+    elements.append(Spacer(1, 1*cm))
+
+    # Assinaturas
+    nome_vendedor = getattr(contrato, 'nome_vendedor_assinatura', None) or '___________________________'
+    nome_cliente = getattr(contrato, 'nome_cliente_assinatura', None) or '___________________________'
+    
+    elements.append(Paragraph('<b>Assinaturas</b>', section_style))
+    elements.append(Spacer(1, 0.5*cm))
+    
+    # Tabela de assinaturas (2 colunas)
+    assinatura_data = [
+        ['___________________________', '___________________________'],
+        [nome_vendedor, nome_cliente],
+        ['Vendedor', 'Cliente'],
+    ]
+    assinatura_table = Table(assinatura_data, colWidths=[8*cm, 8*cm])
+    assinatura_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, 0), 20),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 5),
+    ]))
+    elements.append(assinatura_table)
 
     doc.build(elements)
     buffer.seek(0)

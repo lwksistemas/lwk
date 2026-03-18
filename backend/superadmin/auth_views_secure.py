@@ -290,7 +290,10 @@ class SecureLoginView(APIView):
                         loja = vu.loja
                         response_data['precisa_trocar_senha'] = vu.precisa_trocar_senha
                         response_data['vendedor_id'] = vu.vendedor_id
-                        response_data['is_vendedor'] = True
+                        # IMPORTANTE: Owner NUNCA é marcado como vendedor, mesmo se vinculado
+                        # Apenas vendedores comuns (não-owners) são marcados como is_vendedor
+                        if loja.owner_id != user.id:
+                            response_data['is_vendedor'] = True
             if loja:
                 if not response_data.get('is_professional'):
                     # Owner: verificar senha provisória da loja

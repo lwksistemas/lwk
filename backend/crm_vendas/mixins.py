@@ -12,6 +12,9 @@ class CRMPermissionMixin:
     """
     Mixin para controle de acesso de vendedores.
     
+    IMPORTANTE: Proprietário da loja (owner) SEMPRE tem acesso total, mesmo se vinculado como vendedor.
+    Apenas vendedores comuns (não-owners) são bloqueados.
+    
     Vendedores não podem acessar configurações administrativas.
     Apenas proprietários da loja têm acesso total.
     
@@ -26,16 +29,33 @@ class CRMPermissionMixin:
     
     def bloquear_vendedor(self, request, mensagem=None):
         """
-        Retorna Response 403 se o usuário for vendedor (VendedorUsuario).
+        Retorna Response 403 se o usuário for vendedor comum (VendedorUsuario não-owner).
         Retorna None se for proprietário (permitido).
+        
+        IMPORTANTE: Owner SEMPRE tem acesso total, mesmo se vinculado como vendedor.
         
         Args:
             request: Request object
             mensagem: Mensagem customizada (opcional)
         
         Returns:
-            Response 403 se vendedor, None se proprietário
+            Response 403 se vendedor comum, None se proprietário
         """
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import Loja
+        
+        # Verificar se é proprietário da loja
+        loja_id = get_current_loja_id()
+        if loja_id:
+            try:
+                loja = Loja.objects.using('default').filter(id=loja_id).first()
+                if loja and loja.owner_id == request.user.id:
+                    # Owner SEMPRE tem acesso total
+                    return None
+            except Exception:
+                pass
+        
+        # Verificar se é vendedor comum (não-owner)
         if is_vendedor_usuario(request):
             msg = mensagem or 'Vendedores não têm permissão para acessar configurações.'
             return Response(

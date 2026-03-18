@@ -88,6 +88,9 @@ def require_admin_access(message='Vendedores não têm permissão para acessar e
     """
     Decorator para bloquear acesso de vendedores a funcionalidades administrativas.
     
+    IMPORTANTE: Proprietário da loja (owner) SEMPRE tem acesso total, mesmo se vinculado como vendedor.
+    Apenas vendedores comuns (não-owners) são bloqueados.
+    
     Elimina código duplicado de verificação de permissão em múltiplos métodos.
     
     Args:
@@ -99,19 +102,31 @@ def require_admin_access(message='Vendedores não têm permissão para acessar e
             return super().update(request, *args, **kwargs)
     
     Returns:
-        Decorator function que retorna 403 se usuário for vendedor
+        Decorator function que retorna 403 se usuário for vendedor (não-owner)
     """
     def decorator(func):
         @wraps(func)
         def wrapper(self, request, *args, **kwargs):
-            # Verificar se é vendedor
+            # Verificar se é proprietário da loja
+            loja_id = get_current_loja_id()
+            if loja_id:
+                from superadmin.models import Loja
+                try:
+                    loja = Loja.objects.using('default').filter(id=loja_id).first()
+                    if loja and loja.owner_id == request.user.id:
+                        # Owner SEMPRE tem acesso total
+                        return func(self, request, *args, **kwargs)
+                except Exception:
+                    pass
+            
+            # Verificar se é vendedor comum (não-owner)
             if is_vendedor_usuario(request):
                 return Response(
                     {'detail': message},
                     status=status.HTTP_403_FORBIDDEN
                 )
             
-            # Executar função original se não for vendedor
+            # Executar função original
             return func(self, request, *args, **kwargs)
         return wrapper
     return decorator

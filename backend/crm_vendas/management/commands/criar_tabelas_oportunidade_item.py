@@ -4,7 +4,6 @@ Uso: python manage.py criar_tabelas_oportunidade_item
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
-from tenants.utils import get_tenant_database_alias
 from superadmin.models import Loja
 
 
@@ -21,8 +20,6 @@ class Command(BaseCommand):
         
         for loja in lojas:
             try:
-                db_alias = get_tenant_database_alias(loja)
-                
                 with connection.cursor() as cursor:
                     cursor.execute(f"SET search_path TO {loja.database_name}, public;")
                     

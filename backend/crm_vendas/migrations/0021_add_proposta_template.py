@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0001_initial'),
+        ('crm_vendas', '0020_add_proposta_conteudo_padrao'),
     ]
 
     operations = [

@@ -102,6 +102,8 @@ git push heroku master
 
 **Versão esperada**: v1126
 
+**Versão implantada**: ✅ v1126 (18/03/2026 11:39)
+
 ---
 
 ## ✅ RESULTADO ESPERADO

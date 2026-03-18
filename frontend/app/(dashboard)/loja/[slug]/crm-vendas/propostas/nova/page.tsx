@@ -28,6 +28,14 @@ interface OportunidadeItem {
   observacao?: string;
 }
 
+interface PropostaTemplate {
+  id: number;
+  nome: string;
+  conteudo: string;
+  is_padrao: boolean;
+  ativo: boolean;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   rascunho: 'Rascunho',
   enviada: 'Enviada',
@@ -49,6 +57,8 @@ export default function NovaPropostaPage() {
     conteudo: '',
     valor_total: '',
     status: 'rascunho' as string,
+    nome_vendedor_assinatura: '',
+    nome_cliente_assinatura: '',
   });
   const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
   const [loadingOportunidades, setLoadingOportunidades] = useState(true);
@@ -56,9 +66,11 @@ export default function NovaPropostaPage() {
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
+  const [templates, setTemplates] = useState<PropostaTemplate[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
+  const [vendedorNome, setVendedorNome] = useState<string>('');
 
   const loadOportunidades = useCallback(async () => {
     setLoadingOportunidades(true);
@@ -107,6 +119,15 @@ export default function NovaPropostaPage() {
     }
   }, []);
 
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await apiClient.get<PropostaTemplate[] | { results: PropostaTemplate[] }>('/crm-vendas/proposta-templates/');
+      setTemplates(normalizeList(res.data));
+    } catch {
+      setTemplates([]);
+    }
+  }, []);
+
   const loadLeadInfo = useCallback(async (leadId: number) => {
     if (!leadId) {
       setLeadInfo(null);
@@ -115,22 +136,46 @@ export default function NovaPropostaPage() {
     try {
       const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
       setLeadInfo(res.data);
+      // Preencher automaticamente o nome do cliente
+      if (res.data.nome && !formData.nome_cliente_assinatura) {
+        setFormData((f) => ({ ...f, nome_cliente_assinatura: res.data.nome }));
+      }
     } catch {
       setLeadInfo(null);
     }
-  }, []);
+  }, [formData.nome_cliente_assinatura]);
+
+  const loadVendedorInfo = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ nome: string }>('/crm-vendas/vendedores/me/');
+      setVendedorNome(res.data.nome);
+      // Preencher automaticamente o nome do vendedor
+      if (res.data.nome && !formData.nome_vendedor_assinatura) {
+        setFormData((f) => ({ ...f, nome_vendedor_assinatura: res.data.nome }));
+      }
+    } catch {
+      setVendedorNome('');
+    }
+  }, [formData.nome_vendedor_assinatura]);
 
   useEffect(() => {
     loadOportunidades();
     loadLojaInfo();
     loadCrmConfig();
-  }, [loadOportunidades, loadLojaInfo, loadCrmConfig]);
+    loadTemplates();
+    loadVendedorInfo();
+  }, [loadOportunidades, loadLojaInfo, loadCrmConfig, loadTemplates, loadVendedorInfo]);
 
   useEffect(() => {
-    if (propostaConteudoPadrao && !formData.conteudo) {
-      setFormData((f) => ({ ...f, conteudo: propostaConteudoPadrao }));
+    // Carregar template padrão se existir, senão usar proposta_conteudo_padrao
+    if (!formData.conteudo) {
+      const templatePadrao = templates.find(t => t.is_padrao);
+      const conteudoInicial = templatePadrao?.conteudo || propostaConteudoPadrao;
+      if (conteudoInicial) {
+        setFormData((f) => ({ ...f, conteudo: conteudoInicial }));
+      }
     }
-  }, [propostaConteudoPadrao]);
+  }, [templates, propostaConteudoPadrao]);
 
   useEffect(() => {
     if (formData.oportunidade_id) {
@@ -195,6 +240,8 @@ export default function NovaPropostaPage() {
         conteudo: formData.conteudo,
         valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
         status: formData.status,
+        nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
+        nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
       });
       router.push(`/loja/${slug}/crm-vendas/propostas`);
     } catch (err: unknown) {
@@ -243,6 +290,9 @@ export default function NovaPropostaPage() {
           showCancel={true}
           onCancel={() => router.push(`/loja/${slug}/crm-vendas/propostas`)}
           fullWidth
+          templates={templates}
+          onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
+          vendedorNome={vendedorNome}
         />
       </div>
     </div>

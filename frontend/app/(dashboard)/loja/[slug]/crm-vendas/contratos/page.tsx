@@ -63,9 +63,12 @@ export default function CrmVendasContratosPage() {
     conteudo: '',
     valor_total: '',
     status: 'rascunho' as string,
+    nome_vendedor_assinatura: '',
+    nome_cliente_assinatura: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
+  const [vendedorNome, setVendedorNome] = useState<string>('');
 
   const handleEnviarCliente = async (contratoId: number, canal: 'email' | 'whatsapp') => {
     setEnviandoId(contratoId);
@@ -123,10 +126,27 @@ export default function CrmVendasContratosPage() {
     try {
       const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
       setLeadInfo(res.data);
+      // Preencher automaticamente o nome do cliente
+      if (res.data.nome && !formData.nome_cliente_assinatura) {
+        setFormData((f) => ({ ...f, nome_cliente_assinatura: res.data.nome }));
+      }
     } catch {
       setLeadInfo(null);
     }
-  }, []);
+  }, [formData.nome_cliente_assinatura]);
+
+  const loadVendedorInfo = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ nome: string }>('/crm-vendas/vendedores/me/');
+      setVendedorNome(res.data.nome);
+      // Preencher automaticamente o nome do vendedor
+      if (res.data.nome && !formData.nome_vendedor_assinatura) {
+        setFormData((f) => ({ ...f, nome_vendedor_assinatura: res.data.nome }));
+      }
+    } catch {
+      setVendedorNome('');
+    }
+  }, [formData.nome_vendedor_assinatura]);
 
   useEffect(() => {
     loadContratos();
@@ -136,8 +156,9 @@ export default function CrmVendasContratosPage() {
     if (modalType === 'create' || modalType === 'edit') {
       loadOportunidades();
       loadLojaInfo();
+      loadVendedorInfo();
     }
-  }, [modalType, loadOportunidades, loadLojaInfo]);
+  }, [modalType, loadOportunidades, loadLojaInfo, loadVendedorInfo]);
 
   useEffect(() => {
     if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
@@ -163,6 +184,8 @@ export default function CrmVendasContratosPage() {
         conteudo: item.conteudo || '',
         valor_total: item.valor_total || '',
         status: item.status || 'rascunho',
+        nome_vendedor_assinatura: '',
+        nome_cliente_assinatura: '',
       });
     } else if (type === 'create') {
       setFormData({
@@ -172,6 +195,8 @@ export default function CrmVendasContratosPage() {
         conteudo: '',
         valor_total: '',
         status: 'rascunho',
+        nome_vendedor_assinatura: '',
+        nome_cliente_assinatura: '',
       });
       setLeadInfo(null);
     }
@@ -215,6 +240,8 @@ export default function CrmVendasContratosPage() {
         conteudo: formData.conteudo,
         valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
         status: formData.status,
+        nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
+        nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
       };
       if (modalType === 'create') {
         await apiClient.post('/crm-vendas/contratos/', payload);
@@ -264,14 +291,23 @@ export default function CrmVendasContratosPage() {
             Gere contratos a partir das oportunidades fechadas como ganhas
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => openModal('create')}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
-        >
-          <Plus size={18} />
-          <span>Novo Contrato</span>
-        </button>
+        <div className="flex gap-2">
+          <Link
+            href={`/loja/${slug}/crm-vendas/contrato-templates`}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-sm font-medium transition-colors shadow-sm"
+          >
+            <FileSignature size={18} />
+            <span>Gerenciar Templates</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => openModal('create')}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={18} />
+            <span>Novo Contrato</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -354,6 +390,7 @@ export default function CrmVendasContratosPage() {
           onSubmit={handleSubmit}
           onClose={closeModal}
           isEdit={modalType === 'edit'}
+          vendedorNome={vendedorNome}
         />
       )}
 

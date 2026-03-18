@@ -47,6 +47,8 @@ export interface FormDataProposta {
   conteudo: string;
   valor_total: string;
   status: string;
+  nome_vendedor_assinatura?: string;
+  nome_cliente_assinatura?: string;
 }
 
 interface ModalPropostaFormProps {

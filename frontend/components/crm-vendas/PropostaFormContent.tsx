@@ -28,6 +28,8 @@ export interface PropostaFormContentProps {
   templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
   /** Callback quando seleciona um template */
   onSelecionarTemplate?: (conteudo: string) => void;
+  /** Nome do vendedor logado para preencher automaticamente */
+  vendedorNome?: string;
 }
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
@@ -55,6 +57,7 @@ export default function PropostaFormContent({
   loadingOportunidades = false,
   templates = [],
   onSelecionarTemplate,
+  vendedorNome,
 }: PropostaFormContentProps) {
   const formClass = fullWidth
     ? 'space-y-4 w-full md:grid md:grid-cols-2 md:gap-x-6 lg:gap-x-8'
@@ -315,6 +318,43 @@ export default function PropostaFormContent({
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+      </div>
+
+      {/* Assinaturas */}
+      <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-600 pt-4 mt-2">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Assinaturas</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Nome do Vendedor
+            </label>
+            <input
+              type="text"
+              value={form.nome_vendedor_assinatura || ''}
+              onChange={(e) => onFormChange((f) => ({ ...f, nome_vendedor_assinatura: e.target.value }))}
+              className={inputClass}
+              placeholder={vendedorNome || 'Nome do vendedor'}
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Nome que aparecerá na assinatura do PDF
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Nome do Cliente
+            </label>
+            <input
+              type="text"
+              value={form.nome_cliente_assinatura || ''}
+              onChange={(e) => onFormChange((f) => ({ ...f, nome_cliente_assinatura: e.target.value }))}
+              className={inputClass}
+              placeholder={leadInfo?.nome || 'Nome do cliente'}
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Nome que aparecerá na assinatura do PDF
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Botões */}

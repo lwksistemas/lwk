@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { Plus, Edit2, Trash2, X, Star, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Star, FileSignature } from 'lucide-react';
 
-interface PropostaTemplate {
+interface ContratoTemplate {
   id: number;
   nome: string;
   conteudo: string;
@@ -18,14 +18,14 @@ interface PropostaTemplate {
 
 type ModalType = 'create' | 'edit' | 'delete' | null;
 
-export default function PropostaTemplatesPage() {
+export default function ContratoTemplatesPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
-  const [templates, setTemplates] = useState<PropostaTemplate[]>([]);
+  const [templates, setTemplates] = useState<ContratoTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
-  const [selected, setSelected] = useState<PropostaTemplate | null>(null);
+  const [selected, setSelected] = useState<ContratoTemplate | null>(null);
   const [formData, setFormData] = useState({
     nome: '',
     conteudo: '',
@@ -37,7 +37,7 @@ export default function PropostaTemplatesPage() {
   const loadTemplates = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<PropostaTemplate[] | { results: PropostaTemplate[] }>('/crm-vendas/proposta-templates/');
+      const res = await apiClient.get<ContratoTemplate[] | { results: ContratoTemplate[] }>('/crm-vendas/contrato-templates/');
       setTemplates(normalizeListResponse(res.data));
       setError(null);
     } catch (err: unknown) {
@@ -52,7 +52,7 @@ export default function PropostaTemplatesPage() {
     loadTemplates();
   }, [loadTemplates]);
 
-  const openModal = (type: ModalType, item?: PropostaTemplate) => {
+  const openModal = (type: ModalType, item?: ContratoTemplate) => {
     setModalType(type);
     setSelected(item || null);
     if (type === 'edit' && item) {
@@ -92,9 +92,9 @@ export default function PropostaTemplatesPage() {
         ativo: formData.ativo,
       };
       if (modalType === 'create') {
-        await apiClient.post('/crm-vendas/proposta-templates/', payload);
+        await apiClient.post('/crm-vendas/contrato-templates/', payload);
       } else if (modalType === 'edit' && selected) {
-        await apiClient.put(`/crm-vendas/proposta-templates/${selected.id}/`, payload);
+        await apiClient.put(`/crm-vendas/contrato-templates/${selected.id}/`, payload);
       }
       await loadTemplates();
       closeModal();
@@ -110,7 +110,7 @@ export default function PropostaTemplatesPage() {
     if (!selected) return;
     try {
       setSubmitting(true);
-      await apiClient.delete(`/crm-vendas/proposta-templates/${selected.id}/`);
+      await apiClient.delete(`/crm-vendas/contrato-templates/${selected.id}/`);
       await loadTemplates();
       closeModal();
     } catch (err: unknown) {
@@ -123,7 +123,7 @@ export default function PropostaTemplatesPage() {
 
   const handleMarcarPadrao = async (id: number) => {
     try {
-      await apiClient.post(`/crm-vendas/proposta-templates/${id}/marcar_padrao/`);
+      await apiClient.post(`/crm-vendas/contrato-templates/${id}/marcar_padrao/`);
       await loadTemplates();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -144,9 +144,9 @@ export default function PropostaTemplatesPage() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Templates de Propostas</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Templates de Contratos</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Crie templates reutilizáveis para suas propostas comerciais
+            Crie templates reutilizáveis para seus contratos
           </p>
         </div>
         <button
@@ -168,7 +168,7 @@ export default function PropostaTemplatesPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {templates.length === 0 ? (
           <div className="col-span-full py-12 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
-            <FileText size={48} className="mx-auto mb-3 opacity-30" />
+            <FileSignature size={48} className="mx-auto mb-3 opacity-30" />
             <p className="font-medium">Nenhum template cadastrado</p>
             <p className="text-sm mt-1">Clique em &quot;Novo Template&quot; para criar</p>
           </div>
@@ -255,7 +255,7 @@ export default function PropostaTemplatesPage() {
                     value={formData.nome}
                     onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                    placeholder="Ex: Proposta Padrão, Proposta Premium"
+                    placeholder="Ex: Contrato Padrão, Contrato Premium"
                     required
                   />
                 </div>

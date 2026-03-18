@@ -173,6 +173,52 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Retorna informações do vendedor logado."""
+        from superadmin.models import VendedorUsuario
+        
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'detail': 'Contexto de loja não encontrado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Verificar se é o owner (admin)
+        from superadmin.models import Loja
+        try:
+            loja = Loja.objects.select_related('owner').get(id=loja_id)
+            if request.user == loja.owner:
+                nome = request.user.get_full_name() or request.user.username or (request.user.email or '').split('@')[0]
+                return Response({
+                    'id': 'admin',
+                    'nome': nome,
+                    'email': request.user.email or '',
+                    'is_admin': True,
+                })
+        except Loja.DoesNotExist:
+            pass
+        
+        # Verificar se é vendedor
+        try:
+            vu = VendedorUsuario.objects.using('default').select_related('vendedor').get(
+                user=request.user,
+                loja_id=loja_id,
+            )
+            vendedor = vu.vendedor
+            return Response({
+                'id': vendedor.id,
+                'nome': vendedor.nome,
+                'email': vendedor.email or '',
+                'is_admin': vendedor.is_admin,
+            })
+        except VendedorUsuario.DoesNotExist:
+            return Response(
+                {'detail': 'Vendedor não encontrado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
     @action(detail=False, methods=['post'])
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def reenviar_senha_administrador(self, request):

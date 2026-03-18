@@ -55,6 +55,7 @@ export default function CrmVendasPipelinePage() {
   const [propostasOportunidade, setPropostasOportunidade] = useState<{ id: number; titulo: string }[]>([]);
   const [contratoOportunidade, setContratoOportunidade] = useState<{ id: number; titulo: string } | null>(null);
   const [enviandoEnvio, setEnviandoEnvio] = useState(false);
+  const [modalExcluir, setModalExcluir] = useState(false);
   const [leads, setLeads] = useState<LeadOption[]>([]);
   const [produtosServicos, setProdutosServicos] = useState<ProdutoServicoOption[]>([]);
   const [formCriar, setFormCriar] = useState({
@@ -218,8 +219,25 @@ export default function CrmVendasPipelinePage() {
     setDataFechamentoGanho(op.data_fechamento_ganho || '');
     setDataFechamentoPerdido(op.data_fechamento_perdido || '');
     setFormErro(null);
+    setModalExcluir(false);
     setPropostasOportunidade([]);
     setContratoOportunidade(null);
+  };
+
+  const handleExcluirOportunidade = async () => {
+    if (!oportunidadeEditar) return;
+    setEnviando(true);
+    try {
+      await apiClient.delete(`/crm-vendas/oportunidades/${oportunidadeEditar.id}/`);
+      setOportunidadeEditar(null);
+      setModalExcluir(false);
+      loadOportunidades(setOportunidades, setError);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setFormErro(e.response?.data?.detail || 'Erro ao excluir oportunidade.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
   useEffect(() => {
@@ -692,27 +710,61 @@ export default function CrmVendasPipelinePage() {
                   )}
                 </div>
               )}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => !enviando && setOportunidadeEditar(null)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={enviando || (
-                    etapaSelecionada === oportunidadeEditar.etapa &&
-                    valorComissaoEdit === (oportunidadeEditar.valor_comissao || '') &&
-                    dataFechamentoGanho === (oportunidadeEditar.data_fechamento_ganho || '') &&
-                    dataFechamentoPerdido === (oportunidadeEditar.data_fechamento_perdido || '')
-                  )}
-                  className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
-                >
-                  {enviando ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
+              {!modalExcluir ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => !enviando && setOportunidadeEditar(null)}
+                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalExcluir(true)}
+                    disabled={enviando}
+                    className="px-4 py-2 rounded-lg border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                  >
+                    Excluir
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={enviando || (
+                      etapaSelecionada === oportunidadeEditar.etapa &&
+                      valorComissaoEdit === (oportunidadeEditar.valor_comissao || '') &&
+                      dataFechamentoGanho === (oportunidadeEditar.data_fechamento_ganho || '') &&
+                      dataFechamentoPerdido === (oportunidadeEditar.data_fechamento_perdido || '')
+                    )}
+                    className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
+                  >
+                    {enviando ? 'Salvando...' : 'Salvar'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Tem certeza que deseja excluir a oportunidade &quot;{oportunidadeEditar.titulo}&quot;? Esta ação não pode ser desfeita.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setModalExcluir(false)}
+                      disabled={enviando}
+                      className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExcluirOportunidade}
+                      disabled={enviando}
+                      className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium"
+                    >
+                      {enviando ? 'Excluindo...' : 'Confirmar exclusão'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         </div>

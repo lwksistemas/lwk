@@ -715,6 +715,21 @@ class OportunidadeItemViewSet(VendedorFilterMixin, BaseModelViewSet):
     vendedor_filter_field = 'oportunidade__vendedor_id'
     vendedor_filter_related = []
 
+    @invalidate_cache_on_change('oportunidades', 'dashboard')
+    def perform_create(self, serializer):
+        """Invalida cache de oportunidades ao criar item."""
+        super().perform_create(serializer)
+
+    @invalidate_cache_on_change('oportunidades', 'dashboard')
+    def perform_update(self, serializer):
+        """Invalida cache de oportunidades ao atualizar item."""
+        super().perform_update(serializer)
+
+    @invalidate_cache_on_change('oportunidades', 'dashboard')
+    def perform_destroy(self, instance):
+        """Invalida cache de oportunidades ao excluir item."""
+        super().perform_destroy(instance)
+
     def get_queryset(self):
         qs = super().get_queryset()
         oportunidade_id = self.request.query_params.get('oportunidade_id')

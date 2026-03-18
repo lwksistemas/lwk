@@ -181,18 +181,21 @@ export default function CrmVendasPipelinePage() {
       .then(async (res) => {
         const oportunidadeId = res.data?.id;
         if (oportunidadeId && formCriar.itens.length > 0) {
-          for (const item of formCriar.itens) {
+          // ✅ OTIMIZAÇÃO: Criar todos os itens em paralelo
+          const promises = formCriar.itens.map((item) => {
             const qty = parseFloat(item.quantidade) || 1;
             const preco = parseFloat(item.preco_unitario) || 0;
             if (qty > 0 && preco >= 0) {
-              await apiClient.post('/crm-vendas/oportunidade-itens/', {
+              return apiClient.post('/crm-vendas/oportunidade-itens/', {
                 oportunidade: oportunidadeId,
                 produto_servico: item.produto_servico_id,
                 quantidade: qty,
                 preco_unitario: preco,
               });
             }
-          }
+            return Promise.resolve();
+          });
+          await Promise.all(promises);
         }
         setModalCriar(false);
         loadOportunidades(setOportunidades, setError);

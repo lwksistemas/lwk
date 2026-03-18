@@ -33,7 +33,7 @@ def criar_loja_teste():
         'nome_owner': 'Teste CRM',
         'senha_owner': 'Teste@123',
         'tipo_app': 'crm-vendas',
-        'plano': 'basico'
+        'plano': 'basico-crm'
     }
     
     print(f"\n📋 Dados da loja:")

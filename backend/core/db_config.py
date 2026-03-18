@@ -21,8 +21,8 @@ def get_loja_database_config(
     """
     Retorna a configuração Django para banco de uma loja.
 
-    Usa backend customizado (core.db_backends.postgresql_schema) que define
-    search_path em init_connection_state - funciona com PgBouncer/Heroku.
+    CORREÇÃO v1007: Removido backend customizado que estava sendo ignorado.
+    Volta para ENGINE padrão + OPTIONS com search_path na URL.
 
     Args:
         database_name: Nome do banco (ex: loja_22239255889)
@@ -48,17 +48,37 @@ def get_loja_database_config(
         return None
 
     try:
-        default_db = dj_database_url.config(default=database_url, conn_max_age=0)
+        # Adicionar search_path na URL (funciona melhor que backend customizado)
+        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+        
+        url_com_schema = database_url
+        try:
+            parsed = urlparse(database_url)
+            if parsed.scheme and 'postgres' in parsed.scheme.lower():
+                query = parse_qs(parsed.query)
+                options_val = f'-c search_path={schema_name},public'
+                query['options'] = [options_val]
+                new_query = urlencode(query, doseq=True)
+                url_com_schema = urlunparse((
+                    parsed.scheme, parsed.netloc, parsed.path,
+                    parsed.params, new_query, parsed.fragment
+                ))
+        except Exception as url_err:
+            logger.warning(f"URL com options falhou: {url_err}")
+        
+        default_db = dj_database_url.config(default=url_com_schema, conn_max_age=0)
         opts = dict(default_db.get('OPTIONS', {}) or {})
+        
+        # Garantir search_path em OPTIONS (fallback se URL não funcionou)
         base_opt = opts.get('options', '') or ''
+        if 'search_path' not in base_opt:
+            opts['options'] = (base_opt + f' -c search_path={schema_name},public').strip()
         if '-c statement_timeout=' not in base_opt:
-            opts['options'] = (base_opt + ' -c statement_timeout=25000').strip()
+            opts['options'] = (opts['options'] + ' -c statement_timeout=25000').strip()
 
         return {
             **default_db,
-            'ENGINE': 'core.db_backends.postgresql_schema',
             'OPTIONS': opts,
-            'SCHEMA_NAME': schema_name,
             'ATOMIC_REQUESTS': False,
             'AUTOCOMMIT': True,
             'CONN_MAX_AGE': conn_max_age,

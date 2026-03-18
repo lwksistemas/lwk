@@ -177,46 +177,31 @@ class DatabaseSchemaService:
         
         apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
         
+        # CORREÇÃO v1007: Reverter para abordagem que funcionava ANTES do backend customizado
+        # Backend customizado está sendo ignorado pelo Django migrate
+        # Solução: Usar OPTIONS na URL + SET search_path na sessão
         try:
             for app in apps_to_migrate:
-                # Re-adicionar config antes de cada app (garantia extra contra volatilidade)
                 DatabaseSchemaService.adicionar_configuracao_django(loja)
                 
-                # CORREÇÃO v1005: Usar PGOPTIONS para garantir search_path
-                # call_command('migrate') ignora backend customizado em alguns casos
-                # PGOPTIONS é respeitado pelo psycopg2 diretamente
-                import os
-                old_pgoptions = os.environ.get('PGOPTIONS')
+                # Fechar conexão para forçar nova
+                if loja.database_name in connections:
+                    try:
+                        connections[loja.database_name].close()
+                        logger.info(f"   Conexão {loja.database_name} fechada antes de migrate {app}")
+                    except Exception as e:
+                        logger.warning(f"   Erro ao fechar conexão: {e}")
+                
+                # Executar migrate
                 try:
-                    # Definir search_path via variável de ambiente
-                    os.environ['PGOPTIONS'] = f'-c search_path="{schema_name}",public'
-                    logger.info(f"   PGOPTIONS definido: {os.environ['PGOPTIONS']}")
-                    
-                    # Fechar conexão para forçar nova conexão com PGOPTIONS
-                    if loja.database_name in connections:
-                        try:
-                            connections[loja.database_name].close()
-                            logger.info(f"   Conexão {loja.database_name} fechada antes de migrate {app}")
-                        except Exception as e:
-                            logger.warning(f"   Erro ao fechar conexão: {e}")
-                    
-                    # call_command cria nova conexão que usa PGOPTIONS
                     call_command('migrate', app, '--database', loja.database_name, verbosity=0)
                     logger.info(f"Migrations aplicadas: {app}")
-                    
                 except Exception as e:
-                    # CRM Vendas: falha em crm_vendas impede loja sem tabelas (evita 500 no dashboard)
+                    # CRM Vendas: falha em crm_vendas impede loja sem tabelas
                     if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
                         logger.error(f"Erro crítico ao aplicar migration crm_vendas para loja {loja.slug}: {e}")
                         raise
                     logger.warning(f"Erro ao aplicar migration {app}: {e}")
-                    
-                finally:
-                    # Restaurar PGOPTIONS original
-                    if old_pgoptions is not None:
-                        os.environ['PGOPTIONS'] = old_pgoptions
-                    elif 'PGOPTIONS' in os.environ:
-                        del os.environ['PGOPTIONS']
             # Fallback: migrate pode criar em public (search_path ignorado). Mover para o schema.
             DatabaseSchemaService._mover_tabelas_public_para_schema(loja, schema_name, apps_to_migrate)
             

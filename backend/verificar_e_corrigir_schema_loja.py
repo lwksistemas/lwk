@@ -44,7 +44,8 @@ def verificar_tabelas_schema(loja):
     if database_name not in connections.databases:
         logger.warning(f"⚠️ Banco '{database_name}' não está em settings.DATABASES")
         logger.info("Adicionando configuração do banco...")
-        if DatabaseSchemaService.adicionar_configuracao_django(loja):
+        from core.db_config import ensure_loja_database_config
+        if ensure_loja_database_config(database_name, conn_max_age=60):
             logger.info("✅ Configuração adicionada com sucesso")
         else:
             logger.error("❌ Falha ao adicionar configuração")

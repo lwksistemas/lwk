@@ -736,8 +736,8 @@ class BackupService:
                         "Só é possível importar backups exportados desta loja."
                     )
                 # Configurar conexão da loja
-                from .services.database_schema_service import DatabaseSchemaService
-                if not DatabaseSchemaService.adicionar_configuracao_django(loja):
+                from core.db_config import ensure_loja_database_config
+                if not ensure_loja_database_config(loja.database_name, conn_max_age=60):
                     raise BackupImportError("Não foi possível conectar ao banco de dados da loja")
                 
                 db_helper = DatabaseHelper(loja.database_name)

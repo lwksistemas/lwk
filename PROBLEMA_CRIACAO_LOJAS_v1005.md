@@ -146,3 +146,33 @@ with connection.cursor() as cursor:
 ---
 
 **Aguardando implementação da solução definitiva.**
+
+
+---
+
+## CORREÇÃO v1006: Erro de Sintaxe Corrigido ✅
+
+**Deploy**: v1108  
+**Data**: 18/03/2026
+
+### Problema
+- Deploy v1107 tinha erro de sintaxe em `database_schema_service.py` linha 214
+- `except Exception as e:` estava fora do bloco `try` interno
+- Sistema não conseguia criar lojas devido ao erro de sintaxe
+
+### Solução
+- Movido `except` para dentro do `try` interno (antes do `finally`)
+- Estrutura correta:
+  ```python
+  try:
+      # código PGOPTIONS
+  except Exception as e:
+      # tratamento de erro
+  finally:
+      # restaurar PGOPTIONS
+  ```
+
+### Próximos Passos
+1. Testar criação de nova loja CRM
+2. Verificar se tabelas são criadas no schema correto
+3. Se schema continuar vazio, investigar por que Django ignora PGOPTIONS

@@ -196,8 +196,8 @@ def processar_backup_loja(
         # Garantir que o banco da loja está em settings.DATABASES (necessário no one-off dyno do Heroku Scheduler)
         from django.conf import settings
         if loja.database_name and loja.database_name not in settings.DATABASES:
-            from .services.database_schema_service import DatabaseSchemaService
-            if not DatabaseSchemaService.adicionar_configuracao_django(loja):
+            from core.db_config import ensure_loja_database_config
+            if not ensure_loja_database_config(loja.database_name, conn_max_age=60):
                 solicitado_por = None
                 if user_id:
                     try:

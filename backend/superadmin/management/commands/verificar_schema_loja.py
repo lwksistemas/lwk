@@ -37,7 +37,8 @@ class Command(BaseCommand):
         # Verificar se banco está configurado
         if loja.database_name not in connections.databases:
             self.stdout.write(self.style.WARNING('⚠️ Banco não configurado. Adicionando...'))
-            if DatabaseSchemaService.adicionar_configuracao_django(loja):
+            from core.db_config import ensure_loja_database_config
+            if ensure_loja_database_config(loja.database_name, conn_max_age=60):
                 self.stdout.write(self.style.SUCCESS('✅ Configuração adicionada'))
             else:
                 self.stdout.write(self.style.ERROR('❌ Falha ao adicionar configuração'))

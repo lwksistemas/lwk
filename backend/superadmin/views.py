@@ -881,8 +881,8 @@ Sistema Multi-Loja
         """
         if not loja.database_name or loja.database_name in settings.DATABASES:
             return True, None
-        from .services.database_schema_service import DatabaseSchemaService
-        if DatabaseSchemaService.adicionar_configuracao_django(loja):
+        from core.db_config import ensure_loja_database_config
+        if ensure_loja_database_config(loja.database_name, conn_max_age=60):
             return True, None
         return False, Response(
             {'success': False, 'error': 'Não foi possível conectar ao banco de dados da loja.'},

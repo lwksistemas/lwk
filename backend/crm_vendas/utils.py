@@ -58,10 +58,11 @@ def get_current_vendedor_id(request):
     """
     Retorna o ID do vendedor logado.
     - Se for vendedor (VendedorUsuario): retorna vendedor_id
-    - Se for proprietário da loja: retorna None (para que veja TODOS os dados)
+    - Se for proprietário da loja COM vendedor vinculado: retorna vendedor_id
+    - Se for proprietário da loja SEM vendedor vinculado: retorna None (vê todos os dados)
     
-    IMPORTANTE: Owner sempre retorna None para ter acesso total aos dados,
-    mesmo que tenha um vendedor cadastrado com seu email.
+    IMPORTANTE: Owner COM vendedor vinculado pode fazer vendas.
+    Owner SEM vendedor vinculado tem acesso total (apenas gerencia).
     """
     if not request or not request.user or not request.user.is_authenticated:
         logger.debug('get_current_vendedor_id: usuário não autenticado')
@@ -80,19 +81,22 @@ def get_current_vendedor_id(request):
     try:
         from superadmin.models import VendedorUsuario, Loja
         
-        # Verificar se é proprietário
-        loja = Loja.objects.using('default').filter(id=loja_id).first()
-        if loja and loja.owner_id == request.user.id:
-            # Owner: sempre retorna None para ver TODOS os dados
-            return None
-        
-        # Verificar se é vendedor (VendedorUsuario)
+        # Verificar se tem VendedorUsuario (funciona para owner E vendedores)
         vu = VendedorUsuario.objects.using('default').filter(
             user=request.user,
             loja_id=loja_id,
         ).first()
+        
         if vu:
+            # Tem vendedor vinculado (pode ser owner ou vendedor)
             return vu.vendedor_id
+        
+        # Verificar se é proprietário SEM vendedor vinculado
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if loja and loja.owner_id == request.user.id:
+            # Owner SEM vendedor: retorna None para ver TODOS os dados
+            return None
+        
         logger.debug(
             'get_current_vendedor_id: VendedorUsuario não encontrado para user_id=%s, loja_id=%s',
             request.user.id, loja_id,

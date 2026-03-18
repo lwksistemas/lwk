@@ -95,23 +95,35 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         for attempt in range(2):
             try:
                 response = super().list(request, *args, **kwargs)
-                # Prepend admin (owner) como primeiro item - admin não é Vendedor
+                # Prepend admin (owner) como primeiro item APENAS se não tiver vendedor vinculado
                 loja_id = get_current_loja_id()
                 if loja_id:
-                    from superadmin.models import Loja
+                    from superadmin.models import Loja, VendedorUsuario
                     try:
                         loja = Loja.objects.select_related('owner').get(id=loja_id)
-                        admin_item = self._get_admin_funcionario(loja)
                         owner_email_lower = (loja.owner.email or '').strip().lower()
+                        
+                        # Verificar se owner tem VendedorUsuario vinculado
+                        owner_tem_vendedor = VendedorUsuario.objects.using('default').filter(
+                            user=loja.owner,
+                            loja_id=loja_id,
+                        ).exists()
+                        
                         data = response.data
                         results = list(data.get('results', []) if isinstance(data, dict) else (data or []))
+                        
                         # Filtrar vendedores legacy (is_admin) que eram owner - evitar duplicata
                         if owner_email_lower:
                             results = [r for r in results if not (
                                 r.get('is_admin') and
                                 (r.get('email') or '').strip().lower() == owner_email_lower
                             )]
-                        results.insert(0, admin_item)
+                        
+                        # Adicionar admin virtual APENAS se owner NÃO tem vendedor vinculado
+                        if not owner_tem_vendedor:
+                            admin_item = self._get_admin_funcionario(loja)
+                            results.insert(0, admin_item)
+                        
                         if isinstance(data, dict):
                             response.data['results'] = results
                             response.data['count'] = len(results)

@@ -70,7 +70,7 @@ class ProfessionalService:
     @staticmethod
     def criar_vendedor_admin_crm(loja, owner, owner_telefone: str = '') -> bool:
         """
-        Cria vendedor admin para CRM Vendas e vincula ao owner.
+        Cria vendedor admin para CRM Vendas e vincula ao owner via VendedorUsuario.
         Deve ser chamado APÓS o schema da loja existir (configurar_schema_completo).
 
         Args:
@@ -83,6 +83,7 @@ class ProfessionalService:
         """
         try:
             from crm_vendas.models import Vendedor
+            from superadmin.models import VendedorUsuario
 
             if not getattr(loja, 'database_name', None) or not loja.database_created:
                 logger.warning(
@@ -92,35 +93,44 @@ class ProfessionalService:
                 )
                 return False
 
+            # Verificar se já existe VendedorUsuario para o owner
+            if VendedorUsuario.objects.filter(loja=loja, user=owner).exists():
+                logger.info(f"VendedorUsuario já existe para {owner.email} na loja {loja.nome}")
+                return True
+
             # Verificar se já existe vendedor admin (evitar duplicados - email case-insensitive)
             email_owner = (owner.email or '').strip().lower()
+            vendedor_existente = None
+            
             if email_owner:
-                if Vendedor.objects.using(loja.database_name).filter(
-                    loja_id=loja.id, is_admin=True, email__iexact=email_owner
-                ).exists():
-                    logger.info(f"Vendedor admin já existe para {owner.email} na loja {loja.nome}")
-                    return True
+                vendedor_existente = Vendedor.objects.using(loja.database_name).filter(
+                    loja_id=loja.id, email__iexact=email_owner
+                ).first()
+            
+            if not vendedor_existente:
+                # Criar novo vendedor
+                nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
+                vendedor_existente = Vendedor.objects.using(loja.database_name).create(
+                    nome=nome,
+                    email=owner.email or '',
+                    telefone=owner_telefone or '',
+                    cargo='Gerente de Vendas',
+                    is_admin=False,  # Não usar flag legacy
+                    is_active=True,
+                    loja_id=loja.id,
+                )
+                logger.info(f"✅ Vendedor criado para administrador: {nome}")
             else:
-                # Sem email: verificar se já existe algum admin na loja
-                if Vendedor.objects.using(loja.database_name).filter(
-                    loja_id=loja.id, is_admin=True
-                ).exists():
-                    logger.info(f"Vendedor admin já existe na loja {loja.nome}")
-                    return True
+                logger.info(f"✅ Vendedor já existe, apenas vinculando: {vendedor_existente.nome}")
 
-            nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
-            Vendedor.objects.using(loja.database_name).create(
-                nome=nome,
-                email=owner.email or '',
-                telefone=owner_telefone or '',
-                cargo='Gerente de Vendas',
-                is_admin=True,
-                is_active=True,
-                loja_id=loja.id,
+            # Criar VendedorUsuario para vincular owner ao vendedor
+            VendedorUsuario.objects.create(
+                user=owner,
+                loja=loja,
+                vendedor_id=vendedor_existente.id
             )
 
-            # Owner já tem acesso como proprietário; o Vendedor é para aparecer na lista de funcionários
-            logger.info(f"✅ Vendedor admin (CRM Vendas) criado e vinculado ao administrador para {owner.email}")
+            logger.info(f"✅ VendedorUsuario criado: {owner.email} vinculado ao vendedor ID {vendedor_existente.id}")
             return True
 
         except Exception as e:
@@ -151,14 +161,11 @@ class ProfessionalService:
                 loja, owner, owner_telefone
             )
         
-        # CRM Vendas: admin NÃO é vendedor - aparece na página de funcionários como
-        # "Administrador" (Loja.owner). Admin cadastra gerentes e vendedores.
+        # CRM Vendas: criar vendedor admin e vincular ao owner
         if tipo_loja_nome == 'CRM Vendas':
-            logger.info(
-                f"CRM Vendas: admin {owner.username} aparece em funcionários como Administrador "
-                "(não é criado como Vendedor). Admin cadastra gerentes e vendedores."
+            return ProfessionalService.criar_vendedor_admin_crm(
+                loja, owner, owner_telefone
             )
-            return True
 
         # Outros tipos: funcionário é criado automaticamente pelo signal
         # (create_funcionario_for_loja_owner em superadmin/signals.py)

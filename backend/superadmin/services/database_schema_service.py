@@ -204,19 +204,19 @@ class DatabaseSchemaService:
                     call_command('migrate', app, '--database', loja.database_name, verbosity=0)
                     logger.info(f"Migrations aplicadas: {app}")
                     
+                except Exception as e:
+                    # CRM Vendas: falha em crm_vendas impede loja sem tabelas (evita 500 no dashboard)
+                    if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
+                        logger.error(f"Erro crítico ao aplicar migration crm_vendas para loja {loja.slug}: {e}")
+                        raise
+                    logger.warning(f"Erro ao aplicar migration {app}: {e}")
+                    
                 finally:
                     # Restaurar PGOPTIONS original
                     if old_pgoptions is not None:
                         os.environ['PGOPTIONS'] = old_pgoptions
                     elif 'PGOPTIONS' in os.environ:
                         del os.environ['PGOPTIONS']
-                    
-            except Exception as e:
-                # CRM Vendas: falha em crm_vendas impede loja sem tabelas (evita 500 no dashboard)
-                if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
-                    logger.error(f"Erro crítico ao aplicar migration crm_vendas para loja {loja.slug}: {e}")
-                    raise
-                logger.warning(f"Erro ao aplicar migration {app}: {e}")
             # Fallback: migrate pode criar em public (search_path ignorado). Mover para o schema.
             DatabaseSchemaService._mover_tabelas_public_para_schema(loja, schema_name, apps_to_migrate)
             

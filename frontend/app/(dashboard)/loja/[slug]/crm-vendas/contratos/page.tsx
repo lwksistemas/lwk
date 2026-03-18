@@ -9,6 +9,7 @@ import { normalizeListResponse } from '@/lib/crm-utils';
 import { Plus, Eye, Edit2, Trash2, X, FileSignature, ArrowRight, Mail, MessageCircle } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import type { LojaInfo, LeadInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
 
 const ModalContratoForm = dynamic(() => import('@/components/crm-vendas/modals/ModalContratoForm'), { ssr: false });
 
@@ -56,7 +57,7 @@ export default function CrmVendasContratosPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selected, setSelected] = useState<Contrato | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataContrato>({
     oportunidade_id: '',
     numero: '',
     titulo: '',

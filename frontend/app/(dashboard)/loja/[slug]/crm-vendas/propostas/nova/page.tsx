@@ -6,7 +6,7 @@ import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { ArrowLeft } from 'lucide-react';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
-import type { LojaInfo, LeadInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { LojaInfo, LeadInfo, FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
 
 interface OportunidadeOption {
   id: number;
@@ -51,7 +51,7 @@ export default function NovaPropostaPage() {
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataProposta>({
     oportunidade_id: '',
     titulo: '',
     conteudo: '',

@@ -403,6 +403,44 @@ class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
             return LeadListSerializer
         return LeadSerializer
 
+    def get_queryset(self):
+        """
+        Override para permitir que owner acesse qualquer lead no retrieve().
+        IMPORTANTE: Owner sempre pode acessar qualquer lead, mesmo se tiver vendedor vinculado.
+        """
+        qs = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()
+        
+        # Para retrieve (GET /leads/{id}/), owner sempre tem acesso
+        if self.action == 'retrieve':
+            from superadmin.models import Loja
+            loja_id = get_current_loja_id()
+            if loja_id and self.request and self.request.user:
+                try:
+                    loja = Loja.objects.using('default').filter(id=loja_id).first()
+                    if loja and loja.owner_id == self.request.user.id:
+                        # Owner: retorna queryset sem filtro
+                        status = self.request.query_params.get('status')
+                        if status:
+                            qs = qs.filter(status=status)
+                        origem = self.request.query_params.get('origem')
+                        if origem:
+                            qs = qs.filter(origem=origem)
+                        return qs
+                except Exception:
+                    pass
+        
+        # Para list e outras ações, aplicar filtro de vendedor
+        qs = self.filter_by_vendedor(qs)
+        
+        # Filtros adicionais
+        status = self.request.query_params.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        origem = self.request.query_params.get('origem')
+        if origem:
+            qs = qs.filter(origem=origem)
+        return qs
+
     @cache_list_response(CRMCacheManager.LEADS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -422,17 +460,6 @@ class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
     @invalidate_cache_on_change('leads')
     def perform_destroy(self, instance):
         super().perform_destroy(instance)
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        # Filtros adicionais (além do filtro de vendedor do mixin)
-        status = self.request.query_params.get('status')
-        if status:
-            qs = qs.filter(status=status)
-        origem = self.request.query_params.get('origem')
-        if origem:
-            qs = qs.filter(origem=origem)
-        return qs
 
 
 class ContatoViewSet(VendedorFilterMixin, BaseModelViewSet):

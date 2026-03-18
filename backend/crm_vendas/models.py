@@ -384,6 +384,8 @@ class Proposta(LojaIsolationMixin, models.Model):
     data_envio = models.DateTimeField(null=True, blank=True)
     data_resposta = models.DateTimeField(null=True, blank=True)
     observacoes = models.TextField(blank=True)
+    nome_vendedor_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do vendedor para assinatura no PDF')
+    nome_cliente_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do cliente para assinatura no PDF')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -425,6 +427,8 @@ class Contrato(LojaIsolationMixin, models.Model):
     data_envio = models.DateTimeField(null=True, blank=True)
     data_assinatura = models.DateTimeField(null=True, blank=True)
     observacoes = models.TextField(blank=True)
+    nome_vendedor_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do vendedor para assinatura no PDF')
+    nome_cliente_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do cliente para assinatura no PDF')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

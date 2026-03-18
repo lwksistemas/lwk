@@ -171,9 +171,6 @@ class DatabaseSchemaService:
                 try:
                     logger.info(f"📦 Processando app: {app}")
                     
-                    # Obter executor de migrations
-                    executor = MigrationExecutor(conn)
-                    
                     # Obter migrations não aplicadas
                     with conn.cursor() as cur:
                         cur.execute(f'SET search_path TO "{schema_name}", public')
@@ -183,17 +180,45 @@ class DatabaseSchemaService:
                         )
                         applied = {row[0] for row in cur.fetchall()}
                     
-                    # Obter todas as migrations do app
+                    # Obter TODAS as migrations do app (não apenas leaf nodes)
                     from django.db.migrations.loader import MigrationLoader
                     loader = MigrationLoader(conn)
                     
+                    # Obter todas as migrations do app na ordem correta
                     migrations_to_apply = []
-                    for migration_name in loader.graph.leaf_nodes():
-                        if migration_name[0] == app and migration_name[1] not in applied:
-                            migrations_to_apply.append(migration_name)
+                    if app in loader.migrated_apps:
+                        # Obter plan de execução completo
+                        from django.db.migrations.executor import MigrationExecutor
+                        executor = MigrationExecutor(conn)
+                        
+                        # Obter todas as migrations do app
+                        app_migrations = [
+                            key for key in loader.graph.nodes 
+                            if key[0] == app and key[1] not in applied
+                        ]
+                        
+                        # Ordenar usando o grafo de dependências
+                        if app_migrations:
+                            plan = []
+                            for migration_key in app_migrations:
+                                # Adicionar migration e suas dependências
+                                try:
+                                    migration_plan = executor.loader.graph.forwards_plan(migration_key)
+                                    for mig in migration_plan:
+                                        if mig[0] == app and mig[1] not in applied and mig not in plan:
+                                            plan.append(mig)
+                                except Exception as e:
+                                    logger.warning(f"      ⚠️  Erro ao obter plan para {migration_key}: {e}")
+                            
+                            migrations_to_apply = plan
                     
-                    # Ordenar migrations
-                    migrations_to_apply = sorted(migrations_to_apply, key=lambda x: x[1])
+                    # Se não conseguiu obter via plan, usar ordenação simples
+                    if not migrations_to_apply:
+                        migrations_to_apply = [
+                            key for key in loader.graph.nodes 
+                            if key[0] == app and key[1] not in applied
+                        ]
+                        migrations_to_apply = sorted(migrations_to_apply, key=lambda x: x[1])
                     
                     if not migrations_to_apply:
                         logger.info(f"   ℹ️  Nenhuma migration pendente para {app}")

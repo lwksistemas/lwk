@@ -1024,6 +1024,8 @@ def dashboard_data(request):
     """
     Dados do dashboard CRM (estilo Salesforce).
     Otimizado: cache 120s, queries consolidadas (pipeline em 1 query).
+    
+    IMPORTANTE: Owner SEMPRE vê todos os dados, mesmo se tiver vendedor vinculado.
     """
     import logging
 
@@ -1032,7 +1034,17 @@ def dashboard_data(request):
     if not loja_id:
         return Response(_empty_dashboard_response(), status=200)
 
-    vendedor_id = get_current_vendedor_id(request)
+    # Verificar se é owner ANTES de aplicar filtro de vendedor
+    from superadmin.models import Loja
+    is_owner = False
+    try:
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if loja and loja.owner_id == request.user.id:
+            is_owner = True
+    except Exception:
+        pass
+
+    vendedor_id = None if is_owner else get_current_vendedor_id(request)
     cache_key = CRMCacheManager.get_cache_key(
         CRMCacheManager.DASHBOARD,
         loja_id,
@@ -1055,6 +1067,7 @@ def dashboard_data(request):
             atividades_qs = Atividade.objects.all()
             vendedores_qs = Vendedor.objects.filter(is_active=True)
 
+            # Aplicar filtro de vendedor APENAS se não for owner
             if vendedor_id is not None:
                 leads_qs = leads_qs.filter(
                     Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)

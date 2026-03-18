@@ -91,15 +91,31 @@ class VendedorFilterMixin:
         """
         Filtra queryset pelo vendedor atual (se aplicável).
         
+        IMPORTANTE: Owner SEMPRE vê todos os dados, mesmo se tiver vendedor vinculado.
+        
         Args:
             queryset: QuerySet a ser filtrado
         
         Returns:
             QuerySet filtrado por vendedor ou original (se proprietário)
         """
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import Loja
+        
+        # Verificar se é proprietário da loja
+        loja_id = get_current_loja_id()
+        if loja_id and self.request and self.request.user:
+            try:
+                loja = Loja.objects.using('default').filter(id=loja_id).first()
+                if loja and loja.owner_id == self.request.user.id:
+                    # Owner SEMPRE vê todos os dados
+                    return queryset
+            except Exception:
+                pass
+        
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is None:
-            # Proprietário: vê tudo
+            # Proprietário sem vendedor: vê tudo
             return queryset
         
         # Construir filtro Q: vendedor OU oportunidades não atribuídas (pool compartilhado)

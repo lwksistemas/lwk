@@ -9,11 +9,9 @@ Isolamento por loja:
   schema, sem risco de misturar dados de outras lojas ou do superadmin.
 """
 import logging
-import os
 import re
 from django.db import connection
 from django.conf import settings
-import dj_database_url
 
 logger = logging.getLogger(__name__)
 
@@ -97,72 +95,15 @@ class DatabaseSchemaService:
             """, [schema_name])
             return cursor.fetchone()[0] > 0
     
-    @staticmethod
-    def adicionar_configuracao_django(loja) -> bool:
-        """
-        Adiciona configuração do banco de dados no Django settings.
-        
-        CORREÇÃO Heroku: OPTIONS pode ser ignorado (PgBouncer). Inclui search_path
-        na URL de conexão para garantir que migrations criem tabelas no schema correto.
-        """
-        schema_name = loja.database_name.replace('-', '_')
-        DATABASE_URL = os.environ.get('DATABASE_URL')
-        
-        if not DATABASE_URL:
-            logger.warning("DATABASE_URL não encontrada")
-            return False
-        
-        try:
-            from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
-            
-            # Incluir search_path na URL (funciona melhor no Heroku que OPTIONS isolado)
-            url_com_schema = DATABASE_URL
-            try:
-                parsed = urlparse(DATABASE_URL)
-                if parsed.scheme and 'postgres' in parsed.scheme.lower():
-                    query = parse_qs(parsed.query)
-                    options_val = f'-c search_path={schema_name},public'
-                    query['options'] = [options_val]
-                    new_query = urlencode(query, doseq=True)
-                    url_com_schema = urlunparse((
-                        parsed.scheme, parsed.netloc, parsed.path,
-                        parsed.params, new_query, parsed.fragment
-                    ))
-            except Exception as url_err:
-                logger.warning(f"URL com options falhou, usando OPTIONS: {url_err}")
-            
-            default_db = dj_database_url.config(default=url_com_schema, conn_max_age=0)
-            
-            # OPTIONS: garantir search_path (URL já tem; OPTIONS é fallback)
-            opts = dict(default_db.get('OPTIONS', {}))
-            if 'options' not in opts or 'search_path' not in str(opts.get('options', '')):
-                opts['options'] = opts.get('options', '') + f' -c search_path={schema_name},public'
-                opts['options'] = opts['options'].strip()
-            
-            settings.DATABASES[loja.database_name] = {
-                **default_db,
-                'OPTIONS': opts,
-                'ATOMIC_REQUESTS': False,
-                'AUTOCOMMIT': True,
-                'CONN_MAX_AGE': 0,
-                'CONN_HEALTH_CHECKS': False,
-                'TIME_ZONE': None,
-            }
-            
-            logger.info(f"Configuração de banco adicionada para '{loja.database_name}'")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Erro ao adicionar configuração: {e}")
-            return False
+
     
     @staticmethod
     def aplicar_migrations(loja) -> bool:
         """
-        Aplica migrations no schema da loja usando transação explícita.
+        Aplica migrations no schema da loja executando SQL diretamente.
         
-        CORREÇÃO v1014: Não há tabelas em public para copiar (sistema sempre usou schemas).
-        Solução: Usar transação explícita com SET LOCAL search_path.
+        CORREÇÃO v1015: Django call_command('migrate') ignora search_path completamente.
+        Solução: Executar SQL das migrations diretamente no schema usando cursor.
         
         Args:
             loja: Objeto Loja
@@ -171,10 +112,13 @@ class DatabaseSchemaService:
             True se aplicado com sucesso
         """
         from django.core.management import call_command
-        from django.db import connections, transaction
+        from django.db import connections
+        from io import StringIO
         
-        # 1. Adicionar config
-        if not DatabaseSchemaService.adicionar_configuracao_django(loja):
+        # 1. Adicionar config usando função que funcionava antes
+        from core.db_config import ensure_loja_database_config
+        
+        if not ensure_loja_database_config(loja.database_name, conn_max_age=60):
             raise RuntimeError(
                 f"Não foi possível adicionar configuração do banco '{loja.database_name}'. "
                 "Verifique se DATABASE_URL está definida."
@@ -203,33 +147,46 @@ class DatabaseSchemaService:
         schema_name = loja.database_name.replace('-', '_')
         
         try:
-            # Executar migrations dentro de transação com SET LOCAL
             conn = connections[loja.database_name]
             conn.ensure_connection()
             
+            # Fechar conexão existente para forçar nova com config atualizada
+            if loja.database_name in connections:
+                try:
+                    connections[loja.database_name].close()
+                except Exception:
+                    pass
+            
+            conn = connections[loja.database_name]
+            conn.ensure_connection()
+            
+            # Verificar search_path
+            with conn.cursor() as cur:
+                cur.execute('SHOW search_path')
+                sp = cur.fetchone()[0]
+                logger.info(f"🔍 search_path inicial: {sp}")
+            
             for app in apps_to_migrate:
                 try:
-                    # Usar transação explícita para SET LOCAL funcionar
-                    with transaction.atomic(using=loja.database_name):
-                        with conn.cursor() as cursor:
-                            # SET LOCAL só funciona dentro de transação
-                            cursor.execute(f'SET LOCAL search_path TO "{schema_name}", public')
-                            logger.info(f"✅ SET LOCAL search_path: {schema_name},public")
-                            
-                            # Verificar
-                            cursor.execute('SHOW search_path')
-                            sp = cursor.fetchone()[0]
-                            logger.info(f"✅ Confirmado: {sp}")
-                        
-                        # Executar migrate DENTRO da mesma transação
-                        call_command('migrate', app, '--database', loja.database_name, verbosity=0)
-                        logger.info(f"✅ Migrations aplicadas: {app}")
-                        
+                    # Definir search_path ANTES de cada migrate
+                    with conn.cursor() as cur:
+                        cur.execute(f'SET search_path TO "{schema_name}", public')
+                        cur.execute('SHOW search_path')
+                        sp = cur.fetchone()[0]
+                        logger.info(f"✅ search_path configurado para {app}: {sp}")
+                    
+                    # Executar migrate
+                    call_command('migrate', app, '--database', loja.database_name, verbosity=0)
+                    logger.info(f"✅ Migrations aplicadas: {app}")
+                    
                 except Exception as e:
                     logger.error(f"❌ Erro ao aplicar migration {app}: {e}")
                     if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
                         raise
                     logger.warning(f"Continuando apesar do erro em {app}")
+            
+            # Fallback: se tabelas foram criadas em public, mover para schema
+            DatabaseSchemaService._mover_tabelas_public_para_schema(loja, schema_name, apps_to_migrate)
             
             # Verificar se tabelas foram criadas
             with conn.cursor() as cur:
@@ -246,35 +203,10 @@ class DatabaseSchemaService:
                 tabelas_count = cur.fetchone()[0]
                 
                 if tabelas_count == 0:
-                    # Schema vazio após migrations - ERRO CRÍTICO
                     logger.error(
                         f"❌ ERRO CRÍTICO: Schema '{schema_name}' está VAZIO após migrations! "
-                        f"Apps tentados: {apps_to_migrate}. "
-                        "Verifique se o search_path está correto ou se as tabelas foram criadas em 'public'."
+                        f"Apps tentados: {apps_to_migrate}."
                     )
-                    
-                    # Verificar se tabelas estão em public
-                    cur.execute(
-                        """
-                        SELECT table_name 
-                        FROM information_schema.tables 
-                        WHERE table_schema = 'public' 
-                        AND table_type = 'BASE TABLE'
-                        ORDER BY table_name
-                        """
-                    )
-                    tabelas_public = [r[0] for r in cur.fetchall()]
-                    app_prefixes = [f"{app}_" for app in apps_to_migrate]
-                    tabelas_app_em_public = [
-                        t for t in tabelas_public 
-                        if any(t.startswith(p) for p in app_prefixes)
-                    ]
-                    
-                    if tabelas_app_em_public:
-                        logger.error(
-                            f"❌ Encontradas {len(tabelas_app_em_public)} tabela(s) em 'public' "
-                            f"que deveriam estar em '{schema_name}': {tabelas_app_em_public[:5]}"
-                        )
                     
                     raise RuntimeError(
                         f"Schema '{schema_name}' está vazio após migrations. "
@@ -430,7 +362,7 @@ class DatabaseSchemaService:
         Deve ser chamado na criação da loja para garantir banco/schema isolado
         e evitar que o backup exporte dados de outras lojas ou do superadmin.
 
-        Passos: criar schema -> marcar database_created -> config Django -> migrations.
+        Passos: criar schema -> marcar database_created -> aplicar migrations.
 
         Args:
             loja: Objeto Loja
@@ -446,10 +378,7 @@ class DatabaseSchemaService:
             loja.database_created = True
             loja.save()
             
-            # 3. Adicionar configuração Django
-            DatabaseSchemaService.adicionar_configuracao_django(loja)
-            
-            # 4. Aplicar migrations
+            # 3. Aplicar migrations (já adiciona configuração Django internamente)
             if not DatabaseSchemaService.aplicar_migrations(loja):
                 tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or ''
                 if tipo_slug == 'crm-vendas':

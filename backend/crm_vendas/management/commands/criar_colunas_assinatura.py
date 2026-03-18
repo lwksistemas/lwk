@@ -14,11 +14,17 @@ class Command(BaseCommand):
         self.stdout.write(f'Encontradas {lojas.count()} lojas\n')
         
         for loja in lojas:
-            self.stdout.write(f'\n📦 Processando loja: {loja.nome} (schema: {loja.schema_name})')
+            self.stdout.write(f'\n📦 Processando loja: {loja.nome} (database: {loja.database_name})')
             
-            # Conectar ao schema da loja
+            # Conectar ao database da loja
             with connection.cursor() as cursor:
-                cursor.execute(f'SET search_path TO {loja.schema_name}')
+                cursor.execute(f'SET search_path TO public')
+                cursor.execute(f'SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s', [loja.database_name])
+                if not cursor.fetchone():
+                    self.stdout.write(self.style.WARNING(f'  ⚠️  Schema {loja.database_name} não encontrado, pulando...'))
+                    continue
+                
+                cursor.execute(f'SET search_path TO {loja.database_name}')
                 self._criar_colunas(cursor)
         
         self.stdout.write(self.style.SUCCESS('\n✅ Processo concluído em todas as lojas!'))

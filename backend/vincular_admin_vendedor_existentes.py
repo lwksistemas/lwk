@@ -49,12 +49,19 @@ def vincular_admin_vendedor(loja):
         return False
     
     try:
+        # Configurar schema para a loja
+        from django.db import connection
+        schema_name = f"loja_{loja.slug}"
+        
+        with connection.cursor() as cursor:
+            cursor.execute(f"SET search_path TO {schema_name}, public")
+        
         # Verificar se vendedor já existe (por email)
         email_owner = (owner.email or '').strip().lower()
         vendedor_existente = None
         
         if email_owner:
-            vendedor_existente = Vendedor.objects.using(loja.database_name).filter(
+            vendedor_existente = Vendedor.objects.filter(
                 loja_id=loja.id,
                 email__iexact=email_owner
             ).first()
@@ -62,7 +69,7 @@ def vincular_admin_vendedor(loja):
         # Criar vendedor se não existir
         if not vendedor_existente:
             nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
-            vendedor_existente = Vendedor.objects.using(loja.database_name).create(
+            vendedor_existente = Vendedor.objects.create(
                 nome=nome,
                 email=owner.email or '',
                 telefone=getattr(loja, 'owner_telefone', '') or '',
@@ -83,10 +90,21 @@ def vincular_admin_vendedor(loja):
         )
         
         logger.info(f"✅ Loja {loja.slug}: VendedorUsuario criado (vendedor_id={vendedor_existente.id})")
+        
+        # Resetar search_path
+        with connection.cursor() as cursor:
+            cursor.execute("SET search_path TO public")
+        
         return True
         
     except Exception as e:
         logger.error(f"❌ Loja {loja.slug}: Erro ao vincular vendedor: {e}")
+        # Resetar search_path em caso de erro
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SET search_path TO public")
+        except:
+            pass
         return False
 
 

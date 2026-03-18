@@ -685,7 +685,18 @@ class ProdutoServicoViewSet(BaseModelViewSet):
             serializer.save()
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        """Filtra produtos/serviços por loja_id e aplica filtros adicionais."""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        
+        if not loja_id:
+            logger.warning(f"[ProdutoServicoViewSet] Acesso sem loja_id no contexto")
+            return ProdutoServico.objects.none()
+        
+        # Filtrar por loja_id explicitamente
+        qs = ProdutoServico.objects.filter(loja_id=loja_id)
+        
+        # Filtros adicionais
         ativo = self.request.query_params.get('ativo')
         if ativo is not None:
             qs = qs.filter(ativo=ativo.lower() == 'true')

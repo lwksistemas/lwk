@@ -177,47 +177,26 @@ class DatabaseSchemaService:
         
         apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
         
-        # CORREÇÃO v1008: Django migrate abre novas conexões que ignoram search_path
-        # Solução: Definir search_path como padrão do ROLE/DATABASE no PostgreSQL
+        schema_name = loja.database_name.replace('-', '_')
         try:
-            # Definir search_path padrão no banco para garantir que TODAS as conexões usem o schema correto
-            with connection.cursor() as cursor:
-                # ALTER DATABASE SET search_path garante que todas as conexões usem o schema
-                cursor.execute(
-                    f'ALTER DATABASE "{connection.settings_dict["NAME"]}" '
-                    f'SET search_path TO "{schema_name}", public'
-                )
-                logger.info(f"   ✅ search_path padrão definido no banco: {schema_name},public")
-            
             for app in apps_to_migrate:
+                # Re-adicionar config antes de cada app (garantia extra contra volatilidade)
                 DatabaseSchemaService.adicionar_configuracao_django(loja)
-                
-                # Fechar conexão para forçar nova com search_path do banco
-                if loja.database_name in connections:
-                    try:
-                        connections[loja.database_name].close()
-                        logger.info(f"   Conexão {loja.database_name} fechada antes de migrate {app}")
-                    except Exception as e:
-                        logger.warning(f"   Erro ao fechar conexão: {e}")
-                
-                # Executar migrate (usará search_path padrão do banco)
                 try:
+                    # search_path em OPTIONS nem sempre é respeitado pelo migrate (ex: PgBouncer).
+                    # Definir explicitamente na conexão antes de cada migrate.
+                    conn = connections[loja.database_name]
+                    conn.ensure_connection()
+                    with conn.cursor() as cur:
+                        cur.execute(f'SET search_path TO "{schema_name}", public')
                     call_command('migrate', app, '--database', loja.database_name, verbosity=0)
                     logger.info(f"Migrations aplicadas: {app}")
                 except Exception as e:
-                    # CRM Vendas: falha em crm_vendas impede loja sem tabelas
+                    # CRM Vendas: falha em crm_vendas impede loja sem tabelas (evita 500 no dashboard)
                     if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
                         logger.error(f"Erro crítico ao aplicar migration crm_vendas para loja {loja.slug}: {e}")
                         raise
                     logger.warning(f"Erro ao aplicar migration {app}: {e}")
-            
-            # Restaurar search_path padrão do banco para public (não afetar outras operações)
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    f'ALTER DATABASE "{connection.settings_dict["NAME"]}" '
-                    f'RESET search_path'
-                )
-                logger.info(f"   ✅ search_path padrão do banco restaurado para public")
             # Fallback: migrate pode criar em public (search_path ignorado). Mover para o schema.
             DatabaseSchemaService._mover_tabelas_public_para_schema(loja, schema_name, apps_to_migrate)
             

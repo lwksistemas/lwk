@@ -159,10 +159,10 @@ class DatabaseSchemaService:
     @staticmethod
     def aplicar_migrations(loja) -> bool:
         """
-        Cria tabelas no schema da loja copiando estrutura de public.
+        Aplica migrations no schema da loja usando transação explícita.
         
-        CORREÇÃO v1013: call_command('migrate') ignora search_path devido a problema ambiental.
-        Solução: Copiar estrutura das tabelas de public para o schema da loja.
+        CORREÇÃO v1014: Não há tabelas em public para copiar (sistema sempre usou schemas).
+        Solução: Usar transação explícita com SET LOCAL search_path.
         
         Args:
             loja: Objeto Loja
@@ -170,7 +170,8 @@ class DatabaseSchemaService:
         Returns:
             True se aplicado com sucesso
         """
-        from django.db import connections
+        from django.core.management import call_command
+        from django.db import connections, transaction
         
         # 1. Adicionar config
         if not DatabaseSchemaService.adicionar_configuracao_django(loja):
@@ -202,63 +203,33 @@ class DatabaseSchemaService:
         schema_name = loja.database_name.replace('-', '_')
         
         try:
-            # Criar tabelas manualmente copiando estrutura de public
+            # Executar migrations dentro de transação com SET LOCAL
             conn = connections[loja.database_name]
             conn.ensure_connection()
             
-            tabelas_criadas = 0
-            with conn.cursor() as cursor:
-                for app in apps_to_migrate:
-                    # Buscar tabelas do app em public
-                    cursor.execute("""
-                        SELECT table_name 
-                        FROM information_schema.tables 
-                        WHERE table_schema = 'public' 
-                        AND table_name LIKE %s
-                        AND table_type = 'BASE TABLE'
-                        ORDER BY table_name
-                    """, [f'{app}_%'])
-                    
-                    tabelas = [row[0] for row in cursor.fetchall()]
-                    
-                    for tabela in tabelas:
-                        try:
-                            # Criar tabela no schema copiando estrutura completa
-                            cursor.execute(f'''
-                                CREATE TABLE IF NOT EXISTS "{schema_name}".{tabela} 
-                                (LIKE public.{tabela} INCLUDING ALL)
-                            ''')
-                            tabelas_criadas += 1
-                            logger.info(f"✅ Tabela {tabela} criada em {schema_name}")
-                        except Exception as e:
-                            logger.error(f"❌ Erro ao criar tabela {tabela}: {e}")
-                            if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
-                                raise
-                
-                # Criar django_migrations no schema
-                cursor.execute(f'''
-                    CREATE TABLE IF NOT EXISTS "{schema_name}".django_migrations (
-                        id SERIAL PRIMARY KEY,
-                        app VARCHAR(255) NOT NULL,
-                        name VARCHAR(255) NOT NULL,
-                        applied TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                    )
-                ''')
-                logger.info(f"✅ Tabela django_migrations criada em {schema_name}")
-                
-                # Copiar registros de migrations de public para o schema
-                for app in apps_to_migrate:
-                    cursor.execute(f'''
-                        INSERT INTO "{schema_name}".django_migrations (app, name, applied)
-                        SELECT app, name, applied 
-                        FROM public.django_migrations 
-                        WHERE app = %s
-                        ON CONFLICT DO NOTHING
-                    ''', [app])
-                
-                logger.info(f"✅ Registros de migrations copiados para {schema_name}")
-            
-            logger.info(f"✅ {tabelas_criadas} tabela(s) criada(s) no schema '{schema_name}'")
+            for app in apps_to_migrate:
+                try:
+                    # Usar transação explícita para SET LOCAL funcionar
+                    with transaction.atomic(using=loja.database_name):
+                        with conn.cursor() as cursor:
+                            # SET LOCAL só funciona dentro de transação
+                            cursor.execute(f'SET LOCAL search_path TO "{schema_name}", public')
+                            logger.info(f"✅ SET LOCAL search_path: {schema_name},public")
+                            
+                            # Verificar
+                            cursor.execute('SHOW search_path')
+                            sp = cursor.fetchone()[0]
+                            logger.info(f"✅ Confirmado: {sp}")
+                        
+                        # Executar migrate DENTRO da mesma transação
+                        call_command('migrate', app, '--database', loja.database_name, verbosity=0)
+                        logger.info(f"✅ Migrations aplicadas: {app}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Erro ao aplicar migration {app}: {e}")
+                    if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
+                        raise
+                    logger.warning(f"Continuando apesar do erro em {app}")
             
             # Verificar se tabelas foram criadas
             with conn.cursor() as cur:

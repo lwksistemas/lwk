@@ -225,8 +225,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     elements.append(Spacer(1, 1*cm))
 
     # Assinaturas (campos tradicionais + digitais integrados)
-    nome_vendedor = getattr(proposta, 'nome_vendedor_assinatura', None) or '___________________________'
-    nome_cliente = getattr(proposta, 'nome_cliente_assinatura', None) or '___________________________'
+    nome_vendedor = getattr(proposta, 'nome_vendedor_assinatura', None) or ''
+    nome_cliente = getattr(proposta, 'nome_cliente_assinatura', None) or ''
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
     elements.append(Spacer(1, 0.5*cm))
@@ -262,10 +262,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         cliente_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
         cliente_info.append(f'<font size="8">IP: {assinatura_cliente.ip_address}</font>')
     
-    # Criar tabela de assinaturas (2 colunas)
-    assinatura_data = [
-        ['___________________________', '___________________________'],
-    ]
+    # Criar tabela de assinaturas (2 colunas) - SEM linhas de assinatura
+    assinatura_data = []
     
     # Adicionar linhas dinamicamente baseado no que tem info
     max_rows = max(len(vendedor_info), len(cliente_info))
@@ -400,8 +398,8 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     elements.append(Spacer(1, 1*cm))
 
     # Assinaturas (campos tradicionais + digitais integrados)
-    nome_vendedor = getattr(contrato, 'nome_vendedor_assinatura', None) or '___________________________'
-    nome_cliente = getattr(contrato, 'nome_cliente_assinatura', None) or '___________________________'
+    nome_vendedor = getattr(contrato, 'nome_vendedor_assinatura', None) or ''
+    nome_cliente = getattr(contrato, 'nome_cliente_assinatura', None) or ''
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
     elements.append(Spacer(1, 0.5*cm))
@@ -437,10 +435,8 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         cliente_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
         cliente_info.append(f'<font size="8">IP: {assinatura_cliente.ip_address}</font>')
     
-    # Criar tabela de assinaturas (2 colunas)
-    assinatura_data = [
-        ['___________________________', '___________________________'],
-    ]
+    # Criar tabela de assinaturas (2 colunas) - SEM linhas de assinatura
+    assinatura_data = []
     
     # Adicionar linhas dinamicamente baseado no que tem info
     max_rows = max(len(vendedor_info), len(cliente_info))

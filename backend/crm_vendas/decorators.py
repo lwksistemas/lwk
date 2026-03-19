@@ -71,14 +71,34 @@ def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
                 if cached is not None:
                     return Response(cached)
             
-            # Executar função original
-            response = func(self, request, *args, **kwargs)
+            # ✅ OTIMIZAÇÃO: Lock para evitar race condition
+            # Quando cache é invalidado, múltiplas requisições simultâneas podem
+            # retornar lista vazia. Lock garante que apenas uma busque do BD.
+            lock_key = f"{cache_key}:lock"
+            lock_acquired = cache.add(lock_key, "1", timeout=10)
             
-            # Cachear se sucesso
-            if cache_key and response.status_code == 200:
-                cache.set(cache_key, response.data, ttl)
+            if not lock_acquired:
+                # Outra requisição está buscando, aguardar um pouco
+                import time
+                time.sleep(0.1)
+                cached = cache.get(cache_key)
+                if cached is not None:
+                    return Response(cached)
+                # Se ainda não tem cache após aguardar, continuar normalmente
             
-            return response
+            try:
+                # Executar função original
+                response = func(self, request, *args, **kwargs)
+                
+                # Cachear se sucesso
+                if cache_key and response.status_code == 200:
+                    cache.set(cache_key, response.data, ttl)
+                
+                return response
+            finally:
+                # Liberar lock
+                if lock_acquired:
+                    cache.delete(lock_key)
         return wrapper
     return decorator
 

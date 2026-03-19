@@ -103,4 +103,36 @@ def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
 
 ## Status
 
-⏳ **AGUARDANDO APROVAÇÃO** - Solução identificada, aguardando implementação
+✅ **IMPLEMENTADO** - Solução de lock adicionada ao decorator `cache_list_response` em v1164
+
+### Mudanças Implementadas
+
+1. **Lock do Redis** adicionado antes de buscar dados do BD
+2. **Retry com sleep** se lock não for adquirido (aguarda 100ms)
+3. **Finally block** garante que lock seja liberado mesmo em caso de erro
+
+### Código Implementado
+
+```python
+# Lock para evitar race condition
+lock_key = f"{cache_key}:lock"
+lock_acquired = cache.add(lock_key, "1", timeout=10)
+
+if not lock_acquired:
+    # Outra requisição está buscando, aguardar
+    time.sleep(0.1)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response(cached)
+
+try:
+    # Executar função original
+    response = func(self, request, *args, **kwargs)
+    # Cachear resultado
+    if cache_key and response.status_code == 200:
+        cache.set(cache_key, response.data, ttl)
+    return response
+finally:
+    if lock_acquired:
+        cache.delete(lock_key)
+```

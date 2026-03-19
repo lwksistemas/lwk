@@ -164,7 +164,17 @@ export default function AssinaturaPage() {
     );
   }
   
-  // Success state
+  // Success state - fechar automaticamente após 3 segundos
+  useEffect(() => {
+    if (sucesso) {
+      const timer = setTimeout(() => {
+        window.close();
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [sucesso]);
+  
   if (sucesso) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
@@ -183,8 +193,11 @@ export default function AssinaturaPage() {
               <strong>Status:</strong> {proximoStatus}
             </p>
           </div>
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-sm text-gray-500 text-center mb-2">
             Você receberá uma cópia por email quando o processo for concluído.
+          </p>
+          <p className="text-xs text-gray-400 text-center italic">
+            Esta página será fechada automaticamente em 3 segundos...
           </p>
         </div>
       </div>

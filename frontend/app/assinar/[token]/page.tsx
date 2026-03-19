@@ -29,6 +29,7 @@ export default function AssinaturaPage() {
   
   useEffect(() => {
     carregarDocumento();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
   
   const carregarDocumento = async () => {

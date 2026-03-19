@@ -65,17 +65,17 @@ class Command(BaseCommand):
                     # Criar ou recriar tabela com estrutura correta
                     if tabela_existe:
                         # Fazer backup dos dados
-                        cursor.execute("""
+                        cursor.execute(f"""
                             CREATE TEMP TABLE assinatura_backup AS
-                            SELECT * FROM crm_vendas_assinatura_digital;
+                            SELECT * FROM {schema_name}.crm_vendas_assinatura_digital;
                         """)
                         
                         # Dropar tabela antiga
-                        cursor.execute('DROP TABLE IF EXISTS crm_vendas_assinatura_digital CASCADE;')
+                        cursor.execute(f'DROP TABLE IF EXISTS {schema_name}.crm_vendas_assinatura_digital CASCADE;')
                     
                     # Criar tabela nova com estrutura correta
-                    cursor.execute("""
-                        CREATE TABLE crm_vendas_assinatura_digital (
+                    cursor.execute(f"""
+                        CREATE TABLE {schema_name}.crm_vendas_assinatura_digital (
                             id SERIAL PRIMARY KEY,
                             loja_id INTEGER NOT NULL,
                             proposta_id INTEGER NULL,
@@ -100,45 +100,45 @@ class Command(BaseCommand):
                     """)
                     
                     # Adicionar foreign keys
-                    cursor.execute("""
-                        ALTER TABLE crm_vendas_assinatura_digital
+                    cursor.execute(f"""
+                        ALTER TABLE {schema_name}.crm_vendas_assinatura_digital
                         ADD CONSTRAINT crm_vendas_assinatura_digital_proposta_id_fkey
-                        FOREIGN KEY (proposta_id) REFERENCES crm_vendas_proposta(id)
+                        FOREIGN KEY (proposta_id) REFERENCES {schema_name}.crm_vendas_proposta(id)
                         ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
                     """)
                     
-                    cursor.execute("""
-                        ALTER TABLE crm_vendas_assinatura_digital
+                    cursor.execute(f"""
+                        ALTER TABLE {schema_name}.crm_vendas_assinatura_digital
                         ADD CONSTRAINT crm_vendas_assinatura_digital_contrato_id_fkey
-                        FOREIGN KEY (contrato_id) REFERENCES crm_vendas_contrato(id)
+                        FOREIGN KEY (contrato_id) REFERENCES {schema_name}.crm_vendas_contrato(id)
                         ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
                     """)
                     
                     # Criar índices
-                    cursor.execute("""
+                    cursor.execute(f"""
                         CREATE INDEX crm_assin_loja_token_idx
-                        ON crm_vendas_assinatura_digital (loja_id, token);
+                        ON {schema_name}.crm_vendas_assinatura_digital (loja_id, token);
                     """)
                     
-                    cursor.execute("""
+                    cursor.execute(f"""
                         CREATE INDEX crm_assin_loja_tipo_idx
-                        ON crm_vendas_assinatura_digital (loja_id, tipo, assinado);
+                        ON {schema_name}.crm_vendas_assinatura_digital (loja_id, tipo, assinado);
                     """)
                     
-                    cursor.execute("""
+                    cursor.execute(f"""
                         CREATE INDEX crm_assin_proposta_idx
-                        ON crm_vendas_assinatura_digital (proposta_id);
+                        ON {schema_name}.crm_vendas_assinatura_digital (proposta_id);
                     """)
                     
-                    cursor.execute("""
+                    cursor.execute(f"""
                         CREATE INDEX crm_assin_contrato_idx
-                        ON crm_vendas_assinatura_digital (contrato_id);
+                        ON {schema_name}.crm_vendas_assinatura_digital (contrato_id);
                     """)
                     
                     # Restaurar dados se havia backup
                     if tabela_existe:
-                        cursor.execute("""
-                            INSERT INTO crm_vendas_assinatura_digital (
+                        cursor.execute(f"""
+                            INSERT INTO {schema_name}.crm_vendas_assinatura_digital (
                                 id, loja_id, tipo, nome_assinante, email_assinante,
                                 ip_address, timestamp, user_agent, token, token_expira_em,
                                 assinado, assinado_em, created_at, updated_at,
@@ -166,8 +166,8 @@ class Command(BaseCommand):
                         """)
                         
                         # Atualizar sequence
-                        cursor.execute("""
-                            SELECT setval('crm_vendas_assinatura_digital_id_seq', 
+                        cursor.execute(f"""
+                            SELECT setval('{schema_name}.crm_vendas_assinatura_digital_id_seq', 
                                 (SELECT MAX(id) FROM crm_vendas_assinatura_digital));
                         """)
                     

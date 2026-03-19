@@ -1753,8 +1753,11 @@ def gerar_relatorio(request):
 from django.views import View
 from django.http import JsonResponse
 import json
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class AssinaturaPublicaView(View):
     """
     View pública para assinatura digital de propostas e contratos.
@@ -1921,6 +1924,7 @@ class AssinaturaPublicaView(View):
 
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class AssinaturaPdfView(View):
     """
     View pública para visualizar/baixar PDF do documento antes de assinar.
@@ -1933,17 +1937,22 @@ class AssinaturaPdfView(View):
         from .pdf_proposta_contrato import gerar_pdf_proposta, gerar_pdf_contrato
         from tenants.middleware import set_current_loja_id, set_current_tenant_db
         from django.http import HttpResponse
+        from django.core.signing import loads, BadSignature
         
         logger.info(f'📄 Requisição de PDF - Token: {token[:50]}...')
         
-        assinatura, erro = verificar_token_assinatura(token)
+        # PASSO 1: Decodificar token para extrair loja_id
+        try:
+            payload = loads(token)
+            loja_id = payload.get('loja_id')
+        except (BadSignature, Exception) as e:
+            logger.error(f'❌ Erro ao decodificar token para PDF: {e}')
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
         
-        if erro:
-            logger.warning(f'❌ Erro ao verificar token para PDF: {erro}')
-            return JsonResponse({'error': erro}, status=400)
+        if not loja_id:
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
         
-        # Configurar contexto de loja
-        loja_id = assinatura.loja_id
+        # PASSO 2: Configurar contexto de loja ANTES de buscar no banco
         set_current_loja_id(loja_id)
         
         # Configurar banco de dados da loja
@@ -1958,6 +1967,13 @@ class AssinaturaPdfView(View):
         except Exception as e:
             logger.exception(f'Erro ao configurar contexto de loja para PDF: {e}')
             return JsonResponse({'error': 'Erro ao carregar PDF'}, status=500)
+        
+        # PASSO 3: Buscar token no banco (agora com contexto correto)
+        assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
+        
+        if erro:
+            logger.warning(f'❌ Erro ao verificar token para PDF: {erro}')
+            return JsonResponse({'error': erro}, status=400)
         
         documento = assinatura.documento
         

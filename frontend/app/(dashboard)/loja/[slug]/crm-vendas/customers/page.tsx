@@ -734,13 +734,13 @@ export default function CrmVendasCustomersPage() {
                         </div>
                       )}
 
-                      {(selectedConta.cidade || selectedConta.estado) && (
+                      {(selectedConta.cidade || selectedConta.uf) && (
                         <div className="flex items-start gap-2">
                           <MapPin size={18} className="text-gray-400 mt-0.5" />
                           <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Localização</p>
                             <p className="text-sm text-gray-900 dark:text-white">
-                              {[selectedConta.cidade, selectedConta.estado].filter(Boolean).join(', ')}
+                              {[selectedConta.cidade, selectedConta.uf].filter(Boolean).join(' - ')}
                             </p>
                           </div>
                         </div>

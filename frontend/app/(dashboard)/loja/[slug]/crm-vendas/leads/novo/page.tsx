@@ -144,8 +144,8 @@ export default function NovoLeadPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="w-full max-w-full">
+      <div className="flex items-center gap-4 mb-6">
         <Link
           href={`/loja/${slug}/crm-vendas/leads`}
           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
@@ -161,7 +161,8 @@ export default function NovoLeadPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-2xl space-y-8">
+      <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-6 w-full">
+        <form onSubmit={handleSubmit} className="space-y-8 md:max-w-3xl md:mx-auto">
         {formErro && (
           <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
             {formErro}
@@ -169,7 +170,7 @@ export default function NovoLeadPage() {
         )}
 
         {/* Dados do lead */}
-        <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-6 space-y-4">
+        <div className="space-y-4">
           <h2 className="text-lg font-medium text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-600 pb-2">
             Dados do lead
           </h2>
@@ -264,7 +265,7 @@ export default function NovoLeadPage() {
         </div>
 
         {/* Endereço */}
-        <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-6 space-y-4">
+        <div className="space-y-4">
           <h2 className="text-lg font-medium text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-600 pb-2">
             Endereço
           </h2>
@@ -358,7 +359,7 @@ export default function NovoLeadPage() {
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-4">
           <Link
             href={`/loja/${slug}/crm-vendas/leads`}
             className="px-6 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
@@ -374,6 +375,7 @@ export default function NovoLeadPage() {
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 }

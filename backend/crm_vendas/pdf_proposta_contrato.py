@@ -224,46 +224,67 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
     elements.append(Spacer(1, 1*cm))
 
-    # Assinaturas Digitais (se houver)
-    if incluir_assinaturas:
-        from .models import AssinaturaDigital
-        
-        assinaturas = AssinaturaDigital.objects.filter(
-            proposta=proposta,
-            assinado=True
-        ).order_by('assinado_em')
-        
-        if assinaturas.exists():
-            elements.append(Paragraph('<b>Assinaturas Digitais</b>', section_style))
-            elements.append(Spacer(1, 0.3*cm))
-            
-            for assinatura in assinaturas:
-                _adicionar_marca_dagua_assinatura(elements, assinatura, styles)
-            
-            elements.append(Spacer(1, 0.5*cm))
-
-    # Assinaturas (campos tradicionais)
+    # Assinaturas (campos tradicionais + digitais integrados)
     nome_vendedor = getattr(proposta, 'nome_vendedor_assinatura', None) or '___________________________'
     nome_cliente = getattr(proposta, 'nome_cliente_assinatura', None) or '___________________________'
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
     elements.append(Spacer(1, 0.5*cm))
     
-    # Tabela de assinaturas (2 colunas)
+    # Buscar assinaturas digitais se houver
+    assinatura_vendedor = None
+    assinatura_cliente = None
+    if incluir_assinaturas:
+        from .models import AssinaturaDigital
+        assinaturas = AssinaturaDigital.objects.filter(
+            proposta=proposta,
+            assinado=True
+        ).order_by('assinado_em')
+        
+        for ass in assinaturas:
+            if ass.tipo == 'vendedor':
+                assinatura_vendedor = ass
+            elif ass.tipo == 'cliente':
+                assinatura_cliente = ass
+    
+    # Montar dados da tabela com informações de assinatura digital
+    vendedor_info = [nome_vendedor, 'Vendedor']
+    cliente_info = [nome_cliente, 'Cliente']
+    
+    # Adicionar info de assinatura digital se houver
+    if assinatura_vendedor:
+        timestamp = assinatura_vendedor.assinado_em.strftime('%d/%m/%Y %H:%M:%S')
+        vendedor_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
+        vendedor_info.append(f'<font size="8">IP: {assinatura_vendedor.ip_address}</font>')
+    
+    if assinatura_cliente:
+        timestamp = assinatura_cliente.assinado_em.strftime('%d/%m/%Y %H:%M:%S')
+        cliente_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
+        cliente_info.append(f'<font size="8">IP: {assinatura_cliente.ip_address}</font>')
+    
+    # Criar tabela de assinaturas (2 colunas)
     assinatura_data = [
         ['___________________________', '___________________________'],
-        [nome_vendedor, nome_cliente],
-        ['Vendedor', 'Cliente'],
     ]
+    
+    # Adicionar linhas dinamicamente baseado no que tem info
+    max_rows = max(len(vendedor_info), len(cliente_info))
+    for i in range(max_rows):
+        vendedor_text = Paragraph(vendedor_info[i], styles['Normal']) if i < len(vendedor_info) else ''
+        cliente_text = Paragraph(cliente_info[i], styles['Normal']) if i < len(cliente_info) else ''
+        assinatura_data.append([vendedor_text, cliente_text])
+    
     assinatura_table = Table(assinatura_data, colWidths=[8*cm, 8*cm])
     assinatura_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('TOPPADDING', (0, 0), (-1, 0), 20),
-        ('BOTTOMPADDING', (0, 1), (-1, 1), 5),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
     ]))
     elements.append(assinatura_table)
+    elements.append(Spacer(1, 1*cm))
 
     doc.build(elements)
     buffer.seek(0)
@@ -378,46 +399,67 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
     elements.append(Spacer(1, 1*cm))
 
-    # Assinaturas Digitais (se houver)
-    if incluir_assinaturas:
-        from .models import AssinaturaDigital
-        
-        assinaturas = AssinaturaDigital.objects.filter(
-            contrato=contrato,
-            assinado=True
-        ).order_by('assinado_em')
-        
-        if assinaturas.exists():
-            elements.append(Paragraph('<b>Assinaturas Digitais</b>', section_style))
-            elements.append(Spacer(1, 0.3*cm))
-            
-            for assinatura in assinaturas:
-                _adicionar_marca_dagua_assinatura(elements, assinatura, styles)
-            
-            elements.append(Spacer(1, 0.5*cm))
-
-    # Assinaturas (campos tradicionais)
+    # Assinaturas (campos tradicionais + digitais integrados)
     nome_vendedor = getattr(contrato, 'nome_vendedor_assinatura', None) or '___________________________'
     nome_cliente = getattr(contrato, 'nome_cliente_assinatura', None) or '___________________________'
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
     elements.append(Spacer(1, 0.5*cm))
     
-    # Tabela de assinaturas (2 colunas)
+    # Buscar assinaturas digitais se houver
+    assinatura_vendedor = None
+    assinatura_cliente = None
+    if incluir_assinaturas:
+        from .models import AssinaturaDigital
+        assinaturas = AssinaturaDigital.objects.filter(
+            contrato=contrato,
+            assinado=True
+        ).order_by('assinado_em')
+        
+        for ass in assinaturas:
+            if ass.tipo == 'vendedor':
+                assinatura_vendedor = ass
+            elif ass.tipo == 'cliente':
+                assinatura_cliente = ass
+    
+    # Montar dados da tabela com informações de assinatura digital
+    vendedor_info = [nome_vendedor, 'Vendedor']
+    cliente_info = [nome_cliente, 'Cliente']
+    
+    # Adicionar info de assinatura digital se houver
+    if assinatura_vendedor:
+        timestamp = assinatura_vendedor.assinado_em.strftime('%d/%m/%Y %H:%M:%S')
+        vendedor_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
+        vendedor_info.append(f'<font size="8">IP: {assinatura_vendedor.ip_address}</font>')
+    
+    if assinatura_cliente:
+        timestamp = assinatura_cliente.assinado_em.strftime('%d/%m/%Y %H:%M:%S')
+        cliente_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
+        cliente_info.append(f'<font size="8">IP: {assinatura_cliente.ip_address}</font>')
+    
+    # Criar tabela de assinaturas (2 colunas)
     assinatura_data = [
         ['___________________________', '___________________________'],
-        [nome_vendedor, nome_cliente],
-        ['Vendedor', 'Cliente'],
     ]
+    
+    # Adicionar linhas dinamicamente baseado no que tem info
+    max_rows = max(len(vendedor_info), len(cliente_info))
+    for i in range(max_rows):
+        vendedor_text = Paragraph(vendedor_info[i], styles['Normal']) if i < len(vendedor_info) else ''
+        cliente_text = Paragraph(cliente_info[i], styles['Normal']) if i < len(cliente_info) else ''
+        assinatura_data.append([vendedor_text, cliente_text])
+    
     assinatura_table = Table(assinatura_data, colWidths=[8*cm, 8*cm])
     assinatura_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('TOPPADDING', (0, 0), (-1, 0), 20),
-        ('BOTTOMPADDING', (0, 1), (-1, 1), 5),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
     ]))
     elements.append(assinatura_table)
+    elements.append(Spacer(1, 1*cm))
 
     doc.build(elements)
     buffer.seek(0)

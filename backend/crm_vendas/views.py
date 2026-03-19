@@ -1766,10 +1766,15 @@ class AssinaturaPublicaView(View):
         from .assinatura_digital_service import verificar_token_assinatura
         from tenants.middleware import set_current_loja_id, set_current_tenant_db
         
+        logger.info(f'🔍 Recebendo requisição de assinatura - Token recebido: {token[:50]}...')
+        
         assinatura, erro = verificar_token_assinatura(token)
         
         if erro:
+            logger.warning(f'❌ Erro ao verificar token: {erro}')
             return JsonResponse({'error': erro}, status=400)
+        
+        logger.info(f'✅ Token válido - Assinatura ID: {assinatura.id}, Loja ID: {assinatura.loja_id}')
         
         # Configurar contexto de loja
         loja_id = assinatura.loja_id

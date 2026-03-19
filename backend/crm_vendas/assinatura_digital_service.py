@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.core.mail import EmailMessage
 from django.conf import settings
 from datetime import timedelta
+from urllib.parse import quote, unquote
 import logging
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ def criar_token_assinatura(documento, tipo, loja_id):
         'loja_id': loja_id,
         'exp': int((timezone.now() + timedelta(days=TOKEN_EXPIRACAO_DIAS)).timestamp()),
     }
+    # Gerar token - Django já usa base64 URL-safe
     token = dumps(payload)
     
     # Criar registro de assinatura
@@ -93,26 +95,46 @@ def verificar_token_assinatura(token):
     Verifica e retorna AssinaturaDigital se token válido.
     
     Args:
-        token: string do token
+        token: string do token (pode estar URL encoded ou não)
     
     Returns:
         tuple: (AssinaturaDigital ou None, mensagem_erro ou None)
     """
     from .models import AssinaturaDigital
     
+    logger.info(f'🔍 Verificando token de assinatura - Tamanho: {len(token)}, Primeiros 50 chars: {token[:50]}...')
+    
     try:
-        assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token)
+        # Tentar buscar com o token como está (pode estar URL encoded)
+        try:
+            logger.info(f'Tentando buscar token direto no banco...')
+            assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token)
+            logger.info(f'✅ Token encontrado direto - ID: {assinatura.id}')
+        except AssinaturaDigital.DoesNotExist:
+            # Se não encontrar, tentar com URL decode (para tokens antigos que foram salvos encoded)
+            token_decoded = unquote(token)
+            logger.info(f'Token não encontrado direto. Tentando com decode... Decoded: {token_decoded[:50]}...')
+            if token_decoded != token:  # Só tenta se realmente decodificou algo
+                assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token_decoded)
+                logger.info(f'✅ Token encontrado após decode - ID: {assinatura.id}')
+            else:
+                logger.warning(f'❌ Token não mudou após decode')
+                raise AssinaturaDigital.DoesNotExist
         
         # Verificar se já foi assinado
         if assinatura.assinado:
+            logger.warning(f'⚠️ Documento já foi assinado - Assinatura ID: {assinatura.id}')
             return None, 'Este documento já foi assinado.'
         
         # Verificar expiração
         if assinatura.is_expirado():
+            logger.warning(f'⚠️ Token expirado - Assinatura ID: {assinatura.id}')
             return None, 'Este link de assinatura expirou.'
         
+        logger.info(f'✅ Token válido e ativo - Assinatura ID: {assinatura.id}')
         return assinatura, None
     except AssinaturaDigital.DoesNotExist:
+        logger.error(f'❌ Token não encontrado no banco de dados')
         return None, 'Link de assinatura inválido.'
 
 

@@ -116,40 +116,56 @@ export default function PropostaFormContent({
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className={labelClass}>Nome</span>
-              <p className="font-medium">{leadInfo.nome}</p>
+              <p className="font-medium">{leadInfo.conta_info?.nome || leadInfo.empresa || leadInfo.nome}</p>
             </div>
-            <div>
-              <span className={labelClass}>Empresa</span>
-              <p>{leadInfo.empresa || '—'}</p>
-            </div>
-            {(leadInfo.cpf_cnpj) && (
+            {leadInfo.conta_info?.razao_social && (
               <div>
-                <span className={labelClass}>CPF/CNPJ</span>
-                <p>{leadInfo.cpf_cnpj}</p>
+                <span className={labelClass}>Razão Social</span>
+                <p>{leadInfo.conta_info.razao_social}</p>
+              </div>
+            )}
+            {(leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj) && (
+              <div>
+                <span className={labelClass}>CNPJ</span>
+                <p>{leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj}</p>
+              </div>
+            )}
+            {leadInfo.conta_info?.inscricao_estadual && (
+              <div>
+                <span className={labelClass}>Inscrição Estadual</span>
+                <p>{leadInfo.conta_info.inscricao_estadual}</p>
               </div>
             )}
             <div>
               <span className={labelClass}>Email</span>
-              <p>{leadInfo.email || '—'}</p>
+              <p>{leadInfo.conta_info?.email || leadInfo.email || '—'}</p>
             </div>
             <div>
               <span className={labelClass}>Telefone</span>
-              <p>{leadInfo.telefone || '—'}</p>
+              <p>{leadInfo.conta_info?.telefone || leadInfo.telefone || '—'}</p>
             </div>
+            {leadInfo.conta_info?.site && (
+              <div className="col-span-2">
+                <span className={labelClass}>Site</span>
+                <p>{leadInfo.conta_info.site}</p>
+              </div>
+            )}
             <div className="col-span-2">
               <span className={labelClass}>Endereço</span>
               <p>
-                {[leadInfo.logradouro, leadInfo.numero, leadInfo.complemento, leadInfo.bairro, leadInfo.cidade, leadInfo.uf, leadInfo.cep]
-                  .filter(Boolean).length > 0
-                  ? [
-                      leadInfo.logradouro,
-                      leadInfo.numero ? `nº ${leadInfo.numero}` : '',
-                      leadInfo.complemento,
-                      leadInfo.bairro,
-                      leadInfo.cidade && leadInfo.uf ? `${leadInfo.cidade}/${leadInfo.uf}` : leadInfo.cidade || leadInfo.uf,
-                      leadInfo.cep ? `CEP ${leadInfo.cep}` : '',
-                    ].filter(Boolean).join(' - ')
-                  : '—'}
+                {(() => {
+                  // Priorizar endereço da conta
+                  const endereco = leadInfo.conta_info || leadInfo;
+                  const partes = [
+                    endereco.logradouro,
+                    endereco.numero ? `nº ${endereco.numero}` : '',
+                    endereco.complemento,
+                    endereco.bairro,
+                    endereco.cidade && endereco.uf ? `${endereco.cidade}/${endereco.uf}` : endereco.cidade || endereco.uf,
+                    endereco.cep ? `CEP ${endereco.cep}` : '',
+                  ].filter(Boolean);
+                  return partes.length > 0 ? partes.join(' - ') : '—';
+                })()}
               </p>
             </div>
           </div>

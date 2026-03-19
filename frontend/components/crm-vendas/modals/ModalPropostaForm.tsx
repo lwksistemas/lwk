@@ -28,6 +28,23 @@ export interface LeadInfo {
   bairro?: string;
   cidade?: string;
   uf?: string;
+  conta_info?: {
+    id: number;
+    nome: string;
+    razao_social?: string;
+    cnpj?: string;
+    inscricao_estadual?: string;
+    email?: string;
+    telefone?: string;
+    site?: string;
+    cep?: string;
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    cidade?: string;
+    uf?: string;
+  } | null;
 }
 
 export interface OportunidadeItem {

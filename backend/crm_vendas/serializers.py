@@ -176,15 +176,39 @@ class ContaSerializer(serializers.ModelSerializer):
 
 
 class LeadSerializer(serializers.ModelSerializer):
+    conta_info = serializers.SerializerMethodField()
+    
     class Meta:
         model = Lead
         fields = [
             'id', 'nome', 'empresa', 'cpf_cnpj', 'email', 'telefone', 'origem', 'status',
-            'valor_estimado', 'conta', 'observacoes',
+            'valor_estimado', 'conta', 'conta_info', 'observacoes',
             'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+    
+    def get_conta_info(self, obj):
+        """Retorna informações completas da conta vinculada."""
+        if obj.conta:
+            return {
+                'id': obj.conta.id,
+                'nome': obj.conta.nome,
+                'razao_social': obj.conta.razao_social,
+                'cnpj': obj.conta.cnpj,
+                'inscricao_estadual': obj.conta.inscricao_estadual,
+                'email': obj.conta.email,
+                'telefone': obj.conta.telefone,
+                'site': obj.conta.site,
+                'cep': obj.conta.cep,
+                'logradouro': obj.conta.logradouro,
+                'numero': obj.conta.numero,
+                'complemento': obj.conta.complemento,
+                'bairro': obj.conta.bairro,
+                'cidade': obj.conta.cidade,
+                'uf': obj.conta.uf,
+            }
+        return None
 
 
 class LeadListSerializer(serializers.ModelSerializer):

@@ -67,6 +67,7 @@ export default function CrmVendasPipelinePage() {
     valor_comissao: '',
     itens: [] as { produto_servico_id: number; quantidade: string; preco_unitario: string }[],
   });
+  const [itensEditar, setItensEditar] = useState<{ id?: number; produto_servico_id: number; quantidade: string; preco_unitario: string }[]>([]);
 
   // Sincronizar vendedor_id com backend ao montar componente
   useEffect(() => {
@@ -255,6 +256,53 @@ export default function CrmVendasPipelinePage() {
     setModalExcluir(false);
     setPropostasOportunidade([]);
     setContratoOportunidade(null);
+    
+    // Carregar itens da oportunidade
+    apiClient
+      .get(`/crm-vendas/oportunidade-itens/?oportunidade_id=${op.id}`)
+      .then((res) => {
+        const itens = normalizeListResponse(res.data);
+        setItensEditar(itens.map((item: any) => ({
+          id: item.id,
+          produto_servico_id: item.produto_servico,
+          quantidade: String(item.quantidade),
+          preco_unitario: String(item.preco_unitario),
+        })));
+      })
+      .catch(() => setItensEditar([]));
+    
+    // Carregar produtos/serviços para o select
+    apiClient
+      .get<ProdutoServicoOption[] | { results: ProdutoServicoOption[] }>('/crm-vendas/produtos-servicos/?ativo=true')
+      .then((res) => setProdutosServicos(normalizeListResponse(res.data)))
+      .catch(() => setProdutosServicos([]));
+  };
+
+  const addItemEditar = () => {
+    const first = produtosServicos[0];
+    if (!first) return;
+    setItensEditar((itens) => [
+      ...itens,
+      { produto_servico_id: first.id, quantidade: '1', preco_unitario: first.preco },
+    ]);
+  };
+
+  const updateItemEditar = (idx: number, field: 'produto_servico_id' | 'quantidade' | 'preco_unitario', value: string | number) => {
+    setItensEditar((itens) =>
+      itens.map((item, i) => {
+        if (i !== idx) return item;
+        const updated = { ...item, [field]: field === 'produto_servico_id' ? Number(value) : String(value) };
+        if (field === 'produto_servico_id') {
+          const ps = produtosServicos.find((p) => p.id === Number(value));
+          if (ps) updated.preco_unitario = ps.preco;
+        }
+        return updated;
+      })
+    );
+  };
+
+  const removeItemEditar = (idx: number) => {
+    setItensEditar((itens) => itens.filter((_, i) => i !== idx));
   };
 
   const handleExcluirOportunidade = async () => {
@@ -304,43 +352,88 @@ export default function CrmVendasPipelinePage() {
     }
   };
 
-  const handleSalvarEtapa = (e: React.FormEvent) => {
+  const handleSalvarEtapa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oportunidadeEditar) return;
     setFormErro(null);
     setEnviando(true);
     
-    const payload: Record<string, unknown> = { etapa: etapaSelecionada };
-    
-    // Adiciona valor_comissao se preenchido
-    if (valorComissaoEdit) {
-      payload.valor_comissao = parseFloat(valorComissaoEdit);
+    try {
+      const payload: Record<string, unknown> = { etapa: etapaSelecionada };
+      
+      // Adiciona valor_comissao se preenchido
+      if (valorComissaoEdit) {
+        payload.valor_comissao = parseFloat(valorComissaoEdit);
+      }
+      
+      // Se mudou para closed_won, sugere data_fechamento_ganho
+      if (etapaSelecionada === 'closed_won' && !dataFechamentoGanho) {
+        payload.data_fechamento_ganho = new Date().toISOString().split('T')[0];
+      } else if (dataFechamentoGanho) {
+        payload.data_fechamento_ganho = dataFechamentoGanho;
+      }
+      
+      // Se mudou para closed_lost, sugere data_fechamento_perdido
+      if (etapaSelecionada === 'closed_lost' && !dataFechamentoPerdido) {
+        payload.data_fechamento_perdido = new Date().toISOString().split('T')[0];
+      } else if (dataFechamentoPerdido) {
+        payload.data_fechamento_perdido = dataFechamentoPerdido;
+      }
+
+      // Atualizar oportunidade
+      await apiClient.patch(`/crm-vendas/oportunidades/${oportunidadeEditar.id}/`, payload);
+      
+      // Atualizar itens (produtos/serviços)
+      // Buscar itens atuais do backend
+      const resItens = await apiClient.get(`/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidadeEditar.id}`);
+      const itensAtuais = normalizeListResponse(resItens.data);
+      const idsAtuais = itensAtuais.map((item: any) => item.id);
+      const idsEditados = itensEditar.filter(item => item.id).map(item => item.id);
+      
+      // Deletar itens removidos
+      for (const id of idsAtuais) {
+        if (!idsEditados.includes(id)) {
+          await apiClient.delete(`/crm-vendas/oportunidade-itens/${id}/`);
+        }
+      }
+      
+      // Atualizar ou criar itens
+      for (const item of itensEditar) {
+        const itemData = {
+          oportunidade: oportunidadeEditar.id,
+          produto_servico: item.produto_servico_id,
+          quantidade: parseFloat(item.quantidade),
+          preco_unitario: parseFloat(item.preco_unitario),
+        };
+        
+        if (item.id) {
+          // Atualizar item existente
+          await apiClient.patch(`/crm-vendas/oportunidade-itens/${item.id}/`, itemData);
+        } else {
+          // Criar novo item
+          await apiClient.post('/crm-vendas/oportunidade-itens/', itemData);
+        }
+      }
+      
+      // Recalcular valor total da oportunidade
+      if (itensEditar.length > 0) {
+        const valorTotal = itensEditar.reduce(
+          (sum, item) => sum + parseFloat(item.quantidade) * parseFloat(item.preco_unitario),
+          0
+        );
+        await apiClient.patch(`/crm-vendas/oportunidades/${oportunidadeEditar.id}/`, {
+          valor: valorTotal,
+        });
+      }
+      
+      setOportunidadeEditar(null);
+      loadOportunidades(setOportunidades, setError);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setFormErro(e.response?.data?.detail || 'Erro ao atualizar.');
+    } finally {
+      setEnviando(false);
     }
-    
-    // Se mudou para closed_won, sugere data_fechamento_ganho
-    if (etapaSelecionada === 'closed_won' && !dataFechamentoGanho) {
-      payload.data_fechamento_ganho = new Date().toISOString().split('T')[0];
-    } else if (dataFechamentoGanho) {
-      payload.data_fechamento_ganho = dataFechamentoGanho;
-    }
-    
-    // Se mudou para closed_lost, sugere data_fechamento_perdido
-    if (etapaSelecionada === 'closed_lost' && !dataFechamentoPerdido) {
-      payload.data_fechamento_perdido = new Date().toISOString().split('T')[0];
-    } else if (dataFechamentoPerdido) {
-      payload.data_fechamento_perdido = dataFechamentoPerdido;
-    }
-    
-    apiClient
-      .patch(`/crm-vendas/oportunidades/${oportunidadeEditar.id}/`, payload)
-      .then(() => {
-        setOportunidadeEditar(null);
-        loadOportunidades(setOportunidades, setError);
-      })
-      .catch((err) => {
-        setFormErro(err.response?.data?.detail || 'Erro ao atualizar.');
-      })
-      .finally(() => setEnviando(false));
   };
 
   if (error) {
@@ -586,10 +679,10 @@ export default function CrmVendasPipelinePage() {
           onClick={() => !enviando && setOportunidadeEditar(null)}
         >
           <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-2xl max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Editar oportunidade
               </h2>
@@ -602,7 +695,7 @@ export default function CrmVendasPipelinePage() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-4">
+            <div className="p-4 flex-shrink-0">
               <p className="font-medium text-gray-900 dark:text-white">{oportunidadeEditar.titulo}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">{oportunidadeEditar.lead_nome}</p>
               <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
@@ -614,7 +707,8 @@ export default function CrmVendasPipelinePage() {
                 </p>
               )}
             </div>
-            <form onSubmit={handleSalvarEtapa} className="p-4 pt-0 space-y-4">
+            <form id="form-editar-oportunidade" onSubmit={handleSalvarEtapa} className="overflow-y-auto flex-1">
+              <div className="p-4 pt-0 space-y-4">
               {formErro && (
                 <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
                   {formErro}
@@ -634,6 +728,77 @@ export default function CrmVendasPipelinePage() {
                   ))}
                 </select>
               </div>
+              
+              {/* Produtos e Serviços */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Produtos e Serviços
+                  </label>
+                  <Link
+                    href={`/loja/${slug}/crm-vendas/produtos-servicos`}
+                    className="text-xs text-[#0176d3] hover:underline"
+                  >
+                    Cadastrar
+                  </Link>
+                </div>
+                {itensEditar.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 mb-2 items-center">
+                    <select
+                      value={item.produto_servico_id}
+                      onChange={(e) => updateItemEditar(idx, 'produto_servico_id', e.target.value)}
+                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                    >
+                      {produtosServicos.map((ps) => (
+                        <option key={ps.id} value={ps.id}>
+                          {ps.tipo === 'produto' ? 'Produto' : 'Serviço'}: {ps.nome} - {parseFloat(ps.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={item.preco_unitario}
+                      onChange={(e) => updateItemEditar(idx, 'preco_unitario', e.target.value)}
+                      className="w-20 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      placeholder="Preço"
+                    />
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={item.quantidade}
+                      onChange={(e) => updateItemEditar(idx, 'quantidade', e.target.value)}
+                      className="w-16 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      placeholder="Qtd"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeItemEditar(idx)}
+                      className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600"
+                      aria-label="Remover"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+                {produtosServicos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={addItemEditar}
+                    className="text-sm text-[#0176d3] hover:underline"
+                  >
+                    + Adicionar item
+                  </button>
+                )}
+                {produtosServicos.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Cadastre produtos/serviços em <Link href={`/loja/${slug}/crm-vendas/produtos-servicos`} className="underline">Produtos e Serviços</Link>.
+                  </p>
+                )}
+              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Valor da Comissão (R$)
@@ -743,6 +908,9 @@ export default function CrmVendasPipelinePage() {
                   )}
                 </div>
               )}
+              </div>
+            </form>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
               {!modalExcluir ? (
                 <div className="flex gap-2">
                   <button
@@ -762,12 +930,8 @@ export default function CrmVendasPipelinePage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={enviando || (
-                      etapaSelecionada === oportunidadeEditar.etapa &&
-                      valorComissaoEdit === (oportunidadeEditar.valor_comissao || '') &&
-                      dataFechamentoGanho === (oportunidadeEditar.data_fechamento_ganho || '') &&
-                      dataFechamentoPerdido === (oportunidadeEditar.data_fechamento_perdido || '')
-                    )}
+                    form="form-editar-oportunidade"
+                    disabled={enviando}
                     className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
                   >
                     {enviando ? 'Salvando...' : 'Salvar'}
@@ -798,7 +962,7 @@ export default function CrmVendasPipelinePage() {
                   </div>
                 </div>
               )}
-            </form>
+            </div>
           </div>
         </div>
       )}

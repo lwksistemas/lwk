@@ -385,6 +385,7 @@ class Proposta(LojaIsolationMixin, models.Model):
         on_delete=models.CASCADE,
         related_name='propostas',
     )
+    numero = models.CharField(max_length=50, blank=True, help_text='Número sequencial da proposta (ex: 001, 002, 003)')
     titulo = models.CharField(max_length=255)
     conteudo = models.TextField(blank=True, help_text='Conteúdo da proposta em texto ou HTML')
     valor_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
@@ -416,7 +417,28 @@ class Proposta(LojaIsolationMixin, models.Model):
         ]
 
     def __str__(self):
-        return f"{self.titulo} - {self.get_status_display()}"
+        return f"{self.numero or self.titulo} - {self.get_status_display()}"
+    
+    def save(self, *args, **kwargs):
+        """Gera número sequencial automaticamente se não fornecido."""
+        if not self.numero and self.loja_id:
+            # Buscar o último número da loja
+            ultima_proposta = Proposta.objects.filter(
+                loja_id=self.loja_id
+            ).exclude(numero='').order_by('-id').first()
+            
+            if ultima_proposta and ultima_proposta.numero:
+                try:
+                    ultimo_num = int(ultima_proposta.numero)
+                    proximo_num = ultimo_num + 1
+                except (ValueError, TypeError):
+                    proximo_num = 1
+            else:
+                proximo_num = 1
+            
+            self.numero = str(proximo_num).zfill(3)  # 001, 002, 003, etc.
+        
+        super().save(*args, **kwargs)
 
 
 class Contrato(LojaIsolationMixin, models.Model):
@@ -473,7 +495,28 @@ class Contrato(LojaIsolationMixin, models.Model):
         ]
 
     def __str__(self):
-        return f"{self.titulo or self.numero or 'Contrato'} - {self.get_status_display()}"
+        return f"{self.numero or self.titulo or 'Contrato'} - {self.get_status_display()}"
+    
+    def save(self, *args, **kwargs):
+        """Gera número sequencial automaticamente se não fornecido."""
+        if not self.numero and self.loja_id:
+            # Buscar o último número da loja
+            ultimo_contrato = Contrato.objects.filter(
+                loja_id=self.loja_id
+            ).exclude(numero='').order_by('-id').first()
+            
+            if ultimo_contrato and ultimo_contrato.numero:
+                try:
+                    ultimo_num = int(ultimo_contrato.numero)
+                    proximo_num = ultimo_num + 1
+                except (ValueError, TypeError):
+                    proximo_num = 1
+            else:
+                proximo_num = 1
+            
+            self.numero = str(proximo_num).zfill(3)  # 001, 002, 003, etc.
+        
+        super().save(*args, **kwargs)
 
 
 class PropostaTemplate(LojaIsolationMixin, models.Model):

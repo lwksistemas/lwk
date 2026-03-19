@@ -47,29 +47,16 @@ export default function BotaoAssinaturaDigital({
     
     try {
       const endpoint = tipoDocumento === 'proposta' 
-        ? `/api/crm-vendas/propostas/${documentoId}/enviar_para_assinatura/`
-        : `/api/crm-vendas/contratos/${documentoId}/enviar_para_assinatura/`;
+        ? `/crm-vendas/propostas/${documentoId}/enviar_para_assinatura/`
+        : `/crm-vendas/contratos/${documentoId}/enviar_para_assinatura/`;
       
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) {
-        setMensagem({
-          tipo: 'erro',
-          texto: data.detail || 'Erro ao enviar para assinatura',
-        });
-        return;
-      }
+      // Usar apiClient ao invés de fetch para incluir autenticação
+      const { default: apiClient } = await import('@/lib/api-client');
+      const res = await apiClient.post(endpoint);
       
       setMensagem({
         tipo: 'sucesso',
-        texto: data.message || `Email enviado para ${leadEmail}`,
+        texto: res.data.message || `Email enviado para ${leadEmail}`,
       });
       
       // Chamar callback de sucesso após 2 segundos
@@ -78,10 +65,10 @@ export default function BotaoAssinaturaDigital({
           onSucesso();
         }
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       setMensagem({
         tipo: 'erro',
-        texto: 'Erro ao enviar para assinatura. Tente novamente.',
+        texto: err.response?.data?.detail || 'Erro ao enviar para assinatura. Tente novamente.',
       });
     } finally {
       setEnviando(false);

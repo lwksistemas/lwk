@@ -62,6 +62,9 @@ def criar_token_assinatura(documento, tipo, loja_id):
     # Gerar token - Django já usa base64 URL-safe
     token = dumps(payload)
     
+    logger.info(f'🔑 Token gerado: {token}')
+    logger.info(f'   Tamanho: {len(token)}, Contém ":": {(":" in token)}')
+    
     # Criar registro de assinatura
     # Determinar se é proposta ou contrato
     kwargs = {
@@ -82,9 +85,11 @@ def criar_token_assinatura(documento, tipo, loja_id):
     assinatura = AssinaturaDigital.objects.create(**kwargs)
     
     logger.info(
-        f'Token de assinatura criado: tipo={tipo}, documento={documento.__class__.__name__}#{documento.id}, '
-        f'assinante={nome}, loja_id={loja_id}'
+        f'✅ Token de assinatura criado e salvo no banco: '
+        f'tipo={tipo}, documento={documento.__class__.__name__}#{documento.id}, '
+        f'assinante={nome}, loja_id={loja_id}, assinatura_id={assinatura.id}'
     )
+    logger.info(f'   Token salvo no banco: {assinatura.token}')
     
     return assinatura
 

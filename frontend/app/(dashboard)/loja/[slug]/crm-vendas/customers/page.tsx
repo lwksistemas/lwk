@@ -61,6 +61,7 @@ export default function CrmVendasCustomersPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [consultingCNPJ, setConsultingCNPJ] = useState(false);
+  const [creatingOpportunity, setCreatingOpportunity] = useState(false);
 
   const loadContas = async () => {
     try {
@@ -276,6 +277,39 @@ export default function CrmVendasCustomersPage() {
       alert(err.response?.data?.detail || 'Erro ao excluir cliente.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCriarOportunidade = async () => {
+    if (!selectedConta) return;
+    
+    try {
+      setCreatingOpportunity(true);
+      
+      // Criar Lead vinculado à Conta
+      const leadResponse = await apiClient.post('/crm-vendas/leads/', {
+        nome: selectedConta.nome,
+        empresa: selectedConta.nome,
+        email: selectedConta.email || '',
+        telefone: selectedConta.telefone || '',
+        origem: 'site',
+        status: 'qualificado',
+        conta_id: selectedConta.id,
+        cpf_cnpj: selectedConta.cnpj || '',
+        cep: selectedConta.cep || '',
+        logradouro: selectedConta.logradouro || '',
+        numero: selectedConta.numero || '',
+        complemento: selectedConta.complemento || '',
+        bairro: selectedConta.bairro || '',
+        cidade: selectedConta.cidade || '',
+        uf: selectedConta.uf || '',
+      });
+      
+      // Redirecionar para pipeline com modal de criar oportunidade
+      router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${leadResponse.data.id}`);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao criar oportunidade.');
+      setCreatingOpportunity(false);
     }
   };
 
@@ -764,6 +798,15 @@ export default function CrmVendasCustomersPage() {
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
                         Fechar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCriarOportunidade}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-2"
+                        disabled={creatingOpportunity}
+                      >
+                        <Plus size={16} />
+                        {creatingOpportunity ? 'Criando...' : 'Criar Oportunidade'}
                       </button>
                       <button
                         type="button"

@@ -100,8 +100,13 @@ export default function CrmVendasPipelinePage() {
   }, [vendedorIdSynced]);
 
   useEffect(() => {
+    const leadIdParam = searchParams.get('lead_id');
     if (searchParams.get('novo') === '1') {
       setModalCriar(true);
+      // Se veio com lead_id, pré-selecionar
+      if (leadIdParam) {
+        setFormCriar((f) => ({ ...f, lead_id: leadIdParam }));
+      }
       router.replace(`/loja/${slug}/crm-vendas/pipeline`, { scroll: false });
     }
   }, [searchParams, router, slug]);

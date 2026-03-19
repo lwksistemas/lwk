@@ -10,13 +10,22 @@ import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 interface Conta {
   id: number;
   nome: string;
+  razao_social?: string;
+  cnpj?: string;
+  inscricao_estadual?: string;
   segmento: string;
   telefone?: string;
   email?: string;
-  cidade?: string;
-  estado?: string;
-  endereco?: string;
   site?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+  endereco?: string;
+  observacoes?: string;
   created_at: string;
 }
 
@@ -34,15 +43,24 @@ export default function CrmVendasCustomersPage() {
   const [selectedConta, setSelectedConta] = useState<Conta | null>(null);
   const [formData, setFormData] = useState({
     nome: '',
+    razao_social: '',
+    cnpj: '',
+    inscricao_estadual: '',
     segmento: '',
     telefone: '',
     email: '',
-    cidade: '',
-    estado: '',
-    endereco: '',
     site: '',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    uf: '',
+    observacoes: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [consultingCNPJ, setConsultingCNPJ] = useState(false);
 
   const loadContas = async () => {
     try {
@@ -88,24 +106,40 @@ export default function CrmVendasCustomersPage() {
     if (type === 'edit' && conta) {
       setFormData({
         nome: conta.nome || '',
+        razao_social: conta.razao_social || '',
+        cnpj: conta.cnpj || '',
+        inscricao_estadual: conta.inscricao_estadual || '',
         segmento: conta.segmento || '',
         telefone: conta.telefone || '',
         email: conta.email || '',
-        cidade: conta.cidade || '',
-        estado: conta.estado || '',
-        endereco: conta.endereco || '',
         site: conta.site || '',
+        cep: conta.cep || '',
+        logradouro: conta.logradouro || '',
+        numero: conta.numero || '',
+        complemento: conta.complemento || '',
+        bairro: conta.bairro || '',
+        cidade: conta.cidade || '',
+        uf: conta.uf || '',
+        observacoes: conta.observacoes || '',
       });
     } else if (type === 'create') {
       setFormData({
         nome: '',
+        razao_social: '',
+        cnpj: '',
+        inscricao_estadual: '',
         segmento: '',
         telefone: '',
         email: '',
-        cidade: '',
-        estado: '',
-        endereco: '',
         site: '',
+        cep: '',
+        logradouro: '',
+        numero: '',
+        complemento: '',
+        bairro: '',
+        cidade: '',
+        uf: '',
+        observacoes: '',
       });
     }
   };
@@ -115,14 +149,93 @@ export default function CrmVendasCustomersPage() {
     setSelectedConta(null);
     setFormData({
       nome: '',
+      razao_social: '',
+      cnpj: '',
+      inscricao_estadual: '',
       segmento: '',
       telefone: '',
       email: '',
-      cidade: '',
-      estado: '',
-      endereco: '',
       site: '',
+      cep: '',
+      logradouro: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      uf: '',
+      observacoes: '',
     });
+  };
+
+  // Consultar CNPJ na API da Receita Federal
+  const consultarCNPJ = async () => {
+    const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
+    
+    if (cnpjLimpo.length !== 14) {
+      alert('CNPJ inválido. Digite 14 dígitos.');
+      return;
+    }
+
+    try {
+      setConsultingCNPJ(true);
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      
+      if (!response.ok) {
+        throw new Error('CNPJ não encontrado');
+      }
+
+      const data = await response.json();
+      
+      setFormData({
+        ...formData,
+        razao_social: data.razao_social || '',
+        nome: data.nome_fantasia || data.razao_social || formData.nome,
+        telefone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.substring(0, 2)}) ${data.ddd_telefone_1.substring(2)}` : formData.telefone,
+        email: data.email || formData.email,
+        cep: data.cep || '',
+        logradouro: data.logradouro || '',
+        numero: data.numero || '',
+        complemento: data.complemento || '',
+        bairro: data.bairro || '',
+        cidade: data.municipio || '',
+        uf: data.uf || '',
+      });
+      
+      alert('Dados da empresa carregados com sucesso!');
+    } catch (error) {
+      alert('Erro ao consultar CNPJ. Verifique o número e tente novamente.');
+    } finally {
+      setConsultingCNPJ(false);
+    }
+  };
+
+  // Consultar CEP na API ViaCEP
+  const consultarCEP = async () => {
+    const cepLimpo = formData.cep.replace(/\D/g, '');
+    
+    if (cepLimpo.length !== 8) {
+      alert('CEP inválido. Digite 8 dígitos.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        throw new Error('CEP não encontrado');
+      }
+
+      setFormData({
+        ...formData,
+        logradouro: data.logradouro || formData.logradouro,
+        bairro: data.bairro || formData.bairro,
+        cidade: data.localidade || formData.cidade,
+        uf: data.uf || formData.uf,
+      });
+    } catch (error) {
+      alert('Erro ao consultar CEP. Verifique o número e tente novamente.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -328,10 +441,55 @@ export default function CrmVendasCustomersPage() {
               <div className="p-6">
                 {(modalType === 'create' || modalType === 'edit') && (
                   <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* CNPJ e Consulta */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            CNPJ
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.cnpj}
+                            onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                            placeholder="00.000.000/0000-00"
+                            maxLength={18}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            onClick={consultarCNPJ}
+                            disabled={consultingCNPJ || !formData.cnpj}
+                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {consultingCNPJ ? 'Consultando...' : 'Consultar CNPJ'}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                        💡 Digite o CNPJ e clique em "Consultar CNPJ" para preencher automaticamente os dados da empresa
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Dados da Empresa */}
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Nome da Conta <span className="text-red-500">*</span>
+                          Razão Social
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.razao_social}
+                          onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Nome Fantasia <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -344,6 +502,18 @@ export default function CrmVendasCustomersPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Inscrição Estadual
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.inscricao_estadual}
+                          onChange={(e) => setFormData({ ...formData, inscricao_estadual: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Segmento
                         </label>
                         <input
@@ -351,9 +521,11 @@ export default function CrmVendasCustomersPage() {
                           value={formData.segmento}
                           onChange={(e) => setFormData({ ...formData, segmento: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                          placeholder="Ex: Tecnologia, Varejo, Serviços"
                         />
                       </div>
 
+                      {/* Contato */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Telefone
@@ -363,10 +535,11 @@ export default function CrmVendasCustomersPage() {
                           value={formData.telefone}
                           onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                          placeholder="(00) 00000-0000"
                         />
                       </div>
 
-                      <div className="md:col-span-2">
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Email
                         </label>
@@ -374,6 +547,106 @@ export default function CrmVendasCustomersPage() {
                           type="email"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Site
+                        </label>
+                        <input
+                          type="url"
+                          value={formData.site}
+                          onChange={(e) => setFormData({ ...formData, site: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                          placeholder="https://exemplo.com.br"
+                        />
+                      </div>
+
+                      {/* Endereço */}
+                      <div className="md:col-span-2">
+                        <hr className="border-gray-200 dark:border-gray-700 my-2" />
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Endereço</h3>
+                      </div>
+
+                      <div className="md:col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          CEP
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={formData.cep}
+                            onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                            onBlur={consultarCEP}
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                            placeholder="00000-000"
+                            maxLength={9}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          UF
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.uf}
+                          onChange={(e) => setFormData({ ...formData, uf: e.target.value.toUpperCase() })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                          placeholder="SP"
+                          maxLength={2}
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Logradouro
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.logradouro}
+                          onChange={(e) => setFormData({ ...formData, logradouro: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                          placeholder="Rua, Avenida, etc."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Número
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.numero}
+                          onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Complemento
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.complemento}
+                          onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
+                          placeholder="Apto, Sala, etc."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Bairro
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.bairro}
+                          onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
                         />
                       </div>
@@ -390,40 +663,16 @@ export default function CrmVendasCustomersPage() {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Estado
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.estado}
-                          onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                        />
-                      </div>
-
+                      {/* Observações */}
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Endereço
+                          Observações
                         </label>
-                        <input
-                          type="text"
-                          value={formData.endereco}
-                          onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                        <textarea
+                          value={formData.observacoes}
+                          onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                          rows={3}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Site
-                        </label>
-                        <input
-                          type="url"
-                          value={formData.site}
-                          onChange={(e) => setFormData({ ...formData, site: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                          placeholder="https://"
                         />
                       </div>
                     </div>

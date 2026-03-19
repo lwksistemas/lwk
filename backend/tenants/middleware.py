@@ -125,6 +125,17 @@ class TenantMiddleware:
                         loja_data = self._loja_cache[cache_key]
                         loja_id = loja_data['id']
                         db_name = loja_data['database_name']
+                        
+                        # 🔒 SEGURANÇA: Validar que loja ainda existe (pode ter sido excluída)
+                        loja_exists = Loja.objects.filter(id=loja_id).exists()
+                        if not loja_exists:
+                            logger.warning(f"⚠️ [TenantMiddleware] Loja {tenant_slug} (ID {loja_id}) foi excluída - removendo do cache")
+                            del self._loja_cache[cache_key]
+                            # Limpar contexto thread-local imediatamente
+                            set_current_loja_id(None)
+                            set_current_tenant_db('default')
+                            raise Loja.DoesNotExist
+                        
                         logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} encontrada no cache")
                     else:
                         loja = Loja.objects.filter(slug__iexact=tenant_slug).first()

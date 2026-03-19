@@ -237,48 +237,11 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
         elif tipo_loja_nome == 'CRM Vendas':
             # CRM Vendas: admin (owner) NÃO é vendedor - aparece em funcionários como
             # "Administrador" (Loja.owner). Admin cadastra gerentes e vendedores pela página.
+            # As tabelas do CRM são criadas pelas migrations (0015_add_produto_servico_proposta_contrato)
             logger.info(
-                f"CRM Vendas: admin aparece como Administrador em funcionários (não é Vendedor)"
+                f"CRM Vendas: admin aparece como Administrador em funcionários (não é Vendedor). "
+                f"Tabelas serão criadas pelas migrations."
             )
-            
-            # Criar tabelas do CRM automaticamente
-            try:
-                from crm_vendas.schema_service import configurar_schema_crm_loja
-                if configurar_schema_crm_loja(instance):
-                    logger.info(f"✅ Schema CRM configurado para loja {instance.nome}")
-                    
-                    # Criar tabelas de produtos e itens
-                    from django.db import connection
-                    db_name = instance.database_name
-                    schema_name = db_name.replace('-', '_')
-                    
-                    with connection.cursor() as cursor:
-                        cursor.execute(f'SET search_path TO "{schema_name}", public;')
-                        
-                        # Verificar se tabela já existe
-                        cursor.execute("""
-                            SELECT EXISTS (
-                                SELECT FROM information_schema.tables 
-                                WHERE table_schema = %s
-                                AND table_name = 'crm_vendas_oportunidade_item'
-                            );
-                        """, [schema_name])
-                        
-                        existe = cursor.fetchone()[0]
-                        
-                        if not existe:
-                            # Criar tabelas
-                            _criar_tabelas_crm(cursor, schema_name)
-                            logger.info(f"✅ Tabelas CRM criadas para loja {instance.nome}")
-                        else:
-                            logger.info(f"ℹ️ Tabelas CRM já existem para loja {instance.nome}")
-                else:
-                    logger.warning(f"⚠️ Falha ao configurar schema CRM para loja {instance.nome}")
-            except Exception as e:
-                logger.error(f"❌ Erro ao criar tabelas CRM para loja {instance.nome}: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-            
             return
 
         elif tipo_loja_nome == 'E-commerce':

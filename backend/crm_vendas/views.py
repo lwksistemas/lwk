@@ -1790,9 +1790,12 @@ class AssinaturaPublicaView(View):
         
         documento = assinatura.documento
         
+        # Determinar tipo de documento
+        tipo_documento = 'proposta' if assinatura.proposta else 'contrato'
+        
         # Retornar dados do documento
         return JsonResponse({
-            'tipo_documento': assinatura.content_type.model,
+            'tipo_documento': tipo_documento,
             'titulo': documento.titulo,
             'valor_total': str(documento.valor_total or '0.00'),
             'nome_assinante': assinatura.nome_assinante,

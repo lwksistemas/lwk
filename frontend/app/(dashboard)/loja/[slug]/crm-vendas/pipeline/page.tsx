@@ -44,6 +44,7 @@ export default function CrmVendasPipelinePage() {
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [vendedorIdSynced, setVendedorIdSynced] = useState(false);
   const [oportunidadeEditar, setOportunidadeEditar] = useState<Oportunidade | null>(null);
   const [etapaSelecionada, setEtapaSelecionada] = useState('');
   const [valorComissaoEdit, setValorComissaoEdit] = useState('');
@@ -67,7 +68,25 @@ export default function CrmVendasPipelinePage() {
     itens: [] as { produto_servico_id: number; quantidade: string; preco_unitario: string }[],
   });
 
+  // Sincronizar vendedor_id com backend ao montar componente
   useEffect(() => {
+    apiClient
+      .get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/crm-me/')
+      .then((res) => {
+        const { vendedor_id } = res.data;
+        if (vendedor_id) {
+          authService.setVendedorId(vendedor_id);
+        }
+        setVendedorIdSynced(true);
+      })
+      .catch(() => {
+        setVendedorIdSynced(true);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!vendedorIdSynced) return;
+    
     apiClient
       .get<Oportunidade[] | { results: Oportunidade[] }>('/crm-vendas/oportunidades/')
       .then((res) => setOportunidades(normalizeListResponse(res.data)))
@@ -77,7 +96,7 @@ export default function CrmVendasPipelinePage() {
         );
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [vendedorIdSynced]);
 
   useEffect(() => {
     if (searchParams.get('novo') === '1') {
@@ -197,6 +216,17 @@ export default function CrmVendasPipelinePage() {
           });
           await Promise.all(promises);
         }
+        
+        // Sincronizar vendedor_id antes de recarregar lista
+        try {
+          const meRes = await apiClient.get<{ vendedor_id: number | null }>('/crm-vendas/crm-me/');
+          if (meRes.data.vendedor_id) {
+            authService.setVendedorId(meRes.data.vendedor_id);
+          }
+        } catch {
+          // Ignora erro de sincronização
+        }
+        
         setModalCriar(false);
         loadOportunidades(setOportunidades, setError);
       })

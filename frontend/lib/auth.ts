@@ -236,6 +236,17 @@ class AuthService {
   }
 
   /**
+   * Define o ID do vendedor logado.
+   * Usado para sincronizar vendedor_id com backend após login ou criação de oportunidade.
+   */
+  setVendedorId(vendedorId: number): void {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('current_vendedor_id', String(vendedorId));
+      sessionStorage.setItem('is_vendedor', '1');
+    }
+  }
+
+  /**
    * Obtém o slug da loja
    */
   getLojaSlug(): string | null {

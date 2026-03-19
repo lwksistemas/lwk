@@ -34,6 +34,11 @@ class Command(BaseCommand):
                     if result:
                         config_id, modulos_ativos = result
                         
+                        # Parse JSON se for string
+                        import json
+                        if isinstance(modulos_ativos, str):
+                            modulos_ativos = json.loads(modulos_ativos)
+                        
                         # Verificar se contatos já está ativo
                         if modulos_ativos and modulos_ativos.get('contatos'):
                             self.stdout.write(self.style.SUCCESS(f'  ✅ Módulo CONTATOS já está ativo'))
@@ -48,11 +53,12 @@ class Command(BaseCommand):
                                 UPDATE crm_vendas_config 
                                 SET modulos_ativos = %s::jsonb, updated_at = NOW()
                                 WHERE id = %s;
-                            """, [str(modulos_ativos).replace("'", '"'), config_id])
+                            """, [json.dumps(modulos_ativos), config_id])
                             
                             self.stdout.write(self.style.SUCCESS(f'  ✅ Módulo CONTATOS ativado com sucesso'))
                     else:
                         # Criar config com módulos padrão
+                        import json
                         modulos_ativos = CRMConfig.get_default_modulos()
                         origens_leads = CRMConfig.get_default_origens()
                         etapas_pipeline = CRMConfig.get_default_etapas()
@@ -64,10 +70,10 @@ class Command(BaseCommand):
                             VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, NOW(), NOW());
                         """, [
                             loja.id,
-                            str(origens_leads).replace("'", '"'),
-                            str(etapas_pipeline).replace("'", '"'),
-                            str(colunas_leads).replace("'", '"'),
-                            str(modulos_ativos).replace("'", '"')
+                            json.dumps(origens_leads),
+                            json.dumps(etapas_pipeline),
+                            json.dumps(colunas_leads),
+                            json.dumps(modulos_ativos)
                         ])
                         
                         self.stdout.write(self.style.SUCCESS(f'  ✅ Config criada e módulo CONTATOS ativado'))

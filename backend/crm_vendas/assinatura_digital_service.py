@@ -174,9 +174,9 @@ def enviar_email_assinatura_cliente(documento, assinatura, request):
     if not lead.email:
         return False, 'Lead não possui email cadastrado.'
     
-    # Construir link de assinatura
-    base_url = request.build_absolute_uri('/').rstrip('/')
-    link_assinatura = f'{base_url}/assinar/{assinatura.token}'
+    # Construir link de assinatura (usar URL do frontend)
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
+    link_assinatura = f'{frontend_url}/assinar/{assinatura.token}'
     
     # Obter dados da loja
     from superadmin.models import Loja
@@ -234,9 +234,9 @@ def enviar_email_assinatura_vendedor(documento, assinatura, request):
     if not assinatura.email_assinante:
         return False, 'Vendedor não possui email cadastrado.'
     
-    # Construir link de assinatura
-    base_url = request.build_absolute_uri('/').rstrip('/')
-    link_assinatura = f'{base_url}/assinar/{assinatura.token}'
+    # Construir link de assinatura (usar URL do frontend)
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
+    link_assinatura = f'{frontend_url}/assinar/{assinatura.token}'
     
     # Obter dados da loja
     from superadmin.models import Loja

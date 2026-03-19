@@ -157,7 +157,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
 
     elements.append(Paragraph('PROPOSTA COMERCIAL', title_style))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
-    elements.append(Spacer(1, 0.3*cm))  # Reduzido de 0.5cm para 0.3cm (subir uma linha antes de Dados da Empresa)
+    elements.append(Spacer(1, 0.2*cm))  # Reduzido de 0.3cm para 0.2cm (subir uma linha antes de Dados da Empresa)
 
     # Dados da Empresa
     loja_id = getattr(proposta, 'loja_id', None)
@@ -176,7 +176,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
                 linhas.append(f"<b>Email do administrador:</b> {loja_data['admin_email']}")
             for ln in linhas:
                 elements.append(Paragraph(ln, styles['Normal']))
-            elements.append(Spacer(1, 0.2*cm))  # Reduzido de 0.3cm para 0.2cm (subir uma linha antes de Dados do Cliente)
+            elements.append(Spacer(1, 0.15*cm))  # Reduzido de 0.2cm para 0.15cm (subir uma linha antes de Dados do Cliente)
 
     # Dados do Cliente
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
@@ -192,7 +192,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         if getattr(lead, 'telefone', ''):
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
-        elements.append(Spacer(1, 0.3*cm))  # Reduzido de 0.5cm para 0.3cm
+        elements.append(Spacer(1, 0.15*cm))  # Reduzido de 0.3cm para 0.15cm (subir uma linha antes de Produtos)
 
     # Produtos e Serviços da Oportunidade (Valor total ao final)
     itens = []
@@ -226,20 +226,20 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     # Valor total ao final dos Produtos e Serviços
     valor_str = _formatar_valor(proposta.valor_total)
     elements.append(Paragraph(f'<b>Valor total:</b> {valor_str}', styles['Normal']))
-    elements.append(Spacer(1, 0.5*cm))
+    elements.append(Spacer(1, 0.3*cm))  # Reduzido de 0.5cm para 0.3cm
 
     # Conteúdo
     conteudo = _strip_html(proposta.conteudo) if proposta.conteudo else 'Conteúdo não informado.'
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
-    elements.append(Spacer(1, 0.3*cm))  # Reduzido de 1cm para 0.3cm (subir 2 linhas)
+    elements.append(Spacer(1, 0.2*cm))  # Reduzido de 0.3cm para 0.2cm (subir uma linha antes de Assinaturas)
 
     # Assinaturas (campos tradicionais + digitais integrados)
     nome_vendedor = getattr(proposta, 'nome_vendedor_assinatura', None) or ''
     nome_cliente = getattr(proposta, 'nome_cliente_assinatura', None) or ''
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
-    elements.append(Spacer(1, 0.1*cm))  # Reduzido para 0.1cm (subir mais os nomes)
+    elements.append(Spacer(1, 0.05*cm))  # Reduzido de 0.1cm para 0.05cm (subir mais os nomes)
     
     # Buscar assinaturas digitais se houver
     assinatura_vendedor = None
@@ -290,11 +290,11 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, 0), 5),  # Reduzido de 10 para 5 (subir 2 linhas os nomes)
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, 0), 3),  # Reduzido de 5 para 3
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
     ]))
     elements.append(assinatura_table)
-    elements.append(Spacer(1, 1*cm))
+    elements.append(Spacer(1, 0.5*cm))  # Reduzido de 1cm para 0.5cm
 
     doc.build(elements)
     buffer.seek(0)
@@ -338,7 +338,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', styles['Normal']))
     valor_str = _formatar_valor(contrato.valor_total)
     elements.append(Paragraph(f'<b>Valor total:</b> {valor_str}', styles['Normal']))
-    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Spacer(1, 0.2*cm))  # Reduzido de 0.3cm para 0.2cm
 
     # Dados da Empresa
     loja_id = getattr(contrato, 'loja_id', None)
@@ -357,7 +357,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
                 linhas.append(f"<b>Email do administrador:</b> {loja_data['admin_email']}")
             for ln in linhas:
                 elements.append(Paragraph(ln, styles['Normal']))
-            elements.append(Spacer(1, 0.2*cm))
+            elements.append(Spacer(1, 0.15*cm))  # Reduzido de 0.2cm para 0.15cm
 
     # Dados do Cliente
     lead = contrato.oportunidade.lead if contrato.oportunidade and contrato.oportunidade.lead else None
@@ -373,7 +373,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         if getattr(lead, 'telefone', ''):
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
-        elements.append(Spacer(1, 0.5*cm))
+        elements.append(Spacer(1, 0.15*cm))  # Reduzido de 0.5cm para 0.15cm
 
     # Produtos e Serviços da Oportunidade
     itens = []
@@ -401,20 +401,20 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         elements.append(t)
-        elements.append(Spacer(1, 0.5*cm))
+        elements.append(Spacer(1, 0.3*cm))  # Reduzido de 0.5cm para 0.3cm
 
     # Conteúdo
     conteudo = _strip_html(contrato.conteudo) if contrato.conteudo else 'Conteúdo não informado.'
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
-    elements.append(Spacer(1, 1*cm))
+    elements.append(Spacer(1, 0.2*cm))  # Reduzido de 1cm para 0.2cm
 
     # Assinaturas (campos tradicionais + digitais integrados)
     nome_vendedor = getattr(contrato, 'nome_vendedor_assinatura', None) or ''
     nome_cliente = getattr(contrato, 'nome_cliente_assinatura', None) or ''
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
-    elements.append(Spacer(1, 0.1*cm))
+    elements.append(Spacer(1, 0.05*cm))  # Reduzido para 0.05cm
     
     # Buscar assinaturas digitais se houver
     assinatura_vendedor = None
@@ -465,11 +465,11 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, 0), 5),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, 0), 3),  # Reduzido de 5 para 3
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
     ]))
     elements.append(assinatura_table)
-    elements.append(Spacer(1, 1*cm))
+    elements.append(Spacer(1, 0.5*cm))  # Reduzido de 1cm para 0.5cm
 
     doc.build(elements)
     buffer.seek(0)

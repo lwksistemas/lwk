@@ -116,7 +116,14 @@ git add -A
 git commit -m "feat: adicionar campos de assinatura em propostas e contratos (v1027)"
 git push heroku master
 ```
-**Resultado**: Backend v1133 deployado com sucesso
+**Resultado**: Backend v1136 deployado com sucesso
+
+### Criação Manual das Colunas
+As colunas precisaram ser criadas manualmente pois a migration não as criou automaticamente:
+```bash
+heroku run "python backend/manage.py criar_colunas_assinatura"
+```
+**Resultado**: Colunas criadas com sucesso em todas as lojas
 
 ### Frontend
 ```bash
@@ -157,9 +164,12 @@ vercel --prod --yes
 - ✅ Dados enviados corretamente ao backend
 
 ## 📊 Versões
-- Backend: v1133 (Heroku)
+- Backend: v1136 (Heroku) - Colunas criadas manualmente
 - Frontend: Último deploy (Vercel)
 - Data: 18/03/2026
+
+## ⚠️ Observação Importante
+As migrations do Django no Heroku frequentemente marcam como aplicadas mas não criam as tabelas/colunas. Foi necessário criar um comando management customizado para criar as colunas manualmente em todos os schemas das lojas.
 
 ## 👥 Contexto do Sistema
 - Owner vê TODOS os dados da loja

@@ -73,6 +73,8 @@ interface ModalPropostaFormProps {
   templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
   /** Callback quando seleciona template */
   onSelecionarTemplate?: (conteudo: string) => void;
+  /** Nome do vendedor logado */
+  vendedorNome?: string;
 }
 
 export default function ModalPropostaForm({
@@ -94,6 +96,7 @@ export default function ModalPropostaForm({
   salvandoPadrao = false,
   templates = [],
   onSelecionarTemplate,
+  vendedorNome,
 }: ModalPropostaFormProps) {
   return (
     <div
@@ -135,6 +138,7 @@ export default function ModalPropostaForm({
             onCancel={onClose}
             templates={templates}
             onSelecionarTemplate={onSelecionarTemplate}
+            vendedorNome={vendedorNome}
           />
         </div>
       </div>

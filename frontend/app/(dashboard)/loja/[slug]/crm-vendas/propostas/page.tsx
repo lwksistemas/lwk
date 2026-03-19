@@ -8,7 +8,7 @@ import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { Plus, Eye, Edit2, Trash2, X, ClipboardList, ArrowRight, Mail, MessageCircle, FileText } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import type { LojaInfo, LeadInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { LojaInfo, LeadInfo, FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
 
 const ModalPropostaForm = dynamic(() => import('@/components/crm-vendas/modals/ModalPropostaForm'), { ssr: false });
 
@@ -75,18 +75,21 @@ export default function CrmVendasPropostasPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selected, setSelected] = useState<Proposta | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataProposta>({
     oportunidade_id: '',
     titulo: '',
     conteudo: '',
     valor_total: '',
     status: 'rascunho' as string,
+    nome_vendedor_assinatura: '',
+    nome_cliente_assinatura: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
   const [templates, setTemplates] = useState<PropostaTemplate[]>([]);
+  const [vendedorNome, setVendedorNome] = useState<string>('');
 
   const handleEnviarCliente = async (propostaId: number, canal: 'email' | 'whatsapp') => {
     setEnviandoId(propostaId);
@@ -191,10 +194,27 @@ export default function CrmVendasPropostasPage() {
     try {
       const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
       setLeadInfo(res.data);
+      // Preencher automaticamente o nome do cliente
+      if (res.data.nome && !formData.nome_cliente_assinatura) {
+        setFormData((f) => ({ ...f, nome_cliente_assinatura: res.data.nome }));
+      }
     } catch {
       setLeadInfo(null);
     }
-  }, []);
+  }, [formData.nome_cliente_assinatura]);
+
+  const loadVendedorInfo = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ nome: string }>('/crm-vendas/vendedores/me/');
+      setVendedorNome(res.data.nome);
+      // Preencher automaticamente o nome do vendedor
+      if (res.data.nome && !formData.nome_vendedor_assinatura) {
+        setFormData((f) => ({ ...f, nome_vendedor_assinatura: res.data.nome }));
+      }
+    } catch {
+      setVendedorNome('');
+    }
+  }, [formData.nome_vendedor_assinatura]);
 
   useEffect(() => {
     loadPropostas();
@@ -206,8 +226,9 @@ export default function CrmVendasPropostasPage() {
       loadLojaInfo();
       loadCrmConfig();
       loadTemplates();
+      loadVendedorInfo();
     }
-  }, [modalType, loadOportunidades, loadLojaInfo, loadCrmConfig, loadTemplates]);
+  }, [modalType, loadOportunidades, loadLojaInfo, loadCrmConfig, loadTemplates, loadVendedorInfo]);
 
   useEffect(() => {
     if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
@@ -234,6 +255,8 @@ export default function CrmVendasPropostasPage() {
         conteudo: item.conteudo || '',
         valor_total: item.valor_total || '',
         status: item.status || 'rascunho',
+        nome_vendedor_assinatura: '',
+        nome_cliente_assinatura: '',
       });
     } else if (type === 'create') {
       // Usar template padrão se existir, senão usar proposta_conteudo_padrao
@@ -246,6 +269,8 @@ export default function CrmVendasPropostasPage() {
         conteudo: conteudoInicial,
         valor_total: '',
         status: 'rascunho',
+        nome_vendedor_assinatura: '',
+        nome_cliente_assinatura: '',
       });
       setItensOportunidade([]);
       setLeadInfo(null);
@@ -290,6 +315,8 @@ export default function CrmVendasPropostasPage() {
         conteudo: formData.conteudo,
         valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
         status: formData.status,
+        nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
+        nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
       };
       if (modalType === 'create') {
         await apiClient.post('/crm-vendas/propostas/', payload);
@@ -442,6 +469,7 @@ export default function CrmVendasPropostasPage() {
           salvandoPadrao={salvandoPadrao}
           templates={templates}
           onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
+          vendedorNome={vendedorNome}
         />
       )}
 

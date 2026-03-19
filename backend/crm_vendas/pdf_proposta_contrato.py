@@ -1,6 +1,7 @@
 """
 Geração de PDF para Proposta e Contrato do CRM.
 Inclui: Dados da Loja, Dados do Cliente, Produtos e Serviços da Oportunidade.
+Suporta assinaturas digitais com marca d'água (IP + timestamp).
 """
 from io import BytesIO
 from reportlab.lib import colors
@@ -10,6 +11,36 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER
 import re
+
+
+def _adicionar_marca_dagua_assinatura(elements, assinatura, styles):
+    """
+    Adiciona marca d'água com dados da assinatura digital.
+    
+    Args:
+        elements: lista de elementos do PDF
+        assinatura: instância de AssinaturaDigital
+        styles: estilos do reportlab
+    """
+    if not assinatura or not assinatura.assinado:
+        return
+    
+    # Formatar timestamp para timezone local (Brasil)
+    timestamp_local = assinatura.assinado_em.strftime('%d/%m/%Y às %H:%M:%S')
+    ip = assinatura.ip_address
+    nome = assinatura.nome_assinante
+    tipo = 'Cliente' if assinatura.tipo == 'cliente' else 'Vendedor'
+    
+    marca_texto = (
+        f"<i><font color='#666666'>"
+        f"✓ Assinado digitalmente por <b>{nome}</b> ({tipo})<br/>"
+        f"Data/Hora: {timestamp_local}<br/>"
+        f"IP: {ip}"
+        f"</font></i>"
+    )
+    
+    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Paragraph(marca_texto, styles['Normal']))
 
 
 def _strip_html(html):
@@ -83,8 +114,17 @@ def _formatar_endereco_lead(lead):
     return ', '.join(p for p in parts if p).strip() or '—'
 
 
-def gerar_pdf_proposta(proposta) -> BytesIO:
-    """Gera PDF da proposta comercial com Dados da Loja, Cliente e Produtos/Serviços."""
+def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
+    """
+    Gera PDF da proposta comercial com Dados da Loja, Cliente e Produtos/Serviços.
+    
+    Args:
+        proposta: instância de Proposta
+        incluir_assinaturas: Se True, inclui marcas d'água das assinaturas digitais
+    
+    Returns:
+        BytesIO: buffer com o PDF gerado
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
     elements = []
@@ -184,7 +224,28 @@ def gerar_pdf_proposta(proposta) -> BytesIO:
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
     elements.append(Spacer(1, 1*cm))
 
-    # Assinaturas
+    # Assinaturas Digitais (se houver)
+    if incluir_assinaturas:
+        from .models import AssinaturaDigital
+        from django.contrib.contenttypes.models import ContentType
+        
+        content_type = ContentType.objects.get_for_model(proposta)
+        assinaturas = AssinaturaDigital.objects.filter(
+            content_type=content_type,
+            object_id=proposta.id,
+            assinado=True
+        ).order_by('assinado_em')
+        
+        if assinaturas.exists():
+            elements.append(Paragraph('<b>Assinaturas Digitais</b>', section_style))
+            elements.append(Spacer(1, 0.3*cm))
+            
+            for assinatura in assinaturas:
+                _adicionar_marca_dagua_assinatura(elements, assinatura, styles)
+            
+            elements.append(Spacer(1, 0.5*cm))
+
+    # Assinaturas (campos tradicionais)
     nome_vendedor = getattr(proposta, 'nome_vendedor_assinatura', None) or '___________________________'
     nome_cliente = getattr(proposta, 'nome_cliente_assinatura', None) or '___________________________'
     
@@ -212,8 +273,17 @@ def gerar_pdf_proposta(proposta) -> BytesIO:
     return buffer
 
 
-def gerar_pdf_contrato(contrato) -> BytesIO:
-    """Gera PDF do contrato com Dados da Loja, Cliente e Produtos/Serviços."""
+def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
+    """
+    Gera PDF do contrato com Dados da Loja, Cliente e Produtos/Serviços.
+    
+    Args:
+        contrato: instância de Contrato
+        incluir_assinaturas: Se True, inclui marcas d'água das assinaturas digitais
+    
+    Returns:
+        BytesIO: buffer com o PDF gerado
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
     elements = []
@@ -311,7 +381,28 @@ def gerar_pdf_contrato(contrato) -> BytesIO:
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
     elements.append(Spacer(1, 1*cm))
 
-    # Assinaturas
+    # Assinaturas Digitais (se houver)
+    if incluir_assinaturas:
+        from .models import AssinaturaDigital
+        from django.contrib.contenttypes.models import ContentType
+        
+        content_type = ContentType.objects.get_for_model(contrato)
+        assinaturas = AssinaturaDigital.objects.filter(
+            content_type=content_type,
+            object_id=contrato.id,
+            assinado=True
+        ).order_by('assinado_em')
+        
+        if assinaturas.exists():
+            elements.append(Paragraph('<b>Assinaturas Digitais</b>', section_style))
+            elements.append(Spacer(1, 0.3*cm))
+            
+            for assinatura in assinaturas:
+                _adicionar_marca_dagua_assinatura(elements, assinatura, styles)
+            
+            elements.append(Spacer(1, 0.5*cm))
+
+    # Assinaturas (campos tradicionais)
     nome_vendedor = getattr(contrato, 'nome_vendedor_assinatura', None) or '___________________________'
     nome_cliente = getattr(contrato, 'nome_cliente_assinatura', None) or '___________________________'
     

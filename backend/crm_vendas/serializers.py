@@ -280,7 +280,7 @@ class PropostaSerializer(serializers.ModelSerializer):
         model = Proposta
         fields = [
             'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome',
-            'titulo', 'conteudo', 'valor_total', 'status',
+            'titulo', 'conteudo', 'valor_total', 'status', 'status_assinatura',
             'data_envio', 'data_resposta', 'observacoes',
             'nome_vendedor_assinatura', 'nome_cliente_assinatura',
             'created_at', 'updated_at',
@@ -316,7 +316,7 @@ class ContratoSerializer(serializers.ModelSerializer):
         model = Contrato
         fields = [
             'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome',
-            'numero', 'titulo', 'conteudo', 'valor_total', 'status',
+            'numero', 'titulo', 'conteudo', 'valor_total', 'status', 'status_assinatura',
             'data_envio', 'data_assinatura', 'observacoes',
             'nome_vendedor_assinatura', 'nome_cliente_assinatura',
             'created_at', 'updated_at',

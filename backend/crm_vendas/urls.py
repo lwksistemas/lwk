@@ -20,6 +20,7 @@ from .views import (
     LoginConfigView,
     crm_config,
     gerar_relatorio,
+    AssinaturaPublicaView,
 )
 from .views_enviar_cliente import DocumentoPdfPublicView
 from .views_google_calendar import (
@@ -45,7 +46,11 @@ router.register(r'contratos', ContratoViewSet, basename='crm-contratos')
 router.register(r'contrato-templates', ContratoTemplateViewSet, basename='crm-contrato-templates')
 
 urlpatterns = [
+    # Rotas públicas (sem autenticação)
     path('documento-pdf/', DocumentoPdfPublicView.as_view()),
+    path('assinar/<str:token>/', AssinaturaPublicaView.as_view(), name='assinatura-publica'),
+    
+    # Rotas autenticadas
     path('me/', crm_me),
     path('dashboard/', dashboard_data),
     path('busca/', crm_busca),

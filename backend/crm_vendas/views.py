@@ -849,6 +849,64 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
         if ok:
             return Response({'message': f'Proposta enviada ao cliente por {canal} com sucesso.'})
         return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def enviar_para_assinatura(self, request, pk=None):
+        """
+        Inicia workflow de assinatura digital.
+        Envia email para cliente com link de assinatura.
+        """
+        from .assinatura_digital_service import criar_token_assinatura, enviar_email_assinatura_cliente
+        
+        proposta = self.get_object()
+        loja_id = get_current_loja_id()
+        
+        # Validar que proposta tem oportunidade e lead
+        if not proposta.oportunidade or not proposta.oportunidade.lead:
+            return Response(
+                {'detail': 'Proposta sem oportunidade ou lead vinculado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        lead = proposta.oportunidade.lead
+        if not lead.email:
+            return Response(
+                {'detail': 'Lead não possui email cadastrado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar se já existe assinatura pendente
+        if proposta.status_assinatura in ['aguardando_cliente', 'aguardando_vendedor']:
+            return Response(
+                {'detail': f'Proposta já está em processo de assinatura: {proposta.get_status_assinatura_display()}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Criar token de assinatura para cliente
+        assinatura = criar_token_assinatura(proposta, 'cliente', loja_id)
+        
+        # Atualizar status da proposta
+        proposta.status_assinatura = 'aguardando_cliente'
+        proposta.save(update_fields=['status_assinatura', 'updated_at'])
+        
+        # Enviar email com link de assinatura
+        ok, err = enviar_email_assinatura_cliente(proposta, assinatura, request)
+        
+        if ok:
+            return Response({
+                'message': f'Email de assinatura enviado para {lead.email}',
+                'status_assinatura': 'aguardando_cliente'
+            })
+        else:
+            # Reverter status se falhou
+            proposta.status_assinatura = 'rascunho'
+            proposta.save(update_fields=['status_assinatura', 'updated_at'])
+            assinatura.delete()
+            
+            return Response(
+                {'detail': err or 'Erro ao enviar email. Tente novamente.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class PropostaTemplateViewSet(BaseModelViewSet):
@@ -958,6 +1016,64 @@ class ContratoViewSet(VendedorFilterMixin, BaseModelViewSet):
         if ok:
             return Response({'message': f'Contrato enviado ao cliente por {canal} com sucesso.'})
         return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def enviar_para_assinatura(self, request, pk=None):
+        """
+        Inicia workflow de assinatura digital.
+        Envia email para cliente com link de assinatura.
+        """
+        from .assinatura_digital_service import criar_token_assinatura, enviar_email_assinatura_cliente
+        
+        contrato = self.get_object()
+        loja_id = get_current_loja_id()
+        
+        # Validar que contrato tem oportunidade e lead
+        if not contrato.oportunidade or not contrato.oportunidade.lead:
+            return Response(
+                {'detail': 'Contrato sem oportunidade ou lead vinculado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        lead = contrato.oportunidade.lead
+        if not lead.email:
+            return Response(
+                {'detail': 'Lead não possui email cadastrado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar se já existe assinatura pendente
+        if contrato.status_assinatura in ['aguardando_cliente', 'aguardando_vendedor']:
+            return Response(
+                {'detail': f'Contrato já está em processo de assinatura: {contrato.get_status_assinatura_display()}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Criar token de assinatura para cliente
+        assinatura = criar_token_assinatura(contrato, 'cliente', loja_id)
+        
+        # Atualizar status do contrato
+        contrato.status_assinatura = 'aguardando_cliente'
+        contrato.save(update_fields=['status_assinatura', 'updated_at'])
+        
+        # Enviar email com link de assinatura
+        ok, err = enviar_email_assinatura_cliente(contrato, assinatura, request)
+        
+        if ok:
+            return Response({
+                'message': f'Email de assinatura enviado para {lead.email}',
+                'status_assinatura': 'aguardando_cliente'
+            })
+        else:
+            # Reverter status se falhou
+            contrato.status_assinatura = 'rascunho'
+            contrato.save(update_fields=['status_assinatura', 'updated_at'])
+            assinatura.delete()
+            
+            return Response(
+                {'detail': err or 'Erro ao enviar email. Tente novamente.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 def _empty_dashboard_response():
@@ -1626,3 +1742,143 @@ def gerar_relatorio(request):
     except Exception as e:
         logger.exception(f'Erro ao gerar relatório: {e}')
         return Response({'detail': f'Erro ao gerar relatório: {str(e)}'}, status=500)
+
+
+
+# ============================================================================
+# VIEWS PÚBLICAS DE ASSINATURA DIGITAL (sem autenticação)
+# ============================================================================
+
+from django.views import View
+from django.http import JsonResponse
+import json
+
+
+class AssinaturaPublicaView(View):
+    """
+    View pública para assinatura digital de propostas e contratos.
+    GET /api/crm-vendas/assinar/{token}/ - Retorna dados do documento
+    POST /api/crm-vendas/assinar/{token}/ - Registra assinatura
+    """
+    
+    def get(self, request, token):
+        """Retorna dados do documento para assinatura"""
+        from .assinatura_digital_service import verificar_token_assinatura
+        from tenants.middleware import set_current_loja_id, set_current_tenant_db
+        
+        assinatura, erro = verificar_token_assinatura(token)
+        
+        if erro:
+            return JsonResponse({'error': erro}, status=400)
+        
+        # Configurar contexto de loja
+        loja_id = assinatura.loja_id
+        set_current_loja_id(loja_id)
+        
+        # Configurar banco de dados da loja
+        from superadmin.models import Loja
+        try:
+            loja = Loja.objects.using('default').filter(id=loja_id).first()
+            if loja:
+                db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
+                from core.db_config import ensure_loja_database_config
+                ensure_loja_database_config(db_name, conn_max_age=0)
+                set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
+        except Exception as e:
+            logger.exception(f'Erro ao configurar contexto de loja: {e}')
+            return JsonResponse({'error': 'Erro ao carregar documento'}, status=500)
+        
+        documento = assinatura.documento
+        
+        # Retornar dados do documento
+        return JsonResponse({
+            'tipo_documento': assinatura.content_type.model,
+            'titulo': documento.titulo,
+            'valor_total': str(documento.valor_total or '0.00'),
+            'nome_assinante': assinatura.nome_assinante,
+            'tipo_assinante': assinatura.tipo,
+            'tipo_assinante_display': assinatura.get_tipo_display(),
+            'lead_nome': documento.oportunidade.lead.nome if documento.oportunidade else '',
+            'lead_empresa': getattr(documento.oportunidade.lead, 'empresa', '') if documento.oportunidade else '',
+        })
+    
+    def post(self, request, token):
+        """Registra a assinatura"""
+        from .assinatura_digital_service import (
+            verificar_token_assinatura,
+            registrar_assinatura,
+            criar_token_assinatura,
+            enviar_email_assinatura_vendedor,
+            enviar_pdf_final
+        )
+        from tenants.middleware import set_current_loja_id, set_current_tenant_db
+        
+        assinatura, erro = verificar_token_assinatura(token)
+        
+        if erro:
+            return JsonResponse({'error': erro}, status=400)
+        
+        # Configurar contexto de loja
+        loja_id = assinatura.loja_id
+        set_current_loja_id(loja_id)
+        
+        # Configurar banco de dados da loja
+        from superadmin.models import Loja
+        try:
+            loja = Loja.objects.using('default').filter(id=loja_id).first()
+            if loja:
+                db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
+                from core.db_config import ensure_loja_database_config
+                ensure_loja_database_config(db_name, conn_max_age=0)
+                set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
+        except Exception as e:
+            logger.exception(f'Erro ao configurar contexto de loja: {e}')
+            return JsonResponse({'error': 'Erro ao processar assinatura'}, status=500)
+        
+        # Obter IP do cliente
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip_address = request.META.get('REMOTE_ADDR', '0.0.0.0')
+        
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # Registrar assinatura
+        proximo_status = registrar_assinatura(assinatura, ip_address, user_agent)
+        
+        documento = assinatura.documento
+        
+        # Se cliente assinou, criar token e enviar para vendedor
+        if proximo_status == 'aguardando_vendedor':
+            try:
+                assinatura_vendedor = criar_token_assinatura(documento, 'vendedor', loja_id)
+                enviar_email_assinatura_vendedor(documento, assinatura_vendedor, request)
+                
+                logger.info(
+                    f'Cliente assinou, email enviado para vendedor: '
+                    f'documento={documento.__class__.__name__}#{documento.id}'
+                )
+            except Exception as e:
+                logger.exception(f'Erro ao enviar email para vendedor: {e}')
+                # Não falha a assinatura do cliente se email do vendedor falhar
+        
+        # Se vendedor assinou, enviar PDF final
+        elif proximo_status == 'concluido':
+            try:
+                enviar_pdf_final(documento, loja_id)
+                
+                logger.info(
+                    f'Vendedor assinou, PDF final enviado: '
+                    f'documento={documento.__class__.__name__}#{documento.id}'
+                )
+            except Exception as e:
+                logger.exception(f'Erro ao enviar PDF final: {e}')
+                # Não falha a assinatura se envio do PDF falhar
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Documento assinado com sucesso!',
+            'proximo_status': proximo_status,
+            'proximo_status_display': documento.get_status_assinatura_display() if hasattr(documento, 'get_status_assinatura_display') else proximo_status
+        })

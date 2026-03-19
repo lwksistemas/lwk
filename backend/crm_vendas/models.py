@@ -5,6 +5,8 @@ Oportunidades, Pipeline, Atividades, Vendedores.
 """
 from django.db import models
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 
@@ -371,6 +373,14 @@ class Proposta(LojaIsolationMixin, models.Model):
         ('aceita', 'Aceita'),
         ('rejeitada', 'Rejeitada'),
     ]
+    
+    STATUS_ASSINATURA_CHOICES = [
+        ('rascunho', 'Rascunho'),
+        ('aguardando_cliente', 'Aguardando Cliente'),
+        ('aguardando_vendedor', 'Aguardando Vendedor'),
+        ('concluido', 'Concluído'),
+        ('cancelado', 'Cancelado'),
+    ]
 
     oportunidade = models.ForeignKey(
         Oportunidade,
@@ -386,6 +396,12 @@ class Proposta(LojaIsolationMixin, models.Model):
     observacoes = models.TextField(blank=True)
     nome_vendedor_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do vendedor para assinatura no PDF')
     nome_cliente_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do cliente para assinatura no PDF')
+    status_assinatura = models.CharField(
+        max_length=20,
+        choices=STATUS_ASSINATURA_CHOICES,
+        default='rascunho',
+        help_text='Status do processo de assinatura digital'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -413,6 +429,14 @@ class Contrato(LojaIsolationMixin, models.Model):
         ('assinado', 'Assinado'),
         ('cancelado', 'Cancelado'),
     ]
+    
+    STATUS_ASSINATURA_CHOICES = [
+        ('rascunho', 'Rascunho'),
+        ('aguardando_cliente', 'Aguardando Cliente'),
+        ('aguardando_vendedor', 'Aguardando Vendedor'),
+        ('concluido', 'Concluído'),
+        ('cancelado', 'Cancelado'),
+    ]
 
     oportunidade = models.OneToOneField(
         Oportunidade,
@@ -429,6 +453,12 @@ class Contrato(LojaIsolationMixin, models.Model):
     observacoes = models.TextField(blank=True)
     nome_vendedor_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do vendedor para assinatura no PDF')
     nome_cliente_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do cliente para assinatura no PDF')
+    status_assinatura = models.CharField(
+        max_length=20,
+        choices=STATUS_ASSINATURA_CHOICES,
+        default='rascunho',
+        help_text='Status do processo de assinatura digital'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -512,6 +542,64 @@ class ContratoTemplate(LojaIsolationMixin, models.Model):
             # Desmarcar outros templates como padrão
             ContratoTemplate.objects.filter(loja_id=self.loja_id, is_padrao=True).exclude(id=self.id).update(is_padrao=False)
         super().save(*args, **kwargs)
+
+
+class AssinaturaDigital(LojaIsolationMixin, models.Model):
+    """
+    Registro de assinatura digital para Propostas e Contratos.
+    Armazena dados de assinatura: IP, timestamp, token único.
+    """
+    TIPO_CHOICES = [
+        ('cliente', 'Cliente'),
+        ('vendedor', 'Vendedor'),
+    ]
+    
+    # Relacionamento genérico (proposta OU contrato)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    documento = GenericForeignKey('content_type', 'object_id')
+    
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, help_text='Tipo de assinante')
+    nome_assinante = models.CharField(max_length=200, help_text='Nome completo do assinante')
+    email_assinante = models.EmailField(help_text='Email do assinante')
+    
+    # Dados de segurança da assinatura
+    ip_address = models.GenericIPAddressField(help_text='Endereço IP do assinante')
+    timestamp = models.DateTimeField(auto_now_add=True, help_text='Data/hora de criação do token')
+    user_agent = models.TextField(blank=True, help_text='User agent do navegador')
+    
+    # Token único para esta assinatura
+    token = models.CharField(max_length=255, unique=True, db_index=True, help_text='Token único de assinatura')
+    token_expira_em = models.DateTimeField(help_text='Data/hora de expiração do token')
+    
+    # Status da assinatura
+    assinado = models.BooleanField(default=False, help_text='Se o documento foi assinado')
+    assinado_em = models.DateTimeField(null=True, blank=True, help_text='Data/hora da assinatura')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
+    
+    class Meta:
+        db_table = 'crm_vendas_assinatura_digital'
+        ordering = ['-created_at']
+        verbose_name = 'Assinatura Digital'
+        verbose_name_plural = 'Assinaturas Digitais'
+        indexes = [
+            models.Index(fields=['loja_id', 'token'], name='crm_assin_loja_token_idx'),
+            models.Index(fields=['loja_id', 'tipo', 'assinado'], name='crm_assin_loja_tipo_idx'),
+            models.Index(fields=['content_type', 'object_id'], name='crm_assin_content_idx'),
+        ]
+    
+    def __str__(self):
+        status = 'Assinado' if self.assinado else 'Pendente'
+        return f"{self.get_tipo_display()} - {self.nome_assinante} ({status})"
+    
+    def is_expirado(self):
+        """Verifica se o token está expirado."""
+        from django.utils import timezone
+        return timezone.now() > self.token_expira_em
 
 
 # Importar modelo de configuração

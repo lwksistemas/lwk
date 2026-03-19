@@ -852,6 +852,7 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
         return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
+    @invalidate_cache_on_change('propostas')
     def enviar_para_assinatura(self, request, pk=None):
         """
         Inicia workflow de assinatura digital.
@@ -1019,6 +1020,7 @@ class ContratoViewSet(VendedorFilterMixin, BaseModelViewSet):
         return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
+    @invalidate_cache_on_change('contratos')
     def enviar_para_assinatura(self, request, pk=None):
         """
         Inicia workflow de assinatura digital.

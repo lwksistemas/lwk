@@ -8,6 +8,7 @@ import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { Plus, Eye, Edit2, Trash2, X, FileSignature, ArrowRight, Mail, MessageCircle } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
+import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
 import type { LojaInfo, LeadInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
 import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
 
@@ -18,11 +19,13 @@ interface Contrato {
   oportunidade: number;
   oportunidade_titulo: string;
   lead_nome: string;
+  lead_email?: string;
   numero: string;
   titulo: string;
   conteudo: string;
   valor_total: string | null;
   status: string;
+  status_assinatura?: string;
   data_envio: string | null;
   data_assinatura: string | null;
   created_at: string;
@@ -361,6 +364,13 @@ export default function CrmVendasContratosPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap">
+                        <BotaoAssinaturaDigital
+                          tipoDocumento="contrato"
+                          documentoId={c.id}
+                          statusAssinatura={c.status_assinatura}
+                          leadEmail={c.lead_email}
+                          onSucesso={loadContratos}
+                        />
                         <button type="button" onClick={() => handleEnviarCliente(c.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
                         <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
                         <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>

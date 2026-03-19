@@ -41,19 +41,11 @@ class CRMPermissionMixin:
         Returns:
             Response 403 se vendedor comum, None se proprietário
         """
-        from tenants.middleware import get_current_loja_id
-        from superadmin.models import Loja
+        from .utils import is_owner, is_vendedor_usuario
         
-        # Verificar se é proprietário da loja
-        loja_id = get_current_loja_id()
-        if loja_id:
-            try:
-                loja = Loja.objects.using('default').filter(id=loja_id).first()
-                if loja and loja.owner_id == request.user.id:
-                    # Owner SEMPRE tem acesso total
-                    return None
-            except Exception:
-                pass
+        # Owner SEMPRE tem acesso total
+        if is_owner(request):
+            return None
         
         # Verificar se é vendedor comum (não-owner)
         if is_vendedor_usuario(request):
@@ -99,19 +91,11 @@ class VendedorFilterMixin:
         Returns:
             QuerySet filtrado por vendedor ou original (se proprietário)
         """
-        from tenants.middleware import get_current_loja_id
-        from superadmin.models import Loja
+        from .utils import is_owner
         
-        # Verificar se é proprietário da loja
-        loja_id = get_current_loja_id()
-        if loja_id and self.request and self.request.user:
-            try:
-                loja = Loja.objects.using('default').filter(id=loja_id).first()
-                if loja and loja.owner_id == self.request.user.id:
-                    # Owner SEMPRE vê todos os dados
-                    return queryset
-            except Exception:
-                pass
+        # Owner SEMPRE vê todos os dados
+        if is_owner(self.request):
+            return queryset
         
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is None:

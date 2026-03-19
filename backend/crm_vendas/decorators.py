@@ -127,17 +127,11 @@ def require_admin_access(message='Vendedores não têm permissão para acessar e
     def decorator(func):
         @wraps(func)
         def wrapper(self, request, *args, **kwargs):
-            # Verificar se é proprietário da loja
-            loja_id = get_current_loja_id()
-            if loja_id:
-                from superadmin.models import Loja
-                try:
-                    loja = Loja.objects.using('default').filter(id=loja_id).first()
-                    if loja and loja.owner_id == request.user.id:
-                        # Owner SEMPRE tem acesso total
-                        return func(self, request, *args, **kwargs)
-                except Exception:
-                    pass
+            from .utils import is_owner, is_vendedor_usuario
+            
+            # Owner SEMPRE tem acesso total
+            if is_owner(request):
+                return func(self, request, *args, **kwargs)
             
             # Verificar se é vendedor comum (não-owner)
             if is_vendedor_usuario(request):

@@ -81,6 +81,12 @@ class AuthService {
         precisa_trocar_senha: data.precisa_trocar_senha
       });
 
+      // Limpar flags de vendedor ANTES de processar novo login
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('is_vendedor');
+        sessionStorage.removeItem('current_vendedor_id');
+      }
+
       // Salvar tokens e informações do usuário no sessionStorage
       this.setToken(data.access);
       this.setRefreshToken(data.refresh);
@@ -89,14 +95,13 @@ class AuthService {
       if (typeof window !== 'undefined' && lojaId) {
         sessionStorage.setItem('current_loja_id', String(lojaId));
       }
+      
+      // Só setar is_vendedor se vier EXPLICITAMENTE como true do backend
       if ((data as any).is_vendedor === true) {
         sessionStorage.setItem('is_vendedor', '1');
         if (typeof (data as any).vendedor_id === 'number') {
           sessionStorage.setItem('current_vendedor_id', String((data as any).vendedor_id));
         }
-      } else {
-        sessionStorage.removeItem('is_vendedor');
-        sessionStorage.removeItem('current_vendedor_id');
       }
 
       // Salvar session_id se vier do backend

@@ -106,6 +106,27 @@ def get_current_vendedor_id(request):
     return None
 
 
+def is_owner(request):
+    """
+    Verifica se o usuário é o proprietário da loja.
+    Owner SEMPRE tem acesso total, mesmo se tiver VendedorUsuario vinculado.
+    
+    Returns:
+        bool: True se for owner, False caso contrário
+    """
+    if not request or not request.user or not request.user.is_authenticated:
+        return False
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return False
+    try:
+        from superadmin.models import Loja
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        return loja and loja.owner_id == request.user.id
+    except Exception:
+        return False
+
+
 def is_vendedor_usuario(request):
     """
     Verifica se o usuário logado é um vendedor (VendedorUsuario), não o owner.
@@ -115,22 +136,10 @@ def is_vendedor_usuario(request):
     """
     if not request or not request.user or not request.user.is_authenticated:
         return False
-    loja_id = get_current_loja_id()
-    if not loja_id:
+    
+    # Owner NUNCA é vendedor
+    if is_owner(request):
         return False
-    try:
-        from superadmin.models import VendedorUsuario, Loja
-        
-        # PRIMEIRO: Verificar se é proprietário (owner SEMPRE tem acesso total)
-        loja = Loja.objects.using('default').filter(id=loja_id).first()
-        if loja and loja.owner_id == request.user.id:
-            return False  # Owner NUNCA é considerado vendedor
-        
-        # DEPOIS: Verificar se é vendedor (VendedorUsuario)
-        vu = VendedorUsuario.objects.using('default').filter(
-            user=request.user,
-            loja_id=loja_id,
-        ).first()
-        return vu is not None
-    except Exception:
-        return False
+    
+    # Verificar se tem vendedor_id (já faz a verificação de VendedorUsuario)
+    return get_current_vendedor_id(request) is not None

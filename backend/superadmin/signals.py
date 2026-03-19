@@ -23,7 +23,7 @@ def _criar_tabelas_crm(cursor, db_name):
     """
     # Criar tabela ProdutoServico
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {db_name}.crm_vendas_produto_servico (
+        CREATE TABLE IF NOT EXISTS "{db_name}".crm_vendas_produto_servico (
             id BIGSERIAL PRIMARY KEY,
             loja_id INTEGER NOT NULL,
             tipo VARCHAR(20) NOT NULL DEFAULT 'produto',
@@ -39,21 +39,21 @@ def _criar_tabelas_crm(cursor, db_name):
     # Criar índices para ProdutoServico
     cursor.execute(f"""
         CREATE INDEX IF NOT EXISTS crm_ps_loja_tipo_idx 
-        ON {db_name}.crm_vendas_produto_servico (loja_id, tipo);
+        ON "{db_name}".crm_vendas_produto_servico (loja_id, tipo);
     """)
     
     cursor.execute(f"""
         CREATE INDEX IF NOT EXISTS crm_ps_loja_ativo_idx 
-        ON {db_name}.crm_vendas_produto_servico (loja_id, ativo);
+        ON "{db_name}".crm_vendas_produto_servico (loja_id, ativo);
     """)
     
     # Criar tabela OportunidadeItem
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {db_name}.crm_vendas_oportunidade_item (
+        CREATE TABLE IF NOT EXISTS "{db_name}".crm_vendas_oportunidade_item (
             id BIGSERIAL PRIMARY KEY,
             loja_id INTEGER NOT NULL,
-            oportunidade_id BIGINT NOT NULL REFERENCES {db_name}.crm_vendas_oportunidade(id) ON DELETE CASCADE,
-            produto_servico_id BIGINT NOT NULL REFERENCES {db_name}.crm_vendas_produto_servico(id) ON DELETE CASCADE,
+            oportunidade_id BIGINT NOT NULL REFERENCES "{db_name}".crm_vendas_oportunidade(id) ON DELETE CASCADE,
+            produto_servico_id BIGINT NOT NULL REFERENCES "{db_name}".crm_vendas_produto_servico(id) ON DELETE CASCADE,
             quantidade DECIMAL(10, 2) NOT NULL DEFAULT 1,
             preco_unitario DECIMAL(12, 2) NOT NULL,
             observacao VARCHAR(255),
@@ -64,15 +64,15 @@ def _criar_tabelas_crm(cursor, db_name):
     # Criar índice para OportunidadeItem
     cursor.execute(f"""
         CREATE INDEX IF NOT EXISTS crm_oi_loja_opor_idx 
-        ON {db_name}.crm_vendas_oportunidade_item (loja_id, oportunidade_id);
+        ON "{db_name}".crm_vendas_oportunidade_item (loja_id, oportunidade_id);
     """)
     
     # Criar tabela Proposta
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {db_name}.crm_vendas_proposta (
+        CREATE TABLE IF NOT EXISTS "{db_name}".crm_vendas_proposta (
             id BIGSERIAL PRIMARY KEY,
             loja_id INTEGER NOT NULL,
-            oportunidade_id BIGINT NOT NULL REFERENCES {db_name}.crm_vendas_oportunidade(id) ON DELETE CASCADE,
+            oportunidade_id BIGINT NOT NULL REFERENCES "{db_name}".crm_vendas_oportunidade(id) ON DELETE CASCADE,
             titulo VARCHAR(255) NOT NULL,
             conteudo TEXT,
             valor_total DECIMAL(12, 2),
@@ -90,20 +90,20 @@ def _criar_tabelas_crm(cursor, db_name):
     # Criar índices para Proposta
     cursor.execute(f"""
         CREATE INDEX IF NOT EXISTS crm_prop_loja_opor_idx 
-        ON {db_name}.crm_vendas_proposta (loja_id, oportunidade_id);
+        ON "{db_name}".crm_vendas_proposta (loja_id, oportunidade_id);
     """)
     
     cursor.execute(f"""
         CREATE INDEX IF NOT EXISTS crm_prop_loja_status_idx 
-        ON {db_name}.crm_vendas_proposta (loja_id, status);
+        ON "{db_name}".crm_vendas_proposta (loja_id, status);
     """)
     
     # Criar tabela Contrato
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {db_name}.crm_vendas_contrato (
+        CREATE TABLE IF NOT EXISTS "{db_name}".crm_vendas_contrato (
             id BIGSERIAL PRIMARY KEY,
             loja_id INTEGER NOT NULL,
-            oportunidade_id BIGINT NOT NULL UNIQUE REFERENCES {db_name}.crm_vendas_oportunidade(id) ON DELETE CASCADE,
+            oportunidade_id BIGINT NOT NULL UNIQUE REFERENCES "{db_name}".crm_vendas_oportunidade(id) ON DELETE CASCADE,
             numero VARCHAR(50),
             titulo VARCHAR(255) NOT NULL,
             conteudo TEXT,
@@ -122,12 +122,12 @@ def _criar_tabelas_crm(cursor, db_name):
     # Criar índices para Contrato
     cursor.execute(f"""
         CREATE INDEX IF NOT EXISTS crm_cont_loja_opor_idx 
-        ON {db_name}.crm_vendas_contrato (loja_id, oportunidade_id);
+        ON "{db_name}".crm_vendas_contrato (loja_id, oportunidade_id);
     """)
     
     cursor.execute(f"""
         CREATE INDEX IF NOT EXISTS crm_cont_loja_status_idx 
-        ON {db_name}.crm_vendas_contrato (loja_id, status);
+        ON "{db_name}".crm_vendas_contrato (loja_id, status);
     """)
 
 
@@ -250,9 +250,10 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                     # Criar tabelas de produtos e itens
                     from django.db import connection
                     db_name = instance.database_name
+                    schema_name = db_name.replace('-', '_')
                     
                     with connection.cursor() as cursor:
-                        cursor.execute(f"SET search_path TO {db_name}, public;")
+                        cursor.execute(f'SET search_path TO "{schema_name}", public;')
                         
                         # Verificar se tabela já existe
                         cursor.execute("""
@@ -261,18 +262,22 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                                 WHERE table_schema = %s
                                 AND table_name = 'crm_vendas_oportunidade_item'
                             );
-                        """, [db_name])
+                        """, [schema_name])
                         
                         existe = cursor.fetchone()[0]
                         
                         if not existe:
                             # Criar tabelas
-                            _criar_tabelas_crm(cursor, db_name)
+                            _criar_tabelas_crm(cursor, schema_name)
                             logger.info(f"✅ Tabelas CRM criadas para loja {instance.nome}")
+                        else:
+                            logger.info(f"ℹ️ Tabelas CRM já existem para loja {instance.nome}")
                 else:
                     logger.warning(f"⚠️ Falha ao configurar schema CRM para loja {instance.nome}")
             except Exception as e:
                 logger.error(f"❌ Erro ao criar tabelas CRM para loja {instance.nome}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
             
             return
 

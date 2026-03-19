@@ -71,7 +71,7 @@ export default function CrmVendasPipelinePage() {
   // Sincronizar vendedor_id com backend ao montar componente
   useEffect(() => {
     apiClient
-      .get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/crm-me/')
+      .get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/')
       .then((res) => {
         const { vendedor_id } = res.data;
         if (vendedor_id) {
@@ -219,7 +219,7 @@ export default function CrmVendasPipelinePage() {
         
         // Sincronizar vendedor_id antes de recarregar lista
         try {
-          const meRes = await apiClient.get<{ vendedor_id: number | null }>('/crm-vendas/crm-me/');
+          const meRes = await apiClient.get<{ vendedor_id: number | null }>('/crm-vendas/me/');
           if (meRes.data.vendedor_id) {
             authService.setVendedorId(meRes.data.vendedor_id);
           }

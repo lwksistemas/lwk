@@ -11,6 +11,14 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER
 import re
+import pytz
+
+
+def _formatar_timestamp_local(assinado_em):
+    """Converte timestamp UTC para timezone local (Brasil)"""
+    tz_brasil = pytz.timezone('America/Sao_Paulo')
+    timestamp_local = assinado_em.astimezone(tz_brasil)
+    return timestamp_local.strftime('%d/%m/%Y %H:%M:%S')
 
 
 def _adicionar_marca_dagua_assinatura(elements, assinatura, styles):
@@ -253,14 +261,16 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     
     # Adicionar info de assinatura digital se houver
     if assinatura_vendedor:
-        timestamp = assinatura_vendedor.assinado_em.strftime('%d/%m/%Y %H:%M:%S')
+        timestamp = _formatar_timestamp_local(assinatura_vendedor.assinado_em)
         vendedor_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
         vendedor_info.append(f'<font size="8">IP: {assinatura_vendedor.ip_address}</font>')
+        vendedor_info.append(f'<font size="8">Assinado digitalmente</font>')
     
     if assinatura_cliente:
-        timestamp = assinatura_cliente.assinado_em.strftime('%d/%m/%Y %H:%M:%S')
+        timestamp = _formatar_timestamp_local(assinatura_cliente.assinado_em)
         cliente_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
         cliente_info.append(f'<font size="8">IP: {assinatura_cliente.ip_address}</font>')
+        cliente_info.append(f'<font size="8">Assinado digitalmente</font>')
     
     # Criar tabela de assinaturas (2 colunas) - SEM linhas de assinatura
     assinatura_data = []
@@ -426,14 +436,16 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     
     # Adicionar info de assinatura digital se houver
     if assinatura_vendedor:
-        timestamp = assinatura_vendedor.assinado_em.strftime('%d/%m/%Y %H:%M:%S')
+        timestamp = _formatar_timestamp_local(assinatura_vendedor.assinado_em)
         vendedor_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
         vendedor_info.append(f'<font size="8">IP: {assinatura_vendedor.ip_address}</font>')
+        vendedor_info.append(f'<font size="8">Assinado digitalmente</font>')
     
     if assinatura_cliente:
-        timestamp = assinatura_cliente.assinado_em.strftime('%d/%m/%Y %H:%M:%S')
+        timestamp = _formatar_timestamp_local(assinatura_cliente.assinado_em)
         cliente_info.append(f'<font size="8">Assinado em: {timestamp}</font>')
         cliente_info.append(f'<font size="8">IP: {assinatura_cliente.ip_address}</font>')
+        cliente_info.append(f'<font size="8">Assinado digitalmente</font>')
     
     # Criar tabela de assinaturas (2 colunas) - SEM linhas de assinatura
     assinatura_data = []

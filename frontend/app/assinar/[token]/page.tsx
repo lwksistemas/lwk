@@ -32,6 +32,17 @@ export default function AssinaturaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
   
+  // Success state - fechar automaticamente após 3 segundos
+  useEffect(() => {
+    if (sucesso) {
+      const timer = setTimeout(() => {
+        window.close();
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [sucesso]);
+  
   const carregarDocumento = async () => {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com/api';
@@ -136,6 +147,7 @@ export default function AssinaturaPage() {
   };
 
   
+  
   // Loading state
   if (loading) {
     return (
@@ -165,17 +177,7 @@ export default function AssinaturaPage() {
     );
   }
   
-  // Success state - fechar automaticamente após 3 segundos
-  useEffect(() => {
-    if (sucesso) {
-      const timer = setTimeout(() => {
-        window.close();
-      }, 3000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [sucesso]);
-  
+  // Success state
   if (sucesso) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">

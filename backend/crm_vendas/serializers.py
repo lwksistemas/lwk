@@ -167,8 +167,10 @@ class ContaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conta
         fields = [
-            'id', 'nome', 'segmento', 'telefone', 'email', 'cidade', 'endereco',
-            'observacoes', 'created_at', 'updated_at',
+            'id', 'nome', 'razao_social', 'cnpj', 'inscricao_estadual', 'segmento', 
+            'telefone', 'email', 'site',
+            'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
+            'endereco', 'observacoes', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
 

@@ -31,6 +31,7 @@ from .views_google_calendar import (
     google_calendar_sync,
     google_calendar_disconnect,
 )
+from .views_debug import debug_permissions
 
 router = DefaultRouter()
 router.register(r'vendedores', VendedorViewSet, basename='crm-vendedores')
@@ -47,6 +48,9 @@ router.register(r'contratos', ContratoViewSet, basename='crm-contratos')
 router.register(r'contrato-templates', ContratoTemplateViewSet, basename='crm-contrato-templates')
 
 urlpatterns = [
+    # Debug endpoint (temporário)
+    path('debug-permissions/', debug_permissions, name='crm-debug-permissions'),
+    
     # Rotas públicas (sem autenticação)
     path('documento-pdf/', DocumentoPdfPublicView.as_view()),
     path('assinar/<str:token>/', AssinaturaPublicaView.as_view(), name='assinatura-publica'),

@@ -148,11 +148,39 @@ heroku run "cd backend && python manage.py apply_migration_0025_tenants" --app l
 heroku run "cd backend && python manage.py shell -c \"from django.db import connection; cursor = connection.cursor(); cursor.execute('SELECT column_name FROM information_schema.columns WHERE table_schema = %s AND table_name = %s', ['SCHEMA_NAME', 'TABLE_NAME']); [print(row[0]) for row in cursor.fetchall()]\"" --app lwksistemas
 ```
 
+## Correção Adicional (v1159)
+
+### Problema: Link de Assinatura Apontando para Backend
+O link de assinatura estava sendo gerado com `request.build_absolute_uri('/')`, que retorna a URL do backend (Heroku), mas deveria apontar para o frontend (Vercel).
+
+**Erro nos logs:**
+```
+Not Found: /assinar/eyJkb2NfdHlwZSI6InByb3Bvc3RhIiwiZG9jX2lkIjozLCJ0aXBvIjoiY2xpZW50ZSIsImxvamFfaWQiOjEzMCwiZXhwIjoxNzc0NTA2NTQ1fQ
+```
+
+### Solução
+Alterado `assinatura_digital_service.py` para usar `settings.FRONTEND_URL` ao invés de `request.build_absolute_uri('/')`:
+
+```python
+# ANTES
+base_url = request.build_absolute_uri('/').rstrip('/')
+link_assinatura = f'{base_url}/assinar/{assinatura.token}'
+
+# DEPOIS
+frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
+link_assinatura = f'{frontend_url}/assinar/{assinatura.token}'
+```
+
+**Arquivos modificados:**
+- `backend/crm_vendas/assinatura_digital_service.py`
+  - `enviar_email_assinatura_cliente()`
+  - `enviar_email_assinatura_vendedor()`
+
 ## Status
 
-✅ **RESOLVIDO** - Migration 0025 aplicada com sucesso nos schemas de tenant. Sistema de assinatura digital pronto para uso.
+✅ **RESOLVIDO** - Migration 0025 aplicada com sucesso nos schemas de tenant. Links de assinatura corrigidos para apontar para o frontend. Sistema de assinatura digital pronto para uso.
 
 ## Versão
 
-- Backend: v1158
+- Backend: v1159
 - Data: 2025-03-19

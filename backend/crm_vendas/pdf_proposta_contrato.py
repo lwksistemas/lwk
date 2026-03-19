@@ -227,12 +227,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     # Assinaturas Digitais (se houver)
     if incluir_assinaturas:
         from .models import AssinaturaDigital
-        from django.contrib.contenttypes.models import ContentType
         
-        content_type = ContentType.objects.get_for_model(proposta)
         assinaturas = AssinaturaDigital.objects.filter(
-            content_type=content_type,
-            object_id=proposta.id,
+            proposta=proposta,
             assinado=True
         ).order_by('assinado_em')
         
@@ -384,12 +381,9 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     # Assinaturas Digitais (se houver)
     if incluir_assinaturas:
         from .models import AssinaturaDigital
-        from django.contrib.contenttypes.models import ContentType
         
-        content_type = ContentType.objects.get_for_model(contrato)
         assinaturas = AssinaturaDigital.objects.filter(
-            content_type=content_type,
-            object_id=contrato.id,
+            contrato=contrato,
             assinado=True
         ).order_by('assinado_em')
         

@@ -6,7 +6,6 @@ from django.core.signing import dumps, loads, BadSignature
 from django.utils import timezone
 from django.core.mail import EmailMessage
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from datetime import timedelta
 import logging
 
@@ -62,18 +61,23 @@ def criar_token_assinatura(documento, tipo, loja_id):
     token = dumps(payload)
     
     # Criar registro de assinatura
-    content_type = ContentType.objects.get_for_model(documento)
-    assinatura = AssinaturaDigital.objects.create(
-        content_type=content_type,
-        object_id=documento.id,
-        tipo=tipo,
-        nome_assinante=nome,
-        email_assinante=email,
-        token=token,
-        token_expira_em=timezone.now() + timedelta(days=TOKEN_EXPIRACAO_DIAS),
-        loja_id=loja_id,
-        ip_address='0.0.0.0',  # Será atualizado ao assinar
-    )
+    # Determinar se é proposta ou contrato
+    kwargs = {
+        'tipo': tipo,
+        'nome_assinante': nome,
+        'email_assinante': email,
+        'token': token,
+        'token_expira_em': timezone.now() + timedelta(days=TOKEN_EXPIRACAO_DIAS),
+        'loja_id': loja_id,
+        'ip_address': '0.0.0.0',  # Será atualizado ao assinar
+    }
+    
+    if documento.__class__.__name__ == 'Proposta':
+        kwargs['proposta'] = documento
+    else:
+        kwargs['contrato'] = documento
+    
+    assinatura = AssinaturaDigital.objects.create(**kwargs)
     
     logger.info(
         f'Token de assinatura criado: tipo={tipo}, documento={documento.__class__.__name__}#{documento.id}, '
@@ -97,7 +101,7 @@ def verificar_token_assinatura(token):
     from .models import AssinaturaDigital
     
     try:
-        assinatura = AssinaturaDigital.objects.select_related('content_type').get(token=token)
+        assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token)
         
         # Verificar se já foi assinado
         if assinatura.assinado:

@@ -5,8 +5,6 @@ Oportunidades, Pipeline, Atividades, Vendedores.
 """
 from django.db import models
 from django.conf import settings
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 
@@ -554,10 +552,24 @@ class AssinaturaDigital(LojaIsolationMixin, models.Model):
         ('vendedor', 'Vendedor'),
     ]
     
-    # Relacionamento genérico (proposta OU contrato)
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
-    documento = GenericForeignKey('content_type', 'object_id')
+    # Relacionamento direto (proposta OU contrato)
+    # Usar ForeignKey direto ao invés de GenericForeignKey para evitar problemas cross-database
+    proposta = models.ForeignKey(
+        'Proposta',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='assinaturas',
+        help_text='Proposta sendo assinada'
+    )
+    contrato = models.ForeignKey(
+        'Contrato',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='assinaturas',
+        help_text='Contrato sendo assinado'
+    )
     
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, help_text='Tipo de assinante')
     nome_assinante = models.CharField(max_length=200, help_text='Nome completo do assinante')
@@ -589,12 +601,27 @@ class AssinaturaDigital(LojaIsolationMixin, models.Model):
         indexes = [
             models.Index(fields=['loja_id', 'token'], name='crm_assin_loja_token_idx'),
             models.Index(fields=['loja_id', 'tipo', 'assinado'], name='crm_assin_loja_tipo_idx'),
-            models.Index(fields=['content_type', 'object_id'], name='crm_assin_content_idx'),
+            models.Index(fields=['proposta'], name='crm_assin_proposta_idx'),
+            models.Index(fields=['contrato'], name='crm_assin_contrato_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(proposta__isnull=False, contrato__isnull=True) |
+                    models.Q(proposta__isnull=True, contrato__isnull=False)
+                ),
+                name='crm_assin_proposta_ou_contrato'
+            )
         ]
     
     def __str__(self):
         status = 'Assinado' if self.assinado else 'Pendente'
         return f"{self.get_tipo_display()} - {self.nome_assinante} ({status})"
+    
+    @property
+    def documento(self):
+        """Retorna o documento (proposta ou contrato) para compatibilidade."""
+        return self.proposta or self.contrato
     
     def is_expirado(self):
         """Verifica se o token está expirado."""

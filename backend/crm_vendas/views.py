@@ -1765,19 +1765,24 @@ class AssinaturaPublicaView(View):
         """Retorna dados do documento para assinatura"""
         from .assinatura_digital_service import verificar_token_assinatura
         from tenants.middleware import set_current_loja_id, set_current_tenant_db
+        from django.core.signing import loads, BadSignature
         
         logger.info(f'🔍 Recebendo requisição de assinatura - Token recebido: {token[:50]}...')
         
-        assinatura, erro = verificar_token_assinatura(token)
+        # PASSO 1: Decodificar token para extrair loja_id
+        try:
+            payload = loads(token)
+            loja_id = payload.get('loja_id')
+            logger.info(f'📦 Token decodificado - loja_id={loja_id}, doc_type={payload.get("doc_type")}, doc_id={payload.get("doc_id")}')
+        except (BadSignature, Exception) as e:
+            logger.error(f'❌ Erro ao decodificar token: {e}')
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
         
-        if erro:
-            logger.warning(f'❌ Erro ao verificar token: {erro}')
-            return JsonResponse({'error': erro}, status=400)
+        if not loja_id:
+            logger.error(f'❌ Token não contém loja_id')
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
         
-        logger.info(f'✅ Token válido - Assinatura ID: {assinatura.id}, Loja ID: {assinatura.loja_id}')
-        
-        # Configurar contexto de loja
-        loja_id = assinatura.loja_id
+        # PASSO 2: Configurar contexto de loja ANTES de buscar no banco
         set_current_loja_id(loja_id)
         
         # Configurar banco de dados da loja
@@ -1789,9 +1794,19 @@ class AssinaturaPublicaView(View):
                 from core.db_config import ensure_loja_database_config
                 ensure_loja_database_config(db_name, conn_max_age=0)
                 set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
+                logger.info(f'✅ Contexto configurado - loja_id={loja_id}, db={db_name}')
         except Exception as e:
             logger.exception(f'Erro ao configurar contexto de loja: {e}')
             return JsonResponse({'error': 'Erro ao carregar documento'}, status=500)
+        
+        # PASSO 3: Buscar token no banco (agora com contexto correto)
+        assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
+        
+        if erro:
+            logger.warning(f'❌ Erro ao verificar token: {erro}')
+            return JsonResponse({'error': erro}, status=400)
+        
+        logger.info(f'✅ Token válido - Assinatura ID: {assinatura.id}, Loja ID: {assinatura.loja_id}')
         
         documento = assinatura.documento
         
@@ -1820,14 +1835,20 @@ class AssinaturaPublicaView(View):
             enviar_pdf_final
         )
         from tenants.middleware import set_current_loja_id, set_current_tenant_db
+        from django.core.signing import loads, BadSignature
         
-        assinatura, erro = verificar_token_assinatura(token)
+        # PASSO 1: Decodificar token para extrair loja_id
+        try:
+            payload = loads(token)
+            loja_id = payload.get('loja_id')
+        except (BadSignature, Exception) as e:
+            logger.error(f'❌ Erro ao decodificar token: {e}')
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
         
-        if erro:
-            return JsonResponse({'error': erro}, status=400)
+        if not loja_id:
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
         
-        # Configurar contexto de loja
-        loja_id = assinatura.loja_id
+        # PASSO 2: Configurar contexto de loja ANTES de buscar no banco
         set_current_loja_id(loja_id)
         
         # Configurar banco de dados da loja
@@ -1842,6 +1863,12 @@ class AssinaturaPublicaView(View):
         except Exception as e:
             logger.exception(f'Erro ao configurar contexto de loja: {e}')
             return JsonResponse({'error': 'Erro ao processar assinatura'}, status=500)
+        
+        # PASSO 3: Buscar token no banco (agora com contexto correto)
+        assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
+        
+        if erro:
+            return JsonResponse({'error': erro}, status=400)
         
         # Obter IP do cliente
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')

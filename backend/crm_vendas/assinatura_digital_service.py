@@ -95,24 +95,36 @@ def criar_token_assinatura(documento, tipo, loja_id):
 
 
 
-def verificar_token_assinatura(token):
+def verificar_token_assinatura(token, loja_id=None):
     """
     Verifica e retorna AssinaturaDigital se token válido.
     
     Args:
         token: string do token (pode estar URL encoded ou não)
+        loja_id: ID da loja (opcional, será extraído do token se não fornecido)
     
     Returns:
-        tuple: (AssinaturaDigital ou None, mensagem_erro ou None)
+        tuple: (AssinaturaDigital ou None, mensagem_erro ou None, loja_id extraído)
     """
     from .models import AssinaturaDigital
     
     logger.info(f'🔍 Verificando token de assinatura - Tamanho: {len(token)}, Primeiros 50 chars: {token[:50]}...')
     
+    # Se loja_id não foi fornecido, extrair do token
+    if loja_id is None:
+        try:
+            # Decodificar token para extrair loja_id
+            payload = loads(token)
+            loja_id = payload.get('loja_id')
+            logger.info(f'📦 Payload decodificado do token: loja_id={loja_id}, doc_type={payload.get("doc_type")}, doc_id={payload.get("doc_id")}')
+        except (BadSignature, Exception) as e:
+            logger.error(f'❌ Erro ao decodificar token: {e}')
+            return None, 'Link de assinatura inválido.', None
+    
     try:
         # Tentar buscar com o token como está (pode estar URL encoded)
         try:
-            logger.info(f'Tentando buscar token direto no banco...')
+            logger.info(f'Tentando buscar token direto no banco (loja_id={loja_id})...')
             assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token)
             logger.info(f'✅ Token encontrado direto - ID: {assinatura.id}')
         except AssinaturaDigital.DoesNotExist:
@@ -129,18 +141,18 @@ def verificar_token_assinatura(token):
         # Verificar se já foi assinado
         if assinatura.assinado:
             logger.warning(f'⚠️ Documento já foi assinado - Assinatura ID: {assinatura.id}')
-            return None, 'Este documento já foi assinado.'
+            return None, 'Este documento já foi assinado.', loja_id
         
         # Verificar expiração
         if assinatura.is_expirado():
             logger.warning(f'⚠️ Token expirado - Assinatura ID: {assinatura.id}')
-            return None, 'Este link de assinatura expirou.'
+            return None, 'Este link de assinatura expirou.', loja_id
         
         logger.info(f'✅ Token válido e ativo - Assinatura ID: {assinatura.id}')
-        return assinatura, None
+        return assinatura, None, loja_id
     except AssinaturaDigital.DoesNotExist:
-        logger.error(f'❌ Token não encontrado no banco de dados')
-        return None, 'Link de assinatura inválido.'
+        logger.error(f'❌ Token não encontrado no banco de dados (loja_id={loja_id})')
+        return None, 'Link de assinatura inválido.', loja_id
 
 
 def registrar_assinatura(assinatura, ip_address, user_agent=''):

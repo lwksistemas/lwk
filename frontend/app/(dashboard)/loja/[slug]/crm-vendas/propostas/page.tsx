@@ -6,8 +6,9 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { Plus, Eye, Edit2, Trash2, X, ClipboardList, ArrowRight, Mail, MessageCircle, FileText } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, X, ClipboardList, ArrowRight, Mail, MessageCircle, FileText, FileSignature } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
+import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
 import type { LojaInfo, LeadInfo, FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
 
 const ModalPropostaForm = dynamic(() => import('@/components/crm-vendas/modals/ModalPropostaForm'), { ssr: false });
@@ -21,6 +22,7 @@ interface Proposta {
   conteudo: string;
   valor_total: string | null;
   status: string;
+  status_assinatura?: string;
   data_envio: string | null;
   data_resposta: string | null;
   created_at: string;
@@ -434,8 +436,14 @@ export default function CrmVendasPropostasPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap">
-                        <button type="button" onClick={() => handleEnviarCliente(p.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
-                        <button type="button" onClick={() => handleEnviarCliente(p.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
+                        <BotaoAssinaturaDigital
+                          tipoDocumento="proposta"
+                          documentoId={p.id}
+                          statusAssinatura={p.status_assinatura}
+                          onSucesso={loadPropostas}
+                        />
+                        <button type="button" onClick={() => handleEnviarCliente(p.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar PDF por e-mail"><Mail size={16} /></button>
+                        <button type="button" onClick={() => handleEnviarCliente(p.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar PDF por WhatsApp"><MessageCircle size={16} /></button>
                         <button type="button" onClick={() => openModal('view', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
                         <button type="button" onClick={() => openModal('edit', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
                         <button type="button" onClick={() => openModal('delete', p)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600" title="Excluir"><Trash2 size={16} /></button>

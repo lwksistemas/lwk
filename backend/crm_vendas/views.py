@@ -7,8 +7,9 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Sum, Count, Q, Exists, OuterRef
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.core.mail import EmailMessage
+from django.conf import settings
 from datetime import timedelta
 import logging
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { CheckCircle, AlertCircle, FileText, User, DollarSign, Clock } from 'lucide-react';
+import { CheckCircle, AlertCircle, FileText, User, DollarSign, Download, Eye } from 'lucide-react';
 
 interface DocumentoData {
   tipo_documento: string;
@@ -25,6 +25,7 @@ export default function AssinaturaPage() {
   const [assinando, setAssinando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [proximoStatus, setProximoStatus] = useState('');
+  const [baixandoPdf, setBaixandoPdf] = useState(false);
   
   useEffect(() => {
     carregarDocumento();
@@ -75,6 +76,61 @@ export default function AssinaturaPage() {
       setErro('Erro ao assinar documento. Tente novamente.');
     } finally {
       setAssinando(false);
+    }
+  };
+
+  const visualizarPdf = async () => {
+    setBaixandoPdf(true);
+    setErro('');
+    
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com/api';
+      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/pdf/`);
+      
+      if (!res.ok) {
+        setErro('Erro ao carregar PDF. Tente novamente.');
+        return;
+      }
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      // Limpar URL após um tempo
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+    } catch (err) {
+      setErro('Erro ao carregar PDF. Verifique sua conexão.');
+    } finally {
+      setBaixandoPdf(false);
+    }
+  };
+
+  const baixarPdf = async () => {
+    setBaixandoPdf(true);
+    setErro('');
+    
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com/api';
+      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/pdf/`);
+      
+      if (!res.ok) {
+        setErro('Erro ao baixar PDF. Tente novamente.');
+        return;
+      }
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${documento?.tipo_documento}_${documento?.titulo || 'documento'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setErro('Erro ao baixar PDF. Verifique sua conexão.');
+    } finally {
+      setBaixandoPdf(false);
     }
   };
 
@@ -211,6 +267,51 @@ export default function AssinaturaPage() {
                 </span>
               </div>
             </div>
+          </div>
+          
+          {/* Botões de PDF */}
+          <div className="mt-6 pt-6 border-t">
+            <p className="text-sm font-semibold text-gray-700 mb-3">Visualizar Documento</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={visualizarPdf}
+                disabled={baixandoPdf}
+                className="flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                {baixandoPdf ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
+                    <span className="text-sm">Carregando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4" />
+                    <span className="text-sm font-medium">Visualizar PDF</span>
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={baixarPdf}
+                disabled={baixandoPdf}
+                className="flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                {baixandoPdf ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
+                    <span className="text-sm">Baixando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span className="text-sm font-medium">Baixar PDF</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Confira o documento antes de assinar
+            </p>
           </div>
         </div>
         

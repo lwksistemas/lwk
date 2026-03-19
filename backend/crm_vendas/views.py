@@ -1890,3 +1890,66 @@ class AssinaturaPublicaView(View):
             'proximo_status': proximo_status,
             'proximo_status_display': documento.get_status_assinatura_display() if hasattr(documento, 'get_status_assinatura_display') else proximo_status
         })
+
+
+
+class AssinaturaPdfView(View):
+    """
+    View pública para visualizar/baixar PDF do documento antes de assinar.
+    GET /api/crm-vendas/assinar/{token}/pdf/ - Retorna PDF do documento
+    """
+    
+    def get(self, request, token):
+        """Retorna PDF do documento para visualização"""
+        from .assinatura_digital_service import verificar_token_assinatura
+        from .pdf_proposta_contrato import gerar_pdf_proposta, gerar_pdf_contrato
+        from tenants.middleware import set_current_loja_id, set_current_tenant_db
+        from django.http import HttpResponse
+        
+        logger.info(f'📄 Requisição de PDF - Token: {token[:50]}...')
+        
+        assinatura, erro = verificar_token_assinatura(token)
+        
+        if erro:
+            logger.warning(f'❌ Erro ao verificar token para PDF: {erro}')
+            return JsonResponse({'error': erro}, status=400)
+        
+        # Configurar contexto de loja
+        loja_id = assinatura.loja_id
+        set_current_loja_id(loja_id)
+        
+        # Configurar banco de dados da loja
+        from superadmin.models import Loja
+        try:
+            loja = Loja.objects.using('default').filter(id=loja_id).first()
+            if loja:
+                db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
+                from core.db_config import ensure_loja_database_config
+                ensure_loja_database_config(db_name, conn_max_age=0)
+                set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
+        except Exception as e:
+            logger.exception(f'Erro ao configurar contexto de loja para PDF: {e}')
+            return JsonResponse({'error': 'Erro ao carregar PDF'}, status=500)
+        
+        documento = assinatura.documento
+        
+        try:
+            # Gerar PDF sem assinaturas (documento ainda não foi assinado)
+            if assinatura.proposta:
+                pdf_buffer = gerar_pdf_proposta(documento, incluir_assinaturas=False)
+                filename = f'proposta_{documento.titulo or documento.id}.pdf'
+            else:
+                pdf_buffer = gerar_pdf_contrato(documento, incluir_assinaturas=False)
+                filename = f'contrato_{documento.titulo or documento.id}.pdf'
+            
+            pdf_buffer.seek(0)
+            
+            logger.info(f'✅ PDF gerado com sucesso: {filename}')
+            
+            response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            return response
+            
+        except Exception as e:
+            logger.exception(f'Erro ao gerar PDF: {e}')
+            return JsonResponse({'error': 'Erro ao gerar PDF'}, status=500)

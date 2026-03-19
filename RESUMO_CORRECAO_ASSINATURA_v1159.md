@@ -41,10 +41,14 @@ git push heroku main
 
 ## 🧪 Como Testar
 
-1. Criar nova proposta
+⚠️ **IMPORTANTE**: Tokens antigos não funcionarão! Você DEVE criar uma NOVA proposta.
+
+1. Criar NOVA proposta no CRM
 2. Enviar para assinatura do cliente
-3. Clicar no link do email
+3. Clicar no link do NOVO email recebido
 4. Verificar logs: `heroku logs --tail | grep "🔍\|✅\|❌"`
+
+**Por quê?** Os tokens antigos foram criados antes das correções e estão em formato diferente no banco de dados.
 
 ## 📊 Logs Esperados
 

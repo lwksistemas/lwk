@@ -18,6 +18,7 @@ interface Proposta {
   oportunidade: number;
   oportunidade_titulo: string;
   lead_nome: string;
+  lead_email?: string;
   titulo: string;
   conteudo: string;
   valor_total: string | null;
@@ -440,6 +441,7 @@ export default function CrmVendasPropostasPage() {
                           tipoDocumento="proposta"
                           documentoId={p.id}
                           statusAssinatura={p.status_assinatura}
+                          leadEmail={p.lead_email}
                           onSucesso={loadPropostas}
                         />
                         <button type="button" onClick={() => handleEnviarCliente(p.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar PDF por e-mail"><Mail size={16} /></button>

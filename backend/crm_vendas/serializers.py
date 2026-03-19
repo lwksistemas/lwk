@@ -275,11 +275,12 @@ class OportunidadeItemSerializer(serializers.ModelSerializer):
 class PropostaSerializer(serializers.ModelSerializer):
     oportunidade_titulo = serializers.CharField(source='oportunidade.titulo', read_only=True)
     lead_nome = serializers.CharField(source='oportunidade.lead.nome', read_only=True)
+    lead_email = serializers.CharField(source='oportunidade.lead.email', read_only=True)
 
     class Meta:
         model = Proposta
         fields = [
-            'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome',
+            'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome', 'lead_email',
             'titulo', 'conteudo', 'valor_total', 'status', 'status_assinatura',
             'data_envio', 'data_resposta', 'observacoes',
             'nome_vendedor_assinatura', 'nome_cliente_assinatura',
@@ -311,11 +312,12 @@ class ContratoTemplateSerializer(serializers.ModelSerializer):
 class ContratoSerializer(serializers.ModelSerializer):
     oportunidade_titulo = serializers.CharField(source='oportunidade.titulo', read_only=True)
     lead_nome = serializers.CharField(source='oportunidade.lead.nome', read_only=True)
+    lead_email = serializers.CharField(source='oportunidade.lead.email', read_only=True)
 
     class Meta:
         model = Contrato
         fields = [
-            'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome',
+            'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome', 'lead_email',
             'numero', 'titulo', 'conteudo', 'valor_total', 'status', 'status_assinatura',
             'data_envio', 'data_assinatura', 'observacoes',
             'nome_vendedor_assinatura', 'nome_cliente_assinatura',

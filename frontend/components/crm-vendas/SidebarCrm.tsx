@@ -231,6 +231,21 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
             </Link>
           )}
 
+          {moduloAtivo('contatos') && (
+            <Link
+              href={`${base}/contatos`}
+              className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
+                isActive(`${base}/contatos`)
+                  ? 'bg-[#0176d3] text-white shadow-sm'
+                  : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
+              }`}
+              title={collapsed ? 'Contatos' : undefined}
+            >
+              <User size={18} className="shrink-0" />
+              {!collapsed && <span>Contatos</span>}
+            </Link>
+          )}
+
           <Link
             href={`${base}/calendario`}
             className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${

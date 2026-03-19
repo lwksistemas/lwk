@@ -110,6 +110,8 @@ def is_vendedor_usuario(request):
     """
     Verifica se o usuário logado é um vendedor (VendedorUsuario), não o owner.
     Retorna True apenas se for um vendedor real, False para owner ou outros.
+    
+    IMPORTANTE: Owner SEMPRE retorna False, mesmo se tiver VendedorUsuario vinculado.
     """
     if not request or not request.user or not request.user.is_authenticated:
         return False
@@ -119,12 +121,12 @@ def is_vendedor_usuario(request):
     try:
         from superadmin.models import VendedorUsuario, Loja
         
-        # Verificar se é proprietário
+        # PRIMEIRO: Verificar se é proprietário (owner SEMPRE tem acesso total)
         loja = Loja.objects.using('default').filter(id=loja_id).first()
         if loja and loja.owner_id == request.user.id:
-            return False  # Owner não é vendedor
+            return False  # Owner NUNCA é considerado vendedor
         
-        # Verificar se é vendedor (VendedorUsuario)
+        # DEPOIS: Verificar se é vendedor (VendedorUsuario)
         vu = VendedorUsuario.objects.using('default').filter(
             user=request.user,
             loja_id=loja_id,

@@ -49,6 +49,13 @@ const STATUS_LABEL: Record<string, string> = {
   cancelado: 'Cancelado',
 };
 
+const STATUS_ASSINATURA_LABEL: Record<string, string> = {
+  rascunho: 'Rascunho',
+  aguardando_cliente: 'Aguardando Cliente',
+  aguardando_vendedor: 'Aguardando Vendedor',
+  concluido: 'Concluído',
+};
+
 export default function CrmVendasContratosPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
@@ -353,14 +360,26 @@ export default function CrmVendasContratosPage() {
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{c.titulo || c.numero || `Contrato #${c.id}`}</td>
                     <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.oportunidade_titulo}</td>
                     <td className="py-3 px-4">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs ${
-                        c.status === 'assinado' ? 'bg-green-100 dark:bg-green-900/30 text-green-700' :
-                        c.status === 'cancelado' ? 'bg-red-100 dark:bg-red-900/30 text-red-700' :
-                        c.status === 'enviado' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700' :
-                        'bg-gray-100 dark:bg-gray-700 text-gray-600'
-                      }`}>
-                        {STATUS_LABEL[c.status] || c.status}
-                      </span>
+                      {/* Mostrar status de assinatura se houver, senão mostrar status normal */}
+                      {c.status_assinatura && c.status_assinatura !== 'rascunho' ? (
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                          c.status_assinatura === 'concluido' ? 'bg-green-100 dark:bg-green-900/30 text-green-700' :
+                          c.status_assinatura === 'aguardando_vendedor' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700' :
+                          c.status_assinatura === 'aguardando_cliente' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700' :
+                          'bg-gray-100 dark:bg-gray-700 text-gray-600'
+                        }`}>
+                          {STATUS_ASSINATURA_LABEL[c.status_assinatura] || c.status_assinatura}
+                        </span>
+                      ) : (
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                          c.status === 'assinado' ? 'bg-green-100 dark:bg-green-900/30 text-green-700' :
+                          c.status === 'cancelado' ? 'bg-red-100 dark:bg-red-900/30 text-red-700' :
+                          c.status === 'enviado' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700' :
+                          'bg-gray-100 dark:bg-gray-700 text-gray-600'
+                        }`}>
+                          {STATUS_LABEL[c.status] || c.status}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap">

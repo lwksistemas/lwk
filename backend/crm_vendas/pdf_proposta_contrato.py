@@ -157,7 +157,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
 
     elements.append(Paragraph('PROPOSTA COMERCIAL', title_style))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
-    elements.append(Spacer(1, 0.5*cm))
+    elements.append(Spacer(1, 0.3*cm))  # Reduzido de 0.5cm para 0.3cm (subir uma linha antes de Dados da Loja)
 
     # Dados da Loja
     loja_id = getattr(proposta, 'loja_id', None)
@@ -219,6 +219,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
+        t.hAlign = 'LEFT'  # Alinhar tabela à esquerda
         elements.append(t)
     else:
         elements.append(Paragraph('Nenhum item cadastrado.', styles['Normal']))
@@ -289,7 +290,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, 0), 20),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),  # Reduzido de 20 para 10 (subir uma linha antes dos nomes)
         ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
     ]))
     elements.append(assinatura_table)

@@ -365,7 +365,7 @@ class ContaViewSet(BaseModelViewSet):
     serializer_class = ContaSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
 
-    # @cache_list_response(CRMCacheManager.CONTAS, ttl=300)  # ✅ DESABILITADO TEMPORARIAMENTE
+    @cache_list_response(CRMCacheManager.CONTAS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -464,7 +464,7 @@ class ContatoViewSet(BaseModelViewSet):
     serializer_class = ContatoSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
 
-    # @cache_list_response(CRMCacheManager.CONTATOS, ttl=300)  # ✅ DESABILITADO TEMPORARIAMENTE
+    @cache_list_response(CRMCacheManager.CONTATOS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 

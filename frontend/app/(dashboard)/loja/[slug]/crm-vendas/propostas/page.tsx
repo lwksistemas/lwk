@@ -463,6 +463,15 @@ export default function CrmVendasPropostasPage() {
                           leadEmail={p.lead_email}
                           onSucesso={loadPropostas}
                         />
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_API_URL}/api/crm-vendas/propostas/${p.id}/download_pdf/`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                          title="Baixar PDF"
+                        >
+                          <FileText size={16} />
+                        </a>
                         <button type="button" onClick={() => handleEnviarCliente(p.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar PDF por e-mail"><Mail size={16} /></button>
                         <button type="button" onClick={() => handleEnviarCliente(p.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar PDF por WhatsApp"><MessageCircle size={16} /></button>
                         <button type="button" onClick={() => openModal('view', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>

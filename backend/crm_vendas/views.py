@@ -843,6 +843,30 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
             return Response({'message': f'Proposta enviada ao cliente por {canal} com sucesso.'})
         return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
     
+    @action(detail=True, methods=['get'])
+    def download_pdf(self, request, pk=None):
+        """Baixa o PDF da proposta."""
+        from .pdf_proposta_contrato import gerar_pdf_proposta
+        from django.http import HttpResponse
+        
+        proposta = self.get_object()
+        
+        try:
+            # Gerar PDF
+            pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=False)
+            
+            # Preparar resposta
+            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            filename = f'proposta_{proposta.numero or proposta.id}_{proposta.titulo.replace(" ", "_")}.pdf'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            return response
+        except Exception as e:
+            return Response(
+                {'detail': f'Erro ao gerar PDF: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     @action(detail=True, methods=['post'])
     @invalidate_cache_on_change('propostas')
     def enviar_para_assinatura(self, request, pk=None):

@@ -17,7 +17,9 @@ interface DocumentoData {
 
 export default function AssinaturaPage() {
   const params = useParams();
-  const token = params.token as string;
+  // Decodificar o token que pode vir URL encoded do email
+  const tokenRaw = params.token as string;
+  const token = decodeURIComponent(tokenRaw);
   
   const [loading, setLoading] = useState(true);
   const [documento, setDocumento] = useState<DocumentoData | null>(null);

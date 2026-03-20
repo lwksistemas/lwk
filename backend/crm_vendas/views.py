@@ -365,7 +365,7 @@ class ContaViewSet(BaseModelViewSet):
     serializer_class = ContaSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
 
-    @cache_list_response(CRMCacheManager.CONTAS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
+    # @cache_list_response(CRMCacheManager.CONTAS, ttl=300)  # ✅ DESABILITADO TEMPORARIAMENTE
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -464,7 +464,7 @@ class ContatoViewSet(BaseModelViewSet):
     serializer_class = ContatoSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
 
-    @cache_list_response(CRMCacheManager.CONTATOS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
+    # @cache_list_response(CRMCacheManager.CONTATOS, ttl=300)  # ✅ DESABILITADO TEMPORARIAMENTE
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -999,16 +999,13 @@ class ContratoTemplateViewSet(BaseModelViewSet):
         return Response({'message': 'Template marcado como padrão.'})
 
 
-class ContratoViewSet(VendedorFilterMixin, BaseModelViewSet):
+class ContratoViewSet(BaseModelViewSet):
     """Contratos gerados a partir de oportunidades fechadas."""
     queryset = Contrato.objects.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
         'oportunidade__itens__produto_servico'
     ).all()
     serializer_class = ContratoSerializer
     pagination_class = CRMPagination
-
-    vendedor_filter_field = 'oportunidade__vendedor_id'
-    vendedor_filter_related = []
 
     def get_queryset(self):
         qs = super().get_queryset()

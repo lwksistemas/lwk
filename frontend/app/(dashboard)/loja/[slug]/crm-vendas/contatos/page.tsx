@@ -50,10 +50,15 @@ export default function CrmVendasContatosPage() {
   const loadContatos = async () => {
     try {
       setLoading(true);
+      console.log('Carregando contatos...');
       const res = await apiClient.get<Contato[] | { results: Contato[] }>('/crm-vendas/contatos/');
-      setContatos(normalizeListResponse(res.data));
+      console.log('Resposta da API:', res.data);
+      const contatosNormalizados = normalizeListResponse(res.data);
+      console.log('Contatos normalizados:', contatosNormalizados);
+      setContatos(contatosNormalizados);
       setError(null);
     } catch (err: any) {
+      console.error('Erro ao carregar contatos:', err);
       setError(err.response?.data?.detail || 'Erro ao carregar contatos.');
     } finally {
       setLoading(false);

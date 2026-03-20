@@ -286,27 +286,61 @@ export default function CrmVendasCustomersPage() {
     try {
       setCreatingOpportunity(true);
       
-      // Buscar contatos da conta para usar o nome do primeiro contato
-      let nomeContato = selectedConta.nome; // Fallback: usar nome da empresa
+      // Verificar se já existe lead para esta conta
       try {
-        const contatosResponse = await apiClient.get(`/crm-vendas/contatos/?conta=${selectedConta.id}`);
+        const leadsResponse = await apiClient.get(`/crm-vendas/leads/`);
+        const leadsList = Array.isArray(leadsResponse.data) 
+          ? leadsResponse.data 
+          : leadsResponse.data?.results || [];
+        
+        // Filtrar leads desta conta
+        const leadsDestaConta = leadsList.filter((lead: any) => lead.conta_id === selectedConta.id);
+        
+        if (leadsDestaConta.length > 0) {
+          const confirmar = window.confirm(
+            `Já existe ${leadsDestaConta.length} lead(s) vinculado(s) a esta conta.\n\n` +
+            `Deseja criar um novo lead ou usar um existente?\n\n` +
+            `Clique OK para criar novo lead\n` +
+            `Clique Cancelar para usar o lead existente`
+          );
+          
+          if (!confirmar) {
+            // Usar lead existente
+            router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${leadsDestaConta[0].id}`);
+            return;
+          }
+        }
+      } catch (err) {
+        console.log('Erro ao verificar leads existentes:', err);
+      }
+      
+      // Buscar contatos da conta para usar dados do primeiro contato
+      let nomeContato = selectedConta.nome; // Fallback: usar nome da empresa
+      let emailContato = selectedConta.email || ''; // Fallback: email da empresa
+      let telefoneContato = selectedConta.telefone || ''; // Fallback: telefone da empresa
+      
+      try {
+        const contatosResponse = await apiClient.get(`/crm-vendas/contatos/?conta_id=${selectedConta.id}`);
         const contatosList = Array.isArray(contatosResponse.data) 
           ? contatosResponse.data 
           : contatosResponse.data?.results || [];
         
         if (contatosList.length > 0) {
-          nomeContato = contatosList[0].nome; // Usar nome do primeiro contato
+          const primeiroContato = contatosList[0];
+          nomeContato = primeiroContato.nome; // Usar nome do contato
+          emailContato = primeiroContato.email || selectedConta.email || ''; // Priorizar email do contato
+          telefoneContato = primeiroContato.telefone || selectedConta.telefone || ''; // Priorizar telefone do contato
         }
       } catch (err) {
-        console.log('Não foi possível buscar contatos, usando nome da empresa');
+        console.log('Não foi possível buscar contatos, usando dados da empresa');
       }
       
       // Criar Lead vinculado à Conta
       const leadResponse = await apiClient.post('/crm-vendas/leads/', {
         nome: nomeContato, // Nome do contato (ou empresa se não houver contato)
         empresa: selectedConta.nome, // Nome da empresa
-        email: selectedConta.email || '',
-        telefone: selectedConta.telefone || '',
+        email: emailContato, // Email do contato (ou empresa se não houver)
+        telefone: telefoneContato, // Telefone do contato (ou empresa se não houver)
         origem: 'site',
         status: 'qualificado',
         conta_id: selectedConta.id,

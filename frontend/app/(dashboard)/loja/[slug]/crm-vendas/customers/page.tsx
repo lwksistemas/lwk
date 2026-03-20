@@ -286,10 +286,25 @@ export default function CrmVendasCustomersPage() {
     try {
       setCreatingOpportunity(true);
       
+      // Buscar contatos da conta para usar o nome do primeiro contato
+      let nomeContato = selectedConta.nome; // Fallback: usar nome da empresa
+      try {
+        const contatosResponse = await apiClient.get(`/crm-vendas/contatos/?conta=${selectedConta.id}`);
+        const contatosList = Array.isArray(contatosResponse.data) 
+          ? contatosResponse.data 
+          : contatosResponse.data?.results || [];
+        
+        if (contatosList.length > 0) {
+          nomeContato = contatosList[0].nome; // Usar nome do primeiro contato
+        }
+      } catch (err) {
+        console.log('Não foi possível buscar contatos, usando nome da empresa');
+      }
+      
       // Criar Lead vinculado à Conta
       const leadResponse = await apiClient.post('/crm-vendas/leads/', {
-        nome: selectedConta.nome,
-        empresa: selectedConta.nome,
+        nome: nomeContato, // Nome do contato (ou empresa se não houver contato)
+        empresa: selectedConta.nome, // Nome da empresa
         email: selectedConta.email || '',
         telefone: selectedConta.telefone || '',
         origem: 'site',

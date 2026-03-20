@@ -360,14 +360,10 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         })
 
 
-class ContaViewSet(VendedorFilterMixin, BaseModelViewSet):
+class ContaViewSet(BaseModelViewSet):
     queryset = Conta.objects.select_related('vendedor').prefetch_related('leads', 'contatos').all()
     serializer_class = ContaSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
-    
-    # Configuração do VendedorFilterMixin
-    vendedor_filter_field = 'vendedor_id'
-    vendedor_filter_related = ['leads__oportunidades__vendedor_id', 'leads__vendedor_id']
 
     @cache_list_response(CRMCacheManager.CONTAS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
@@ -463,14 +459,10 @@ class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
         super().perform_destroy(instance)
 
 
-class ContatoViewSet(VendedorFilterMixin, BaseModelViewSet):
+class ContatoViewSet(BaseModelViewSet):
     queryset = Contato.objects.select_related('conta').all()
     serializer_class = ContatoSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
-    
-    # Configuração do VendedorFilterMixin
-    vendedor_filter_field = 'conta__vendedor_id'
-    vendedor_filter_related = ['conta__leads__oportunidades__vendedor_id', 'conta__leads__vendedor_id']
 
     @cache_list_response(CRMCacheManager.CONTATOS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):

@@ -458,8 +458,8 @@ export default function CrmVendasPropostasPage() {
                       {p.status_assinatura && p.status_assinatura !== 'rascunho' ? (
                         <span className={`inline-block px-2 py-0.5 rounded text-xs ${
                           p.status_assinatura === 'concluido' ? 'bg-green-100 dark:bg-green-900/30 text-green-700' :
-                          p.status_assinatura === 'aguardando_vendedor' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700' :
-                          p.status_assinatura === 'aguardando_cliente' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700' :
+                          p.status_assinatura === 'aguardando_vendedor' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700' :
+                          p.status_assinatura === 'aguardando_cliente' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700' :
                           'bg-gray-100 dark:bg-gray-700 text-gray-600'
                         }`}>
                           {STATUS_ASSINATURA_LABEL[p.status_assinatura] || p.status_assinatura}

@@ -286,12 +286,34 @@ export default function CrmVendasCustomersPage() {
     try {
       setCreatingOpportunity(true);
       
-      // Verificar se já existe lead para esta conta
+      // 1. PRIMEIRO: Buscar contatos da conta (OBRIGATÓRIO)
+      const contatosResponse = await apiClient.get(`/crm-vendas/contatos/?conta_id=${selectedConta.id}`);
+      const contatosList = normalizeListResponse(contatosResponse.data);
+      
+      // 2. Validar se existe pelo menos um contato
+      if (contatosList.length === 0) {
+        setCreatingOpportunity(false);
+        const confirmar = window.confirm(
+          '⚠️ Contato Necessário\n\n' +
+          'Esta conta não possui contatos cadastrados.\n\n' +
+          'Para criar uma oportunidade, é necessário ter pelo menos um contato vinculado à conta.\n\n' +
+          'Deseja cadastrar um contato agora?'
+        );
+        
+        if (confirmar) {
+          // Redirecionar para página de contatos com conta pré-selecionada
+          router.push(`/loja/${slug}/crm-vendas/contatos?criar=1&conta_id=${selectedConta.id}`);
+        }
+        return;
+      }
+      
+      // 3. Usar dados do primeiro contato
+      const primeiroContato = contatosList[0] as any;
+      
+      // 4. Verificar se já existe lead para esta conta
       try {
         const leadsResponse = await apiClient.get(`/crm-vendas/leads/`);
-        const leadsList = Array.isArray(leadsResponse.data) 
-          ? leadsResponse.data 
-          : leadsResponse.data?.results || [];
+        const leadsList = normalizeListResponse(leadsResponse.data);
         
         // Filtrar leads desta conta
         const leadsDestaConta = leadsList.filter((lead: any) => lead.conta_id === selectedConta.id);
@@ -306,7 +328,8 @@ export default function CrmVendasCustomersPage() {
           
           if (!confirmar) {
             // Usar lead existente
-            router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${leadsDestaConta[0].id}`);
+            router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${(leadsDestaConta[0] as any).id}`);
+            setCreatingOpportunity(false);
             return;
           }
         }
@@ -314,33 +337,12 @@ export default function CrmVendasCustomersPage() {
         console.log('Erro ao verificar leads existentes:', err);
       }
       
-      // Buscar contatos da conta para usar dados do primeiro contato
-      let nomeContato = selectedConta.nome; // Fallback: usar nome da empresa
-      let emailContato = selectedConta.email || ''; // Fallback: email da empresa
-      let telefoneContato = selectedConta.telefone || ''; // Fallback: telefone da empresa
-      
-      try {
-        const contatosResponse = await apiClient.get(`/crm-vendas/contatos/?conta_id=${selectedConta.id}`);
-        const contatosList = Array.isArray(contatosResponse.data) 
-          ? contatosResponse.data 
-          : contatosResponse.data?.results || [];
-        
-        if (contatosList.length > 0) {
-          const primeiroContato = contatosList[0];
-          nomeContato = primeiroContato.nome; // Usar nome do contato
-          emailContato = primeiroContato.email || selectedConta.email || ''; // Priorizar email do contato
-          telefoneContato = primeiroContato.telefone || selectedConta.telefone || ''; // Priorizar telefone do contato
-        }
-      } catch (err) {
-        console.log('Não foi possível buscar contatos, usando dados da empresa');
-      }
-      
-      // Criar Lead vinculado à Conta
+      // 5. Criar Lead vinculado à Conta com dados do CONTATO
       const leadResponse = await apiClient.post('/crm-vendas/leads/', {
-        nome: nomeContato, // Nome do contato (ou empresa se não houver contato)
+        nome: primeiroContato.nome, // ✅ Nome da pessoa de contato
         empresa: selectedConta.nome, // Nome da empresa
-        email: emailContato, // Email do contato (ou empresa se não houver)
-        telefone: telefoneContato, // Telefone do contato (ou empresa se não houver)
+        email: primeiroContato.email || selectedConta.email || '', // Priorizar email do contato
+        telefone: primeiroContato.telefone || selectedConta.telefone || '', // Priorizar telefone do contato
         origem: 'site',
         status: 'qualificado',
         conta_id: selectedConta.id,
@@ -354,9 +356,10 @@ export default function CrmVendasCustomersPage() {
         uf: selectedConta.uf || '',
       });
       
-      // Redirecionar para pipeline com modal de criar oportunidade
+      // 6. Redirecionar para pipeline com modal de criar oportunidade
       router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${leadResponse.data.id}`);
     } catch (err: any) {
+      console.error('Erro ao criar oportunidade:', err);
       alert(err.response?.data?.detail || 'Erro ao criar oportunidade.');
       setCreatingOpportunity(false);
     }

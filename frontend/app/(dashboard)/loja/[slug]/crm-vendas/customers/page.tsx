@@ -338,7 +338,7 @@ export default function CrmVendasCustomersPage() {
       }
       
       // 5. Criar Lead vinculado à Conta com dados do CONTATO
-      const leadResponse = await apiClient.post('/crm-vendas/leads/', {
+      const leadPayload = {
         nome: primeiroContato.nome, // ✅ Nome da pessoa de contato
         empresa: selectedConta.nome, // Nome da empresa
         email: primeiroContato.email || selectedConta.email || '', // Priorizar email do contato
@@ -354,7 +354,13 @@ export default function CrmVendasCustomersPage() {
         bairro: selectedConta.bairro || '',
         cidade: selectedConta.cidade || '',
         uf: selectedConta.uf || '',
-      });
+      };
+      
+      console.log('🔍 DEBUG - Criando lead com payload:', leadPayload);
+      console.log('🔍 DEBUG - Contato selecionado:', primeiroContato);
+      console.log('🔍 DEBUG - Conta selecionada:', selectedConta);
+      
+      const leadResponse = await apiClient.post('/crm-vendas/leads/', leadPayload);
       
       // 6. Redirecionar para pipeline com modal de criar oportunidade
       router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${leadResponse.data.id}`);

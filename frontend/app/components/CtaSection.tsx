@@ -8,10 +8,10 @@ export default function CtaSection() {
           Pronto para começar?
         </h2>
         <Link
-          href="/superadmin/login"
+          href="/cadastro"
           className="inline-block bg-blue-600 text-white px-8 sm:px-10 py-3 sm:py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold text-base sm:text-lg"
         >
-          Criar Conta Grátis
+          Fazer Cadastro
         </Link>
       </div>
     </section>

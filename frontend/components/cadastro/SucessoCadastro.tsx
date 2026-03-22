@@ -18,14 +18,22 @@ export function SucessoCadastro({ loja, email }: SucessoCadastroProps) {
         </h2>
         <p className="text-xl text-purple-600 font-semibold mb-6">{loja.nome}</p>
         
-        {/* Informação sobre boleto */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-900 font-medium mb-2">
-            📧 Boleto enviado para o email
-          </p>
-          <p className="text-sm text-blue-800">
-            A senha de acesso será enviada automaticamente para <strong>{email}</strong> após a confirmação do pagamento.
-          </p>
+        {/* Informação importante sobre senha */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-5 mb-6">
+          <div className="flex items-start gap-3">
+            <span className="text-3xl">🔐</span>
+            <div className="text-left flex-1">
+              <p className="text-base font-bold text-blue-900 mb-2">
+                Importante: Senha de Acesso
+              </p>
+              <p className="text-sm text-blue-800 mb-2">
+                A senha de acesso será <strong>gerada automaticamente</strong> e enviada para o email <strong className="text-purple-700">{email}</strong> após a confirmação do pagamento.
+              </p>
+              <p className="text-xs text-blue-700 bg-blue-100 rounded px-2 py-1 inline-block">
+                💡 Verifique também a caixa de spam
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Links de pagamento */}

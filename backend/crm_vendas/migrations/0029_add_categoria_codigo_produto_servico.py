@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0019_add_assinatura_digital_fields'),
+        ('crm_vendas', '0028_vendedor_comissao_padrao'),
     ]
 
     operations = [

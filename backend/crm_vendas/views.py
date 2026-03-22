@@ -16,7 +16,7 @@ import logging
 from core.views import BaseModelViewSet
 from .models import (
     Vendedor, Conta, Lead, Contato, Oportunidade, Atividade,
-    ProdutoServico, OportunidadeItem, Proposta, Contrato,
+    ProdutoServico, CategoriaProdutoServico, OportunidadeItem, Proposta, Contrato,
     PropostaTemplate, ContratoTemplate,
 )
 from .serializers import (
@@ -29,6 +29,7 @@ from .serializers import (
     AtividadeSerializer,
     AtividadeListSerializer,
     ProdutoServicoSerializer,
+    CategoriaProdutoServicoSerializer,
     OportunidadeItemSerializer,
     PropostaSerializer,
     PropostaTemplateSerializer,
@@ -750,6 +751,41 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         return qs
 
 
+class CategoriaProdutoServicoViewSet(BaseModelViewSet):
+    """CRUD de categorias para organizar produtos e serviços."""
+    queryset = CategoriaProdutoServico.objects.all()
+    serializer_class = CategoriaProdutoServicoSerializer
+    pagination_class = CRMPagination
+
+    def perform_create(self, serializer):
+        """Garante que loja_id seja definido ao criar categoria."""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        if loja_id:
+            serializer.save(loja_id=loja_id)
+        else:
+            serializer.save()
+
+    def get_queryset(self):
+        """Filtra categorias por loja_id e aplica filtros adicionais."""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        
+        if not loja_id:
+            logger.warning(f"[CategoriaProdutoServicoViewSet] Acesso sem loja_id no contexto")
+            return CategoriaProdutoServico.objects.none()
+        
+        # Filtrar por loja_id explicitamente
+        qs = CategoriaProdutoServico.objects.filter(loja_id=loja_id)
+        
+        # Filtros adicionais
+        ativo = self.request.query_params.get('ativo')
+        if ativo is not None:
+            qs = qs.filter(ativo=ativo.lower() == 'true')
+        
+        return qs
+
+
 class ProdutoServicoViewSet(BaseModelViewSet):
     """CRUD de produtos e serviços para uso em oportunidades."""
     queryset = ProdutoServico.objects.all()
@@ -784,6 +820,9 @@ class ProdutoServicoViewSet(BaseModelViewSet):
         tipo = self.request.query_params.get('tipo')
         if tipo:
             qs = qs.filter(tipo=tipo)
+        categoria = self.request.query_params.get('categoria')
+        if categoria:
+            qs = qs.filter(categoria_id=categoria)
         return qs
 
 

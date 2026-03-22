@@ -47,7 +47,10 @@ class Command(BaseCommand):
                     vendedor_id, nome, is_admin = vendedor_row
                     self.stdout.write(self.style.WARNING(f'Vendedor já existe no schema (ID: {vendedor_id}, Nome: {nome}, Admin: {is_admin})'))
                     
-                    # Criar VendedorUsuario
+                    # ✅ CRÍTICO: Voltar ao schema public antes de criar VendedorUsuario
+                    cursor.execute('SET search_path TO public')
+                    
+                    # Criar VendedorUsuario (no schema public)
                     vendedor_usuario = VendedorUsuario.objects.create(
                         loja=loja,
                         user=owner,
@@ -76,8 +79,11 @@ class Command(BaseCommand):
                 
                 vendedor_id = cursor.fetchone()[0]
                 self.stdout.write(self.style.SUCCESS(f'✅ Vendedor criado no schema (ID: {vendedor_id})'))
+                
+                # ✅ CRÍTICO: Voltar ao schema public antes de criar VendedorUsuario
+                cursor.execute('SET search_path TO public')
             
-            # Criar VendedorUsuario
+            # Criar VendedorUsuario (no schema public)
             vendedor_usuario = VendedorUsuario.objects.create(
                 loja=loja,
                 user=owner,

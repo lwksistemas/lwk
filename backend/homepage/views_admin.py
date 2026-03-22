@@ -2,23 +2,12 @@
 API de configuração da Homepage - apenas SuperAdmin (IsAuthenticated + is_superuser).
 CRUD completo para Hero, Funcionalidades e Módulos.
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+from core.permissions import IsSuperAdmin
 
 from .models import HeroSection, Funcionalidade, ModuloSistema
 from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer
-
-
-class IsSuperAdmin:
-    """Apenas superuser pode acessar."""
-
-    def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.is_superuser
-
-    def has_object_permission(self, request, view, obj):
-        return request.user and request.user.is_superuser
 
 
 class HeroViewSet(viewsets.ModelViewSet):

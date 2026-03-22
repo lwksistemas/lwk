@@ -96,7 +96,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("🔧 SOLUÇÃO RECOMENDADA"))
             self.stdout.write("="*60 + "\n")
             self.stdout.write("Execute o seguinte comando para corrigir:\n")
-            self.stdout.write(self.style.SUCCESS(f"python manage.py fix_owner_vendedor {cpf_cnpj}"))
+            self.stdout.write(self.style.SUCCESS(f"python manage.py fix_owner_vendedor {loja_identifier}"))
             
         else:
             self.stdout.write(self.style.SUCCESS(f"✅ OK: Owner NÃO tem VendedorUsuario vinculado"))

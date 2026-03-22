@@ -99,7 +99,7 @@ def _criar_cabecalho_com_logo(logo_url, titulo, max_width=6*cm, max_height=3*cm)
         table_data = [[img, titulo_paragraph]]
         table = Table(table_data, colWidths=[width + 0.5*cm, None])
         table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Alinhamento vertical ao meio
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),     # Alinhamento vertical ao topo
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),       # Logo à esquerda
             ('ALIGN', (1, 0), (1, 0), 'LEFT'),       # Título à esquerda
         ]))
@@ -250,7 +250,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     
     cabecalho = _criar_cabecalho_com_logo(logo_url, 'PROPOSTA COMERCIAL')
     elements.append(cabecalho)
-    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Spacer(1, 0.1*cm))  # Reduzido para aproximar título do cabeçalho
     
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
     elements.append(Spacer(1, 0.2*cm))  # Reduzido de 0.3cm para 0.2cm (subir uma linha antes de Dados da Empresa)
@@ -430,7 +430,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     
     cabecalho = _criar_cabecalho_com_logo(logo_url, 'CONTRATO')
     elements.append(cabecalho)
-    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Spacer(1, 0.1*cm))  # Reduzido para aproximar título do cabeçalho
 
     elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', styles['Normal']))
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', styles['Normal']))

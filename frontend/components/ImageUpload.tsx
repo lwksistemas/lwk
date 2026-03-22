@@ -55,7 +55,7 @@ export function ImageUpload({
     const widget = window.cloudinary.createUploadWidget(
       {
         cloudName: 'dzrdbw74w',
-        uploadPreset: 'lwk_default',
+        uploadPreset: 'lwk_padrao',
         sources: ['local', 'url', 'camera'],
         multiple: false,
         maxFileSize: maxSize * 1024 * 1024,

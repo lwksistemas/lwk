@@ -124,10 +124,14 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                             )]
                         
                         # Verificar se owner já existe como vendedor comum (mesmo email)
-                        owner_ja_existe_como_vendedor = any(
-                            (r.get('email') or '').strip().lower() == owner_email_lower
-                            for r in results
-                        )
+                        owner_ja_existe_como_vendedor = False
+                        for r in results:
+                            if (r.get('email') or '').strip().lower() == owner_email_lower:
+                                owner_ja_existe_como_vendedor = True
+                                # Marcar este vendedor como administrador
+                                r['is_admin'] = True
+                                r['cargo'] = 'Administrador'
+                                break
                         
                         # Adicionar admin virtual APENAS se:
                         # 1. Owner NÃO tem VendedorUsuario vinculado E

@@ -256,7 +256,7 @@ export default function ConfiguracoesFuncionariosPage() {
                       {reenviando === v.id ? 'Enviando...' : 'Reenviar senha'}
                     </button>
                   )}
-                  {v.id !== 'admin' && !v.is_admin && (
+                  {!v.is_admin && (
                     <>
                       <button
                         type="button"

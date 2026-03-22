@@ -6,9 +6,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { ImageUpload } from '@/components/ImageUpload';
 
 interface LoginConfigData {
   logo: string;
+  login_background: string;
+  login_logo: string;
   cor_primaria: string;
   cor_secundaria: string;
 }
@@ -31,6 +34,8 @@ export default function ConfiguracoesLoginPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logo, setLogo] = useState('');
+  const [loginBackground, setLoginBackground] = useState('');
+  const [loginLogo, setLoginLogo] = useState('');
   const [corPrimaria, setCorPrimaria] = useState('#10B981');
   const [corSecundaria, setCorSecundaria] = useState('#059669');
 
@@ -39,10 +44,14 @@ export default function ConfiguracoesLoginPage() {
     try {
       const { data } = await apiClient.get<LoginConfigData>('/crm-vendas/login-config/');
       setLogo((data.logo ?? '').toString());
+      setLoginBackground((data.login_background ?? '').toString());
+      setLoginLogo((data.login_logo ?? '').toString());
       setCorPrimaria((data.cor_primaria ?? '#10B981').toString());
       setCorSecundaria((data.cor_secundaria ?? '#059669').toString());
     } catch {
       setLogo('');
+      setLoginBackground('');
+      setLoginLogo('');
       setCorPrimaria('#10B981');
       setCorSecundaria('#059669');
     } finally {
@@ -63,6 +72,8 @@ export default function ConfiguracoesLoginPage() {
     try {
       await apiClient.patch('/crm-vendas/login-config/', {
         logo: logo.trim(),
+        login_background: loginBackground.trim(),
+        login_logo: loginLogo.trim(),
         cor_primaria: corPrimaria.startsWith('#') ? corPrimaria : `#${corPrimaria}`,
         cor_secundaria: corSecundaria.startsWith('#') ? corSecundaria : `#${corSecundaria}`,
       });
@@ -110,23 +121,35 @@ export default function ConfiguracoesLoginPage() {
           <p className="text-sm text-gray-500">Carregando...</p>
         ) : (
           <div className="space-y-6">
-            {/* Logo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Logo da loja
-              </label>
-              <input
-                type="url"
-                value={logo}
-                onChange={(e) => setLogo(e.target.value)}
-                maxLength={200}
-                placeholder="https://exemplo.com/logo.png"
-                className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Cole a URL do logo da sua loja. O logo será exibido na tela de login. URL até 200 caracteres. Recomendado: imagem até 500 KB (PNG ou JPG), 200×200 a 400×400 px.
-              </p>
-            </div>
+            {/* Logo principal */}
+            <ImageUpload
+              label="Logo da loja (principal)"
+              description="Logo principal da loja, usado no sistema (recomendado: PNG com fundo transparente)"
+              value={logo}
+              onChange={(url) => setLogo(url)}
+              maxSize={2}
+              aspectRatio="16:9"
+            />
+
+            {/* Imagem de fundo do login */}
+            <ImageUpload
+              label="Imagem de fundo da tela de login"
+              description="Imagem de fundo exibida na tela de login (opcional, deixe vazio para usar gradiente de cores)"
+              value={loginBackground}
+              onChange={(url) => setLoginBackground(url)}
+              maxSize={5}
+              aspectRatio="16:9"
+            />
+
+            {/* Logo específico do login */}
+            <ImageUpload
+              label="Logo da tela de login"
+              description="Logo específico para a tela de login (opcional, se não definido usa o logo principal)"
+              value={loginLogo}
+              onChange={(url) => setLoginLogo(url)}
+              maxSize={2}
+              aspectRatio="1:1"
+            />
 
             {/* Cores pré-definidas */}
             <div>

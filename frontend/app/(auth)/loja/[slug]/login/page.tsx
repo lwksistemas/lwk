@@ -17,6 +17,8 @@ interface LojaInfo {
   cor_primaria: string;
   cor_secundaria: string;
   logo?: string;
+  login_background?: string;
+  login_logo?: string;
   requer_cpf_cnpj?: boolean;
 }
 
@@ -201,24 +203,37 @@ export default function LojaLoginDinamicoPage() {
   // Usar cores da loja
   const corPrimaria = lojaInfo.cor_primaria;
   const corSecundaria = lojaInfo.cor_secundaria;
+  const loginBackground = lojaInfo.login_background;
+  const loginLogo = lojaInfo.login_logo || lojaInfo.logo;
 
   return (
     <div 
       className="min-h-screen flex items-center justify-center p-4"
       style={{
-        background: `linear-gradient(to bottom right, ${corPrimaria}, ${corSecundaria})`
+        background: loginBackground 
+          ? `url(${loginBackground}) center/cover no-repeat`
+          : `linear-gradient(to bottom right, ${corPrimaria}, ${corSecundaria})`,
+        position: 'relative'
       }}
     >
-      <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl">
+      {/* Overlay escuro se houver imagem de fundo */}
+      {loginBackground && (
+        <div 
+          className="absolute inset-0 bg-black/40"
+          style={{ zIndex: 0 }}
+        />
+      )}
+      
+      <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 1 }}>
         {/* Header */}
         <div>
           <div 
             className="mx-auto h-14 w-14 sm:h-16 sm:w-16 rounded-full flex items-center justify-center"
             style={{ backgroundColor: corPrimaria }}
           >
-            {lojaInfo.logo ? (
+            {loginLogo ? (
               <Image
-                src={lojaInfo.logo}
+                src={loginLogo}
                 alt={lojaInfo.nome}
                 width={48}
                 height={48}

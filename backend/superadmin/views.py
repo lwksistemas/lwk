@@ -297,6 +297,8 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'cor_primaria': getattr(loja, 'cor_primaria', None) or '#10B981',
                 'cor_secundaria': getattr(loja, 'cor_secundaria', None) or '#059669',
                 'logo': getattr(loja, 'logo', None) or '',
+                'login_background': getattr(loja, 'login_background', None) or '',
+                'login_logo': getattr(loja, 'login_logo', None) or '',
                 'login_page_url': getattr(loja, 'login_page_url', None) or '',
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
                 'requer_cpf_cnpj': True,  # SEMPRE requer CPF/CNPJ para maior segurança

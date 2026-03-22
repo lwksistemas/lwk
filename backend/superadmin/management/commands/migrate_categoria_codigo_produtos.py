@@ -150,13 +150,13 @@ class Command(BaseCommand):
             
             if not cursor.fetchone():
                 self.stdout.write('   Criando constraint de unicidade para codigo...')
+                # PostgreSQL: usar CREATE UNIQUE INDEX com WHERE ao invés de ALTER TABLE
                 cursor.execute(f"""
-                    ALTER TABLE "{schema_name}".crm_vendas_produto_servico 
-                    ADD CONSTRAINT crm_ps_unique_codigo_loja 
-                    UNIQUE (loja_id, codigo) 
+                    CREATE UNIQUE INDEX IF NOT EXISTS crm_ps_unique_codigo_loja_idx
+                    ON "{schema_name}".crm_vendas_produto_servico (loja_id, codigo)
                     WHERE codigo IS NOT NULL AND codigo != '';
                 """)
-                self.stdout.write(self.style.SUCCESS('   ✅ Constraint criada'))
+                self.stdout.write(self.style.SUCCESS('   ✅ Índice único criado'))
             else:
                 self.stdout.write('   ℹ️  Constraint já existe')
             

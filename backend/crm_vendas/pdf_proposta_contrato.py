@@ -23,24 +23,42 @@ def _formatar_timestamp_local(assinado_em):
     return timestamp_local.strftime('%d/%m/%Y %H:%M:%S')
 
 
-def _adicionar_logo_cabecalho(elements, logo_url, max_width=4*cm, max_height=2*cm):
+def _criar_cabecalho_com_logo(logo_url, titulo, max_width=6*cm, max_height=3*cm):
     """
-    Adiciona logo no cabeçalho do PDF.
+    Cria cabeçalho com logo à esquerda e título à direita na mesma linha.
     
     Args:
-        elements: lista de elementos do PDF
         logo_url: URL do logo (Cloudinary)
+        titulo: Texto do título (ex: 'PROPOSTA COMERCIAL')
         max_width: largura máxima do logo
         max_height: altura máxima do logo
+    
+    Returns:
+        Table ou Paragraph (se não houver logo)
     """
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'HeaderTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.HexColor('#0176d3'),
+        alignment=TA_LEFT,
+    )
+    
+    # Se não houver logo, retorna apenas o título centralizado
     if not logo_url:
-        return
+        title_style.alignment = TA_CENTER
+        return Paragraph(titulo, title_style)
     
     try:
         # Baixar imagem do Cloudinary
         response = requests.get(logo_url, timeout=5)
         if response.status_code != 200:
-            return
+            title_style.alignment = TA_CENTER
+            return Paragraph(titulo, title_style)
         
         # Criar objeto Image do reportlab
         img_buffer = BytesIO(response.content)
@@ -73,15 +91,26 @@ def _adicionar_logo_cabecalho(elements, logo_url, max_width=4*cm, max_height=2*c
         
         # Criar elemento Image do reportlab
         img = Image(img_buffer, width=width, height=height)
-        img.hAlign = 'CENTER'
         
-        elements.append(img)
-        elements.append(Spacer(1, 0.3*cm))
+        # Criar tabela com logo à esquerda e título à direita
+        titulo_paragraph = Paragraph(titulo, title_style)
+        
+        # Tabela: [Logo | Título]
+        table_data = [[img, titulo_paragraph]]
+        table = Table(table_data, colWidths=[width + 0.5*cm, None])
+        table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Alinhamento vertical ao meio
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),       # Logo à esquerda
+            ('ALIGN', (1, 0), (1, 0), 'LEFT'),       # Título à esquerda
+        ]))
+        
+        return table
         
     except Exception as e:
-        # Se falhar ao carregar logo, continua sem ele
+        # Se falhar ao carregar logo, retorna apenas título centralizado
         print(f"⚠️ Erro ao adicionar logo no PDF: {e}")
-        pass
+        title_style.alignment = TA_CENTER
+        return Paragraph(titulo, title_style)
 
 
 def _adicionar_marca_dagua_assinatura(elements, assinatura, styles):
@@ -202,14 +231,6 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     elements = []
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle(
-        'PropostaTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.HexColor('#0176d3'),
-        spaceAfter=20,
-        alignment=TA_CENTER,
-    )
     section_style = ParagraphStyle(
         'Section',
         parent=styles['Heading2'],
@@ -219,14 +240,18 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         alignment=0,  # 0 = LEFT (alinhado à esquerda)
     )
 
-    # ✅ NOVO: Adicionar logo no cabeçalho se disponível
+    # ✅ NOVO: Criar cabeçalho com logo à esquerda e título à direita
     loja_id = getattr(proposta, 'loja_id', None)
+    logo_url = None
     if loja_id:
         loja_data = _obter_dados_loja(loja_id)
-        if loja_data and loja_data.get('logo'):
-            _adicionar_logo_cabecalho(elements, loja_data['logo'])
-
-    elements.append(Paragraph('PROPOSTA COMERCIAL', title_style))
+        if loja_data:
+            logo_url = loja_data.get('logo')
+    
+    cabecalho = _criar_cabecalho_com_logo(logo_url, 'PROPOSTA COMERCIAL')
+    elements.append(cabecalho)
+    elements.append(Spacer(1, 0.3*cm))
+    
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
     elements.append(Spacer(1, 0.2*cm))  # Reduzido de 0.3cm para 0.2cm (subir uma linha antes de Dados da Empresa)
 
@@ -387,14 +412,6 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     elements = []
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle(
-        'ContratoTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.HexColor('#0176d3'),
-        spaceAfter=20,
-        alignment=TA_CENTER,
-    )
     section_style = ParagraphStyle(
         'Section',
         parent=styles['Heading2'],
@@ -403,14 +420,18 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         spaceAfter=6,
     )
 
-    # ✅ NOVO: Adicionar logo no cabeçalho se disponível
+    # ✅ NOVO: Criar cabeçalho com logo à esquerda e título à direita
     loja_id = getattr(contrato, 'loja_id', None)
+    logo_url = None
     if loja_id:
         loja_data = _obter_dados_loja(loja_id)
-        if loja_data and loja_data.get('logo'):
-            _adicionar_logo_cabecalho(elements, loja_data['logo'])
+        if loja_data:
+            logo_url = loja_data.get('logo')
+    
+    cabecalho = _criar_cabecalho_com_logo(logo_url, 'CONTRATO')
+    elements.append(cabecalho)
+    elements.append(Spacer(1, 0.3*cm))
 
-    elements.append(Paragraph('CONTRATO', title_style))
     elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', styles['Normal']))
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', styles['Normal']))
     valor_str = _formatar_valor(contrato.valor_total)

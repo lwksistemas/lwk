@@ -20,6 +20,7 @@ interface Vendedor {
   tem_acesso?: boolean;
 }
 
+// Versão com campo de comissão - v1.1
 export default function ConfiguracoesFuncionariosPage() {
   const params = useParams();
   const router = useRouter();

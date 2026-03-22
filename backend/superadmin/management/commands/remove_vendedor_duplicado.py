@@ -48,12 +48,23 @@ class Command(BaseCommand):
                 self.stdout.write(f'  ID: {v[0]}, Nome: {v[1]}, is_admin: {v[3]}, Cargo: {v[4]}')
             
             # Remover o vendedor mais antigo (menor ID)
-            vendedor_id = vendedores[0][0]  # Primeiro vendedor (menor ID)
+            vendedor_antigo_id = vendedores[0][0]  # Primeiro vendedor (menor ID)
+            vendedor_novo_id = vendedores[1][0]  # Segundo vendedor (maior ID)
             
-            self.stdout.write(f'\nRemovendo vendedor ID {vendedor_id} (is_admin=True)...')
+            self.stdout.write(f'\nAtualizando oportunidades do vendedor ID {vendedor_antigo_id} para ID {vendedor_novo_id}...')
+            cursor.execute(f"""
+                UPDATE "{db_name}".crm_vendas_oportunidade
+                SET vendedor_id = %s
+                WHERE vendedor_id = %s
+            """, [vendedor_novo_id, vendedor_antigo_id])
+            
+            oportunidades_atualizadas = cursor.rowcount
+            self.stdout.write(f'✓ {oportunidades_atualizadas} oportunidades atualizadas')
+            
+            self.stdout.write(f'\nRemovendo vendedor ID {vendedor_antigo_id}...')
             cursor.execute(f"""
                 DELETE FROM "{db_name}".crm_vendas_vendedor
                 WHERE id = %s
-            """, [vendedor_id])
+            """, [vendedor_antigo_id])
             
-            self.stdout.write(self.style.SUCCESS(f'✓ Vendedor ID {vendedor_id} removido com sucesso'))
+            self.stdout.write(self.style.SUCCESS(f'✓ Vendedor ID {vendedor_antigo_id} removido com sucesso'))

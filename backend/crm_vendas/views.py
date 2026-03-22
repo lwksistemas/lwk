@@ -1492,6 +1492,8 @@ class LoginConfigView(CRMPermissionMixin, APIView):
         cor_secundaria = (loja.cor_secundaria or '').strip() or '#059669'
         return Response({
             'logo': (loja.logo or '').strip(),
+            'login_background': (loja.login_background or '').strip(),
+            'login_logo': (loja.login_logo or '').strip(),
             'cor_primaria': cor_primaria,
             'cor_secundaria': cor_secundaria,
         })
@@ -1509,6 +1511,14 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             val = (request.data.get('logo') or '').strip()
             loja.logo = val[:200] if val else ''  # URLField max_length=200
             update_fields.append('logo')
+        if 'login_background' in request.data:
+            val = (request.data.get('login_background') or '').strip()
+            loja.login_background = val[:200] if val else ''  # URLField max_length=200
+            update_fields.append('login_background')
+        if 'login_logo' in request.data:
+            val = (request.data.get('login_logo') or '').strip()
+            loja.login_logo = val[:200] if val else ''  # URLField max_length=200
+            update_fields.append('login_logo')
         if 'cor_primaria' in request.data:
             val = (request.data.get('cor_primaria') or '').strip()
             if val and val.startswith('#') and len(val) <= 7:
@@ -1525,6 +1535,8 @@ class LoginConfigView(CRMPermissionMixin, APIView):
         cache.delete(cache_key)
         return Response({
             'logo': (loja.logo or '').strip(),
+            'login_background': (loja.login_background or '').strip(),
+            'login_logo': (loja.login_logo or '').strip(),
             'cor_primaria': loja.cor_primaria or '#10B981',
             'cor_secundaria': loja.cor_secundaria or '#059669',
         })

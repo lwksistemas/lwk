@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import CloudinaryConfig from '@/components/superadmin/CloudinaryConfig';
+import { ImageUpload } from '@/components/ImageUpload';
 
 interface HeroData {
   id?: number;
@@ -31,6 +32,7 @@ interface HeroData {
   subtitulo: string;
   botao_texto: string;
   botao_principal_ativo?: boolean;
+  imagem?: string;
   ativo?: boolean;
 }
 
@@ -39,6 +41,7 @@ interface FuncionalidadeData {
   titulo: string;
   descricao: string;
   icone: string;
+  imagem?: string;
   ordem?: number;
   ativo?: boolean;
 }
@@ -49,6 +52,7 @@ interface ModuloData {
   descricao: string;
   slug: string;
   icone: string;
+  imagem?: string;
   ordem?: number;
   ativo?: boolean;
 }
@@ -73,6 +77,7 @@ export default function HomepageConfigPage() {
     subtitulo: '',
     botao_texto: 'Testar grátis',
     botao_principal_ativo: true,
+    imagem: '',
   });
   const [editingFunc, setEditingFunc] = useState<FuncionalidadeData | null>(null);
   const [editingMod, setEditingMod] = useState<ModuloData | null>(null);
@@ -102,10 +107,11 @@ export default function HomepageConfigPage() {
           subtitulo: firstHero.subtitulo,
           botao_texto: firstHero.botao_texto || 'Testar grátis',
           botao_principal_ativo: firstHero.botao_principal_ativo !== false,
+          imagem: firstHero.imagem || '',
         });
       } else {
         setHero(null);
-        setHeroForm({ titulo: '', subtitulo: '', botao_texto: 'Testar grátis', botao_principal_ativo: true });
+        setHeroForm({ titulo: '', subtitulo: '', botao_texto: 'Testar grátis', botao_principal_ativo: true, imagem: '' });
       }
 
       const funcList = Array.isArray(funcRes.data) ? funcRes.data : funcRes.data?.results ?? [];
@@ -140,6 +146,7 @@ export default function HomepageConfigPage() {
         subtitulo: heroForm.subtitulo?.trim() || '',
         botao_texto: heroForm.botao_texto?.trim() || 'Testar grátis',
         botao_principal_ativo: heroForm.botao_principal_ativo !== false,
+        imagem: heroForm.imagem?.trim() || '',
       };
       if (hero?.id) {
         await apiClient.patch(`${API.hero}${hero.id}/`, payload);
@@ -324,6 +331,16 @@ export default function HomepageConfigPage() {
                     placeholder="Ex: Gestão de Lojas"
                   />
                 </div>
+                
+                <ImageUpload
+                  label="Imagem do Hero"
+                  description="Imagem principal exibida no banner da homepage (opcional)"
+                  value={heroForm.imagem || ''}
+                  onChange={(url) => setHeroForm((f) => ({ ...f, imagem: url }))}
+                  maxSize={5}
+                  aspectRatio="16:9"
+                />
+                
                 <div>
                   <Label>Texto do botão</Label>
                   <Input

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Funcionalidade } from "@/types/homepage";
 
 interface FeaturesProps {
@@ -11,7 +12,20 @@ const DEFAULT_FUNCIONALIDADES: Omit<Funcionalidade, "id">[] = [
   { titulo: "Controle Financeiro", descricao: "Gestão de contas e faturamento", icone: "💰" },
 ];
 
-function renderIcon(icone?: string) {
+function renderIcon(icone?: string, imagem?: string) {
+  if (imagem) {
+    return (
+      <div className="relative w-16 h-16 mb-4">
+        <Image
+          src={imagem}
+          alt="Ícone"
+          fill
+          className="object-contain"
+        />
+      </div>
+    );
+  }
+  
   if (!icone || icone.length <= 2) {
     return <span className="text-4xl">{icone || "📦"}</span>;
   }
@@ -42,7 +56,7 @@ export default function Features({ funcionalidades }: FeaturesProps) {
               key={f.id ?? i}
               className="bg-gray-50 p-6 rounded-xl border border-gray-100 hover:shadow-lg transition-shadow"
             >
-              <div className="mb-4">{renderIcon(f.icone)}</div>
+              <div className="mb-4">{renderIcon(f.icone, f.imagem)}</div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">{f.titulo}</h3>
               <p className="text-gray-600">{f.descricao}</p>
             </div>

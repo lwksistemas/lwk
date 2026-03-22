@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Hero as HeroType } from "@/types/homepage";
 
 interface HeroProps {
@@ -12,6 +13,7 @@ export default function Hero({ hero }: HeroProps) {
     "Gerencie clientes, vendas, financeiro e relatórios em um CRM moderno e fácil de usar.";
   const botaoTexto = hero?.botao_texto ?? "Testar Gratuitamente";
   const mostrarBotaoPrincipal = hero?.botao_principal_ativo !== false;
+  const imagem = hero?.imagem;
 
   return (
     <section className="w-full min-w-full bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100 py-16 md:py-24">
@@ -40,24 +42,36 @@ export default function Hero({ hero }: HeroProps) {
         </div>
         <div className="hidden md:block">
           <div className="rounded-xl shadow-2xl bg-white p-4 border border-gray-100 overflow-hidden">
-            <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center">
-              <div className="text-center p-8">
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  {[40, 70, 55].map((h, i) => (
-                    <div
-                      key={i}
-                      className="bg-blue-200/60 rounded"
-                      style={{ height: `${h}px` }}
-                    />
-                  ))}
-                </div>
-                <div className="flex gap-2 justify-center">
-                  <div className="w-16 h-16 rounded-full bg-blue-300/50" />
-                  <div className="w-24 h-12 rounded bg-blue-200/50" />
-                </div>
-                <p className="text-blue-700 font-semibold mt-4 text-lg">Dashboard</p>
+            {imagem ? (
+              <div className="aspect-video relative rounded-lg overflow-hidden">
+                <Image
+                  src={imagem}
+                  alt={titulo}
+                  fill
+                  className="object-cover"
+                  priority
+                />
               </div>
-            </div>
+            ) : (
+              <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center">
+                <div className="text-center p-8">
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    {[40, 70, 55].map((h, i) => (
+                      <div
+                        key={i}
+                        className="bg-blue-200/60 rounded"
+                        style={{ height: `${h}px` }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-2 justify-center">
+                    <div className="w-16 h-16 rounded-full bg-blue-300/50" />
+                    <div className="w-24 h-12 rounded bg-blue-200/50" />
+                  </div>
+                  <p className="text-blue-700 font-semibold mt-4 text-lg">Dashboard</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

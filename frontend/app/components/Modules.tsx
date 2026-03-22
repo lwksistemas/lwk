@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Modulo } from "@/types/homepage";
 
 interface ModulesProps {
@@ -11,7 +12,20 @@ const DEFAULT_MODULOS: Omit<Modulo, "id">[] = [
   { nome: "E-commerce", descricao: "Loja virtual completa", slug: "ecommerce", icone: "🛒" },
 ];
 
-function renderIcon(icone?: string) {
+function renderIcon(icone?: string, imagem?: string) {
+  if (imagem) {
+    return (
+      <div className="relative w-16 h-16 mb-4">
+        <Image
+          src={imagem}
+          alt="Ícone"
+          fill
+          className="object-contain"
+        />
+      </div>
+    );
+  }
+  
   if (!icone || icone.length <= 2) {
     return <span className="text-4xl">{icone || "📦"}</span>;
   }
@@ -40,7 +54,7 @@ export default function Modules({ modulos }: ModulesProps) {
           {items.map((m, idx) => {
             const content = (
               <div className="border border-gray-200 p-6 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all h-full bg-white">
-                <div className="mb-4">{renderIcon(m.icone)}</div>
+                <div className="mb-4">{renderIcon(m.icone, m.imagem)}</div>
                 <h3 className="text-xl font-bold mb-2 text-gray-900">{m.nome}</h3>
                 <p className="text-gray-600">{m.descricao}</p>
                 {m.slug && (

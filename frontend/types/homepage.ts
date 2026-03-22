@@ -4,6 +4,7 @@ export interface Hero {
   subtitulo: string;
   botao_texto: string;
   botao_principal_ativo?: boolean;
+  imagem?: string;
 }
 
 export interface Funcionalidade {
@@ -11,6 +12,7 @@ export interface Funcionalidade {
   titulo: string;
   descricao: string;
   icone?: string;
+  imagem?: string;
 }
 
 export interface Modulo {
@@ -19,6 +21,7 @@ export interface Modulo {
   descricao: string;
   slug?: string;
   icone?: string;
+  imagem?: string;
 }
 
 export interface HomepageData {

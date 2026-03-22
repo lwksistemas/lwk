@@ -14,9 +14,10 @@ const nextConfig = {
   
   // Otimizar imagens (remotePatterns para Next 14+)
   images: {
-    domains: ['localhost', 'i.pravatar.cc'],
+    domains: ['localhost', 'i.pravatar.cc', 'res.cloudinary.com'],
     remotePatterns: [
       { protocol: 'https', hostname: 'i.pravatar.cc', pathname: '/**' },
+      { protocol: 'https', hostname: 'res.cloudinary.com', pathname: '/**' },
     ],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,

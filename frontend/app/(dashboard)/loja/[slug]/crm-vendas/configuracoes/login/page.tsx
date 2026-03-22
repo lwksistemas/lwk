@@ -43,12 +43,20 @@ export default function ConfiguracoesLoginPage() {
     setLoading(true);
     try {
       const { data } = await apiClient.get<LoginConfigData>('/crm-vendas/login-config/');
+      console.log('📥 Dados recebidos do backend:', data);
+      console.log('  - logo:', data.logo);
+      console.log('  - login_background:', data.login_background);
+      console.log('  - login_logo:', data.login_logo);
+      
       setLogo((data.logo ?? '').toString());
       setLoginBackground((data.login_background ?? '').toString());
       setLoginLogo((data.login_logo ?? '').toString());
       setCorPrimaria((data.cor_primaria ?? '#10B981').toString());
       setCorSecundaria((data.cor_secundaria ?? '#059669').toString());
-    } catch {
+      
+      console.log('✅ Estados atualizados');
+    } catch (err) {
+      console.error('❌ Erro ao carregar config:', err);
       setLogo('');
       setLoginBackground('');
       setLoginLogo('');
@@ -241,20 +249,28 @@ export default function ConfiguracoesLoginPage() {
                 Prévia da tela de login
               </label>
               <div
-                className="rounded-lg border border-gray-200 dark:border-[#0d1f3c] overflow-hidden"
+                className="rounded-lg border border-gray-200 dark:border-[#0d1f3c] overflow-hidden relative"
                 style={{
-                  background: `linear-gradient(to bottom right, ${corPrimariaHex}, ${corSecundariaHex})`,
+                  background: loginBackground 
+                    ? `url(${loginBackground}) center/cover no-repeat`
+                    : `linear-gradient(to bottom right, ${corPrimariaHex}, ${corSecundariaHex})`,
+                  minHeight: '300px',
                 }}
               >
-                <div className="p-6 flex flex-col items-center">
+                {/* Overlay escuro se houver imagem de fundo */}
+                {loginBackground && (
+                  <div className="absolute inset-0 bg-black/40" />
+                )}
+                
+                <div className="p-6 flex flex-col items-center relative z-10">
                   <div
                     className="w-14 h-14 rounded-full flex items-center justify-center mb-3 overflow-hidden"
                     style={{ backgroundColor: corPrimariaHex }}
                   >
-                    {logo ? (
+                    {(loginLogo || logo) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={logo}
+                        src={loginLogo || logo}
                         alt="Logo"
                         className="w-10 h-10 rounded-full object-cover"
                         onError={(e) => {
@@ -265,7 +281,7 @@ export default function ConfiguracoesLoginPage() {
                       />
                     ) : null}
                     <svg
-                      className={`h-8 w-8 text-white ${logo ? 'hidden' : ''}`}
+                      className={`h-8 w-8 text-white ${(loginLogo || logo) ? 'hidden' : ''}`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"

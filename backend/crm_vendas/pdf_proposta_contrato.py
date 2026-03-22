@@ -8,10 +8,12 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.enums import TA_CENTER
 import re
 import pytz
+import requests
+from PIL import Image as PILImage
 
 
 def _formatar_timestamp_local(assinado_em):
@@ -19,6 +21,67 @@ def _formatar_timestamp_local(assinado_em):
     tz_brasil = pytz.timezone('America/Sao_Paulo')
     timestamp_local = assinado_em.astimezone(tz_brasil)
     return timestamp_local.strftime('%d/%m/%Y %H:%M:%S')
+
+
+def _adicionar_logo_cabecalho(elements, logo_url, max_width=4*cm, max_height=2*cm):
+    """
+    Adiciona logo no cabeçalho do PDF.
+    
+    Args:
+        elements: lista de elementos do PDF
+        logo_url: URL do logo (Cloudinary)
+        max_width: largura máxima do logo
+        max_height: altura máxima do logo
+    """
+    if not logo_url:
+        return
+    
+    try:
+        # Baixar imagem do Cloudinary
+        response = requests.get(logo_url, timeout=5)
+        if response.status_code != 200:
+            return
+        
+        # Criar objeto Image do reportlab
+        img_buffer = BytesIO(response.content)
+        
+        # Obter dimensões originais da imagem
+        pil_img = PILImage.open(img_buffer)
+        img_width, img_height = pil_img.size
+        
+        # Calcular proporção para manter aspect ratio
+        aspect = img_height / float(img_width)
+        
+        # Ajustar tamanho mantendo proporção
+        if img_width > img_height:
+            # Imagem horizontal
+            width = min(max_width, img_width)
+            height = width * aspect
+            if height > max_height:
+                height = max_height
+                width = height / aspect
+        else:
+            # Imagem vertical ou quadrada
+            height = min(max_height, img_height)
+            width = height / aspect
+            if width > max_width:
+                width = max_width
+                height = width * aspect
+        
+        # Resetar buffer para o início
+        img_buffer.seek(0)
+        
+        # Criar elemento Image do reportlab
+        img = Image(img_buffer, width=width, height=height)
+        img.hAlign = 'CENTER'
+        
+        elements.append(img)
+        elements.append(Spacer(1, 0.3*cm))
+        
+    except Exception as e:
+        # Se falhar ao carregar logo, continua sem ele
+        print(f"⚠️ Erro ao adicionar logo no PDF: {e}")
+        pass
 
 
 def _adicionar_marca_dagua_assinatura(elements, assinatura, styles):
@@ -72,7 +135,7 @@ def _formatar_valor(valor):
 
 
 def _obter_dados_loja(loja_id):
-    """Obtém dados da loja do superadmin (nome, endereço, CPF/CNPJ, admin)."""
+    """Obtém dados da loja do superadmin (nome, endereço, CPF/CNPJ, admin, logo)."""
     try:
         from superadmin.models import Loja
         loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
@@ -102,6 +165,7 @@ def _obter_dados_loja(loja_id):
             'cpf_cnpj': getattr(loja, 'cpf_cnpj', '') or None,
             'admin_nome': admin_nome,
             'admin_email': admin_email,
+            'logo': getattr(loja, 'logo', '') or None,  # ✅ NOVO: incluir logo
         }
     except Exception:
         return {}
@@ -155,12 +219,18 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         alignment=0,  # 0 = LEFT (alinhado à esquerda)
     )
 
+    # ✅ NOVO: Adicionar logo no cabeçalho se disponível
+    loja_id = getattr(proposta, 'loja_id', None)
+    if loja_id:
+        loja_data = _obter_dados_loja(loja_id)
+        if loja_data and loja_data.get('logo'):
+            _adicionar_logo_cabecalho(elements, loja_data['logo'])
+
     elements.append(Paragraph('PROPOSTA COMERCIAL', title_style))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
     elements.append(Spacer(1, 0.2*cm))  # Reduzido de 0.3cm para 0.2cm (subir uma linha antes de Dados da Empresa)
 
     # Dados da Empresa
-    loja_id = getattr(proposta, 'loja_id', None)
     if loja_id:
         loja_data = _obter_dados_loja(loja_id)
         if loja_data:
@@ -333,6 +403,13 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         spaceAfter=6,
     )
 
+    # ✅ NOVO: Adicionar logo no cabeçalho se disponível
+    loja_id = getattr(contrato, 'loja_id', None)
+    if loja_id:
+        loja_data = _obter_dados_loja(loja_id)
+        if loja_data and loja_data.get('logo'):
+            _adicionar_logo_cabecalho(elements, loja_data['logo'])
+
     elements.append(Paragraph('CONTRATO', title_style))
     elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', styles['Normal']))
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', styles['Normal']))
@@ -341,7 +418,6 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     elements.append(Spacer(1, 0.2*cm))  # Reduzido de 0.3cm para 0.2cm
 
     # Dados da Empresa
-    loja_id = getattr(contrato, 'loja_id', None)
     if loja_id:
         loja_data = _obter_dados_loja(loja_id)
         if loja_data:

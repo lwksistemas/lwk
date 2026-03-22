@@ -32,6 +32,11 @@ export function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug: log quando o value mudar
+  useEffect(() => {
+    console.log(`🖼️ ImageUpload [${label}] - value:`, value);
+  }, [value, label]);
+
   useEffect(() => {
     // Carregar script do Cloudinary se ainda não estiver carregado
     if (typeof window !== 'undefined' && !window.cloudinary) {

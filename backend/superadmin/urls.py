@@ -10,6 +10,7 @@ from .views import (
     verificar_storage_loja, listar_storage_lojas,  # ✅ NOVO v738
     health_check,  # ✅ NOVO v750
 )
+from .cloudinary_views import cloudinary_config, cloudinary_test
 from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
     PagamentoLojaViewSet as PagamentoViewSet,
@@ -51,6 +52,10 @@ urlpatterns = [
     path('mercadopago-config/test/', mercadopago_test, name='mercadopago-config-test'),
     path('mercadopago-webhook/', mercadopago_webhook, name='mercadopago-webhook'),
     path('sync-mercadopago/', sync_mercadopago_loja, name='sync-mercadopago'),
+    
+    # Cloudinary
+    path('cloudinary-config/', cloudinary_config, name='cloudinary-config'),
+    path('cloudinary-config/test/', cloudinary_test, name='cloudinary-config-test'),
     
     # ✅ NOVO v738: Rotas de monitoramento de storage
     path('lojas/<int:loja_id>/verificar-storage/', verificar_storage_loja, name='verificar-storage-loja'),

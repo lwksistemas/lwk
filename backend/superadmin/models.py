@@ -7,6 +7,9 @@ from django.contrib.auth.models import User
 from django.utils.text import slugify
 from django.utils import timezone
 
+# Importar modelos do Cloudinary
+from .cloudinary_models import CloudinaryConfig
+
 
 class UserSession(models.Model):
     """

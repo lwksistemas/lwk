@@ -23,6 +23,7 @@ import {
   Save,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import CloudinaryConfig from '@/components/superadmin/CloudinaryConfig';
 
 interface HeroData {
   id?: number;
@@ -290,10 +291,11 @@ export default function HomepageConfigPage() {
         )}
 
         <Tabs defaultValue="hero" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="hero">Hero</TabsTrigger>
             <TabsTrigger value="funcionalidades">Funcionalidades</TabsTrigger>
             <TabsTrigger value="modulos">Módulos</TabsTrigger>
+            <TabsTrigger value="cloudinary">Cloudinary</TabsTrigger>
           </TabsList>
 
           <TabsContent value="hero">
@@ -473,6 +475,10 @@ export default function HomepageConfigPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="cloudinary">
+            <CloudinaryConfig />
           </TabsContent>
         </Tabs>
 

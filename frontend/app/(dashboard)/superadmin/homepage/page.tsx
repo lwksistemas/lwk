@@ -14,23 +14,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Modal } from '@/components/ui/Modal';
-import {
-  Home,
-  RefreshCw,
-  Plus,
-  Pencil,
-  Trash2,
-  Save,
-  ArrowUp,
-  ArrowDown,
-  Search,
-  X,
-  Eye,
-} from 'lucide-react';
+import { Home, RefreshCw, Plus, Save } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import CloudinaryConfig from '@/components/superadmin/CloudinaryConfig';
 import { ImageUpload } from '@/components/ImageUpload';
 import { HomepagePreview } from '@/components/superadmin/HomepagePreview';
+import { BulkActionList } from '@/components/superadmin/BulkActionList';
+import { FuncionalidadeForm } from '@/components/superadmin/homepage/FuncionalidadeForm';
+import { ModuloForm } from '@/components/superadmin/homepage/ModuloForm';
+import { WhyUsForm } from '@/components/superadmin/homepage/WhyUsForm';
 
 interface HeroData {
   id?: number;
@@ -107,7 +99,7 @@ export default function HomepageConfigPage() {
     id: number;
     nome: string;
   } | null>(null);
-  
+
   // Busca e filtros
   const [searchFunc, setSearchFunc] = useState('');
   const [searchMod, setSearchMod] = useState('');
@@ -115,6 +107,11 @@ export default function HomepageConfigPage() {
   const [filterFuncAtivo, setFilterFuncAtivo] = useState<'all' | 'ativo' | 'inativo'>('all');
   const [filterModAtivo, setFilterModAtivo] = useState<'all' | 'ativo' | 'inativo'>('all');
   const [filterWhyUsAtivo, setFilterWhyUsAtivo] = useState<'all' | 'ativo' | 'inativo'>('all');
+  
+  // Seleção em lote
+  const [selectedFunc, setSelectedFunc] = useState<number[]>([]);
+  const [selectedMod, setSelectedMod] = useState<number[]>([]);
+  const [selectedWhyUs, setSelectedWhyUs] = useState<number[]>([]);
 
   const loadData = async () => {
     setLoading(true);
@@ -208,20 +205,10 @@ export default function HomepageConfigPage() {
     setSaving(true);
     try {
       if (data.id) {
-        await apiClient.patch(`${API.funcionalidades}${data.id}/`, {
-          titulo: data.titulo.trim(),
-          descricao: data.descricao?.trim() || '',
-          icone: data.icone?.trim() || '',
-        });
+        await apiClient.patch(`${API.funcionalidades}${data.id}/`, data);
         showMsg('success', 'Funcionalidade atualizada!');
       } else {
-        await apiClient.post(API.funcionalidades, {
-          titulo: data.titulo.trim(),
-          descricao: data.descricao?.trim() || '',
-          icone: data.icone?.trim() || '📦',
-          ativo: true,
-          ordem: 0,
-        });
+        await apiClient.post(API.funcionalidades, { ...data, ativo: true, ordem: 0 });
         showMsg('success', 'Funcionalidade criada!');
       }
       setEditingFunc(null);
@@ -234,7 +221,6 @@ export default function HomepageConfigPage() {
         ? data.detail
         : (Array.isArray(data?.titulo) ? data.titulo[0] : null)
           || (Array.isArray(data?.descricao) ? data.descricao[0] : null)
-          || (Array.isArray(data?.icone) ? data.icone[0] : null)
           || 'Erro ao salvar';
       showMsg('error', String(msg));
     } finally {
@@ -258,6 +244,31 @@ export default function HomepageConfigPage() {
       }
       setEditingMod(null);
       setShowAddMod(false);
+      loadData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      showMsg('error', e.response?.data?.detail || 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveWhyUs = async (data: WhyUsData) => {
+    if (!data.titulo.trim()) {
+      showMsg('error', 'Título é obrigatório');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (data.id) {
+        await apiClient.patch(`${API.whyus}${data.id}/`, data);
+        showMsg('success', 'Benefício atualizado!');
+      } else {
+        await apiClient.post(API.whyus, { ...data, ativo: true, ordem: 0 });
+        showMsg('success', 'Benefício criado!');
+      }
+      setEditingWhyUs(null);
+      setShowAddWhyUs(false);
       loadData();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -291,31 +302,6 @@ export default function HomepageConfigPage() {
     }
   };
 
-  const saveWhyUs = async (data: WhyUsData) => {
-    if (!data.titulo.trim()) {
-      showMsg('error', 'Título é obrigatório');
-      return;
-    }
-    setSaving(true);
-    try {
-      if (data.id) {
-        await apiClient.patch(`${API.whyus}${data.id}/`, data);
-        showMsg('success', 'Benefício atualizado!');
-      } else {
-        await apiClient.post(API.whyus, { ...data, ativo: true, ordem: 0 });
-        showMsg('success', 'Benefício criado!');
-      }
-      setEditingWhyUs(null);
-      setShowAddWhyUs(false);
-      loadData();
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      showMsg('error', e.response?.data?.detail || 'Erro ao salvar');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const reorderItem = async (type: 'func' | 'mod' | 'whyus', id: number, direction: 'up' | 'down') => {
     setSaving(true);
     try {
@@ -329,7 +315,6 @@ export default function HomepageConfigPage() {
       const currentItem = items[currentIndex];
       const targetItem = items[targetIndex];
 
-      // Trocar as ordens
       const endpoint = type === 'func' ? API.funcionalidades : type === 'mod' ? API.modulos : API.whyus;
       await Promise.all([
         apiClient.patch(`${endpoint}${currentItem.id}/`, { ordem: targetItem.ordem }),
@@ -376,6 +361,91 @@ export default function HomepageConfigPage() {
                        (filterWhyUsAtivo === 'inativo' && w.ativo === false);
     return matchSearch && matchFilter;
   });
+
+  // Funções de seleção em lote
+  const toggleSelectFunc = (id: number) => {
+    setSelectedFunc(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllFunc = () => {
+    if (selectedFunc.length === filteredFuncionalidades.length) {
+      setSelectedFunc([]);
+    } else {
+      setSelectedFunc(filteredFuncionalidades.map(f => f.id!));
+    }
+  };
+
+  const toggleSelectMod = (id: number) => {
+    setSelectedMod(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllMod = () => {
+    if (selectedMod.length === filteredModulos.length) {
+      setSelectedMod([]);
+    } else {
+      setSelectedMod(filteredModulos.map(m => m.id!));
+    }
+  };
+
+  const toggleSelectWhyUs = (id: number) => {
+    setSelectedWhyUs(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllWhyUs = () => {
+    if (selectedWhyUs.length === filteredWhyUs.length) {
+      setSelectedWhyUs([]);
+    } else {
+      setSelectedWhyUs(filteredWhyUs.map(w => w.id!));
+    }
+  };
+
+  // Ações em lote
+  const bulkAction = async (type: 'func' | 'mod' | 'whyus', action: 'ativar' | 'desativar' | 'excluir') => {
+    const selected = type === 'func' ? selectedFunc : type === 'mod' ? selectedMod : selectedWhyUs;
+    if (selected.length === 0) {
+      showMsg('error', 'Nenhum item selecionado');
+      return;
+    }
+
+    const confirmMsg = action === 'excluir' 
+      ? `Tem certeza que deseja excluir ${selected.length} ${type === 'func' ? 'funcionalidades' : type === 'mod' ? 'módulos' : 'benefícios'}?`
+      : `${action === 'ativar' ? 'Ativar' : 'Desativar'} ${selected.length} itens?`;
+    
+    if (action === 'excluir' && !confirm(confirmMsg)) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const endpoint = type === 'func' ? API.funcionalidades : type === 'mod' ? API.modulos : API.whyus;
+      
+      if (action === 'excluir') {
+        await Promise.all(selected.map(id => apiClient.delete(`${endpoint}${id}/`)));
+        showMsg('success', `${selected.length} itens excluídos!`);
+      } else {
+        const ativo = action === 'ativar';
+        await Promise.all(selected.map(id => apiClient.patch(`${endpoint}${id}/`, { ativo })));
+        showMsg('success', `${selected.length} itens ${action === 'ativar' ? 'ativados' : 'desativados'}!`);
+      }
+
+      if (type === 'func') setSelectedFunc([]);
+      else if (type === 'mod') setSelectedMod([]);
+      else setSelectedWhyUs([]);
+
+      loadData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      showMsg('error', e.response?.data?.detail || 'Erro ao executar ação em lote');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading && !hero && funcionalidades.length === 0 && modulos.length === 0) {
     return (
@@ -435,65 +505,64 @@ export default function HomepageConfigPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                <div>
-                  <Label>Título</Label>
-                  <Input
-                    value={heroForm.titulo}
-                    onChange={(e) => setHeroForm((f) => ({ ...f, titulo: e.target.value }))}
-                    placeholder="Ex: LWK SISTEMAS"
+                  <div>
+                    <Label>Título</Label>
+                    <Input
+                      value={heroForm.titulo}
+                      onChange={(e) => setHeroForm((f) => ({ ...f, titulo: e.target.value }))}
+                      placeholder="Ex: LWK SISTEMAS"
+                    />
+                  </div>
+                  <div>
+                    <Label>Subtítulo</Label>
+                    <textarea
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={heroForm.subtitulo}
+                      onChange={(e) => setHeroForm((f) => ({ ...f, subtitulo: e.target.value }))}
+                      placeholder="Ex: Gestão de Lojas"
+                    />
+                  </div>
+                  
+                  <ImageUpload
+                    label="Imagem do Hero"
+                    description="Imagem principal exibida no banner da homepage (opcional)"
+                    value={heroForm.imagem || ''}
+                    onChange={(url) => setHeroForm((f) => ({ ...f, imagem: url }))}
+                    maxSize={5}
+                    aspectRatio="16:9"
                   />
-                </div>
-                <div>
-                  <Label>Subtítulo</Label>
-                  <textarea
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={heroForm.subtitulo}
-                    onChange={(e) => setHeroForm((f) => ({ ...f, subtitulo: e.target.value }))}
-                    placeholder="Ex: Gestão de Lojas"
-                  />
-                </div>
-                
-                <ImageUpload
-                  label="Imagem do Hero"
-                  description="Imagem principal exibida no banner da homepage (opcional)"
-                  value={heroForm.imagem || ''}
-                  onChange={(url) => setHeroForm((f) => ({ ...f, imagem: url }))}
-                  maxSize={5}
-                  aspectRatio="16:9"
-                />
-                
-                <div>
-                  <Label>Texto do botão</Label>
-                  <Input
-                    value={heroForm.botao_texto}
-                    onChange={(e) => setHeroForm((f) => ({ ...f, botao_texto: e.target.value }))}
-                    placeholder="Ex: Testar grátis"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="botao_principal_ativo"
-                    checked={heroForm.botao_principal_ativo !== false}
-                    onChange={(e) => setHeroForm((f) => ({ ...f, botao_principal_ativo: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  <Label htmlFor="botao_principal_ativo" className="cursor-pointer font-normal">
-                    Exibir botão &quot;Testar grátis&quot; na homepage
-                  </Label>
-                </div>
-                <Button onClick={saveHero} disabled={saving}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {saving ? 'Salvando...' : 'Salvar Hero'}
-                </Button>
-              </CardContent>
-            </Card>
-            
-            {/* Preview em Tempo Real */}
-            <div className="sticky top-6">
-              <HomepagePreview type="hero" data={heroForm} />
+                  
+                  <div>
+                    <Label>Texto do botão</Label>
+                    <Input
+                      value={heroForm.botao_texto}
+                      onChange={(e) => setHeroForm((f) => ({ ...f, botao_texto: e.target.value }))}
+                      placeholder="Ex: Testar grátis"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="botao_principal_ativo"
+                      checked={heroForm.botao_principal_ativo !== false}
+                      onChange={(e) => setHeroForm((f) => ({ ...f, botao_principal_ativo: e.target.checked }))}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <Label htmlFor="botao_principal_ativo" className="cursor-pointer font-normal">
+                      Exibir botão &quot;Testar grátis&quot; na homepage
+                    </Label>
+                  </div>
+                  <Button onClick={saveHero} disabled={saving}>
+                    <Save className="w-4 h-4 mr-2" />
+                    {saving ? 'Salvando...' : 'Salvar Hero'}
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <div className="sticky top-6">
+                <HomepagePreview type="hero" data={heroForm} />
+              </div>
             </div>
-          </div>
           </TabsContent>
 
           <TabsContent value="funcionalidades">
@@ -511,121 +580,37 @@ export default function HomepageConfigPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {/* Busca e Filtros */}
-                <div className="mb-4 flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      placeholder="Buscar por título ou descrição..."
-                      value={searchFunc}
-                      onChange={(e) => setSearchFunc(e.target.value)}
-                      className="pl-10 pr-10"
-                    />
-                    {searchFunc && (
-                      <button
-                        onClick={() => setSearchFunc('')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      variant={filterFuncAtivo === 'all' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterFuncAtivo('all')}
-                    >
-                      Todos ({funcionalidades.length})
-                    </Button>
-                    <Button
-                      variant={filterFuncAtivo === 'ativo' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterFuncAtivo('ativo')}
-                    >
-                      Ativos ({funcionalidades.filter(f => f.ativo !== false).length})
-                    </Button>
-                    <Button
-                      variant={filterFuncAtivo === 'inativo' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterFuncAtivo('inativo')}
-                    >
-                      Inativos ({funcionalidades.filter(f => f.ativo === false).length})
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {filteredFuncionalidades.length === 0 && (
-                    <p className="text-gray-500 italic text-center py-8">
-                      {searchFunc || filterFuncAtivo !== 'all'
-                        ? 'Nenhuma funcionalidade encontrada com os filtros aplicados.'
-                        : 'Nenhuma funcionalidade. Clique em Nova para adicionar.'}
-                    </p>
+                <BulkActionList
+                  items={filteredFuncionalidades}
+                  searchValue={searchFunc}
+                  onSearchChange={setSearchFunc}
+                  filterValue={filterFuncAtivo}
+                  onFilterChange={setFilterFuncAtivo}
+                  selectedIds={selectedFunc}
+                  onToggleSelect={toggleSelectFunc}
+                  onToggleSelectAll={toggleSelectAllFunc}
+                  onBulkAction={(action) => bulkAction('func', action)}
+                  onReorder={(id, direction) => reorderItem('func', id, direction)}
+                  onEdit={(item) => setEditingFunc(item)}
+                  onDelete={(id, name) => setDeleteConfirm({ type: 'func', id, nome: name })}
+                  renderItem={(f) => (
+                    <>
+                      <p className="font-medium">{f.titulo}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{f.descricao}</p>
+                      {f.icone && (
+                        <span className="text-xs text-gray-500">Ícone: {f.icone}</span>
+                      )}
+                    </>
                   )}
-                  {filteredFuncionalidades.map((f, index) => (
-                    <div
-                      key={f.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{f.titulo}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{f.descricao}</p>
-                        {f.icone && (
-                          <span className="text-xs text-gray-500">Ícone: {f.icone}</span>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => reorderItem('func', f.id!, 'up')}
-                          disabled={index === 0 || saving}
-                          title="Mover para cima"
-                        >
-                          <ArrowUp className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => reorderItem('func', f.id!, 'down')}
-                          disabled={index === funcionalidades.length - 1 || saving}
-                          title="Mover para baixo"
-                        >
-                          <ArrowDown className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setEditingFunc({
-                              id: f.id,
-                              titulo: f.titulo,
-                              descricao: f.descricao,
-                              icone: f.icone || '',
-                              imagem: f.imagem,
-                            })
-                          }
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600"
-                          onClick={() => setDeleteConfirm({ type: 'func', id: f.id!, nome: f.titulo })}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  {filteredFuncionalidades.length > 0 && (
-                    <p className="text-sm text-gray-500 text-center pt-2">
-                      Mostrando {filteredFuncionalidades.length} de {funcionalidades.length} funcionalidades
-                    </p>
-                  )}
-                </div>
+                  getItemName={(f) => f.titulo}
+                  searchPlaceholder="Buscar por título ou descrição..."
+                  emptyMessage={
+                    searchFunc || filterFuncAtivo !== 'all'
+                      ? 'Nenhuma funcionalidade encontrada com os filtros aplicados.'
+                      : 'Nenhuma funcionalidade. Clique em Nova para adicionar.'
+                  }
+                  saving={saving}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -645,122 +630,37 @@ export default function HomepageConfigPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {/* Busca e Filtros */}
-                <div className="mb-4 flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      placeholder="Buscar por nome, descrição ou slug..."
-                      value={searchMod}
-                      onChange={(e) => setSearchMod(e.target.value)}
-                      className="pl-10 pr-10"
-                    />
-                    {searchMod && (
-                      <button
-                        onClick={() => setSearchMod('')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      variant={filterModAtivo === 'all' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterModAtivo('all')}
-                    >
-                      Todos ({modulos.length})
-                    </Button>
-                    <Button
-                      variant={filterModAtivo === 'ativo' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterModAtivo('ativo')}
-                    >
-                      Ativos ({modulos.filter(m => m.ativo !== false).length})
-                    </Button>
-                    <Button
-                      variant={filterModAtivo === 'inativo' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterModAtivo('inativo')}
-                    >
-                      Inativos ({modulos.filter(m => m.ativo === false).length})
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {filteredModulos.length === 0 && (
-                    <p className="text-gray-500 italic text-center py-8">
-                      {searchMod || filterModAtivo !== 'all'
-                        ? 'Nenhum módulo encontrado com os filtros aplicados.'
-                        : 'Nenhum módulo. Clique em Novo para adicionar.'}
-                    </p>
+                <BulkActionList
+                  items={filteredModulos}
+                  searchValue={searchMod}
+                  onSearchChange={setSearchMod}
+                  filterValue={filterModAtivo}
+                  onFilterChange={setFilterModAtivo}
+                  selectedIds={selectedMod}
+                  onToggleSelect={toggleSelectMod}
+                  onToggleSelectAll={toggleSelectAllMod}
+                  onBulkAction={(action) => bulkAction('mod', action)}
+                  onReorder={(id, direction) => reorderItem('mod', id, direction)}
+                  onEdit={(item) => setEditingMod(item)}
+                  onDelete={(id, name) => setDeleteConfirm({ type: 'mod', id, nome: name })}
+                  renderItem={(m) => (
+                    <>
+                      <p className="font-medium">{m.nome}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{m.descricao}</p>
+                      {m.slug && (
+                        <p className="text-xs text-gray-500">/loja/{m.slug}/login</p>
+                      )}
+                    </>
                   )}
-                  {filteredModulos.map((m, index) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{m.nome}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{m.descricao}</p>
-                        {m.slug && (
-                          <p className="text-xs text-gray-500">/loja/{m.slug}/login</p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => reorderItem('mod', m.id!, 'up')}
-                          disabled={index === 0 || saving}
-                          title="Mover para cima"
-                        >
-                          <ArrowUp className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => reorderItem('mod', m.id!, 'down')}
-                          disabled={index === modulos.length - 1 || saving}
-                          title="Mover para baixo"
-                        >
-                          <ArrowDown className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setEditingMod({
-                              id: m.id,
-                              nome: m.nome,
-                              descricao: m.descricao,
-                              slug: m.slug || '',
-                              icone: m.icone || '',
-                              imagem: m.imagem,
-                            })
-                          }
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600"
-                          onClick={() => setDeleteConfirm({ type: 'mod', id: m.id!, nome: m.nome })}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  {filteredModulos.length > 0 && (
-                    <p className="text-sm text-gray-500 text-center pt-2">
-                      Mostrando {filteredModulos.length} de {modulos.length} módulos
-                    </p>
-                  )}
-                </div>
+                  getItemName={(m) => m.nome}
+                  searchPlaceholder="Buscar por nome, descrição ou slug..."
+                  emptyMessage={
+                    searchMod || filterModAtivo !== 'all'
+                      ? 'Nenhum módulo encontrado com os filtros aplicados.'
+                      : 'Nenhum módulo. Clique em Novo para adicionar.'
+                  }
+                  saving={saving}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -780,122 +680,39 @@ export default function HomepageConfigPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {/* Busca e Filtros */}
-                <div className="mb-4 flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      placeholder="Buscar por título ou descrição..."
-                      value={searchWhyUs}
-                      onChange={(e) => setSearchWhyUs(e.target.value)}
-                      className="pl-10 pr-10"
-                    />
-                    {searchWhyUs && (
-                      <button
-                        onClick={() => setSearchWhyUs('')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      variant={filterWhyUsAtivo === 'all' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterWhyUsAtivo('all')}
-                    >
-                      Todos ({whyus.length})
-                    </Button>
-                    <Button
-                      variant={filterWhyUsAtivo === 'ativo' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterWhyUsAtivo('ativo')}
-                    >
-                      Ativos ({whyus.filter(w => w.ativo !== false).length})
-                    </Button>
-                    <Button
-                      variant={filterWhyUsAtivo === 'inativo' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setFilterWhyUsAtivo('inativo')}
-                    >
-                      Inativos ({whyus.filter(w => w.ativo === false).length})
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {filteredWhyUs.length === 0 && (
-                    <p className="text-gray-500 italic text-center py-8">
-                      {searchWhyUs || filterWhyUsAtivo !== 'all'
-                        ? 'Nenhum benefício encontrado com os filtros aplicados.'
-                        : 'Nenhum benefício. Clique em Novo para adicionar.'}
-                    </p>
+                <BulkActionList
+                  items={filteredWhyUs}
+                  searchValue={searchWhyUs}
+                  onSearchChange={setSearchWhyUs}
+                  filterValue={filterWhyUsAtivo}
+                  onFilterChange={setFilterWhyUsAtivo}
+                  selectedIds={selectedWhyUs}
+                  onToggleSelect={toggleSelectWhyUs}
+                  onToggleSelectAll={toggleSelectAllWhyUs}
+                  onBulkAction={(action) => bulkAction('whyus', action)}
+                  onReorder={(id, direction) => reorderItem('whyus', id, direction)}
+                  onEdit={(item) => setEditingWhyUs(item)}
+                  onDelete={(id, name) => setDeleteConfirm({ type: 'whyus', id, nome: name })}
+                  renderItem={(w) => (
+                    <>
+                      <p className="font-medium">{w.titulo}</p>
+                      {w.descricao && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{w.descricao}</p>
+                      )}
+                      {w.icone && (
+                        <span className="text-xs text-gray-500">Ícone: {w.icone}</span>
+                      )}
+                    </>
                   )}
-                  {filteredWhyUs.map((w, index) => (
-                    <div
-                      key={w.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{w.titulo}</p>
-                        {w.descricao && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{w.descricao}</p>
-                        )}
-                        {w.icone && (
-                          <span className="text-xs text-gray-500">Ícone: {w.icone}</span>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => reorderItem('whyus', w.id!, 'up')}
-                          disabled={index === 0 || saving}
-                          title="Mover para cima"
-                        >
-                          <ArrowUp className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => reorderItem('whyus', w.id!, 'down')}
-                          disabled={index === whyus.length - 1 || saving}
-                          title="Mover para baixo"
-                        >
-                          <ArrowDown className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setEditingWhyUs({
-                              id: w.id,
-                              titulo: w.titulo,
-                              descricao: w.descricao || '',
-                              icone: w.icone || '✓',
-                            })
-                          }
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600"
-                          onClick={() => setDeleteConfirm({ type: 'whyus', id: w.id!, nome: w.titulo })}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  {filteredWhyUs.length > 0 && (
-                    <p className="text-sm text-gray-500 text-center pt-2">
-                      Mostrando {filteredWhyUs.length} de {whyus.length} benefícios
-                    </p>
-                  )}
-                </div>
+                  getItemName={(w) => w.titulo}
+                  searchPlaceholder="Buscar por título ou descrição..."
+                  emptyMessage={
+                    searchWhyUs || filterWhyUsAtivo !== 'all'
+                      ? 'Nenhum benefício encontrado com os filtros aplicados.'
+                      : 'Nenhum benefício. Clique em Novo para adicionar.'
+                  }
+                  saving={saving}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -917,7 +734,7 @@ export default function HomepageConfigPage() {
             <h3 className="text-lg font-semibold mb-4">
               {editingFunc ? 'Editar Funcionalidade' : 'Nova Funcionalidade'}
             </h3>
-            <FuncForm
+            <FuncionalidadeForm
               key={editingFunc?.id ?? 'new'}
               initial={editingFunc ?? { titulo: '', descricao: '', icone: '' }}
               onSave={saveFuncionalidade}
@@ -942,7 +759,7 @@ export default function HomepageConfigPage() {
             <h3 className="text-lg font-semibold mb-4">
               {editingMod ? 'Editar Módulo' : 'Novo Módulo'}
             </h3>
-            <ModForm
+            <ModuloForm
               key={editingMod?.id ?? 'new'}
               initial={editingMod ?? { nome: '', descricao: '', slug: '', icone: '' }}
               onSave={saveModulo}
@@ -1003,205 +820,6 @@ export default function HomepageConfigPage() {
             <Button variant="outline">← Voltar ao Dashboard</Button>
           </Link>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function FuncForm({
-  initial,
-  onSave,
-  onCancel,
-  saving,
-}: {
-  initial: FuncionalidadeData;
-  onSave: (d: FuncionalidadeData) => void;
-  onCancel: () => void;
-  saving: boolean;
-}) {
-  const [form, setForm] = useState(initial);
-
-  return (
-    <div className="grid md:grid-cols-2 gap-6">
-      <div className="space-y-4">
-        <div>
-          <Label>Título</Label>
-          <Input
-            value={form.titulo}
-            onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-            placeholder="Ex: CRM de Clientes"
-          />
-        </div>
-        <div>
-          <Label>Descrição</Label>
-          <textarea
-            className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={form.descricao}
-            onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
-            placeholder="Ex: Gestão completa de clientes"
-          />
-        </div>
-        <div>
-          <Label>Ícone (emoji ou nome: Users, BarChart, etc.)</Label>
-          <Input
-            value={form.icone}
-            onChange={(e) => setForm((f) => ({ ...f, icone: e.target.value }))}
-            placeholder="Ex: 👥 ou Users"
-          />
-        </div>
-        
-        <ImageUpload
-          label="Imagem da Funcionalidade"
-          description="Imagem exibida no card (opcional, substitui o ícone)"
-          value={form.imagem || ''}
-          onChange={(url) => setForm((f) => ({ ...f, imagem: url }))}
-          maxSize={2}
-          aspectRatio="1:1"
-        />
-        
-        <div className="flex gap-2">
-          <Button onClick={() => onSave(form)} disabled={saving}>
-            Salvar
-          </Button>
-          <Button variant="outline" onClick={onCancel}>
-            Cancelar
-          </Button>
-        </div>
-      </div>
-      
-      {/* Preview */}
-      <div className="sticky top-6">
-        <HomepagePreview type="funcionalidade" data={form} />
-      </div>
-    </div>
-  );
-}
-
-function ModForm({
-  initial,
-  onSave,
-  onCancel,
-  saving,
-}: {
-  initial: ModuloData;
-  onSave: (d: ModuloData) => void;
-  onCancel: () => void;
-  saving: boolean;
-}) {
-  const [form, setForm] = useState(initial);
-
-  return (
-    <div className="grid md:grid-cols-2 gap-6">
-      <div className="space-y-4">
-        <div>
-          <Label>Nome</Label>
-          <Input
-            value={form.nome}
-            onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-            placeholder="Ex: CRM Vendas"
-          />
-        </div>
-        <div>
-          <Label>Descrição</Label>
-          <textarea
-            className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={form.descricao}
-            onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
-            placeholder="Ex: Gestão de vendas e leads"
-          />
-        </div>
-        <div>
-          <Label>Slug (para link /loja/slug/login)</Label>
-          <Input
-            value={form.slug}
-            onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-            placeholder="Ex: crm-vendas"
-          />
-        </div>
-        <div>
-          <Label>Ícone (emoji ou nome)</Label>
-          <Input
-            value={form.icone}
-            onChange={(e) => setForm((f) => ({ ...f, icone: e.target.value }))}
-            placeholder="Ex: 📊"
-          />
-        </div>
-        
-        <ImageUpload
-          label="Imagem do Módulo"
-          description="Imagem exibida no card (opcional, substitui o ícone)"
-          value={form.imagem || ''}
-          onChange={(url) => setForm((f) => ({ ...f, imagem: url }))}
-          maxSize={2}
-          aspectRatio="1:1"
-        />
-        
-        <div className="flex gap-2">
-          <Button onClick={() => onSave(form)} disabled={saving}>
-            Salvar
-          </Button>
-          <Button variant="outline" onClick={onCancel}>
-            Cancelar
-          </Button>
-        </div>
-      </div>
-      
-      {/* Preview */}
-      <div className="sticky top-6">
-        <HomepagePreview type="modulo" data={form} />
-      </div>
-    </div>
-  );
-}
-
-function WhyUsForm({
-  initial,
-  onSave,
-  onCancel,
-  saving,
-}: {
-  initial: WhyUsData;
-  onSave: (d: WhyUsData) => void;
-  onCancel: () => void;
-  saving: boolean;
-}) {
-  const [form, setForm] = useState(initial);
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label>Título</Label>
-        <Input
-          value={form.titulo}
-          onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-          placeholder="Ex: Aumente sua produtividade"
-        />
-      </div>
-      <div>
-        <Label>Descrição (opcional)</Label>
-        <textarea
-          className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={form.descricao || ''}
-          onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
-          placeholder="Ex: Descrição detalhada do benefício"
-        />
-      </div>
-      <div>
-        <Label>Ícone (emoji)</Label>
-        <Input
-          value={form.icone || '✓'}
-          onChange={(e) => setForm((f) => ({ ...f, icone: e.target.value }))}
-          placeholder="Ex: ✓ ou ⭐"
-        />
-      </div>
-      
-      <div className="flex gap-2">
-        <Button onClick={() => onSave(form)} disabled={saving}>
-          Salvar
-        </Button>
-        <Button variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
       </div>
     </div>
   );

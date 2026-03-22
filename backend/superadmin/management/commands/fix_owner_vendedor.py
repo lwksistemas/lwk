@@ -10,7 +10,7 @@ class Command(BaseCommand):
     help = 'Remove VendedorUsuario do owner da loja (corrige perfil intermitente)'
 
     def add_arguments(self, parser):
-        parser.add_argument('cpf_cnpj', type=str, help='CPF/CNPJ da loja')
+        parser.add_argument('loja_identifier', type=str, help='Slug, ID ou CPF/CNPJ da loja')
         parser.add_argument(
             '--confirm',
             action='store_true',
@@ -18,18 +18,31 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        cpf_cnpj = options['cpf_cnpj']
+        loja_identifier = options['loja_identifier']
         confirm = options['confirm']
         
         self.stdout.write("\n" + "="*60)
-        self.stdout.write(f"🔧 CORRIGINDO PROBLEMA: {cpf_cnpj}")
+        self.stdout.write(f"🔧 CORRIGINDO PROBLEMA: {loja_identifier}")
         self.stdout.write("="*60 + "\n")
         
-        # Buscar loja
+        # Buscar loja por slug, ID ou CPF/CNPJ
+        loja = None
         try:
-            loja = Loja.objects.using('default').select_related('owner').get(cpf_cnpj=cpf_cnpj)
+            # Tentar por ID primeiro
+            if loja_identifier.isdigit():
+                loja = Loja.objects.using('default').select_related('owner').get(id=int(loja_identifier))
+            else:
+                # Tentar por slug
+                loja = Loja.objects.using('default').select_related('owner').filter(slug=loja_identifier).first()
+                if not loja:
+                    # Tentar por CPF/CNPJ
+                    loja = Loja.objects.using('default').select_related('owner').filter(cpf_cnpj=loja_identifier).first()
         except Loja.DoesNotExist:
-            self.stdout.write(self.style.ERROR(f"❌ ERRO: Loja com CPF/CNPJ {cpf_cnpj} não encontrada"))
+            pass
+        
+        if not loja:
+            self.stdout.write(self.style.ERROR(f"❌ ERRO: Loja '{loja_identifier}' não encontrada"))
+            self.stdout.write("Tente usar: slug da loja (ex: 41449198000172) ou ID da loja")
             return
         
         owner = loja.owner

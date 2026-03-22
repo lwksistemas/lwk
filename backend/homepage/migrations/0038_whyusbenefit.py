@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('homepage', '0037_cloudinary_config'),
+        ('homepage', '0004_add_imagem_fields'),
     ]
 
     operations = [

@@ -46,6 +46,9 @@ def _criar_cabecalho_com_logo(logo_url, titulo, max_width=6*cm, max_height=3*cm)
         fontSize=18,
         textColor=colors.HexColor('#0176d3'),
         alignment=TA_LEFT,
+        spaceBefore=0,  # Sem espaço antes
+        spaceAfter=0,   # Sem espaço depois
+        leading=22,     # Altura da linha
     )
     
     # Se não houver logo, retorna apenas o título centralizado
@@ -99,9 +102,13 @@ def _criar_cabecalho_com_logo(logo_url, titulo, max_width=6*cm, max_height=3*cm)
         table_data = [[img, titulo_paragraph]]
         table = Table(table_data, colWidths=[width + 0.5*cm, None])
         table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),     # Alinhamento vertical ao topo
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Alinhamento vertical ao meio
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),       # Logo à esquerda
             ('ALIGN', (1, 0), (1, 0), 'LEFT'),       # Título à esquerda
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),    # Sem padding esquerdo
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),   # Sem padding direito
+            ('TOPPADDING', (0, 0), (-1, -1), 0),     # Sem padding superior
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),  # Sem padding inferior
         ]))
         
         return table

@@ -426,14 +426,31 @@ export function FormularioCadastroLoja({
       </div>
 
       {/* Botão de Submit */}
-      <div className="flex justify-end gap-4">
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
-        >
-          {loading ? 'Criando cadastro...' : 'Finalizar Cadastro'}
-        </button>
+      <div className="space-y-4">
+        {/* Aviso sobre senha */}
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">ℹ️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-blue-900 mb-1">
+                Como funciona o acesso ao sistema?
+              </p>
+              <p className="text-xs text-blue-800">
+                Após finalizar o cadastro, você receberá um boleto de pagamento. A senha de acesso será <strong>gerada automaticamente</strong> e enviada para o email cadastrado assim que o pagamento for confirmado (1-3 dias úteis para boleto).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+          >
+            {loading ? 'Criando cadastro...' : 'Finalizar Cadastro'}
+          </button>
+        </div>
       </div>
     </form>
   );

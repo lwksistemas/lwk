@@ -24,17 +24,19 @@ class Command(BaseCommand):
         # Buscar loja por slug, ID ou CPF/CNPJ
         loja = None
         try:
-            # Tentar por ID primeiro
-            if loja_identifier.isdigit():
-                loja = Loja.objects.using('default').select_related('owner').get(id=int(loja_identifier))
-            else:
-                # Tentar por slug
-                loja = Loja.objects.using('default').select_related('owner').filter(slug=loja_identifier).first()
-                if not loja:
-                    # Tentar por CPF/CNPJ
-                    loja = Loja.objects.using('default').select_related('owner').filter(cpf_cnpj=loja_identifier).first()
-        except Loja.DoesNotExist:
-            pass
+            # Tentar por slug primeiro (mais comum)
+            loja = Loja.objects.using('default').select_related('owner').filter(slug=loja_identifier).first()
+            
+            # Se não encontrou, tentar por ID (se for número pequeno)
+            if not loja and loja_identifier.isdigit() and len(loja_identifier) <= 5:
+                loja = Loja.objects.using('default').select_related('owner').filter(id=int(loja_identifier)).first()
+            
+            # Se não encontrou, tentar por CPF/CNPJ
+            if not loja:
+                loja = Loja.objects.using('default').select_related('owner').filter(cpf_cnpj=loja_identifier).first()
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ ERRO ao buscar loja: {e}"))
+            return
         
         if not loja:
             self.stdout.write(self.style.ERROR(f"❌ ERRO: Loja '{loja_identifier}' não encontrada"))

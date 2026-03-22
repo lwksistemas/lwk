@@ -47,14 +47,8 @@ class Command(BaseCommand):
             for v in vendedores:
                 self.stdout.write(f'  ID: {v[0]}, Nome: {v[1]}, is_admin: {v[3]}, Cargo: {v[4]}')
             
-            # Remover o vendedor antigo (is_admin=True)
-            vendedor_antigo = [v for v in vendedores if v[3]]  # is_admin=True
-            
-            if not vendedor_antigo:
-                self.stdout.write(self.style.WARNING('Nenhum vendedor antigo (is_admin=True) encontrado'))
-                return
-            
-            vendedor_id = vendedor_antigo[0][0]
+            # Remover o vendedor mais antigo (menor ID)
+            vendedor_id = vendedores[0][0]  # Primeiro vendedor (menor ID)
             
             self.stdout.write(f'\nRemovendo vendedor ID {vendedor_id} (is_admin=True)...')
             cursor.execute(f"""

@@ -123,8 +123,16 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                                 (r.get('email') or '').strip().lower() == owner_email_lower
                             )]
                         
-                        # Adicionar admin virtual APENAS se owner NÃO tem vendedor vinculado
-                        if not owner_tem_vendedor:
+                        # Verificar se owner já existe como vendedor comum (mesmo email)
+                        owner_ja_existe_como_vendedor = any(
+                            (r.get('email') or '').strip().lower() == owner_email_lower
+                            for r in results
+                        )
+                        
+                        # Adicionar admin virtual APENAS se:
+                        # 1. Owner NÃO tem VendedorUsuario vinculado E
+                        # 2. Owner NÃO existe como vendedor comum na lista
+                        if not owner_tem_vendedor and not owner_ja_existe_como_vendedor:
                             admin_item = self._get_admin_funcionario(loja)
                             results.insert(0, admin_item)
                         

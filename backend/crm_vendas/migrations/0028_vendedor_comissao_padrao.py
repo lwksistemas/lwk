@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0001_initial'),
+        ('crm_vendas', '0027_add_complete_company_data_to_conta'),
     ]
 
     operations = [

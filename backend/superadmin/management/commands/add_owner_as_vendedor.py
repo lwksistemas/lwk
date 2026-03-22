@@ -39,8 +39,8 @@ class Command(BaseCommand):
                 # Mudar para o schema da loja
                 cursor.execute(f'SET search_path TO {schema_name}')
                 
-                # Verificar se já existe vendedor com este user_id
-                cursor.execute('SELECT id, nome, is_admin FROM crm_vendas_vendedor WHERE user_id = %s', [owner.id])
+                # Verificar se já existe vendedor com o email do owner
+                cursor.execute('SELECT id, nome, is_admin FROM crm_vendas_vendedor WHERE email = %s', [owner.email])
                 vendedor_row = cursor.fetchone()
                 
                 if vendedor_row:
@@ -60,16 +60,18 @@ class Command(BaseCommand):
                 
                 # Criar vendedor no schema da loja
                 cursor.execute('''
-                    INSERT INTO crm_vendas_vendedor (nome, email, telefone, is_admin, is_active, user_id, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    INSERT INTO crm_vendas_vendedor (nome, email, telefone, cargo, comissao_padrao, is_admin, is_active, loja_id, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                     RETURNING id
                 ''', [
                     owner.get_full_name() or owner.username,
                     owner.email,
                     '',  # telefone vazio
+                    'Administrador',  # cargo
+                    0,  # comissao_padrao
                     True,  # is_admin
                     True,  # is_active
-                    owner.id
+                    loja.id  # loja_id
                 ])
                 
                 vendedor_id = cursor.fetchone()[0]

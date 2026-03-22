@@ -14,6 +14,12 @@ class Vendedor(LojaIsolationMixin, models.Model):
     email = models.EmailField(blank=True, null=True)
     telefone = models.CharField(max_length=20, blank=True)
     cargo = models.CharField(max_length=100, default='Vendedor')
+    comissao_padrao = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text='Porcentagem de comissão padrão (ex: 5.00 para 5%)'
+    )
     is_admin = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

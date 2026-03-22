@@ -21,7 +21,7 @@ class VendedorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendedor
         fields = [
-            'id', 'nome', 'email', 'telefone', 'cargo', 'is_admin', 'is_active',
+            'id', 'nome', 'email', 'telefone', 'cargo', 'comissao_padrao', 'is_admin', 'is_active',
             'criar_acesso', 'tem_acesso',
             'created_at', 'updated_at',
         ]

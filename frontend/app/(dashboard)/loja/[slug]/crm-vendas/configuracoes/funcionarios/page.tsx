@@ -14,6 +14,7 @@ interface Vendedor {
   email: string;
   telefone: string;
   cargo: string;
+  comissao_padrao?: number;
   is_admin: boolean;
   is_active: boolean;
   tem_acesso?: boolean;
@@ -37,6 +38,7 @@ export default function ConfiguracoesFuncionariosPage() {
     email: '',
     telefone: '',
     cargo: 'Vendedor',
+    comissao_padrao: '0',
     criar_acesso: false,
   });
   const [reenviando, setReenviando] = useState<number | string | null>(null);
@@ -62,7 +64,7 @@ export default function ConfiguracoesFuncionariosPage() {
 
   const abrirNovo = () => {
     setEditando(null);
-    setForm({ nome: '', email: '', telefone: '', cargo: 'Vendedor', criar_acesso: false });
+    setForm({ nome: '', email: '', telefone: '', cargo: 'Vendedor', comissao_padrao: '0', criar_acesso: false });
     setFormErro(null);
     setModalAberto(true);
   };
@@ -75,6 +77,7 @@ export default function ConfiguracoesFuncionariosPage() {
       email: v.email || '',
       telefone: v.telefone || '',
       cargo: v.cargo || 'Vendedor',
+      comissao_padrao: v.comissao_padrao?.toString() || '0',
       criar_acesso: false,
     });
     setFormErro(null);
@@ -130,7 +133,14 @@ export default function ConfiguracoesFuncionariosPage() {
     }
     setSalvando(true);
     try {
-      const payload = { nome: form.nome, email: form.email, telefone: form.telefone, cargo: form.cargo, criar_acesso: form.criar_acesso };
+      const payload = { 
+        nome: form.nome, 
+        email: form.email, 
+        telefone: form.telefone, 
+        cargo: form.cargo, 
+        comissao_padrao: parseFloat(form.comissao_padrao) || 0,
+        criar_acesso: form.criar_acesso 
+      };
       if (editando) {
         await apiClient.patch(`/crm-vendas/vendedores/${editando.id}/`, payload);
       } else {
@@ -351,6 +361,24 @@ export default function ConfiguracoesFuncionariosPage() {
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Vendedor"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Comissão Padrão (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={form.comissao_padrao}
+                    onChange={(e) => setForm((f) => ({ ...f, comissao_padrao: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Porcentagem padrão de comissão (ex: 5 para 5%). Pode ser ajustada em cada oportunidade.
+                  </p>
                 </div>
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input

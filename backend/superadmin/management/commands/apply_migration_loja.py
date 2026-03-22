@@ -23,7 +23,7 @@ class Command(BaseCommand):
             return
 
         db_name = f'loja_{slug}'
-        self.stdout.write(f'Aplicando migration na loja: {loja.nome_fantasia} (DB: {db_name})')
+        self.stdout.write(f'Aplicando migration na loja: {loja.nome} (DB: {db_name})')
 
         # Conectar ao banco da loja
         with connection.cursor() as cursor:

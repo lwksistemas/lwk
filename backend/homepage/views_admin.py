@@ -1,13 +1,13 @@
 """
 API de configuração da Homepage - apenas SuperAdmin (IsAuthenticated + is_superuser).
-CRUD completo para Hero, Funcionalidades e Módulos.
+CRUD completo para Hero, Funcionalidades, Módulos e WhyUs.
 """
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from core.permissions import IsSuperAdmin
 
-from .models import HeroSection, Funcionalidade, ModuloSistema
-from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer
+from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit
+from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer, WhyUsBenefitSerializer
 
 
 class HeroViewSet(viewsets.ModelViewSet):
@@ -25,4 +25,10 @@ class FuncionalidadeViewSet(viewsets.ModelViewSet):
 class ModuloSistemaViewSet(viewsets.ModelViewSet):
     queryset = ModuloSistema.objects.all()
     serializer_class = ModuloSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+
+class WhyUsBenefitViewSet(viewsets.ModelViewSet):
+    queryset = WhyUsBenefit.objects.all()
+    serializer_class = WhyUsBenefitSerializer
     permission_classes = [IsAuthenticated, IsSuperAdmin]

@@ -15,21 +15,21 @@ export default function Modules({ modulos }: ModulesProps) {
 
   return (
     <SectionContainer id="modulos" background="gray">
-      <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
+      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-gray-900">
         Sistemas disponíveis
       </h2>
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
         {items.map((m, idx) => {
           const content = (
-            <div className="border border-gray-200 p-6 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all h-full bg-white">
+            <div className="border border-gray-200 p-5 sm:p-6 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all h-full bg-white">
               <IconRenderer
                 icone={m.icone}
                 imagem={m.imagem}
                 alt={m.nome}
                 size="md"
               />
-              <h3 className="text-xl font-bold mb-2 text-gray-900">{m.nome}</h3>
-              <p className="text-gray-600">{m.descricao}</p>
+              <h3 className="text-lg sm:text-xl font-bold mb-2 text-gray-900">{m.nome}</h3>
+              <p className="text-sm sm:text-base text-gray-600">{m.descricao}</p>
               {m.slug && (
                 <span className="inline-block mt-4 text-blue-600 font-medium">
                   Acessar →

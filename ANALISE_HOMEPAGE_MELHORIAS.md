@@ -12,12 +12,12 @@
 - ✅ Validação duplicada no admin
 
 ### Funcionalidades Faltantes (IMPORTANTE)
-- ❌ Sem reordenação de itens (drag-and-drop)
-- ❌ Sem preview em tempo real
-- ❌ Sem validação de slug
-- ❌ Upload de imagens não integrado em Funcionalidades/Módulos
+- ✅ Reordenação de itens (botões up/down implementados)
+- ✅ Preview em tempo real implementado
+- ✅ Validação de slug único implementada
+- ✅ Upload de imagens integrado em Funcionalidades/Módulos
+- ✅ Busca e filtros implementados
 - ❌ Sem auditoria de alterações
-- ❌ Sem busca e filtros
 - ❌ WhyUs e DashboardPreview hardcoded (não editáveis)
 
 ### Otimizações Necessárias
@@ -84,11 +84,37 @@
 - Cache inteligente: ~50% menos requisições
 - Preview em tempo real: feedback imediato
 
-## 6. PRÓXIMOS PASSOS
+## 6. PROGRESSO E PRÓXIMOS PASSOS
 
-1. Implementar FASE 1 (refatoração)
-2. Testar em desenvolvimento
-3. Deploy em produção
-4. Implementar FASE 2 (UX)
-5. Coletar feedback
-6. Implementar FASE 3 (novas funcionalidades)
+### Concluído
+- ✅ FASE 1: Refatoração completa (código duplicado eliminado)
+- ✅ FASE 2: COMPLETA! ImageUpload, reordenação, validação de slug, busca/filtros e preview
+
+### Pendente
+- ⏳ FASE 3: Novas funcionalidades (WhyUs editável, DashboardPreview editável, auditoria, ações em lote)
+
+### Próximos Passos
+1. Testar funcionalidades implementadas em produção
+2. Coletar feedback dos usuários
+3. Implementar FASE 3 (se necessário)
+
+## 7. MUDANÇAS IMPLEMENTADAS
+
+### v1228 - FASE 2 Parcial
+- ✅ Adicionado ImageUpload em formulários de Funcionalidades
+- ✅ Adicionado ImageUpload em formulários de Módulos
+- ✅ Implementados botões de reordenação (ArrowUp/ArrowDown)
+- ✅ Função `reorderItem()` para trocar ordem entre itens adjacentes
+- ✅ Validação de slug único em ModuloSerializer
+
+### v1230 - FASE 2 Completa (Alta Prioridade)
+- ✅ Sistema de busca em Funcionalidades (título, descrição)
+- ✅ Sistema de busca em Módulos (nome, descrição, slug)
+- ✅ Filtros por status (Todos, Ativos, Inativos)
+- ✅ Contador de itens filtrados
+- ✅ Botão limpar busca (X)
+- ✅ Preview em tempo real do Hero
+- ✅ Preview em tempo real de Funcionalidades
+- ✅ Preview em tempo real de Módulos
+- ✅ Componente `HomepagePreview.tsx` reutilizável
+- ✅ Layout grid com preview lateral (sticky)

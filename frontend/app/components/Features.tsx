@@ -14,14 +14,14 @@ export default function Features({ funcionalidades }: FeaturesProps) {
 
   return (
     <SectionContainer id="funcionalidades" background="white">
-      <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
+      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-gray-900">
         Funcionalidades do Sistema
       </h2>
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
         {items.map((f, i) => (
           <div
             key={f.id ?? i}
-            className="bg-gray-50 p-6 rounded-xl border border-gray-100 hover:shadow-lg transition-shadow"
+            className="bg-gray-50 p-5 sm:p-6 rounded-xl border border-gray-100 hover:shadow-lg transition-shadow"
           >
             <IconRenderer
               icone={f.icone}
@@ -29,8 +29,8 @@ export default function Features({ funcionalidades }: FeaturesProps) {
               alt={f.titulo}
               size="md"
             />
-            <h3 className="text-xl font-bold mb-2 text-gray-900">{f.titulo}</h3>
-            <p className="text-gray-600">{f.descricao}</p>
+            <h3 className="text-lg sm:text-xl font-bold mb-2 text-gray-900">{f.titulo}</h3>
+            <p className="text-sm sm:text-base text-gray-600">{f.descricao}</p>
           </div>
         ))}
       </div>

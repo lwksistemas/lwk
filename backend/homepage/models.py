@@ -68,3 +68,23 @@ class ModuloSistema(models.Model):
 
     def __str__(self):
         return self.nome
+
+
+class WhyUsBenefit(models.Model):
+    """Benefício exibido na seção 'Por que usar o LWKS?'"""
+    titulo = models.CharField(max_length=100, help_text='Ex: Aumente sua produtividade')
+    descricao = models.TextField(blank=True, help_text='Descrição detalhada (opcional)')
+    icone = models.CharField(max_length=50, blank=True, default='✓', help_text='Emoji ou ícone')
+    ordem = models.PositiveIntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'homepage_whyus_benefit'
+        ordering = ['ordem', 'id']
+        verbose_name = 'Benefício WhyUs'
+        verbose_name_plural = 'Benefícios WhyUs'
+
+    def __str__(self):
+        return self.titulo

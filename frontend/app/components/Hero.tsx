@@ -16,25 +16,25 @@ export default function Hero({ hero }: HeroProps) {
   const imagem = hero?.imagem;
 
   return (
-    <section className="w-full min-w-full bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100 py-16 md:py-24">
-      <div className="w-full max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center px-4 sm:px-6 lg:px-8">
+    <section className="w-full min-w-full bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100 py-12 sm:py-16 md:py-24">
+      <div className="w-full max-w-7xl mx-auto grid md:grid-cols-2 gap-8 md:gap-12 items-center px-4 sm:px-6 lg:px-8">
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 text-gray-900 leading-tight">
             {titulo}
           </h1>
-          <p className="text-lg text-gray-600 mb-8">{subtitulo}</p>
-          <div className="flex flex-wrap gap-4">
+          <p className="text-base sm:text-lg text-gray-600 mb-6 sm:mb-8">{subtitulo}</p>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             {mostrarBotaoPrincipal && (
               <Link
                 href="/superadmin/login"
-                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                className="inline-block text-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 {botaoTexto}
               </Link>
             )}
             <Link
               href="#funcionalidades"
-              className="inline-block bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"
+              className="inline-block text-center bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"
             >
               Ver Demonstração
             </Link>

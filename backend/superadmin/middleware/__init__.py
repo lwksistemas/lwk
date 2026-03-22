@@ -125,6 +125,11 @@ class SuperAdminSecurityMiddleware:
             ]
             
             is_public = any(request.path.startswith(endpoint) for endpoint in public_endpoints)
+            
+            # POST para criar loja (cadastro público)
+            if request.path == '/api/superadmin/lojas/' and request.method == 'POST':
+                is_public = True
+            
             is_owner_allowed = any(pattern in request.path for pattern in owner_allowed_patterns)
             
             if not is_public:

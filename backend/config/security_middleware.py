@@ -118,6 +118,10 @@ class SecurityIsolationMiddleware:
             if any(path.startswith(endpoint) for endpoint in public_endpoints):
                 return None  # Permitir acesso público
             
+            # POST para criar loja (cadastro público)
+            if path == '/api/superadmin/lojas/' and request.method == 'POST':
+                return None  # Permitir cadastro público
+            
             # Verificar autenticação
             if not request.user or not request.user.is_authenticated:
                 logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado ao superadmin: {path}")

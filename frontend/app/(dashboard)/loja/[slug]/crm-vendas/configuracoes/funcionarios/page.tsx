@@ -374,7 +374,7 @@ export default function ConfiguracoesFuncionariosPage() {
                     value={form.comissao_padrao}
                     onChange={(e) => setForm((f) => ({ ...f, comissao_padrao: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="0.00"
+                    placeholder="Ex: 5.00"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Porcentagem padrão de comissão (ex: 5 para 5%). Pode ser ajustada em cada oportunidade.

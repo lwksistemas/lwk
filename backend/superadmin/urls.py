@@ -9,6 +9,7 @@ from .views import (
     sync_mercadopago_loja,
     verificar_storage_loja, listar_storage_lojas,  # ✅ NOVO v738
     health_check,  # ✅ NOVO v750
+    TipoLojaPublicoViewSet, PlanoAssinaturaPublicoViewSet,  # ✅ NOVO: ViewSets públicos
 )
 from .cloudinary_views import cloudinary_config, cloudinary_test
 from .financeiro_views import (
@@ -35,6 +36,11 @@ router.register(r'estatisticas-auditoria', EstatisticasAuditoriaViewSet, basenam
 router.register(r'loja-financeiro', FinanceiroViewSet, basename='loja-financeiro')
 router.register(r'loja-pagamentos', PagamentoViewSet, basename='loja-pagamentos')
 
+# ✅ NOVO: Router público para cadastro de lojas (sem autenticação)
+public_router = DefaultRouter()
+public_router.register(r'tipos-loja', TipoLojaPublicoViewSet, basename='public-tipo-loja')
+public_router.register(r'planos', PlanoAssinaturaPublicoViewSet, basename='public-plano')
+
 # IMPORTANTE: Rotas públicas devem vir ANTES do include do router
 urlpatterns = [
     # Health Check (público para load balancer)
@@ -43,6 +49,9 @@ urlpatterns = [
     # Autenticação
     path('login/', SecureLoginView.as_view(), name='superadmin-login'),
     path('logout/', SecureLogoutView.as_view(), name='superadmin-logout'),
+    
+    # ✅ NOVO: Rotas públicas para cadastro de lojas (sem autenticação)
+    path('public/', include(public_router.urls)),
     
     # Outras rotas públicas
     path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),

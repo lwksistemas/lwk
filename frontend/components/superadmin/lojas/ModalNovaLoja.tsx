@@ -420,7 +420,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nome da Loja *
+                    Nome da Empresa *
                   </label>
                   <input
                     type="text"
@@ -810,49 +810,8 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Login usado para entrar no painel da loja</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Senha Provisória *
-                </label>
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      name="owner_password"
-                      value={formData.owner_password}
-                      onChange={handleChange}
-                      required
-                      minLength={6}
-                      readOnly
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-purple-500 focus:border-purple-500 font-mono"
-                      placeholder="Gerando..."
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(formData.owner_password);
-                        alert('✅ Senha copiada para a área de transferência!');
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
-                      title="Copiar senha"
-                    >
-                      📋
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={gerarSenhaProvisoria}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 whitespace-nowrap"
-                    title="Gerar nova senha"
-                  >
-                    🔄 Gerar Nova
-                  </button>
-                </div>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                  <span>✅</span>
-                  <span>Esta senha será enviada por email para o proprietário</span>
-                </p>
-              </div>
+              {/* Campo de senha provisória oculto - gerada automaticamente */}
+              <input type="hidden" name="owner_password" value={formData.owner_password} />
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

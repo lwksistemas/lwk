@@ -33,10 +33,10 @@ export default function Hero({ hero }: HeroProps) {
               </Link>
             )}
             <Link
-              href="#funcionalidades"
+              href="/cadastro"
               className="inline-block text-center bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"
             >
-              Ver Demonstração
+              Fazer Cadastro
             </Link>
           </div>
         </div>

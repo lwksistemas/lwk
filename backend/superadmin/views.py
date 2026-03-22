@@ -104,6 +104,45 @@ class IsSuperAdmin(permissions.BasePermission):
         return request.user and request.user.is_superuser and request.user.is_active
 
 
+# ✅ NOVO: ViewSets públicos para cadastro de lojas
+class TipoLojaPublicoViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet público para listar tipos de loja (somente leitura)
+    Usado no formulário de cadastro público
+    """
+    serializer_class = TipoLojaSerializer
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    
+    def get_queryset(self):
+        # Retornar apenas tipos ativos
+        return TipoLoja.objects.filter(is_active=True).order_by('nome')
+
+
+class PlanoAssinaturaPublicoViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet público para listar planos de assinatura (somente leitura)
+    Usado no formulário de cadastro público
+    """
+    serializer_class = PlanoAssinaturaSerializer
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    
+    def get_queryset(self):
+        # Retornar apenas planos ativos
+        return PlanoAssinatura.objects.filter(is_active=True).order_by('preco_mensal')
+    
+    @action(detail=False, methods=['get'])
+    def por_tipo(self, request):
+        """Buscar planos por tipo de app (público)"""
+        tipo_id = request.query_params.get('tipo_id')
+        if tipo_id:
+            planos = self.get_queryset().filter(tipos_loja__id=tipo_id)
+            serializer = self.get_serializer(planos, many=True)
+            return Response(serializer.data)
+        return Response({'error': 'tipo_id é obrigatório'}, status=400)
+
+
 from .api_docs import (
     TIPO_LOJA_LIST_SCHEMA,
     TIPO_LOJA_CREATE_SCHEMA,

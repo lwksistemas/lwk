@@ -1,6 +1,40 @@
 # Generated migration for CloudinaryConfig model
 
-from django.db import migrations, models
+from django.db import migrations, models, connection
+
+
+def check_table_exists(table_name):
+    """Verifica se a tabela já existe no banco de dados"""
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = %s
+            );
+        """, [table_name])
+        return cursor.fetchone()[0]
+
+
+def create_cloudinary_config_if_not_exists(apps, schema_editor):
+    """Cria a tabela CloudinaryConfig apenas se ela não existir"""
+    if not check_table_exists('superadmin_cloudinary_config'):
+        # Tabela não existe, criar normalmente
+        schema_editor.execute("""
+            CREATE TABLE superadmin_cloudinary_config (
+                id BIGSERIAL PRIMARY KEY,
+                singleton_key VARCHAR(10) NOT NULL UNIQUE DEFAULT 'config',
+                cloud_name VARCHAR(100) NOT NULL DEFAULT '',
+                api_key VARCHAR(100) NOT NULL DEFAULT '',
+                api_secret VARCHAR(100) NOT NULL DEFAULT '',
+                enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+            );
+        """)
+        print("✅ Tabela superadmin_cloudinary_config criada com sucesso")
+    else:
+        print("⚠️ Tabela superadmin_cloudinary_config já existe, pulando criação")
 
 
 class Migration(migrations.Migration):
@@ -10,22 +44,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='CloudinaryConfig',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('singleton_key', models.CharField(default='config', max_length=10, unique=True)),
-                ('cloud_name', models.CharField(blank=True, max_length=100, verbose_name='Cloud Name')),
-                ('api_key', models.CharField(blank=True, max_length=100, verbose_name='API Key')),
-                ('api_secret', models.CharField(blank=True, max_length=100, verbose_name='API Secret')),
-                ('enabled', models.BooleanField(default=False, verbose_name='Integração habilitada')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-            ],
-            options={
-                'verbose_name': 'Configuração Cloudinary',
-                'verbose_name_plural': 'Configurações Cloudinary',
-                'db_table': 'superadmin_cloudinary_config',
-            },
-        ),
+        migrations.RunPython(create_cloudinary_config_if_not_exists, migrations.RunPython.noop),
     ]

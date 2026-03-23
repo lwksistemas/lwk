@@ -23,8 +23,10 @@ interface ProdutoServicoOption {
 }
 
 function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setError: (e: string | null) => void) {
+  // Adicionar timestamp para evitar cache
+  const timestamp = new Date().getTime();
   apiClient
-    .get<Oportunidade[] | { results: Oportunidade[] }>('/crm-vendas/oportunidades/')
+    .get<Oportunidade[] | { results: Oportunidade[] }>(`/crm-vendas/oportunidades/?_t=${timestamp}`)
     .then((res) => {
       setOportunidades(normalizeListResponse(res.data));
       setError(null);

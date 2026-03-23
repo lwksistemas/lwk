@@ -557,7 +557,7 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    @cache_list_response(CRMCacheManager.OPORTUNIDADES, ttl=30)  # ✅ Cache reduzido para 30s
+    @cache_list_response(CRMCacheManager.OPORTUNIDADES, ttl=10)  # ✅ Cache reduzido para 10s
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
         # Adicionar headers para evitar cache do navegador

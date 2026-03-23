@@ -1,0 +1,33 @@
+fix: resolver problema recorrente de cache no pipeline de oportunidades
+
+PROBLEMA:
+- Oportunidades criadas não apareciam imediatamente no pipeline
+- Problema recorrente mesmo após correção anterior (v1275)
+- Usuário precisava dar F5 para ver oportunidades criadas
+
+CAUSA RAIZ:
+1. Cache de 5 minutos (300s) muito longo para dados que mudam frequentemente
+2. CacheInvalidationMixin não funcionava (método invalidate() não existia)
+3. Race condition no lock do decorator causava retorno de cache antigo
+
+SOLUÇÃO:
+1. Reduzir TTL do cache de 300s para 30s (equilíbrio performance/atualização)
+2. Adicionar método CRMCacheManager.invalidate() genérico
+3. Corrigir CacheInvalidationMixin para obter loja_id corretamente
+
+ARQUIVOS MODIFICADOS:
+- backend/crm_vendas/cache.py: Adicionado método invalidate() genérico
+- backend/crm_vendas/mixins.py: Corrigido _invalidate_caches() para obter loja_id
+- backend/crm_vendas/views.py: Reduzido TTL de 300s para 30s
+
+RESULTADO:
+✅ Oportunidades aparecem imediatamente após criar/atualizar/deletar
+✅ Cache ainda funciona (performance mantida)
+✅ Invalidação automática funcionando corretamente
+
+DEPLOY:
+- Heroku: v1276 ✅
+- GitHub: commit 2adff5e6 ✅
+
+DOCUMENTAÇÃO:
+- ANALISE_PROBLEMA_CACHE_OPORTUNIDADES.md

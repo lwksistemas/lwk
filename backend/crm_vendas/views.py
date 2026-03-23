@@ -395,9 +395,14 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
     # Configuração do CacheInvalidationMixin
     cache_keys = ['contas']
 
-    @cache_list_response(CRMCacheManager.CONTAS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
+    @cache_list_response(CRMCacheManager.CONTAS, ttl=30)  # ✅ Cache reduzido para 30s
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        response = super().list(request, *args, **kwargs)
+        # Adicionar headers para evitar cache do navegador
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
 
     def perform_create(self, serializer):
         """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
@@ -463,9 +468,14 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
             qs = qs.filter(origem=origem)
         return qs
 
-    @cache_list_response(CRMCacheManager.LEADS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
+    @cache_list_response(CRMCacheManager.LEADS, ttl=30)  # ✅ Cache reduzido para 30s
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        response = super().list(request, *args, **kwargs)
+        # Adicionar headers para evitar cache do navegador
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
 
     def perform_create(self, serializer):
         """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
@@ -484,9 +494,14 @@ class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
     # Configuração do CacheInvalidationMixin
     cache_keys = ['contatos']
 
-    @cache_list_response(CRMCacheManager.CONTATOS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
+    @cache_list_response(CRMCacheManager.CONTATOS, ttl=30)  # ✅ Cache reduzido para 30s
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        response = super().list(request, *args, **kwargs)
+        # Adicionar headers para evitar cache do navegador
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -664,9 +679,14 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
             return AtividadeSerializer
         return AtividadeListSerializer
 
-    @cache_list_response(CRMCacheManager.ATIVIDADES, ttl=300, extra_keys=['data_inicio', 'data_fim'])  # ✅ OTIMIZAÇÃO: Cache 5min
+    @cache_list_response(CRMCacheManager.ATIVIDADES, ttl=30, extra_keys=['data_inicio', 'data_fim'])  # ✅ Cache reduzido para 30s
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        response = super().list(request, *args, **kwargs)
+        # Adicionar headers para evitar cache do navegador
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
 
     def perform_update(self, serializer):
         """Cache invalidado automaticamente pelo CacheInvalidationMixin."""

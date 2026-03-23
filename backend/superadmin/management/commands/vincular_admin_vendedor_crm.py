@@ -49,7 +49,10 @@ class Command(BaseCommand):
             self.stdout.write(f'\n📦 Processando loja: {loja.nome} ({loja.cpf_cnpj})')
             
             # Mudar para schema da loja
-            connection.set_tenant(loja)
+            schema_name = loja.database_name.replace('-', '_')
+            
+            with connection.cursor() as cursor:
+                cursor.execute(f'SET search_path TO "{schema_name}", public')
             
             # Importar modelo Vendedor do tenant
             from crm_vendas.models import Vendedor

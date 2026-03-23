@@ -584,6 +584,9 @@ export default function CrmVendasPipelinePage() {
                       onChange={(e) => updateItemCriar(idx, 'produto_servico_id', e.target.value)}
                       className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                     >
+                      {produtosServicos.length === 0 && (
+                        <option value="">Nenhum produto cadastrado</option>
+                      )}
                       {produtosServicos.map((ps) => (
                         <option key={ps.id} value={ps.id}>
                           {ps.tipo === 'produto' ? 'Produto' : 'Serviço'}: {ps.nome} - {parseFloat(ps.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -754,6 +757,9 @@ export default function CrmVendasPipelinePage() {
                       onChange={(e) => updateItemEditar(idx, 'produto_servico_id', e.target.value)}
                       className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                     >
+                      {produtosServicos.length === 0 && (
+                        <option value="">Nenhum produto cadastrado</option>
+                      )}
                       {produtosServicos.map((ps) => (
                         <option key={ps.id} value={ps.id}>
                           {ps.tipo === 'produto' ? 'Produto' : 'Serviço'}: {ps.nome} - {parseFloat(ps.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

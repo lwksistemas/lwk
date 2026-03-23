@@ -34,11 +34,14 @@ export default function AssinaturaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
   
-  // Success state - fechar automaticamente após 3 segundos
+  // Success state - tentar fechar automaticamente após 3 segundos
   useEffect(() => {
     if (sucesso) {
       const timer = setTimeout(() => {
+        // Tentar fechar a janela (só funciona se foi aberta via JavaScript)
         window.close();
+        
+        // Se não conseguiu fechar, o usuário verá o botão "Fechar Página"
       }, 3000);
       
       return () => clearTimeout(timer);
@@ -188,7 +191,7 @@ export default function AssinaturaPage() {
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-            Documento Assinado!
+            ✅ Documento Assinado!
           </h2>
           <p className="text-gray-600 text-center mb-4">
             Sua assinatura foi registrada com sucesso.
@@ -198,11 +201,20 @@ export default function AssinaturaPage() {
               <strong>Status:</strong> {proximoStatus}
             </p>
           </div>
-          <p className="text-sm text-gray-500 text-center mb-2">
+          <p className="text-sm text-gray-500 text-center mb-4">
             Você receberá uma cópia por email quando o processo for concluído.
           </p>
-          <p className="text-xs text-gray-400 text-center italic">
-            Esta página será fechada automaticamente em 3 segundos...
+          
+          {/* Botão para fechar página */}
+          <button
+            onClick={() => window.close()}
+            className="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition-colors duration-200 mb-3"
+          >
+            Fechar Página
+          </button>
+          
+          <p className="text-xs text-gray-400 text-center">
+            Você pode fechar esta página agora.
           </p>
         </div>
       </div>

@@ -5,6 +5,7 @@ Evita problema de oportunidades não aparecerem para o administrador.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+from django.db.models import Q
 from superadmin.models import Loja, VendedorUsuario
 
 
@@ -27,8 +28,10 @@ class Command(BaseCommand):
         loja_cnpj = options.get('loja_cnpj')
         force = options.get('force', False)
         
-        # Filtrar lojas
-        lojas = Loja.objects.filter(usa_crm=True)
+        # Filtrar lojas com CRM (tipo_loja.codigo = 'CRMVND' ou slug = 'crm-vendas')
+        lojas = Loja.objects.filter(
+            Q(tipo_loja__codigo='CRMVND') | Q(tipo_loja__slug='crm-vendas')
+        ).select_related('tipo_loja', 'owner')
         if loja_cnpj:
             lojas = lojas.filter(cnpj=loja_cnpj)
         

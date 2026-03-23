@@ -346,6 +346,7 @@ export default function CrmVendasCustomersPage() {
         origem: 'site',
         status: 'qualificado',
         conta_id: selectedConta.id,
+        contato_id: primeiroContato.id, // ✅ Vincular contato específico
         cpf_cnpj: selectedConta.cnpj || '',
         cep: selectedConta.cep || '',
         logradouro: selectedConta.logradouro || '',

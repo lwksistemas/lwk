@@ -138,6 +138,14 @@ class Lead(LojaIsolationMixin, models.Model):
         blank=True,
         related_name='leads',
     )
+    contato = models.ForeignKey(
+        'Contato',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='leads',
+        help_text='Contato específico vinculado ao lead',
+    )
     vendedor = models.ForeignKey(
         'Vendedor',
         on_delete=models.SET_NULL,
@@ -171,6 +179,7 @@ class Lead(LojaIsolationMixin, models.Model):
             models.Index(fields=['loja_id', 'vendedor'], name='crm_lead_loja_vend_idx'),
             models.Index(fields=['loja_id', 'created_at'], name='crm_lead_loja_created_idx'),
             models.Index(fields=['loja_id', 'conta'], name='crm_lead_loja_conta_idx'),
+            models.Index(fields=['loja_id', 'contato'], name='crm_lead_loja_contato_idx'),
         ]
 
     def __str__(self):

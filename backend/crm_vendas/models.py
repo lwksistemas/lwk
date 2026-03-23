@@ -6,6 +6,16 @@ Oportunidades, Pipeline, Atividades, Vendedores.
 from django.db import models
 from django.conf import settings
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from .managers import (
+    ProdutoServicoManager,
+    OportunidadeManager,
+    PropostaManager,
+    ContratoManager,
+    LeadManager,
+)
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Vendedor(LojaIsolationMixin, models.Model):
@@ -148,7 +158,7 @@ class Lead(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = LojaIsolationManager()
+    objects = LeadManager()
 
     class Meta:
         db_table = 'crm_vendas_lead'
@@ -234,7 +244,7 @@ class Oportunidade(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = LojaIsolationManager()
+    objects = OportunidadeManager()
 
     class Meta:
         db_table = 'crm_vendas_oportunidade'
@@ -371,7 +381,7 @@ class ProdutoServico(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = LojaIsolationManager()
+    objects = ProdutoServicoManager()
 
     class Meta:
         db_table = 'crm_vendas_produto_servico'
@@ -399,30 +409,12 @@ class ProdutoServico(LojaIsolationMixin, models.Model):
         return f"{self.get_tipo_display()}: {self.nome}"
 
     def save(self, *args, **kwargs):
-        """Gera código automático se não fornecido."""
+        """Gera código automático se não fornecido usando o Manager."""
         if not self.codigo:
-            # Prefixo baseado no tipo: P para produto, S para serviço
-            prefixo = 'P' if self.tipo == 'produto' else 'S'
-            
-            # Buscar o último código com esse prefixo na loja
-            ultimo = ProdutoServico.objects.filter(
-                loja_id=self.loja_id,
-                codigo__startswith=prefixo
-            ).order_by('-codigo').first()
-            
-            if ultimo and ultimo.codigo:
-                # Extrair o número do último código (ex: P001 -> 001)
-                try:
-                    ultimo_num = int(ultimo.codigo[1:])
-                    proximo_num = ultimo_num + 1
-                except (ValueError, IndexError):
-                    proximo_num = 1
-            else:
-                proximo_num = 1
-            
-            # Gerar código no formato P001, P002, S001, etc
-            self.codigo = f"{prefixo}{proximo_num:03d}"
-        
+            self.codigo = self.__class__.objects.gerar_proximo_codigo(
+                self.tipo,
+                self.loja_id
+            )
         super().save(*args, **kwargs)
 
 
@@ -500,7 +492,7 @@ class Proposta(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = LojaIsolationManager()
+    objects = PropostaManager()
 
     class Meta:
         db_table = 'crm_vendas_proposta'
@@ -578,7 +570,7 @@ class Contrato(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = LojaIsolationManager()
+    objects = ContratoManager()
 
     class Meta:
         db_table = 'crm_vendas_contrato'

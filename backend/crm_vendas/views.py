@@ -38,7 +38,7 @@ from .serializers import (
 )
 from tenants.middleware import get_current_loja_id
 from .utils import get_current_vendedor_id, get_loja_from_context
-from .mixins import CRMPermissionMixin, VendedorFilterMixin
+from .mixins import CRMPermissionMixin, VendedorFilterMixin, CacheInvalidationMixin
 from .cache import CRMCacheManager
 from .decorators import cache_list_response, require_admin_access, invalidate_cache_on_change
 from .activities_google_sync import sync_atividade_create, sync_atividade_update, sync_atividade_delete
@@ -65,8 +65,16 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     serializer_class = VendedorSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
 
-    def _get_admin_funcionario(self, loja):
-        """Retorna o admin (owner) como item virtual para a lista de funcionários."""
+    def _obter_funcionario_administrador_da_loja(self, loja):
+        """
+        Obtém o funcionário que representa o administrador da loja.
+        
+        Args:
+            loja: Instância da Loja
+        
+        Returns:
+            dict: Dados do funcionário administrador
+        """
         owner = loja.owner
         nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
         return {
@@ -144,7 +152,7 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                         # 1. Owner NÃO tem VendedorUsuario vinculado E
                         # 2. Owner NÃO existe como vendedor comum na lista
                         if not owner_tem_vendedor and not owner_ja_existe_como_vendedor:
-                            admin_item = self._get_admin_funcionario(loja)
+                            admin_item = self._obter_funcionario_administrador_da_loja(loja)
                             results.insert(0, admin_item)
                         
                         if isinstance(data, dict):
@@ -379,33 +387,28 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         })
 
 
-class ContaViewSet(BaseModelViewSet):
+class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
     queryset = Conta.objects.select_related('vendedor').prefetch_related('leads', 'contatos').all()
     serializer_class = ContaSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
+    
+    # Configuração do CacheInvalidationMixin
+    cache_keys = ['contas']
 
     @cache_list_response(CRMCacheManager.CONTAS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @invalidate_cache_on_change('contas')
     def perform_create(self, serializer):
+        """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
             serializer.save(vendedor_id=vendedor_id)
         else:
             serializer.save()
 
-    @invalidate_cache_on_change('contas')
-    def perform_update(self, serializer):
-        super().perform_update(serializer)
 
-    @invalidate_cache_on_change('contas')
-    def perform_destroy(self, instance):
-        super().perform_destroy(instance)
-
-
-class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
+class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     queryset = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()
     serializer_class = LeadSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
@@ -413,6 +416,9 @@ class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'vendedor_id'
     vendedor_filter_related = ['oportunidades__vendedor_id']
+    
+    # Configuração do CacheInvalidationMixin
+    cache_keys = ['leads']
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -461,43 +467,26 @@ class LeadViewSet(VendedorFilterMixin, BaseModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @invalidate_cache_on_change('leads')
     def perform_create(self, serializer):
+        """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
             serializer.save(vendedor_id=vendedor_id)
         else:
             serializer.save()
 
-    @invalidate_cache_on_change('leads')
-    def perform_update(self, serializer):
-        super().perform_update(serializer)
 
-    @invalidate_cache_on_change('leads')
-    def perform_destroy(self, instance):
-        super().perform_destroy(instance)
-
-
-class ContatoViewSet(BaseModelViewSet):
+class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
     queryset = Contato.objects.select_related('conta').all()
     serializer_class = ContatoSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
+    
+    # Configuração do CacheInvalidationMixin
+    cache_keys = ['contatos']
 
     @cache_list_response(CRMCacheManager.CONTATOS, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
-
-    @invalidate_cache_on_change('contatos')
-    def perform_create(self, serializer):
-        super().perform_create(serializer)
-
-    @invalidate_cache_on_change('contatos')
-    def perform_update(self, serializer):
-        super().perform_update(serializer)
-
-    @invalidate_cache_on_change('contatos')
-    def perform_destroy(self, instance):
-        super().perform_destroy(instance)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -508,7 +497,7 @@ class ContatoViewSet(BaseModelViewSet):
         return qs
 
 
-class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
+class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     queryset = Oportunidade.objects.select_related('lead', 'vendedor', 'lead__conta').prefetch_related('atividades').all()
     serializer_class = OportunidadeSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
@@ -516,6 +505,9 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'vendedor_id'
     vendedor_filter_related = []
+    
+    # Configuração do CacheInvalidationMixin
+    cache_keys = ['oportunidades', 'dashboard']
 
     def _sanitize_vendedor_for_create(self, data):
         """
@@ -554,27 +546,23 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @invalidate_cache_on_change('oportunidades', 'dashboard')
     def perform_create(self, serializer):
         """
         Cria oportunidade usando Service Layer.
         Delega lógica de negócio para OportunidadeService.
+        Cache invalidado automaticamente pelo CacheInvalidationMixin.
         """
         service = OportunidadeService(self.request)
         service.criar_oportunidade(serializer.validated_data)
 
-    @invalidate_cache_on_change('oportunidades', 'dashboard')
     def perform_update(self, serializer):
         """
         Atualiza oportunidade usando Service Layer.
         Delega lógica de negócio para OportunidadeService.
+        Cache invalidado automaticamente pelo CacheInvalidationMixin.
         """
         service = OportunidadeService(self.request)
         service.atualizar_oportunidade(serializer.instance, serializer.validated_data)
-
-    @invalidate_cache_on_change('oportunidades', 'dashboard')
-    def perform_destroy(self, instance):
-        super().perform_destroy(instance)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -590,7 +578,7 @@ class OportunidadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         return qs
 
 
-class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
+class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     queryset = (
         Atividade.objects.select_related('oportunidade', 'lead')
         .defer('google_event_id')  # Evita coluna que pode não existir em schemas antigos
@@ -602,6 +590,9 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     # Configuração do VendedorFilterMixin
     vendedor_filter_field = 'oportunidade__vendedor_id'
     vendedor_filter_related = ['lead__oportunidades__vendedor_id']
+    
+    # Configuração do CacheInvalidationMixin
+    cache_keys = ['atividades', 'dashboard']
     
     def filter_by_vendedor(self, queryset):
         """
@@ -626,8 +617,8 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
         )
         return queryset.filter(filters).distinct()
 
-    @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_create(self, serializer):
+        """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
             serializer.save(criado_por_vendedor_id=vendedor_id)
@@ -668,15 +659,14 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_update(self, serializer):
+        """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
         super().perform_update(serializer)
         atividade = serializer.instance
 
         if atividade and getattr(atividade, 'loja_id', None):
             sync_atividade_update(self.request, atividade)
 
-    @invalidate_cache_on_change('atividades', 'dashboard')
     def perform_destroy(self, instance):
         """
         Deleta atividade e remove do Google Calendar se tiver google_event_id.
@@ -736,7 +726,7 @@ class AtividadeViewSet(VendedorFilterMixin, BaseModelViewSet):
 
 class CategoriaProdutoServicoViewSet(BaseModelViewSet):
     """CRUD de categorias para organizar produtos e serviços."""
-    queryset = CategoriaProdutoServico.objects.all()
+    queryset = CategoriaProdutoServico.objects.select_related('loja').all()  # ✅ OTIMIZAÇÃO: select_related
     serializer_class = CategoriaProdutoServicoSerializer
     pagination_class = CRMPagination
 
@@ -771,7 +761,7 @@ class CategoriaProdutoServicoViewSet(BaseModelViewSet):
 
 class ProdutoServicoViewSet(BaseModelViewSet):
     """CRUD de produtos e serviços para uso em oportunidades."""
-    queryset = ProdutoServico.objects.all()
+    queryset = ProdutoServico.objects.select_related('loja', 'categoria').all()  # ✅ OTIMIZAÇÃO: select_related
     serializer_class = ProdutoServicoSerializer
     pagination_class = CRMPagination
 
@@ -809,7 +799,7 @@ class ProdutoServicoViewSet(BaseModelViewSet):
         return qs
 
 
-class OportunidadeItemViewSet(VendedorFilterMixin, BaseModelViewSet):
+class OportunidadeItemViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     """Itens (produtos/serviços) de uma oportunidade."""
     queryset = OportunidadeItem.objects.select_related('oportunidade', 'produto_servico').all()
     serializer_class = OportunidadeItemSerializer
@@ -817,21 +807,9 @@ class OportunidadeItemViewSet(VendedorFilterMixin, BaseModelViewSet):
 
     vendedor_filter_field = 'oportunidade__vendedor_id'
     vendedor_filter_related = []
-
-    @invalidate_cache_on_change('oportunidades', 'dashboard')
-    def perform_create(self, serializer):
-        """Invalida cache de oportunidades ao criar item."""
-        super().perform_create(serializer)
-
-    @invalidate_cache_on_change('oportunidades', 'dashboard')
-    def perform_update(self, serializer):
-        """Invalida cache de oportunidades ao atualizar item."""
-        super().perform_update(serializer)
-
-    @invalidate_cache_on_change('oportunidades', 'dashboard')
-    def perform_destroy(self, instance):
-        """Invalida cache de oportunidades ao excluir item."""
-        super().perform_destroy(instance)
+    
+    # Configuração do CacheInvalidationMixin
+    cache_keys = ['oportunidades', 'dashboard']
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -963,7 +941,7 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
 
 class PropostaTemplateViewSet(BaseModelViewSet):
     """Templates de propostas para reutilização."""
-    queryset = PropostaTemplate.objects.all()
+    queryset = PropostaTemplate.objects.select_related('loja').all()  # ✅ OTIMIZAÇÃO: select_related
     serializer_class = PropostaTemplateSerializer
     pagination_class = CRMPagination
 
@@ -999,7 +977,7 @@ class PropostaTemplateViewSet(BaseModelViewSet):
 
 class ContratoTemplateViewSet(BaseModelViewSet):
     """Templates de contratos para reutilização."""
-    queryset = ContratoTemplate.objects.all()
+    queryset = ContratoTemplate.objects.select_related('loja').all()  # ✅ OTIMIZAÇÃO: select_related
     serializer_class = ContratoTemplateSerializer
     pagination_class = CRMPagination
 

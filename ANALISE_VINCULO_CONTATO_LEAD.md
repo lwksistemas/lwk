@@ -86,13 +86,36 @@ const leadPayload = {
 
 ## Deploy
 
-- **Backend**: Heroku v1294 ✅
-  - Migração 0030 aplicada com sucesso
-  - Campo `contato` disponível no modelo Lead
+- **Backend**: Heroku v1295 ✅
+  - Migração 0030 aplicada com sucesso no schema public
+  - Comando `migrate_contato_lead_tenants` criado e executado
+  - Campo `contato` disponível no modelo Lead em todos os tenants
+  - Schema loja_41449198000172: ✅ Migração aplicada
   
 - **Frontend**: Vercel ✅
   - Enviando `contato_id` ao criar lead
   - Validação de contatos implementada
+
+## Problema Identificado e Resolvido
+
+### Erro: "column crm_vendas_lead.contato_id does not exist"
+
+**Causa**: A migração 0030 foi aplicada apenas no schema `public` (banco default), mas não nos schemas dos tenants (lojas). O django-tenants usa schemas separados para cada loja.
+
+**Solução**: 
+1. Criado comando customizado `migrate_contato_lead_tenants.py`
+2. Comando aplica a migração em todos os schemas de lojas ativas
+3. Adiciona coluna `contato_id`, foreign key e índice em cada schema
+
+**Comando executado**:
+```bash
+heroku run "python backend/manage.py migrate_contato_lead_tenants"
+```
+
+**Resultado**:
+- ✅ loja_41449198000172 (FELIX): Migração aplicada com sucesso
+- ⚠️ loja_22239255889 (VIDA ESTETICA): Tabela não existe (CRM não ativo)
+- ⚠️ loja_37302743000126 (HARMONIS): Tabela não existe (CRM não ativo)
 
 ## Testes Recomendados
 

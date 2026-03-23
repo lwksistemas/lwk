@@ -8,7 +8,7 @@ Segue o padrão recomendado em Two Scoops of Django:
 """
 import logging
 from django.db import models
-from tenants.models import LojaIsolationManager
+from core.mixins import LojaIsolationManager
 
 logger = logging.getLogger(__name__)
 

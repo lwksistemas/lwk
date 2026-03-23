@@ -55,7 +55,9 @@ export default function CrmVendasProdutosServicosPage() {
   const loadCategorias = useCallback(async () => {
     try {
       const res = await apiClient.get<Categoria[] | { results: Categoria[] }>('/crm-vendas/categorias-produtos-servicos/?ativo=true');
-      setCategorias(normalizeListResponse(res.data));
+      const cats = normalizeListResponse(res.data);
+      console.log('Categorias carregadas:', cats);
+      setCategorias(cats);
     } catch (err) {
       console.error('Erro ao carregar categorias:', err);
       setCategorias([]);

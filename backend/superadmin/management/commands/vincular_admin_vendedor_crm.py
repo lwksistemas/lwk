@@ -46,7 +46,7 @@ class Command(BaseCommand):
         total_ja_vinculadas = 0
         
         for loja in lojas:
-            self.stdout.write(f'\n📦 Processando loja: {loja.nome_fantasia} ({loja.cnpj})')
+            self.stdout.write(f'\n📦 Processando loja: {loja.nome} ({loja.cpf_cnpj})')
             
             # Mudar para schema da loja
             connection.set_tenant(loja)

@@ -229,6 +229,16 @@ class AuthService {
   }
 
   /**
+   * Verifica se o usuário é owner (administrador da loja)
+   * Owner nunca é marcado como vendedor, mesmo se tiver grupo Gerente de Vendas
+   */
+  isOwner(): boolean {
+    if (typeof window === 'undefined') return false;
+    // Se não é vendedor, é owner (administrador)
+    return sessionStorage.getItem('is_vendedor') !== '1';
+  }
+
+  /**
    * Obtém o ID do vendedor logado (quando is_vendedor=true).
    * Usado para associar oportunidades/leads ao vendedor ao criar.
    */

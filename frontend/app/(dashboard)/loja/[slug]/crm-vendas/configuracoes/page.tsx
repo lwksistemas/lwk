@@ -19,6 +19,10 @@ export default function CrmVendasConfiguracoesPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
+  
+  // Verificar se é owner (administrador) - owner sempre vê todas as opções
+  // Vendedores comuns (não-owners) veem apenas "Personalizar CRM"
+  const isOwner = authService.isOwner();
   const isVendedor = authService.isVendedor();
 
   const opcoesAdmin = [
@@ -66,8 +70,9 @@ export default function CrmVendasConfiguracoesPage() {
     },
   ];
 
-  // Vendedores veem apenas Personalizar; admin vê todas as opções
-  const opcoes = isVendedor
+  // Vendedores comuns (não-owners) veem apenas Personalizar
+  // Owner e Gerente de Vendas veem todas as opções
+  const opcoes = (isVendedor && !isOwner)
     ? opcoesAdmin.filter((o) => o.href.includes('/personalizar'))
     : opcoesAdmin;
 

@@ -10,6 +10,7 @@ from django.utils.dateparse import parse_datetime
 from django.http import HttpResponse, JsonResponse
 from django.core.mail import EmailMessage
 from django.conf import settings
+from django.contrib.auth.models import Group
 from datetime import timedelta
 import logging
 
@@ -385,6 +386,17 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
             'detail': f'Senha provisória enviada para {vendedor.email}',
             'email_enviado': vendedor.email,
         })
+
+    @action(detail=False, methods=['get'])
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
+    def grupos_disponiveis(self, request):
+        """Lista grupos disponíveis para atribuir a vendedores."""
+        # Filtrar apenas grupos relacionados ao CRM
+        grupos_crm = Group.objects.using('default').filter(
+            name__in=['Gerente de Vendas', 'Vendedor']
+        ).values('id', 'name').order_by('name')
+        
+        return Response(list(grupos_crm))
 
 
 class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):

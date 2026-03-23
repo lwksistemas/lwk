@@ -17,12 +17,14 @@ logger = logging.getLogger(__name__)
 class VendedorSerializer(serializers.ModelSerializer):
     criar_acesso = serializers.BooleanField(write_only=True, default=False, required=False)
     tem_acesso = serializers.SerializerMethodField(read_only=True)
+    grupo_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    grupo_nome = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Vendedor
         fields = [
             'id', 'nome', 'email', 'telefone', 'cargo', 'comissao_padrao', 'is_admin', 'is_active',
-            'criar_acesso', 'tem_acesso',
+            'criar_acesso', 'tem_acesso', 'grupo_id', 'grupo_nome',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -46,12 +48,36 @@ class VendedorSerializer(serializers.ModelSerializer):
             vendedor_id=obj.id,
         ).exists()
 
+    def get_grupo_nome(self, obj):
+        """Retorna o nome do grupo do vendedor, se houver."""
+        if not obj or not obj.email:
+            return None
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import VendedorUsuario
+        from django.contrib.auth.models import Group
+        
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return None
+        
+        try:
+            vu = VendedorUsuario.objects.using('default').select_related('user').get(
+                loja_id=loja_id,
+                vendedor_id=obj.id,
+            )
+            # Pegar o primeiro grupo relacionado ao CRM
+            grupo = vu.user.groups.filter(name__in=['Gerente de Vendas', 'Vendedor']).first()
+            return grupo.name if grupo else None
+        except VendedorUsuario.DoesNotExist:
+            return None
+
     def create(self, validated_data):
         criar_acesso = validated_data.pop('criar_acesso', False)
+        grupo_id = validated_data.pop('grupo_id', None)
         vendedor = super().create(validated_data)
         if criar_acesso and vendedor.email:
             try:
-                self._criar_acesso_e_enviar_email(vendedor)
+                self._criar_acesso_e_enviar_email(vendedor, grupo_id)
             except serializers.ValidationError:
                 vendedor.delete()
                 raise
@@ -59,18 +85,23 @@ class VendedorSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         criar_acesso = validated_data.pop('criar_acesso', False)
+        grupo_id = validated_data.pop('grupo_id', None)
         vendedor = super().update(instance, validated_data)
         if criar_acesso and vendedor.email:
             try:
-                self._criar_acesso_e_enviar_email(vendedor)
+                self._criar_acesso_e_enviar_email(vendedor, grupo_id)
             except serializers.ValidationError:
                 raise
+        elif grupo_id is not None:
+            # Atualizar grupo mesmo sem criar acesso (se já tem acesso)
+            self._atualizar_grupo(vendedor, grupo_id)
         return vendedor
 
-    def _criar_acesso_e_enviar_email(self, vendedor):
+    def _criar_acesso_e_enviar_email(self, vendedor, grupo_id=None):
         User = get_user_model()
         from superadmin.models import Loja, VendedorUsuario
         from tenants.middleware import get_current_loja_id
+        from django.contrib.auth.models import Group
 
         loja_id = get_current_loja_id()
         if not loja_id:
@@ -83,7 +114,7 @@ class VendedorSerializer(serializers.ModelSerializer):
         email = vendedor.email.strip().lower()
         senha_provisoria = get_random_string(8)
 
-        # Se já tem VendedorUsuario: apenas reenviar senha
+        # Se já tem VendedorUsuario: apenas reenviar senha e atualizar grupo
         vu_existente = VendedorUsuario.objects.using('default').filter(
             loja_id=loja_id,
             vendedor_id=vendedor.id,
@@ -95,6 +126,11 @@ class VendedorSerializer(serializers.ModelSerializer):
             user.save(update_fields=['password', 'first_name'])
             vu_existente.precisa_trocar_senha = True
             vu_existente.save(update_fields=['precisa_trocar_senha'])
+            
+            # Atualizar grupo se fornecido
+            if grupo_id:
+                self._atualizar_grupo_usuario(user, grupo_id)
+            
             _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Nova senha provisória - CRM Vendas', reenviar=True)
             return
 
@@ -122,6 +158,10 @@ class VendedorSerializer(serializers.ModelSerializer):
                 vendedor_id=vendedor.id,
                 precisa_trocar_senha=True,
             )
+            
+            # Adicionar ao grupo se fornecido
+            if grupo_id:
+                self._atualizar_grupo_usuario(existing_user, grupo_id)
         else:
             user = User.objects.db_manager('default').create_user(
                 username=email,
@@ -135,8 +175,50 @@ class VendedorSerializer(serializers.ModelSerializer):
                 vendedor_id=vendedor.id,
                 precisa_trocar_senha=True,
             )
+            
+            # Adicionar ao grupo se fornecido
+            if grupo_id:
+                self._atualizar_grupo_usuario(user, grupo_id)
 
         _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao sistema - CRM Vendas')
+
+    def _atualizar_grupo(self, vendedor, grupo_id):
+        """Atualiza o grupo de um vendedor que já tem acesso."""
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import VendedorUsuario
+        
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return
+        
+        try:
+            vu = VendedorUsuario.objects.using('default').select_related('user').get(
+                loja_id=loja_id,
+                vendedor_id=vendedor.id,
+            )
+            self._atualizar_grupo_usuario(vu.user, grupo_id)
+        except VendedorUsuario.DoesNotExist:
+            pass
+
+    def _atualizar_grupo_usuario(self, user, grupo_id):
+        """Atualiza o grupo de um usuário, removendo grupos CRM anteriores."""
+        from django.contrib.auth.models import Group
+        
+        if not grupo_id:
+            return
+        
+        try:
+            grupo = Group.objects.using('default').get(id=grupo_id)
+            
+            # Remover grupos CRM anteriores
+            user.groups.remove(*Group.objects.using('default').filter(
+                name__in=['Gerente de Vendas', 'Vendedor']
+            ))
+            
+            # Adicionar novo grupo
+            user.groups.add(grupo)
+        except Group.DoesNotExist:
+            pass
 
 
 def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao sistema - CRM Vendas', reenviar=False):

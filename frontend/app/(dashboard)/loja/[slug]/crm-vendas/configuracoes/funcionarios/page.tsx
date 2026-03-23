@@ -18,9 +18,15 @@ interface Vendedor {
   is_admin: boolean;
   is_active: boolean;
   tem_acesso?: boolean;
+  grupo_nome?: string; // Nome do grupo (Gerente de Vendas, etc)
 }
 
-// Versão com campo de comissão - v1.1
+interface Grupo {
+  id: number;
+  name: string;
+}
+
+// Versão com campo de comissão e grupo - v1.2
 export default function ConfiguracoesFuncionariosPage() {
   const params = useParams();
   const router = useRouter();
@@ -28,6 +34,7 @@ export default function ConfiguracoesFuncionariosPage() {
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
 
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
@@ -40,6 +47,7 @@ export default function ConfiguracoesFuncionariosPage() {
     telefone: '',
     cargo: 'Vendedor',
     comissao_padrao: '0',
+    grupo_id: '',
     criar_acesso: false,
   });
   const [reenviando, setReenviando] = useState<number | string | null>(null);
@@ -49,8 +57,12 @@ export default function ConfiguracoesFuncionariosPage() {
   const carregar = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/');
-      setVendedores(normalizeListResponse(res.data));
+      const [resVendedores, resGrupos] = await Promise.all([
+        apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/'),
+        apiClient.get<Grupo[]>('/crm-vendas/vendedores/grupos_disponiveis/'),
+      ]);
+      setVendedores(normalizeListResponse(resVendedores.data));
+      setGrupos(resGrupos.data || []);
       setError(null);
     } catch (err) {
       setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erro ao carregar.');
@@ -65,7 +77,7 @@ export default function ConfiguracoesFuncionariosPage() {
 
   const abrirNovo = () => {
     setEditando(null);
-    setForm({ nome: '', email: '', telefone: '', cargo: 'Vendedor', comissao_padrao: '0', criar_acesso: false });
+    setForm({ nome: '', email: '', telefone: '', cargo: 'Vendedor', comissao_padrao: '0', grupo_id: '', criar_acesso: false });
     setFormErro(null);
     setModalAberto(true);
   };
@@ -79,6 +91,7 @@ export default function ConfiguracoesFuncionariosPage() {
       telefone: v.telefone || '',
       cargo: v.cargo || 'Vendedor',
       comissao_padrao: v.comissao_padrao?.toString() || '0',
+      grupo_id: '',
       criar_acesso: false,
     });
     setFormErro(null);
@@ -134,7 +147,7 @@ export default function ConfiguracoesFuncionariosPage() {
     }
     setSalvando(true);
     try {
-      const payload = { 
+      const payload: Record<string, unknown> = { 
         nome: form.nome, 
         email: form.email, 
         telefone: form.telefone, 
@@ -142,6 +155,12 @@ export default function ConfiguracoesFuncionariosPage() {
         comissao_padrao: parseFloat(form.comissao_padrao) || 0,
         criar_acesso: form.criar_acesso 
       };
+      
+      // Adicionar grupo_id apenas se foi selecionado
+      if (form.grupo_id) {
+        payload.grupo_id = parseInt(form.grupo_id);
+      }
+      
       if (editando) {
         await apiClient.patch(`/crm-vendas/vendedores/${editando.id}/`, payload);
       } else {
@@ -232,6 +251,11 @@ export default function ConfiguracoesFuncionariosPage() {
                     {v.is_admin && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                         Administrador
+                      </span>
+                    )}
+                    {v.grupo_nome && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                        {v.grupo_nome}
                       </span>
                     )}
                   </div>
@@ -362,6 +386,26 @@ export default function ConfiguracoesFuncionariosPage() {
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Vendedor"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Perfil/Grupo
+                  </label>
+                  <select
+                    value={form.grupo_id}
+                    onChange={(e) => setForm((f) => ({ ...f, grupo_id: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Selecione um perfil (opcional)</option>
+                    {grupos.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Define as permissões do funcionário no sistema. Gerente de Vendas tem acesso completo.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

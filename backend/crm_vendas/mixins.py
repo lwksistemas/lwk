@@ -181,8 +181,14 @@ class CacheInvalidationMixin:
         
         try:
             from .cache import CRMCacheManager
+            from tenants.middleware import get_current_loja_id
+            
+            loja_id = get_current_loja_id()
+            if not loja_id:
+                return
+            
             for key in self.cache_keys:
-                CRMCacheManager.invalidate(key)
+                CRMCacheManager.invalidate(key, loja_id)
         except Exception as e:
             # Log erro mas não interrompe operação
             import logging

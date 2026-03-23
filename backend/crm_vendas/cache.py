@@ -126,6 +126,41 @@ class CRMCacheManager:
             pass
     
     @classmethod
+    def invalidate(cls, cache_key_name, loja_id=None):
+        """
+        Método genérico para invalidar cache por nome da chave.
+        
+        Mapeia nomes de chaves para métodos específicos de invalidação.
+        Usado pelo CacheInvalidationMixin.
+        
+        Args:
+            cache_key_name: Nome da chave (ex: 'oportunidades', 'dashboard')
+            loja_id: ID da loja (obtido do contexto se None)
+        """
+        # Mapeamento de nomes para métodos
+        invalidation_map = {
+            'dashboard': cls.invalidate_dashboard,
+            'contas': cls.invalidate_contas,
+            'leads': cls.invalidate_leads,
+            'contatos': cls.invalidate_contatos,
+            'oportunidades': cls.invalidate_oportunidades,
+            'atividades': cls.invalidate_atividades,
+        }
+        
+        # Obter loja_id do contexto se não fornecido
+        if loja_id is None:
+            from superadmin.middleware import get_current_loja_id
+            loja_id = get_current_loja_id()
+        
+        if not loja_id:
+            return
+        
+        # Chamar método específico
+        invalidate_method = invalidation_map.get(cache_key_name)
+        if invalidate_method:
+            invalidate_method(loja_id)
+    
+    @classmethod
     def get_or_set(cls, key, callback, ttl=None):
         """
         Get or set pattern para cache.

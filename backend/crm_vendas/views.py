@@ -553,7 +553,9 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
         Cache invalidado automaticamente pelo CacheInvalidationMixin.
         """
         service = OportunidadeService(self.request)
-        service.criar_oportunidade(serializer.validated_data)
+        oportunidade = service.criar_oportunidade(serializer.validated_data)
+        # Atualizar serializer com a instância criada
+        serializer.instance = oportunidade
 
     def perform_update(self, serializer):
         """
@@ -562,7 +564,9 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
         Cache invalidado automaticamente pelo CacheInvalidationMixin.
         """
         service = OportunidadeService(self.request)
-        service.atualizar_oportunidade(serializer.instance, serializer.validated_data)
+        oportunidade = service.atualizar_oportunidade(serializer.instance, serializer.validated_data)
+        # Atualizar serializer com a instância atualizada
+        serializer.instance = oportunidade
 
     def get_queryset(self):
         qs = super().get_queryset()

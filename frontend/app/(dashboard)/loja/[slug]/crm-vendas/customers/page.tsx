@@ -286,9 +286,14 @@ export default function CrmVendasCustomersPage() {
     try {
       setCreatingOpportunity(true);
       
+      console.log('🔍 [1/6] Iniciando criação de oportunidade para conta:', selectedConta.nome);
+      
       // 1. PRIMEIRO: Buscar contatos da conta (OBRIGATÓRIO)
+      console.log('🔍 [2/6] Buscando contatos da conta ID:', selectedConta.id);
       const contatosResponse = await apiClient.get(`/crm-vendas/contatos/?conta_id=${selectedConta.id}`);
       const contatosList = normalizeListResponse(contatosResponse.data);
+      
+      console.log('🔍 [2/6] Contatos encontrados:', contatosList.length, contatosList);
       
       // 2. Validar se existe pelo menos um contato
       if (contatosList.length === 0) {
@@ -309,14 +314,18 @@ export default function CrmVendasCustomersPage() {
       
       // 3. Usar dados do primeiro contato
       const primeiroContato = contatosList[0] as any;
+      console.log('🔍 [3/6] Usando primeiro contato:', primeiroContato);
       
       // 4. Verificar se já existe lead para esta conta
       try {
+        console.log('🔍 [4/6] Verificando leads existentes...');
         const leadsResponse = await apiClient.get(`/crm-vendas/leads/`);
         const leadsList = normalizeListResponse(leadsResponse.data);
         
         // Filtrar leads desta conta
-        const leadsDestaConta = leadsList.filter((lead: any) => lead.conta_id === selectedConta.id);
+        const leadsDestaConta = leadsList.filter((lead: any) => lead.conta === selectedConta.id);
+        
+        console.log('🔍 [4/6] Leads existentes desta conta:', leadsDestaConta.length);
         
         if (leadsDestaConta.length > 0) {
           const confirmar = window.confirm(
@@ -328,13 +337,14 @@ export default function CrmVendasCustomersPage() {
           
           if (!confirmar) {
             // Usar lead existente
+            console.log('🔍 [5/6] Usando lead existente, redirecionando para pipeline...');
             router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${(leadsDestaConta[0] as any).id}`);
             setCreatingOpportunity(false);
             return;
           }
         }
       } catch (err) {
-        console.log('Erro ao verificar leads existentes:', err);
+        console.log('⚠️ Erro ao verificar leads existentes:', err);
       }
       
       // 5. Criar Lead vinculado à Conta com dados do CONTATO
@@ -345,8 +355,8 @@ export default function CrmVendasCustomersPage() {
         telefone: primeiroContato.telefone || selectedConta.telefone || '', // Priorizar telefone do contato
         origem: 'site',
         status: 'qualificado',
-        conta_id: selectedConta.id,
-        contato_id: primeiroContato.id, // ✅ Vincular contato específico
+        conta: selectedConta.id,
+        contato: primeiroContato.id, // ✅ Vincular contato específico
         cpf_cnpj: selectedConta.cnpj || '',
         cep: selectedConta.cep || '',
         logradouro: selectedConta.logradouro || '',
@@ -357,17 +367,19 @@ export default function CrmVendasCustomersPage() {
         uf: selectedConta.uf || '',
       };
       
-      console.log('🔍 DEBUG - Criando lead com payload:', leadPayload);
-      console.log('🔍 DEBUG - Contato selecionado:', primeiroContato);
-      console.log('🔍 DEBUG - Conta selecionada:', selectedConta);
+      console.log('🔍 [5/6] Criando lead com payload:', leadPayload);
       
       const leadResponse = await apiClient.post('/crm-vendas/leads/', leadPayload);
       
+      console.log('🔍 [5/6] Lead criado com sucesso:', leadResponse.data);
+      
       // 6. Redirecionar para pipeline com modal de criar oportunidade
+      console.log('🔍 [6/6] Redirecionando para pipeline com lead_id:', leadResponse.data.id);
       router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${leadResponse.data.id}`);
     } catch (err: any) {
-      console.error('Erro ao criar oportunidade:', err);
-      alert(err.response?.data?.detail || 'Erro ao criar oportunidade.');
+      console.error('❌ Erro ao criar oportunidade:', err);
+      console.error('❌ Detalhes do erro:', err.response?.data);
+      alert(err.response?.data?.detail || err.response?.data?.message || 'Erro ao criar oportunidade.');
       setCreatingOpportunity(false);
     }
   };

@@ -46,12 +46,16 @@ export default function CrmVendasContatosPage() {
     observacoes: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [contaFiltro, setContaFiltro] = useState<number | null>(null);
 
-  const loadContatos = async () => {
+  const loadContatos = async (contaId?: number | null) => {
     try {
       setLoading(true);
       console.log('Carregando contatos...');
-      const res = await apiClient.get<Contato[] | { results: Contato[] }>('/crm-vendas/contatos/');
+      const url = contaId 
+        ? `/crm-vendas/contatos/?conta_id=${contaId}`
+        : '/crm-vendas/contatos/';
+      const res = await apiClient.get<Contato[] | { results: Contato[] }>(url);
       console.log('Resposta da API:', res.data);
       const contatosNormalizados = normalizeListResponse(res.data);
       console.log('Contatos normalizados:', contatosNormalizados);
@@ -75,9 +79,38 @@ export default function CrmVendasContatosPage() {
   };
 
   useEffect(() => {
+    // Detectar filtro por conta_id na URL
+    const contaIdParam = searchParams.get('conta_id');
+    if (contaIdParam) {
+      const contaId = parseInt(contaIdParam, 10);
+      if (!isNaN(contaId)) {
+        setContaFiltro(contaId);
+        loadContatos(contaId);
+        loadContas();
+        return;
+      }
+    }
+    
+    // Carregar todos os contatos se não houver filtro
     loadContatos();
     loadContas();
-  }, []);
+  }, [searchParams]);
+
+  // Abrir modal de criação quando ?criar=1
+  useEffect(() => {
+    if (searchParams.get('criar') === '1' && contas.length > 0) {
+      const contaIdParam = searchParams.get('conta_id');
+      if (contaIdParam) {
+        const contaId = parseInt(contaIdParam, 10);
+        if (!isNaN(contaId)) {
+          // Pré-selecionar a conta no formulário
+          setFormData((f) => ({ ...f, conta: String(contaId) }));
+        }
+      }
+      openModal('create');
+      router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
+    }
+  }, [searchParams, contas, router, slug]);
 
   // Abrir modal de visualização quando ?ver=ID
   useEffect(() => {
@@ -208,9 +241,31 @@ export default function CrmVendasContatosPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Contatos
           </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Pessoas vinculadas às contas
-          </p>
+          {contaFiltro ? (
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Filtrando por conta:
+              </p>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                {contas.find(c => c.id === contaFiltro)?.nome || `ID ${contaFiltro}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setContaFiltro(null);
+                  loadContatos(null);
+                  router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
+                }}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Limpar filtro
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Pessoas vinculadas às contas
+            </p>
+          )}
         </div>
         <button
           type="button"

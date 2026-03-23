@@ -294,6 +294,11 @@ class SecureLoginView(APIView):
                         # Apenas vendedores comuns (não-owners) são marcados como is_vendedor
                         if loja.owner_id != user.id:
                             response_data['is_vendedor'] = True
+                            
+                            # Verificar se é Gerente de Vendas (tem acesso completo)
+                            from django.contrib.auth.models import Group
+                            if user.groups.filter(name='Gerente de Vendas').exists():
+                                response_data['is_gerente'] = True
             if loja:
                 if not response_data.get('is_professional'):
                     # Owner: verificar senha provisória da loja

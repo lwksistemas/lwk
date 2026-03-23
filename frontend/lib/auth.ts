@@ -103,6 +103,11 @@ class AuthService {
           sessionStorage.setItem('current_vendedor_id', String((data as any).vendedor_id));
         }
       }
+      
+      // Setar is_gerente se vier do backend
+      if ((data as any).is_gerente === true) {
+        sessionStorage.setItem('is_gerente', '1');
+      }
 
       // Salvar session_id se vier do backend
       if (typeof window !== 'undefined' && (data as any).session_id) {
@@ -148,6 +153,7 @@ class AuthService {
       sessionStorage.removeItem(this.USER_TYPE_KEY);
       sessionStorage.removeItem(this.LOJA_SLUG_KEY);
       sessionStorage.removeItem('is_vendedor');
+      sessionStorage.removeItem('is_gerente');
       sessionStorage.removeItem('current_vendedor_id');
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
       localStorage.removeItem('token');
@@ -229,6 +235,14 @@ class AuthService {
   }
 
   /**
+   * Verifica se o usuário é Gerente de Vendas (tem acesso completo como owner)
+   */
+  isGerente(): boolean {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem('is_gerente') === '1';
+  }
+
+  /**
    * Verifica se o usuário é owner (administrador da loja)
    * Owner nunca é marcado como vendedor, mesmo se tiver grupo Gerente de Vendas
    */
@@ -236,6 +250,14 @@ class AuthService {
     if (typeof window === 'undefined') return false;
     // Se não é vendedor, é owner (administrador)
     return sessionStorage.getItem('is_vendedor') !== '1';
+  }
+
+  /**
+   * Verifica se o usuário tem acesso administrativo completo
+   * (Owner ou Gerente de Vendas)
+   */
+  hasAdminAccess(): boolean {
+    return this.isOwner() || this.isGerente();
   }
 
   /**

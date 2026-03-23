@@ -1,255 +1,174 @@
 /**
- * Error Handler - Tratamento consolidado de erros de API
+ * Tratamento centralizado de erros.
  * 
- * Centraliza o tratamento de erros para:
- * - Mensagens consistentes para o usuário
- * - Código mais limpo (elimina try-catch duplicados)
- * - Fácil manutenção e tradução
- * - Logging centralizado (futuro)
+ * Segue Clean Code:
+ * - Tratamento consistente de erros
+ * - Mensagens amigáveis ao usuário
+ * - Logging estruturado
  */
+import axios from 'axios';
 
-interface ApiError {
-  response?: {
-    data?: any;
-    status?: number;
-    statusText?: string;
-  };
-  message?: string;
+/**
+ * Classe customizada para erros de API.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
 }
 
 /**
- * Extrai mensagem de erro amigável de uma resposta de API
+ * Extrai mensagem de erro amigável de diferentes tipos de erro.
  * 
- * @param error - Erro capturado do try-catch
- * @returns Mensagem de erro formatada para exibir ao usuário
- * 
- * @example
- * ```typescript
- * try {
- *   await apiClient.post('/endpoint', data);
- * } catch (err) {
- *   showMsg('error', handleApiError(err));
- * }
- * ```
+ * @param error - Erro capturado
+ * @returns Mensagem de erro formatada
  */
 export function handleApiError(error: unknown): string {
-  const e = error as ApiError;
-  
-  // Erro de validação (400 Bad Request)
-  if (e.response?.status === 400) {
-    const data = e.response.data;
-    
-    // Mensagem de erro direta
-    if (typeof data?.detail === 'string') {
-      return data.detail;
-    }
-    
-    // Erros de campo (ex: { titulo: ['Este campo é obrigatório'] })
-    if (data && typeof data === 'object') {
-      for (const key in data) {
-        const value = data[key];
-        
-        // Array de erros
-        if (Array.isArray(value) && value.length > 0) {
-          const fieldName = getFieldLabel(key);
-          return `${fieldName}: ${value[0]}`;
-        }
-        
-        // String direta
-        if (typeof value === 'string') {
-          const fieldName = getFieldLabel(key);
-          return `${fieldName}: ${value}`;
-        }
+  // Erro customizado ApiError
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  // Erro do Axios
+  if (axios.isAxiosError(error)) {
+    // Erro de resposta do servidor
+    if (error.response) {
+      const { status, data } = error.response;
+
+      // Mensagens específicas por status code
+      switch (status) {
+        case 400:
+          return data?.detail || 'Dados inválidos. Verifique os campos e tente novamente.';
+        case 401:
+          return 'Sessão expirada. Faça login novamente.';
+        case 403:
+          return 'Você não tem permissão para realizar esta ação.';
+        case 404:
+          return 'Recurso não encontrado.';
+        case 409:
+          return data?.detail || 'Conflito. Este registro já existe.';
+        case 422:
+          return data?.detail || 'Erro de validação. Verifique os dados informados.';
+        case 500:
+          return 'Erro interno do servidor. Tente novamente mais tarde.';
+        case 503:
+          return 'Serviço temporariamente indisponível. Tente novamente em alguns instantes.';
+        default:
+          return data?.detail || `Erro ${status}. Tente novamente.`;
       }
     }
-    
-    return 'Dados inválidos. Verifique os campos e tente novamente.';
-  }
-  
-  // Erro de autenticação (401 Unauthorized)
-  if (e.response?.status === 401) {
-    return 'Sessão expirada. Faça login novamente.';
-  }
-  
-  // Erro de permissão (403 Forbidden)
-  if (e.response?.status === 403) {
-    return 'Você não tem permissão para realizar esta ação.';
-  }
-  
-  // Recurso não encontrado (404 Not Found)
-  if (e.response?.status === 404) {
-    return 'Recurso não encontrado.';
-  }
-  
-  // Conflito (409 Conflict)
-  if (e.response?.status === 409) {
-    const data = e.response.data;
-    if (typeof data?.detail === 'string') {
-      return data.detail;
-    }
-    return 'Conflito ao processar a requisição. Verifique os dados.';
-  }
-  
-  // Erro de servidor (500 Internal Server Error)
-  if (e.response?.status === 500) {
-    return 'Erro no servidor. Tente novamente mais tarde.';
-  }
-  
-  // Erro de serviço indisponível (503 Service Unavailable)
-  if (e.response?.status === 503) {
-    return 'Serviço temporariamente indisponível. Tente novamente em alguns minutos.';
-  }
-  
-  // Erro de rede (sem resposta do servidor)
-  if (!e.response) {
-    if (e.message?.toLowerCase().includes('network')) {
+
+    // Erro de rede (sem resposta do servidor)
+    if (error.request) {
       return 'Erro de conexão. Verifique sua internet e tente novamente.';
     }
-    return 'Não foi possível conectar ao servidor. Verifique sua conexão.';
+
+    // Erro na configuração da requisição
+    return 'Erro ao processar requisição. Tente novamente.';
   }
-  
-  // Erro genérico com mensagem
-  if (e.message) {
-    return e.message;
+
+  // Erro genérico
+  if (error instanceof Error) {
+    return error.message;
   }
-  
-  // Fallback genérico
+
+  // Erro desconhecido
   return 'Erro inesperado. Tente novamente.';
 }
 
 /**
- * Converte nome de campo técnico para label amigável
+ * Loga erro no console (desenvolvimento) ou serviço de logging (produção).
  * 
- * @param fieldName - Nome do campo da API (ex: 'titulo', 'cpf_cnpj')
- * @returns Label formatado (ex: 'Título', 'CPF/CNPJ')
+ * @param error - Erro a ser logado
+ * @param context - Contexto adicional (componente, ação, etc)
  */
-function getFieldLabel(fieldName: string): string {
-  const labels: Record<string, string> = {
-    // Campos comuns
-    'titulo': 'Título',
-    'subtitulo': 'Subtítulo',
-    'descricao': 'Descrição',
-    'nome': 'Nome',
-    'email': 'Email',
-    'senha': 'Senha',
-    'password': 'Senha',
-    'username': 'Usuário',
-    
-    // Campos específicos
-    'cpf_cnpj': 'CPF/CNPJ',
-    'telefone': 'Telefone',
-    'celular': 'Celular',
-    'endereco': 'Endereço',
-    'cep': 'CEP',
-    'cidade': 'Cidade',
-    'estado': 'Estado',
-    'uf': 'UF',
-    'bairro': 'Bairro',
-    'numero': 'Número',
-    'complemento': 'Complemento',
-    
-    // Campos de homepage
-    'botao_texto': 'Texto do botão',
-    'icone': 'Ícone',
-    'imagem': 'Imagem',
-    'slug': 'Slug',
-    'ordem': 'Ordem',
-    'ativo': 'Ativo',
-    
-    // Campos de loja
-    'cor_primaria': 'Cor primária',
-    'cor_secundaria': 'Cor secundária',
-    'logo': 'Logo',
-    'login_background': 'Imagem de fundo',
-    'login_logo': 'Logo do login',
-    
-    // Campos de CRM
-    'valor': 'Valor',
-    'data': 'Data',
-    'status': 'Status',
-    'observacoes': 'Observações',
-    'observacao': 'Observação',
-  };
-  
-  // Retorna label customizado ou formata o nome do campo
-  return labels[fieldName] || formatFieldName(fieldName);
+export function logError(error: unknown, context?: string) {
+  const errorMessage = handleApiError(error);
+  const timestamp = new Date().toISOString();
+
+  // Log estruturado
+  console.error({
+    timestamp,
+    context,
+    message: errorMessage,
+    error,
+  });
+
+  // TODO: Em produção, enviar para serviço de logging (Sentry, LogRocket, etc)
+  // if (process.env.NODE_ENV === 'production') {
+  //   sendToLoggingService({ timestamp, context, message: errorMessage, error });
+  // }
 }
 
 /**
- * Formata nome de campo técnico para exibição
+ * Wrapper para tratamento de erros em funções assíncronas.
  * 
- * @param fieldName - Nome do campo (ex: 'nome_completo')
- * @returns Nome formatado (ex: 'Nome completo')
+ * @param fn - Função assíncrona a ser executada
+ * @param context - Contexto para logging
+ * @returns Resultado da função ou erro tratado
  */
-function formatFieldName(fieldName: string): string {
-  return fieldName
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-/**
- * Verifica se o erro é de autenticação (401)
- * Útil para redirecionar para login
- * 
- * @param error - Erro capturado
- * @returns true se for erro 401
- */
-export function isAuthError(error: unknown): boolean {
-  const e = error as ApiError;
-  return e.response?.status === 401;
-}
-
-/**
- * Verifica se o erro é de permissão (403)
- * 
- * @param error - Erro capturado
- * @returns true se for erro 403
- */
-export function isPermissionError(error: unknown): boolean {
-  const e = error as ApiError;
-  return e.response?.status === 403;
-}
-
-/**
- * Verifica se o erro é de validação (400)
- * 
- * @param error - Erro capturado
- * @returns true se for erro 400
- */
-export function isValidationError(error: unknown): boolean {
-  const e = error as ApiError;
-  return e.response?.status === 400;
-}
-
-/**
- * Extrai erros de campo específicos para exibir em formulários
- * 
- * @param error - Erro capturado
- * @returns Objeto com erros por campo { campo: 'mensagem' }
- * 
- * @example
- * ```typescript
- * const fieldErrors = getFieldErrors(error);
- * // { titulo: 'Este campo é obrigatório', email: 'Email inválido' }
- * ```
- */
-export function getFieldErrors(error: unknown): Record<string, string> {
-  const e = error as ApiError;
-  const errors: Record<string, string> = {};
-  
-  if (e.response?.status === 400 && e.response.data) {
-    const data = e.response.data;
-    
-    for (const key in data) {
-      const value = data[key];
-      
-      if (Array.isArray(value) && value.length > 0) {
-        errors[key] = value[0];
-      } else if (typeof value === 'string') {
-        errors[key] = value;
-      }
-    }
+export async function withErrorHandling<T>(
+  fn: () => Promise<T>,
+  context?: string
+): Promise<{ data?: T; error?: string }> {
+  try {
+    const data = await fn();
+    return { data };
+  } catch (error) {
+    logError(error, context);
+    return { error: handleApiError(error) };
   }
-  
-  return errors;
+}
+
+/**
+ * Valida se uma resposta de API é válida.
+ * 
+ * @param response - Resposta da API
+ * @returns true se válida, lança erro se inválida
+ */
+export function validateApiResponse(response: any): boolean {
+  if (!response) {
+    throw new ApiError('Resposta vazia do servidor', 500);
+  }
+
+  if (response.error) {
+    throw new ApiError(response.error, response.status || 500);
+  }
+
+  return true;
+}
+
+/**
+ * Extrai mensagens de erro de validação de campos.
+ * 
+ * @param error - Erro de validação
+ * @returns Objeto com mensagens por campo
+ */
+export function extractFieldErrors(error: unknown): Record<string, string> {
+  if (!axios.isAxiosError(error)) {
+    return {};
+  }
+
+  const data = error.response?.data;
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
+
+  const fieldErrors: Record<string, string> = {};
+
+  // Iterar sobre campos com erro
+  Object.entries(data).forEach(([field, messages]) => {
+    if (Array.isArray(messages)) {
+      fieldErrors[field] = messages[0]; // Primeira mensagem
+    } else if (typeof messages === 'string') {
+      fieldErrors[field] = messages;
+    }
+  });
+
+  return fieldErrors;
 }

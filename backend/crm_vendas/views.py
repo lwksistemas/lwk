@@ -544,7 +544,12 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
 
     @cache_list_response(CRMCacheManager.OPORTUNIDADES, ttl=300)  # ✅ OTIMIZAÇÃO: Cache 5min
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        response = super().list(request, *args, **kwargs)
+        # Adicionar headers para evitar cache do navegador
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
 
     def perform_create(self, serializer):
         """

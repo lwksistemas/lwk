@@ -20,6 +20,19 @@ export interface Lead {
   cidade?: string;
   uf?: string;
   created_at: string;
+  conta_info?: {
+    id: number;
+    nome: string;
+    email?: string;
+    telefone?: string;
+  };
+  contato_info?: {
+    id: number;
+    nome: string;
+    email?: string;
+    telefone?: string;
+    cargo?: string;
+  };
 }
 
 const ORIGEM_LABELS: Record<string, string> = {

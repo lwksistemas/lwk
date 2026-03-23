@@ -70,6 +70,41 @@ export default function ModalLeadVer({
             </Link>
           </div>
           <dl className="space-y-3 text-sm">
+            {lead.contato_info && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <dt className="text-blue-700 dark:text-blue-300 font-semibold mb-2">Detalhes do Contato</dt>
+                <dd className="space-y-2">
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400 text-xs">Nome:</span>
+                    <p className="text-gray-900 dark:text-white font-medium">{lead.contato_info.nome}</p>
+                  </div>
+                  {lead.contato_info.cargo && (
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400 text-xs">Cargo:</span>
+                      <p className="text-gray-900 dark:text-white">{lead.contato_info.cargo}</p>
+                    </div>
+                  )}
+                  {lead.contato_info.email && (
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400 text-xs">Email:</span>
+                      <p className="text-gray-900 dark:text-white">{lead.contato_info.email}</p>
+                    </div>
+                  )}
+                  {lead.contato_info.telefone && (
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400 text-xs">Telefone:</span>
+                      <p className="text-gray-900 dark:text-white">{lead.contato_info.telefone}</p>
+                    </div>
+                  )}
+                </dd>
+              </div>
+            )}
+            {lead.conta_info && (
+              <div>
+                <dt className="text-gray-500 dark:text-gray-400 font-medium">Conta</dt>
+                <dd className="text-gray-900 dark:text-white mt-0.5">{lead.conta_info.nome}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-gray-500 dark:text-gray-400 font-medium">Email</dt>
               <dd className="text-gray-900 dark:text-white mt-0.5">{lead.email || '–'}</dd>

@@ -5,7 +5,7 @@ Evita problema de oportunidades não aparecerem para o administrador.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
-from superadmin.models import Loja, Funcionario, Vendedor, VendedorUsuario
+from superadmin.models import Loja, VendedorUsuario
 
 
 class Command(BaseCommand):
@@ -48,32 +48,52 @@ class Command(BaseCommand):
             # Mudar para schema da loja
             connection.set_tenant(loja)
             
+            # Importar modelo Vendedor do tenant
+            from crm_vendas.models import Vendedor
+            
             try:
-                # Buscar funcionário owner (administrador)
-                funcionario_owner = Funcionario.objects.filter(
-                    loja=loja,
-                    is_owner=True
-                ).first()
+                # Buscar owner da loja
+                owner = loja.owner
                 
-                if not funcionario_owner:
+                if not owner:
                     self.stdout.write(
                         self.style.WARNING(
-                            f'  ⚠️  Loja sem funcionário owner'
+                            f'  ⚠️  Loja sem owner'
                         )
                     )
                     continue
                 
-                # Verificar se já existe vendedor para este funcionário
+                # Verificar se já existe vendedor para este owner
                 vendedor_existente = Vendedor.objects.filter(
-                    funcionario=funcionario_owner
+                    email__iexact=owner.email
                 ).first()
                 
                 if vendedor_existente and not force:
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f'  ✅ Owner já vinculado como vendedor: {vendedor_existente.nome}'
+                            f'  ✅ Owner já tem vendedor: {vendedor_existente.nome}'
                         )
                     )
+                    
+                    # Verificar se VendedorUsuario existe
+                    vendedor_usuario = VendedorUsuario.objects.using('default').filter(
+                        user=owner,
+                        loja=loja
+                    ).first()
+                    
+                    if not vendedor_usuario:
+                        VendedorUsuario.objects.using('default').create(
+                            user=owner,
+                            vendedor_id=vendedor_existente.id,
+                            loja=loja,
+                            precisa_trocar_senha=False
+                        )
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f'  ✅ VendedorUsuario criado'
+                            )
+                        )
+                    
                     total_ja_vinculadas += 1
                     total_processadas += 1
                     continue
@@ -87,12 +107,16 @@ class Command(BaseCommand):
                         )
                     )
                 else:
+                    # Obter nome do owner
+                    nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
+                    
                     vendedor = Vendedor.objects.create(
-                        funcionario=funcionario_owner,
-                        nome=funcionario_owner.nome,
-                        email=funcionario_owner.email or '',
-                        telefone=funcionario_owner.telefone or '',
-                        ativo=True,
+                        nome=nome,
+                        email=owner.email or '',
+                        telefone='',
+                        cargo='Administrador',
+                        is_admin=True,
+                        is_active=True,
                         comissao_padrao=0.00,
                     )
                     self.stdout.write(
@@ -102,24 +126,25 @@ class Command(BaseCommand):
                     )
                 
                 # Verificar se já existe VendedorUsuario
-                vendedor_usuario = VendedorUsuario.objects.filter(
-                    usuario=funcionario_owner.usuario,
+                vendedor_usuario = VendedorUsuario.objects.using('default').filter(
+                    user=owner,
                     loja=loja
                 ).first()
                 
                 if not vendedor_usuario:
-                    VendedorUsuario.objects.create(
-                        usuario=funcionario_owner.usuario,
-                        vendedor=vendedor,
-                        loja=loja
+                    VendedorUsuario.objects.using('default').create(
+                        user=owner,
+                        vendedor_id=vendedor.id,
+                        loja=loja,
+                        precisa_trocar_senha=False
                     )
                     self.stdout.write(
                         self.style.SUCCESS(
                             f'  ✅ VendedorUsuario criado'
                         )
                     )
-                elif vendedor_usuario.vendedor != vendedor:
-                    vendedor_usuario.vendedor = vendedor
+                elif vendedor_usuario.vendedor_id != vendedor.id:
+                    vendedor_usuario.vendedor_id = vendedor.id
                     vendedor_usuario.save()
                     self.stdout.write(
                         self.style.SUCCESS(

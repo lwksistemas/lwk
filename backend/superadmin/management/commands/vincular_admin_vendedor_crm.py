@@ -117,6 +117,7 @@ class Command(BaseCommand):
                     nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
                     
                     vendedor = Vendedor.objects.create(
+                        loja_id=loja.id,
                         nome=nome,
                         email=owner.email or '',
                         telefone='',

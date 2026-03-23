@@ -33,7 +33,7 @@ class Command(BaseCommand):
             Q(tipo_loja__codigo='CRMVND') | Q(tipo_loja__slug='crm-vendas')
         ).select_related('tipo_loja', 'owner')
         if loja_cnpj:
-            lojas = lojas.filter(cnpj=loja_cnpj)
+            lojas = lojas.filter(cpf_cnpj=loja_cnpj)
         
         if not lojas.exists():
             self.stdout.write(

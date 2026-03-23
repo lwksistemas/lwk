@@ -1,16 +1,16 @@
 """
-Management command para vincular administrador (owner) como vendedor em lojas CRM.
+Management command para adicionar administrador (owner) ao grupo Gerente de Vendas.
 
-Evita problema de oportunidades não aparecerem para o administrador.
+Gerente de Vendas tem acesso total ao CRM sem ser tratado como vendedor comum.
 """
 from django.core.management.base import BaseCommand
-from django.db import connection
+from django.contrib.auth.models import Group
 from django.db.models import Q
-from superadmin.models import Loja, VendedorUsuario
+from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Vincula administrador (owner) como vendedor em lojas que usam CRM'
+    help = 'Adiciona administrador (owner) ao grupo Gerente de Vendas em lojas CRM'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -18,20 +18,30 @@ class Command(BaseCommand):
             type=str,
             help='CNPJ da loja específica (opcional, se não informado processa todas)',
         )
-        parser.add_argument(
-            '--force',
-            action='store_true',
-            help='Forçar criação mesmo se já existir vendedor',
-        )
 
     def handle(self, *args, **options):
         loja_cnpj = options.get('loja_cnpj')
-        force = options.get('force', False)
+        
+        # Obter ou criar grupo Gerente de Vendas
+        try:
+            grupo_gerente = Group.objects.get(name='Gerente de Vendas')
+            self.stdout.write(
+                self.style.SUCCESS('✅ Grupo "Gerente de Vendas" encontrado')
+            )
+        except Group.DoesNotExist:
+            self.stdout.write(
+                self.style.ERROR('❌ Grupo "Gerente de Vendas" não existe')
+            )
+            self.stdout.write(
+                self.style.WARNING('Execute: python backend/manage.py criar_grupo_gerente_vendas')
+            )
+            return
         
         # Filtrar lojas com CRM (tipo_loja.codigo = 'CRMVND' ou slug = 'crm-vendas')
         lojas = Loja.objects.filter(
             Q(tipo_loja__codigo='CRMVND') | Q(tipo_loja__slug='crm-vendas')
         ).select_related('tipo_loja', 'owner')
+        
         if loja_cnpj:
             lojas = lojas.filter(cpf_cnpj=loja_cnpj)
         
@@ -42,20 +52,11 @@ class Command(BaseCommand):
             return
         
         total_processadas = 0
-        total_vinculadas = 0
-        total_ja_vinculadas = 0
+        total_adicionadas = 0
+        total_ja_no_grupo = 0
         
         for loja in lojas:
             self.stdout.write(f'\n📦 Processando loja: {loja.nome} ({loja.cpf_cnpj})')
-            
-            # Mudar para schema da loja
-            schema_name = loja.database_name.replace('-', '_')
-            
-            with connection.cursor() as cursor:
-                cursor.execute(f'SET search_path TO "{schema_name}", public')
-            
-            # Importar modelo Vendedor do tenant
-            from crm_vendas.models import Vendedor
             
             try:
                 # Buscar owner da loja
@@ -69,97 +70,26 @@ class Command(BaseCommand):
                     )
                     continue
                 
-                # Verificar se já existe vendedor para este owner
-                vendedor_existente = Vendedor.objects.filter(
-                    email__iexact=owner.email
-                ).first()
-                
-                if vendedor_existente and not force:
+                # Verificar se owner já está no grupo
+                if owner.groups.filter(name='Gerente de Vendas').exists():
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f'  ✅ Owner já tem vendedor: {vendedor_existente.nome}'
+                            f'  ✅ Owner já está no grupo Gerente de Vendas'
                         )
                     )
-                    
-                    # Verificar se VendedorUsuario existe
-                    vendedor_usuario = VendedorUsuario.objects.using('default').filter(
-                        user=owner,
-                        loja=loja
-                    ).first()
-                    
-                    if not vendedor_usuario:
-                        VendedorUsuario.objects.using('default').create(
-                            user=owner,
-                            vendedor_id=vendedor_existente.id,
-                            loja=loja,
-                            precisa_trocar_senha=False
-                        )
-                        self.stdout.write(
-                            self.style.SUCCESS(
-                                f'  ✅ VendedorUsuario criado'
-                            )
-                        )
-                    
-                    total_ja_vinculadas += 1
+                    total_ja_no_grupo += 1
                     total_processadas += 1
                     continue
                 
-                # Criar ou atualizar vendedor
-                if vendedor_existente:
-                    vendedor = vendedor_existente
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f'  🔄 Atualizando vendedor existente: {vendedor.nome}'
-                        )
+                # Adicionar owner ao grupo
+                owner.groups.add(grupo_gerente)
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'  ✅ Owner adicionado ao grupo Gerente de Vendas'
                     )
-                else:
-                    # Obter nome do owner
-                    nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
-                    
-                    vendedor = Vendedor.objects.create(
-                        loja_id=loja.id,
-                        nome=nome,
-                        email=owner.email or '',
-                        telefone='',
-                        cargo='Administrador',
-                        is_admin=True,
-                        is_active=True,
-                        comissao_padrao=0.00,
-                    )
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f'  ✅ Vendedor criado: {vendedor.nome}'
-                        )
-                    )
+                )
                 
-                # Verificar se já existe VendedorUsuario
-                vendedor_usuario = VendedorUsuario.objects.using('default').filter(
-                    user=owner,
-                    loja=loja
-                ).first()
-                
-                if not vendedor_usuario:
-                    VendedorUsuario.objects.using('default').create(
-                        user=owner,
-                        vendedor_id=vendedor.id,
-                        loja=loja,
-                        precisa_trocar_senha=False
-                    )
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f'  ✅ VendedorUsuario criado'
-                        )
-                    )
-                elif vendedor_usuario.vendedor_id != vendedor.id:
-                    vendedor_usuario.vendedor_id = vendedor.id
-                    vendedor_usuario.save()
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f'  ✅ VendedorUsuario atualizado'
-                        )
-                    )
-                
-                total_vinculadas += 1
+                total_adicionadas += 1
                 total_processadas += 1
                 
             except Exception as e:
@@ -178,5 +108,5 @@ class Command(BaseCommand):
             )
         )
         self.stdout.write(f'  📊 Total de lojas processadas: {total_processadas}')
-        self.stdout.write(f'  ✅ Novas vinculações: {total_vinculadas}')
-        self.stdout.write(f'  ℹ️  Já vinculadas: {total_ja_vinculadas}')
+        self.stdout.write(f'  ✅ Adicionados ao grupo: {total_adicionadas}')
+        self.stdout.write(f'  ℹ️  Já no grupo: {total_ja_no_grupo}')

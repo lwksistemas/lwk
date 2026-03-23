@@ -388,9 +388,13 @@ export default function CrmVendasProdutosServicosPage() {
                         type="text"
                         value={formData.codigo}
                         onChange={(e) => setFormData((f) => ({ ...f, codigo: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                        placeholder="Ex: PROD-001 (opcional)"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                        placeholder="Gerado automaticamente (ex: P001, S001)"
+                        readOnly
                       />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        O código será gerado automaticamente pelo sistema
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>

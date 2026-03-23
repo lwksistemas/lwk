@@ -242,6 +242,34 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                 f"CRM Vendas: admin aparece como Administrador em funcionários (não é Vendedor). "
                 f"Tabelas serão criadas pelas migrations."
             )
+            
+            # Criar categorias padrão de produtos/serviços
+            try:
+                from crm_vendas.models import CategoriaProdutoServico
+                
+                categorias_padrao = [
+                    {'nome': 'Hardware', 'cor': '#3B82F6', 'ordem': 1},
+                    {'nome': 'Software', 'cor': '#8B5CF6', 'ordem': 2},
+                    {'nome': 'Consultoria', 'cor': '#10B981', 'ordem': 3},
+                    {'nome': 'Suporte Técnico', 'cor': '#F59E0B', 'ordem': 4},
+                    {'nome': 'Treinamento', 'cor': '#EF4444', 'ordem': 5},
+                ]
+                
+                for cat_data in categorias_padrao:
+                    CategoriaProdutoServico.objects.get_or_create(
+                        loja_id=instance.id,
+                        nome=cat_data['nome'],
+                        defaults={
+                            'cor': cat_data['cor'],
+                            'ordem': cat_data['ordem'],
+                            'ativo': True,
+                        }
+                    )
+                
+                logger.info(f"✅ Categorias padrão criadas para loja CRM Vendas: {instance.nome}")
+            except Exception as e:
+                logger.error(f"❌ Erro ao criar categorias padrão para loja {instance.nome}: {e}")
+            
             return
 
         elif tipo_loja_nome == 'E-commerce':

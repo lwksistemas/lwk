@@ -227,23 +227,25 @@ export default function LojaLoginDinamicoPage() {
       <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 1 }}>
         {/* Header */}
         <div>
-          <div 
-            className="mx-auto h-14 w-14 sm:h-16 sm:w-16 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: corPrimaria }}
-          >
+          <div className="mx-auto flex items-center justify-center">
             {loginLogo ? (
               <Image
                 src={loginLogo}
                 alt={lojaInfo.nome}
-                width={48}
-                height={48}
-                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover"
+                width={140}
+                height={140}
+                className="h-32 w-32 sm:h-36 sm:w-36 object-contain"
                 unoptimized
               />
             ) : (
-              <svg className="h-8 w-8 sm:h-10 sm:w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
+              <div 
+                className="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: corPrimaria }}
+              >
+                <svg className="h-8 w-8 sm:h-10 sm:w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </div>
             )}
           </div>
           <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">

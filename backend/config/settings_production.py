@@ -21,10 +21,13 @@ DEBUG = False
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 if not ALLOWED_HOSTS:
     raise ValueError("ALLOWED_HOSTS deve estar configurada nas variáveis de ambiente!")
-# No Render, o hostname do serviço muda (ex.: …-oiov.onrender.com). RENDER=true é injetado pela plataforma.
-# ".onrender.com" no Django casa com qualquer subdomínio *.onrender.com.
-# RENDER_EXTERNAL_HOSTNAME / RENDER_EXTERNAL_URL: hostname exato (evita 400 DisallowedHost se o wildcard falhar).
-if os.environ.get('RENDER', '').lower() in ('true', '1', 'yes'):
+# Plataforma Render: RENDER=true e/ou RENDER_SERVICE_ID (documentação Render).
+_on_render = os.environ.get('RENDER', '').lower() in ('true', '1', 'yes') or bool(
+    (os.environ.get('RENDER_SERVICE_ID') or '').strip()
+)
+# ".onrender.com" casa com qualquer *.onrender.com (Django).
+# RENDER_EXTERNAL_HOSTNAME / URL: hostname público exato (evita 400 DisallowedHost).
+if _on_render:
     if '.onrender.com' not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append('.onrender.com')
 _render_ext_host = (os.environ.get('RENDER_EXTERNAL_HOSTNAME') or '').strip()
@@ -42,6 +45,15 @@ for _h in (os.environ.get('RENDER_ALLOWED_HOSTS_EXTRA') or '').split(','):
     _h = _h.strip()
     if _h and _h not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(_h)
+for _h in (os.environ.get('RENDER_EXTRA_ALLOWED_HOSTS') or '').split(','):
+    _h = _h.strip()
+    if _h and _h not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_h)
+# Atrás de proxy TLS (Render, Heroku): scheme correto; evita comportamentos estranhos no SecurityMiddleware.
+if _on_render or (os.environ.get('DYNO') or '').strip():
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if _on_render:
+    logger.info('Render: ALLOWED_HOSTS efetivo (sem segredos): %s', ALLOWED_HOSTS)
 
 # APPS
 INSTALLED_APPS = [

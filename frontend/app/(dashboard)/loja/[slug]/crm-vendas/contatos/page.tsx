@@ -192,12 +192,57 @@ export default function CrmVendasContatosPage() {
       };
       
       if (modalType === 'create') {
-        await apiClient.post('/crm-vendas/contatos/', payload);
+        // 1. Criar o contato
+        const contatoResponse = await apiClient.post('/crm-vendas/contatos/', payload);
+        const novoContato = contatoResponse.data;
+        
+        console.log('✅ Contato criado:', novoContato);
+        
+        // 2. Buscar dados da conta para criar o lead
+        try {
+          const contaResponse = await apiClient.get(`/crm-vendas/contas/${payload.conta}/`);
+          const conta = contaResponse.data;
+          
+          console.log('📋 Conta encontrada:', conta);
+          
+          // 3. Criar Lead automaticamente vinculado ao contato e conta
+          const leadPayload = {
+            nome: novoContato.nome,
+            empresa: conta.nome,
+            email: novoContato.email || conta.email || '',
+            telefone: novoContato.telefone || conta.telefone || '',
+            origem: 'site',
+            status: 'novo',
+            conta: conta.id,
+            contato: novoContato.id,
+            cpf_cnpj: conta.cnpj || '',
+            cep: conta.cep || '',
+            logradouro: conta.logradouro || '',
+            numero: conta.numero || '',
+            complemento: conta.complemento || '',
+            bairro: conta.bairro || '',
+            cidade: conta.cidade || '',
+            uf: conta.uf || '',
+          };
+          
+          console.log('🔄 Criando lead automaticamente:', leadPayload);
+          
+          const leadResponse = await apiClient.post('/crm-vendas/leads/', leadPayload);
+          
+          console.log('✅ Lead criado automaticamente:', leadResponse.data);
+          
+          // Mostrar mensagem de sucesso
+          alert(`✅ Contato e Lead criados com sucesso!\n\nContato: ${novoContato.nome}\nLead ID: ${leadResponse.data.id}`);
+        } catch (leadErr: any) {
+          console.error('⚠️ Erro ao criar lead automaticamente:', leadErr);
+          // Não bloqueia o fluxo se falhar ao criar o lead
+          alert(`✅ Contato criado com sucesso!\n\n⚠️ Não foi possível criar o lead automaticamente: ${leadErr.response?.data?.detail || leadErr.message}`);
+        }
       } else if (modalType === 'edit' && selectedContato) {
         await apiClient.put(`/crm-vendas/contatos/${selectedContato.id}/`, payload);
       }
       
-      await loadContatos();
+      await loadContatos(contaFiltro);
       closeModal();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao salvar contato.');

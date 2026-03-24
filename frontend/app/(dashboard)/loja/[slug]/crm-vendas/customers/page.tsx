@@ -61,7 +61,6 @@ export default function CrmVendasCustomersPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [consultingCNPJ, setConsultingCNPJ] = useState(false);
-  const [creatingOpportunity, setCreatingOpportunity] = useState(false);
 
   const loadContas = async () => {
     try {
@@ -277,110 +276,6 @@ export default function CrmVendasCustomersPage() {
       alert(err.response?.data?.detail || 'Erro ao excluir cliente.');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleCriarOportunidade = async () => {
-    if (!selectedConta) return;
-    
-    try {
-      setCreatingOpportunity(true);
-      
-      console.log('🔍 [1/6] Iniciando criação de oportunidade para conta:', selectedConta.nome);
-      
-      // 1. PRIMEIRO: Buscar contatos da conta (OBRIGATÓRIO)
-      console.log('🔍 [2/6] Buscando contatos da conta ID:', selectedConta.id);
-      const contatosResponse = await apiClient.get(`/crm-vendas/contatos/?conta_id=${selectedConta.id}`);
-      const contatosList = normalizeListResponse(contatosResponse.data);
-      
-      console.log('🔍 [2/6] Contatos encontrados:', contatosList.length, contatosList);
-      
-      // 2. Validar se existe pelo menos um contato
-      if (contatosList.length === 0) {
-        setCreatingOpportunity(false);
-        const confirmar = window.confirm(
-          '⚠️ Contato Necessário\n\n' +
-          'Esta conta não possui contatos cadastrados.\n\n' +
-          'Para criar uma oportunidade, é necessário ter pelo menos um contato vinculado à conta.\n\n' +
-          'Deseja cadastrar um contato agora?'
-        );
-        
-        if (confirmar) {
-          // Redirecionar para página de contatos com conta pré-selecionada
-          router.push(`/loja/${slug}/crm-vendas/contatos?criar=1&conta_id=${selectedConta.id}`);
-        }
-        return;
-      }
-      
-      // 3. Usar dados do primeiro contato
-      const primeiroContato = contatosList[0] as any;
-      console.log('🔍 [3/6] Usando primeiro contato:', primeiroContato);
-      
-      // 4. Verificar se já existe lead para esta conta
-      try {
-        console.log('🔍 [4/6] Verificando leads existentes...');
-        const leadsResponse = await apiClient.get(`/crm-vendas/leads/`);
-        const leadsList = normalizeListResponse(leadsResponse.data);
-        
-        // Filtrar leads desta conta
-        const leadsDestaConta = leadsList.filter((lead: any) => lead.conta === selectedConta.id);
-        
-        console.log('🔍 [4/6] Leads existentes desta conta:', leadsDestaConta.length);
-        
-        if (leadsDestaConta.length > 0) {
-          const confirmar = window.confirm(
-            `Já existe ${leadsDestaConta.length} lead(s) vinculado(s) a esta conta.\n\n` +
-            `Deseja criar um novo lead ou usar um existente?\n\n` +
-            `Clique OK para criar novo lead\n` +
-            `Clique Cancelar para usar o lead existente`
-          );
-          
-          if (!confirmar) {
-            // Usar lead existente
-            console.log('🔍 [5/6] Usando lead existente, redirecionando para pipeline...');
-            router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${(leadsDestaConta[0] as any).id}`);
-            setCreatingOpportunity(false);
-            return;
-          }
-        }
-      } catch (err) {
-        console.log('⚠️ Erro ao verificar leads existentes:', err);
-      }
-      
-      // 5. Criar Lead vinculado à Conta com dados do CONTATO
-      const leadPayload = {
-        nome: primeiroContato.nome, // ✅ Nome da pessoa de contato
-        empresa: selectedConta.nome, // Nome da empresa
-        email: primeiroContato.email || selectedConta.email || '', // Priorizar email do contato
-        telefone: primeiroContato.telefone || selectedConta.telefone || '', // Priorizar telefone do contato
-        origem: 'site',
-        status: 'qualificado',
-        conta: selectedConta.id,
-        contato: primeiroContato.id, // ✅ Vincular contato específico
-        cpf_cnpj: selectedConta.cnpj || '',
-        cep: selectedConta.cep || '',
-        logradouro: selectedConta.logradouro || '',
-        numero: selectedConta.numero || '',
-        complemento: selectedConta.complemento || '',
-        bairro: selectedConta.bairro || '',
-        cidade: selectedConta.cidade || '',
-        uf: selectedConta.uf || '',
-      };
-      
-      console.log('🔍 [5/6] Criando lead com payload:', leadPayload);
-      
-      const leadResponse = await apiClient.post('/crm-vendas/leads/', leadPayload);
-      
-      console.log('🔍 [5/6] Lead criado com sucesso:', leadResponse.data);
-      
-      // 6. Redirecionar para pipeline com modal de criar oportunidade
-      console.log('🔍 [6/6] Redirecionando para pipeline com lead_id:', leadResponse.data.id);
-      router.push(`/loja/${slug}/crm-vendas/pipeline?novo=1&lead_id=${leadResponse.data.id}`);
-    } catch (err: any) {
-      console.error('❌ Erro ao criar oportunidade:', err);
-      console.error('❌ Detalhes do erro:', err.response?.data);
-      alert(err.response?.data?.detail || err.response?.data?.message || 'Erro ao criar oportunidade.');
-      setCreatingOpportunity(false);
     }
   };
 
@@ -869,15 +764,6 @@ export default function CrmVendasCustomersPage() {
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
                         Fechar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCriarOportunidade}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-2"
-                        disabled={creatingOpportunity}
-                      >
-                        <Plus size={16} />
-                        {creatingOpportunity ? 'Criando...' : 'Criar Oportunidade'}
                       </button>
                       <button
                         type="button"

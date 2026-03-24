@@ -1,12 +1,18 @@
-# Padronização Automática de Telefones - v1307
+# Padronização Automática de Telefones e Texto - v1308
 
 ## Data
 24/03/2026
 
 ## Objetivo
-Padronizar automaticamente todos os telefones cadastrados no sistema para o formato brasileiro, melhorando consistência e facilitando buscas.
+Padronizar automaticamente:
+1. Telefones no formato brasileiro
+2. Texto em MAIÚSCULAS para campos específicos
 
-## Formatos Suportados
+Melhora consistência, facilita buscas e apresentação profissional.
+
+## 1. Padronização de Telefones
+
+### Formatos Suportados
 
 ### Entrada (aceita qualquer formato)
 - `11987654321`
@@ -20,6 +26,30 @@ Padronizar automaticamente todos os telefones cadastrados no sistema para o form
 - Fixo com DDD (10 dígitos): `(11) 3333-4444`
 - Celular sem DDD (9 dígitos): `98765-4321`
 - Fixo sem DDD (8 dígitos): `3333-4444`
+
+## 2. Conversão para Maiúsculas
+
+### Campos Convertidos Automaticamente
+- Nome
+- Empresa / Razão Social
+- Cidade
+- Estado
+- Bairro
+- Cargo
+- Especialidade
+- Segmento
+
+### Entrada (aceita qualquer formato)
+- `joão silva`
+- `Maria Santos`
+- `PEDRO OLIVEIRA`
+- `  carlos  ` (com espaços extras)
+
+### Saída (padronizado)
+- `JOÃO SILVA`
+- `MARIA SANTOS`
+- `PEDRO OLIVEIRA`
+- `CARLOS` (espaços removidos)
 
 ## Implementação
 
@@ -43,12 +73,37 @@ telefone = normalizar_telefone("11 9 8765-4321")
 ### 2. Mixin para Serializers
 **Arquivo**: `backend/core/serializer_mixins.py`
 
+#### PhoneNormalizationMixin (apenas telefones)
 ```python
 from core.serializer_mixins import PhoneNormalizationMixin
 
 class MeuSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
-    # Campos de telefone a normalizar (opcional)
     phone_fields = ['telefone', 'celular']
+    
+    class Meta:
+        model = MeuModel
+        fields = '__all__'
+```
+
+#### UpperCaseNormalizationMixin (apenas maiúsculas)
+```python
+from core.serializer_mixins import UpperCaseNormalizationMixin
+
+class MeuSerializer(UpperCaseNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome', 'empresa', 'cidade']
+    
+    class Meta:
+        model = MeuModel
+        fields = '__all__'
+```
+
+#### TextNormalizationMixin (telefones + maiúsculas) - RECOMENDADO
+```python
+from core.serializer_mixins import TextNormalizationMixin
+
+class MeuSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    phone_fields = ['telefone']
+    uppercase_fields = ['nome', 'empresa']
     
     class Meta:
         model = MeuModel
@@ -57,10 +112,13 @@ class MeuSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
 
 O mixin automaticamente:
 - Normaliza telefones na entrada (método `validate`)
+- Converte texto para maiúsculas na entrada
 - Normaliza telefones na saída (método `to_representation`)
+- Converte texto para maiúsculas na saída
 
 ### 3. Campos Padrão Normalizados
 
+#### Telefones
 Se não especificar `phone_fields`, o mixin normaliza automaticamente:
 - `telefone`
 - `phone`
@@ -70,17 +128,42 @@ Se não especificar `phone_fields`, o mixin normaliza automaticamente:
 - `telefone_residencial`
 - `owner_telefone`
 
+#### Maiúsculas
+Se não especificar `uppercase_fields`, o mixin converte automaticamente:
+- `nome`
+- `name`
+- `empresa`
+- `razao_social`
+- `cidade`
+- `estado`
+- `bairro`
+- `cargo`
+- `especialidade`
+- `segmento`
+
 ## Serializers Atualizados
 
 ### Clínica da Beleza
-- ✅ `PatientSerializer` - campo `phone` e `telefone`
+- ✅ `PatientSerializer`
+  - Telefone: `phone`, `telefone`
+  - Maiúsculas: `name`, `nome`, `cidade`, `estado`, `address`, `endereco`
 
 ### CRM de Vendas
-- ✅ `VendedorSerializer` - campo `telefone`
-- ✅ `ContaSerializer` - campo `telefone`
-- ✅ `LeadSerializer` - campo `telefone`
-- ✅ `LeadListSerializer` - campo `telefone`
-- ✅ `ContatoSerializer` - campo `telefone`
+- ✅ `VendedorSerializer`
+  - Telefone: `telefone`
+  - Maiúsculas: `nome`, `cargo`
+  
+- ✅ `ContaSerializer`
+  - Telefone: `telefone`
+  - Maiúsculas: `nome`, `razao_social`, `segmento`, `cidade`, `bairro`, `uf`
+  
+- ✅ `LeadSerializer` e `LeadListSerializer`
+  - Telefone: `telefone`
+  - Maiúsculas: `nome`, `empresa`, `cidade`, `bairro`, `uf`
+  
+- ✅ `ContatoSerializer`
+  - Telefone: `telefone`
+  - Maiúsculas: `nome`, `cargo`
 
 ## Validações
 
@@ -105,15 +188,17 @@ Se não especificar `phone_fields`, o mixin normaliza automaticamente:
 ```json
 POST /api/clinica-beleza/patients/
 {
-  "name": "João Silva",
-  "phone": "11 9 8765-4321"
+  "name": "joão silva",
+  "phone": "11 9 8765-4321",
+  "cidade": "são paulo"
 }
 
 Resposta:
 {
   "id": 1,
-  "name": "João Silva",
-  "phone": "(11) 98765-4321"
+  "name": "JOÃO SILVA",
+  "phone": "(11) 98765-4321",
+  "cidade": "SÃO PAULO"
 }
 ```
 
@@ -121,28 +206,67 @@ Resposta:
 ```json
 POST /api/crm-vendas/leads/
 {
-  "nome": "Maria Santos",
-  "telefone": "21987654321"
+  "nome": "maria santos",
+  "empresa": "empresa teste ltda",
+  "telefone": "21987654321",
+  "cidade": "rio de janeiro"
 }
 
 Resposta:
 {
   "id": 1,
-  "nome": "Maria Santos",
-  "telefone": "(21) 98765-4321"
+  "nome": "MARIA SANTOS",
+  "empresa": "EMPRESA TESTE LTDA",
+  "telefone": "(21) 98765-4321",
+  "cidade": "RIO DE JANEIRO"
+}
+```
+
+### Cadastro de Conta
+```json
+POST /api/crm-vendas/contas/
+{
+  "nome": "pedro oliveira",
+  "razao_social": "pedro oliveira me",
+  "segmento": "tecnologia",
+  "telefone": "1133334444",
+  "cidade": "são paulo",
+  "bairro": "centro"
+}
+
+Resposta:
+{
+  "id": 1,
+  "nome": "PEDRO OLIVEIRA",
+  "razao_social": "PEDRO OLIVEIRA ME",
+  "segmento": "TECNOLOGIA",
+  "telefone": "(11) 3333-4444",
+  "cidade": "SÃO PAULO",
+  "bairro": "CENTRO"
 }
 ```
 
 ## Testes
 
-**Arquivo**: `backend/core/tests_phone_utils.py`
+**Arquivos**: 
+- `backend/core/tests_phone_utils.py` - Testes de telefone
+- `backend/core/tests_uppercase_mixin.py` - Testes de maiúsculas
 
 Executar testes:
 ```bash
+# Todos os testes
+python backend/manage.py test core
+
+# Apenas telefones
 python backend/manage.py test core.tests_phone_utils
+
+# Apenas maiúsculas
+python backend/manage.py test core.tests_uppercase_mixin
 ```
 
 Testes cobrem:
+
+### Telefones
 - ✅ Limpeza de telefones
 - ✅ Formatação de celular com/sem DDD
 - ✅ Formatação de fixo com/sem DDD
@@ -153,14 +277,25 @@ Testes cobrem:
 - ✅ Validação de celular
 - ✅ Normalização completa
 
+### Maiúsculas
+- ✅ Conversão de texto para maiúsculas
+- ✅ Campos vazios não causam erro
+- ✅ Remoção de espaços extras
+- ✅ Texto já em maiúsculas permanece igual
+- ✅ Caracteres especiais preservados
+- ✅ Campos não especificados não são convertidos
+- ✅ Mixin combinado (telefone + maiúsculas)
+
 ## Benefícios
 
-1. **Consistência**: Todos os telefones no mesmo formato
-2. **Busca Facilitada**: Buscar por telefone funciona independente do formato digitado
+1. **Consistência**: Todos os telefones e textos no mesmo formato
+2. **Busca Facilitada**: Buscar funciona independente do formato digitado
 3. **UX Melhorada**: Usuário pode digitar como quiser, sistema padroniza
-4. **Validação**: Detecta telefones inválidos automaticamente
-5. **Manutenibilidade**: Centralizado em um único lugar
-6. **Reutilizável**: Mixin pode ser aplicado em qualquer serializer
+4. **Apresentação Profissional**: Dados sempre em maiúsculas ficam mais formais
+5. **Validação**: Detecta telefones inválidos automaticamente
+6. **Manutenibilidade**: Centralizado em um único lugar
+7. **Reutilizável**: Mixin pode ser aplicado em qualquer serializer
+8. **Sem Duplicatas**: Evita cadastros duplicados por diferença de case (JOÃO vs joão)
 
 ## Próximos Passos
 
@@ -182,15 +317,16 @@ Testes cobrem:
 
 ### Criados
 - `backend/core/phone_utils.py` - Utilitários de telefone
-- `backend/core/serializer_mixins.py` - Mixin para serializers
-- `backend/core/tests_phone_utils.py` - Testes unitários
+- `backend/core/serializer_mixins.py` - Mixins para serializers (telefone + maiúsculas)
+- `backend/core/tests_phone_utils.py` - Testes de telefone
+- `backend/core/tests_uppercase_mixin.py` - Testes de maiúsculas
 - `FUNCIONALIDADE_PADRONIZACAO_TELEFONES.md` - Esta documentação
 
 ### Modificados
-- `backend/clinica_beleza/serializers.py` - PatientSerializer com mixin
-- `backend/crm_vendas/serializers.py` - Serializers do CRM com mixin
+- `backend/clinica_beleza/serializers.py` - PatientSerializer com TextNormalizationMixin
+- `backend/crm_vendas/serializers.py` - Serializers do CRM com TextNormalizationMixin
 
 ## Deploy
-- **Versão**: v1307 (próximo deploy)
+- **Versão**: v1308 (próximo deploy)
 - **Plataforma**: Heroku
 - **Impacto**: Baixo - apenas formatação, não quebra dados existentes

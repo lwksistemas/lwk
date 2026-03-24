@@ -2,10 +2,13 @@
 Configurações de Produção para LWK Sistemas
 Otimizado para Heroku com PostgreSQL
 """
+import logging
 import os
 import dj_database_url
 from pathlib import Path
 from datetime import timedelta
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -91,40 +94,52 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# DATABASE - PostgreSQL via Heroku
-# conn_max_age reduzido para 60s para evitar "too many connections"
-# Heroku Postgres tem limite de conexões por role
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=int(os.environ.get('CONN_MAX_AGE', '60')),  # 60 segundos (antes: 600)
-        conn_health_checks=True,
+# DATABASE - PostgreSQL (produção). Sem DATABASE_URL: SQLite em /tmp só para build (ex.: collectstatic no Render
+# antes de definir segredos). dj_database_url com string vazia gera ValueError — evitar.
+_database_url = (os.environ.get('DATABASE_URL') or '').strip()
+if _database_url:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=_database_url,
+            conn_max_age=int(os.environ.get('CONN_MAX_AGE', '60')),
+            conn_health_checks=True,
+        )
+    }
+    DATABASES['default'].setdefault('ATOMIC_REQUESTS', False)
+    DATABASES['default'].setdefault('TIME_ZONE', None)
+    if 'OPTIONS' not in DATABASES['default']:
+        DATABASES['default']['OPTIONS'] = {}
+    _engine = DATABASES['default'].get('ENGINE', '')
+    if 'postgresql' in _engine:
+        DATABASES['default']['OPTIONS']['connect_timeout'] = 10
+        DATABASES['default']['OPTIONS']['options'] = '-c statement_timeout=25000'
+    DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
+    _default_db = dict(DATABASES['default'])
+    DATABASES['suporte'] = {
+        **_default_db,
+        'OPTIONS': {
+            **_default_db.get('OPTIONS', {}),
+            'options': '-c search_path=suporte,public -c statement_timeout=25000',
+        },
+    }
+else:
+    logger.warning(
+        'DATABASE_URL não definida: SQLite temporário em /tmp (adequado a collectstatic/build). '
+        'Configure DATABASE_URL no Render/Heroku antes de servir tráfego.'
     )
-}
-
-# Chaves esperadas pelo Django ao acessar settings_dict (evita KeyError em make_view_atomic/check_settings)
-DATABASES['default'].setdefault('ATOMIC_REQUESTS', False)
-DATABASES['default'].setdefault('TIME_ZONE', None)
-
-# Adicionar timeout de conexão para evitar conexões travadas
-if 'OPTIONS' not in DATABASES['default']:
-    DATABASES['default']['OPTIONS'] = {}
-DATABASES['default']['OPTIONS']['connect_timeout'] = 10
-DATABASES['default']['OPTIONS']['options'] = '-c statement_timeout=25000'
-
-# Database Router: evita migrar apps de loja (crm_vendas, clinica_beleza, etc.) no default
-# Esses apps migram apenas nos schemas tenant via setup_loja_schema
-DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
-
-# Banco suporte: mesmo PostgreSQL, schema isolado (chamados, erros frontend)
-_default_db = dict(DATABASES['default'])
-DATABASES['suporte'] = {
-    **_default_db,
-    'OPTIONS': {
-        **_default_db.get('OPTIONS', {}),
-        'options': '-c search_path=suporte,public -c statement_timeout=25000',
-    },
-}
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': '/tmp/lwk-build-default.sqlite3',
+            'ATOMIC_REQUESTS': False,
+        },
+        'suporte': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': '/tmp/lwk-build-suporte.sqlite3',
+            'ATOMIC_REQUESTS': False,
+        },
+    }
+    DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
 
 # CACHE - Redis se REDIS_URL existir (Heroku Redis), senão LocMem (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
 _redis_url = os.environ.get('REDIS_URL')

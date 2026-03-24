@@ -94,10 +94,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# DATABASE - PostgreSQL (produção). Sem DATABASE_URL: SQLite em /tmp só para build (ex.: collectstatic no Render
-# antes de definir segredos). dj_database_url com string vazia gera ValueError — evitar.
+# DATABASE - PostgreSQL (produção). Sem DATABASE_URL válida: SQLite em /tmp (collectstatic no Render, etc.).
+# No Render, DATABASE_URL pode existir como chave mas com valor vazio/inválido — dj_database_url rebenta com ValueError.
 _database_url = (os.environ.get('DATABASE_URL') or '').strip()
+_use_postgres = False
 if _database_url:
+    try:
+        dj_database_url.parse(_database_url)
+        _use_postgres = True
+    except ValueError as exc:
+        logger.warning(
+            'DATABASE_URL ignorada (inválida ou esquema vazio). Corrija no Render: valor completo postgresql://... '
+            'sem aspas nem linhas a mais. Erro: %s',
+            exc,
+        )
+
+if _use_postgres:
     DATABASES = {
         'default': dj_database_url.config(
             default=_database_url,
@@ -124,8 +136,7 @@ if _database_url:
     }
 else:
     logger.warning(
-        'DATABASE_URL não definida: SQLite temporário em /tmp (adequado a collectstatic/build). '
-        'Configure DATABASE_URL no Render/Heroku antes de servir tráfego.'
+        'A usar SQLite em /tmp (sem Postgres válido). Para produção, defina DATABASE_URL com a URI do Heroku.'
     )
     DATABASES = {
         'default': {

@@ -345,9 +345,11 @@ class ContatoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
-class OportunidadeSerializer(serializers.ModelSerializer):
+class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     lead_nome = serializers.CharField(source='lead.nome', read_only=True)
     vendedor_nome = serializers.CharField(source='vendedor.nome', read_only=True)
+    
+    uppercase_fields = ['titulo']
 
     class Meta:
         model = Oportunidade
@@ -360,7 +362,9 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
-class AtividadeSerializer(serializers.ModelSerializer):
+class AtividadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['titulo']
+    
     class Meta:
         model = Atividade
         fields = [
@@ -370,8 +374,10 @@ class AtividadeSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
-class AtividadeListSerializer(serializers.ModelSerializer):
+class AtividadeListSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     """Serializer para listagem sem google_event_id (compatível com schemas antigos)."""
+    uppercase_fields = ['titulo']
+    
     class Meta:
         model = Atividade
         fields = [
@@ -380,8 +386,9 @@ class AtividadeListSerializer(serializers.ModelSerializer):
         ]
 
 
-class CategoriaProdutoServicoSerializer(serializers.ModelSerializer):
+class CategoriaProdutoServicoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     produtos_count = serializers.SerializerMethodField()
+    uppercase_fields = ['nome']
     
     class Meta:
         model = CategoriaProdutoServico
@@ -396,9 +403,10 @@ class CategoriaProdutoServicoSerializer(serializers.ModelSerializer):
         return obj.produtos_servicos.filter(ativo=True).count()
 
 
-class ProdutoServicoSerializer(serializers.ModelSerializer):
+class ProdutoServicoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
     categoria_cor = serializers.CharField(source='categoria.cor', read_only=True)
+    uppercase_fields = ['nome', 'codigo']
     
     class Meta:
         model = ProdutoServico
@@ -410,7 +418,7 @@ class ProdutoServicoSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
-class OportunidadeItemSerializer(serializers.ModelSerializer):
+class OportunidadeItemSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     produto_servico_nome = serializers.CharField(source='produto_servico.nome', read_only=True)
     produto_servico_tipo = serializers.CharField(source='produto_servico.tipo', read_only=True)
     subtotal = serializers.SerializerMethodField()

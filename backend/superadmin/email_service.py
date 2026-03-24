@@ -186,37 +186,83 @@ Você pode pagar via boleto ou PIX. Escolha a opção mais conveniente!
             logger.warning(f"Erro ao buscar link do boleto para email: {e}")
         
         mensagem = f"""
-Olá!
+Olá, {owner.get_full_name() or owner.username}!
 
-Sua loja "{loja.nome}" foi criada com sucesso e o pagamento foi confirmado!
+Parabéns! Sua loja "{loja.nome}" foi criada com sucesso e está pronta para uso.
 
-🔐 DADOS DE ACESSO:
+═══════════════════════════════════════════════════════════════
+
+🔐 SEUS DADOS DE ACESSO
+
 • URL de Login: https://lwksistemas.com.br{loja.login_page_url}
 • Usuário: {owner.username}
 • Senha Provisória: {senha}
 
-⚠️ IMPORTANTE:
-• Esta é uma senha provisória gerada automaticamente
-• Recomendamos alterar a senha no primeiro acesso
-• Mantenha seus dados de acesso em segurança
+⚠️ IMPORTANTE: Esta é uma senha temporária. Por segurança, altere-a no primeiro acesso.
 
-📋 INFORMAÇÕES DA LOJA:
+═══════════════════════════════════════════════════════════════
+
+📋 INFORMAÇÕES DA SUA LOJA
+
 • Nome: {loja.nome}
-• Tipo: {loja.tipo_loja.nome}
-• Plano: {loja.plano.nome}
-• Assinatura: {loja.get_tipo_assinatura_display()}
+• Tipo de Sistema: {loja.tipo_loja.nome}
+• Plano Contratado: {loja.plano.nome}
+• Tipo de Assinatura: {loja.get_tipo_assinatura_display()}
 {boleto_info}
-🎯 PRÓXIMOS PASSOS:
-1. Acesse o link de login acima
-2. Faça login com os dados fornecidos
-3. Altere sua senha provisória
-4. Configure sua loja
+═══════════════════════════════════════════════════════════════
 
-Bem-vindo ao nosso sistema!
+🎯 PRIMEIROS PASSOS
 
----
-Equipe de Suporte
-Sistema Multi-Loja
+1. ACESSE O SISTEMA
+   Entre no link de login acima com seus dados de acesso
+
+2. ALTERE SUA SENHA
+   Vá em: Perfil → Alterar Senha
+   Escolha uma senha forte e segura
+
+3. CADASTRE SUA EQUIPE
+   Acesse: Menu → Funcionários → Novo Funcionário
+   
+   Tipos de perfil disponíveis:
+   • Administrador: Acesso total ao sistema
+   • Profissional: Gerencia agenda e atendimentos
+   • Recepcionista: Gerencia agendamentos e clientes
+   • Vendedor: Acesso ao CRM de vendas
+   
+   Cada funcionário receberá suas próprias credenciais de acesso
+
+4. CONFIGURE SUA LOJA
+   Personalize as configurações conforme suas necessidades
+
+═══════════════════════════════════════════════════════════════
+
+🔑 ESQUECEU SUA SENHA?
+
+Caso precise recuperar sua senha no futuro:
+
+1. Acesse a página de login
+2. Clique em "Esqueci minha senha"
+3. Digite seu email cadastrado
+4. Você receberá um link para redefinir sua senha
+
+═══════════════════════════════════════════════════════════════
+
+📞 PRECISA DE AJUDA?
+
+Nossa equipe está pronta para auxiliá-lo:
+
+• Email: suporte@lwksistemas.com.br
+• WhatsApp: (disponível no painel)
+• Horário: Segunda a Sexta, 8h às 18h
+
+═══════════════════════════════════════════════════════════════
+
+Bem-vindo ao LWK Sistemas!
+Estamos felizes em tê-lo conosco.
+
+Atenciosamente,
+Equipe LWK Sistemas
+https://lwksistemas.com.br
         """.strip()
         
         return mensagem

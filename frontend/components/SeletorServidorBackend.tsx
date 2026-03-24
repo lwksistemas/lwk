@@ -34,9 +34,30 @@ const SERVIDORES: Record<Servidor, ServidorConfig> = {
 /** Timeout do health check (Render free: cold start pode passar de 15s). */
 const HEALTH_TIMEOUT_MS = 45000;
 
-/** URL base sem /api para montar o path do health (evita /api/api/ quando env já tem /api). */
-function healthBaseUrl(url: string): string {
-  return url.replace(/\/api\/?$/, '');
+/** Health via rota Next.js — evita CORS do browser ao chamar Render direto da Vercel. */
+async function fetchBackendHealth(
+  servidor: Servidor,
+  signal: AbortSignal
+): Promise<{ ok: boolean; status?: number; configured?: boolean }> {
+  const res = await fetch(`/api/backend-health?server=${servidor}`, {
+    method: 'GET',
+    signal,
+    cache: 'no-store',
+  });
+  const data = (await res.json()) as {
+    ok?: boolean;
+    status?: number;
+    configured?: boolean;
+    error?: string;
+  };
+  if (!res.ok) {
+    return { ok: false };
+  }
+  return {
+    ok: Boolean(data.ok),
+    status: data.status,
+    configured: data.configured !== false,
+  };
 }
 
 export default function SeletorServidorBackend() {
@@ -70,16 +91,14 @@ export default function SeletorServidorBackend() {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
-        
-        const response = await fetch(`${healthBaseUrl(base)}/api/superadmin/health/`, {
-          method: 'GET',
-          signal: controller.signal,
-          mode: 'cors',
-        });
-        
+
+        const data = await fetchBackendHealth(servidor, controller.signal);
         clearTimeout(timeoutId);
-        return response.ok ? 'online' : 'offline';
-      } catch (error) {
+        if (servidor === 'render' && data.configured === false) {
+          return 'offline';
+        }
+        return data.ok ? 'online' : 'offline';
+      } catch {
         return 'offline';
       }
     };
@@ -121,15 +140,16 @@ export default function SeletorServidorBackend() {
         return;
       }
 
-      const response = await fetch(`${healthBaseUrl(targetBase)}/api/superadmin/health/`, {
-        method: 'GET',
-        signal: controller.signal,
-        mode: 'cors',
-      });
-      
+      const data = await fetchBackendHealth(novoServidor, controller.signal);
+
       clearTimeout(timeoutId);
 
-      if (response.ok) {
+      if (novoServidor === 'render' && data.configured === false) {
+        alert('Servidor de backup não configurado. Defina NEXT_PUBLIC_API_BACKUP_URL no deploy.');
+        return;
+      }
+
+      if (data.ok) {
         // Salvar no localStorage
         localStorage.setItem('backend_servidor', novoServidor);
         
@@ -142,17 +162,18 @@ export default function SeletorServidorBackend() {
         // Recarregar a página para aplicar as mudanças
         window.location.reload();
       } else {
+        const status = data.status ?? '—';
         const hint =
-          novoServidor === 'render' && response.status === 400
+          novoServidor === 'render' && data.status === 400
             ? ' (no Render: faça deploy com settings atual — ALLOWED_HOSTS deve incluir o hostname onrender.com.)'
             : '';
         alert(
-          `Servidor ${SERVIDORES[novoServidor].nome} respondeu ${response.status}. Não é possível trocar.${hint}`,
+          `Servidor ${SERVIDORES[novoServidor].nome} respondeu ${status}. Não é possível trocar.${hint}`,
         );
       }
-    } catch (error) {
+    } catch {
       alert(
-        `Erro de rede ao contactar ${SERVIDORES[novoServidor].nome} (timeout, CORS ou URL errada). Confira no Vercel: NEXT_PUBLIC_API_BACKUP_URL = URL HTTPS exata do serviço no Render.`,
+        `Erro de rede ao contactar ${SERVIDORES[novoServidor].nome} (timeout ou URL errada). Confira no Vercel: NEXT_PUBLIC_API_BACKUP_URL = URL HTTPS exata do serviço no Render (redeploy após alterar).`,
       );
     } finally {
       setVerificando(false);

@@ -1,6 +1,7 @@
 """
 Views/API para Clínica da Beleza
 """
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -21,6 +22,8 @@ from .serializers import (
 )
 from tenants.middleware import get_current_loja_id
 from .utils import LojaContextHelper
+
+logger = logging.getLogger(__name__)
 
 
 class LojaInfoView(APIView):
@@ -209,6 +212,11 @@ class PatientListView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        # Log detalhado para debug
+        logger.error(f"❌ Erro ao criar paciente - Erros: {serializer.errors}")
+        logger.error(f"📝 Dados recebidos: {request.data}")
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

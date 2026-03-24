@@ -245,12 +245,15 @@ _DEFAULT_CORS_ORIGINS = [
     'https://lwksistemas.com.br',
     'https://www.lwksistemas.com.br',
     'https://lwksistemas.vercel.app',
-    'https://frontend-r3q0a1lw4-lwks-projects-48afd555.vercel.app',
 ]
 _raw = os.environ.get('CORS_ORIGINS', '').strip()
 _extra_cors = [o.strip() for o in _raw.split(',') if o.strip()] if _raw else []
 # União com defaults: CORS_ORIGINS só no Heroku não pode remover lwksistemas.com.br no Render após sync.
 CORS_ALLOWED_ORIGINS = list(dict.fromkeys(_DEFAULT_CORS_ORIGINS + _extra_cors))
+# Previews Vercel mudam a cada deploy (ex.: frontend-l21ck1pm9-lwks-projects-48afd555.vercel.app).
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://[a-z0-9-]+-lwks-projects-48afd555\.vercel\.app$',
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Manter segurança
 

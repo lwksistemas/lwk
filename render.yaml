@@ -1,0 +1,48 @@
+# Blueprint Render — API de backup (failover quando Heroku cai)
+#
+# Pré-requisitos (GitHub + Render):
+# - Repositório no GitHub com este ficheiro na raiz (ex.: github.com/henrifelix25/lwksistemas).
+# - Render: liga a conta GitHub em Account Settings → Connected Accounts (ou ao criar o Blueprint).
+# - Chave de deploy: se o repo for privado, o Render pede acesso ou usa Deploy Key — aceita no GitHub.
+#
+# Como aplicar:
+# 1. Dashboard Render → New → Blueprint → escolhe o repo GitHub → branch master.
+# 2. O Render lê este render.yaml e cria o Web Service lwksistemas-backup.
+# 3. ANTES do 1º deploy com sucesso: Environment → adiciona SECRET_KEY, DATABASE_URL (igual Heroku),
+#    ALLOWED_HOSTS (inclui teu-servico.onrender.com,.onrender.com), SITE_URL, FRONTEND_URL e espelha o resto
+#    do Heroku (ver backend/.env.production.example). Sem SECRET_KEY o collectstatic pode falhar.
+#    Alternativa: ./scripts/render-sync-env-from-heroku.sh (precisa RENDER_API_KEY + RENDER_SERVICE_ID).
+# 4. Anota a URL pública e define na Vercel: NEXT_PUBLIC_API_BACKUP_URL
+#
+# Workspace Plano Profissional: banda incluída, previews, escala, etc.
+# Ajuste `region` (oregon / frankfurt / singapore) e `plan` (starter/standard) conforme necessidade.
+
+services:
+  - type: web
+    name: lwksistemas-backup
+    runtime: python
+    # Repositório GitHub: branch que o Render faz pull (deve existir no remoto)
+    branch: master
+    region: oregon
+    # Instance type: starter = serviço sempre ligado (recomendado para backup). Subir para standard se precisar.
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    # Alinhado ao release do Heroku (migrate + dados iniciais idempotentes)
+    preDeployCommand: "python fix_suporte_migration.py 2>/dev/null || true && python manage.py migrate --noinput && python manage.py setup_initial_data"
+    startCommand: gunicorn config.wsgi --workers 2 --threads 4 --worker-class gthread --worker-connections 500 --max-requests 500 --timeout 30 --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/superadmin/health/
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings_production
+      - key: DISABLE_STATICFILES_MANIFEST
+        value: "true"
+      # Render usa major.minor; patch vem do runtime suportado na plataforma
+      - key: PYTHON_VERSION
+        value: "3.12"
+      # --- Definir no painel Render (Secrets / Environment) ---
+      # SECRET_KEY              → copiar do Heroku (mesmo valor = JWT/sessões coerentes entre servidores)
+      # DATABASE_URL            → copiar do Heroku (mesmo Postgres = mesmo dados; ativar "credenciais externas" no addon Postgres se necessário)
+      # ALLOWED_HOSTS           → ex.: lwksistemas-backup.onrender.com,.onrender.com
+      # SITE_URL                → URL pública deste serviço Render (https://....onrender.com)
+      # Demais: EMAIL_*, ASAAS_*, GOOGLE_*, REDIS_URL (opcional), CLOUDINARY_*, etc. — espelhar heroku config

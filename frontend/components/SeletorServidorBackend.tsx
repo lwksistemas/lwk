@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { setBackendServer } from '@/lib/api-client';
+import { getPrimaryApiRoot, getBackupApiRoot } from '@/lib/api-base';
+
+const PRIMARY_BACKEND_URL = getPrimaryApiRoot();
+const BACKUP_BACKEND_URL = getBackupApiRoot();
 
 type Servidor = 'heroku' | 'render';
 
@@ -15,13 +19,13 @@ interface ServidorConfig {
 const SERVIDORES: Record<Servidor, ServidorConfig> = {
   heroku: {
     nome: 'Heroku',
-    url: process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com',
+    url: PRIMARY_BACKEND_URL,
     cor: 'purple',
     icone: '🟣',
   },
   render: {
     nome: 'Render',
-    url: process.env.NEXT_PUBLIC_API_BACKUP_URL || 'https://lwksistemas-backup.onrender.com',
+    url: BACKUP_BACKEND_URL,
     cor: 'blue',
     icone: '🔵',
   },
@@ -41,7 +45,7 @@ export default function SeletorServidorBackend() {
   const [verificando, setVerificando] = useState(false);
   const [statusServidores, setStatusServidores] = useState<Record<Servidor, 'online' | 'offline' | 'verificando'>>({
     heroku: 'verificando',
-    render: 'verificando',
+    render: BACKUP_BACKEND_URL ? 'verificando' : 'offline',
   });
 
   useEffect(() => {
@@ -59,11 +63,15 @@ export default function SeletorServidorBackend() {
 
   const verificarStatusServidores = async () => {
     const verificarServidor = async (servidor: Servidor): Promise<'online' | 'offline'> => {
+      const base = SERVIDORES[servidor].url;
+      if (!base) {
+        return 'offline';
+      }
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
         
-        const response = await fetch(`${healthBaseUrl(SERVIDORES[servidor].url)}/api/superadmin/health/`, {
+        const response = await fetch(`${healthBaseUrl(base)}/api/superadmin/health/`, {
           method: 'GET',
           signal: controller.signal,
           mode: 'cors',
@@ -94,6 +102,11 @@ export default function SeletorServidorBackend() {
       return;
     }
 
+    if (novoServidor === 'render' && !SERVIDORES.render.url) {
+      alert('Servidor de backup não configurado. Defina NEXT_PUBLIC_API_BACKUP_URL no deploy.');
+      return;
+    }
+
     setVerificando(true);
     
     try {
@@ -101,7 +114,14 @@ export default function SeletorServidorBackend() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
       
-      const response = await fetch(`${healthBaseUrl(SERVIDORES[novoServidor].url)}/api/superadmin/health/`, {
+      const targetBase = SERVIDORES[novoServidor].url;
+      if (!targetBase) {
+        alert('URL do servidor de backup não configurada.');
+        setVerificando(false);
+        return;
+      }
+
+      const response = await fetch(`${healthBaseUrl(targetBase)}/api/superadmin/health/`, {
         method: 'GET',
         signal: controller.signal,
         mode: 'cors',
@@ -114,7 +134,7 @@ export default function SeletorServidorBackend() {
         localStorage.setItem('backend_servidor', novoServidor);
         
         // Atualizar a URL base da API usando a função do api-client
-        setBackendServer(SERVIDORES[novoServidor].url);
+        setBackendServer(targetBase);
         
         setServidorAtivo(novoServidor);
         setMostrarMenu(false);
@@ -184,7 +204,11 @@ export default function SeletorServidorBackend() {
                   <button
                     key={servidor}
                     onClick={() => trocarServidor(servidor)}
-                    disabled={verificando || status === 'offline'}
+                    disabled={
+                      verificando ||
+                      status === 'offline' ||
+                      (servidor === 'render' && !servidorConfig.url)
+                    }
                     className={`w-full flex items-center justify-between p-3 rounded-md mb-2 transition-colors ${
                       isAtivo
                         ? 'bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-500'
@@ -200,7 +224,9 @@ export default function SeletorServidorBackend() {
                           {servidorConfig.nome}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {servidorConfig.url.replace('https://', '')}
+                          {servidorConfig.url
+                            ? servidorConfig.url.replace('https://', '')
+                            : '(defina NEXT_PUBLIC_API_BACKUP_URL)'}
                         </span>
                       </div>
                     </div>
@@ -227,7 +253,7 @@ export default function SeletorServidorBackend() {
                 onClick={() => {
                   setStatusServidores({
                     heroku: 'verificando',
-                    render: 'verificando',
+                    render: BACKUP_BACKEND_URL ? 'verificando' : 'offline',
                   });
                   verificarStatusServidores();
                 }}

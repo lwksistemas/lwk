@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 
 interface WhyUsBenefit {
   id: number;
@@ -17,7 +18,7 @@ export default function WhyUs() {
   useEffect(() => {
     const fetchBenefits = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/homepage/`);
+        const response = await fetch(`${getPrimaryApiBaseUrl()}/homepage/`);
         const data = await response.json();
         
         if (data.whyus && data.whyus.length > 0) {

@@ -1,10 +1,11 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { logger } from './logger';
 import { getLoginUrl } from './auth';
+import { getPrimaryApiRoot, getBackupApiRoot } from './api-base';
 
 // ===== CONFIGURAÇÃO DE FAILOVER (v750) =====
-const PRIMARY_API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const BACKUP_API = process.env.NEXT_PUBLIC_API_BACKUP_URL;
+const PRIMARY_API = getPrimaryApiRoot();
+const BACKUP_API = getBackupApiRoot() || undefined;
 const ENABLE_LOJA_FAILOVER = process.env.NEXT_PUBLIC_ENABLE_LOJA_FAILOVER === 'true';
 const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000');
 

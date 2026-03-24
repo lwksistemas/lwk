@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { CheckCircle, AlertCircle, FileText, User, DollarSign, Download, Eye } from 'lucide-react';
+import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 
 interface DocumentoData {
   tipo_documento: string;
@@ -50,7 +51,7 @@ export default function AssinaturaPage() {
   
   const carregarDocumento = async () => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com/api';
+      const backendUrl = getPrimaryApiBaseUrl();
       const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/`);
       const data = await res.json();
       
@@ -72,7 +73,7 @@ export default function AssinaturaPage() {
     setErro('');
     
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com/api';
+      const backendUrl = getPrimaryApiBaseUrl();
       const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/`, {
         method: 'POST',
         headers: {
@@ -101,7 +102,7 @@ export default function AssinaturaPage() {
     setErro('');
     
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com/api';
+      const backendUrl = getPrimaryApiBaseUrl();
       const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/pdf/`);
       
       if (!res.ok) {
@@ -127,7 +128,7 @@ export default function AssinaturaPage() {
     setErro('');
     
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com/api';
+      const backendUrl = getPrimaryApiBaseUrl();
       const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/pdf/`);
       
       if (!res.ok) {

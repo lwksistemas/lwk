@@ -603,6 +603,8 @@ class LojaViewSet(viewsets.ModelViewSet):
         email_enviado = False
         try:
             if hasattr(settings, 'DEFAULT_FROM_EMAIL') and settings.DEFAULT_FROM_EMAIL:
+                from .services.provisional_password_helpers import loja_login_absolute_url
+
                 assunto = f"Nova Senha Provisória - {loja.nome}"
                 mensagem = f"""
 Olá!
@@ -610,7 +612,7 @@ Olá!
 Sua senha foi resetada para a loja "{loja.nome}".
 
 🔐 NOVOS DADOS DE ACESSO:
-• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
+• URL de Login: {loja_login_absolute_url(loja)}
 • Usuário: {user.username}
 • Senha Provisória: {nova_senha}
 
@@ -711,7 +713,9 @@ Equipe de Suporte
             loja.senha_provisoria = nova_senha_provisoria
             loja.senha_foi_alterada = False  # ✅ Forçar troca de senha no próximo login
             loja.save()
-            
+
+            from .services.provisional_password_helpers import loja_login_absolute_url
+
             assunto = f"Nova Senha Provisória - {loja.nome}"
             mensagem = f"""
 Olá!
@@ -719,7 +723,7 @@ Olá!
 Você solicitou a recuperação de senha para sua loja "{loja.nome}".
 
 🔐 NOVA SENHA PROVISÓRIA:
-• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
+• URL de Login: {loja_login_absolute_url(loja)}
 • Usuário: {loja.owner.username}
 • Senha Provisória: {nova_senha_provisoria}
 
@@ -1805,10 +1809,11 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             
             # Enviar email com nova senha
             from django.core.mail import send_mail
-            
+            from .services.provisional_password_helpers import sistema_usuario_login_url
+
             tipo_display = 'Super Admin' if tipo == 'superadmin' else 'Suporte'
-            url_login = f"https://lwksistemas.com.br/{tipo}/login"
-            
+            url_login = sistema_usuario_login_url(tipo)
+
             assunto = f"Recuperação de Senha - {tipo_display}"
             mensagem = f"""
 Olá {user.first_name or user.username}!
@@ -2049,54 +2054,29 @@ class EmailRetryViewSet(viewsets.ModelViewSet):
 @permission_classes([permissions.IsAuthenticated])
 def mercadopago_config(request):
     """GET: retorna config (token mascarado). PATCH: atualiza enabled, use_for_boletos e opcionalmente access_token. Apenas superuser."""
+    from .services.mercadopago_admin_service import MercadoPagoAdminService
+
     if not request.user.is_superuser:
         return Response({'detail': 'Sem permissão.'}, status=status.HTTP_403_FORBIDDEN)
     config = MercadoPagoConfig.get_config()
     if request.method == 'GET':
-        return Response({
-            'enabled': config.enabled,
-            'use_for_boletos': config.use_for_boletos,
-            'access_token_set': bool(config.access_token),
-            'access_token_masked': (config.access_token[:8] + '...' + config.access_token[-4:]) if config.access_token and len(config.access_token) >= 12 else ('****' if config.access_token else ''),
-            'public_key': getattr(config, 'public_key', '') or '',
-            'chave_pix_estatica': getattr(config, 'chave_pix_estatica', '') or '',
-        })
-    if request.method == 'PATCH':
-        if 'enabled' in request.data:
-            config.enabled = bool(request.data['enabled'])
-        if 'use_for_boletos' in request.data:
-            config.use_for_boletos = bool(request.data['use_for_boletos'])
-        if 'access_token' in request.data and request.data['access_token'] is not None:
-            config.access_token = str(request.data['access_token']).strip()
-        if 'public_key' in request.data and request.data['public_key'] is not None:
-            config.public_key = str(request.data['public_key']).strip()[:80]
-        if 'chave_pix_estatica' in request.data:
-            config.chave_pix_estatica = str(request.data.get('chave_pix_estatica') or '').strip()[:120]
-        config.save()
-        return Response({
-            'enabled': config.enabled,
-            'use_for_boletos': config.use_for_boletos,
-            'access_token_set': bool(config.access_token),
-            'public_key': getattr(config, 'public_key', '') or '',
-            'chave_pix_estatica': getattr(config, 'chave_pix_estatica', '') or '',
-        })
+        return Response(MercadoPagoAdminService.serialize_config(config))
+    MercadoPagoAdminService.apply_patch(config, request.data)
+    config.save()
+    return Response(MercadoPagoAdminService.serialize_config(config, include_token_mask=False))
 
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def mercadopago_test(request):
     """Testa a conexão com a API do Mercado Pago (valida Access Token e disponibilidade de boleto). Apenas superuser."""
+    from .services.mercadopago_admin_service import MercadoPagoAdminService
+
     if not request.user.is_superuser:
         return Response({'detail': 'Sem permissão.'}, status=status.HTTP_403_FORBIDDEN)
     config = MercadoPagoConfig.get_config()
-    if not config.access_token:
-        return Response(
-            {'success': False, 'error': 'Access Token não configurado. Salve o token nas configurações antes de testar.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    from .mercadopago_service import MercadoPagoClient
-    result = MercadoPagoClient(config.access_token).test_connection()
-    if result.get('success'):
+    result, ok = MercadoPagoAdminService.test_connection(config)
+    if ok:
         return Response(result)
     return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
@@ -2113,24 +2093,16 @@ def mercadopago_webhook(request):
 
     GET: Teste de conectividade (retorna 200 e instruções para testar o POST).
     """
+    from .services.mercadopago_admin_service import MercadoPagoAdminService
+
     if request.method == 'GET':
-        return Response({
-            'status': 'ok',
-            'message': 'Endpoint do webhook Mercado Pago ativo.',
-            'url': 'https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/mercadopago-webhook/',
-            'test': 'Envie POST com JSON: {"type": "payment", "data": {"id": "<payment_id>"}}. '
-                    'Use o ID de um pagamento real (boleto) para testar a confirmação.',
-        }, status=status.HTTP_200_OK)
+        return Response(
+            MercadoPagoAdminService.webhook_discovery_payload(request),
+            status=status.HTTP_200_OK,
+        )
 
     try:
-        # MP envia JSON: type e data.id
-        body = request.data if isinstance(getattr(request, 'data', None), dict) else {}
-        if not body and request.body:
-            import json
-            try:
-                body = json.loads(request.body.decode('utf-8'))
-            except Exception:
-                body = {}
+        body = MercadoPagoAdminService.parse_webhook_body(request)
         notification_type = body.get('type') or body.get('action')
         data = body.get('data', body) or {}
         payment_id = data.get('id') if isinstance(data, dict) else None
@@ -2199,93 +2171,13 @@ def sync_mercadopago_loja(request):
 @permission_classes([])
 def recuperar_senha_loja(request):
     """Recuperar senha de loja pelo email e slug"""
-    email = request.data.get('email')
-    slug = request.data.get('slug')
-    
-    if not email or not slug:
-        return Response(
-            {'detail': 'Email e slug são obrigatórios'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    try:
-        # Buscar loja pelo slug
-        loja = Loja.objects.get(slug=slug, is_active=True)
-        
-        # Verificar se o email corresponde ao proprietário
-        if loja.owner.email != email:
-            return Response(
-                {'detail': 'Email não corresponde ao proprietário da loja'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        # Gerar nova senha provisória
-        import random
-        import string
-        nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
-        
-        # Atualizar senha do usuário
-        loja.owner.set_password(nova_senha)
-        loja.owner.save()
-        
-        # Atualizar senha provisória na loja
-        loja.senha_provisoria = nova_senha
-        loja.senha_foi_alterada = False
-        loja.save()
-        
-        # Enviar email com nova senha
-        from django.core.mail import send_mail
-        
-        assunto = f"Recuperação de Senha - {loja.nome}"
-        mensagem = f"""
-Olá!
+    from .services.loja_password_recovery_service import LojaPasswordRecoveryService
 
-Você solicitou a recuperação de senha para acesso à sua loja "{loja.nome}".
-
-🔐 NOVOS DADOS DE ACESSO:
-• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
-• Usuário: {loja.owner.username}
-• Senha Provisória: {nova_senha}
-
-⚠️ IMPORTANTE:
-• Esta é uma senha provisória gerada automaticamente
-• Recomendamos alterar a senha no primeiro acesso
-• Mantenha seus dados de acesso em segurança
-
-📋 INFORMAÇÕES DA LOJA:
-• Nome: {loja.nome}
-• Tipo: {loja.tipo_loja.nome}
-• Plano: {loja.plano.nome}
-
-Se você não solicitou esta recuperação, entre em contato imediatamente.
-
----
-Equipe LWK Sistemas
-        """.strip()
-        
-        send_mail(
-            subject=assunto,
-            message=mensagem,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False
-        )
-        
-        return Response({
-            'message': 'Senha provisória enviada para o email cadastrado',
-            'email': email
-        })
-        
-    except Loja.DoesNotExist:
-        return Response(
-            {'detail': 'Loja não encontrada ou inativa'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    except Exception as e:
-        return Response(
-            {'detail': f'Erro ao enviar email: {str(e)}'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    payload, http_status = LojaPasswordRecoveryService().execute(
+        request.data.get('email'),
+        request.data.get('slug'),
+    )
+    return Response(payload, status=http_status)
 
 
 

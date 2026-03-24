@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Script from 'next/script'
 import apiClient from '@/lib/api-client'
 import { authService } from '@/lib/auth'
+import { getPrimaryApiBaseUrl } from '@/lib/api-base'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -319,7 +320,8 @@ export default function MercadoPagoConfigPage() {
               </Button>
             </div>
             <p className="text-xs text-gray-500">
-              O teste valida o Access Token e verifica se o boleto (bolbradesco) está disponível. Para o sistema atualizar a assinatura quando um boleto for pago, configure no Mercado Pago (Suas integrações → Webhooks) a URL do webhook: <strong>https://lwksistemas-38ad47519238.herokuapp.com/api/superadmin/mercadopago-webhook/</strong> e o evento <strong>payment</strong>.
+              O teste valida o Access Token e verifica se o boleto (bolbradesco) está disponível. Para o sistema atualizar a assinatura quando um boleto for pago, configure no Mercado Pago (Suas integrações → Webhooks) a URL do webhook:{' '}
+              <strong className="break-all">{`${getPrimaryApiBaseUrl()}/superadmin/mercadopago-webhook/`}</strong> e o evento <strong>payment</strong>.
             </p>
           </form>
         </CardContent>

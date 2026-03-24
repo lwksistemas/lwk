@@ -36,6 +36,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
     tem_agendamento: editingTipo?.tem_agendamento ?? false,
     tem_delivery: editingTipo?.tem_delivery ?? false,
     tem_estoque: editingTipo?.tem_estoque ?? true,
+    is_active: editingTipo?.is_active ?? true,
   });
 
   // Auto-gerar slug a partir do nome
@@ -295,6 +296,17 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
                 <span className="text-sm text-gray-900 dark:text-gray-100">Controle de Estoque</span>
+              </label>
+
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="is_active"
+                  checked={formData.is_active}
+                  onChange={handleChange}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">✅ Tipo Ativo (visível no cadastro)</span>
               </label>
             </div>
           </div>

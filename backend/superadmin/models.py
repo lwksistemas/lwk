@@ -74,6 +74,9 @@ class TipoLoja(models.Model):
     tem_delivery = models.BooleanField(default=False)
     tem_estoque = models.BooleanField(default=True)
     
+    # Status
+    is_active = models.BooleanField(default=True, help_text='Se inativo, não aparece na lista pública de cadastro')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

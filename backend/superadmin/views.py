@@ -115,8 +115,8 @@ class TipoLojaPublicoViewSet(viewsets.ReadOnlyModelViewSet):
     authentication_classes = []
     
     def get_queryset(self):
-        # Retornar todos os tipos (não há campo is_active em TipoLoja)
-        return TipoLoja.objects.all().order_by('nome')
+        # Retornar apenas tipos ativos
+        return TipoLoja.objects.filter(is_active=True).order_by('nome')
 
 
 class PlanoAssinaturaPublicoViewSet(viewsets.ReadOnlyModelViewSet):

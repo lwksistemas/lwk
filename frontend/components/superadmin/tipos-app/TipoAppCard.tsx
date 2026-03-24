@@ -15,10 +15,15 @@ export function TipoAppCard({ tipo, onEdit, onDelete }: TipoAppCardProps) {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       {/* Header do Card */}
       <div 
-        className="h-20 flex items-center justify-center"
+        className="h-20 flex items-center justify-center relative"
         style={{ backgroundColor: tipo.cor_primaria }}
       >
         <h3 className="text-xl font-bold text-white">{tipo.nome}</h3>
+        {!tipo.is_active && (
+          <span className="absolute top-2 right-2 px-2 py-1 text-xs rounded-full bg-red-500 text-white">
+            Inativo
+          </span>
+        )}
       </div>
 
       {/* Conteúdo do Card */}

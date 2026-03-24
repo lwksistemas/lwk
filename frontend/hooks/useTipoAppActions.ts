@@ -18,6 +18,7 @@ export interface TipoApp {
   tem_agendamento: boolean;
   tem_delivery: boolean;
   tem_estoque: boolean;
+  is_active: boolean;
   total_lojas: number;
   created_at: string;
 }
@@ -34,6 +35,7 @@ export interface TipoAppFormData {
   tem_agendamento: boolean;
   tem_delivery: boolean;
   tem_estoque: boolean;
+  is_active: boolean;
 }
 
 export function useTipoAppActions() {

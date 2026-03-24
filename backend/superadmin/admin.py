@@ -23,7 +23,8 @@ class UserSessionAdmin(admin.ModelAdmin):
 
 @admin.register(TipoLoja)
 class TipoLojaAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'slug', 'dashboard_template', 'created_at']
+    list_display = ['nome', 'slug', 'dashboard_template', 'is_active', 'created_at']
+    list_filter = ['is_active']
     prepopulated_fields = {'slug': ('nome',)}
 
 @admin.register(PlanoAssinatura)

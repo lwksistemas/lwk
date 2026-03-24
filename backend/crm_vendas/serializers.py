@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.conf import settings
+from core.serializer_mixins import PhoneNormalizationMixin
 
 from .models import (
     Vendedor, Conta, Lead, Contato, Oportunidade, Atividade,
@@ -14,11 +15,13 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
-class VendedorSerializer(serializers.ModelSerializer):
+class VendedorSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
     criar_acesso = serializers.BooleanField(write_only=True, default=False, required=False)
     tem_acesso = serializers.SerializerMethodField(read_only=True)
     grupo_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     grupo_nome = serializers.SerializerMethodField(read_only=True)
+    
+    phone_fields = ['telefone']
 
     class Meta:
         model = Vendedor
@@ -245,7 +248,9 @@ def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso
         logger.warning('Envio de e-mail ao criar vendedor falhou: %s', mail_err)
 
 
-class ContaSerializer(serializers.ModelSerializer):
+class ContaSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
+    phone_fields = ['telefone']
+    
     class Meta:
         model = Conta
         fields = [
@@ -257,9 +262,10 @@ class ContaSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
-class LeadSerializer(serializers.ModelSerializer):
+class LeadSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
     conta_info = serializers.SerializerMethodField()
     contato_info = serializers.SerializerMethodField()
+    phone_fields = ['telefone']
     
     class Meta:
         model = Lead
@@ -306,9 +312,10 @@ class LeadSerializer(serializers.ModelSerializer):
         return None
 
 
-class LeadListSerializer(serializers.ModelSerializer):
+class LeadListSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
     conta_nome = serializers.CharField(source='conta.nome', read_only=True)
     contato_nome = serializers.CharField(source='contato.nome', read_only=True)
+    phone_fields = ['telefone']
 
     class Meta:
         model = Lead
@@ -320,8 +327,9 @@ class LeadListSerializer(serializers.ModelSerializer):
         ]
 
 
-class ContatoSerializer(serializers.ModelSerializer):
+class ContatoSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
     conta_nome = serializers.CharField(source='conta.nome', read_only=True)
+    phone_fields = ['telefone']
 
     class Meta:
         model = Contato

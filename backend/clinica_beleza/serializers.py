@@ -3,6 +3,7 @@ Serializers para Clínica da Beleza
 """
 from rest_framework import serializers
 from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional
+from core.serializer_mixins import PhoneNormalizationMixin
 
 
 class ProfessionalCreateWithUserSerializer(serializers.Serializer):
@@ -147,10 +148,13 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         return professional
 
 
-class PatientSerializer(serializers.ModelSerializer):
+class PatientSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
     """Serializer para Pacientes. Aceita phone opcional e birth_date em YYYY-MM-DD ou DD/MM/YYYY."""
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     birth_date = serializers.DateField(required=False, allow_null=True, input_formats=['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'])
+    
+    # Campos de telefone a normalizar
+    phone_fields = ['phone', 'telefone']
 
     class Meta:
         model = Patient

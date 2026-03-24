@@ -146,4 +146,14 @@ def post(self, request):
 ```
 
 ## Status
-🔍 **EM INVESTIGAÇÃO** - Aguardando verificação das migrações e logs detalhados
+✅ **CORRIGIDO** - v1306
+
+### Correções Aplicadas
+1. Migração 0007 corrigida para alterar campo `telefone` ao invés de `phone`
+2. Logging detalhado adicionado no endpoint POST /patients/
+3. Deploy realizado no Heroku (v1306)
+
+### Próximos Passos
+- Monitorar logs do Heroku para verificar se erro 400 persiste
+- Se persistir, verificar logs detalhados com `serializer.errors`
+- Considerar adicionar validação no frontend para campos obrigatórios

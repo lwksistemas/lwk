@@ -21,12 +21,20 @@ services:
   - type: web
     name: lwksistemas-backup
     runtime: python
+    repo: https://github.com/henrifelix25/lwksistemas
     # Repositório GitHub: branch que o Render faz pull (deve existir no remoto)
     branch: master
     region: oregon
     # Instance type: starter = serviço sempre ligado (recomendado para backup). Subir para standard se precisar.
     plan: starter
     rootDir: backend
+    # Só faz deploy automático quando mudam API/Blueprint (ignora commits só no frontend)
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
+        - requirements.txt
+        - Aptfile
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
     # Alinhado ao release do Heroku (migrate + dados iniciais idempotentes)
     preDeployCommand: "python fix_suporte_migration.py 2>/dev/null || true && python manage.py migrate --noinput && python manage.py setup_initial_data"

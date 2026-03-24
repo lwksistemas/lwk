@@ -17,9 +17,18 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY deve estar configurada nas variáveis de ambiente!")
 DEBUG = False
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
-if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['']:
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
+if not ALLOWED_HOSTS:
     raise ValueError("ALLOWED_HOSTS deve estar configurada nas variáveis de ambiente!")
+# No Render, o hostname do serviço muda (ex.: …-oiov.onrender.com). RENDER=true é injetado pela plataforma.
+# ".onrender.com" no Django casa com qualquer subdomínio *.onrender.com.
+if os.environ.get('RENDER', '').lower() in ('true', '1', 'yes'):
+    if '.onrender.com' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('.onrender.com')
+for _h in (os.environ.get('RENDER_ALLOWED_HOSTS_EXTRA') or '').split(','):
+    _h = _h.strip()
+    if _h and _h not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_h)
 
 # APPS
 INSTALLED_APPS = [

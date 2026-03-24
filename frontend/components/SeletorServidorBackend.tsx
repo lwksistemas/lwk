@@ -31,8 +31,8 @@ const SERVIDORES: Record<Servidor, ServidorConfig> = {
   },
 };
 
-/** Timeout do health check (Render free pode demorar no cold start). */
-const HEALTH_TIMEOUT_MS = 15000;
+/** Timeout do health check (Render free: cold start pode passar de 15s). */
+const HEALTH_TIMEOUT_MS = 45000;
 
 /** URL base sem /api para montar o path do health (evita /api/api/ quando env já tem /api). */
 function healthBaseUrl(url: string): string {
@@ -142,10 +142,18 @@ export default function SeletorServidorBackend() {
         // Recarregar a página para aplicar as mudanças
         window.location.reload();
       } else {
-        alert(`Servidor ${SERVIDORES[novoServidor].nome} está offline. Não é possível trocar.`);
+        const hint =
+          novoServidor === 'render' && response.status === 400
+            ? ' (no Render: faça deploy com settings atual — ALLOWED_HOSTS deve incluir o hostname onrender.com.)'
+            : '';
+        alert(
+          `Servidor ${SERVIDORES[novoServidor].nome} respondeu ${response.status}. Não é possível trocar.${hint}`,
+        );
       }
     } catch (error) {
-      alert(`Erro ao conectar com ${SERVIDORES[novoServidor].nome}. Servidor pode estar offline.`);
+      alert(
+        `Erro de rede ao contactar ${SERVIDORES[novoServidor].nome} (timeout, CORS ou URL errada). Confira no Vercel: NEXT_PUBLIC_API_BACKUP_URL = URL HTTPS exata do serviço no Render.`,
+      );
     } finally {
       setVerificando(false);
     }

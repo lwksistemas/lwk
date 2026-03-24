@@ -7,6 +7,7 @@ import os
 import dj_database_url
 from pathlib import Path
 from datetime import timedelta
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,21 @@ if not ALLOWED_HOSTS:
     raise ValueError("ALLOWED_HOSTS deve estar configurada nas variáveis de ambiente!")
 # No Render, o hostname do serviço muda (ex.: …-oiov.onrender.com). RENDER=true é injetado pela plataforma.
 # ".onrender.com" no Django casa com qualquer subdomínio *.onrender.com.
+# RENDER_EXTERNAL_HOSTNAME / RENDER_EXTERNAL_URL: hostname exato (evita 400 DisallowedHost se o wildcard falhar).
 if os.environ.get('RENDER', '').lower() in ('true', '1', 'yes'):
     if '.onrender.com' not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append('.onrender.com')
+_render_ext_host = (os.environ.get('RENDER_EXTERNAL_HOSTNAME') or '').strip()
+if _render_ext_host and _render_ext_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_ext_host)
+_render_ext_url = (os.environ.get('RENDER_EXTERNAL_URL') or '').strip()
+if _render_ext_url:
+    try:
+        _pu = urlparse(_render_ext_url).hostname
+        if _pu and _pu not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_pu)
+    except Exception:
+        pass
 for _h in (os.environ.get('RENDER_ALLOWED_HOSTS_EXTRA') or '').split(','):
     _h = _h.strip()
     if _h and _h not in ALLOWED_HOSTS:
@@ -223,7 +236,9 @@ _DEFAULT_CORS_ORIGINS = [
     'https://frontend-r3q0a1lw4-lwks-projects-48afd555.vercel.app',
 ]
 _raw = os.environ.get('CORS_ORIGINS', '').strip()
-CORS_ALLOWED_ORIGINS = [o.strip() for o in _raw.split(',') if o.strip()] if _raw else _DEFAULT_CORS_ORIGINS
+_extra_cors = [o.strip() for o in _raw.split(',') if o.strip()] if _raw else []
+# União com defaults: CORS_ORIGINS só no Heroku não pode remover lwksistemas.com.br no Render após sync.
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(_DEFAULT_CORS_ORIGINS + _extra_cors))
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Manter segurança
 

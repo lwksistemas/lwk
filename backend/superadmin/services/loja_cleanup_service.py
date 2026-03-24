@@ -128,10 +128,10 @@ class LojaCleanupService:
             self.results['asaas'] = {'erro': str(e)}
     
     def _cleanup_asaas_payments(self):
-        """Cancela pagamentos pendentes no Asaas e remove dados locais"""
+        """Cancela TODOS os pagamentos pendentes no Asaas e remove dados locais"""
         try:
             from asaas_integration.models import LojaAssinatura, AsaasPayment, AsaasCustomer
-            from asaas_integration.client import AsaasClient
+            from asaas_integration.deletion_service import AsaasDeletionService
             
             cancelled_count = 0
             
@@ -146,31 +146,32 @@ class LojaCleanupService:
                     }
                     return 0
                 
-                # Buscar todos os pagamentos da loja
+                # Usar o serviço de exclusão do Asaas para cancelar TODOS os pagamentos
+                try:
+                    deletion_service = AsaasDeletionService()
+                    if deletion_service.available:
+                        result = deletion_service.delete_loja_from_asaas(self.loja_slug)
+                        
+                        if result.get('success'):
+                            cancelled_count = result.get('deleted_payments', 0)
+                            logger.info(f"✅ Asaas: {cancelled_count} pagamentos cancelados via API")
+                        else:
+                            logger.warning(f"⚠️ Erro ao cancelar pagamentos Asaas: {result.get('error')}")
+                    else:
+                        logger.warning("⚠️ Serviço de exclusão Asaas não disponível")
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao usar serviço de exclusão Asaas: {e}")
+                
+                # Remover dados locais
                 payments = AsaasPayment.objects.filter(
                     external_reference__contains=f"loja_{self.loja_slug}"
                 )
-                
-                # Cancelar pagamentos pendentes na API Asaas
-                try:
-                    client = AsaasClient()
-                    for payment in payments:
-                        if payment.status in ['PENDING', 'OVERDUE']:
-                            try:
-                                client.delete_payment(payment.asaas_id)
-                                cancelled_count += 1
-                                logger.info(f"✅ Pagamento Asaas cancelado: {payment.asaas_id}")
-                            except Exception as e:
-                                logger.warning(f"⚠️ Erro ao cancelar pagamento {payment.asaas_id}: {e}")
-                except Exception as e:
-                    logger.warning(f"⚠️ Erro ao conectar com API Asaas: {e}")
-                
-                # Remover dados locais
                 payments_count = payments.count()
                 payments.delete()
                 
-                customer_id = assinatura.asaas_customer.asaas_id if assinatura.asaas_customer else None
                 customer = assinatura.asaas_customer
+                customer_id = customer.asaas_id if customer else None
                 
                 assinatura.delete()
                 
@@ -182,7 +183,8 @@ class LojaCleanupService:
                     'local': {
                         'payments_removidos': payments_count,
                         'customers_removidos': 1 if customer else 0,
-                        'subscriptions_removidas': 1
+                        'subscriptions_removidas': 1,
+                        'customer_id': customer_id
                     }
                 }
                 

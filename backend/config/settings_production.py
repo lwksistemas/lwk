@@ -128,9 +128,28 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+
+def _normalize_database_url(raw: str) -> str:
+    """
+    Heroku/Render: URI completa postgres://... ou postgresql://...
+    Se faltar o esquema (só user:pass@host...), urlparse usa o user como "scheme" e dj_database_url falha
+    (ex.: No support for 'ufqqlop2dk1g7n').
+    """
+    s = (raw or '').strip()
+    if not s:
+        return s
+    if s.startswith('//') and '@' in s:
+        s = 'postgres:' + s
+    if '://' not in s and '@' in s:
+        userinfo, _, rest = s.partition('@')
+        if ':' in userinfo:
+            s = 'postgres://' + s
+    return s
+
+
 # DATABASE - PostgreSQL (produção). Sem DATABASE_URL válida: SQLite em /tmp (collectstatic no Render, etc.).
 # No Render, DATABASE_URL pode existir como chave mas com valor vazio/inválido — dj_database_url rebenta com ValueError.
-_database_url = (os.environ.get('DATABASE_URL') or '').strip()
+_database_url = _normalize_database_url(os.environ.get('DATABASE_URL') or '')
 _use_postgres = False
 if _database_url:
     try:
@@ -138,8 +157,8 @@ if _database_url:
         _use_postgres = True
     except ValueError as exc:
         logger.warning(
-            'DATABASE_URL ignorada (inválida ou esquema vazio). Corrija no Render: valor completo postgresql://... '
-            'sem aspas nem linhas a mais. Erro: %s',
+            'DATABASE_URL ignorada (inválida). No Render use a URI completa: postgres://usuario:password@host:5432/nomebd '
+            '(tem de começar por postgres:// ou postgresql://). Erro: %s',
             exc,
         )
 

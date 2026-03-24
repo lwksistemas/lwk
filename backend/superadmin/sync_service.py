@@ -522,33 +522,20 @@ class AsaasSyncService:
             financeiro.status_pagamento = 'ativo'
             financeiro.ultimo_pagamento = timezone.now()
             
-            # Calcular próxima data de cobrança baseada na DATA DE VENCIMENTO ATUAL (não na data de hoje)
-            # Isso garante que após pagar o boleto de março, o próximo seja abril, não março novamente
-            data_vencimento_atual = financeiro.data_proxima_cobranca
+            # ✅ MODIFICAÇÃO: Calcular próxima data de cobrança 30 dias após a DATA DO PAGAMENTO
+            # Isso garante que o cliente tenha sempre 30 dias após pagar para o próximo vencimento
+            data_pagamento = timezone.now().date()  # Data em que o pagamento foi confirmado
             dia_vencimento = financeiro.dia_vencimento
             
             logger.info(f"📅 Cálculo de próxima cobrança:")
-            logger.info(f"   - Data Vencimento Atual: {data_vencimento_atual}")
+            logger.info(f"   - Data do Pagamento: {data_pagamento}")
             logger.info(f"   - Dia Vencimento Configurado: {dia_vencimento}")
             
-            # Calcular próximo mês baseado na data de vencimento atual
-            if data_vencimento_atual.month == 12:
-                proximo_mes = 1
-                proximo_ano = data_vencimento_atual.year + 1
-            else:
-                proximo_mes = data_vencimento_atual.month + 1
-                proximo_ano = data_vencimento_atual.year
+            # Calcular próxima data de cobrança: data do pagamento + 30 dias
+            proxima_data_cobranca = data_pagamento + timedelta(days=30)
             
-            # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
-            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
-            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
-            
-            # Definir próxima data de cobrança
-            proxima_data_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
-            
-            logger.info(f"   - Próximo Mês/Ano: {proximo_mes}/{proximo_ano}")
-            logger.info(f"   - Próxima Cobrança Calculada: {proxima_data_cobranca}")
-            logger.info(f"   - Diferença: {data_vencimento_atual} → {proxima_data_cobranca}")
+            logger.info(f"   - Próxima Cobrança Calculada (30 dias após pagamento): {proxima_data_cobranca}")
+            logger.info(f"   - Diferença: {data_pagamento} → {proxima_data_cobranca} (30 dias)")
             
             financeiro.data_proxima_cobranca = proxima_data_cobranca
             

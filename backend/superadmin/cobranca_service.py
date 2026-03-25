@@ -63,6 +63,14 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
                 'email': loja.owner.email,
                 'cpf_cnpj': loja.cpf_cnpj or '000.000.000-00',
                 'telefone': getattr(loja.owner, 'telefone', ''),
+                # ✅ CORREÇÃO v1320: Incluir endereço completo para emissão de NF
+                'endereco': loja.logradouro or '',
+                'numero': loja.numero or '',
+                'complemento': loja.complemento or '',
+                'bairro': loja.bairro or '',
+                'cidade': loja.cidade or '',
+                'estado': loja.uf or '',
+                'cep': loja.cep or '',
             }
             
             valor_plano = loja.plano.preco_anual if loja.tipo_assinatura == 'anual' else loja.plano.preco_mensal

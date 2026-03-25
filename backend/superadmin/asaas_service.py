@@ -120,13 +120,14 @@ class LojaAsaasService:
                 'email': loja.owner.email,
                 'cpf_cnpj': loja.cpf_cnpj or '00000000000',  # CPF/CNPJ obrigatório
                 'telefone': '',  # Pode ser vazio
-                'endereco': '',
-                'numero': '',
-                'complemento': '',
-                'bairro': '',
-                'cidade': '',
-                'estado': '',
-                'cep': '',
+                # ✅ CORREÇÃO v1320: Incluir endereço completo para emissão de NF
+                'endereco': loja.logradouro or '',
+                'numero': loja.numero or '',
+                'complemento': loja.complemento or '',
+                'bairro': loja.bairro or '',
+                'cidade': loja.cidade or '',
+                'estado': loja.uf or '',
+                'cep': loja.cep or '',
                 'slug': loja.slug
             }
             

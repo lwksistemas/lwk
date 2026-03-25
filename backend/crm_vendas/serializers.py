@@ -225,21 +225,64 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             pass
 
 
-def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao sistema - CRM Vendas', reenviar=False):
+def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao Sistema - CRM Vendas', reenviar=False):
     site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
     login_url = f"{site_url}/loja/{loja.slug}/login"
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
-    intro = 'Sua senha foi redefinida.' if reenviar else 'Seu acesso ao sistema foi criado.'
+    
+    if reenviar:
+        titulo = "Sua senha foi redefinida com sucesso"
+        intro = "Sua senha de acesso ao CRM foi redefinida."
+    else:
+        titulo = "Seu acesso ao CRM foi criado com sucesso"
+        intro = f"Seu acesso ao sistema CRM de {loja.nome} foi criado."
+    
     try:
         send_mail(
             subject=assunto,
             message=(
                 f"Olá, {vendedor.nome or 'Vendedor'}!\n\n"
-                f"{intro}\n\n"
-                f"Login: {email}\n"
-                f"Senha provisória: {senha_provisoria}\n\n"
-                f"Acesse: {login_url}\n\n"
-                f"Por segurança, altere sua senha no primeiro acesso."
+                f"{titulo}\n\n"
+                f"═══════════════════════════════════════════════════════════════\n\n"
+                f"🔐 SEUS DADOS DE ACESSO\n\n"
+                f"• URL de Login: {login_url}\n"
+                f"• Usuário: {email}\n"
+                f"• Senha Provisória: {senha_provisoria}\n"
+                f"• Cargo: {vendedor.cargo}\n\n"
+                f"⚠️ IMPORTANTE: Esta é uma senha temporária. Por segurança, altere-a no primeiro acesso.\n\n"
+                f"═══════════════════════════════════════════════════════════════\n\n"
+                f"📋 INFORMAÇÕES DO SEU ACESSO\n\n"
+                f"• Loja: {loja.nome}\n"
+                f"• Sistema: CRM de Vendas\n"
+                f"• Seu Cargo: {vendedor.cargo}\n"
+                f"• Comissão Padrão: {vendedor.comissao_padrao}%\n\n"
+                f"═══════════════════════════════════════════════════════════════\n\n"
+                f"🎯 PRIMEIROS PASSOS\n\n"
+                f"1. ACESSE O SISTEMA\n"
+                f"   Entre no link de login acima com seus dados de acesso\n\n"
+                f"2. ALTERE SUA SENHA\n"
+                f"   Vá em: Perfil → Alterar Senha\n"
+                f"   Escolha uma senha forte e segura\n\n"
+                f"3. EXPLORE O CRM\n"
+                f"   • Pipeline de Vendas\n"
+                f"   • Leads e Oportunidades\n"
+                f"   • Contas e Contatos\n"
+                f"   • Produtos e Serviços\n\n"
+                f"═══════════════════════════════════════════════════════════════\n\n"
+                f"🔑 ESQUECEU SUA SENHA?\n\n"
+                f"Caso precise recuperar sua senha no futuro:\n\n"
+                f"1. Acesse a página de login\n"
+                f"2. Clique em \"Esqueci minha senha\"\n"
+                f"3. Digite seu email cadastrado\n"
+                f"4. Você receberá um link para redefinir sua senha\n\n"
+                f"═══════════════════════════════════════════════════════════════\n\n"
+                f"📞 PRECISA DE AJUDA?\n\n"
+                f"Em caso de dúvidas, entre em contato com o administrador da loja.\n\n"
+                f"═══════════════════════════════════════════════════════════════\n\n"
+                f"Bem-vindo ao LWK Sistemas!\n\n"
+                f"Atenciosamente,\n"
+                f"Equipe LWK Sistemas\n"
+                f"https://lwksistemas.com.br"
             ),
             from_email=from_email,
             recipient_list=[email],

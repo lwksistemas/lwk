@@ -110,16 +110,60 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                 site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
                 login_url = f"{site_url}/loja/{loja.slug}/login"
                 from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
+                
+                # Mapear perfil para nome amigável
+                perfil_nome = {
+                    'administrador': 'Administrador',
+                    'profissional': 'Profissional',
+                    'recepcao': 'Recepcionista',
+                    'recepcionista': 'Recepcionista',
+                    'caixa': 'Caixa',
+                    'limpeza': 'Limpeza',
+                    'estoque': 'Estoque',
+                }.get(perfil, 'Profissional')
+                
                 try:
                     send_mail(
-                        subject='Acesso ao sistema - Clínica da Beleza',
+                        subject=f'Acesso ao Sistema - {loja.nome}',
                         message=(
                             f"Olá, {name or 'Profissional'}!\n\n"
-                            f"Seu acesso ao sistema foi criado.\n\n"
-                            f"Login: {email}\n"
-                            f"Senha provisória: {senha_provisoria}\n\n"
-                            f"Acesse: {login_url}\n\n"
-                            f"Por segurança, altere sua senha no primeiro acesso."
+                            f"Seu acesso ao sistema {loja.nome} foi criado com sucesso.\n\n"
+                            f"═══════════════════════════════════════════════════════════════\n\n"
+                            f"🔐 SEUS DADOS DE ACESSO\n\n"
+                            f"• URL de Login: {login_url}\n"
+                            f"• Usuário: {email}\n"
+                            f"• Senha Provisória: {senha_provisoria}\n"
+                            f"• Perfil: {perfil_nome}\n\n"
+                            f"⚠️ IMPORTANTE: Esta é uma senha temporária. Por segurança, altere-a no primeiro acesso.\n\n"
+                            f"═══════════════════════════════════════════════════════════════\n\n"
+                            f"📋 INFORMAÇÕES DO SEU ACESSO\n\n"
+                            f"• Loja: {loja.nome}\n"
+                            f"• Tipo: {loja.tipo_loja.nome}\n"
+                            f"• Seu Perfil: {perfil_nome}\n\n"
+                            f"═══════════════════════════════════════════════════════════════\n\n"
+                            f"🎯 PRIMEIROS PASSOS\n\n"
+                            f"1. ACESSE O SISTEMA\n"
+                            f"   Entre no link de login acima com seus dados de acesso\n\n"
+                            f"2. ALTERE SUA SENHA\n"
+                            f"   Vá em: Perfil → Alterar Senha\n"
+                            f"   Escolha uma senha forte e segura\n\n"
+                            f"3. EXPLORE O SISTEMA\n"
+                            f"   Familiarize-se com as funcionalidades disponíveis\n\n"
+                            f"═══════════════════════════════════════════════════════════════\n\n"
+                            f"🔑 ESQUECEU SUA SENHA?\n\n"
+                            f"Caso precise recuperar sua senha no futuro:\n\n"
+                            f"1. Acesse a página de login\n"
+                            f"2. Clique em \"Esqueci minha senha\"\n"
+                            f"3. Digite seu email cadastrado\n"
+                            f"4. Você receberá um link para redefinir sua senha\n\n"
+                            f"═══════════════════════════════════════════════════════════════\n\n"
+                            f"📞 PRECISA DE AJUDA?\n\n"
+                            f"Em caso de dúvidas, entre em contato com o administrador da loja.\n\n"
+                            f"═══════════════════════════════════════════════════════════════\n\n"
+                            f"Bem-vindo ao LWK Sistemas!\n\n"
+                            f"Atenciosamente,\n"
+                            f"Equipe LWK Sistemas\n"
+                            f"https://lwksistemas.com.br"
                         ),
                         from_email=from_email,
                         recipient_list=[email],

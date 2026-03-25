@@ -718,30 +718,57 @@ Equipe de Suporte
 
             assunto = f"Nova Senha Provisória - {loja.nome}"
             mensagem = f"""
+═══════════════════════════════════════════════════════════════
+                    RECUPERAÇÃO DE SENHA
+═══════════════════════════════════════════════════════════════
+
 Olá!
 
-Você solicitou a recuperação de senha para sua loja "{loja.nome}".
+Você solicitou a recuperação de senha para sua loja.
 
-🔐 NOVA SENHA PROVISÓRIA:
-• URL de Login: {loja_login_absolute_url(loja)}
-• Usuário: {loja.owner.username}
-• Senha Provisória: {nova_senha_provisoria}
+═══════════════════════════════════════════════════════════════
+                    🔐 DADOS DE ACESSO
+═══════════════════════════════════════════════════════════════
 
-⚠️ IMPORTANTE:
+URL de Login:
+{loja_login_absolute_url(loja)}
+
+Usuário: {loja.owner.username}
+Senha Provisória: {nova_senha_provisoria}
+
+═══════════════════════════════════════════════════════════════
+                    ⚠️ IMPORTANTE
+═══════════════════════════════════════════════════════════════
+
 • Esta é uma senha provisória gerada automaticamente
-• Você será solicitado a alterar esta senha no primeiro acesso
+• Você será SOLICITADO A ALTERAR esta senha no primeiro acesso
 • Por segurança, altere a senha assim que fizer login
 • Mantenha seus dados de acesso em segurança
 
-📋 INFORMAÇÕES DA LOJA:
-• Nome: {loja.nome}
-• Tipo: {loja.tipo_loja.nome}
-• Plano: {loja.plano.nome}
-• Assinatura: {loja.get_tipo_assinatura_display()}
+═══════════════════════════════════════════════════════════════
+                    📋 INFORMAÇÕES DA LOJA
+═══════════════════════════════════════════════════════════════
 
----
-Equipe de Suporte
-Sistema Multi-Loja
+Nome da Loja: {loja.nome}
+Tipo de Sistema: {loja.tipo_loja.nome}
+Plano Contratado: {loja.plano.nome}
+Tipo de Assinatura: {loja.get_tipo_assinatura_display()}
+
+═══════════════════════════════════════════════════════════════
+                    📞 SUPORTE
+═══════════════════════════════════════════════════════════════
+
+Em caso de dúvidas ou problemas, entre em contato:
+• Email: suporte@lwksistemas.com.br
+• WhatsApp: (11) 99999-9999
+
+═══════════════════════════════════════════════════════════════
+
+Atenciosamente,
+Equipe LWK Sistemas
+https://lwksistemas.com.br
+
+═══════════════════════════════════════════════════════════════
             """.strip()
             
             send_mail(
@@ -1816,24 +1843,51 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
 
             assunto = f"Recuperação de Senha - {tipo_display}"
             mensagem = f"""
+═══════════════════════════════════════════════════════════════
+                    RECUPERAÇÃO DE SENHA
+═══════════════════════════════════════════════════════════════
+
 Olá {user.first_name or user.username}!
 
 Você solicitou a recuperação de senha para acesso ao sistema.
 
-🔐 NOVOS DADOS DE ACESSO:
-• URL de Login: {url_login}
-• Usuário: {user.username}
-• Senha Provisória: {nova_senha}
+═══════════════════════════════════════════════════════════════
+                    🔐 DADOS DE ACESSO
+═══════════════════════════════════════════════════════════════
 
-⚠️ IMPORTANTE:
+URL de Login:
+{url_login}
+
+Usuário: {user.username}
+Senha Provisória: {nova_senha}
+
+Perfil de Acesso: {tipo_display}
+
+═══════════════════════════════════════════════════════════════
+                    ⚠️ IMPORTANTE
+═══════════════════════════════════════════════════════════════
+
 • Esta é uma senha provisória gerada automaticamente
-• Recomendamos alterar a senha após o login
+• Recomendamos ALTERAR A SENHA após o primeiro login
 • Mantenha seus dados de acesso em segurança
+• Se você não solicitou esta recuperação, entre em contato 
+  imediatamente conosco
 
-Se você não solicitou esta recuperação, entre em contato imediatamente.
+═══════════════════════════════════════════════════════════════
+                    📞 SUPORTE
+═══════════════════════════════════════════════════════════════
 
----
+Em caso de dúvidas ou problemas, entre em contato:
+• Email: suporte@lwksistemas.com.br
+• WhatsApp: (11) 99999-9999
+
+═══════════════════════════════════════════════════════════════
+
+Atenciosamente,
 Equipe LWK Sistemas
+https://lwksistemas.com.br
+
+═══════════════════════════════════════════════════════════════
             """.strip()
             
             send_mail(

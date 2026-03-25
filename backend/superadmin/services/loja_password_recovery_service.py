@@ -54,29 +54,57 @@ class LojaPasswordRecoveryService:
         assunto = f'Recuperação de Senha - {loja.nome}'
         login_url = loja_login_absolute_url(loja)
         mensagem = f"""
+═══════════════════════════════════════════════════════════════
+                    RECUPERAÇÃO DE SENHA
+═══════════════════════════════════════════════════════════════
+
 Olá!
 
-Você solicitou a recuperação de senha para acesso à sua loja "{loja.nome}".
+Você solicitou a recuperação de senha para acesso à sua loja.
 
-🔐 NOVOS DADOS DE ACESSO:
-• URL de Login: {login_url}
-• Usuário: {loja.owner.username}
-• Senha Provisória: {nova_senha}
+═══════════════════════════════════════════════════════════════
+                    🔐 DADOS DE ACESSO
+═══════════════════════════════════════════════════════════════
 
-⚠️ IMPORTANTE:
+URL de Login:
+{login_url}
+
+Usuário: {loja.owner.username}
+Senha Provisória: {nova_senha}
+
+═══════════════════════════════════════════════════════════════
+                    ⚠️ IMPORTANTE
+═══════════════════════════════════════════════════════════════
+
 • Esta é uma senha provisória gerada automaticamente
-• Recomendamos alterar a senha no primeiro acesso
+• Recomendamos ALTERAR A SENHA no primeiro acesso
 • Mantenha seus dados de acesso em segurança
+• Se você não solicitou esta recuperação, entre em contato 
+  imediatamente conosco
 
-📋 INFORMAÇÕES DA LOJA:
-• Nome: {loja.nome}
-• Tipo: {loja.tipo_loja.nome}
-• Plano: {loja.plano.nome}
+═══════════════════════════════════════════════════════════════
+                    📋 INFORMAÇÕES DA LOJA
+═══════════════════════════════════════════════════════════════
 
-Se você não solicitou esta recuperação, entre em contato imediatamente.
+Nome da Loja: {loja.nome}
+Tipo de Sistema: {loja.tipo_loja.nome}
+Plano Contratado: {loja.plano.nome}
 
----
+═══════════════════════════════════════════════════════════════
+                    📞 SUPORTE
+═══════════════════════════════════════════════════════════════
+
+Em caso de dúvidas ou problemas, entre em contato:
+• Email: suporte@lwksistemas.com.br
+• WhatsApp: (11) 99999-9999
+
+═══════════════════════════════════════════════════════════════
+
+Atenciosamente,
 Equipe LWK Sistemas
+https://lwksistemas.com.br
+
+═══════════════════════════════════════════════════════════════
         """.strip()
 
         try:

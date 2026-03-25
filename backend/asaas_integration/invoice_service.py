@@ -23,10 +23,17 @@ def get_invoice_client():
 
 def _get_municipal_config() -> Dict[str, Optional[str]]:
     """Serviço municipal para NF (conta LWK na prefeitura)."""
+    code = getattr(settings, 'ASAAS_INVOICE_SERVICE_CODE', None)
+    name = getattr(settings, 'ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
+    service_id = getattr(settings, 'ASAAS_INVOICE_SERVICE_ID', None)
+    
+    # Log para debug
+    logger.info(f"Configuração municipal NF: code={code}, name={name}, service_id={service_id}")
+    
     return {
-        'municipal_service_code': getattr(settings, 'ASAAS_INVOICE_SERVICE_CODE', None),
-        'municipal_service_name': getattr(settings, 'ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema'),
-        'municipal_service_id': getattr(settings, 'ASAAS_INVOICE_SERVICE_ID', None),
+        'municipal_service_code': code if code else None,
+        'municipal_service_name': name,
+        'municipal_service_id': service_id if service_id else None,
     }
 
 

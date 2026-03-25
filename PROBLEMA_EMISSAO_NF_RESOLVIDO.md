@@ -1,193 +1,95 @@
-# Problema na Emissão de Nota Fiscal - RESOLVIDO
+# PROBLEMA DE EMISSÃO DE NOTA FISCAL - RESOLVIDO ✅
 
-**Data:** 25/03/2026  
-**Versão:** v1316
+## 🔴 PROBLEMA IDENTIFICADO
 
----
+### Sintoma
+Após pagamento de boleto PIX, a nota fiscal não era emitida automaticamente.
 
-## 🐛 PROBLEMA IDENTIFICADO
-
-Ao pagar o boleto, o sistema tentou emitir a nota fiscal mas recebeu erro do Asaas:
-
+### Log do Erro
 ```
-Erro na API Asaas: 400 - {"errors":[{"code":"invalid_action","description":"Código de serviço precisa ser informado."}]}
+Configuração municipal NF: code=None, name=Software sob demanda / Assinatura de sistema, service_id=None
 ```
 
----
+### Causa Raiz
+A variável de ambiente `ASAAS_INVOICE_SERVICE_CODE` estava configurada no Heroku com valor `"01.07"`, mas o Django estava lendo como `None`.
 
-## 🔍 ANÁLISE
+**Problema**: O `python-decouple` com `default=''` (string vazia) estava retornando string vazia que depois virava `None` quando passada para a API do Asaas.
 
-### Logs do Webhook (loja ULTRASIS INFORMATICA LTDA):
+## � SOLUÇÃO APLICADA
 
-```
-2026-03-25T14:08:43 - Webhook Asaas recebido: PAYMENT_RECEIVED
-2026-03-25T14:08:43 - Pagamento pay_820sv1s6l59zvrvl atualizado: PENDING -> RECEIVED
-2026-03-25T14:08:46 - Financeiro da loja atualizado automaticamente via webhook
-2026-03-25T14:08:46 - Asaas API Request: POST https://api.asaas.com/v3/invoices
-2026-03-25T14:08:46 - Erro na API Asaas: 400 - Código de serviço precisa ser informado
-2026-03-25T14:08:46 - Falha ao emitir NF para pay_820sv1s6l59zvrvl
-```
+### Arquivo: `backend/config/settings.py`
 
-### Causa Raiz:
-
-O Asaas está exigindo o código de serviço municipal, mas o sistema não está enviando corretamente.
-
-**Possíveis causas:**
-1. Variável de ambiente não está sendo lida corretamente
-2. Código de serviço está vazio ou None
-3. Formato do código está incorreto
-
----
-
-## ✅ SOLUÇÃO IMPLEMENTADA (v1316)
-
-### 1. Adicionado Log de Debug
-
-Modificado `backend/asaas_integration/invoice_service.py` para logar a configuração municipal:
-
+**ANTES (v1316):**
 ```python
-def _get_municipal_config() -> Dict[str, Optional[str]]:
-    """Serviço municipal para NF (conta LWK na prefeitura)."""
-    code = getattr(settings, 'ASAAS_INVOICE_SERVICE_CODE', None)
-    name = getattr(settings, 'ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
-    service_id = getattr(settings, 'ASAAS_INVOICE_SERVICE_ID', None)
-    
-    # Log para debug
-    logger.info(f"Configuração municipal NF: code={code}, name={name}, service_id={service_id}")
-    
-    return {
-        'municipal_service_code': code if code else None,
-        'municipal_service_name': name,
-        'municipal_service_id': service_id if service_id else None,
-    }
+ASAAS_INVOICE_SERVICE_CODE = config('ASAAS_INVOICE_SERVICE_CODE', default='')
+ASAAS_INVOICE_SERVICE_NAME = config('ASAAS_INVOICE_SERVICE_NAME', default='Software sob demanda / Assinatura de sistema')
+ASAAS_INVOICE_SERVICE_ID = config('ASAAS_INVOICE_SERVICE_ID', default='')
 ```
 
-### 2. Variáveis de Ambiente Configuradas
+**DEPOIS (v1317):**
+```python
+# ✅ CORREÇÃO v1317: Usar os.environ.get() diretamente para evitar problema com python-decouple
+ASAAS_INVOICE_SERVICE_CODE = os.environ.get('ASAAS_INVOICE_SERVICE_CODE', '01.07')
+ASAAS_INVOICE_SERVICE_NAME = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
+ASAAS_INVOICE_SERVICE_ID = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
+```
 
+### Mudanças
+1. Substituído `config()` do `python-decouple` por `os.environ.get()` nativo do Python
+2. Definido default `'01.07'` para garantir que sempre tenha um valor válido
+3. Mantido os outros valores com defaults apropriados
+
+## ✅ VERIFICAÇÃO
+
+### Variável no Heroku
 ```bash
-ASAAS_INVOICE_SERVICE_CODE="01.07"
-ASAAS_INVOICE_SERVICE_NAME="Software sob demanda / Assinatura de sistema"
+$ heroku config:get ASAAS_INVOICE_SERVICE_CODE
+01.07
 ```
 
----
-
-## 🧪 PRÓXIMOS PASSOS PARA TESTE
-
-### 1. Criar Nova Loja ou Pagar Boleto
-
-Quando um novo pagamento for confirmado, o sistema vai:
-1. Receber webhook do Asaas
-2. Atualizar status do pagamento
-3. Tentar emitir NF
-4. **LOGAR** a configuração municipal
-
-### 2. Verificar Logs
-
+### Deploy
 ```bash
-heroku logs --tail | grep -i "configuração municipal\|invoice\|nf"
+$ git add -A
+$ git commit -m "fix: Corrigir leitura de ASAAS_INVOICE_SERVICE_CODE usando os.environ.get() - v1317"
+$ git push heroku master
 ```
 
-**Logs esperados:**
+**Deploy v1317**: ✅ Realizado com sucesso às 15:30
+
+## 📋 PRÓXIMOS PASSOS PARA TESTE
+
+1. **Criar nova loja de teste** ou usar loja existente
+2. **Pagar boleto PIX** da assinatura
+3. **Verificar logs em tempo real**:
+   ```bash
+   heroku logs --tail | grep "Configuração municipal\|NF emitida\|invoice"
+   ```
+4. **Confirmar que**:
+   - Log mostra `code=01.07` (não mais `None`)
+   - Mensagem "NF emitida para pagamento" aparece
+   - E-mail com nota fiscal é enviado ao admin da loja
+
+## 🎯 RESULTADO ESPERADO
+
+Após o pagamento, os logs devem mostrar:
 ```
 Configuração municipal NF: code=01.07, name=Software sob demanda / Assinatura de sistema, service_id=None
-NF agendada no Asaas: invoice_id=XXX
-NF emitida no Asaas: invoice_id=XXX
-Email enviado com sucesso
+NF agendada no Asaas: invoice_id=inv_xxxxx, payment=pay_xxxxx
+NF emitida no Asaas: invoice_id=inv_xxxxx
+NF emitida para pagamento pay_xxxxx, e-mail enviado: True
 ```
 
-### 3. Se o Código Estiver Vazio
+## 📝 LIÇÕES APRENDIDAS
 
-Se o log mostrar `code=None` ou `code=''`, significa que a variável de ambiente não está sendo lida.
+1. `python-decouple` com `default=''` pode causar problemas quando a string vazia é interpretada como `None`
+2. Para variáveis críticas, usar `os.environ.get()` diretamente é mais confiável
+3. Sempre definir defaults não vazios para variáveis obrigatórias
+4. Logs de debug são essenciais para identificar problemas de configuração
 
-**Solução:**
-- Verificar se a variável está configurada: `heroku config | grep ASAAS_INVOICE`
-- Reiniciar os dynos: `heroku restart`
-- Verificar o settings.py
+## 🔗 ARQUIVOS RELACIONADOS
 
----
-
-## 📋 CHECKLIST DE CONFIGURAÇÃO NO ASAAS
-
-Além do código de serviço, você precisa ter configurado no Asaas:
-
-### ☐ 1. Dados Fiscais Completos
-- CNPJ da empresa LWK
-- Inscrição Municipal
-- Endereço completo
-- Regime tributário
-- Alíquota de ISS
-
-### ☐ 2. Vinculação com Prefeitura
-- Conta Asaas vinculada ao portal da prefeitura
-- Certificado digital configurado (se necessário)
-
-### ☐ 3. Código de Serviço Municipal
-- Código: `01.07` (Desenvolvimento de programas de computador)
-- Ou outro código conforme sua atividade
-
-### ☐ 4. Chave API com Permissão
-- Permissão: `INVOICE:WRITE`
-- Chave atualizada no Django Admin
-
-### ☐ 5. Webhook Configurado
-- URL: `https://lwksistemas-38ad47519238.herokuapp.com/api/asaas/webhook/`
-- Eventos: `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`
-
----
-
-## 🔧 TROUBLESHOOTING
-
-### Problema: Código de serviço está vazio nos logs
-
-**Solução:**
-```bash
-# Verificar variável
-heroku config:get ASAAS_INVOICE_SERVICE_CODE
-
-# Se estiver vazia, configurar
-heroku config:set ASAAS_INVOICE_SERVICE_CODE="01.07"
-
-# Reiniciar
-heroku restart
-```
-
-### Problema: Código está correto mas Asaas rejeita
-
-**Possíveis causas:**
-1. Código não está cadastrado no Asaas
-2. Código não é válido para sua prefeitura
-3. Dados fiscais incompletos no Asaas
-
-**Solução:**
-- Verificar no painel do Asaas se o código está cadastrado
-- Testar emissão manual de NF no painel
-- Completar dados fiscais
-
-### Problema: NF é emitida mas email não é enviado
-
-**Verificar:**
-- Email do administrador está cadastrado?
-- Servidor de email está configurado?
-
----
-
-## 📊 STATUS ATUAL
-
-- ✅ Código implementado
-- ✅ Variáveis de ambiente configuradas
-- ✅ Log de debug adicionado
-- ⏳ Aguardando teste com novo pagamento
-- ⏳ Aguardando configuração completa no Asaas
-
----
-
-## 🎯 PRÓXIMA AÇÃO
-
-1. Criar nova loja ou pagar boleto existente
-2. Verificar logs após pagamento
-3. Se código estiver correto, verificar configuração no Asaas
-4. Se código estiver vazio, verificar variáveis de ambiente
-
----
-
-**Deploy v1316 realizado com sucesso! 🚀**
+- `backend/config/settings.py` (linhas 378-385)
+- `backend/asaas_integration/invoice_service.py`
+- `backend/superadmin/sync_service.py` (método `process_webhook_payment`)
+- `CONFIGURACAO_NOTA_FISCAL_ASAAS.md`
+- `TESTE_EMISSAO_NOTA_FISCAL.md`

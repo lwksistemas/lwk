@@ -23,9 +23,11 @@ def get_invoice_client():
 
 def _get_municipal_config() -> Dict[str, Optional[str]]:
     """Serviço municipal para NF (conta LWK na prefeitura)."""
-    code = getattr(settings, 'ASAAS_INVOICE_SERVICE_CODE', None)
-    name = getattr(settings, 'ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
-    service_id = getattr(settings, 'ASAAS_INVOICE_SERVICE_ID', None)
+    import os
+    # ✅ CORREÇÃO v1319: Ler diretamente do os.environ para evitar problema com settings
+    code = os.environ.get('ASAAS_INVOICE_SERVICE_CODE', '01.07')
+    name = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
+    service_id = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
     
     # Log para debug
     logger.info(f"Configuração municipal NF: code={code}, name={name}, service_id={service_id}")

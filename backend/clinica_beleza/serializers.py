@@ -123,52 +123,34 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                 }.get(perfil, 'Profissional')
                 
                 try:
-                    send_mail(
-                        subject=f'Acesso ao Sistema - {loja.nome}',
-                        message=(
-                            f"Olá, {name or 'Profissional'}!\n\n"
-                            f"Seu acesso ao sistema {loja.nome} foi criado com sucesso.\n\n"
-                            f"═══════════════════════════════════════════════════════════════\n\n"
-                            f"🔐 SEUS DADOS DE ACESSO\n\n"
-                            f"• URL de Login: {login_url}\n"
-                            f"• Usuário: {email}\n"
-                            f"• Senha Provisória: {senha_provisoria}\n"
-                            f"• Perfil: {perfil_nome}\n\n"
-                            f"⚠️ IMPORTANTE: Esta é uma senha temporária. Por segurança, altere-a no primeiro acesso.\n\n"
-                            f"═══════════════════════════════════════════════════════════════\n\n"
-                            f"📋 INFORMAÇÕES DO SEU ACESSO\n\n"
-                            f"• Loja: {loja.nome}\n"
-                            f"• Tipo: {loja.tipo_loja.nome}\n"
-                            f"• Seu Perfil: {perfil_nome}\n\n"
-                            f"═══════════════════════════════════════════════════════════════\n\n"
-                            f"🎯 PRIMEIROS PASSOS\n\n"
-                            f"1. ACESSE O SISTEMA\n"
-                            f"   Entre no link de login acima com seus dados de acesso\n\n"
-                            f"2. ALTERE SUA SENHA\n"
-                            f"   Vá em: Perfil → Alterar Senha\n"
-                            f"   Escolha uma senha forte e segura\n\n"
-                            f"3. EXPLORE O SISTEMA\n"
-                            f"   Familiarize-se com as funcionalidades disponíveis\n\n"
-                            f"═══════════════════════════════════════════════════════════════\n\n"
-                            f"🔑 ESQUECEU SUA SENHA?\n\n"
-                            f"Caso precise recuperar sua senha no futuro:\n\n"
-                            f"1. Acesse a página de login\n"
-                            f"2. Clique em \"Esqueci minha senha\"\n"
-                            f"3. Digite seu email cadastrado\n"
-                            f"4. Você receberá um link para redefinir sua senha\n\n"
-                            f"═══════════════════════════════════════════════════════════════\n\n"
-                            f"📞 PRECISA DE AJUDA?\n\n"
-                            f"Em caso de dúvidas, entre em contato com o administrador da loja.\n\n"
-                            f"═══════════════════════════════════════════════════════════════\n\n"
-                            f"Bem-vindo ao LWK Sistemas!\n\n"
-                            f"Atenciosamente,\n"
-                            f"Equipe LWK Sistemas\n"
-                            f"https://lwksistemas.com.br"
-                        ),
-                        from_email=from_email,
-                        recipient_list=[email],
-                        fail_silently=True,
+                    from core.email_templates import email_senha_provisoria_html
+                    from django.core.mail import EmailMultiAlternatives
+                    
+                    info_adicional = {
+                        "Loja": loja.nome,
+                        "Tipo de Sistema": loja.tipo_loja.nome,
+                        "Seu Perfil": perfil_nome,
+                    }
+                    
+                    html_content, texto_plano = email_senha_provisoria_html(
+                        nome_destinatario=name or 'Profissional',
+                        usuario=email,
+                        senha=senha_provisoria,
+                        url_login=login_url,
+                        titulo_principal="Bem-vindo ao Sistema",
+                        subtitulo="Seu acesso foi criado com sucesso!",
+                        info_adicional=info_adicional,
+                        nome_sistema=loja.nome
                     )
+                    
+                    email_msg = EmailMultiAlternatives(
+                        subject=f'Acesso ao Sistema - {loja.nome}',
+                        body=texto_plano,
+                        from_email=from_email,
+                        to=[email],
+                    )
+                    email_msg.attach_alternative(html_content, "text/html")
+                    email_msg.send(fail_silently=True)
                 except Exception as mail_err:
                     logger.warning('Envio de e-mail ao criar profissional falhou: %s', mail_err)
             except serializers.ValidationError:

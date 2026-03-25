@@ -42,23 +42,26 @@ class EmailService:
                 logger.error(f"Email do owner não encontrado para loja {loja.slug}")
                 return False
             
-            # Criar mensagem
+            # Criar mensagem HTML e texto plano
             assunto = f"Acesso à sua loja {loja.nome} - Senha Provisória"
-            mensagem = self._criar_mensagem_senha(loja, owner, senha)
+            html_content, texto_plano = self._criar_mensagem_senha(loja, owner, senha)
             
             # Verificar se email está configurado
             if not hasattr(settings, 'DEFAULT_FROM_EMAIL') or not settings.DEFAULT_FROM_EMAIL:
                 logger.warning("DEFAULT_FROM_EMAIL não configurado. Email não será enviado.")
                 return False
             
-            # Enviar email
-            send_mail(
+            # Enviar email com HTML
+            from django.core.mail import EmailMultiAlternatives
+            
+            email_msg = EmailMultiAlternatives(
                 subject=assunto,
-                message=mensagem,
+                body=texto_plano,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False
+                to=[email],
             )
+            email_msg.attach_alternative(html_content, "text/html")
+            email_msg.send(fail_silently=False)
             
             # Atualizar FinanceiroLoja
             try:
@@ -79,7 +82,7 @@ class EmailService:
             self._registrar_retry(
                 destinatario=email,
                 assunto=assunto,
-                mensagem=mensagem,
+                mensagem=texto_plano if 'texto_plano' in locals() else str(e),
                 loja=loja,
                 erro=str(e)
             )
@@ -154,9 +157,9 @@ class EmailService:
             
             return False
     
-    def _criar_mensagem_senha(self, loja, owner, senha: str) -> str:
+    def _criar_mensagem_senha(self, loja, owner, senha: str) -> tuple:
         """
-        Cria mensagem de email com senha provisória
+        Cria mensagem de email com senha provisória (HTML + texto plano)
         
         Args:
             loja: Instância do modelo Loja
@@ -164,10 +167,19 @@ class EmailService:
             senha: Senha provisória
         
         Returns:
-            str com corpo do email
+            tuple: (html_content, texto_plano)
         """
-        # ✅ NOVO v734: Incluir link do boleto PDF para Mercado Pago
-        boleto_info = ""
+        from core.email_templates import email_senha_provisoria_html
+        
+        # Preparar informações adicionais
+        info_adicional = {
+            "Nome da Loja": loja.nome,
+            "Tipo de Sistema": loja.tipo_loja.nome,
+            "Plano Contratado": loja.plano.nome,
+            "Tipo de Assinatura": loja.get_tipo_assinatura_display(),
+        }
+        
+        # ✅ Incluir link do boleto PDF para Mercado Pago
         try:
             financeiro = loja.financeiro
             if financeiro.provedor_boleto == 'mercadopago' and financeiro.mercadopago_payment_id:
@@ -175,97 +187,25 @@ class EmailService:
                 mp_service = LojaMercadoPagoService()
                 boleto_url = mp_service.get_boleto_url(financeiro.mercadopago_payment_id)
                 if boleto_url:
-                    boleto_info = f"""
-💳 FORMAS DE PAGAMENTO:
-• Boleto: {boleto_url}
-• PIX: {financeiro.pix_copy_paste or 'Disponível no painel'}
-
-Você pode pagar via boleto ou PIX. Escolha a opção mais conveniente!
-"""
+                    info_adicional["💳 Boleto"] = boleto_url
+                    info_adicional["💳 PIX"] = financeiro.pix_copy_paste or 'Disponível no painel'
         except Exception as e:
             logger.warning(f"Erro ao buscar link do boleto para email: {e}")
         
-        mensagem = f"""
-Olá, {owner.get_full_name() or owner.username}!
-
-Parabéns! Sua loja "{loja.nome}" foi criada com sucesso e está pronta para uso.
-
-═══════════════════════════════════════════════════════════════
-
-🔐 SEUS DADOS DE ACESSO
-
-• URL de Login: https://lwksistemas.com.br{loja.login_page_url}
-• Usuário: {owner.username}
-• Senha Provisória: {senha}
-
-⚠️ IMPORTANTE: Esta é uma senha temporária. Por segurança, altere-a no primeiro acesso.
-
-═══════════════════════════════════════════════════════════════
-
-📋 INFORMAÇÕES DA SUA LOJA
-
-• Nome: {loja.nome}
-• Tipo de Sistema: {loja.tipo_loja.nome}
-• Plano Contratado: {loja.plano.nome}
-• Tipo de Assinatura: {loja.get_tipo_assinatura_display()}
-{boleto_info}
-═══════════════════════════════════════════════════════════════
-
-🎯 PRIMEIROS PASSOS
-
-1. ACESSE O SISTEMA
-   Entre no link de login acima com seus dados de acesso
-
-2. ALTERE SUA SENHA
-   Vá em: Perfil → Alterar Senha
-   Escolha uma senha forte e segura
-
-3. CADASTRE SUA EQUIPE
-   Acesse: Menu → Funcionários → Novo Funcionário
-   
-   Tipos de perfil disponíveis:
-   • Administrador: Acesso total ao sistema
-   • Profissional: Gerencia agenda e atendimentos
-   • Recepcionista: Gerencia agendamentos e clientes
-   • Vendedor: Acesso ao CRM de vendas
-   
-   Cada funcionário receberá suas próprias credenciais de acesso
-
-4. CONFIGURE SUA LOJA
-   Personalize as configurações conforme suas necessidades
-
-═══════════════════════════════════════════════════════════════
-
-🔑 ESQUECEU SUA SENHA?
-
-Caso precise recuperar sua senha no futuro:
-
-1. Acesse a página de login
-2. Clique em "Esqueci minha senha"
-3. Digite seu email cadastrado
-4. Você receberá um link para redefinir sua senha
-
-═══════════════════════════════════════════════════════════════
-
-📞 PRECISA DE AJUDA?
-
-Nossa equipe está pronta para auxiliá-lo:
-
-• Email: suporte@lwksistemas.com.br
-• WhatsApp: (disponível no painel)
-• Horário: Segunda a Sexta, 8h às 18h
-
-═══════════════════════════════════════════════════════════════
-
-Bem-vindo ao LWK Sistemas!
-Estamos felizes em tê-lo conosco.
-
-Atenciosamente,
-Equipe LWK Sistemas
-https://lwksistemas.com.br
-        """.strip()
+        url_login = f"https://lwksistemas.com.br{loja.login_page_url}"
         
-        return mensagem
+        html_content, texto_plano = email_senha_provisoria_html(
+            nome_destinatario=owner.get_full_name() or owner.username,
+            usuario=owner.username,
+            senha=senha,
+            url_login=url_login,
+            titulo_principal="Bem-vindo ao Sistema",
+            subtitulo="Sua loja foi criada com sucesso!",
+            info_adicional=info_adicional,
+            nome_sistema=loja.nome
+        )
+        
+        return html_content, texto_plano
     
     def _registrar_retry(
         self,

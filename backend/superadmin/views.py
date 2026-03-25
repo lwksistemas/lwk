@@ -715,69 +715,38 @@ Equipe de Suporte
             loja.save()
 
             from .services.provisional_password_helpers import loja_login_absolute_url
+            from core.email_templates import email_senha_provisoria_html
+
+            info_adicional = {
+                "Nome da Loja": loja.nome,
+                "Tipo de Sistema": loja.tipo_loja.nome,
+                "Plano Contratado": loja.plano.nome,
+                "Tipo de Assinatura": loja.get_tipo_assinatura_display(),
+            }
+            
+            html_content, texto_plano = email_senha_provisoria_html(
+                nome_destinatario="Administrador",
+                usuario=loja.owner.username,
+                senha=nova_senha_provisoria,
+                url_login=loja_login_absolute_url(loja),
+                titulo_principal="Nova Senha Provisória",
+                subtitulo="Sua senha foi redefinida pelo suporte",
+                info_adicional=info_adicional,
+                nome_sistema=loja.nome
+            )
 
             assunto = f"Nova Senha Provisória - {loja.nome}"
-            mensagem = f"""
-═══════════════════════════════════════════════════════════════
-                    RECUPERAÇÃO DE SENHA
-═══════════════════════════════════════════════════════════════
-
-Olá!
-
-Você solicitou a recuperação de senha para sua loja.
-
-═══════════════════════════════════════════════════════════════
-                    🔐 DADOS DE ACESSO
-═══════════════════════════════════════════════════════════════
-
-URL de Login:
-{loja_login_absolute_url(loja)}
-
-Usuário: {loja.owner.username}
-Senha Provisória: {nova_senha_provisoria}
-
-═══════════════════════════════════════════════════════════════
-                    ⚠️ IMPORTANTE
-═══════════════════════════════════════════════════════════════
-
-• Esta é uma senha provisória gerada automaticamente
-• Você será SOLICITADO A ALTERAR esta senha no primeiro acesso
-• Por segurança, altere a senha assim que fizer login
-• Mantenha seus dados de acesso em segurança
-
-═══════════════════════════════════════════════════════════════
-                    📋 INFORMAÇÕES DA LOJA
-═══════════════════════════════════════════════════════════════
-
-Nome da Loja: {loja.nome}
-Tipo de Sistema: {loja.tipo_loja.nome}
-Plano Contratado: {loja.plano.nome}
-Tipo de Assinatura: {loja.get_tipo_assinatura_display()}
-
-═══════════════════════════════════════════════════════════════
-                    📞 SUPORTE
-═══════════════════════════════════════════════════════════════
-
-Em caso de dúvidas ou problemas, entre em contato:
-• Email: suporte@lwksistemas.com.br
-• WhatsApp: (11) 99999-9999
-
-═══════════════════════════════════════════════════════════════
-
-Atenciosamente,
-Equipe LWK Sistemas
-https://lwksistemas.com.br
-
-═══════════════════════════════════════════════════════════════
-            """.strip()
             
-            send_mail(
+            from django.core.mail import EmailMultiAlternatives
+            
+            email_msg = EmailMultiAlternatives(
                 subject=assunto,
-                message=mensagem,
+                body=texto_plano,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[loja.owner.email],
-                fail_silently=False
+                to=[loja.owner.email],
             )
+            email_msg.attach_alternative(html_content, "text/html")
+            email_msg.send(fail_silently=False)
             
             return Response({
                 'message': f'Nova senha provisória gerada e enviada para {loja.owner.email}',
@@ -1841,62 +1810,33 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             tipo_display = 'Super Admin' if tipo == 'superadmin' else 'Suporte'
             url_login = sistema_usuario_login_url(tipo)
 
-            assunto = f"Recuperação de Senha - {tipo_display}"
-            mensagem = f"""
-═══════════════════════════════════════════════════════════════
-                    RECUPERAÇÃO DE SENHA
-═══════════════════════════════════════════════════════════════
-
-Olá {user.first_name or user.username}!
-
-Você solicitou a recuperação de senha para acesso ao sistema.
-
-═══════════════════════════════════════════════════════════════
-                    🔐 DADOS DE ACESSO
-═══════════════════════════════════════════════════════════════
-
-URL de Login:
-{url_login}
-
-Usuário: {user.username}
-Senha Provisória: {nova_senha}
-
-Perfil de Acesso: {tipo_display}
-
-═══════════════════════════════════════════════════════════════
-                    ⚠️ IMPORTANTE
-═══════════════════════════════════════════════════════════════
-
-• Esta é uma senha provisória gerada automaticamente
-• Recomendamos ALTERAR A SENHA após o primeiro login
-• Mantenha seus dados de acesso em segurança
-• Se você não solicitou esta recuperação, entre em contato 
-  imediatamente conosco
-
-═══════════════════════════════════════════════════════════════
-                    📞 SUPORTE
-═══════════════════════════════════════════════════════════════
-
-Em caso de dúvidas ou problemas, entre em contato:
-• Email: suporte@lwksistemas.com.br
-• WhatsApp: (11) 99999-9999
-
-═══════════════════════════════════════════════════════════════
-
-Atenciosamente,
-Equipe LWK Sistemas
-https://lwksistemas.com.br
-
-═══════════════════════════════════════════════════════════════
-            """.strip()
+            from core.email_templates import email_senha_provisoria_html
             
-            send_mail(
-                subject=assunto,
-                message=mensagem,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False
+            info_adicional = {
+                "Perfil de Acesso": tipo_display,
+            }
+            
+            html_content, texto_plano = email_senha_provisoria_html(
+                nome_destinatario=user.first_name or user.username,
+                usuario=user.username,
+                senha=nova_senha,
+                url_login=url_login,
+                titulo_principal="Recuperação de Senha",
+                subtitulo="Sua senha foi redefinida com sucesso",
+                info_adicional=info_adicional,
+                nome_sistema="LWK Sistemas"
             )
+            
+            from django.core.mail import EmailMultiAlternatives
+            
+            email_msg = EmailMultiAlternatives(
+                subject=assunto,
+                body=texto_plano,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[email],
+            )
+            email_msg.attach_alternative(html_content, "text/html")
+            email_msg.send(fail_silently=False)
             
             return Response({
                 'message': 'Senha provisória enviada para o email cadastrado',

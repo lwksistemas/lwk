@@ -231,63 +231,42 @@ def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
     
     if reenviar:
-        titulo = "Sua senha foi redefinida com sucesso"
-        intro = "Sua senha de acesso ao CRM foi redefinida."
+        titulo = "Senha Redefinida"
+        subtitulo = "Sua senha foi redefinida com sucesso"
     else:
-        titulo = "Seu acesso ao CRM foi criado com sucesso"
-        intro = f"Seu acesso ao sistema CRM de {loja.nome} foi criado."
+        titulo = "Bem-vindo ao CRM"
+        subtitulo = "Seu acesso foi criado com sucesso!"
     
     try:
-        send_mail(
-            subject=assunto,
-            message=(
-                f"Olá, {vendedor.nome or 'Vendedor'}!\n\n"
-                f"{titulo}\n\n"
-                f"═══════════════════════════════════════════════════════════════\n\n"
-                f"🔐 SEUS DADOS DE ACESSO\n\n"
-                f"• URL de Login: {login_url}\n"
-                f"• Usuário: {email}\n"
-                f"• Senha Provisória: {senha_provisoria}\n"
-                f"• Cargo: {vendedor.cargo}\n\n"
-                f"⚠️ IMPORTANTE: Esta é uma senha temporária. Por segurança, altere-a no primeiro acesso.\n\n"
-                f"═══════════════════════════════════════════════════════════════\n\n"
-                f"📋 INFORMAÇÕES DO SEU ACESSO\n\n"
-                f"• Loja: {loja.nome}\n"
-                f"• Sistema: CRM de Vendas\n"
-                f"• Seu Cargo: {vendedor.cargo}\n"
-                f"• Comissão Padrão: {vendedor.comissao_padrao}%\n\n"
-                f"═══════════════════════════════════════════════════════════════\n\n"
-                f"🎯 PRIMEIROS PASSOS\n\n"
-                f"1. ACESSE O SISTEMA\n"
-                f"   Entre no link de login acima com seus dados de acesso\n\n"
-                f"2. ALTERE SUA SENHA\n"
-                f"   Vá em: Perfil → Alterar Senha\n"
-                f"   Escolha uma senha forte e segura\n\n"
-                f"3. EXPLORE O CRM\n"
-                f"   • Pipeline de Vendas\n"
-                f"   • Leads e Oportunidades\n"
-                f"   • Contas e Contatos\n"
-                f"   • Produtos e Serviços\n\n"
-                f"═══════════════════════════════════════════════════════════════\n\n"
-                f"🔑 ESQUECEU SUA SENHA?\n\n"
-                f"Caso precise recuperar sua senha no futuro:\n\n"
-                f"1. Acesse a página de login\n"
-                f"2. Clique em \"Esqueci minha senha\"\n"
-                f"3. Digite seu email cadastrado\n"
-                f"4. Você receberá um link para redefinir sua senha\n\n"
-                f"═══════════════════════════════════════════════════════════════\n\n"
-                f"📞 PRECISA DE AJUDA?\n\n"
-                f"Em caso de dúvidas, entre em contato com o administrador da loja.\n\n"
-                f"═══════════════════════════════════════════════════════════════\n\n"
-                f"Bem-vindo ao LWK Sistemas!\n\n"
-                f"Atenciosamente,\n"
-                f"Equipe LWK Sistemas\n"
-                f"https://lwksistemas.com.br"
-            ),
-            from_email=from_email,
-            recipient_list=[email],
-            fail_silently=True,
+        from core.email_templates import email_senha_provisoria_html
+        from django.core.mail import EmailMultiAlternatives
+        
+        info_adicional = {
+            "Loja": loja.nome,
+            "Sistema": "CRM de Vendas",
+            "Seu Cargo": vendedor.cargo,
+            "Comissão Padrão": f"{vendedor.comissao_padrao}%",
+        }
+        
+        html_content, texto_plano = email_senha_provisoria_html(
+            nome_destinatario=vendedor.nome or 'Vendedor',
+            usuario=email,
+            senha=senha_provisoria,
+            url_login=login_url,
+            titulo_principal=titulo,
+            subtitulo=subtitulo,
+            info_adicional=info_adicional,
+            nome_sistema=loja.nome
         )
+        
+        email_msg = EmailMultiAlternatives(
+            subject=assunto,
+            body=texto_plano,
+            from_email=from_email,
+            to=[email],
+        )
+        email_msg.attach_alternative(html_content, "text/html")
+        email_msg.send(fail_silently=True)
     except Exception as mail_err:
         logger.warning('Envio de e-mail ao criar vendedor falhou: %s', mail_err)
 

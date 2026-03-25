@@ -378,9 +378,10 @@ SITE_URL = config('SITE_URL', default='http://localhost:3000')
 
 # Nota Fiscal Asaas (emissão ao confirmar pagamento da assinatura)
 # Serviço municipal conforme configuração da prefeitura da conta LWK no Asaas
-ASAAS_INVOICE_SERVICE_CODE = config('ASAAS_INVOICE_SERVICE_CODE', default='')
-ASAAS_INVOICE_SERVICE_NAME = config('ASAAS_INVOICE_SERVICE_NAME', default='Software sob demanda / Assinatura de sistema')
-ASAAS_INVOICE_SERVICE_ID = config('ASAAS_INVOICE_SERVICE_ID', default='')
+# ✅ CORREÇÃO v1317: Usar os.environ.get() diretamente para evitar problema com python-decouple
+ASAAS_INVOICE_SERVICE_CODE = os.environ.get('ASAAS_INVOICE_SERVICE_CODE', '01.07')
+ASAAS_INVOICE_SERVICE_NAME = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
+ASAAS_INVOICE_SERVICE_ID = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
 
 # ============================================
 # DJANGO-Q CONFIGURATION (Task Queue)

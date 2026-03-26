@@ -279,6 +279,12 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
             except Exception as e:
                 logger.error(f"❌ Erro ao criar categorias padrão para loja {instance.nome}: {e}")
 
+        elif tipo_loja_nome == 'Cabeleireiro':
+            from cabeleireiro.models import Funcionario
+            
+            if not Funcionario.objects.filter(email=owner.email, loja_id=instance.id).exists():
+                funcionario_criado = Funcionario.objects.create(**funcionario_data)
+
         elif tipo_loja_nome == 'E-commerce':
             # E-commerce não tem modelo de funcionário
             logger.info(f"E-commerce não possui modelo de funcionário. Loja: {instance.nome}")

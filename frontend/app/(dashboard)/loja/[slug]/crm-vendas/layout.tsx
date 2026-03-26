@@ -64,9 +64,17 @@ export default function CrmVendasLayout({
         user_role?: 'vendedor' | 'administrador';
       }>('/crm-vendas/me/');
       const d = r.data;
-      if (typeof window !== 'undefined' && d?.is_vendedor && typeof d?.vendedor_id === 'number') {
-        sessionStorage.setItem('is_vendedor', '1');
-        sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
+      // IMPORTANTE: Só setar is_vendedor se o BACKEND explicitamente disser que é vendedor
+      // Owner pode ter vendedor_id mas is_vendedor=false (acesso total)
+      if (typeof window !== 'undefined') {
+        if (d?.is_vendedor === true && typeof d?.vendedor_id === 'number') {
+          sessionStorage.setItem('is_vendedor', '1');
+          sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
+        } else if (typeof d?.vendedor_id === 'number') {
+          // Tem vendedor_id mas não é vendedor (owner) - só salva o ID
+          sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
+          // NÃO seta is_vendedor - owner mantém acesso total
+        }
       }
       setUserDisplayName(d?.user_display_name ?? null);
       setUserRole(d?.user_role === 'vendedor' ? 'vendedor' : 'administrador');

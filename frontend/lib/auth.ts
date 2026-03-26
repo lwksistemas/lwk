@@ -275,11 +275,21 @@ class AuthService {
   /**
    * Define o ID do vendedor logado.
    * Usado para sincronizar vendedor_id com backend após login ou criação de oportunidade.
+   * 
+   * IMPORTANTE: NÃO seta is_vendedor=1 se o usuário já for owner.
+   * Owner pode ter vendedor_id (para fazer vendas) mas continua sendo owner (acesso total).
    */
   setVendedorId(vendedorId: number): void {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('current_vendedor_id', String(vendedorId));
-      sessionStorage.setItem('is_vendedor', '1');
+      // Só marca como vendedor se NÃO for owner
+      // Owner já tem is_vendedor !== '1' do login
+      const isAlreadyVendedor = sessionStorage.getItem('is_vendedor') === '1';
+      if (isAlreadyVendedor) {
+        // Já é vendedor, mantém
+        sessionStorage.setItem('is_vendedor', '1');
+      }
+      // Se não é vendedor (owner), NÃO seta is_vendedor
     }
   }
 

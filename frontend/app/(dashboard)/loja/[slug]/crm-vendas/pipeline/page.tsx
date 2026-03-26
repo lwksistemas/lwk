@@ -76,9 +76,16 @@ export default function CrmVendasPipelinePage() {
     apiClient
       .get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/')
       .then((res) => {
-        const { vendedor_id } = res.data;
-        if (vendedor_id) {
+        const { vendedor_id, is_vendedor } = res.data;
+        // Só sincronizar vendedor_id se o backend explicitamente disser que é vendedor
+        // Owner pode ter vendedor_id mas não deve ser marcado como vendedor
+        if (vendedor_id && is_vendedor === true) {
           authService.setVendedorId(vendedor_id);
+        } else if (vendedor_id) {
+          // Owner tem vendedor_id mas não é vendedor - só salva o ID sem marcar como vendedor
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('current_vendedor_id', String(vendedor_id));
+          }
         }
         setVendedorIdSynced(true);
       })
@@ -227,9 +234,16 @@ export default function CrmVendasPipelinePage() {
         
         // Sincronizar vendedor_id antes de recarregar lista
         try {
-          const meRes = await apiClient.get<{ vendedor_id: number | null }>('/crm-vendas/me/');
-          if (meRes.data.vendedor_id) {
-            authService.setVendedorId(meRes.data.vendedor_id);
+          const meRes = await apiClient.get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/');
+          const { vendedor_id, is_vendedor } = meRes.data;
+          // Só sincronizar se for vendedor explicitamente
+          if (vendedor_id && is_vendedor === true) {
+            authService.setVendedorId(vendedor_id);
+          } else if (vendedor_id) {
+            // Owner - só salva o ID
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('current_vendedor_id', String(vendedor_id));
+            }
           }
         } catch {
           // Ignora erro de sincronização

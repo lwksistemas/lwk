@@ -104,9 +104,20 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
 
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def list(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # DEBUG: Log do contexto
+        loja_id = get_current_loja_id()
+        logger.info(f"[VendedorViewSet.list] loja_id={loja_id}, user={request.user.id if request.user else None}")
+        
         for attempt in range(2):
             try:
                 response = super().list(request, *args, **kwargs)
+                
+                # DEBUG: Log do queryset
+                logger.info(f"[VendedorViewSet.list] response count={response.data.get('count') if isinstance(response.data, dict) else len(response.data)}")
+                
                 # Prepend admin (owner) como primeiro item APENAS se não tiver vendedor vinculado
                 loja_id = get_current_loja_id()
                 if loja_id:

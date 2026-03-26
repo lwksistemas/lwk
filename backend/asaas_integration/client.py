@@ -223,6 +223,11 @@ class AsaasClient:
         endpoint = f'invoices/{invoice_id}/authorize'
         return self._make_request('POST', endpoint, {})
 
+    def cancel_invoice(self, invoice_id: str) -> Dict[str, Any]:
+        """Cancela uma nota fiscal agendada ou emitida."""
+        endpoint = f'invoices/{invoice_id}'
+        return self._make_request('DELETE', endpoint)
+
     def get_invoice(self, invoice_id: str) -> Dict[str, Any]:
         """Busca uma nota fiscal (para obter link do PDF se disponível)."""
         endpoint = f'invoices/{invoice_id}'

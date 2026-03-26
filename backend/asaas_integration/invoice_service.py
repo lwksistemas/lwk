@@ -32,6 +32,8 @@ def _get_municipal_config() -> Dict[str, Optional[str]]:
     # ✅ CORREÇÃO v1333: Remover pontuação do código de serviço (prefeitura exige apenas dígitos)
     if code:
         code = code.replace('.', '').replace('-', '')
+        # ✅ CORREÇÃO v1337: Remover zeros à esquerda (prefeitura pode rejeitar "0107", aceita "107")
+        code = code.lstrip('0') or '0'  # Mantém pelo menos um '0' se o código for todo zeros
     
     # Log para debug
     logger.info(f"Configuração municipal NF: code={code}, name={name}, service_id={service_id}")

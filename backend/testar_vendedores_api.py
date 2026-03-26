@@ -62,14 +62,24 @@ def testar():
     print(f"TESTE 3: VendedorViewSet.get_queryset()")
     print(f"{'='*80}")
     factory = RequestFactory()
-    request = factory.get('/api/crm-vendas/vendedores/')
+    request = factory.get(
+        '/api/crm-vendas/vendedores/',
+        HTTP_X_LOJA_ID=str(loja.id),
+        HTTP_X_TENANT_SLUG=loja.slug
+    )
     request.user = loja.owner
+    
+    # Setar contexto novamente (pode ter sido limpo)
+    set_current_loja_id(loja.id)
+    print(f"Contexto antes do viewset: loja_id={get_current_loja_id()}")
     
     viewset = VendedorViewSet()
     viewset.request = request
     viewset.format_kwarg = None
+    viewset.action = 'list'
     
     qs = viewset.get_queryset()
+    print(f"Contexto depois do viewset: loja_id={get_current_loja_id()}")
     print(f"Total no viewset queryset: {qs.count()}")
     for v in qs:
         print(f"  - ID: {v.id}, Nome: {v.nome}, Email: {v.email}, is_admin: {v.is_admin}")

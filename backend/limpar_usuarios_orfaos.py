@@ -51,7 +51,25 @@ for user_id in usuarios_orfaos:
         # Excluir usando SQL direto para evitar problemas com ForeignKeys
         from django.db import connection
         with connection.cursor() as cursor:
-            # Excluir usuário diretamente
+            # Excluir sessões (user_sessions)
+            try:
+                cursor.execute("DELETE FROM user_sessions WHERE user_id = %s", [user_id])
+            except Exception:
+                pass
+            
+            # Excluir grupos do usuário
+            try:
+                cursor.execute("DELETE FROM auth_user_groups WHERE user_id = %s", [user_id])
+            except Exception:
+                pass
+            
+            # Excluir permissões do usuário
+            try:
+                cursor.execute("DELETE FROM auth_user_user_permissions WHERE user_id = %s", [user_id])
+            except Exception:
+                pass
+            
+            # Excluir usuário
             cursor.execute("DELETE FROM auth_user WHERE id = %s", [user_id])
             print(f"   ✅ Usuário {username} (ID: {user_id}) excluído")
                 

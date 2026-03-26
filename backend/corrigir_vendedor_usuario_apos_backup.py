@@ -48,6 +48,13 @@ def corrigir_vendedor_usuario(loja_slug_ou_cnpj):
     # Setar contexto
     set_current_loja_id(loja.id)
     
+    # Configurar banco do schema isolado
+    from core.db_config import ensure_loja_database_config
+    db_name = getattr(loja, 'database_name', None) or f'loja_{loja.slug}'
+    ensure_loja_database_config(db_name, conn_max_age=0)
+    
+    print(f"Database: {db_name}\n")
+    
     # Buscar todos os VendedorUsuario da loja
     vendedor_usuarios = VendedorUsuario.objects.using('default').filter(loja_id=loja.id)
     
@@ -62,7 +69,7 @@ def corrigir_vendedor_usuario(loja_slug_ou_cnpj):
         print(f"  - Vendedor ID antigo: {vu.vendedor_id}")
         
         # Verificar se vendedor existe no schema isolado
-        vendedor_existe = Vendedor.objects.filter(id=vu.vendedor_id).exists()
+        vendedor_existe = Vendedor.objects.using(db_name).filter(id=vu.vendedor_id).exists()
         
         if vendedor_existe:
             print(f"  ✅ Vendedor ID={vu.vendedor_id} existe no schema")
@@ -71,7 +78,7 @@ def corrigir_vendedor_usuario(loja_slug_ou_cnpj):
         print(f"  ❌ Vendedor ID={vu.vendedor_id} NÃO existe no schema")
         
         # Buscar vendedor pelo email do usuário
-        vendedor_correto = Vendedor.objects.filter(
+        vendedor_correto = Vendedor.objects.using(db_name).filter(
             email__iexact=vu.user.email
         ).first()
         

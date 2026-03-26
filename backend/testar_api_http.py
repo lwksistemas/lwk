@@ -31,7 +31,7 @@ def testar():
     # Criar requisição HTTP simulada
     factory = RequestFactory()
     request = factory.get(
-        f'/api/crm-vendas/vendedores/',
+        f'/loja/{loja.slug}/api/crm-vendas/vendedores/',  # URL com slug
         HTTP_X_LOJA_ID=str(loja.id),
         HTTP_X_TENANT_SLUG=loja.slug,
     )
@@ -40,8 +40,12 @@ def testar():
     force_authenticate(request, user=loja.owner)
     
     # Aplicar middleware (seta contexto)
-    middleware = TenantMiddleware(lambda r: None)
+    middleware = TenantMiddleware(lambda r: r)
     middleware(request)
+    
+    # Verificar contexto
+    from tenants.middleware import get_current_loja_id
+    print(f"Contexto após middleware: loja_id={get_current_loja_id()}\n")
     
     # Criar viewset e chamar list()
     viewset = VendedorViewSet.as_view({'get': 'list'})

@@ -94,17 +94,9 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         qs = super().get_queryset()
         
         # Anotar se vendedor tem acesso (evita N+1)
-        from superadmin.models import VendedorUsuario
-        loja_id = get_current_loja_id()
-        if loja_id:
-            qs = qs.annotate(
-                tem_acesso_anotado=Exists(
-                    VendedorUsuario.objects.filter(
-                        loja_id=loja_id,
-                        vendedor_id=OuterRef('id')
-                    )
-                )
-            )
+        # IMPORTANTE: VendedorUsuario está no banco 'default', não no schema isolado
+        # Não podemos usar Exists() cross-database, então removemos a anotação aqui
+        # e fazemos a verificação no serializer ou no método list()
         
         if hasattr(Vendedor, 'is_active'):
             return qs.filter(is_active=True)

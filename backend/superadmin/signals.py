@@ -700,7 +700,13 @@ def remove_owner_if_orphan(sender, instance, **kwargs):
     from django.db import transaction
 
     owner_id = getattr(instance, 'owner_id', None)
+    loja_slug = getattr(instance, 'slug', 'unknown')
+    loja_nome = getattr(instance, 'nome', 'unknown')
+    
+    logger.info(f"🔍 Signal remove_owner_if_orphan: Loja excluída: {loja_nome} (slug: {loja_slug}, owner_id: {owner_id})")
+    
     if not owner_id:
+        logger.warning(f"   ⚠️ owner_id não encontrado para loja {loja_slug}")
         return
 
     def _remover_owner_apos_commit():
@@ -708,17 +714,36 @@ def remove_owner_if_orphan(sender, instance, **kwargs):
         from superadmin.models import Loja
         from superadmin.utils import delete_user_raw
 
-        if Loja.objects.filter(owner_id=owner_id).exists():
+        logger.info(f"   🔍 Verificando se owner {owner_id} ficou órfão após exclusão da loja {loja_slug}...")
+        
+        # Verificar se owner possui outras lojas
+        outras_lojas = Loja.objects.filter(owner_id=owner_id).count()
+        if outras_lojas > 0:
+            logger.info(f"   ℹ️  Owner {owner_id} possui {outras_lojas} loja(s) ativa(s). Não será removido.")
             return
+        
+        logger.info(f"   🔍 Owner {owner_id} não possui outras lojas. Verificando se pode ser removido...")
+        
         try:
             user = User.objects.filter(id=owner_id).first()
-            if not user or user.is_superuser:
+            if not user:
+                logger.warning(f"   ⚠️ Usuário {owner_id} não encontrado no banco de dados")
                 return
+            
+            if user.is_superuser:
+                logger.info(f"   ℹ️  Usuário {user.username} é superuser. Não será removido.")
+                return
+            
+            logger.info(f"   🗑️  Removendo usuário órfão: {user.username} (ID: {owner_id}, email: {user.email})")
             delete_user_raw(owner_id)
-            logger.info(f"   ✅ Usuário órfão removido (owner da loja excluída): {user.username}")
+            logger.info(f"   ✅ Usuário órfão removido com sucesso: {user.username}")
+            
         except Exception as e:
-            logger.warning(f"   ⚠️ Erro ao remover owner órfão: {e}")
+            logger.error(f"   ❌ Erro ao remover owner órfão {owner_id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
+    logger.info(f"   📝 Agendando remoção de owner órfão para após commit da transação...")
     transaction.on_commit(_remover_owner_apos_commit)
 
 

@@ -177,6 +177,12 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                             response.data = results
                     except Loja.DoesNotExist:
                         pass
+                
+                # Adicionar headers para evitar cache
+                response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+                response['Pragma'] = 'no-cache'
+                response['Expires'] = '0'
+                
                 return response
             except Exception as e:
                 from django.db.utils import ProgrammingError, OperationalError

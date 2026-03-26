@@ -44,7 +44,7 @@ def main():
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 SET search_path TO {loja.database_name}, public;
-                SELECT id, nome, email, is_admin, ativo
+                SELECT id, nome, email, is_admin
                 FROM crm_vendas_vendedor
                 WHERE usuario_id = %s;
             """, [loja.owner.id])
@@ -52,13 +52,12 @@ def main():
             vendedor = cursor.fetchone()
             
             if vendedor:
-                vendedor_id, nome, email, is_admin, ativo = vendedor
+                vendedor_id, nome, email, is_admin = vendedor
                 print(f"✅ Vendedor encontrado:")
                 print(f"   - ID: {vendedor_id}")
                 print(f"   - Nome: {nome}")
                 print(f"   - Email: {email}")
                 print(f"   - is_admin: {is_admin}")
-                print(f"   - Ativo: {ativo}")
                 
                 if is_admin:
                     print(f"✅ CONFIGURAÇÃO CORRETA - Owner é admin!")

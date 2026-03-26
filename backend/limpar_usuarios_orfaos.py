@@ -52,17 +52,26 @@ for user_id in usuarios_orfaos:
             # Excluir usando SQL direto para evitar problemas com ForeignKeys
             from django.db import connection
             with connection.cursor() as cursor:
-                # Excluir sessões do usuário
-                cursor.execute("DELETE FROM superadmin_usersession WHERE user_id = %s", [user_id])
-                print(f"   ✅ Sessões do usuário {username} excluídas")
+                # Excluir sessões do usuário (se tabela existir)
+                try:
+                    cursor.execute("DELETE FROM superadmin_usersession WHERE user_id = %s", [user_id])
+                    print(f"   ✅ Sessões do usuário {username} excluídas")
+                except Exception:
+                    pass  # Tabela não existe, ignorar
                 
-                # Excluir profissionais vinculados
-                cursor.execute("DELETE FROM superadmin_profissionalusuario WHERE user_id = %s", [user_id])
-                print(f"   ✅ Vínculos de profissional excluídos")
+                # Excluir profissionais vinculados (se tabela existir)
+                try:
+                    cursor.execute("DELETE FROM superadmin_profissionalusuario WHERE user_id = %s", [user_id])
+                    print(f"   ✅ Vínculos de profissional excluídos")
+                except Exception:
+                    pass  # Tabela não existe, ignorar
                 
-                # Excluir vendedores vinculados
-                cursor.execute("DELETE FROM superadmin_vendedorusuario WHERE user_id = %s", [user_id])
-                print(f"   ✅ Vínculos de vendedor excluídos")
+                # Excluir vendedores vinculados (se tabela existir)
+                try:
+                    cursor.execute("DELETE FROM superadmin_vendedorusuario WHERE user_id = %s", [user_id])
+                    print(f"   ✅ Vínculos de vendedor excluídos")
+                except Exception:
+                    pass  # Tabela não existe, ignorar
                 
                 # Excluir usuário
                 cursor.execute("DELETE FROM auth_user WHERE id = %s", [user_id])

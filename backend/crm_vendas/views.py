@@ -132,8 +132,12 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                             loja_id=loja_id,
                         ).exists()
                         
+                        logger.info(f"[VendedorViewSet.list] owner_tem_vendedor={owner_tem_vendedor}, owner_email={owner_email_lower}")
+                        
                         data = response.data
                         results = list(data.get('results', []) if isinstance(data, dict) else (data or []))
+                        
+                        logger.info(f"[VendedorViewSet.list] results ANTES de filtrar: {len(results)}")
                         
                         # Filtrar vendedores legacy (is_admin) que eram owner - evitar duplicata
                         if owner_email_lower:
@@ -141,6 +145,8 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                                 r.get('is_admin') and
                                 (r.get('email') or '').strip().lower() == owner_email_lower
                             )]
+                        
+                        logger.info(f"[VendedorViewSet.list] results DEPOIS de filtrar: {len(results)}")
                         
                         # Verificar se owner já existe como vendedor comum (mesmo email)
                         owner_ja_existe_como_vendedor = False
@@ -152,12 +158,17 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                                 r['cargo'] = 'Administrador'
                                 break
                         
+                        logger.info(f"[VendedorViewSet.list] owner_ja_existe_como_vendedor={owner_ja_existe_como_vendedor}")
+                        
                         # Adicionar admin virtual APENAS se:
                         # 1. Owner NÃO tem VendedorUsuario vinculado E
                         # 2. Owner NÃO existe como vendedor comum na lista
                         if not owner_tem_vendedor and not owner_ja_existe_como_vendedor:
                             admin_item = self._obter_funcionario_administrador_da_loja(loja)
                             results.insert(0, admin_item)
+                            logger.info(f"[VendedorViewSet.list] Admin virtual adicionado")
+                        
+                        logger.info(f"[VendedorViewSet.list] results FINAL: {len(results)}")
                         
                         if isinstance(data, dict):
                             response.data['results'] = results

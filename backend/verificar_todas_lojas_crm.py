@@ -32,7 +32,7 @@ def main():
         print(f"Loja: {loja.nome}")
         print(f"CPF/CNPJ: {loja.cpf_cnpj}")
         print(f"Tipo: {loja.tipo_loja.nome}")
-        print(f"Schema: {loja.schema_name}")
+        print(f"Schema: {loja.database_name}")
         print(f"Owner: {loja.owner.username if loja.owner else 'SEM OWNER'}")
         
         if not loja.owner:
@@ -42,7 +42,7 @@ def main():
             continue
         
         # Conectar ao schema da loja
-        connection.set_schema(loja.schema_name)
+        connection.set_schema(loja.database_name)
         
         # Buscar vendedor do owner
         vendedores = Vendedor.objects.filter(usuario=loja.owner)

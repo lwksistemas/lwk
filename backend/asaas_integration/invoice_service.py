@@ -29,6 +29,10 @@ def _get_municipal_config() -> Dict[str, Optional[str]]:
     name = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
     service_id = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
     
+    # ✅ CORREÇÃO v1333: Remover pontuação do código de serviço (prefeitura exige apenas dígitos)
+    if code:
+        code = code.replace('.', '').replace('-', '')
+    
     # Log para debug
     logger.info(f"Configuração municipal NF: code={code}, name={name}, service_id={service_id}")
     

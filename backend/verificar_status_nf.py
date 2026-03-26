@@ -24,7 +24,7 @@ def verificar_status_nf():
     config = AsaasConfig.get_config()
     client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
     
-    invoice_id = 'inv_000018414939'
+    invoice_id = 'inv_000018415140'
     
     logger.info(f"Verificando status da NF: {invoice_id}")
     

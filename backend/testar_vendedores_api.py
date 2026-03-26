@@ -77,10 +77,20 @@ def testar():
     viewset.request = request
     viewset.format_kwarg = None
     viewset.action = 'list'
+    viewset.queryset = Vendedor.objects.all()  # Definir queryset explicitamente
     
+    # Testar super().get_queryset() diretamente
+    print(f"\nTestando super().get_queryset():")
+    from core.views import BaseModelViewSet
+    base_qs = BaseModelViewSet.get_queryset(viewset)
+    print(f"  - BaseModelViewSet.get_queryset() count: {base_qs.count()}")
+    
+    # Testar VendedorViewSet.get_queryset()
+    print(f"\nTestando VendedorViewSet.get_queryset():")
     qs = viewset.get_queryset()
-    print(f"Contexto depois do viewset: loja_id={get_current_loja_id()}")
-    print(f"Total no viewset queryset: {qs.count()}")
+    print(f"  - Contexto depois do viewset: loja_id={get_current_loja_id()}")
+    print(f"  - Total no viewset queryset: {qs.count()}")
+    print(f"  - Query SQL: {qs.query}")
     for v in qs:
         print(f"  - ID: {v.id}, Nome: {v.nome}, Email: {v.email}, is_admin: {v.is_admin}")
     

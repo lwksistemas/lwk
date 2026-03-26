@@ -63,6 +63,15 @@ def corrigir_vendedores_admin():
                 logger.info(f"\n📋 Processando loja: {loja.nome} (ID: {loja.id}, Slug: {loja.slug})")
                 logger.info(f"   Owner: {owner.username} ({owner.email})")
                 
+                # Garantir que o schema e tabelas existem
+                logger.info(f"   🔧 Verificando schema e tabelas do CRM...")
+                from crm_vendas.schema_service import configurar_schema_crm_loja
+                if not configurar_schema_crm_loja(loja):
+                    logger.error(f"   ❌ Falha ao configurar schema para loja {loja.nome}")
+                    erros += 1
+                    continue
+                logger.info(f"   ✅ Schema configurado")
+                
                 # Verificar se owner já existe como Vendedor
                 vendedor_existente = Vendedor.objects.filter(
                     loja_id=loja.id,

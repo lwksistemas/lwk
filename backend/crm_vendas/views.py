@@ -437,10 +437,24 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
         return response
 
     def perform_create(self, serializer):
-        """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
+        """
+        Cache invalidado automaticamente pelo CacheInvalidationMixin.
+        Valida se vendedor existe antes de salvar.
+        """
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
-            serializer.save(vendedor_id=vendedor_id)
+            # Validar se vendedor existe no schema isolado
+            if Vendedor.objects.filter(id=vendedor_id).exists():
+                serializer.save(vendedor_id=vendedor_id)
+            else:
+                # Vendedor não existe no schema, salvar sem vendedor
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"[ContaViewSet.perform_create] vendedor_id={vendedor_id} não existe no schema, "
+                    f"salvando conta sem vendedor"
+                )
+                serializer.save()
         else:
             serializer.save()
 
@@ -510,10 +524,24 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
         return response
 
     def perform_create(self, serializer):
-        """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
+        """
+        Cache invalidado automaticamente pelo CacheInvalidationMixin.
+        Valida se vendedor existe antes de salvar.
+        """
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
-            serializer.save(vendedor_id=vendedor_id)
+            # Validar se vendedor existe no schema isolado
+            if Vendedor.objects.filter(id=vendedor_id).exists():
+                serializer.save(vendedor_id=vendedor_id)
+            else:
+                # Vendedor não existe no schema, salvar sem vendedor
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"[LeadViewSet.perform_create] vendedor_id={vendedor_id} não existe no schema, "
+                    f"salvando lead sem vendedor"
+                )
+                serializer.save()
         else:
             serializer.save()
 

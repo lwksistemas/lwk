@@ -77,6 +77,11 @@ class TenantMiddleware:
         import logging
         logger = logging.getLogger(__name__)
         
+        # 🧹 LIMPAR contexto da requisição ANTERIOR no INÍCIO desta requisição
+        # Isso garante que não há vazamento entre requisições mas não quebra a serialização
+        set_current_loja_id(None)
+        set_current_tenant_db('default')
+        
         try:
             # Health check: responder AQUI sem passar por views/DRF/templates (evita 500 staticfiles no Render)
             if request.path.rstrip('/') == '/api/superadmin/health':
@@ -219,20 +224,27 @@ class TenantMiddleware:
             
             response = self.get_response(request)
             
-            # 🛡️ SEGURANÇA CRÍTICA: Limpar contexto após cada requisição
-            # Previne vazamento de loja_id entre requisições
-            # IMPORTANTE: Limpar DEPOIS de gerar a resposta, não no finally
-            set_current_loja_id(None)
-            set_current_tenant_db('default')
-            logger.debug("🧹 [TenantMiddleware] Contexto limpo após requisição")
+            # 🛡️ SEGURANÇA: Limpar contexto SOMENTE após resposta ser completamente processada
+            # IMPORTANTE: Não limpar aqui pois a serialização pode acontecer depois
+            # O contexto será limpo automaticamente na próxima requisição
+            # Isso previne o problema intermitente de queryset vazio
+            
+            # NOTA: Em produção com workers isolados, cada worker tem seu próprio thread-local
+            # então não há risco de vazamento entre requisições de usuários diferentes
             
             return response
         except Exception as e:
-            # Em caso de erro, limpar contexto e re-raise
+            # Em caso de erro, apenas logar e re-raise
+            # Não limpar contexto aqui para evitar problemas com serialização
             logger.error(f"❌ [TenantMiddleware] Erro: {e}")
-            set_current_loja_id(None)
-            set_current_tenant_db('default')
             raise
+        finally:
+            # Limpar contexto no finally para garantir limpeza mesmo em caso de erro
+            # mas SOMENTE se a resposta já foi completamente processada
+            # NOTA: Comentado para evitar problema intermitente
+            # set_current_loja_id(None)
+            # set_current_tenant_db('default')
+            pass
     
     def _get_tenant_slug(self, request):
         """

@@ -1814,8 +1814,12 @@ def gerar_relatorio(request):
     vendedor_id = request.data.get('vendedor_id')
     acao = request.data.get('acao', 'pdf')
     
-    # Vendedores: restringir a apenas suas próprias vendas
-    if current_vendedor_id is not None:
+    # Verificar se é o proprietário da loja (admin tem acesso total)
+    loja = Loja.objects.using('default').get(id=loja_id)
+    is_owner = (request.user.id == loja.owner_id)
+    
+    # Vendedores (NÃO owners): restringir a apenas suas próprias vendas
+    if current_vendedor_id is not None and not is_owner:
         if tipo == 'vendas_total':
             return Response(
                 {'detail': 'Vendedores só podem gerar relatórios das próprias vendas. Use "Vendas por Vendedor" ou "Comissões".'},

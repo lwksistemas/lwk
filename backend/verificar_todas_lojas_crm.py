@@ -11,7 +11,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lwksistemas.settings')
 django.setup()
 
-from django.db import connection
+from django_tenants.utils import schema_context
 from superadmin.models import Loja
 from crm_vendas.models import Vendedor
 
@@ -41,37 +41,31 @@ def main():
             print()
             continue
         
-        # Conectar ao schema da loja
-        connection.set_schema(loja.database_name)
-        
-        # Buscar vendedor do owner
-        vendedores = Vendedor.objects.filter(usuario=loja.owner)
-        
-        if vendedores.exists():
-            vendedor = vendedores.first()
-            print(f"✅ Vendedor encontrado:")
-            print(f"   - ID: {vendedor.id}")
-            print(f"   - Nome: {vendedor.nome}")
-            print(f"   - Email: {vendedor.email}")
-            print(f"   - is_admin: {vendedor.is_admin}")
-            print(f"   - Ativo: {vendedor.ativo}")
+        # Conectar ao schema da loja usando context manager
+        with schema_context(loja.database_name):
+            # Buscar vendedor do owner
+            vendedores = Vendedor.objects.filter(usuario=loja.owner)
             
-            if vendedor.is_admin:
-                print(f"✅ CONFIGURAÇÃO CORRETA - Owner é admin!")
-                total_ok += 1
+            if vendedores.exists():
+                vendedor = vendedores.first()
+                print(f"✅ Vendedor encontrado:")
+                print(f"   - ID: {vendedor.id}")
+                print(f"   - Nome: {vendedor.nome}")
+                print(f"   - Email: {vendedor.email}")
+                print(f"   - is_admin: {vendedor.is_admin}")
+                print(f"   - Ativo: {vendedor.ativo}")
+                
+                if vendedor.is_admin:
+                    print(f"✅ CONFIGURAÇÃO CORRETA - Owner é admin!")
+                    total_ok += 1
+                else:
+                    print(f"⚠️  ATENÇÃO: Vendedor existe mas is_admin=False")
+                    total_problemas += 1
             else:
-                print(f"⚠️  ATENÇÃO: Vendedor existe mas is_admin=False")
+                print(f"❌ PROBLEMA: Nenhum vendedor encontrado para o owner!")
                 total_problemas += 1
-        else:
-            print(f"❌ PROBLEMA: Nenhum vendedor encontrado para o owner!")
-            total_problemas += 1
         
         print()
-    
-    # Voltar ao schema público
-    from django_tenants.utils import schema_context
-    with schema_context('public'):
-        pass
     
     print(f"{'='*80}")
     print(f"RESUMO DA VERIFICAÇÃO")

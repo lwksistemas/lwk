@@ -44,8 +44,12 @@ def testar():
     middleware(request)
     
     # Verificar contexto
-    from tenants.middleware import get_current_loja_id
-    print(f"Contexto após middleware: loja_id={get_current_loja_id()}\n")
+    from tenants.middleware import get_current_loja_id, set_current_loja_id
+    print(f"Contexto após middleware: loja_id={get_current_loja_id()}")
+    
+    # Middleware limpa contexto no final, então precisamos setar novamente
+    set_current_loja_id(loja.id)
+    print(f"Contexto após set manual: loja_id={get_current_loja_id()}\n")
     
     # Criar viewset e chamar list()
     viewset = VendedorViewSet.as_view({'get': 'list'})

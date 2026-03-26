@@ -46,13 +46,6 @@ export default function Header() {
               <LogIn className="w-4 h-4" />
               Acesso Rápido
             </button>
-            
-            <Link
-              href="/superadmin/login"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Login Admin
-            </Link>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -102,14 +95,6 @@ export default function Header() {
                 <LogIn className="w-5 h-5" />
                 Acesso Rápido (CPF/CNPJ)
               </button>
-              
-              <Link
-                href="/superadmin/login"
-                onClick={() => setMenuOpen(false)}
-                className="mb-2 text-center bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Login Admin
-              </Link>
             </div>
           </nav>
         )}

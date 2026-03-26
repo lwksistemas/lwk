@@ -3,13 +3,12 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
-  // ✅ v1375: Usar service worker customizado que NUNCA cacheia APIs de dados
-  swSrc: "public/sw-custom.js",
-  scope: "/",
+  // ✅ v1375: Desabilitar service worker gerado automaticamente
+  // Vamos usar apenas o sw.js padrão sem customização por enquanto
+  // para evitar conflitos com precaching
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: false,
   reloadOnOnline: true,
-  fallbacks: {
-    document: "/offline",
-  },
 });
 
 /** @type {import('next').NextConfig} */

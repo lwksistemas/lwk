@@ -225,8 +225,8 @@ class LojaViewSet(viewsets.ModelViewSet):
         return LojaSerializer
     
     def get_permissions(self):
-        # Permitir acesso público aos endpoints info_publica, debug_auth e create (cadastro público)
-        if self.action in ['info_publica', 'debug_auth', 'create']:
+        # Permitir acesso público aos endpoints info_publica, debug_auth, create e buscar_por_documento
+        if self.action in ['info_publica', 'debug_auth', 'create', 'buscar_por_documento']:
             return []
         # Heartbeat: qualquer usuário autenticado (superadmin ou loja) para monitor de sessão
         if self.action == 'heartbeat':

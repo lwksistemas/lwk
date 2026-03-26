@@ -1,9 +1,12 @@
 from django.db import models
 from core.models import BaseCategoria, BaseCliente, BasePedido, BaseItemPedido, BaseProduto
+from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 
-class Categoria(BaseCategoria):
+class Categoria(LojaIsolationMixin, BaseCategoria):
     """Categorias de produtos"""
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'ecommerce_categorias'
@@ -12,27 +15,37 @@ class Categoria(BaseCategoria):
         verbose_name_plural = 'Categorias'
 
 
-class Produto(BaseProduto):
+class Produto(LojaIsolationMixin, BaseProduto):
     """Produtos do e-commerce"""
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, related_name='produtos')
     preco_promocional = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    sku = models.CharField(max_length=50, unique=True)
+    sku = models.CharField(max_length=50)
     peso = models.DecimalField(max_digits=8, decimal_places=3, blank=True, null=True, help_text='Peso em kg')
     largura = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text='Largura em cm')
     altura = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text='Altura em cm')
     comprimento = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, help_text='Comprimento em cm')
     imagem_url = models.URLField(blank=True, null=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'ecommerce_produtos'
         ordering = ['-created_at']
         verbose_name = 'Produto'
         verbose_name_plural = 'Produtos'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['loja_id', 'sku'],
+                name='ecommerce_produto_sku_loja_uniq'
+            )
+        ]
 
 
-class Cliente(BaseCliente):
+class Cliente(LojaIsolationMixin, BaseCliente):
     """Clientes do e-commerce"""
     data_nascimento = models.DateField(blank=True, null=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'ecommerce_clientes'
@@ -41,7 +54,7 @@ class Cliente(BaseCliente):
         verbose_name_plural = 'Clientes'
 
 
-class Pedido(BasePedido):
+class Pedido(LojaIsolationMixin, BasePedido):
     """Pedidos do e-commerce"""
     PAGAMENTO_CHOICES = [
         ('pix', 'PIX'),
@@ -54,6 +67,8 @@ class Pedido(BasePedido):
     forma_pagamento = models.CharField(max_length=20, choices=PAGAMENTO_CHOICES)
     frete = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     codigo_rastreio = models.CharField(max_length=50, blank=True, null=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'ecommerce_pedidos'
@@ -79,14 +94,14 @@ class ItemPedido(BaseItemPedido):
         return f"{self.produto.nome} x{self.quantidade}"
 
 
-class Cupom(models.Model):
+class Cupom(LojaIsolationMixin, models.Model):
     """Cupons de desconto"""
     TIPO_CHOICES = [
         ('percentual', 'Percentual'),
         ('valor_fixo', 'Valor Fixo'),
     ]
 
-    codigo = models.CharField(max_length=50, unique=True)
+    codigo = models.CharField(max_length=50)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     valor_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -96,12 +111,20 @@ class Cupom(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'ecommerce_cupons'
         ordering = ['-created_at']
         verbose_name = 'Cupom'
         verbose_name_plural = 'Cupons'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['loja_id', 'codigo'],
+                name='ecommerce_cupom_codigo_loja_uniq'
+            )
+        ]
 
     def __str__(self):
         return self.codigo

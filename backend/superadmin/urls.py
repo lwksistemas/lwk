@@ -11,6 +11,7 @@ from .views import (
     health_check,  # ✅ NOVO v750
     TipoLojaPublicoViewSet, PlanoAssinaturaPublicoViewSet,  # ✅ NOVO: ViewSets públicos
 )
+from .views_security_enhancements import SecurityDashboardViewSet  # ✅ NOVO: Melhorias de segurança
 from .cloudinary_views import cloudinary_config, cloudinary_test
 from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
@@ -31,6 +32,7 @@ router.register(r'emails-retry', EmailRetryViewSet, basename='email-retry')
 router.register(r'historico-acessos', HistoricoAcessoGlobalViewSet, basename='historico-acessos')
 router.register(r'violacoes-seguranca', ViolacaoSegurancaViewSet, basename='violacao-seguranca')
 router.register(r'estatisticas-auditoria', EstatisticasAuditoriaViewSet, basename='estatisticas-auditoria')
+router.register(r'security-dashboard', SecurityDashboardViewSet, basename='security-dashboard')  # ✅ NOVO: Dashboard de segurança
 
 # Rotas específicas para dashboard financeiro das lojas
 router.register(r'loja-financeiro', FinanceiroViewSet, basename='loja-financeiro')

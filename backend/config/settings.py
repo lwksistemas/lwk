@@ -55,6 +55,7 @@ MIDDLEWARE = [
     'config.security_middleware.SecurityIsolationMiddleware',
     'core.mixins.LojaContextMiddleware',
     'tenants.middleware.TenantMiddleware',
+    'core.middleware.no_cache_api.NoCacheAPIMiddleware',  # ✅ v1375: Prevenir cache de APIs
     'superadmin.historico_middleware.HistoricoAcessoMiddleware',  # ✅ Histórico de acessos
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

@@ -3,6 +3,13 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
+  // ✅ v1375: Usar service worker customizado que NUNCA cacheia APIs de dados
+  swSrc: "public/sw-custom.js",
+  scope: "/",
+  reloadOnOnline: true,
+  fallbacks: {
+    document: "/offline",
+  },
 });
 
 /** @type {import('next').NextConfig} */
@@ -91,14 +98,15 @@ const nextConfig = {
   
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    NEXT_PUBLIC_BUILD_ID: 'v258-restaurante-dashboard',
-    NEXT_PUBLIC_VERSION: '258',
+    NEXT_PUBLIC_BUILD_ID: 'v1375-no-cache-fix',
+    NEXT_PUBLIC_VERSION: '1375',
+    NEXT_PUBLIC_SW_VERSION: 'v1375', // ✅ Versão do SW para forçar atualização
   },
   
   // Gerar build ID único para invalidar cache COMPLETAMENTE
   generateBuildId: async () => {
-    // Usar timestamp + versão para garantir unicidade (dashboard Restaurante v258)
-    return 'v258-restaurante-' + Date.now();
+    // ✅ v1375: Forçar atualização do service worker e limpar cache antigo
+    return 'v1375-no-cache-fix-' + Date.now();
   },
 }
 

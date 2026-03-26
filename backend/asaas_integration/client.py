@@ -203,6 +203,19 @@ class AsaasClient:
             data['municipalServiceName'] = municipal_service_name
         if observations:
             data['observations'] = observations
+        
+        # ✅ CORREÇÃO v1332: Adicionar informações de impostos (obrigatório para emissão de NF)
+        # ISS (Imposto Sobre Serviços) padrão: 0% (isento ou retido na fonte)
+        data['taxes'] = {
+            'retainIss': False,  # ISS não retido na fonte
+            'iss': 0.0,  # Alíquota ISS: 0% (ajustar conforme município)
+            'cofins': 0.0,  # COFINS: 0%
+            'csll': 0.0,  # CSLL: 0%
+            'inss': 0.0,  # INSS: 0%
+            'ir': 0.0,  # IR: 0%
+            'pis': 0.0,  # PIS: 0%
+        }
+        
         return self._make_request('POST', endpoint, data)
 
     def authorize_invoice(self, invoice_id: str) -> Dict[str, Any]:

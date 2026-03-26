@@ -7,7 +7,7 @@ import { InstallPWA } from "@/components/pwa/InstallPWA";
 const inter = Inter({ subsets: ["latin"] });
 
 export const viewport: Viewport = {
-  themeColor: "#374151",
+  themeColor: "#46cce4ff",
 };
 
 export const metadata: Metadata = {

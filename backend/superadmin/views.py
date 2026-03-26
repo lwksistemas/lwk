@@ -362,6 +362,51 @@ class LojaViewSet(viewsets.ModelViewSet):
                 status=500
             )
     
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], authentication_classes=[], url_path='buscar-por-documento')
+    def buscar_por_documento(self, request):
+        """
+        Busca loja por CPF ou CNPJ (acesso público para facilitar login dos clientes).
+        Retorna apenas slug e nome da loja para redirecionar para página de login.
+        """
+        documento = request.query_params.get('documento', '').strip()
+        
+        if not documento:
+            return Response({'error': 'Documento (CPF ou CNPJ) é obrigatório'}, status=400)
+        
+        # Remove formatação (pontos, traços, barras)
+        documento_limpo = ''.join(filter(str.isdigit, documento))
+        
+        # Valida tamanho
+        if len(documento_limpo) not in [11, 14]:
+            return Response({
+                'error': 'Documento inválido. Digite um CPF (11 dígitos) ou CNPJ (14 dígitos)'
+            }, status=400)
+        
+        try:
+            # Buscar loja ativa pelo CPF/CNPJ
+            loja = Loja.objects.filter(
+                cpf_cnpj=documento_limpo,
+                is_active=True
+            ).first()
+            
+            if not loja:
+                return Response({
+                    'error': 'Nenhuma loja encontrada com este CPF/CNPJ'
+                }, status=404)
+            
+            # Retornar apenas informações necessárias para redirecionar
+            return Response({
+                'slug': loja.slug,
+                'nome': loja.nome,
+                'logo': loja.logo or None,
+            })
+            
+        except Exception as e:
+            logger.exception('buscar_por_documento erro para documento=%s: %s', documento_limpo, e)
+            return Response({
+                'error': 'Erro ao buscar loja. Tente novamente.'
+            }, status=500)
+    
     @action(detail=False, methods=['get'])
     def heartbeat(self, request):
         """

@@ -11,6 +11,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 from superadmin.models import Loja
+from asaas_integration.models import AsaasConfig
 from asaas_integration.client import AsaasClient
 import logging
 
@@ -38,8 +39,14 @@ def atualizar_cliente_asaas():
         logger.info("Por favor, corrija o CEP no banco de dados primeiro")
         return False
     
-    # Criar cliente Asaas
-    client = AsaasClient()
+    # Buscar configuração do Asaas
+    config = AsaasConfig.get_config()
+    if not config.api_key or not config.enabled:
+        logger.error("Asaas não configurado ou desabilitado")
+        return False
+    
+    # Criar cliente Asaas com configuração correta
+    client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
     
     # Atualizar cliente
     customer_data = {
@@ -66,6 +73,8 @@ def atualizar_cliente_asaas():
         return True
     except Exception as e:
         logger.error(f"❌ Erro ao atualizar cliente: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return False
 
 if __name__ == '__main__':

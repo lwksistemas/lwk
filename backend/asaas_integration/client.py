@@ -254,6 +254,10 @@ class AsaasPaymentService:
                     customer = {'id': customer_id}
             else:
                 # Criar novo customer
+                # ✅ CORREÇÃO v1328: Remover formatação do CEP (apenas dígitos)
+                cep_raw = loja_data.get('cep', '')
+                cep_limpo = ''.join(c for c in cep_raw if c.isdigit())
+                
                 customer_data = {
                     'name': loja_data['nome'],
                     'email': loja_data['email'],
@@ -265,7 +269,7 @@ class AsaasPaymentService:
                     'province': loja_data.get('bairro', ''),
                     'city': loja_data.get('cidade', ''),
                     'state': loja_data.get('estado', ''),
-                    'postalCode': loja_data.get('cep', ''),
+                    'postalCode': cep_limpo,  # CEP sem formatação (apenas dígitos)
                     'externalReference': f"loja_{loja_data['slug']}"
                 }
                 

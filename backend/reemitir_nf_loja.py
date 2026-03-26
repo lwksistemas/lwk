@@ -20,12 +20,16 @@ logger = logging.getLogger(__name__)
 def reemitir_nf():
     """Reemite NF para pagamento já confirmado"""
     
+    # Payment ID do boleto PAGO (não o novo boleto)
+    payment_id_pago = 'pay_saj2jh0wvp5cban7'
+    
     # Buscar loja
     loja = Loja.objects.get(slug='41449198000172')
     fin = loja.financeiro
     
     logger.info(f"Loja: {loja.nome}")
-    logger.info(f"Payment ID: {fin.asaas_payment_id}")
+    logger.info(f"Payment ID do boleto PAGO: {payment_id_pago}")
+    logger.info(f"Payment ID atual no financeiro: {fin.asaas_payment_id}")
     logger.info(f"Status: {fin.status_pagamento}")
     
     # Verificar se pagamento foi confirmado
@@ -35,14 +39,14 @@ def reemitir_nf():
         fin.status_pagamento = 'ativo'
         fin.save()
     
-    # Emitir NF
-    logger.info("Emitindo NF...")
+    # Emitir NF para o boleto PAGO
+    logger.info(f"Emitindo NF para payment {payment_id_pago}...")
     
     try:
         result = emitir_nf_para_pagamento(
-            asaas_payment_id=fin.asaas_payment_id,
+            asaas_payment_id=payment_id_pago,
             loja=loja,
-            value=float(fin.valor_mensalidade),
+            value=8.0,
             description=f"Assinatura {loja.plano.nome} (Mensal) - Loja {loja.nome}",
             send_email=True
         )

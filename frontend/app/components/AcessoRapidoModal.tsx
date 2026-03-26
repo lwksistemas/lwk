@@ -64,7 +64,7 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
 
     try {
       // Buscar loja pelo CPF/CNPJ
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}superadmin/lojas/buscar-por-documento/?documento=${documentoLimpo}`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/lojas/buscar-por-documento/?documento=${documentoLimpo}`);
       
       if (!response.ok) {
         if (response.status === 404) {

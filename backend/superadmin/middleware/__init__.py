@@ -100,6 +100,7 @@ class SuperAdminSecurityMiddleware:
             public_endpoints = [
                 '/api/superadmin/health/',                    # Health check para failover (v750)
                 '/api/superadmin/lojas/info_publica/',
+                '/api/superadmin/lojas/buscar-por-documento/', # Buscar loja por CPF/CNPJ (acesso rápido)
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
                 '/api/superadmin/lojas/debug_senha_status/',
                 '/api/superadmin/usuarios/recuperar_senha/',  # Recuperação de senha superadmin/suporte

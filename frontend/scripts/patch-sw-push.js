@@ -53,12 +53,7 @@ self.addEventListener('fetch', (event) => {
     // NetworkOnly - NUNCA cachear, sempre buscar do servidor
     event.respondWith(
       fetch(event.request.clone(), {
-        cache: 'no-store',
-        headers: new Headers({
-          ...Object.fromEntries(event.request.headers.entries()),
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        })
+        cache: 'no-store'
       }).catch((error) => {
         console.error('[SW v1375] Erro ao buscar API:', url.pathname, error);
         // Se falhar, retornar erro (não usar cache)

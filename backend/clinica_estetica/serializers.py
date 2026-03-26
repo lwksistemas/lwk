@@ -28,6 +28,31 @@ class ClienteSerializer(BaseLojaSerializer):
     def get_ultima_visita(self, obj):
         ultimo = obj.agendamentos.filter(status='concluido').order_by('-data').first()
         return ultimo.data if ultimo else None
+    
+    def validate_cpf(self, value):
+        """Valida se CPF já existe na loja (apenas se preenchido)."""
+        if not value or value.strip() == '':
+            return value
+        
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        
+        if not loja_id:
+            return value
+        
+        # Verificar se já existe outro cliente com mesmo CPF na loja
+        queryset = Cliente.objects.filter(loja_id=loja_id, cpf=value)
+        
+        # Se estiver editando, excluir o próprio cliente da verificação
+        if self.instance:
+            queryset = queryset.exclude(id=self.instance.id)
+        
+        if queryset.exists():
+            raise serializers.ValidationError(
+                f'Já existe um cliente/paciente cadastrado com o CPF {value} nesta loja.'
+            )
+        
+        return value
 
 
 class HorarioTrabalhoProfissionalSerializer(serializers.ModelSerializer):

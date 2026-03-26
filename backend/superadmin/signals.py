@@ -235,13 +235,22 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
                 
         elif tipo_loja_nome == 'CRM Vendas':
-            # CRM Vendas: admin (owner) NÃO é vendedor - aparece em funcionários como
-            # "Administrador" (Loja.owner). Admin cadastra gerentes e vendedores pela página.
-            # As tabelas do CRM são criadas pelas migrations (0015_add_produto_servico_proposta_contrato)
-            logger.info(
-                f"CRM Vendas: admin aparece como Administrador em funcionários (não é Vendedor). "
-                f"Tabelas serão criadas pelas migrations."
-            )
+            # CRM Vendas: admin (owner) é criado como Vendedor com is_admin=True
+            # Isso permite que o admin apareça na lista de funcionários e tenha acesso total
+            from crm_vendas.models import Vendedor
+            
+            if not Vendedor.objects.filter(email=owner.email, loja_id=instance.id).exists():
+                vendedor_data = {
+                    'nome': owner.get_full_name() or owner.username,
+                    'email': owner.email,
+                    'telefone': '',
+                    'cargo': 'Administrador',
+                    'is_admin': True,
+                    'is_active': True,
+                    'loja_id': instance.id
+                }
+                funcionario_criado = Vendedor.objects.create(**vendedor_data)
+                logger.info(f"✅ Vendedor Administrador criado para CRM Vendas: {funcionario_criado.nome}")
             
             # Criar categorias padrão de produtos/serviços
             try:
@@ -269,8 +278,6 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
                 logger.info(f"✅ Categorias padrão criadas para loja CRM Vendas: {instance.nome}")
             except Exception as e:
                 logger.error(f"❌ Erro ao criar categorias padrão para loja {instance.nome}: {e}")
-            
-            return
 
         elif tipo_loja_nome == 'E-commerce':
             # E-commerce não tem modelo de funcionário

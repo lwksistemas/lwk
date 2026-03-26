@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ecommerce', '0001_initial'),
+        ('ecommerce', '0002_remove_cliente_cpf_cliente_cpf_cnpj_and_more'),
     ]
 
     operations = [

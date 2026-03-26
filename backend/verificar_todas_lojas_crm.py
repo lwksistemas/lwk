@@ -17,7 +17,7 @@ from crm_vendas.models import Vendedor
 
 def main():
     # Buscar lojas CRM Vendas
-    lojas_crm = Loja.objects.filter(tipo_loja__nome__in=['Clínica', 'Consultório', 'Cabeleireiro'])
+    lojas_crm = Loja.objects.filter(tipo_loja__nome='CRM Vendas')
     
     print(f"\n{'='*80}")
     print(f"VERIFICAÇÃO DE VENDEDORES ADMIN - CRM VENDAS")
@@ -30,7 +30,7 @@ def main():
     for loja in lojas_crm:
         print(f"{'='*80}")
         print(f"Loja: {loja.nome}")
-        print(f"CNPJ: {loja.cnpj}")
+        print(f"CPF/CNPJ: {loja.cpf_cnpj}")
         print(f"Tipo: {loja.tipo_loja.nome}")
         print(f"Schema: {loja.schema_name}")
         print(f"Owner: {loja.owner.username if loja.owner else 'SEM OWNER'}")
@@ -69,7 +69,9 @@ def main():
         print()
     
     # Voltar ao schema público
-    connection.set_schema_to_public()
+    from django_tenants.utils import schema_context
+    with schema_context('public'):
+        pass
     
     print(f"{'='*80}")
     print(f"RESUMO DA VERIFICAÇÃO")

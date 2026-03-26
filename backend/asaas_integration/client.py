@@ -73,6 +73,11 @@ class AsaasClient:
         endpoint = 'customers'
         return self._make_request('POST', endpoint, customer_data)
     
+    def update_customer(self, customer_id: str, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Atualiza um cliente no Asaas"""
+        endpoint = f'customers/{customer_id}'
+        return self._make_request('POST', endpoint, customer_data)
+    
     def get_customer(self, customer_id: str) -> Dict[str, Any]:
         """Busca um cliente no Asaas"""
         endpoint = f'customers/{customer_id}'

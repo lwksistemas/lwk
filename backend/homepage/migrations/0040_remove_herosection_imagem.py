@@ -1,4 +1,5 @@
-# Generated manually - remove HeroSection.imagem (banner usa só HeroImagem / carrossel)
+# HeroSection.imagem foi criado só via SQL em 0004 (não no estado das migrações).
+# RemoveField falharia com KeyError; usamos SQL idempotente no banco.
 
 from django.db import migrations
 
@@ -10,8 +11,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='herosection',
-            name='imagem',
+        migrations.RunSQL(
+            sql='ALTER TABLE homepage_hero_section DROP COLUMN IF EXISTS imagem;',
+            reverse_sql=migrations.RunSQL.noop,
         ),
     ]

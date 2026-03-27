@@ -6,6 +6,16 @@ import { authService } from '@/lib/auth';
 import PasswordInput from '@/components/auth/PasswordInput';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
+import apiClient from '@/lib/api-client';
+
+interface LoginConfig {
+  logo: string;
+  login_background: string;
+  cor_primaria: string;
+  cor_secundaria: string;
+  titulo: string;
+  subtitulo: string;
+}
 
 export default function SuporteLoginPage() {
   const router = useRouter();
@@ -14,8 +24,29 @@ export default function SuporteLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
+  const [config, setConfig] = useState<LoginConfig>({
+    logo: '',
+    login_background: '',
+    cor_primaria: '#2563eb',
+    cor_secundaria: '#1d4ed8',
+    titulo: 'Portal de Suporte',
+    subtitulo: 'Gerenciamento de chamados e tickets',
+  });
 
   const STORAGE_KEY = 'login_lembrar_cpf_suporte';
+
+  // Carregar configurações personalizadas
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const res = await apiClient.get('/superadmin/public/login-config-sistema/suporte/');
+        setConfig(res.data);
+      } catch (err) {
+        console.error('Erro ao carregar configurações de login:', err);
+      }
+    };
+    loadConfig();
+  }, []);
 
   // Limpar sessões antigas e carregar CPF salvo
   useEffect(() => {
@@ -89,20 +120,37 @@ export default function SuporteLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-cyan-900 p-4">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-2xl">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        backgroundImage: config.login_background ? `url(${config.login_background})` : 'none',
+        backgroundColor: config.login_background ? 'transparent' : `${config.cor_primaria}`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      <div className="max-w-md w-full space-y-8 p-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl">
         {/* Header */}
         <div>
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
-            <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
+          {config.logo ? (
+            <div className="mx-auto h-16 flex items-center justify-center">
+              <img src={config.logo} alt="Logo" className="max-h-16 object-contain" />
+            </div>
+          ) : (
+            <div 
+              className="mx-auto h-16 w-16 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: config.cor_primaria }}
+            >
+              <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+          )}
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-            Portal de Suporte
+            {config.titulo}
           </h2>
           <p className="mt-2 text-center text-gray-600">
-            Gerenciamento de chamados e tickets
+            {config.subtitulo}
           </p>
         </div>
 
@@ -121,7 +169,10 @@ export default function SuporteLoginPage() {
                 type="text"
                 required
                 autoComplete="username"
-                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 transition-colors"
+                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors"
+                style={{ 
+                  '--tw-ring-color': config.cor_primaria,
+                } as React.CSSProperties}
                 value={credentials.username}
                 onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                 placeholder="Digite seu usuário"
@@ -139,7 +190,10 @@ export default function SuporteLoginPage() {
                 type="text"
                 required
                 autoComplete="off"
-                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 transition-colors"
+                className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors"
+                style={{ 
+                  '--tw-ring-color': config.cor_primaria,
+                } as React.CSSProperties}
                 value={credentials.cpf_cnpj}
                 onChange={handleCpfChange}
                 placeholder="000.000.000-00"
@@ -151,7 +205,10 @@ export default function SuporteLoginPage() {
                   type="checkbox"
                   checked={lembrarCpf}
                   onChange={(e) => setLembrarCpf(e.target.checked)}
-                  className="rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                  className="rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-offset-0"
+                  style={{ 
+                    '--tw-ring-color': config.cor_primaria,
+                  } as React.CSSProperties}
                   disabled={loading}
                 />
                 <span className="text-sm text-gray-600">Lembrar CPF neste dispositivo</span>
@@ -173,7 +230,18 @@ export default function SuporteLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 min-h-[48px] bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
+            className="w-full py-3 px-4 min-h-[48px] text-white font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
+            style={{
+              backgroundColor: config.cor_primaria,
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.backgroundColor = config.cor_secundaria;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = config.cor_primaria;
+            }}
           >
             {loading ? (
               <span className="flex items-center justify-center">
@@ -184,7 +252,7 @@ export default function SuporteLoginPage() {
                 Entrando...
               </span>
             ) : (
-              'Entrar no Suporte'
+              `Entrar no ${config.titulo}`
             )}
           </button>
         </form>
@@ -193,7 +261,14 @@ export default function SuporteLoginPage() {
         <div className="text-center">
           <button
             onClick={() => setShowRecuperarSenha(true)}
-            className="text-sm text-blue-600 hover:text-blue-700 hover:underline min-h-[44px] py-2 px-4 transition-colors"
+            className="text-sm hover:underline min-h-[44px] py-2 px-4 transition-colors"
+            style={{ color: config.cor_primaria }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = config.cor_secundaria;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = config.cor_primaria;
+            }}
             disabled={loading}
           >
             Esqueceu sua senha?
@@ -207,8 +282,8 @@ export default function SuporteLoginPage() {
         onClose={() => setShowRecuperarSenha(false)}
         endpoint="/suporte/usuarios/recuperar_senha/"
         extraData={{ tipo: 'suporte' }}
-        title="Recuperar Senha - Suporte"
-        primaryColor="#2563eb"
+        title={`Recuperar Senha - ${config.titulo}`}
+        primaryColor={config.cor_primaria}
       />
     </div>
   );

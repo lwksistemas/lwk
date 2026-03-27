@@ -32,6 +32,7 @@ export default function SuporteLoginPage() {
     titulo: 'Portal de Suporte',
     subtitulo: 'Gerenciamento de chamados e tickets',
   });
+  const [configLoading, setConfigLoading] = useState(true);
 
   const STORAGE_KEY = 'login_lembrar_cpf_suporte';
 
@@ -43,6 +44,8 @@ export default function SuporteLoginPage() {
         setConfig(res.data);
       } catch (err) {
         console.error('Erro ao carregar configurações de login:', err);
+      } finally {
+        setConfigLoading(false);
       }
     };
     loadConfig();
@@ -118,6 +121,18 @@ export default function SuporteLoginPage() {
     const valorFormatado = formatarCpf(e.target.value);
     setCredentials({ ...credentials, cpf_cnpj: valorFormatado });
   };
+
+  // Mostrar loading enquanto carrega configurações
+  if (configLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-cyan-900">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          <p className="mt-4 text-white">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

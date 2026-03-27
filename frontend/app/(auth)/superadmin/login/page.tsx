@@ -32,6 +32,7 @@ export default function SuperAdminLoginPage() {
     titulo: 'Super Admin',
     subtitulo: 'Acesso restrito ao sistema',
   });
+  const [configLoading, setConfigLoading] = useState(true);
 
   const STORAGE_KEY = 'login_lembrar_cpf_superadmin';
 
@@ -43,6 +44,8 @@ export default function SuperAdminLoginPage() {
         setConfig(res.data);
       } catch (err) {
         console.error('Erro ao carregar configurações de login:', err);
+      } finally {
+        setConfigLoading(false);
       }
     };
     loadConfig();
@@ -114,6 +117,18 @@ export default function SuperAdminLoginPage() {
     const valorFormatado = formatarCpf(e.target.value);
     setCredentials({ ...credentials, cpf_cnpj: valorFormatado });
   };
+
+  // Mostrar loading enquanto carrega configurações
+  if (configLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-indigo-900">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          <p className="mt-4 text-white">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

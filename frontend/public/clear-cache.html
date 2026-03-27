@@ -2,10 +2,167 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0;url=/limpar-cache.html">
-    <title>Redirecionando...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache - LWK Sistemas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            display: block;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            display: block;
+        }
+        .info {
+            background: #dbeafe;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <p>Redirecionando para <a href="/limpar-cache.html">limpar cache</a>...</p>
+    <div class="container">
+        <h1>🧹 Limpar Cache do Sistema</h1>
+        
+        <div class="info">
+            <strong>⚠️ Importante:</strong> Esta página vai limpar completamente o cache do navegador e desregistrar o Service Worker para garantir que você veja a versão mais recente do sistema.
+        </div>
+
+        <button onclick="clearEverything()">🗑️ Limpar Tudo e Recarregar</button>
+        <button onclick="unregisterServiceWorker()">❌ Desregistrar Service Worker</button>
+        <button onclick="clearCaches()">🧹 Limpar Caches</button>
+
+        <div id="status" class="status"></div>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p><strong>Após limpar o cache:</strong></p>
+            <ul>
+                <li><a href="/superadmin/login">Ir para Login Superadmin</a></li>
+                <li><a href="/superadmin/homepage">Ir para Configurar Homepage</a></li>
+                <li><a href="/superadmin/homepage-v2">Ir para Configurar Homepage v2</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
+
+        async function unregisterServiceWorker() {
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    let count = 0;
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        count++;
+                    }
+                    showStatus(`✅ ${count} Service Worker(s) desregistrado(s) com sucesso!`, 'success');
+                } else {
+                    showStatus('ℹ️ Service Worker não suportado neste navegador', 'success');
+                }
+            } catch (error) {
+                showStatus('❌ Erro ao desregistrar Service Worker: ' + error.message, 'error');
+            }
+        }
+
+        async function clearCaches() {
+            try {
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(
+                        cacheNames.map(cacheName => caches.delete(cacheName))
+                    );
+                    showStatus(`✅ ${cacheNames.length} cache(s) limpo(s) com sucesso!`, 'success');
+                } else {
+                    showStatus('ℹ️ Cache API não suportada neste navegador', 'success');
+                }
+            } catch (error) {
+                showStatus('❌ Erro ao limpar caches: ' + error.message, 'error');
+            }
+        }
+
+        async function clearEverything() {
+            showStatus('🔄 Limpando tudo...', 'success');
+            
+            try {
+                // 1. Desregistrar Service Workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(r => r.unregister()));
+                }
+
+                // 2. Limpar todos os caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                }
+
+                // 3. Limpar localStorage
+                localStorage.clear();
+
+                // 4. Limpar sessionStorage
+                sessionStorage.clear();
+
+                showStatus('✅ Tudo limpo! Recarregando em 2 segundos...', 'success');
+
+                // 5. Recarregar a página
+                setTimeout(() => {
+                    window.location.href = '/superadmin/login';
+                }, 2000);
+
+            } catch (error) {
+                showStatus('❌ Erro: ' + error.message, 'error');
+            }
+        }
+
+        // Executar automaticamente ao carregar a página
+        window.addEventListener('load', () => {
+            console.log('Página de limpeza de cache carregada');
+            console.log('Service Worker registrado:', 'serviceWorker' in navigator);
+        });
+    </script>
 </body>
 </html>

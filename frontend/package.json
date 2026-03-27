@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "node scripts/patch-sw-push.js",
+    "postbuild": "echo 'PWA desabilitado temporariamente'",
     "start": "next start",
     "lint": "next lint"
   },

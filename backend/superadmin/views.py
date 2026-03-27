@@ -3405,3 +3405,130 @@ def health_check(request):
         'timestamp': timezone.now().isoformat(),
         'version': 'v750'
     }, status=200)
+
+
+
+# ===== CONFIGURAÇÃO DE LOGIN DO SISTEMA (SUPERADMIN E SUPORTE) =====
+
+class LoginConfigSistemaViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar configurações de login do sistema (superadmin e suporte).
+    
+    GET /api/superadmin/login-config-sistema/?tipo=superadmin
+    GET /api/superadmin/login-config-sistema/?tipo=suporte
+    PATCH /api/superadmin/login-config-sistema/{id}/
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = None  # Será definido inline
+    queryset = None  # Será definido no get_queryset
+    
+    def get_queryset(self):
+        from .models import LoginConfigSistema
+        return LoginConfigSistema.objects.all()
+    
+    def get_serializer_class(self):
+        from rest_framework import serializers
+        
+        class LoginConfigSistemaSerializer(serializers.ModelSerializer):
+            class Meta:
+                from .models import LoginConfigSistema
+                model = LoginConfigSistema
+                fields = [
+                    'id', 'tipo', 'logo', 'login_background',
+                    'cor_primaria', 'cor_secundaria', 'titulo', 'subtitulo',
+                    'created_at', 'updated_at'
+                ]
+                read_only_fields = ['id', 'created_at', 'updated_at']
+        
+        return LoginConfigSistemaSerializer
+    
+    def list(self, request, *args, **kwargs):
+        """Lista ou retorna configuração específica por tipo"""
+        tipo = request.query_params.get('tipo')
+        
+        if tipo:
+            # Retorna ou cria configuração para o tipo específico
+            from .models import LoginConfigSistema
+            config, created = LoginConfigSistema.objects.get_or_create(
+                tipo=tipo,
+                defaults={
+                    'cor_primaria': '#10B981' if tipo == 'superadmin' else '#3B82F6',
+                    'cor_secundaria': '#059669' if tipo == 'superadmin' else '#2563EB',
+                    'titulo': 'Superadmin' if tipo == 'superadmin' else 'Suporte',
+                    'subtitulo': 'Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte',
+                }
+            )
+            serializer = self.get_serializer(config)
+            return Response(serializer.data)
+        
+        # Lista todas as configurações
+        return super().list(request, *args, **kwargs)
+    
+    def update(self, request, *args, **kwargs):
+        """Atualiza configuração de login"""
+        # Limpar cache após atualização
+        from django.core.cache import cache
+        instance = self.get_object()
+        response = super().update(request, *args, **kwargs)
+        cache.delete(f'login_config_sistema:{instance.tipo}')
+        return response
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Atualiza parcialmente configuração de login"""
+        from django.core.cache import cache
+        instance = self.get_object()
+        response = super().partial_update(request, *args, **kwargs)
+        cache.delete(f'login_config_sistema:{instance.tipo}')
+        return response
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def login_config_sistema_publico(request, tipo):
+    """
+    Endpoint público para obter configurações de login do sistema.
+    
+    GET /api/public/login-config-sistema/superadmin/
+    GET /api/public/login-config-sistema/suporte/
+    """
+    from django.core.cache import cache
+    from .models import LoginConfigSistema
+    
+    # Validar tipo
+    if tipo not in ['superadmin', 'suporte']:
+        return Response(
+            {'error': 'Tipo inválido. Use "superadmin" ou "suporte".'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Tentar obter do cache
+    cache_key = f'login_config_sistema:{tipo}'
+    cached_data = cache.get(cache_key)
+    
+    if cached_data:
+        return Response(cached_data)
+    
+    # Buscar ou criar configuração
+    config, created = LoginConfigSistema.objects.get_or_create(
+        tipo=tipo,
+        defaults={
+            'cor_primaria': '#10B981' if tipo == 'superadmin' else '#3B82F6',
+            'cor_secundaria': '#059669' if tipo == 'superadmin' else '#2563EB',
+            'titulo': 'Superadmin' if tipo == 'superadmin' else 'Suporte',
+            'subtitulo': 'Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte',
+        }
+    )
+    
+    data = {
+        'logo': config.logo or '',
+        'login_background': config.login_background or '',
+        'cor_primaria': config.cor_primaria or ('#10B981' if tipo == 'superadmin' else '#3B82F6'),
+        'cor_secundaria': config.cor_secundaria or ('#059669' if tipo == 'superadmin' else '#2563EB'),
+        'titulo': config.titulo or ('Superadmin' if tipo == 'superadmin' else 'Suporte'),
+        'subtitulo': config.subtitulo or ('Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte'),
+    }
+    
+    # Cachear por 1 hora
+    cache.set(cache_key, data, 3600)
+    
+    return Response(data)

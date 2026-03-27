@@ -487,11 +487,12 @@ export default function HomepageConfigPage() {
         )}
 
         <Tabs defaultValue="hero" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="hero">Hero</TabsTrigger>
             <TabsTrigger value="funcionalidades">Funcionalidades</TabsTrigger>
             <TabsTrigger value="modulos">Módulos</TabsTrigger>
             <TabsTrigger value="whyus">WhyUs</TabsTrigger>
+            <TabsTrigger value="login">Login</TabsTrigger>
             <TabsTrigger value="cloudinary">Cloudinary</TabsTrigger>
           </TabsList>
 
@@ -715,6 +716,45 @@ export default function HomepageConfigPage() {
                 />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="login">
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Configurar Telas de Login</CardTitle>
+                  <CardDescription>
+                    Configure as telas de login do Superadmin e Suporte (logos, cores, textos)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Link href="/superadmin/login-config?tipo=superadmin">
+                      <Button variant="outline" className="w-full h-auto py-6 flex flex-col gap-2">
+                        <div className="text-lg font-semibold">Login Superadmin</div>
+                        <div className="text-sm text-gray-500">
+                          Configurar /superadmin/login
+                        </div>
+                      </Button>
+                    </Link>
+                    <Link href="/superadmin/login-config?tipo=suporte">
+                      <Button variant="outline" className="w-full h-auto py-6 flex flex-col gap-2">
+                        <div className="text-lg font-semibold">Login Suporte</div>
+                        <div className="text-sm text-gray-500">
+                          Configurar /suporte/login
+                        </div>
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      💡 As configurações de login permitem personalizar logos, cores de fundo, 
+                      textos e imagens das telas de autenticação, similar às configurações das lojas.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="cloudinary">

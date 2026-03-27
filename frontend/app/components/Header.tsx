@@ -14,7 +14,7 @@ export default function Header() {
       <header className="bg-white shadow w-full sticky top-0 z-50">
         <div className="w-full max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4">
           <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600">
-            LWKS SISTEMAS
+            LWK SISTEMAS
           </Link>
           
           {/* Desktop Navigation */}

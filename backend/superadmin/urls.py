@@ -10,6 +10,7 @@ from .views import (
     verificar_storage_loja, listar_storage_lojas,  # ✅ NOVO v738
     health_check,  # ✅ NOVO v750
     TipoLojaPublicoViewSet, PlanoAssinaturaPublicoViewSet,  # ✅ NOVO: ViewSets públicos
+    LoginConfigSistemaViewSet, login_config_sistema_publico,  # ✅ NOVO: Configuração de login do sistema
 )
 from .views_security_enhancements import SecurityDashboardViewSet  # ✅ NOVO: Melhorias de segurança
 from .cloudinary_views import cloudinary_config, cloudinary_test
@@ -33,6 +34,7 @@ router.register(r'historico-acessos', HistoricoAcessoGlobalViewSet, basename='hi
 router.register(r'violacoes-seguranca', ViolacaoSegurancaViewSet, basename='violacao-seguranca')
 router.register(r'estatisticas-auditoria', EstatisticasAuditoriaViewSet, basename='estatisticas-auditoria')
 router.register(r'security-dashboard', SecurityDashboardViewSet, basename='security-dashboard')  # ✅ NOVO: Dashboard de segurança
+router.register(r'login-config-sistema', LoginConfigSistemaViewSet, basename='login-config-sistema')  # ✅ NOVO: Config login sistema
 
 # Rotas específicas para dashboard financeiro das lojas
 router.register(r'loja-financeiro', FinanceiroViewSet, basename='loja-financeiro')
@@ -54,6 +56,9 @@ urlpatterns = [
     
     # ✅ NOVO: Rotas públicas para cadastro de lojas (sem autenticação)
     path('public/', include(public_router.urls)),
+    
+    # ✅ NOVO: Endpoint público para configuração de login do sistema
+    path('public/login-config-sistema/<str:tipo>/', login_config_sistema_publico, name='login-config-sistema-publico'),
     
     # Outras rotas públicas
     path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),

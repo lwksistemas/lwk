@@ -62,7 +62,7 @@ export default function WhyUs() {
     <section id="beneficios" className="w-full py-12 sm:py-16 md:py-20 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-gray-900">
-          Por que usar o LWKS Sistemas?
+          Por que usar o LWK Sistemas?
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {benefits.map((item) => (

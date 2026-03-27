@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0038_historicobackup_configuracaobackup_and_more'),
+        ('superadmin', '0038_add_is_active_to_tipoloja'),
     ]
 
     operations = [

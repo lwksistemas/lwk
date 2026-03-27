@@ -15,6 +15,28 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+# Apps extras por slug de TipoLoja (única fonte para migrate / auditoria)
+TIPO_LOJA_EXTRA_APPS = {
+    'clinica-de-estetica': ['clinica_estetica'],
+    'clinica-estetica': ['clinica_estetica'],
+    'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
+    'e-commerce': ['ecommerce'],
+    'restaurante': ['restaurante'],
+    'servicos': ['servicos'],
+    'cabeleireiro': ['cabeleireiro'],
+    'crm-vendas': ['crm_vendas'],
+}
+
+
+def get_apps_esperados_para_loja(loja) -> list[str]:
+    """
+    Apps cujo schema deve existir para esta loja (alinhado a aplicar_migrations).
+    Sempre inclui stores e products.
+    """
+    tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
+    base = ['stores', 'products']
+    return base + TIPO_LOJA_EXTRA_APPS.get(tipo_slug, [])
+
 
 class DatabaseSchemaService:
     """
@@ -129,23 +151,7 @@ class DatabaseSchemaService:
             raise RuntimeError(f"Config do banco '{loja.database_name}' não encontrada em settings.DATABASES!")
         
         tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
-        
-        # Apps base (comuns a todos os tipos de app)
-        base_apps = ['stores', 'products']
-        
-        # Apps por tipo de app (slug do TipoLoja)
-        tipo_apps = {
-            'clinica-de-estetica': ['clinica_estetica'],
-            'clinica-estetica': ['clinica_estetica'],  # slug usado em criar_tipos_app_iniciais / setup_initial_data
-            'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
-            'e-commerce': ['ecommerce'],
-            'restaurante': ['restaurante'],
-            'servicos': ['servicos'],
-            'cabeleireiro': ['cabeleireiro'],
-            'crm-vendas': ['crm_vendas'],
-        }
-        
-        apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
+        apps_to_migrate = get_apps_esperados_para_loja(loja)
         schema_name = loja.database_name.replace('-', '_')
         
         try:

@@ -69,25 +69,9 @@ class Command(BaseCommand):
             if ensure_loja_database_config(loja.database_name, conn_max_age=0):
                 self.stdout.write(f"✅ Banco configurado")
             
-            # Aplicar migrations
-            tipo_slug = loja.tipo_loja.slug if loja.tipo_loja else 'unknown'
-            
-            # Apps base (sempre aplicar)
-            base_apps = ['stores', 'products']
-            
-            # Apps específicos por tipo de app (whatsapp = config isolada por loja para Clínica da Beleza)
-            tipo_apps = {
-                'clinica-de-estetica': ['clinica_estetica'],
-                'clinica-estetica': ['clinica_estetica'],
-                'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
-                'e-commerce': ['ecommerce'],
-                'restaurante': ['restaurante'],
-                'servicos': ['servicos'],
-                'cabeleireiro': ['cabeleireiro'],
-                'crm-vendas': ['crm_vendas'],
-            }
-            
-            apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
+            from superadmin.services.database_schema_service import get_apps_esperados_para_loja
+
+            apps_to_migrate = get_apps_esperados_para_loja(loja)
             
             for app in apps_to_migrate:
                 # ✅ FIX: Retry logic para cada migration

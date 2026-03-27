@@ -47,7 +47,7 @@ def configurar_schema_crm_loja(loja) -> bool:
                 cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                 logger.info(f"Schema '{schema_name}' criado")
 
-        # 3. Aplicar migrations
+        # 3. Aplicar migrations (fallback CRM se tipo não mapeado — recuperação de schema)
         base_apps = ['stores', 'products']
         tipo_apps = {
             'crm-vendas': ['crm_vendas'],

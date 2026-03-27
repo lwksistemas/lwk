@@ -421,3 +421,52 @@ class SecurityDashboardViewSet(viewsets.ViewSet):
             'detalhes': problemas,
             'executado_em': timezone.now()
         })
+
+    @action(detail=False, methods=['post'])
+    def verificar_corrigir_schemas_lojas(self, request):
+        """
+        Verifica (e opcionalmente corrige) schemas PostgreSQL isolados por loja.
+
+        POST /api/superadmin/security-dashboard/verificar_corrigir_schemas_lojas/
+
+        Body JSON:
+        - aplicar_correcao (bool, default false): se true, aplica migrations nas lojas com falha.
+        - loja_id (int, opcional): apenas esta loja.
+        - slug (str, opcional): apenas este slug.
+        - limite (int, default 80, max 200): máximo de lojas processadas (sem filtro id/slug).
+
+        Requer PostgreSQL (produção). Em SQLite local retorna aviso sem falhar.
+        """
+        from superadmin.services.schema_audit_service import auditar_e_opcionalmente_corrigir
+
+        aplicar_correcao = bool(request.data.get('aplicar_correcao', False))
+        loja_id = request.data.get('loja_id')
+        slug = request.data.get('slug')
+        try:
+            limite = min(max(int(request.data.get('limite', 80)), 1), 200)
+        except (TypeError, ValueError):
+            limite = 80
+
+        qs = (
+            Loja.objects.filter(is_active=True)
+            .filter(database_name__isnull=False)
+            .exclude(database_name='')
+            .select_related('tipo_loja')
+            .order_by('id')
+        )
+        if loja_id is not None:
+            try:
+                qs = qs.filter(id=int(loja_id))
+            except (TypeError, ValueError):
+                return Response(
+                    {'detail': 'loja_id inválido'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        elif slug:
+            qs = qs.filter(slug=str(slug).strip())
+        else:
+            qs = qs[:limite]
+
+        data = auditar_e_opcionalmente_corrigir(list(qs), aplicar_correcao)
+        data['aplicar_correcao'] = aplicar_correcao
+        return Response(data)

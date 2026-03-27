@@ -96,19 +96,9 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f'  force-crm: {e}\n'))
 
         # 4. Aplicar migrations no schema da loja
-        tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
-        base_apps = ['stores', 'products']
-        tipo_apps = {
-            'clinica-de-estetica': ['clinica_estetica'],
-            'clinica-estetica': ['clinica_estetica'],
-            'clinica-da-beleza': ['clinica_beleza'],
-            'e-commerce': ['ecommerce'],
-            'restaurante': ['restaurante'],
-            'servicos': ['servicos'],
-            'cabeleireiro': ['cabeleireiro'],
-            'crm-vendas': ['crm_vendas'],
-        }
-        apps_to_migrate = base_apps + tipo_apps.get(tipo_slug, [])
+        from superadmin.services.database_schema_service import get_apps_esperados_para_loja
+
+        apps_to_migrate = get_apps_esperados_para_loja(loja)
 
         self.stdout.write(f'\nMigrando apps: {", ".join(apps_to_migrate)}\n')
         for app in apps_to_migrate:

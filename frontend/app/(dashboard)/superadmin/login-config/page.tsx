@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -20,35 +19,32 @@ import { ImageUpload } from '@/components/ImageUpload';
 interface LoginConfig {
   id?: number;
   tipo: 'superadmin' | 'suporte';
-  logo_url?: string;
-  logo_secundaria_url?: string;
-  titulo?: string;
-  subtitulo?: string;
-  cor_fundo?: string;
-  imagem_fundo_url?: string;
-  ativo?: boolean;
+  logo: string;
+  login_background: string;
+  cor_primaria: string;
+  cor_secundaria: string;
+  titulo: string;
+  subtitulo: string;
 }
 
 export default function LoginConfigPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tipo = (searchParams.get('tipo') as 'superadmin' | 'suporte') || 'superadmin';
+  const tipo = (searchParams.get('tipo') || 'superadmin') as 'superadmin' | 'suporte';
   
-  const [config, setConfig] = useState<LoginConfig | null>(null);
+  const [config, setConfig] = useState<LoginConfig>({
+    tipo,
+    logo: '',
+    login_background: '',
+    cor_primaria: tipo === 'superadmin' ? '#10B981' : '#3B82F6',
+    cor_secundaria: tipo === 'superadmin' ? '#059669' : '#2563EB',
+    titulo: tipo === 'superadmin' ? 'Superadmin' : 'Suporte',
+    subtitulo: tipo === 'superadmin' ? 'Acesso administrativo' : 'Central de suporte',
+  });
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
-  const [form, setForm] = useState<LoginConfig>({
-    tipo,
-    logo_url: '',
-    logo_secundaria_url: '',
-    titulo: '',
-    subtitulo: '',
-    cor_fundo: '#ffffff',
-    imagem_fundo_url: '',
-    ativo: true,
-  });
 
   useEffect(() => {
     loadConfig();
@@ -57,37 +53,10 @@ export default function LoginConfigPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get(`/superadmin/login-config/?tipo=${tipo}`);
-      const configs = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
-      const found = configs.find((c: LoginConfig) => c.tipo === tipo);
-      
-      if (found) {
-        setConfig(found);
-        setForm({
-          tipo: found.tipo,
-          logo_url: found.logo_url || '',
-          logo_secundaria_url: found.logo_secundaria_url || '',
-          titulo: found.titulo || '',
-          subtitulo: found.subtitulo || '',
-          cor_fundo: found.cor_fundo || '#ffffff',
-          imagem_fundo_url: found.imagem_fundo_url || '',
-          ativo: found.ativo !== false,
-        });
-      } else {
-        setConfig(null);
-        setForm({
-          tipo,
-          logo_url: '',
-          logo_secundaria_url: '',
-          titulo: tipo === 'superadmin' ? 'Superadmin' : 'Suporte',
-          subtitulo: 'Faça login para continuar',
-          cor_fundo: '#ffffff',
-          imagem_fundo_url: '',
-          ativo: true,
-        });
-      }
+      const res = await apiClient.get(`/superadmin/login-config-sistema/?tipo=${tipo}`);
+      setConfig(res.data);
     } catch (err) {
-      showMsg('error', 'Erro ao carregar configuração');
+      console.error('Erro ao carregar configuração:', err);
     } finally {
       setLoading(false);
     }
@@ -98,32 +67,20 @@ export default function LoginConfigPage() {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  const saveConfig = async () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = {
-        tipo: form.tipo,
-        logo_url: form.logo_url?.trim() || null,
-        logo_secundaria_url: form.logo_secundaria_url?.trim() || null,
-        titulo: form.titulo?.trim() || null,
-        subtitulo: form.subtitulo?.trim() || null,
-        cor_fundo: form.cor_fundo?.trim() || '#ffffff',
-        imagem_fundo_url: form.imagem_fundo_url?.trim() || null,
-        ativo: form.ativo !== false,
-      };
-
-      if (config?.id) {
-        await apiClient.patch(`/superadmin/login-config/${config.id}/`, payload);
-        showMsg('success', 'Configuração atualizada!');
+      if (config.id) {
+        await apiClient.patch(`/superadmin/login-config-sistema/${config.id}/`, config);
+        showMsg('success', 'Configuração atualizada com sucesso!');
       } else {
-        await apiClient.post('/superadmin/login-config/', payload);
-        showMsg('success', 'Configuração criada!');
+        const res = await apiClient.post('/superadmin/login-config-sistema/', config);
+        setConfig(res.data);
+        showMsg('success', 'Configuração criada com sucesso!');
       }
-      
-      loadConfig();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      showMsg('error', e.response?.data?.detail || 'Erro ao salvar');
+      showMsg('error', e.response?.data?.detail || 'Erro ao salvar configuração');
     } finally {
       setSaving(false);
     }
@@ -137,27 +94,25 @@ export default function LoginConfigPage() {
     );
   }
 
-  const tipoLabel = tipo === 'superadmin' ? 'Superadmin' : 'Suporte';
-  const loginUrl = tipo === 'superadmin' ? '/superadmin/login' : '/suporte/login';
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-6">
-          <Link href="/superadmin/homepage">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
-            </Button>
-          </Link>
-        </div>
-
-        <div className="mb-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push('/superadmin/homepage')}
+            className="mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar
+          </Button>
+          
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Configurar Login {tipoLabel}
+            Configurar Login {tipo === 'superadmin' ? 'Superadmin' : 'Suporte'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Personalize a tela de login em {loginUrl}
+            Personalize a tela de login de {tipo === 'superadmin' ? '/superadmin/login' : '/suporte/login'}
           </p>
         </div>
 
@@ -174,146 +129,157 @@ export default function LoginConfigPage() {
         )}
 
         <div className="grid md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações de Login</CardTitle>
-              <CardDescription>
-                Logos, textos e cores da tela de autenticação
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ImageUpload
-                label="Logo Principal"
-                description="Logo exibida no topo da tela de login"
-                value={form.logo_url || ''}
-                onChange={(url) => setForm((f) => ({ ...f, logo_url: url }))}
-                maxSize={2}
-                aspectRatio="16:9"
-              />
-
-              <ImageUpload
-                label="Logo Secundária"
-                description="Logo alternativa (opcional)"
-                value={form.logo_secundaria_url || ''}
-                onChange={(url) => setForm((f) => ({ ...f, logo_secundaria_url: url }))}
-                maxSize={2}
-                aspectRatio="16:9"
-              />
-
-              <div>
-                <Label>Título</Label>
-                <Input
-                  value={form.titulo}
-                  onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-                  placeholder={`Ex: ${tipoLabel}`}
-                />
-              </div>
-
-              <div>
-                <Label>Subtítulo</Label>
-                <Input
-                  value={form.subtitulo}
-                  onChange={(e) => setForm((f) => ({ ...f, subtitulo: e.target.value }))}
-                  placeholder="Ex: Faça login para continuar"
-                />
-              </div>
-
-              <div>
-                <Label>Cor de Fundo</Label>
-                <div className="flex gap-2">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Textos</CardTitle>
+                <CardDescription>
+                  Título e subtítulo exibidos na tela de login
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Título</Label>
                   <Input
-                    type="color"
-                    value={form.cor_fundo}
-                    onChange={(e) => setForm((f) => ({ ...f, cor_fundo: e.target.value }))}
-                    className="w-20 h-10"
-                  />
-                  <Input
-                    type="text"
-                    value={form.cor_fundo}
-                    onChange={(e) => setForm((f) => ({ ...f, cor_fundo: e.target.value }))}
-                    placeholder="#ffffff"
+                    value={config.titulo}
+                    onChange={(e) => setConfig({ ...config, titulo: e.target.value })}
+                    placeholder={tipo === 'superadmin' ? 'Superadmin' : 'Suporte'}
                   />
                 </div>
-              </div>
+                <div>
+                  <Label>Subtítulo</Label>
+                  <Input
+                    value={config.subtitulo}
+                    onChange={(e) => setConfig({ ...config, subtitulo: e.target.value })}
+                    placeholder={tipo === 'superadmin' ? 'Acesso administrativo' : 'Central de suporte'}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-              <ImageUpload
-                label="Imagem de Fundo"
-                description="Imagem de fundo da tela de login (opcional)"
-                value={form.imagem_fundo_url || ''}
-                onChange={(url) => setForm((f) => ({ ...f, imagem_fundo_url: url }))}
-                maxSize={5}
-                aspectRatio="16:9"
-              />
+            <Card>
+              <CardHeader>
+                <CardTitle>Cores</CardTitle>
+                <CardDescription>
+                  Cores primária e secundária da interface
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Cor Primária</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={config.cor_primaria}
+                      onChange={(e) => setConfig({ ...config, cor_primaria: e.target.value })}
+                      className="w-20 h-10"
+                    />
+                    <Input
+                      value={config.cor_primaria}
+                      onChange={(e) => setConfig({ ...config, cor_primaria: e.target.value })}
+                      placeholder="#10B981"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Cor Secundária</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={config.cor_secundaria}
+                      onChange={(e) => setConfig({ ...config, cor_secundaria: e.target.value })}
+                      className="w-20 h-10"
+                    />
+                    <Input
+                      value={config.cor_secundaria}
+                      onChange={(e) => setConfig({ ...config, cor_secundaria: e.target.value })}
+                      placeholder="#059669"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="ativo"
-                  checked={form.ativo !== false}
-                  onChange={(e) => setForm((f) => ({ ...f, ativo: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300"
+            <Card>
+              <CardHeader>
+                <CardTitle>Imagens</CardTitle>
+                <CardDescription>
+                  Logo e imagem de fundo da tela de login
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ImageUpload
+                  label="Logo"
+                  description="Logo exibida na tela de login"
+                  value={config.logo}
+                  onChange={(url) => setConfig({ ...config, logo: url })}
+                  maxSize={2}
+                  aspectRatio="16:9"
                 />
-                <Label htmlFor="ativo" className="cursor-pointer font-normal">
-                  Configuração ativa
-                </Label>
-              </div>
+                
+                <ImageUpload
+                  label="Imagem de Fundo"
+                  description="Imagem de fundo da tela de login (opcional)"
+                  value={config.login_background}
+                  onChange={(url) => setConfig({ ...config, login_background: url })}
+                  maxSize={5}
+                  aspectRatio="16:9"
+                />
+              </CardContent>
+            </Card>
 
-              <Button onClick={saveConfig} disabled={saving} className="w-full">
-                <Save className="w-4 h-4 mr-2" />
-                {saving ? 'Salvando...' : 'Salvar Configuração'}
-              </Button>
-            </CardContent>
-          </Card>
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? 'Salvando...' : 'Salvar Configuração'}
+            </Button>
+          </div>
 
           <div className="sticky top-6">
             <Card>
               <CardHeader>
                 <CardTitle>Preview</CardTitle>
                 <CardDescription>
-                  Visualização aproximada da tela de login
+                  Visualização da tela de login
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div
-                  className="rounded-lg border p-8 min-h-[400px] flex flex-col items-center justify-center"
+                <div 
+                  className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
                   style={{
-                    backgroundColor: form.cor_fundo,
-                    backgroundImage: form.imagem_fundo_url ? `url(${form.imagem_fundo_url})` : undefined,
+                    backgroundImage: config.login_background ? `url(${config.login_background})` : 'none',
+                    backgroundColor: config.login_background ? 'transparent' : '#f3f4f6',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                   }}
                 >
-                  {form.logo_url && (
-                    <img
-                      src={form.logo_url}
-                      alt="Logo"
-                      className="max-w-[200px] max-h-[80px] object-contain mb-6"
-                    />
-                  )}
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-sm">
-                    {form.titulo && (
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                        {form.titulo}
-                      </h2>
+                  <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-8 min-h-[400px] flex flex-col items-center justify-center">
+                    {config.logo && (
+                      <img 
+                        src={config.logo} 
+                        alt="Logo" 
+                        className="h-16 mb-6 object-contain"
+                      />
                     )}
-                    {form.subtitulo && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        {form.subtitulo}
-                      </p>
-                    )}
-                    <div className="space-y-3">
-                      <div className="h-10 bg-gray-100 dark:bg-gray-700 rounded"></div>
-                      <div className="h-10 bg-gray-100 dark:bg-gray-700 rounded"></div>
-                      <div className="h-10 bg-blue-600 rounded"></div>
+                    <h2 
+                      className="text-2xl font-bold mb-2"
+                      style={{ color: config.cor_primaria }}
+                    >
+                      {config.titulo || (tipo === 'superadmin' ? 'Superadmin' : 'Suporte')}
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                      {config.subtitulo || (tipo === 'superadmin' ? 'Acesso administrativo' : 'Central de suporte')}
+                    </p>
+                    <div className="w-full max-w-xs space-y-3">
+                      <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                      <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                      <button
+                        className="w-full h-10 rounded-lg text-white font-medium"
+                        style={{ backgroundColor: config.cor_primaria }}
+                      >
+                        Entrar
+                      </button>
                     </div>
                   </div>
-                  {form.logo_secundaria_url && (
-                    <img
-                      src={form.logo_secundaria_url}
-                      alt="Logo Secundária"
-                      className="max-w-[150px] max-h-[60px] object-contain mt-6"
-                    />
-                  )}
                 </div>
               </CardContent>
             </Card>

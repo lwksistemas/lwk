@@ -563,6 +563,7 @@ export default function HomepageConfigPage() {
         )}
 
         <Tabs defaultValue="hero" className="space-y-4">
+          {/* v1391 - 7 tabs including Hero Images */}
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="hero">Hero</TabsTrigger>
             <TabsTrigger value="hero-imagens">🖼️ Imagens</TabsTrigger>

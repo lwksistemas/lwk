@@ -173,6 +173,7 @@ export default function HomepageConfigPage() {
 
   useEffect(() => {
     loadData();
+    console.log('Homepage Config v2.0 - Hero Images Carousel');
   }, []);
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -534,10 +535,10 @@ export default function HomepageConfigPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Home className="w-7 h-7" />
-              Configurar Homepage
+              Configurar Homepage v2.0
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Edite textos, funcionalidades e módulos da página inicial.
+              Edite textos, funcionalidades, módulos e imagens do carrossel da página inicial.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
@@ -561,7 +562,7 @@ export default function HomepageConfigPage() {
         <Tabs defaultValue="hero" className="space-y-4">
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="hero">Hero</TabsTrigger>
-            <TabsTrigger value="hero-imagens">Imagens Hero</TabsTrigger>
+            <TabsTrigger value="hero-imagens">🖼️ Imagens</TabsTrigger>
             <TabsTrigger value="funcionalidades">Funcionalidades</TabsTrigger>
             <TabsTrigger value="modulos">Módulos</TabsTrigger>
             <TabsTrigger value="whyus">WhyUs</TabsTrigger>

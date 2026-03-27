@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CadastroFundo } from '@/components/cadastro/CadastroFundo';
 
 interface SucessoCadastroProps {
   loja: any;
@@ -7,17 +8,10 @@ interface SucessoCadastroProps {
 
 export function SucessoCadastro({ loja, email }: SucessoCadastroProps) {
   return (
-    <div className="relative flex min-h-[100dvh] min-h-screen items-center justify-center overflow-x-hidden px-3 py-8 sm:px-4 sm:py-10">
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 bg-slate-200 dark:bg-slate-900"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(59,130,246,0.25),transparent_50%),radial-gradient(ellipse_80%_60%_at_100%_50%,rgba(147,51,234,0.12),transparent_45%),linear-gradient(180deg,rgb(241,245,249)_0%,rgb(224,231,239)_45%,rgb(226,232,240)_100%)] dark:bg-[radial-gradient(ellipse_100%_80%_at_50%_0%,rgba(59,130,246,0.15),transparent_55%),linear-gradient(180deg,rgb(15,23,42)_0%,rgb(30,41,59)_100%)]"
-        aria-hidden
-      />
+    <div className="relative isolate flex min-h-[100dvh] min-h-screen items-center justify-center overflow-x-hidden px-3 py-8 sm:px-4 sm:py-10">
+      <CadastroFundo />
 
-      <div className="w-full max-w-2xl rounded-xl border border-slate-200/80 bg-white/95 p-6 text-center shadow-xl shadow-slate-900/10 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90 sm:rounded-2xl sm:p-8 sm:shadow-2xl">
+      <div className="relative z-10 w-full max-w-2xl rounded-xl border border-slate-200/80 bg-white/95 p-6 text-center shadow-xl shadow-slate-900/10 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90 sm:rounded-2xl sm:p-8 sm:shadow-2xl">
         <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6 animate-bounce">
           <span className="text-5xl text-green-600">✓</span>
         </div>

@@ -1,11 +1,8 @@
 const withPWA = require("@ducanh2912/next-pwa").default({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  disable: true, // ✅ TEMPORARIAMENTE DESABILITADO PARA TESTE
   register: true,
   skipWaiting: true,
-  // ✅ v1375: Desabilitar service worker gerado automaticamente
-  // Vamos usar apenas o sw.js padrão sem customização por enquanto
-  // para evitar conflitos com precaching
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: false,
   reloadOnOnline: true,
@@ -97,15 +94,14 @@ const nextConfig = {
   
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    NEXT_PUBLIC_BUILD_ID: 'v1375-no-cache-fix',
-    NEXT_PUBLIC_VERSION: '1375',
-    NEXT_PUBLIC_SW_VERSION: 'v1375', // ✅ Versão do SW para forçar atualização
+    NEXT_PUBLIC_BUILD_ID: 'v1390-hero-images',
+    NEXT_PUBLIC_VERSION: '1390',
+    NEXT_PUBLIC_SW_VERSION: 'v1390',
   },
   
   // Gerar build ID único para invalidar cache COMPLETAMENTE
   generateBuildId: async () => {
-    // ✅ v1375: Forçar atualização do service worker e limpar cache antigo
-    return 'v1375-no-cache-fix-' + Date.now();
+    return 'v1390-hero-images-' + Date.now();
   },
 }
 

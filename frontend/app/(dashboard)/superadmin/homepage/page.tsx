@@ -64,11 +64,20 @@ interface WhyUsData {
   ativo?: boolean;
 }
 
+interface HeroImagemData {
+  id?: number;
+  imagem: string;
+  titulo: string;
+  ordem?: number;
+  ativo?: boolean;
+}
+
 const API = {
   hero: '/superadmin/homepage/hero/',
   funcionalidades: '/superadmin/homepage/funcionalidades/',
   modulos: '/superadmin/homepage/modulos/',
   whyus: '/superadmin/homepage/whyus/',
+  heroImagens: '/superadmin/homepage/hero-imagens/',
 };
 
 export default function HomepageConfigPage() {
@@ -76,6 +85,7 @@ export default function HomepageConfigPage() {
   const [funcionalidades, setFuncionalidades] = useState<FuncionalidadeData[]>([]);
   const [modulos, setModulos] = useState<ModuloData[]>([]);
   const [whyus, setWhyus] = useState<WhyUsData[]>([]);
+  const [heroImagens, setHeroImagens] = useState<HeroImagemData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -91,11 +101,13 @@ export default function HomepageConfigPage() {
   const [editingFunc, setEditingFunc] = useState<FuncionalidadeData | null>(null);
   const [editingMod, setEditingMod] = useState<ModuloData | null>(null);
   const [editingWhyUs, setEditingWhyUs] = useState<WhyUsData | null>(null);
+  const [editingHeroImg, setEditingHeroImg] = useState<HeroImagemData | null>(null);
   const [showAddFunc, setShowAddFunc] = useState(false);
   const [showAddMod, setShowAddMod] = useState(false);
   const [showAddWhyUs, setShowAddWhyUs] = useState(false);
+  const [showAddHeroImg, setShowAddHeroImg] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
-    type: 'func' | 'mod' | 'whyus';
+    type: 'func' | 'mod' | 'whyus' | 'heroimg';
     id: number;
     nome: string;
   } | null>(null);
@@ -104,23 +116,27 @@ export default function HomepageConfigPage() {
   const [searchFunc, setSearchFunc] = useState('');
   const [searchMod, setSearchMod] = useState('');
   const [searchWhyUs, setSearchWhyUs] = useState('');
+  const [searchHeroImg, setSearchHeroImg] = useState('');
   const [filterFuncAtivo, setFilterFuncAtivo] = useState<'all' | 'ativo' | 'inativo'>('all');
   const [filterModAtivo, setFilterModAtivo] = useState<'all' | 'ativo' | 'inativo'>('all');
   const [filterWhyUsAtivo, setFilterWhyUsAtivo] = useState<'all' | 'ativo' | 'inativo'>('all');
+  const [filterHeroImgAtivo, setFilterHeroImgAtivo] = useState<'all' | 'ativo' | 'inativo'>('all');
   
   // Seleção em lote
   const [selectedFunc, setSelectedFunc] = useState<number[]>([]);
   const [selectedMod, setSelectedMod] = useState<number[]>([]);
   const [selectedWhyUs, setSelectedWhyUs] = useState<number[]>([]);
+  const [selectedHeroImg, setSelectedHeroImg] = useState<number[]>([]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [heroRes, funcRes, modRes, whyusRes] = await Promise.all([
+      const [heroRes, funcRes, modRes, whyusRes, heroImgRes] = await Promise.all([
         apiClient.get(API.hero),
         apiClient.get(API.funcionalidades),
         apiClient.get(API.modulos),
         apiClient.get(API.whyus),
+        apiClient.get(API.heroImagens),
       ]);
 
       const heroList = Array.isArray(heroRes.data) ? heroRes.data : heroRes.data?.results ?? [];
@@ -142,9 +158,11 @@ export default function HomepageConfigPage() {
       const funcList = Array.isArray(funcRes.data) ? funcRes.data : funcRes.data?.results ?? [];
       const modList = Array.isArray(modRes.data) ? modRes.data : modRes.data?.results ?? [];
       const whyusList = Array.isArray(whyusRes.data) ? whyusRes.data : whyusRes.data?.results ?? [];
+      const heroImgList = Array.isArray(heroImgRes.data) ? heroImgRes.data : heroImgRes.data?.results ?? [];
       setFuncionalidades(funcList);
       setModulos(modList);
       setWhyus(whyusList);
+      setHeroImagens(heroImgList);
     } catch (err) {
       setMessage({ type: 'error', text: 'Erro ao carregar dados' });
     } finally {
@@ -278,6 +296,31 @@ export default function HomepageConfigPage() {
     }
   };
 
+  const saveHeroImagem = async (data: HeroImagemData) => {
+    if (!data.imagem.trim()) {
+      showMsg('error', 'URL da imagem é obrigatória');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (data.id) {
+        await apiClient.patch(`${API.heroImagens}${data.id}/`, data);
+        showMsg('success', 'Imagem atualizada!');
+      } else {
+        await apiClient.post(API.heroImagens, { ...data, ativo: true, ordem: 0 });
+        showMsg('success', 'Imagem criada!');
+      }
+      setEditingHeroImg(null);
+      setShowAddHeroImg(false);
+      loadData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      showMsg('error', e.response?.data?.detail || 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const deleteItem = async () => {
     if (!deleteConfirm) return;
     setSaving(true);
@@ -291,6 +334,9 @@ export default function HomepageConfigPage() {
       } else if (deleteConfirm.type === 'whyus') {
         await apiClient.delete(`${API.whyus}${deleteConfirm.id}/`);
         showMsg('success', 'Benefício excluído!');
+      } else if (deleteConfirm.type === 'heroimg') {
+        await apiClient.delete(`${API.heroImagens}${deleteConfirm.id}/`);
+        showMsg('success', 'Imagem excluída!');
       }
       setDeleteConfirm(null);
       loadData();
@@ -302,10 +348,10 @@ export default function HomepageConfigPage() {
     }
   };
 
-  const reorderItem = async (type: 'func' | 'mod' | 'whyus', id: number, direction: 'up' | 'down') => {
+  const reorderItem = async (type: 'func' | 'mod' | 'whyus' | 'heroimg', id: number, direction: 'up' | 'down') => {
     setSaving(true);
     try {
-      const items = type === 'func' ? funcionalidades : type === 'mod' ? modulos : whyus;
+      const items = type === 'func' ? funcionalidades : type === 'mod' ? modulos : type === 'whyus' ? whyus : heroImagens;
       const currentIndex = items.findIndex((item) => item.id === id);
       if (currentIndex === -1) return;
 
@@ -315,7 +361,7 @@ export default function HomepageConfigPage() {
       const currentItem = items[currentIndex];
       const targetItem = items[targetIndex];
 
-      const endpoint = type === 'func' ? API.funcionalidades : type === 'mod' ? API.modulos : API.whyus;
+      const endpoint = type === 'func' ? API.funcionalidades : type === 'mod' ? API.modulos : type === 'whyus' ? API.whyus : API.heroImagens;
       await Promise.all([
         apiClient.patch(`${endpoint}${currentItem.id}/`, { ordem: targetItem.ordem }),
         apiClient.patch(`${endpoint}${targetItem.id}/`, { ordem: currentItem.ordem }),
@@ -362,6 +408,15 @@ export default function HomepageConfigPage() {
     return matchSearch && matchFilter;
   });
 
+  // Filtrar Hero Imagens
+  const filteredHeroImagens = heroImagens.filter((h) => {
+    const matchSearch = h.titulo.toLowerCase().includes(searchHeroImg.toLowerCase());
+    const matchFilter = filterHeroImgAtivo === 'all' ||
+                       (filterHeroImgAtivo === 'ativo' && h.ativo !== false) ||
+                       (filterHeroImgAtivo === 'inativo' && h.ativo === false);
+    return matchSearch && matchFilter;
+  });
+
   // Funções de seleção em lote
   const toggleSelectFunc = (id: number) => {
     setSelectedFunc(prev => 
@@ -405,16 +460,31 @@ export default function HomepageConfigPage() {
     }
   };
 
+  const toggleSelectHeroImg = (id: number) => {
+    setSelectedHeroImg(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllHeroImg = () => {
+    if (selectedHeroImg.length === filteredHeroImagens.length) {
+      setSelectedHeroImg([]);
+    } else {
+      setSelectedHeroImg(filteredHeroImagens.map(h => h.id!));
+    }
+  };
+
   // Ações em lote
-  const bulkAction = async (type: 'func' | 'mod' | 'whyus', action: 'ativar' | 'desativar' | 'excluir') => {
-    const selected = type === 'func' ? selectedFunc : type === 'mod' ? selectedMod : selectedWhyUs;
+  const bulkAction = async (type: 'func' | 'mod' | 'whyus' | 'heroimg', action: 'ativar' | 'desativar' | 'excluir') => {
+    const selected = type === 'func' ? selectedFunc : type === 'mod' ? selectedMod : type === 'whyus' ? selectedWhyUs : selectedHeroImg;
     if (selected.length === 0) {
       showMsg('error', 'Nenhum item selecionado');
       return;
     }
 
+    const itemName = type === 'func' ? 'funcionalidades' : type === 'mod' ? 'módulos' : type === 'whyus' ? 'benefícios' : 'imagens';
     const confirmMsg = action === 'excluir' 
-      ? `Tem certeza que deseja excluir ${selected.length} ${type === 'func' ? 'funcionalidades' : type === 'mod' ? 'módulos' : 'benefícios'}?`
+      ? `Tem certeza que deseja excluir ${selected.length} ${itemName}?`
       : `${action === 'ativar' ? 'Ativar' : 'Desativar'} ${selected.length} itens?`;
     
     if (action === 'excluir' && !confirm(confirmMsg)) {
@@ -423,7 +493,7 @@ export default function HomepageConfigPage() {
 
     setSaving(true);
     try {
-      const endpoint = type === 'func' ? API.funcionalidades : type === 'mod' ? API.modulos : API.whyus;
+      const endpoint = type === 'func' ? API.funcionalidades : type === 'mod' ? API.modulos : type === 'whyus' ? API.whyus : API.heroImagens;
       
       if (action === 'excluir') {
         await Promise.all(selected.map(id => apiClient.delete(`${endpoint}${id}/`)));
@@ -436,7 +506,8 @@ export default function HomepageConfigPage() {
 
       if (type === 'func') setSelectedFunc([]);
       else if (type === 'mod') setSelectedMod([]);
-      else setSelectedWhyUs([]);
+      else if (type === 'whyus') setSelectedWhyUs([]);
+      else setSelectedHeroImg([]);
 
       loadData();
     } catch (err: unknown) {
@@ -487,8 +558,9 @@ export default function HomepageConfigPage() {
         )}
 
         <Tabs defaultValue="hero" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="hero">Hero</TabsTrigger>
+            <TabsTrigger value="hero-imagens">Imagens Hero</TabsTrigger>
             <TabsTrigger value="funcionalidades">Funcionalidades</TabsTrigger>
             <TabsTrigger value="modulos">Módulos</TabsTrigger>
             <TabsTrigger value="whyus">WhyUs</TabsTrigger>
@@ -564,6 +636,62 @@ export default function HomepageConfigPage() {
                 <HomepagePreview type="hero" data={heroForm} />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="hero-imagens">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Imagens do Hero (Carrossel)</CardTitle>
+                  <CardDescription>
+                    Imagens que alternam automaticamente no fundo da seção Hero da homepage
+                  </CardDescription>
+                </div>
+                <Button size="sm" onClick={() => setShowAddHeroImg(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Imagem
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <BulkActionList
+                  items={filteredHeroImagens}
+                  searchValue={searchHeroImg}
+                  onSearchChange={setSearchHeroImg}
+                  filterValue={filterHeroImgAtivo}
+                  onFilterChange={setFilterHeroImgAtivo}
+                  selectedIds={selectedHeroImg}
+                  onToggleSelect={toggleSelectHeroImg}
+                  onToggleSelectAll={toggleSelectAllHeroImg}
+                  onBulkAction={(action) => bulkAction('heroimg', action)}
+                  onReorder={(id, direction) => reorderItem('heroimg', id, direction)}
+                  onEdit={(item) => setEditingHeroImg(item)}
+                  onDelete={(id, name) => setDeleteConfirm({ type: 'heroimg', id, nome: name })}
+                  renderItem={(h) => (
+                    <>
+                      <p className="font-medium">{h.titulo || 'Sem título'}</p>
+                      {h.imagem && (
+                        <div className="mt-2">
+                          <img 
+                            src={h.imagem} 
+                            alt={h.titulo} 
+                            className="w-full h-32 object-cover rounded"
+                          />
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1 truncate">{h.imagem}</p>
+                    </>
+                  )}
+                  getItemName={(h) => h.titulo || 'Imagem sem título'}
+                  searchPlaceholder="Buscar por título..."
+                  emptyMessage={
+                    searchHeroImg || filterHeroImgAtivo !== 'all'
+                      ? 'Nenhuma imagem encontrada com os filtros aplicados.'
+                      : 'Nenhuma imagem. Clique em Nova Imagem para adicionar.'
+                  }
+                  saving={saving}
+                />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="funcionalidades">
@@ -834,6 +962,57 @@ export default function HomepageConfigPage() {
               }}
               saving={saving}
             />
+          </div>
+        </Modal>
+
+        {/* Modal Adicionar/Editar Imagem Hero */}
+        <Modal
+          isOpen={showAddHeroImg || !!editingHeroImg}
+          onClose={() => {
+            setShowAddHeroImg(false);
+            setEditingHeroImg(null);
+          }}
+        >
+          <div className="p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              {editingHeroImg ? 'Editar Imagem do Hero' : 'Nova Imagem do Hero'}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <Label>Título (opcional)</Label>
+                <Input
+                  value={editingHeroImg?.titulo ?? ''}
+                  onChange={(e) => setEditingHeroImg(prev => prev ? { ...prev, titulo: e.target.value } : { imagem: '', titulo: e.target.value })}
+                  placeholder="Ex: Banner Principal"
+                />
+              </div>
+              <ImageUpload
+                label="Imagem"
+                description="Imagem de fundo do Hero (recomendado: 1920x1080px)"
+                value={editingHeroImg?.imagem ?? ''}
+                onChange={(url) => setEditingHeroImg(prev => prev ? { ...prev, imagem: url } : { imagem: url, titulo: '' })}
+                maxSize={5}
+                aspectRatio="16:9"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowAddHeroImg(false);
+                    setEditingHeroImg(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={() => editingHeroImg && saveHeroImagem(editingHeroImg)} 
+                  disabled={saving || !editingHeroImg?.imagem}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            </div>
           </div>
         </Modal>
 

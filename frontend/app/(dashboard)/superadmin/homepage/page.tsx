@@ -1,4 +1,5 @@
 'use client';
+// Updated: 2026-03-27 14:00 - Added Hero Images Carousel Management
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';

@@ -59,7 +59,7 @@ export default function WhyUs() {
   }
 
   return (
-    <section id="beneficios" className="w-full py-12 sm:py-16 md:py-20 bg-gray-50">
+    <section id="beneficios" className="w-full py-12 sm:py-16 md:py-20 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-gray-900">
           Por que usar o LWKS Sistemas?
@@ -68,9 +68,9 @@ export default function WhyUs() {
           {benefits.map((item) => (
             <div
               key={item.id}
-              className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-100"
+              className="flex items-center gap-3 bg-white p-4 rounded-xl border border-green-100 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
             >
-              <span className="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm">
+              <span className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm shadow-md">
                 {item.icone || '✓'}
               </span>
               <span className="text-sm sm:text-base font-medium text-gray-900">{item.titulo}</span>

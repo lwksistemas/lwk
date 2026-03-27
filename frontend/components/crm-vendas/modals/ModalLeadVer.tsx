@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { X, DollarSign } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
 
 interface ModalLeadVerProps {
@@ -11,7 +11,6 @@ interface ModalLeadVerProps {
   statusLabel: (value: string) => string;
   formatarData: (s: string) => string;
   onClose: () => void;
-  onCriarOportunidade: (lead: Lead) => void;
 }
 
 export default function ModalLeadVer({
@@ -21,7 +20,6 @@ export default function ModalLeadVer({
   statusLabel,
   formatarData,
   onClose,
-  onCriarOportunidade,
 }: ModalLeadVerProps) {
   return (
     <div
@@ -54,14 +52,6 @@ export default function ModalLeadVer({
             </div>
           </div>
           <div className="flex gap-2 pb-3 border-b border-gray-100 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => onCriarOportunidade(lead)}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700"
-            >
-              <DollarSign size={16} />
-              Criar oportunidade (venda)
-            </button>
             <Link
               href={`/loja/${slug}/crm-vendas/pipeline`}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"

@@ -21,7 +21,7 @@ export default function Modules({ modulos }: ModulesProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
         {items.map((m, idx) => {
           const content = (
-            <div className="border border-gray-200 p-5 sm:p-6 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all h-full bg-white">
+            <div className="border-2 border-gray-200 p-5 sm:p-6 rounded-xl hover:border-blue-500 hover:shadow-2xl transition-all h-full bg-gradient-to-br from-white to-blue-50 transform hover:-translate-y-1">
               <IconRenderer
                 icone={m.icone}
                 imagem={m.imagem}

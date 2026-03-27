@@ -9,9 +9,9 @@ interface SectionContainerProps {
 }
 
 const BG_CLASSES = {
-  white: 'bg-white',
-  gray: 'bg-gray-50',
-  gradient: 'bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100',
+  white: 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50',
+  gray: 'bg-gradient-to-br from-slate-100 via-gray-50 to-slate-100',
+  gradient: 'bg-gradient-to-br from-blue-100 via-blue-50 to-indigo-100',
 };
 
 const PADDING_CLASSES = {

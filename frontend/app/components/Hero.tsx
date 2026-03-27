@@ -16,25 +16,27 @@ export default function Hero({ hero }: HeroProps) {
   const imagem = hero?.imagem;
 
   return (
-    <section className="w-full min-w-full bg-gradient-to-br from-blue-100 via-blue-50 to-blue-100 py-12 sm:py-16 md:py-24">
-      <div className="w-full max-w-7xl mx-auto grid md:grid-cols-2 gap-8 md:gap-12 items-center px-4 sm:px-6 lg:px-8">
+    <section className="w-full min-w-full bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 py-12 sm:py-16 md:py-24 relative overflow-hidden">
+      {/* Decoração de fundo */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE0YzMuMzEgMCA2LTIuNjkgNi02cy0yLjY5LTYtNi02LTYgMi42OS02IDYgMi42OSA2IDYgNnptMC0xMGMyLjIxIDAgNCAxLjc5IDQgNHMtMS43OSA0LTQgNC00LTEuNzktNC00IDEuNzktNCA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20"></div>
+      <div className="w-full max-w-7xl mx-auto grid md:grid-cols-2 gap-8 md:gap-12 items-center px-4 sm:px-6 lg:px-8 relative z-10">
         <div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 text-gray-900 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 text-white leading-tight drop-shadow-lg">
             {titulo}
           </h1>
-          <p className="text-base sm:text-lg text-gray-600 mb-6 sm:mb-8">{subtitulo}</p>
+          <p className="text-base sm:text-lg text-blue-50 mb-6 sm:mb-8 drop-shadow">{subtitulo}</p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             {mostrarBotaoPrincipal && (
               <Link
                 href="/superadmin/login"
-                className="inline-block text-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                className="inline-block text-center bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 {botaoTexto}
               </Link>
             )}
             <Link
               href="/cadastro"
-              className="inline-block text-center bg-white text-blue-600 border-2 border-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"
+              className="inline-block text-center bg-blue-700/50 backdrop-blur-sm text-white border-2 border-white/30 px-6 py-3 rounded-lg hover:bg-blue-700/70 transition-all font-medium shadow-lg"
             >
               Fazer Cadastro
             </Link>

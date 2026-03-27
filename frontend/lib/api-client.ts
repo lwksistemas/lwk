@@ -74,6 +74,14 @@ export function getLoginUrlForRedirect(): string {
 /** Adiciona X-Loja-ID / X-Tenant-Slug e Authorization em todas as requisições de loja. */
 function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
   if (typeof window === 'undefined') return config;
+  
+  // ✅ v1381: Cache-busting para evitar service worker cachear respostas antigas
+  // Adicionar timestamp apenas em requisições GET de APIs de dados
+  if (config.method === 'get' && config.url && !config.url.includes('_t=')) {
+    const separator = config.url.includes('?') ? '&' : '?';
+    config.url = `${config.url}${separator}_t=${Date.now()}`;
+  }
+  
   // Em páginas de loja, SEMPRE usar Heroku - Render não tem dados tenant
   if (window.location.pathname.includes('/loja/') && currentAPI === BACKUP_API) {
     currentAPI = PRIMARY_API;

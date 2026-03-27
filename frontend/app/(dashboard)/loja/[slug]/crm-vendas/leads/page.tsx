@@ -16,7 +16,6 @@ const ModalLeadVer = dynamic(() => import('@/components/crm-vendas/modals/ModalL
 const ModalLeadForm = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadForm'), { ssr: false });
 const ModalLeadExcluir = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadExcluir'), { ssr: false });
 const ModalLeadMudarStatus = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadMudarStatus'), { ssr: false });
-const ModalCriarOportunidade = dynamic(() => import('@/components/crm-vendas/modals/ModalCriarOportunidade'), { ssr: false });
 
 function loadLeads(setLeads: (l: Lead[]) => void, setError: (e: string | null) => void) {
   const timestamp = new Date().getTime();
@@ -54,7 +53,6 @@ export default function CrmVendasLeadsPage() {
   const [leadEditar, setLeadEditar] = useState<Lead | null>(null);
   const [leadExcluir, setLeadExcluir] = useState<Lead | null>(null);
   const [leadMudarStatus, setLeadMudarStatus] = useState<Lead | null>(null);
-  const [leadCriarOportunidade, setLeadCriarOportunidade] = useState<Lead | null>(null);
   const [novoStatus, setNovoStatus] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
@@ -74,11 +72,6 @@ export default function CrmVendasLeadsPage() {
     bairro: '',
     cidade: '',
     uf: '',
-  });
-  const [formOportunidade, setFormOportunidade] = useState({
-    titulo: '',
-    valor: '',
-    etapa: 'prospecting',
   });
 
   useEffect(() => {
@@ -218,56 +211,6 @@ export default function CrmVendasLeadsPage() {
       .finally(() => setEnviando(false));
   };
 
-  const handleCriarOportunidade = (lead: Lead) => {
-    setLeadCriarOportunidade(lead);
-    setFormOportunidade({
-      titulo: `Negócio - ${lead.nome}`,
-      valor: lead.valor_estimado ? String(lead.valor_estimado) : '0',
-      etapa: 'prospecting',
-    });
-    setFormErro(null);
-  };
-
-  const submitCriarOportunidade = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!leadCriarOportunidade) return;
-    setFormErro(null);
-    const valor = parseFloat(formOportunidade.valor) || 0;
-    if (!formOportunidade.titulo.trim()) {
-      setFormErro('Informe o título da oportunidade.');
-      return;
-    }
-    setEnviando(true);
-    const payload: Record<string, unknown> = {
-      lead: leadCriarOportunidade.id,
-      titulo: formOportunidade.titulo.trim(),
-      valor,
-      etapa: formOportunidade.etapa,
-    };
-    const vendedorId = authService.getVendedorId();
-    if (vendedorId) payload.vendedor = vendedorId;
-    apiClient
-      .post('/crm-vendas/oportunidades/', payload)
-      .then(() => {
-        setLeadCriarOportunidade(null);
-        loadLeads(setLeads, setError);
-        router.push(`/loja/${slug}/crm-vendas/pipeline`);
-      })
-      .catch((err) => {
-        const d = err.response?.data;
-        const msg =
-          d?.titulo?.[0] ||
-          d?.valor?.[0] ||
-          d?.lead?.[0] ||
-          d?.vendedor?.[0] ||
-          d?.etapa?.[0] ||
-          (typeof d?.detail === 'string' ? d.detail : null) ||
-          'Erro ao criar oportunidade.';
-        setFormErro(msg);
-      })
-      .finally(() => setEnviando(false));
-  };
-
   if (error) {
     return (
       <div className="space-y-6">
@@ -310,7 +253,6 @@ export default function CrmVendasLeadsPage() {
           statusLabel={statusLabel}
           formatarData={formatarData}
           onClose={() => setLeadVer(null)}
-          onCriarOportunidade={handleCriarOportunidade}
         />
       )}
 
@@ -347,18 +289,6 @@ export default function CrmVendasLeadsPage() {
           onNovoStatusChange={setNovoStatus}
           onSalvar={salvarNovoStatus}
           onClose={() => { if (!enviando) setLeadMudarStatus(null); setFormErro(null); }}
-        />
-      )}
-
-      {leadCriarOportunidade && (
-        <ModalCriarOportunidade
-          lead={leadCriarOportunidade}
-          form={formOportunidade}
-          formErro={formErro}
-          enviando={enviando}
-          onFormChange={setFormOportunidade}
-          onSubmit={submitCriarOportunidade}
-          onClose={() => !enviando && setLeadCriarOportunidade(null)}
         />
       )}
 

@@ -21,7 +21,7 @@ export default function Features({ funcionalidades }: FeaturesProps) {
         {items.map((f, i) => (
           <div
             key={f.id ?? i}
-            className="bg-gray-50 p-5 sm:p-6 rounded-xl border border-gray-100 hover:shadow-lg transition-shadow"
+            className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 sm:p-6 rounded-xl border border-blue-100 hover:shadow-xl hover:border-blue-300 transition-all transform hover:-translate-y-1"
           >
             <IconRenderer
               icone={f.icone}

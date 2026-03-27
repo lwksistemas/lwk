@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Limpando Cache v1381 - LWKS Sistemas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    h1 {
+      color: #667eea;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    .status {
+      font-size: 18px;
+      color: #555;
+      margin: 20px 0;
+      line-height: 1.6;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 30px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .success {
+      color: #10b981;
+      font-weight: bold;
+      font-size: 20px;
+      margin: 20px 0;
+    }
+    .btn {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 15px 30px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 20px;
+      transition: all 0.3s;
+    }
+    .btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    .log {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 20px 0;
+      text-align: left;
+      font-size: 14px;
+      color: #666;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .log-item {
+      padding: 5px 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .log-item:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔄 Limpando Cache v1381</h1>
+    <div class="status" id="status">Iniciando limpeza...</div>
+    <div class="spinner" id="spinner"></div>
+    <div class="log" id="log" style="display: none;"></div>
+    <div id="success" style="display: none;">
+      <div class="success">✅ Cache limpo com sucesso!</div>
+      <p class="status">Você pode fechar esta página e voltar ao sistema.</p>
+      <a href="/" class="btn">Voltar para Home</a>
+    </div>
+  </div>
+
+  <script>
+    const log = (msg) => {
+      const logEl = document.getElementById('log');
+      logEl.style.display = 'block';
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      item.textContent = `${new Date().toLocaleTimeString()} - ${msg}`;
+      logEl.appendChild(item);
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log('[Cache v1381]', msg);
+    };
+
+    async function limparCache() {
+      try {
+        log('Iniciando limpeza de cache v1381...');
+        
+        // 1. Desregistrar todos os service workers
+        if ('serviceWorker' in navigator) {
+          log('Desregistrando service workers...');
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            await registration.unregister();
+            log(`Service worker desregistrado: ${registration.scope}`);
+          }
+        }
+
+        // 2. Limpar todos os caches
+        if ('caches' in window) {
+          log('Limpando caches...');
+          const cacheNames = await caches.keys();
+          for (const cacheName of cacheNames) {
+            await caches.delete(cacheName);
+            log(`Cache deletado: ${cacheName}`);
+          }
+        }
+
+        // 3. Limpar localStorage
+        log('Limpando localStorage...');
+        localStorage.clear();
+
+        // 4. Limpar sessionStorage
+        log('Limpando sessionStorage...');
+        sessionStorage.clear();
+
+        // 5. Limpar IndexedDB
+        if ('indexedDB' in window) {
+          log('Limpando IndexedDB...');
+          const dbs = await indexedDB.databases();
+          for (const db of dbs) {
+            if (db.name) {
+              indexedDB.deleteDatabase(db.name);
+              log(`IndexedDB deletado: ${db.name}`);
+            }
+          }
+        }
+
+        // 6. Limpar cookies
+        log('Limpando cookies...');
+        document.cookie.split(";").forEach((c) => {
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+
+        log('✅ Limpeza concluída!');
+        
+        // Mostrar sucesso
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('success').style.display = 'block';
+
+        // Recarregar após 3 segundos
+        setTimeout(() => {
+          log('Recarregando página...');
+          window.location.href = '/';
+        }, 3000);
+
+      } catch (error) {
+        log(`❌ Erro: ${error.message}`);
+        document.getElementById('status').textContent = 'Erro ao limpar cache. Tente recarregar a página manualmente.';
+        document.getElementById('spinner').style.display = 'none';
+      }
+    }
+
+    // Executar limpeza
+    limparCache();
+  </script>
+</body>
+</html>

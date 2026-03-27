@@ -28,6 +28,7 @@ export default async function HomePage() {
   }
 
   const hero = data.hero ?? DEFAULTS.hero;
+  const heroImagens = (data as any).hero_imagens ?? [];
   const funcionalidades = data.funcionalidades ?? [];
   const modulos = data.modulos ?? [];
 
@@ -35,7 +36,7 @@ export default async function HomePage() {
     <PwaRedirect>
       <main className="w-screen min-w-screen max-w-none overflow-x-hidden bg-gradient-to-b from-slate-50 to-white">
         <Header />
-        <Hero hero={hero} />
+        <Hero hero={hero} heroImagens={heroImagens} />
         <Features funcionalidades={funcionalidades} />
         <DashboardPreview />
         <WhyUs />

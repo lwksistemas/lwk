@@ -88,3 +88,23 @@ class WhyUsBenefit(models.Model):
 
     def __str__(self):
         return self.titulo
+
+
+
+class HeroImagem(models.Model):
+    """Imagens do carrossel do Hero (múltiplas imagens que alternam automaticamente)."""
+    imagem = models.URLField(max_length=500, help_text='URL da imagem de fundo do hero')
+    titulo = models.CharField(max_length=200, blank=True, help_text='Título opcional para esta imagem')
+    ordem = models.PositiveIntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'homepage_hero_imagem'
+        ordering = ['ordem', 'id']
+        verbose_name = 'Imagem do Hero'
+        verbose_name_plural = 'Imagens do Hero'
+
+    def __str__(self):
+        return self.titulo or f'Imagem {self.id}'

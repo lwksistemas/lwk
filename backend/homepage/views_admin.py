@@ -32,3 +32,27 @@ class WhyUsBenefitViewSet(viewsets.ModelViewSet):
     queryset = WhyUsBenefit.objects.all()
     serializer_class = WhyUsBenefitSerializer
     permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+
+
+class HeroImagemViewSet(viewsets.ModelViewSet):
+    """ViewSet para gerenciar imagens do carrossel do Hero."""
+    queryset = None
+    serializer_class = None
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    
+    def get_queryset(self):
+        from .models import HeroImagem
+        return HeroImagem.objects.all()
+    
+    def get_serializer_class(self):
+        from rest_framework import serializers
+        from .models import HeroImagem
+        
+        class HeroImagemSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = HeroImagem
+                fields = ['id', 'imagem', 'titulo', 'ordem', 'ativo', 'created_at', 'updated_at']
+                read_only_fields = ['id', 'created_at', 'updated_at']
+        
+        return HeroImagemSerializer

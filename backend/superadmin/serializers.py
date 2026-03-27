@@ -329,7 +329,7 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             except Exception as e:
                 logger.error(f"Erro ao configurar schema para loja {loja.slug}: {e}")
                 # CRM Vendas e outros que dependem de schema: falhar para não criar loja quebrada
-                if tipo_slug in ('crm-vendas', 'clinica-da-beleza', 'clinica-de-estetica', 'restaurante', 'servicos', 'cabeleireiro', 'e-commerce'):
+                if tipo_slug in ('crm-vendas', 'clinica-da-beleza', 'clinica-de-estetica', 'clinica-estetica', 'restaurante', 'servicos', 'cabeleireiro', 'e-commerce'):
                     raise serializers.ValidationError(
                         f"Não foi possível configurar o banco de dados da loja: {str(e)}. "
                         "Tente novamente ou entre em contato com o suporte."

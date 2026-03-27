@@ -53,6 +53,7 @@ def configurar_schema_crm_loja(loja) -> bool:
             'crm-vendas': ['crm_vendas'],
             'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
             'clinica-de-estetica': ['clinica_estetica'],
+            'clinica-estetica': ['clinica_estetica'],
             'e-commerce': ['ecommerce'],
             'restaurante': ['restaurante'],
             'servicos': ['servicos'],

@@ -53,7 +53,8 @@ BACKUP_TABLE_PREFIX_BLACKLIST = (
 # Quando o backup usa schema PUBLIC: só exportar tabelas cujo prefixo pertence ao tipo de app da loja.
 # Evita incluir cabeleireiro_*, clinica_beleza_*, crm_*, etc. no backup de uma clínica de estética.
 BACKUP_TIPO_APP_TABLE_PREFIXES = {
-    'clinica-de-estetica': ('stores_', 'products_', 'clinica_'),  # clinica_* da app clinica_estetica
+    'clinica-de-estetica': ('stores_', 'products_', 'clinica_'),
+    'clinica-estetica': ('stores_', 'products_', 'clinica_'),
     'clinica-da-beleza': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_'),
     'e-commerce': ('stores_', 'products_', 'ecommerce_'),
     'restaurante': ('stores_', 'products_', 'restaurante_'),
@@ -64,6 +65,7 @@ BACKUP_TIPO_APP_TABLE_PREFIXES = {
 # Prefixos a excluir por tipo de app (ex.: clinica_beleza_ não é da clínica de estética)
 BACKUP_TIPO_APP_EXCLUDED_PREFIXES = {
     'clinica-de-estetica': ('clinica_beleza_',),
+    'clinica-estetica': ('clinica_beleza_',),
 }
 # Regex para validar nome de tabela/coluna (segurança SQL: apenas alfanumérico e underscore)
 BACKUP_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')

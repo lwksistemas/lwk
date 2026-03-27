@@ -78,6 +78,7 @@ class Command(BaseCommand):
             # Apps específicos por tipo de app (whatsapp = config isolada por loja para Clínica da Beleza)
             tipo_apps = {
                 'clinica-de-estetica': ['clinica_estetica'],
+                'clinica-estetica': ['clinica_estetica'],
                 'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
                 'e-commerce': ['ecommerce'],
                 'restaurante': ['restaurante'],

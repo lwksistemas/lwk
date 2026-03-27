@@ -100,6 +100,7 @@ class Command(BaseCommand):
         base_apps = ['stores', 'products']
         tipo_apps = {
             'clinica-de-estetica': ['clinica_estetica'],
+            'clinica-estetica': ['clinica_estetica'],
             'clinica-da-beleza': ['clinica_beleza'],
             'e-commerce': ['ecommerce'],
             'restaurante': ['restaurante'],

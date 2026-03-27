@@ -136,6 +136,7 @@ class DatabaseSchemaService:
         # Apps por tipo de app (slug do TipoLoja)
         tipo_apps = {
             'clinica-de-estetica': ['clinica_estetica'],
+            'clinica-estetica': ['clinica_estetica'],  # slug usado em criar_tipos_app_iniciais / setup_initial_data
             'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
             'e-commerce': ['ecommerce'],
             'restaurante': ['restaurante'],

@@ -4,7 +4,6 @@ export interface Hero {
   subtitulo: string;
   botao_texto: string;
   botao_principal_ativo?: boolean;
-  imagem?: string;
 }
 
 export interface Funcionalidade {

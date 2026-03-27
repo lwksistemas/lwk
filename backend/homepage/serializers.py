@@ -5,10 +5,9 @@ from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit
 class HeroSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeroSection
-        fields = ['id', 'titulo', 'subtitulo', 'botao_texto', 'botao_principal_ativo', 'imagem', 'ordem', 'ativo']
+        fields = ['id', 'titulo', 'subtitulo', 'botao_texto', 'botao_principal_ativo', 'ordem', 'ativo']
         extra_kwargs = {
             'botao_principal_ativo': {'required': False, 'default': True},
-            'imagem': {'required': False, 'allow_blank': True, 'allow_null': True},
         }
 
 

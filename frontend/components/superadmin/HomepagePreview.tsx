@@ -1,14 +1,12 @@
 'use client';
 
 import { IconRenderer } from '@/components/shared/IconRenderer';
-import Image from 'next/image';
 
 interface HeroPreviewData {
   titulo: string;
   subtitulo: string;
   botao_texto: string;
   botao_principal_ativo?: boolean;
-  imagem?: string;
 }
 
 interface FuncionalidadePreviewData {
@@ -35,23 +33,13 @@ export function HomepagePreview({ type, data }: HomepagePreviewProps) {
   if (type === 'hero') {
     const heroData = data as HeroPreviewData;
     return (
-      <div className="border-2 border-blue-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="border-2 border-slate-200 dark:border-slate-600 rounded-lg p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
-          <span className="text-xs font-medium text-blue-600 uppercase">Preview</span>
+          <div className="w-2 h-2 bg-slate-600 dark:bg-slate-400 rounded-full animate-pulse" />
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300 uppercase">Preview</span>
         </div>
         
         <div className="bg-white rounded-lg p-6 shadow-sm">
-          {heroData.imagem && (
-            <div className="mb-4 aspect-video relative rounded-lg overflow-hidden">
-              <Image
-                src={heroData.imagem}
-                alt={heroData.titulo}
-                fill
-                className="object-cover"
-              />
-            </div>
-          )}
           <h1 className="text-2xl font-bold text-gray-900 mb-3">
             {heroData.titulo || 'Título do Hero'}
           </h1>
@@ -60,11 +48,11 @@ export function HomepagePreview({ type, data }: HomepagePreviewProps) {
           </p>
           <div className="flex gap-3">
             {heroData.botao_principal_ativo !== false && (
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              <button className="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium">
                 {heroData.botao_texto || 'Testar Gratuitamente'}
               </button>
             )}
-            <button className="bg-white text-blue-600 border-2 border-blue-600 px-4 py-2 rounded-lg text-sm font-medium">
+            <button className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-2 border-slate-300 dark:border-slate-600 px-4 py-2 rounded-lg text-sm font-medium">
               Ver Demonstração
             </button>
           </div>

@@ -69,13 +69,15 @@ export function FormularioCadastroLoja({
     : 0;
 
   return (
-    <form onSubmit={onSubmit} className="p-8 space-y-8">
+    <form onSubmit={onSubmit} className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
       {/* Seção 1: Informações Básicas */}
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700">1. Informações Básicas</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
+          1. Informações Básicas
+        </h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Nome da Empresa *
             </label>
             <input
@@ -84,14 +86,14 @@ export function FormularioCadastroLoja({
               value={formData.nome}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               placeholder="Ex: Minha Empresa LTDA"
             />
           </div>
           
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2">
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 CPF ou CNPJ *
               </label>
               <input
@@ -101,7 +103,7 @@ export function FormularioCadastroLoja({
                 onChange={handleCpfCnpjChange}
                 required
                 maxLength={18}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                 placeholder="000.000.000-00"
               />
             </div>
@@ -109,7 +111,7 @@ export function FormularioCadastroLoja({
               type="button"
               onClick={buscarCnpj}
               disabled={buscarCnpjLoading || formData.cpf_cnpj.replace(/\D/g, '').length !== 14}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="h-11 shrink-0 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-auto sm:min-h-[42px] sm:self-end"
             >
               {buscarCnpjLoading ? '...' : 'Buscar'}
             </button>
@@ -118,12 +120,12 @@ export function FormularioCadastroLoja({
       </div>
 
       {/* Seção 2: Endereço */}
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700">2. Endereço</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+      <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">2. Endereço</h3>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2">
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 CEP
               </label>
               <input
@@ -132,7 +134,7 @@ export function FormularioCadastroLoja({
                 value={formData.cep}
                 onChange={handleChange}
                 maxLength={9}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                 placeholder="00000-000"
               />
             </div>
@@ -140,7 +142,7 @@ export function FormularioCadastroLoja({
               type="button"
               onClick={buscarCep}
               disabled={buscarCepLoading || formData.cep.replace(/\D/g, '').length !== 8}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 whitespace-nowrap"
+              className="h-11 shrink-0 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 sm:h-auto sm:min-h-[42px] sm:self-end"
             >
               {buscarCepLoading ? '...' : 'Buscar'}
             </button>
@@ -153,7 +155,7 @@ export function FormularioCadastroLoja({
               name="logradouro"
               value={formData.logradouro}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
           
@@ -164,7 +166,7 @@ export function FormularioCadastroLoja({
               name="numero"
               value={formData.numero}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
           
@@ -175,7 +177,7 @@ export function FormularioCadastroLoja({
               name="bairro"
               value={formData.bairro}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
           
@@ -186,7 +188,7 @@ export function FormularioCadastroLoja({
               name="cidade"
               value={formData.cidade}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
           
@@ -198,16 +200,16 @@ export function FormularioCadastroLoja({
               value={formData.uf}
               onChange={handleChange}
               maxLength={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 uppercase"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base uppercase text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
         </div>
       </div>
 
       {/* Seção 3: Tipo de App */}
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700">3. Tipo de Sistema</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">3. Tipo de Sistema</h3>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tipos.map((tipo: any) => (
             <label
               key={tipo.id}
@@ -239,8 +241,8 @@ export function FormularioCadastroLoja({
       </div>
 
       {/* Seção 4: Plano */}
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700">4. Escolha seu Plano</h3>
+      <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">4. Escolha seu Plano</h3>
         {!formData.tipo_loja ? (
           <div className="text-center py-8 text-gray-500">
             Selecione um tipo de sistema primeiro
@@ -250,7 +252,7 @@ export function FormularioCadastroLoja({
             Nenhum plano disponível
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {planos.map((plano: any) => (
               <label
                 key={plano.id}
@@ -296,7 +298,7 @@ export function FormularioCadastroLoja({
                 name="tipo_assinatura"
                 value={formData.tipo_assinatura}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               >
                 <option value="mensal">Mensal</option>
                 <option value="anual">Anual</option>
@@ -311,7 +313,7 @@ export function FormularioCadastroLoja({
                 name="dia_vencimento"
                 value={formData.dia_vencimento}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               >
                 {Array.from({ length: 28 }, (_, i) => i + 1).map(dia => (
                   <option key={dia} value={dia}>Dia {dia}</option>
@@ -336,7 +338,9 @@ export function FormularioCadastroLoja({
 
       {/* Seção 5: Dados do Administrador */}
       <div className="pb-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700">5. Dados do Administrador</h3>
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
+          5. Dados do Administrador
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -348,7 +352,7 @@ export function FormularioCadastroLoja({
               value={formData.owner_full_name}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               placeholder="Ex: João Silva"
             />
           </div>
@@ -363,7 +367,7 @@ export function FormularioCadastroLoja({
               value={formData.owner_username}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               placeholder="Ex: joao.silva"
             />
           </div>
@@ -378,7 +382,7 @@ export function FormularioCadastroLoja({
               value={formData.owner_email}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               placeholder="email@empresa.com"
             />
             <p className="text-xs text-gray-500 mt-1">
@@ -395,7 +399,7 @@ export function FormularioCadastroLoja({
               name="owner_telefone"
               value={formData.owner_telefone}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
               placeholder="(00) 00000-0000"
             />
           </div>
@@ -442,11 +446,11 @@ export function FormularioCadastroLoja({
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             type="submit"
             disabled={loading}
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+            className="min-h-[48px] w-full rounded-lg bg-blue-600 px-6 py-3 text-base font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[200px] sm:px-8 sm:text-lg"
           >
             {loading ? 'Criando cadastro...' : 'Finalizar Cadastro'}
           </button>

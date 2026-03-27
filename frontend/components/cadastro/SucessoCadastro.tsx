@@ -7,16 +7,27 @@ interface SucessoCadastroProps {
 
 export function SucessoCadastro({ loja, email }: SucessoCadastroProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full text-center">
+    <div className="relative flex min-h-[100dvh] min-h-screen items-center justify-center overflow-x-hidden px-3 py-8 sm:px-4 sm:py-10">
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-slate-200 dark:bg-slate-900"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(59,130,246,0.25),transparent_50%),radial-gradient(ellipse_80%_60%_at_100%_50%,rgba(147,51,234,0.12),transparent_45%),linear-gradient(180deg,rgb(241,245,249)_0%,rgb(224,231,239)_45%,rgb(226,232,240)_100%)] dark:bg-[radial-gradient(ellipse_100%_80%_at_50%_0%,rgba(59,130,246,0.15),transparent_55%),linear-gradient(180deg,rgb(15,23,42)_0%,rgb(30,41,59)_100%)]"
+        aria-hidden
+      />
+
+      <div className="w-full max-w-2xl rounded-xl border border-slate-200/80 bg-white/95 p-6 text-center shadow-xl shadow-slate-900/10 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90 sm:rounded-2xl sm:p-8 sm:shadow-2xl">
         <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6 animate-bounce">
           <span className="text-5xl text-green-600">✓</span>
         </div>
         
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">
+        <h2 className="mb-2 text-2xl font-bold text-gray-800 dark:text-slate-100 sm:text-3xl">
           Cadastro realizado com sucesso!
         </h2>
-        <p className="text-xl text-purple-600 font-semibold mb-6">{loja.nome}</p>
+        <p className="mb-6 text-lg font-semibold text-indigo-700 dark:text-indigo-300 sm:text-xl">
+          {loja.nome}
+        </p>
         
         {/* Informação importante sobre senha */}
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-5 mb-6">
@@ -85,7 +96,7 @@ export function SucessoCadastro({ loja, email }: SucessoCadastroProps) {
         
         <Link
           href="/"
-          className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+          className="inline-block min-h-[48px] w-full rounded-lg bg-blue-600 px-6 py-3 text-base font-medium text-white transition hover:bg-blue-700 sm:w-auto"
         >
           Voltar para Home
         </Link>

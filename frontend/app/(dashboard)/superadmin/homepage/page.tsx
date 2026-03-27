@@ -1,8 +1,5 @@
 'use client';
-// Updated: 2026-03-27 14:00 - Added Hero Images Carousel Management
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Updated: 2026-03-27 14:00 - Hero Images Carousel (segment config não pode ir em Client Component)
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -34,7 +31,6 @@ interface HeroData {
   subtitulo: string;
   botao_texto: string;
   botao_principal_ativo?: boolean;
-  imagem?: string;
   ativo?: boolean;
 }
 
@@ -100,7 +96,6 @@ export default function HomepageConfigPage() {
     subtitulo: '',
     botao_texto: 'Testar grátis',
     botao_principal_ativo: true,
-    imagem: '',
   });
   const [editingFunc, setEditingFunc] = useState<FuncionalidadeData | null>(null);
   const [editingMod, setEditingMod] = useState<ModuloData | null>(null);
@@ -152,11 +147,10 @@ export default function HomepageConfigPage() {
           subtitulo: firstHero.subtitulo,
           botao_texto: firstHero.botao_texto || 'Testar grátis',
           botao_principal_ativo: firstHero.botao_principal_ativo !== false,
-          imagem: firstHero.imagem || '',
         });
       } else {
         setHero(null);
-        setHeroForm({ titulo: '', subtitulo: '', botao_texto: 'Testar grátis', botao_principal_ativo: true, imagem: '' });
+        setHeroForm({ titulo: '', subtitulo: '', botao_texto: 'Testar grátis', botao_principal_ativo: true });
       }
 
       const funcList = Array.isArray(funcRes.data) ? funcRes.data : funcRes.data?.results ?? [];
@@ -176,7 +170,6 @@ export default function HomepageConfigPage() {
 
   useEffect(() => {
     loadData();
-    console.log('Homepage Config v2.0 - Hero Images Carousel');
   }, []);
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -196,7 +189,6 @@ export default function HomepageConfigPage() {
         subtitulo: heroForm.subtitulo?.trim() || '',
         botao_texto: heroForm.botao_texto?.trim() || 'Testar grátis',
         botao_principal_ativo: heroForm.botao_principal_ativo !== false,
-        imagem: heroForm.imagem?.trim() || '',
       };
       if (hero?.id) {
         await apiClient.patch(`${API.hero}${hero.id}/`, payload);
@@ -532,7 +524,7 @@ export default function HomepageConfigPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-stone-50 dark:bg-zinc-950">
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
@@ -541,7 +533,7 @@ export default function HomepageConfigPage() {
               Configurar Homepage v2.0
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Edite textos, funcionalidades, módulos e imagens do carrossel da página inicial.
+              Textos do banner, imagens de fundo (carrossel), funcionalidades e módulos da página inicial.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
@@ -565,7 +557,7 @@ export default function HomepageConfigPage() {
         <Tabs defaultValue="hero" className="space-y-4">
           {/* v1391 - 7 tabs including Hero Images */}
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="hero">Hero</TabsTrigger>
+            <TabsTrigger value="hero">Textos</TabsTrigger>
             <TabsTrigger value="hero-imagens">🖼️ Imagens</TabsTrigger>
             <TabsTrigger value="funcionalidades">Funcionalidades</TabsTrigger>
             <TabsTrigger value="modulos">Módulos</TabsTrigger>
@@ -578,9 +570,9 @@ export default function HomepageConfigPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Hero Section</CardTitle>
+                  <CardTitle>Textos do banner</CardTitle>
                   <CardDescription>
-                    Título, subtítulo e texto do botão principal da página inicial
+                    Título, subtítulo e botão exibidos sobre o fundo (as imagens de fundo ficam na aba Imagens)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -601,15 +593,6 @@ export default function HomepageConfigPage() {
                       placeholder="Ex: Gestão de Lojas"
                     />
                   </div>
-                  
-                  <ImageUpload
-                    label="Imagem do Hero"
-                    description="Imagem principal exibida no banner da homepage (opcional)"
-                    value={heroForm.imagem || ''}
-                    onChange={(url) => setHeroForm((f) => ({ ...f, imagem: url }))}
-                    maxSize={5}
-                    aspectRatio="16:9"
-                  />
                   
                   <div>
                     <Label>Texto do botão</Label>
@@ -645,7 +628,7 @@ export default function HomepageConfigPage() {
           </TabsContent>
 
           <TabsContent value="hero-imagens">
-            <Card>
+            <Card className="overflow-x-auto">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Imagens do Hero (Carrossel)</CardTitle>
@@ -676,7 +659,7 @@ export default function HomepageConfigPage() {
                     <>
                       <p className="font-medium">{h.titulo || 'Sem título'}</p>
                       {h.imagem && (
-                        <div className="mt-2">
+                        <div className="mt-2 w-[calc(100%+4cm)] max-w-none -ml-[2cm]">
                           <img 
                             src={h.imagem} 
                             alt={h.titulo} 
@@ -880,8 +863,8 @@ export default function HomepageConfigPage() {
                       </Button>
                     </Link>
                   </div>
-                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <div className="mt-4 p-4 bg-stone-100 dark:bg-zinc-900/50 rounded-lg border border-stone-200 dark:border-zinc-700">
+                    <p className="text-sm text-stone-700 dark:text-stone-300">
                       💡 As configurações de login permitem personalizar logos, cores de fundo, 
                       textos e imagens das telas de autenticação, similar às configurações das lojas.
                     </p>
@@ -971,7 +954,7 @@ export default function HomepageConfigPage() {
           </div>
         </Modal>
 
-        {/* Modal Adicionar/Editar Imagem Hero */}
+        {/* Modal Adicionar/Editar imagem do carrossel */}
         <Modal
           isOpen={showAddHeroImg || !!editingHeroImg}
           onClose={() => {
@@ -981,7 +964,7 @@ export default function HomepageConfigPage() {
         >
           <div className="p-6">
             <h3 className="text-lg font-semibold mb-4">
-              {editingHeroImg ? 'Editar Imagem do Hero' : 'Nova Imagem do Hero'}
+              {editingHeroImg ? 'Editar imagem do carrossel' : 'Nova imagem do carrossel'}
             </h3>
             <div className="space-y-4">
               <div>

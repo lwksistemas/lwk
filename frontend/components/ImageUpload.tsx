@@ -32,11 +32,6 @@ export function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Debug: log quando o value mudar
-  useEffect(() => {
-    console.log(`🖼️ ImageUpload [${label}] - value:`, value);
-  }, [value, label]);
-
   useEffect(() => {
     // Carregar script do Cloudinary se ainda não estiver carregado
     if (typeof window !== 'undefined' && !window.cloudinary) {
@@ -180,6 +175,15 @@ export function ImageUpload({
     return width / height;
   };
 
+  // Preview alinhado à proporção do banner (16:9) para não “vazar” fora do quadro
+  const isWideHero = aspectRatio === '16:9';
+  const previewFrameClass = isWideHero
+    ? 'w-full max-w-md aspect-video rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800 flex items-center justify-center'
+    : 'w-32 h-32 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800 flex items-center justify-center';
+  const previewImgClass = isWideHero
+    ? 'max-w-full max-h-full w-full h-full object-contain object-center'
+    : 'w-full h-full object-cover';
+
   return (
     <div className="space-y-2">
       {label && (
@@ -194,15 +198,15 @@ export function ImageUpload({
         </p>
       )}
 
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col sm:flex-row items-start gap-4">
         {/* Preview da imagem */}
         {value ? (
-          <div className="relative group">
-            <div className="w-32 h-32 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800">
+          <div className="relative group w-full sm:w-auto shrink-0">
+            <div className={previewFrameClass}>
               <img
                 src={value}
                 alt="Preview"
-                className="w-full h-full object-cover"
+                className={previewImgClass}
               />
             </div>
             
@@ -218,7 +222,13 @@ export function ImageUpload({
             )}
           </div>
         ) : (
-          <div className="w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+          <div
+            className={
+              isWideHero
+                ? 'w-full max-w-md aspect-video rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-gray-50 dark:bg-gray-800 shrink-0'
+                : 'w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center bg-gray-50 dark:bg-gray-800 shrink-0'
+            }
+          >
             <ImageIcon className="w-8 h-8 text-gray-400" />
           </div>
         )}

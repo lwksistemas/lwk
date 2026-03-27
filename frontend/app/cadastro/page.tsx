@@ -61,19 +61,35 @@ export default function CadastroPublicoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <div className="relative min-h-[100dvh] min-h-screen overflow-x-hidden">
+      {/* Fundo em camadas (visível em qualquer tela; não fica “só branco”) */}
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-slate-200 dark:bg-slate-900"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(59,130,246,0.25),transparent_50%),radial-gradient(ellipse_80%_60%_at_100%_50%,rgba(147,51,234,0.12),transparent_45%),linear-gradient(180deg,rgb(241,245,249)_0%,rgb(224,231,239)_45%,rgb(226,232,240)_100%)] dark:bg-[radial-gradient(ellipse_100%_80%_at_50%_0%,rgba(59,130,246,0.15),transparent_55%),linear-gradient(180deg,rgb(15,23,42)_0%,rgb(30,41,59)_100%)]"
+        aria-hidden
+      />
+
+      <div className="mx-auto max-w-4xl px-3 pb-10 pt-4 sm:px-4 sm:pb-12 sm:pt-6 md:px-6 md:pt-8">
+        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 shadow-xl shadow-slate-900/10 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90 sm:rounded-2xl sm:shadow-2xl">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-6">
-            <Link href="/" className="text-white/80 hover:text-white text-sm mb-2 inline-block">
+          <div className="bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 px-4 py-5 text-white sm:px-6 sm:py-6 md:px-8">
+            <Link
+              href="/"
+              className="mb-2 inline-block text-sm text-white/85 transition hover:text-white"
+            >
               ← Voltar para home
             </Link>
-            <h1 className="text-3xl font-bold mb-2">Cadastro de Nova Empresa</h1>
-            <p className="text-blue-100">Preencha os dados abaixo para começar a usar o sistema</p>
+            <h1 className="text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">
+              Cadastro de Nova Empresa
+            </h1>
+            <p className="mt-2 text-sm text-slate-200 sm:text-base">
+              Preencha os dados abaixo para começar a usar o sistema
+            </p>
           </div>
 
-          {/* Formulário */}
           <FormularioCadastroLoja
             lojaForm={lojaForm}
             onSubmit={handleSubmit}

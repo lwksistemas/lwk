@@ -11,7 +11,6 @@ class HeroSection(models.Model):
     subtitulo = models.TextField()
     botao_texto = models.CharField(max_length=100, default='Testar grátis')
     botao_principal_ativo = models.BooleanField(default=True, help_text='Exibir botão principal (ex: Testar grátis)')
-    imagem = models.URLField(max_length=500, blank=True, null=True, help_text='URL da imagem do hero (opcional)')
     ativo = models.BooleanField(default=True)
     ordem = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

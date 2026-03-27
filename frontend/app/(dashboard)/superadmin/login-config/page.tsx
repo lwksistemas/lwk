@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Card,
@@ -27,7 +27,7 @@ interface LoginConfig {
   subtitulo: string;
 }
 
-export default function LoginConfigPage() {
+function LoginConfigContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tipo = (searchParams.get('tipo') || 'superadmin') as 'superadmin' | 'suporte';
@@ -287,5 +287,17 @@ export default function LoginConfigPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginConfigPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Carregando...</p>
+      </div>
+    }>
+      <LoginConfigContent />
+    </Suspense>
   );
 }

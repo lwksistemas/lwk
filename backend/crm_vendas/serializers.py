@@ -395,14 +395,14 @@ class ContatoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     lead_nome = serializers.CharField(source='lead.nome', read_only=True)
     vendedor_nome = serializers.CharField(source='vendedor.nome', read_only=True)
-    
+
     uppercase_fields = ['titulo']
 
     class Meta:
         model = Oportunidade
         fields = [
             'id', 'titulo', 'lead', 'lead_nome', 'valor', 'etapa', 'vendedor', 'vendedor_nome',
-            'probabilidade', 'data_fechamento_prevista', 'data_fechamento', 
+            'probabilidade', 'data_fechamento_prevista', 'data_fechamento',
             'data_fechamento_ganho', 'data_fechamento_perdido', 'valor_comissao',
             'observacoes', 'created_at', 'updated_at',
         ]

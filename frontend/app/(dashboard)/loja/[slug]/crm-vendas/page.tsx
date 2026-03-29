@@ -458,7 +458,7 @@ export default function CrmVendasDashboardPage() {
                       {v.nome}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {v.id == null ? 'Fora da equipe ativa' : 'Vendedor'}
+                      {v.id == null ? 'Sem vendedor no cadastro' : 'Vendedor'}
                     </p>
                   </div>
                   <div className="text-right shrink-0">

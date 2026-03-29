@@ -1427,8 +1427,6 @@ def dashboard_data(request):
                 for v in perf_qs
             ]
 
-            # Oportunidades com vendedor nulo ou vendedor inativo não entram no annotate acima;
-            # sem isto, a soma das comissões da lista fica menor que comissao_total_mes.
             filtro_opp_no_mes = (
                 Q(data_fechamento_ganho__gte=data_inicio_mes, data_fechamento_ganho__lte=data_fim_mes)
                 | (
@@ -1440,21 +1438,43 @@ def dashboard_data(request):
                 total=Sum('valor_comissao')
             )['total'] or 0
 
+            # Fechadas no mês sem vendedor no cadastro somam no administrador da loja (is_admin), não em linha à parte
             base_fechadas_mes = opp_qs.filter(etapa='closed_won').filter(filtro_opp_no_mes)
-            outros_mes = base_fechadas_mes.filter(
-                Q(vendedor_id__isnull=True) | Q(vendedor__is_active=False)
-            ).aggregate(receita=Sum('valor'), comissao=Sum('valor_comissao'))
-            rec_outros = float(outros_mes['receita'] or 0)
-            com_outros = float(outros_mes['comissao'] or 0)
-            if rec_outros > 0 or com_outros > 0:
-                performance_vendedores.append(
-                    {
-                        'id': None,
-                        'nome': 'Sem vendedor ou vendedor inativo',
-                        'receita_mes': rec_outros,
-                        'comissao_mes': com_outros,
-                    }
-                )
+            sem_vendedor_agg = base_fechadas_mes.filter(vendedor_id__isnull=True).aggregate(
+                receita=Sum('valor'), comissao=Sum('valor_comissao')
+            )
+            rec_sem = float(sem_vendedor_agg['receita'] or 0)
+            com_sem = float(sem_vendedor_agg['comissao'] or 0)
+            if rec_sem > 0 or com_sem > 0:
+                admin_v = vendedores_qs.filter(is_admin=True).order_by('id').first()
+                if not admin_v:
+                    admin_v = vendedores_qs.order_by('id').first()
+                if admin_v:
+                    merged = False
+                    for row in performance_vendedores:
+                        if row['id'] == admin_v.id:
+                            row['receita_mes'] += rec_sem
+                            row['comissao_mes'] += com_sem
+                            merged = True
+                            break
+                    if not merged:
+                        performance_vendedores.append(
+                            {
+                                'id': admin_v.id,
+                                'nome': admin_v.nome,
+                                'receita_mes': rec_sem,
+                                'comissao_mes': com_sem,
+                            }
+                        )
+                else:
+                    performance_vendedores.append(
+                        {
+                            'id': None,
+                            'nome': 'Sem vendedor',
+                            'receita_mes': rec_sem,
+                            'comissao_mes': com_sem,
+                        }
+                    )
             performance_vendedores.sort(key=lambda x: -x['receita_mes'])
 
             payload = {

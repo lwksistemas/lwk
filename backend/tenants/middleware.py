@@ -256,12 +256,11 @@ class TenantMiddleware:
         logger = logging.getLogger(__name__)
         
         # 1. Tentar pegar do header X-Loja-ID (PRIORIDADE - ID único)
-        # SEGURANÇA: Exige autenticação para evitar acesso indevido
+        # SEGURANÇA: Com usuário autenticado (sessão), valida posse da loja.
+        # APIs REST usam JWT no DRF — aqui o usuário ainda pode ser AnonymousUser.
+        # Nesse caso NÃO retornar None: deixar cair no X-Tenant-Slug (headers do frontend).
         loja_id = request.headers.get('X-Loja-ID')
-        if loja_id:
-            if not hasattr(request, 'user') or not request.user.is_authenticated:
-                logger.debug("X-Loja-ID ignorado: usuário não autenticado")
-                return None
+        if loja_id and hasattr(request, 'user') and request.user.is_authenticated:
             try:
                 from superadmin.models import Loja
                 loja = Loja.objects.get(id=int(loja_id))
@@ -272,6 +271,11 @@ class TenantMiddleware:
             except (Loja.DoesNotExist, ValueError):
                 logger.warning(f"⚠️ [_get_tenant_slug] Loja {loja_id} não encontrada")
                 pass
+        elif loja_id:
+            logger.debug(
+                "X-Loja-ID presente mas usuário ainda não autenticado na pilha Django (ex.: JWT) — "
+                "usando X-Tenant-Slug se enviado"
+            )
         
         # 2. Tentar pegar do header X-Tenant-Slug (fallback, case-insensitive)
         tenant_slug = request.headers.get('X-Tenant-Slug')

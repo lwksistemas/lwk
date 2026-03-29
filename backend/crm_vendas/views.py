@@ -139,8 +139,11 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                         
                         logger.info(f"[VendedorViewSet.list] results ANTES de filtrar: {len(results)}")
                         
-                        # Filtrar vendedores legacy (is_admin) que eram owner - evitar duplicata
-                        if owner_email_lower:
+                        # Filtrar vendedores legacy (is_admin) que eram owner — só quando o admin
+                        # virtual será inserido (owner sem VendedorUsuario). Se o owner já tem
+                        # VendedorUsuario, o registro na lista é a representação dele; filtrar aqui
+                        # remove o administrador da UI por completo.
+                        if owner_email_lower and not owner_tem_vendedor:
                             results = [r for r in results if not (
                                 r.get('is_admin') and
                                 (r.get('email') or '').strip().lower() == owner_email_lower

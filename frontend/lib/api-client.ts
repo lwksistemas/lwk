@@ -94,14 +94,16 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   const lojaId = sessionStorage.getItem('current_loja_id');
   if (lojaId) {
     config.headers.set('X-Loja-ID', lojaId);
-  } else {
-    let lojaSlug = sessionStorage.getItem('loja_slug');
-    // Fallback: extrair slug da URL quando em /loja/[slug]/ (evita lista vazia em produtos-serviços)
-    if (!lojaSlug && window.location.pathname.includes('/loja/')) {
-      const match = window.location.pathname.match(/\/loja\/([^/]+)/);
-      if (match) lojaSlug = match[1];
-    }
-    if (lojaSlug) config.headers.set('X-Tenant-Slug', lojaSlug);
+  }
+  // Sempre enviar slug nas rotas /loja/...: o TenantMiddleware roda antes do JWT do DRF;
+  // sem X-Tenant-Slug, só X-Loja-ID era ignorado e o contexto da loja ficava vazio (listas CRM vazias).
+  let lojaSlug = sessionStorage.getItem('loja_slug');
+  if (!lojaSlug && window.location.pathname.includes('/loja/')) {
+    const match = window.location.pathname.match(/\/loja\/([^/]+)/);
+    if (match) lojaSlug = match[1];
+  }
+  if (lojaSlug) {
+    config.headers.set('X-Tenant-Slug', lojaSlug);
   }
   const token = sessionStorage.getItem('access_token');
   if (token) config.headers.set('Authorization', `Bearer ${token}`);

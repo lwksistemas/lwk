@@ -11,9 +11,17 @@ import logging
 from typing import Dict, Any, Optional
 from django.db import transaction
 from .models import Oportunidade, Proposta, Contrato, Lead, ProdutoServico
-from .utils import get_current_vendedor_id
+from .utils import get_current_vendedor_id, get_vendedor_padrao_admin_loja
 
 logger = logging.getLogger(__name__)
+
+
+def _oportunidade_tem_vendedor(validated_data: Dict[str, Any]) -> bool:
+    if validated_data.get('vendedor'):
+        return True
+    if validated_data.get('vendedor_id') is not None:
+        return True
+    return False
 
 
 class OportunidadeService:
@@ -52,33 +60,48 @@ class OportunidadeService:
         Returns:
             Oportunidade: Instância criada
         """
-        # Regra 1: Vendedor logado tem prioridade
-        if self.vendedor_id and not validated_data.get('vendedor'):
+        # Regra 1: Vendedor logado (VendedorUsuario) tem prioridade
+        if self.vendedor_id and not _oportunidade_tem_vendedor(validated_data):
             validated_data['vendedor_id'] = self.vendedor_id
+            validated_data.pop('vendedor', None)
             logger.info(
                 f'Oportunidade criada com vendedor logado: '
                 f'vendedor_id={self.vendedor_id}, user_id={self.user_id}'
             )
             return Oportunidade.objects.create(**validated_data)
-        
+
         # Regra 2: Herdar vendedor do lead
         lead = validated_data.get('lead')
-        if lead and not validated_data.get('vendedor') and getattr(lead, 'vendedor_id', None):
+        if lead and not _oportunidade_tem_vendedor(validated_data) and getattr(lead, 'vendedor_id', None):
             validated_data['vendedor_id'] = lead.vendedor_id
+            validated_data.pop('vendedor', None)
             logger.info(
                 f'Oportunidade herdou vendedor do lead: '
                 f'lead_id={lead.id}, vendedor_id={lead.vendedor_id}'
             )
             return Oportunidade.objects.create(**validated_data)
-        
-        # Regra 3: Criar sem vendedor (warning)
-        if not validated_data.get('vendedor'):
+
+        # Regra 3: Dono da loja sem vínculo explícito → vendedor administrador da loja (is_admin / e-mail)
+        if not _oportunidade_tem_vendedor(validated_data):
+            padrao = get_vendedor_padrao_admin_loja(self.request)
+            if padrao:
+                validated_data['vendedor_id'] = padrao
+                validated_data.pop('vendedor', None)
+                logger.info(
+                    'Oportunidade atribuída ao vendedor administrador da loja: vendedor_id=%s, user_id=%s',
+                    padrao,
+                    self.user_id,
+                )
+                return Oportunidade.objects.create(**validated_data)
+
+        # Regra 4: Criar sem vendedor (warning)
+        if not _oportunidade_tem_vendedor(validated_data):
             logger.warning(
                 f'Oportunidade criada SEM vendedor: '
                 f'user_id={self.user_id}, lead_id={lead.id if lead else None}. '
                 f'Vendedores não verão esta oportunidade na lista.'
             )
-        
+
         return Oportunidade.objects.create(**validated_data)
     
     def atualizar_oportunidade(
@@ -99,15 +122,26 @@ class OportunidadeService:
         Returns:
             Oportunidade: Instância atualizada
         """
-        # Vincular vendedor se necessário
-        if (self.vendedor_id and 
-            instance.vendedor_id is None and 
-            not validated_data.get('vendedor')):
-            validated_data['vendedor_id'] = self.vendedor_id
-            logger.info(
-                f'Oportunidade vinculada ao vendedor logado: '
-                f'oportunidade_id={instance.id}, vendedor_id={self.vendedor_id}'
-            )
+        # Vincular vendedor se necessário (vendedor comum ou administrador da loja)
+        if instance.vendedor_id is None and not _oportunidade_tem_vendedor(validated_data):
+            if self.vendedor_id:
+                validated_data['vendedor_id'] = self.vendedor_id
+                validated_data.pop('vendedor', None)
+                logger.info(
+                    f'Oportunidade vinculada ao vendedor logado: '
+                    f'oportunidade_id={instance.id}, vendedor_id={self.vendedor_id}'
+                )
+            else:
+                padrao = get_vendedor_padrao_admin_loja(self.request)
+                if padrao:
+                    validated_data['vendedor_id'] = padrao
+                    validated_data.pop('vendedor', None)
+                    logger.info(
+                        'Oportunidade vinculada ao vendedor administrador da loja: '
+                        'oportunidade_id=%s, vendedor_id=%s',
+                        instance.id,
+                        padrao,
+                    )
         
         # Atualizar campos
         for attr, value in validated_data.items():

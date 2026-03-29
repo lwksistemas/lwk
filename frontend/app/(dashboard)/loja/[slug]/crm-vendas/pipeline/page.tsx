@@ -6,7 +6,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { DollarSign, LayoutDashboard, Plus, X, Mail, MessageCircle } from 'lucide-react';
+import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, X, Mail, MessageCircle } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
@@ -71,6 +71,8 @@ export default function CrmVendasPipelinePage() {
   });
   const [itensEditar, setItensEditar] = useState<{ id?: number; produto_servico_id: number; quantidade: string; preco_unitario: string }[]>([]);
   const oportunidadesFetchGen = useRef(0);
+  const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('board');
+  const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
 
   // Sincronizar vendedor_id com backend ao montar componente
   useEffect(() => {
@@ -504,12 +506,60 @@ export default function CrmVendasPipelinePage() {
           </Link>
         </div>
       </div>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-6 hover:shadow-md hover:border-blue-100 dark:hover:border-slate-600 transition-all">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-6 hover:shadow-md hover:border-blue-100 dark:hover:border-slate-600 transition-all space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 p-0.5 bg-gray-50 dark:bg-gray-800/80">
+            <button
+              type="button"
+              onClick={() => setViewPipeline('board')}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                viewPipeline === 'board'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <LayoutGrid size={16} aria-hidden />
+              Quadro
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewPipeline('list')}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                viewPipeline === 'list'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <List size={16} aria-hidden />
+              Lista
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="filtro-etapa-pipeline" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+              Etapa:
+            </label>
+            <select
+              id="filtro-etapa-pipeline"
+              value={filtroEtapaPipeline}
+              onChange={(e) => setFiltroEtapaPipeline(e.target.value)}
+              className="min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option value="">Todos</option>
+              {etapasAtivas().map((et) => (
+                <option key={et.key} value={et.key}>
+                  {et.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <PipelineBoard
           oportunidades={oportunidades}
           loading={loading}
           etapas={etapasAtivas()}
           onCardClick={handleCardClick}
+          viewMode={viewPipeline}
+          filtroEtapa={filtroEtapaPipeline}
         />
       </div>
 

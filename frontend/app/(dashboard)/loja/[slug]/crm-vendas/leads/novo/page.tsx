@@ -144,16 +144,16 @@ export default function NovoLeadPage() {
   };
 
   return (
-    <div className="w-full max-w-full">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="w-full max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
         <Link
           href={`/loja/${slug}/crm-vendas/leads`}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+          className="shrink-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
           aria-label="Voltar"
         >
           <ArrowLeft size={20} />
         </Link>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Novo Lead</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             Preencha os dados do cliente
@@ -161,8 +161,8 @@ export default function NovoLeadPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-6 w-full">
-        <form onSubmit={handleSubmit} className="space-y-8 md:max-w-3xl md:mx-auto">
+      <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-4 sm:p-6 w-full shadow-sm">
+        <form onSubmit={handleSubmit} className="space-y-8 w-full">
         {formErro && (
           <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
             {formErro}
@@ -188,19 +188,19 @@ export default function NovoLeadPage() {
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>CPF ou CNPJ</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                 <input
                   type="text"
                   value={form.cpf_cnpj}
                   onChange={(e) => handleCpfCnpjChange(e.target.value)}
-                  className={inputClass}
+                  className={`${inputClass} min-w-0 sm:flex-1`}
                   placeholder="000.000.000-00 ou 00.000.000/0001-00"
                 />
                 <button
                   type="button"
                   onClick={handleBuscarCnpj}
                   disabled={buscarCnpjLoading || form.cpf_cnpj.replace(/\D/g, '').length !== 14}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm font-medium"
+                  className="shrink-0 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm font-medium sm:self-auto"
                   title="Buscar dados do CNPJ na Receita Federal"
                 >
                   {buscarCnpjLoading ? '...' : 'Buscar CNPJ'}
@@ -270,8 +270,8 @@ export default function NovoLeadPage() {
             Endereço
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex gap-2">
-              <div className="flex-1">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
                 <label className={labelClass}>CEP</label>
                 <input
                   type="text"
@@ -283,17 +283,15 @@ export default function NovoLeadPage() {
                   placeholder="00000-000"
                 />
               </div>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={handleBuscarCep}
-                  disabled={buscarCepLoading || form.cep.replace(/\D/g, '').length !== 8}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm font-medium"
-                  title="Buscar endereço pelo CEP"
-                >
-                  {buscarCepLoading ? '...' : 'Buscar'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleBuscarCep}
+                disabled={buscarCepLoading || form.cep.replace(/\D/g, '').length !== 8}
+                className="shrink-0 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm font-medium w-full sm:w-auto sm:self-end"
+                title="Buscar endereço pelo CEP"
+              >
+                {buscarCepLoading ? '...' : 'Buscar'}
+              </button>
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>Logradouro</label>

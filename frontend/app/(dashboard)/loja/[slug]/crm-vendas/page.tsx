@@ -41,7 +41,7 @@ interface DashboardData {
   taxa_conversao: number;
   pipeline_por_etapa: { etapa: string; valor: number; quantidade: number }[];
   atividades_hoje: unknown[];
-  performance_vendedores: { id: number; nome: string; receita_mes: number; comissao_mes: number }[];
+  performance_vendedores: { id: number | null; nome: string; receita_mes: number; comissao_mes: number }[];
   comissao_total_mes: number;
 }
 
@@ -440,12 +440,12 @@ export default function CrmVendasDashboardPage() {
             <ul className="space-y-3">
               {data.performance_vendedores.map((v, i) => (
                 <li
-                  key={v.id}
+                  key={v.id != null ? `v-${v.id}` : `outros-${i}`}
                   className="flex items-center gap-3 py-2.5 border-b border-gray-100 dark:border-[#0d1f3c] last:border-0 hover:bg-gray-50 dark:hover:bg-[#0d1f3c] -mx-2 px-2 rounded transition-colors"
                 >
                   <div className="relative">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0176d3] to-[#0d9dda] flex items-center justify-center text-white font-semibold text-sm shrink-0">
-                      {v.nome.charAt(0).toUpperCase()}
+                      {(v.nome.charAt(0) || '?').toUpperCase()}
                     </div>
                     {i < 3 && (
                       <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#ffb75d] text-white text-xs font-bold flex items-center justify-center">
@@ -458,7 +458,7 @@ export default function CrmVendasDashboardPage() {
                       {v.nome}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Vendedor
+                      {v.id == null ? 'Fora da equipe ativa' : 'Vendedor'}
                     </p>
                   </div>
                   <div className="text-right shrink-0">

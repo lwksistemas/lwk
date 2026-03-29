@@ -127,6 +127,47 @@ def is_owner(request):
         return False
 
 
+def get_vendedor_padrao_admin_loja(request):
+    """
+    ID do Vendedor a usar quando o dono da loja cria oportunidade sem informar vendedor.
+
+    - Se já existir VendedorUsuario, get_current_vendedor_id resolve (retorno direto).
+    - Se o dono NÃO tiver vínculo VendedorUsuario, get_current_vendedor_id retorna None e
+      as vendas ficavam sem vendedor; neste caso usamos o registro Vendedor da loja com
+      is_admin=True (administrador), ou o vendedor cujo e-mail coincide com o do owner.
+
+    Assim relatórios e dashboard atribuem as vendas ao administrador (ex.: LUIZ HENRIQUE FELIX).
+    """
+    vid = get_current_vendedor_id(request)
+    if vid:
+        return vid
+    if not request or not getattr(request.user, 'is_authenticated', False):
+        return None
+    if not is_owner(request):
+        return None
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return None
+    try:
+        from .models import Vendedor
+
+        v = (
+            Vendedor.objects.filter(loja_id=loja_id, is_active=True, is_admin=True)
+            .order_by('id')
+            .first()
+        )
+        if v:
+            return v.id
+        email = (getattr(request.user, 'email', None) or '').strip().lower()
+        if email:
+            v = Vendedor.objects.filter(loja_id=loja_id, is_active=True, email__iexact=email).first()
+            if v:
+                return v.id
+    except Exception as e:
+        logger.warning('get_vendedor_padrao_admin_loja: %s', e)
+    return None
+
+
 def is_vendedor_usuario(request):
     """
     Verifica se o usuário logado é um vendedor (VendedorUsuario), não o owner.

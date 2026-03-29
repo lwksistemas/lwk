@@ -33,9 +33,24 @@ interface PipelineBoardProps {
   loading?: boolean;
   etapas?: Etapa[];
   onCardClick?: (oportunidade: Oportunidade) => void;
+  /** Quadro (Kanban) ou lista tabular */
+  viewMode?: 'board' | 'list';
+  /** Chave da etapa para filtrar; vazio = todas */
+  filtroEtapa?: string;
 }
 
-export default function PipelineBoard({ oportunidades, loading, etapas, onCardClick }: PipelineBoardProps) {
+function labelEtapa(etapas: Etapa[], key: string): string {
+  return etapas.find((e) => e.key === key)?.label ?? key;
+}
+
+export default function PipelineBoard({
+  oportunidades,
+  loading,
+  etapas,
+  onCardClick,
+  viewMode = 'board',
+  filtroEtapa = '',
+}: PipelineBoardProps) {
   // Etapas padrão se não fornecidas
   const ETAPAS_DEFAULT = [
     { key: 'prospecting', label: 'Prospecção', ordem: 1 },
@@ -47,16 +62,37 @@ export default function PipelineBoard({ oportunidades, loading, etapas, onCardCl
   ];
   
   const etapasVisiveis = etapas || ETAPAS_DEFAULT;
-  
-  const byEtapa = etapasVisiveis.map((e) => ({
+  const colunasBoard =
+    filtroEtapa.trim() !== ''
+      ? etapasVisiveis.filter((e) => e.key === filtroEtapa)
+      : etapasVisiveis;
+
+  const oportunidadesLista =
+    filtroEtapa.trim() !== ''
+      ? oportunidades.filter((o) => o.etapa === filtroEtapa)
+      : oportunidades;
+
+  const byEtapa = colunasBoard.map((e) => ({
     ...e,
     items: oportunidades.filter((o) => o.etapa === e.key),
   }));
 
   if (loading) {
+    if (viewMode === 'list') {
+      return (
+        <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden animate-pulse">
+          <div className="h-10 bg-gray-200 dark:bg-gray-600" />
+          <div className="p-4 space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded" />
+            ))}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {etapasVisiveis.map((e) => (
+        {colunasBoard.map((e) => (
           <div
             key={e.key}
             className="w-72 shrink-0 bg-gray-50 dark:bg-gray-700/50 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 h-64 animate-pulse"
@@ -65,6 +101,67 @@ export default function PipelineBoard({ oportunidades, loading, etapas, onCardCl
             <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-1/2" />
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (viewMode === 'list') {
+    const sorted = [...oportunidadesLista].sort((a, b) => {
+      const la = labelEtapa(etapasVisiveis, a.etapa);
+      const lb = labelEtapa(etapasVisiveis, b.etapa);
+      if (la !== lb) return la.localeCompare(lb, 'pt-BR');
+      return a.titulo.localeCompare(b.titulo, 'pt-BR');
+    });
+    return (
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-600">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-600 text-left">
+              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Etapa</th>
+              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Título</th>
+              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Lead</th>
+              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 text-right">Valor</th>
+              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Vendedor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  Nenhuma oportunidade neste filtro.
+                </td>
+              </tr>
+            ) : (
+              sorted.map((o) => (
+                <tr
+                  key={o.id}
+                  className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
+                  onClick={() => onCardClick?.(o)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onCardClick?.(o);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    {labelEtapa(etapasVisiveis, o.etapa)}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{o.titulo}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.lead_nome}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400 whitespace-nowrap">
+                    {formatMoney(o.valor)}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                    {o.vendedor_nome ?? '—'}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     );
   }

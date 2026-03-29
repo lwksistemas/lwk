@@ -1397,23 +1397,29 @@ def dashboard_data(request):
                 if a.get('data'):
                     a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
 
-            # 1 query: performance vendedores
-            mes_inicio_dt = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            mes_inicio = mes_inicio_dt.date() if hasattr(mes_inicio_dt, 'date') else mes_inicio_dt
+            # Performance e comissão do mês: MESMO critério do PDF (relatorios.calcular_periodo('mes_atual')):
+            # intervalo [primeiro dia do mês, hoje], inclusive. Antes o dashboard usava só ">= início do mês",
+            # incluindo datas futuras ou data_fechamento sem teto, divergindo do relatório.
+            _hoje = timezone.now().date()
+            data_inicio_mes, data_fim_mes = _hoje.replace(day=1), _hoje
+            filtro_oportunidades_no_mes = (
+                Q(oportunidades__data_fechamento_ganho__gte=data_inicio_mes, oportunidades__data_fechamento_ganho__lte=data_fim_mes)
+                | (
+                    Q(oportunidades__data_fechamento_ganho__isnull=True)
+                    & Q(
+                        oportunidades__data_fechamento__gte=data_inicio_mes,
+                        oportunidades__data_fechamento__lte=data_fim_mes,
+                    )
+                )
+            )
             perf_qs = vendedores_qs.annotate(
                 receita_mes=Sum(
                     'oportunidades__valor',
-                    filter=Q(oportunidades__etapa='closed_won') & (
-                        Q(oportunidades__data_fechamento_ganho__gte=mes_inicio) |
-                        (Q(oportunidades__data_fechamento_ganho__isnull=True) & Q(oportunidades__data_fechamento__gte=mes_inicio))
-                    ),
+                    filter=Q(oportunidades__etapa='closed_won') & filtro_oportunidades_no_mes,
                 ),
                 comissao_mes=Sum(
                     'oportunidades__valor_comissao',
-                    filter=Q(oportunidades__etapa='closed_won') & (
-                        Q(oportunidades__data_fechamento_ganho__gte=mes_inicio) |
-                        (Q(oportunidades__data_fechamento_ganho__isnull=True) & Q(oportunidades__data_fechamento__gte=mes_inicio))
-                    ),
+                    filter=Q(oportunidades__etapa='closed_won') & filtro_oportunidades_no_mes,
                 ),
             )
             performance_vendedores = [
@@ -1421,13 +1427,35 @@ def dashboard_data(request):
                 for v in perf_qs
             ]
 
-            comissao_total_mes = opp_qs.filter(
-                etapa='closed_won',
-                valor_comissao__isnull=False
-            ).filter(
-                Q(data_fechamento_ganho__gte=mes_inicio) |
-                (Q(data_fechamento_ganho__isnull=True) & Q(data_fechamento__gte=mes_inicio))
-            ).aggregate(total=Sum('valor_comissao'))['total'] or 0
+            # Oportunidades com vendedor nulo ou vendedor inativo não entram no annotate acima;
+            # sem isto, a soma das comissões da lista fica menor que comissao_total_mes.
+            filtro_opp_no_mes = (
+                Q(data_fechamento_ganho__gte=data_inicio_mes, data_fechamento_ganho__lte=data_fim_mes)
+                | (
+                    Q(data_fechamento_ganho__isnull=True)
+                    & Q(data_fechamento__gte=data_inicio_mes, data_fechamento__lte=data_fim_mes)
+                )
+            )
+            comissao_total_mes = opp_qs.filter(etapa='closed_won').filter(filtro_opp_no_mes).aggregate(
+                total=Sum('valor_comissao')
+            )['total'] or 0
+
+            base_fechadas_mes = opp_qs.filter(etapa='closed_won').filter(filtro_opp_no_mes)
+            outros_mes = base_fechadas_mes.filter(
+                Q(vendedor_id__isnull=True) | Q(vendedor__is_active=False)
+            ).aggregate(receita=Sum('valor'), comissao=Sum('valor_comissao'))
+            rec_outros = float(outros_mes['receita'] or 0)
+            com_outros = float(outros_mes['comissao'] or 0)
+            if rec_outros > 0 or com_outros > 0:
+                performance_vendedores.append(
+                    {
+                        'id': None,
+                        'nome': 'Sem vendedor ou vendedor inativo',
+                        'receita_mes': rec_outros,
+                        'comissao_mes': com_outros,
+                    }
+                )
+            performance_vendedores.sort(key=lambda x: -x['receita_mes'])
 
             payload = {
                 'leads': total_leads,

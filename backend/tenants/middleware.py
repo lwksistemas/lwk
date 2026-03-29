@@ -32,33 +32,67 @@ def set_current_loja_id(loja_id):
     _thread_locals.current_loja_id = loja_id
 
 
+def _configure_tenant_db_for_loja(loja, request=None):
+    """
+    Configura database_name + thread-local (mesma lógica do TenantMiddleware).
+    Sem isso, só loja_id no contexto consulta o schema/banco errado → listas vazias intermitentes.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    loja_id = loja.id
+    db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
+    try:
+        from core.db_config import ensure_loja_database_config
+        if ensure_loja_database_config(db_name, conn_max_age=0):
+            logger.debug("ensure_loja_context: banco '%s' configurado para loja_id=%s", db_name, loja_id)
+    except Exception as db_err:
+        logger.warning("ensure_loja_context: falha ao configurar banco %s: %s", db_name, db_err)
+        db_name = 'default'
+
+    if db_name in settings.DATABASES:
+        if request and request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            _base = getattr(settings, 'BASE_DIR', None)
+            if _base is not None and 'sqlite' in str(settings.DATABASES.get(db_name, {}).get('ENGINE', '')):
+                path = Path(_base) / f'db_{db_name}.sqlite3'
+                if path.exists():
+                    try:
+                        if path.stat().st_size >= LIMITE_BANCO_LOJA_BYTES:
+                            return False
+                    except OSError:
+                        pass
+        set_current_tenant_db(db_name)
+    else:
+        set_current_tenant_db('default')
+
+    set_current_loja_id(loja_id)
+    return True
+
+
 def ensure_loja_context(request):
     """
-    Garante que loja_id está no contexto. Se ausente, tenta obter dos headers.
-    Útil quando o TenantMiddleware não conseguiu definir o contexto (ex: race, timeout).
+    Garante loja_id + banco/schema do tenant a partir dos headers (alinhado ao TenantMiddleware).
+    Quando há X-Loja-ID ou X-Tenant-Slug, reaplica a configuração (idempotente) para evitar
+    só loja_id no thread-local sem o schema correto.
     """
-    if get_current_loja_id():
-        return True
     if not request:
         return False
-    loja_id = None
+    lid = (request.headers.get('X-Loja-ID') or '').strip()
+    slug = (request.headers.get('X-Tenant-Slug') or '').strip()
+    if not lid and not slug:
+        return bool(get_current_loja_id())
     try:
-        lid = request.headers.get('X-Loja-ID')
+        from superadmin.models import Loja
+        loja = None
         if lid:
             loja_id = int(lid)
-        if not loja_id:
-            slug = (request.headers.get('X-Tenant-Slug') or '').strip()
-            if slug:
-                from superadmin.models import Loja
-                loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
-                if loja:
-                    loja_id = loja.id
-        if loja_id:
-            set_current_loja_id(loja_id)
-            return True
+            loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if not loja and slug:
+            loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
+        if loja:
+            return _configure_tenant_db_for_loja(loja, request)
     except (ValueError, TypeError):
         pass
-    return False
+    return bool(get_current_loja_id())
 
 
 class TenantMiddleware:

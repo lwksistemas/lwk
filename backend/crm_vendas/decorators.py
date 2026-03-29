@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .cache import CRMCacheManager
 from .utils import get_current_vendedor_id, is_vendedor_usuario
-from tenants.middleware import get_current_loja_id
+from tenants.middleware import get_current_loja_id, ensure_loja_context
 
 
 def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
@@ -37,6 +37,7 @@ def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
     def decorator(func):
         @wraps(func)
         def wrapper(self, request, *args, **kwargs):
+            ensure_loja_context(request)
             loja_id = get_current_loja_id()
             vendedor_id = get_current_vendedor_id(request)
             

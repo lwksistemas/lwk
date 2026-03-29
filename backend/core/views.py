@@ -28,10 +28,9 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         if hasattr(self.queryset.model, 'loja_id'):
             from tenants.middleware import get_current_loja_id, ensure_loja_context
             
-            loja_id = get_current_loja_id()
-            if not loja_id and hasattr(self, 'request') and self.request:
+            if hasattr(self, 'request') and self.request:
                 ensure_loja_context(self.request)
-                loja_id = get_current_loja_id()
+            loja_id = get_current_loja_id()
             
             if not loja_id:
                 logger.critical(

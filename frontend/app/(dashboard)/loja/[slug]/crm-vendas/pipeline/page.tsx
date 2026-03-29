@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
@@ -70,6 +70,7 @@ export default function CrmVendasPipelinePage() {
     itens: [] as { produto_servico_id: number; quantidade: string; preco_unitario: string }[],
   });
   const [itensEditar, setItensEditar] = useState<{ id?: number; produto_servico_id: number; quantidade: string; preco_unitario: string }[]>([]);
+  const oportunidadesFetchGen = useRef(0);
 
   // Sincronizar vendedor_id com backend ao montar componente
   useEffect(() => {
@@ -96,16 +97,23 @@ export default function CrmVendasPipelinePage() {
 
   useEffect(() => {
     if (!vendedorIdSynced) return;
-    
+    const gen = ++oportunidadesFetchGen.current;
     apiClient
       .get<Oportunidade[] | { results: Oportunidade[] }>('/crm-vendas/oportunidades/')
-      .then((res) => setOportunidades(normalizeListResponse(res.data)))
+      .then((res) => {
+        if (gen !== oportunidadesFetchGen.current) return;
+        setOportunidades(normalizeListResponse(res.data));
+      })
       .catch((err) => {
+        if (gen !== oportunidadesFetchGen.current) return;
         setError(
           err.response?.data?.detail || 'Erro ao carregar oportunidades.'
         );
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (gen !== oportunidadesFetchGen.current) return;
+        setLoading(false);
+      });
   }, [vendedorIdSynced]);
 
   useEffect(() => {

@@ -112,8 +112,14 @@ export default function CrmVendasLayout({
     }
   }, [slug, fetchCrmMe]);
 
-  // Garantir loja_slug ANTES de qualquer requisição (evita lista vazia em produtos-serviços)
+  // Garantir loja_slug ANTES de qualquer requisição (evita lista vazia em produtos-serviços).
+  // Se o usuário trocou de loja na URL mas o sessionStorage ainda tem ID da loja anterior,
+  // X-Loja-ID quebrava o tenant em produção (JWT valida o header antes do slug).
   if (typeof window !== 'undefined' && slug) {
+    const prev = sessionStorage.getItem('loja_slug');
+    if (prev && prev !== slug) {
+      sessionStorage.removeItem('current_loja_id');
+    }
     sessionStorage.setItem('loja_slug', slug);
   }
 

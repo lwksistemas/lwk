@@ -264,13 +264,16 @@ class TenantMiddleware:
             try:
                 from superadmin.models import Loja
                 loja = Loja.objects.get(id=int(loja_id))
-                if not self._validate_user_owns_loja(request, loja):
-                    logger.warning(f"⚠️ [_get_tenant_slug] Usuário {request.user.id} não tem permissão para loja {loja_id}")
-                    return None
-                return loja.slug
+                if self._validate_user_owns_loja(request, loja):
+                    return loja.slug
+                logger.warning(
+                    f"⚠️ [_get_tenant_slug] X-Loja-ID={loja_id} rejeitado para user={request.user.id}; "
+                    "tentando X-Tenant-Slug (ID pode estar desatualizado no navegador)"
+                )
             except (Loja.DoesNotExist, ValueError):
-                logger.warning(f"⚠️ [_get_tenant_slug] Loja {loja_id} não encontrada")
-                pass
+                logger.warning(
+                    f"⚠️ [_get_tenant_slug] Loja id={loja_id} inválida; tentando X-Tenant-Slug"
+                )
         elif loja_id:
             logger.debug(
                 "X-Loja-ID presente mas usuário ainda não autenticado na pilha Django (ex.: JWT) — "

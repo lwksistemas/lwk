@@ -478,17 +478,12 @@ class DatabaseSchemaService:
             
             # 3. Aplicar migrations (já adiciona configuração Django internamente)
             if not DatabaseSchemaService.aplicar_migrations(loja):
-                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or ''
-                if tipo_slug == 'crm-vendas':
-                    raise RuntimeError(
-                        "Falha ao criar tabelas do CRM no schema da loja. "
-                        "A loja CRM não pode ser usada sem as tabelas crm_vendas."
-                    )
-                logger.warning("Migrations aplicadas com falhas parciais (loja não é CRM)")
+                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
+                raise RuntimeError(
+                    f"Falha ao aplicar migrations no schema da loja (tipo: {tipo_slug}). "
+                    "O cadastro não pode ser concluído sem as tabelas do app."
+                )
             return True
-        except Exception as e:
-            logger.error(f"Erro ao configurar schema completo: {e}")
-            tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or ''
-            if tipo_slug == 'crm-vendas':
-                raise
-            return False
+        except Exception:
+            logger.exception("configurar_schema_completo")
+            raise

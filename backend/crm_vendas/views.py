@@ -1447,9 +1447,9 @@ def dashboard_data(request):
             rec_sem = float(extras_agg['receita'] or 0)
             com_sem = float(extras_agg['comissao'] or 0)
             if rec_sem > 0 or com_sem > 0:
-                admin_v = vendedores_qs.filter(is_admin=True).order_by('id').first()
-                if not admin_v:
-                    admin_v = vendedores_qs.order_by('id').first()
+                from .utils import get_vendedor_destino_merge_loja
+
+                admin_v = get_vendedor_destino_merge_loja(loja_id)
                 if admin_v:
                     merged = False
                     for row in performance_vendedores:

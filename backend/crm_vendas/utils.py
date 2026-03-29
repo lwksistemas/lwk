@@ -168,6 +168,37 @@ def get_vendedor_padrao_admin_loja(request):
     return None
 
 
+def get_vendedor_destino_merge_loja(loja_id: int):
+    """
+    Vendedor ativo que deve receber, nos relatórios e no dashboard, a soma das vendas
+    sem vendedor ou com vendedor inativo.
+
+    Ordem: ``is_admin=True`` → vendedor com o mesmo e-mail do dono da loja → primeiro ativo por id.
+    Assim o dono (ex.: Luiz) continua sendo o destino mesmo sem a flag ``is_admin`` no cadastro.
+    """
+    if not loja_id:
+        return None
+    try:
+        from .models import Vendedor
+        from superadmin.models import Loja
+
+        qs = Vendedor.objects.filter(loja_id=loja_id, is_active=True).order_by('id')
+        v = qs.filter(is_admin=True).first()
+        if v:
+            return v
+        loja = Loja.objects.using('default').select_related('owner').filter(id=loja_id).first()
+        if loja and loja.owner:
+            email = (loja.owner.email or '').strip().lower()
+            if email:
+                v = qs.filter(email__iexact=email).first()
+                if v:
+                    return v
+        return qs.first()
+    except Exception as e:
+        logger.warning('get_vendedor_destino_merge_loja: %s', e)
+        return None
+
+
 def is_vendedor_usuario(request):
     """
     Verifica se o usuário logado é um vendedor (VendedorUsuario), não o owner.

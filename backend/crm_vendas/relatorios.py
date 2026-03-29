@@ -17,6 +17,7 @@ import requests
 from PIL import Image as PILImage
 
 from .models import Oportunidade, Vendedor
+from .utils import get_vendedor_destino_merge_loja
 
 logger = logging.getLogger(__name__)
 
@@ -168,15 +169,11 @@ def _filtro_datas_fechamento_ganho(data_inicio, data_fim):
 
 def _merge_detalhamento_vendedores_pdf(loja_id: int, vendedores_stats_raw: list) -> list:
     """
-    Junta linhas sem vendedor ou com vendedor inativo na linha do administrador (is_admin),
-    alinhado ao dashboard CRM.
+    Junta linhas sem vendedor ou com vendedor inativo na linha do destino de mesclagem
+    (is_admin, ou mesmo e-mail do dono da loja, ou primeiro vendedor ativo) — igual ao dashboard.
     """
-    admin = (
-        Vendedor.objects.filter(loja_id=loja_id, is_admin=True, is_active=True)
-        .order_by('id')
-        .first()
-    )
-    if not admin:
+    destino = get_vendedor_destino_merge_loja(loja_id)
+    if not destino:
         return vendedores_stats_raw
 
     extras = {'total': 0.0, 'comissao': 0.0, 'qtd': 0}
@@ -191,15 +188,15 @@ def _merge_detalhamento_vendedores_pdf(loja_id: int, vendedores_stats_raw: list)
             extras['comissao'] += float(row['comissao'] or 0)
             extras['qtd'] += row['qtd'] or 0
             continue
-        if vid == admin.id:
+        if vid == destino.id:
             admin_row = dict(row)
         else:
             restantes.append(row)
 
     if admin_row is None and (extras['qtd'] > 0 or extras['total'] > 0):
         admin_row = {
-            'vendedor_id': admin.id,
-            'vendedor__nome': admin.nome,
+            'vendedor_id': destino.id,
+            'vendedor__nome': destino.nome,
             'vendedor__is_active': True,
             'total': 0.0,
             'comissao': 0.0,
@@ -227,11 +224,15 @@ def _merge_detalhamento_vendedores_pdf(loja_id: int, vendedores_stats_raw: list)
     return restantes
 
 
-def _filtro_detalhe_linha_merged_pdf(row: dict, admin_v):
-    """Oportunidades que compõem a linha do detalhamento (após merge com o admin)."""
+def _filtro_detalhe_linha_merged_pdf(row: dict, merge_destino):
+    """Oportunidades que compõem a linha do detalhamento (após merge no destino da loja)."""
     vid = row.get('vendedor_id')
-    if admin_v and vid == admin_v.id:
-        return Q(vendedor_id=admin_v.id) | Q(vendedor_id__isnull=True) | Q(vendedor__is_active=False)
+    if merge_destino and vid == merge_destino.id:
+        return (
+            Q(vendedor_id=merge_destino.id)
+            | Q(vendedor_id__isnull=True)
+            | Q(vendedor__is_active=False)
+        )
     if vid is None:
         return Q(vendedor_id__isnull=True) | Q(vendedor__is_active=False)
     return Q(vendedor_id=vid)
@@ -443,8 +444,8 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str) -> BytesIO:
 def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int = None) -> BytesIO:
     """
     Gera relatório PDF com vendas por vendedor específico ou todos.
-    Vendedor administrador (is_admin): inclui vendas sem vendedor ou com vendedor inativo,
-    igual ao dashboard CRM. Detalhe ordenado por data (mais recente primeiro).
+    Para o vendedor destino da mesclagem (admin / e-mail do dono / primeiro ativo), inclui também
+    vendas sem vendedor ou com vendedor inativo — igual ao dashboard CRM.
     """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm)
@@ -452,9 +453,7 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
     styles = getSampleStyleSheet()
 
     data_inicio, data_fim = calcular_periodo(periodo)
-    admin_v = (
-        Vendedor.objects.filter(loja_id=loja_id, is_admin=True, is_active=True).order_by('id').first()
-    )
+    merge_destino = get_vendedor_destino_merge_loja(loja_id)
 
     base = (
         Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won')
@@ -493,7 +492,7 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
 
         if not v_sel:
             elements.append(Paragraph('Vendedor não encontrado.', styles['Normal']))
-        elif getattr(v_sel, 'is_admin', False):
+        elif merge_destino and v_sel.id == merge_destino.id:
             qs = base.filter(
                 Q(vendedor_id=v_sel.id)
                 | Q(vendedor_id__isnull=True)
@@ -531,7 +530,7 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
         else:
             for row in vendedores_stats:
                 nome = row.get('vendedor__nome') or 'Sem vendedor'
-                secao_qs = base.filter(_filtro_detalhe_linha_merged_pdf(row, admin_v))
+                secao_qs = base.filter(_filtro_detalhe_linha_merged_pdf(row, merge_destino))
                 _adicionar_secao_vendedor_pdf(elements, styles, nome, secao_qs)
 
     elements.append(Spacer(1, 0.5 * cm))

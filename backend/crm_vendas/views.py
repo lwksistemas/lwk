@@ -1438,13 +1438,14 @@ def dashboard_data(request):
                 total=Sum('valor_comissao')
             )['total'] or 0
 
-            # Fechadas no mês sem vendedor no cadastro somam no administrador da loja (is_admin), não em linha à parte
+            # Fechadas no mês sem vendedor OU com registro de vendedor inativo somam no administrador (is_admin).
+            # Só "vendedor nulo" era mesclado antes — o restante (inativo) gerava linha extra / cache antigo.
             base_fechadas_mes = opp_qs.filter(etapa='closed_won').filter(filtro_opp_no_mes)
-            sem_vendedor_agg = base_fechadas_mes.filter(vendedor_id__isnull=True).aggregate(
-                receita=Sum('valor'), comissao=Sum('valor_comissao')
-            )
-            rec_sem = float(sem_vendedor_agg['receita'] or 0)
-            com_sem = float(sem_vendedor_agg['comissao'] or 0)
+            extras_agg = base_fechadas_mes.filter(
+                Q(vendedor_id__isnull=True) | Q(vendedor__is_active=False)
+            ).aggregate(receita=Sum('valor'), comissao=Sum('valor_comissao'))
+            rec_sem = float(extras_agg['receita'] or 0)
+            com_sem = float(extras_agg['comissao'] or 0)
             if rec_sem > 0 or com_sem > 0:
                 admin_v = vendedores_qs.filter(is_admin=True).order_by('id').first()
                 if not admin_v:

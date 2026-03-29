@@ -17,7 +17,8 @@ class CRMCacheManager:
     """
     
     # Prefixos de cache
-    DASHBOARD = 'crm_dashboard'
+    # v4: invalida caches antigos após mudanças no ranking (mescla sem vendedor + inativo no admin)
+    DASHBOARD = 'crm_dashboard_v4'
     CONTAS = 'crm_contas_list'
     LEADS = 'crm_leads_list'
     CONTATOS = 'crm_contatos_list'

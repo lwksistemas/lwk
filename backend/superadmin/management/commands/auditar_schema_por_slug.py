@@ -23,6 +23,10 @@ from superadmin.services.database_schema_service import (
     TIPO_LOJA_EXTRA_APPS,
     get_apps_esperados_para_loja,
 )
+from superadmin.services.schema_audit_service import (
+    contar_tabelas_app_no_schema,
+    prefixos_tabela_para_app,
+)
 
 
 class Command(BaseCommand):
@@ -175,18 +179,9 @@ class Command(BaseCommand):
 
         tudo_ok = True
         for app in apps_esperados:
-            prefix = app + '_'
+            pfx_display = ', '.join(f'`{p}*`' for p in prefixos_tabela_para_app(app))
+            n_tab = contar_tabelas_app_no_schema(conn, schema_name, app)
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT COUNT(*)
-                    FROM information_schema.tables
-                    WHERE table_schema = %s AND table_type = 'BASE TABLE'
-                      AND table_name LIKE %s
-                    """,
-                    [schema_name, prefix + '%'],
-                )
-                n_tab = cur.fetchone()[0]
                 cur.execute(
                     'SET search_path TO %s, public',
                     [schema_name],
@@ -202,7 +197,7 @@ class Command(BaseCommand):
             if n_tab > 0 and n_mig > 0:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"  ✅ {app}: {n_tab} tabela(s) `{prefix}*`, {n_mig} migration(s) registrada(s)"
+                        f"  ✅ {app}: {n_tab} tabela(s) ({pfx_display}), {n_mig} migration(s) registrada(s)"
                     )
                 )
             elif n_tab > 0:
@@ -214,13 +209,13 @@ class Command(BaseCommand):
             elif n_mig > 0:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"  ⚠ {app}: {n_mig} migration(s) mas nenhuma tabela `{prefix}*`"
+                        f"  ⚠ {app}: {n_mig} migration(s) mas nenhuma tabela ({pfx_display})"
                     )
                 )
             else:
                 self.stdout.write(
                     self.style.ERROR(
-                        f"  ❌ {app}: sem tabelas `{prefix}*` e sem migrations registradas — FALTANDO"
+                        f"  ❌ {app}: sem tabelas ({pfx_display}) e sem migrations registradas — FALTANDO"
                     )
                 )
                 tudo_ok = False

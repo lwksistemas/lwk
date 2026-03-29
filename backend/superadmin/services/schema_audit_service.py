@@ -21,6 +21,34 @@ from superadmin.services.database_schema_service import (
 logger = logging.getLogger(__name__)
 
 
+def prefixos_tabela_para_app(app_label: str) -> list[str]:
+    """
+    Prefixos de table_name em information_schema para contar tabelas do app.
+
+    clinica_estetica usa Meta db_table com prefixo clinica_* (legado), não clinica_estetica_*.
+    """
+    if app_label == 'clinica_estetica':
+        return ['clinica_']
+    return [f'{app_label}_']
+
+
+def contar_tabelas_app_no_schema(conn, schema_name: str, app_label: str) -> int:
+    """Quantas tabelas do app existem no schema (por prefixo(s) real(is))."""
+    prefixes = prefixos_tabela_para_app(app_label)
+    or_parts = ' OR '.join(['table_name LIKE %s'] * len(prefixes))
+    params: list[Any] = [schema_name] + [p + '%' for p in prefixes]
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_schema = %s AND table_type = 'BASE TABLE'
+              AND ({or_parts})
+            """,
+            params,
+        )
+        return cur.fetchone()[0]
+
+
 def _usando_postgresql() -> bool:
     eng = (settings.DATABASES.get('default') or {}).get('ENGINE', '')
     return 'postgresql' in eng
@@ -119,17 +147,9 @@ def auditar_loja(loja) -> dict[str, Any]:
 
     tudo_ok = True
     for app in apps_esperados:
-        prefix = app + '_'
+        pfx_list = prefixos_tabela_para_app(app)
+        n_tab = contar_tabelas_app_no_schema(conn, schema_name, app)
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT COUNT(*) FROM information_schema.tables
-                WHERE table_schema = %s AND table_type = 'BASE TABLE'
-                  AND table_name LIKE %s
-                """,
-                [schema_name, prefix + '%'],
-            )
-            n_tab = cur.fetchone()[0]
             cur.execute('SET search_path TO %s, public', [schema_name])
             cur.execute(
                 'SELECT COUNT(*) FROM django_migrations WHERE app = %s',
@@ -143,6 +163,7 @@ def auditar_loja(loja) -> dict[str, Any]:
         base['apps_detalhe'].append(
             {
                 'app': app,
+                'prefixos_tabela': pfx_list,
                 'tabelas_prefixo': n_tab,
                 'migrations_registradas': n_mig,
                 'ok': ok_app,

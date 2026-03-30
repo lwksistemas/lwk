@@ -140,7 +140,7 @@ export default function CrmVendasContratosPage() {
     } else if (!formData.oportunidade_id) {
       setLeadInfo(null);
     }
-  }, [modalType, formData.oportunidade_id, oportunidades, loadLeadInfo]);
+  }, [modalType, formData.oportunidade_id, oportunidades, loadLeadInfo, setLeadInfo]);
 
   const openModal = (type: ModalType, item?: Contrato) => {
     setModalType(type);

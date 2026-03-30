@@ -128,7 +128,7 @@ export default function NovaPropostaPage() {
       setItensOportunidade([]);
       setLeadInfo(null);
     }
-  }, [formData.oportunidade_id, oportunidades, loadItensOportunidade, loadLeadInfo]);
+  }, [formData.oportunidade_id, oportunidades, loadItensOportunidade, loadLeadInfo, setLeadInfo]);
 
   const handleOportunidadeChange = (id: string) => {
     const opp = oportunidades.find((o) => String(o.id) === id);

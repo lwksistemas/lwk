@@ -205,7 +205,7 @@ export default function CrmVendasPropostasPage() {
       setItensOportunidade([]);
       setLeadInfo(null);
     }
-  }, [modalType, formData.oportunidade_id, oportunidades, loadItensOportunidade, loadLeadInfo]);
+  }, [modalType, formData.oportunidade_id, oportunidades, loadItensOportunidade, loadLeadInfo, setLeadInfo]);
 
   const openModal = (type: ModalType, item?: Proposta) => {
     setModalType(type);

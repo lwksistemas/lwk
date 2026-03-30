@@ -16,6 +16,25 @@ logger = logging.getLogger(__name__)
 TOKEN_EXPIRACAO_DIAS = 7  # Token válido por 7 dias
 
 
+def normalizar_token_assinatura_url(token) -> str:
+    """
+    Normaliza o token vindo da URL (e-mail, navegador, proxies).
+    Garante string idêntica à salva em AssinaturaDigital.token para o lookup.
+    """
+    if token is None:
+        return ''
+    t = str(token).strip()
+    # Alguns clientes duplicam encoding (%253A); desfaz até estabilizar
+    for _ in range(4):
+        if '%' not in t:
+            break
+        prev = t
+        t = unquote(t)
+        if t == prev:
+            break
+    return t
+
+
 def criar_token_assinatura(documento, tipo, loja_id):
     """
     Cria token de assinatura para cliente ou vendedor.
@@ -107,6 +126,10 @@ def verificar_token_assinatura(token, loja_id=None):
         tuple: (AssinaturaDigital ou None, mensagem_erro ou None, loja_id extraído)
     """
     from .models import AssinaturaDigital
+
+    token = normalizar_token_assinatura_url(token)
+    if not token:
+        return None, 'Link de assinatura inválido.', loja_id
     
     logger.info(f'🔍 Verificando token de assinatura - Tamanho: {len(token)}, Primeiros 50 chars: {token[:50]}...')
     

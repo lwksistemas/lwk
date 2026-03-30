@@ -2041,6 +2041,32 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 
+def _configurar_tenant_para_assinatura_publica(loja_id):
+    """
+    Garante search_path / banco do tenant antes de consultar AssinaturaDigital.
+    Sem isso, o manager usa apenas 'default' e o token não é encontrado no schema da loja.
+    Retorna None se OK, ou string de erro para o cliente.
+    """
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+    from superadmin.models import Loja
+    from core.db_config import ensure_loja_database_config
+
+    set_current_loja_id(loja_id)
+    loja = Loja.objects.using('default').filter(id=loja_id).first()
+    if not loja:
+        logger.error(f'[AssinaturaPublica] Loja id={loja_id} inexistente (token válido mas loja apagada?)')
+        return 'Link de assinatura inválido.'
+
+    db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
+    if not ensure_loja_database_config(db_name, conn_max_age=0) or db_name not in settings.DATABASES:
+        logger.error(f'[AssinaturaPublica] Falha ensure_loja_database_config para db_name={db_name!r}')
+        return 'Serviço temporariamente indisponível. Tente novamente ou solicite um novo link de assinatura.'
+
+    set_current_tenant_db(db_name)
+    logger.info(f'✅ [AssinaturaPublica] tenant db={db_name} loja_id={loja_id}')
+    return None
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class AssinaturaPublicaView(View):
     """
@@ -2051,12 +2077,13 @@ class AssinaturaPublicaView(View):
     
     def get(self, request, token):
         """Retorna dados do documento para assinatura"""
-        from .assinatura_digital_service import verificar_token_assinatura
-        from tenants.middleware import set_current_loja_id, set_current_tenant_db
+        from .assinatura_digital_service import verificar_token_assinatura, normalizar_token_assinatura_url
         from django.core.signing import loads, BadSignature
-        
-        logger.info(f'🔍 Recebendo requisição de assinatura - Token recebido: {token[:50]}...')
-        
+
+        token = normalizar_token_assinatura_url(token)
+        preview = (token[:50] + '…') if len(token) > 50 else token
+        logger.info(f'🔍 Recebendo requisição de assinatura - Token (preview): {preview}')
+
         # PASSO 1: Decodificar token para extrair loja_id
         try:
             payload = loads(token)
@@ -2065,28 +2092,17 @@ class AssinaturaPublicaView(View):
         except (BadSignature, Exception) as e:
             logger.error(f'❌ Erro ao decodificar token: {e}')
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-        
+
         if not loja_id:
-            logger.error(f'❌ Token não contém loja_id')
+            logger.error('❌ Token não contém loja_id')
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-        
-        # PASSO 2: Configurar contexto de loja ANTES de buscar no banco
-        set_current_loja_id(loja_id)
-        
-        # Configurar banco de dados da loja
-        from superadmin.models import Loja
-        try:
-            loja = Loja.objects.using('default').filter(id=loja_id).first()
-            if loja:
-                db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
-                from core.db_config import ensure_loja_database_config
-                ensure_loja_database_config(db_name, conn_max_age=0)
-                set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
-                logger.info(f'✅ Contexto configurado - loja_id={loja_id}, db={db_name}')
-        except Exception as e:
-            logger.exception(f'Erro ao configurar contexto de loja: {e}')
-            return JsonResponse({'error': 'Erro ao carregar documento'}, status=500)
-        
+
+        # PASSO 2: Configurar tenant (obrigatório — antes caía em default sem schema)
+        cfg_err = _configurar_tenant_para_assinatura_publica(loja_id)
+        if cfg_err:
+            status = 503 if 'indisponível' in cfg_err.lower() else 400
+            return JsonResponse({'error': cfg_err}, status=status)
+
         # PASSO 3: Buscar token no banco (agora com contexto correto)
         assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
         
@@ -2120,11 +2136,13 @@ class AssinaturaPublicaView(View):
             registrar_assinatura,
             criar_token_assinatura,
             enviar_email_assinatura_vendedor,
-            enviar_pdf_final
+            enviar_pdf_final,
+            normalizar_token_assinatura_url,
         )
-        from tenants.middleware import set_current_loja_id, set_current_tenant_db
         from django.core.signing import loads, BadSignature
-        
+
+        token = normalizar_token_assinatura_url(token)
+
         # PASSO 1: Decodificar token para extrair loja_id
         try:
             payload = loads(token)
@@ -2132,26 +2150,15 @@ class AssinaturaPublicaView(View):
         except (BadSignature, Exception) as e:
             logger.error(f'❌ Erro ao decodificar token: {e}')
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-        
+
         if not loja_id:
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-        
-        # PASSO 2: Configurar contexto de loja ANTES de buscar no banco
-        set_current_loja_id(loja_id)
-        
-        # Configurar banco de dados da loja
-        from superadmin.models import Loja
-        try:
-            loja = Loja.objects.using('default').filter(id=loja_id).first()
-            if loja:
-                db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
-                from core.db_config import ensure_loja_database_config
-                ensure_loja_database_config(db_name, conn_max_age=0)
-                set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
-        except Exception as e:
-            logger.exception(f'Erro ao configurar contexto de loja: {e}')
-            return JsonResponse({'error': 'Erro ao processar assinatura'}, status=500)
-        
+
+        cfg_err = _configurar_tenant_para_assinatura_publica(loja_id)
+        if cfg_err:
+            status = 503 if 'indisponível' in cfg_err.lower() else 400
+            return JsonResponse({'error': cfg_err}, status=status)
+
         # PASSO 3: Buscar token no banco (agora com contexto correto)
         assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
         
@@ -2217,14 +2224,14 @@ class AssinaturaPdfView(View):
     
     def get(self, request, token):
         """Retorna PDF do documento para visualização"""
-        from .assinatura_digital_service import verificar_token_assinatura
+        from .assinatura_digital_service import verificar_token_assinatura, normalizar_token_assinatura_url
         from .pdf_proposta_contrato import gerar_pdf_proposta, gerar_pdf_contrato
-        from tenants.middleware import set_current_loja_id, set_current_tenant_db
         from django.http import HttpResponse
         from django.core.signing import loads, BadSignature
-        
-        logger.info(f'📄 Requisição de PDF - Token: {token[:50]}...')
-        
+
+        token = normalizar_token_assinatura_url(token)
+        logger.info(f'📄 Requisição de PDF - Token (preview): {(token[:50] + "…") if len(token) > 50 else token}')
+
         # PASSO 1: Decodificar token para extrair loja_id
         try:
             payload = loads(token)
@@ -2232,26 +2239,15 @@ class AssinaturaPdfView(View):
         except (BadSignature, Exception) as e:
             logger.error(f'❌ Erro ao decodificar token para PDF: {e}')
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-        
+
         if not loja_id:
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-        
-        # PASSO 2: Configurar contexto de loja ANTES de buscar no banco
-        set_current_loja_id(loja_id)
-        
-        # Configurar banco de dados da loja
-        from superadmin.models import Loja
-        try:
-            loja = Loja.objects.using('default').filter(id=loja_id).first()
-            if loja:
-                db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
-                from core.db_config import ensure_loja_database_config
-                ensure_loja_database_config(db_name, conn_max_age=0)
-                set_current_tenant_db(db_name if db_name in settings.DATABASES else 'default')
-        except Exception as e:
-            logger.exception(f'Erro ao configurar contexto de loja para PDF: {e}')
-            return JsonResponse({'error': 'Erro ao carregar PDF'}, status=500)
-        
+
+        cfg_err = _configurar_tenant_para_assinatura_publica(loja_id)
+        if cfg_err:
+            status = 503 if 'indisponível' in cfg_err.lower() else 400
+            return JsonResponse({'error': cfg_err}, status=status)
+
         # PASSO 3: Buscar token no banco (agora com contexto correto)
         assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
         

@@ -18,9 +18,16 @@ interface DocumentoData {
 
 export default function AssinaturaPage() {
   const params = useParams();
-  // Decodificar o token que pode vir URL encoded do email
+  // Token do path (Next já decodifica um nível); evitar decodeURIComponent quebrar em '%' solto
   const tokenRaw = params.token as string;
-  const token = decodeURIComponent(tokenRaw);
+  let token: string;
+  try {
+    token = decodeURIComponent(tokenRaw);
+  } catch {
+    token = tokenRaw;
+  }
+  /** Segmento seguro para colocar na URL da API (evita cortes em ':', '%', etc.) */
+  const tokenApiSegment = encodeURIComponent(token);
   
   const [loading, setLoading] = useState(true);
   const [documento, setDocumento] = useState<DocumentoData | null>(null);
@@ -52,7 +59,7 @@ export default function AssinaturaPage() {
   const carregarDocumento = async () => {
     try {
       const backendUrl = getPrimaryApiBaseUrl();
-      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/`);
+      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${tokenApiSegment}/`);
       const data = await res.json();
       
       if (!res.ok) {
@@ -74,7 +81,7 @@ export default function AssinaturaPage() {
     
     try {
       const backendUrl = getPrimaryApiBaseUrl();
-      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/`, {
+      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${tokenApiSegment}/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -103,7 +110,7 @@ export default function AssinaturaPage() {
     
     try {
       const backendUrl = getPrimaryApiBaseUrl();
-      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/pdf/`);
+      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${tokenApiSegment}/pdf/`);
       
       if (!res.ok) {
         setErro('Erro ao carregar PDF. Tente novamente.');
@@ -129,7 +136,7 @@ export default function AssinaturaPage() {
     
     try {
       const backendUrl = getPrimaryApiBaseUrl();
-      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${token}/pdf/`);
+      const res = await fetch(`${backendUrl}/crm-vendas/assinar/${tokenApiSegment}/pdf/`);
       
       if (!res.ok) {
         setErro('Erro ao baixar PDF. Tente novamente.');

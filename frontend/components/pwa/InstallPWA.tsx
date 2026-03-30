@@ -1,6 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+
+/**
+ * Só oferece instalação do PWA no contexto de uma loja específica (/loja/[slug]/...).
+ * Exclui homepage, superadmin, suporte e rotas globais /loja/dashboard e /loja/trocar-senha.
+ */
+export function isInstallPWALojaPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] !== "loja") return false;
+  if (parts.length < 2) return false;
+  const seg = parts[1];
+  if (seg === "dashboard" || seg === "trocar-senha") return false;
+  return true;
+}
 
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -16,13 +31,24 @@ function isIOS(): boolean {
 }
 
 export function InstallPWA() {
+  const pathname = usePathname();
+  const allowLoja = isInstallPWALojaPath(pathname);
+
   const [prompt, setPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
   const [visible, setVisible] = useState(false);
   const [showIOSHint, setShowIOSHint] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (isStandalone() || dismissed) return;
+    if (!allowLoja) {
+      setVisible(false);
+      setPrompt(null);
+      setShowIOSHint(false);
+    }
+  }, [allowLoja]);
+
+  useEffect(() => {
+    if (isStandalone() || dismissed || !allowLoja) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -52,7 +78,7 @@ export function InstallPWA() {
     }
 
     return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, [dismissed]);
+  }, [dismissed, allowLoja]);
 
   const handleInstall = () => {
     if (prompt && "prompt" in prompt) {
@@ -82,6 +108,8 @@ export function InstallPWA() {
   };
 
   if (isStandalone()) return null;
+
+  if (!allowLoja) return null;
 
   if (showIOSHint) {
     return (

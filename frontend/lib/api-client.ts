@@ -129,10 +129,12 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   if (lojaSlug) {
     config.headers.set('X-Tenant-Slug', lojaSlug);
   }
-  // Fallback quando o backend precisa (ex.: slug rejeitado antes do resolve por CNPJ).
-  // ensure_loja_context e resolve por slug/CNPJ priorizam X-Tenant-Slug.
+  // X-Loja-ID: útil fora de /loja/[slug]/… (ex.: fluxos que só têm ID). Dentro de /loja/[slug]/…
+  // o slug na URL é a fonte de verdade; ID no sessionStorage pode ficar desatualizado após deploy
+  // ou troca de loja e causar resolução errada de tenant → listas CRM vazias “intermitentes”.
   const lojaId = sessionStorage.getItem('current_loja_id');
-  if (lojaId) {
+  const isLojaDashboardComSlug = Boolean(pathLojaMatch && lojaSlug);
+  if (lojaId && !isLojaDashboardComSlug) {
     config.headers.set('X-Loja-ID', lojaId);
   }
   if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);

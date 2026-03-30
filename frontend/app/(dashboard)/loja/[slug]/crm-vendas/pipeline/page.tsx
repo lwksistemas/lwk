@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
@@ -71,7 +71,6 @@ export default function CrmVendasPipelinePage() {
     itens: [] as { produto_servico_id: number; quantidade: string; preco_unitario: string }[],
   });
   const [itensEditar, setItensEditar] = useState<{ id?: number; produto_servico_id: number; quantidade: string; preco_unitario: string }[]>([]);
-  const oportunidadesFetchGen = useRef(0);
   const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('board');
   const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
 
@@ -100,24 +99,28 @@ export default function CrmVendasPipelinePage() {
 
   useEffect(() => {
     if (!vendedorIdSynced) return;
-    const gen = ++oportunidadesFetchGen.current;
+    setLoading(true);
+    setError(null);
+    let cancelled = false;
     apiClient
       .get<Oportunidade[] | { results: Oportunidade[] }>('/crm-vendas/oportunidades/')
       .then((res) => {
-        if (gen !== oportunidadesFetchGen.current) return;
+        if (cancelled) return;
         setOportunidades(normalizeListResponse(res.data));
+        setError(null);
       })
       .catch((err) => {
-        if (gen !== oportunidadesFetchGen.current) return;
-        setError(
-          err.response?.data?.detail || 'Erro ao carregar oportunidades.'
-        );
+        if (cancelled) return;
+        setError(getCrmApiErrorDetail(err, 'Erro ao carregar oportunidades.'));
       })
       .finally(() => {
-        if (gen !== oportunidadesFetchGen.current) return;
+        if (cancelled) return;
         setLoading(false);
       });
-  }, [vendedorIdSynced]);
+    return () => {
+      cancelled = true;
+    };
+  }, [vendedorIdSynced, slug]);
 
   useEffect(() => {
     const leadIdParam = searchParams.get('lead_id');

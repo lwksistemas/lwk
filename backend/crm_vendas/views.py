@@ -476,7 +476,6 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
     # Configuração do CacheInvalidationMixin
     cache_keys = ['contas']
 
-    @cache_list_response(CRMCacheManager.CONTAS, ttl=30)  # ✅ Cache reduzido para 30s
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
         # Adicionar headers para evitar cache do navegador
@@ -564,7 +563,6 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
             qs = qs.filter(origem=origem)
         return qs
 
-    @cache_list_response(CRMCacheManager.LEADS, ttl=30)  # ✅ Cache reduzido para 30s
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
         # Adicionar headers para evitar cache do navegador
@@ -605,7 +603,6 @@ class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
     # Configuração do CacheInvalidationMixin
     cache_keys = ['contatos']
 
-    @cache_list_response(CRMCacheManager.CONTATOS, ttl=30)  # ✅ Cache reduzido para 30s
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
         # Adicionar headers para evitar cache do navegador

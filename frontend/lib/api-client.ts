@@ -91,12 +91,8 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
     const base = PRIMARY_API.endsWith('/api') ? PRIMARY_API : `${PRIMARY_API}/api`;
     config.baseURL = base;
   }
-  const lojaId = sessionStorage.getItem('current_loja_id');
-  if (lojaId) {
-    config.headers.set('X-Loja-ID', lojaId);
-  }
-  // Sempre enviar slug nas rotas /loja/...: o TenantMiddleware roda antes do JWT do DRF;
-  // sem X-Tenant-Slug, só X-Loja-ID era ignorado e o contexto da loja ficava vazio (listas CRM vazias).
+  // Slug da URL é a fonte de verdade para /loja/... (evita tenant errado quando current_loja_id
+  // no sessionStorage ainda é de outra loja — o middleware priorizava X-Loja-ID e listas vinham vazias).
   let lojaSlug = sessionStorage.getItem('loja_slug');
   if (!lojaSlug && window.location.pathname.includes('/loja/')) {
     const match = window.location.pathname.match(/\/loja\/([^/]+)/);
@@ -104,6 +100,14 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   }
   if (lojaSlug) {
     config.headers.set('X-Tenant-Slug', lojaSlug);
+  }
+  const pathLojaMatch = window.location.pathname.match(/^\/loja\/([^/]+)/);
+  const isLojaDashboardPath = Boolean(pathLojaMatch);
+  if (!isLojaDashboardPath) {
+    const lojaId = sessionStorage.getItem('current_loja_id');
+    if (lojaId) {
+      config.headers.set('X-Loja-ID', lojaId);
+    }
   }
   const token = sessionStorage.getItem('access_token');
   if (token) config.headers.set('Authorization', `Bearer ${token}`);

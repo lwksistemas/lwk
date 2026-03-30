@@ -94,13 +94,18 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   // Slug: em /loja/[slug]/... a URL vence sessionStorage (leitura síncrona). O layout costuma
   // gravar loja_slug depois do primeiro paint — requisições paralelas já disparadas usavam slug
   // antigo → X-Tenant-Slug errado → listas vazias intermitentes (~52 bytes).
+  // Só persistir loja_slug no storage com sessão ativa: após logout o storage é limpo e qualquer
+  // requisição tardia não deve recolocar o slug (evita piscar da lista / estado estranho no login).
+  const accessToken = sessionStorage.getItem('access_token');
   const pathLojaMatch = window.location.pathname.match(/^\/loja\/([^/]+)/);
   let lojaSlug: string | null = null;
   if (pathLojaMatch) {
     lojaSlug = pathLojaMatch[1];
-    const stored = sessionStorage.getItem('loja_slug');
-    if (stored !== lojaSlug) {
-      sessionStorage.setItem('loja_slug', lojaSlug);
+    if (accessToken) {
+      const stored = sessionStorage.getItem('loja_slug');
+      if (stored !== lojaSlug) {
+        sessionStorage.setItem('loja_slug', lojaSlug);
+      }
     }
   } else {
     lojaSlug = sessionStorage.getItem('loja_slug');
@@ -115,8 +120,7 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
       config.headers.set('X-Loja-ID', lojaId);
     }
   }
-  const token = sessionStorage.getItem('access_token');
-  if (token) config.headers.set('Authorization', `Bearer ${token}`);
+  if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);
   if (process.env.NODE_ENV === 'development') {
     logger.log('API Request:', config.method?.toUpperCase(), config.url);
   }

@@ -4,39 +4,18 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
+import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
 import { ArrowLeft } from 'lucide-react';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
-import type { LojaInfo, LeadInfo, FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
-
-interface OportunidadeOption {
-  id: number;
-  titulo: string;
-  lead: number;
-  lead_nome: string;
-  valor: string;
-  etapa: string;
-}
-
-interface OportunidadeItem {
-  id: number;
-  produto_servico: number;
-  produto_servico_nome: string;
-  produto_servico_tipo: string;
-  quantidade: string;
-  preco_unitario: string;
-  subtotal: number;
-  observacao?: string;
-}
-
-interface PropostaTemplate {
-  id: number;
-  nome: string;
-  conteudo: string;
-  is_padrao: boolean;
-  ativo: boolean;
-}
+import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type {
+  CrmPropostaOportunidadeOption,
+  CrmOportunidadeItem,
+  CrmPropostaTemplate,
+} from '@/lib/crm-proposta-form-types';
 
 export default function NovaPropostaPage() {
   const params = useParams();
@@ -51,24 +30,27 @@ export default function NovaPropostaPage() {
     nome_vendedor_assinatura: '',
     nome_cliente_assinatura: '',
   });
-  const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
+  const [oportunidades, setOportunidades] = useState<CrmPropostaOportunidadeOption[]>([]);
   const [loadingOportunidades, setLoadingOportunidades] = useState(true);
-  const [itensOportunidade, setItensOportunidade] = useState<OportunidadeItem[]>([]);
-  const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
-  const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
+  const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
-  const [templates, setTemplates] = useState<PropostaTemplate[]>([]);
+  const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
-  const [vendedorNome, setVendedorNome] = useState<string>('');
+
+  const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
+  const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
+    formData,
+    setFormData
+  );
 
   const loadOportunidades = useCallback(async () => {
     setLoadingOportunidades(true);
     try {
-      const res = await apiClient.get<OportunidadeOption[] | { results: OportunidadeOption[] }>(
-        '/crm-vendas/oportunidades/'
-      );
+      const res = await apiClient.get<
+        CrmPropostaOportunidadeOption[] | { results: CrmPropostaOportunidadeOption[] }
+      >('/crm-vendas/oportunidades/');
       setOportunidades(normalizeListResponse(res.data));
     } catch {
       setOportunidades([]);
@@ -83,7 +65,7 @@ export default function NovaPropostaPage() {
       return;
     }
     try {
-      const res = await apiClient.get<OportunidadeItem[] | { results: OportunidadeItem[] }>(
+      const res = await apiClient.get<CrmOportunidadeItem[] | { results: CrmOportunidadeItem[] }>(
         `/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidadeId}`
       );
       setItensOportunidade(normalizeListResponse(res.data));
@@ -91,15 +73,6 @@ export default function NovaPropostaPage() {
       setItensOportunidade([]);
     }
   }, []);
-
-  const loadLojaInfo = useCallback(async () => {
-    try {
-      const res = await apiClient.get<LojaInfo>(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      setLojaInfo(res.data);
-    } catch {
-      setLojaInfo(null);
-    }
-  }, [slug]);
 
   const loadCrmConfig = useCallback(async () => {
     try {
@@ -112,42 +85,14 @@ export default function NovaPropostaPage() {
 
   const loadTemplates = useCallback(async () => {
     try {
-      const res = await apiClient.get<PropostaTemplate[] | { results: PropostaTemplate[] }>('/crm-vendas/proposta-templates/');
+      const res = await apiClient.get<CrmPropostaTemplate[] | { results: CrmPropostaTemplate[] }>(
+        '/crm-vendas/proposta-templates/'
+      );
       setTemplates(normalizeListResponse(res.data));
     } catch {
       setTemplates([]);
     }
   }, []);
-
-  const loadLeadInfo = useCallback(async (leadId: number) => {
-    if (!leadId) {
-      setLeadInfo(null);
-      return;
-    }
-    try {
-      const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
-      setLeadInfo(res.data);
-      // Preencher automaticamente o nome do cliente
-      if (res.data.nome && !formData.nome_cliente_assinatura) {
-        setFormData((f) => ({ ...f, nome_cliente_assinatura: res.data.nome }));
-      }
-    } catch {
-      setLeadInfo(null);
-    }
-  }, [formData.nome_cliente_assinatura]);
-
-  const loadVendedorInfo = useCallback(async () => {
-    try {
-      const res = await apiClient.get<{ nome: string }>('/crm-vendas/vendedores/me/');
-      setVendedorNome(res.data.nome);
-      // Preencher automaticamente o nome do vendedor
-      if (res.data.nome && !formData.nome_vendedor_assinatura) {
-        setFormData((f) => ({ ...f, nome_vendedor_assinatura: res.data.nome }));
-      }
-    } catch {
-      setVendedorNome('');
-    }
-  }, [formData.nome_vendedor_assinatura]);
 
   useEffect(() => {
     loadOportunidades();
@@ -207,8 +152,7 @@ export default function NovaPropostaPage() {
       setPropostaConteudoPadrao(conteudo);
       alert('Proposta PADRAO salva com sucesso! O conteúdo será usado em novas propostas.');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao salvar.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
       setSalvandoPadrao(false);
     }
@@ -238,8 +182,7 @@ export default function NovaPropostaPage() {
       });
       router.push(`/loja/${slug}/crm-vendas/propostas`);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      setFormErro(e.response?.data?.detail || 'Erro ao salvar.');
+      setFormErro(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
       setSubmitting(false);
     }

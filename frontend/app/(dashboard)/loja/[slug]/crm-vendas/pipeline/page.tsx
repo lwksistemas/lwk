@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
+import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, X, Mail, MessageCircle } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
@@ -31,8 +32,8 @@ function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setErr
       setOportunidades(normalizeListResponse(res.data));
       setError(null);
     })
-    .catch((err) => {
-      setError(err.response?.data?.detail || 'Erro ao carregar oportunidades.');
+    .catch((err: unknown) => {
+      setError(getCrmApiErrorDetail(err, 'Erro ao carregar oportunidades.'));
     });
 }
 
@@ -372,12 +373,10 @@ export default function CrmVendasPipelinePage() {
   const handleEnviarCliente = async (tipo: 'proposta' | 'contrato', id: number, canal: 'email' | 'whatsapp') => {
     setEnviandoEnvio(true);
     try {
-      const url = tipo === 'proposta' ? `/crm-vendas/propostas/${id}/enviar_cliente/` : `/crm-vendas/contratos/${id}/enviar_cliente/`;
-      await apiClient.post(url, { canal });
-      alert(`Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`);
+      await crmEnviarCliente(tipo === 'proposta' ? 'propostas' : 'contratos', id, canal);
+      alert(crmMensagemEnvioCanalSucesso(canal));
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao enviar.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
     } finally {
       setEnviandoEnvio(false);
     }

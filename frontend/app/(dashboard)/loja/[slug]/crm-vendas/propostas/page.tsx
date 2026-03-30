@@ -5,15 +5,27 @@ import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, downloadBlobAsFile, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
+import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
+import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
+import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
+import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import {
   CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, X, ClipboardList, ArrowRight, Mail, MessageCircle, FileText, FileSignature } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, ClipboardList, ArrowRight, Mail, MessageCircle, FileText, FileSignature } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
-import type { LojaInfo, LeadInfo, FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
+import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
+import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
+import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type {
+  CrmPropostaOportunidadeOption,
+  CrmOportunidadeItem,
+  CrmPropostaTemplate,
+} from '@/lib/crm-proposta-form-types';
 
 const ModalPropostaForm = dynamic(() => import('@/components/crm-vendas/modals/ModalPropostaForm'), { ssr: false });
 
@@ -33,44 +45,14 @@ interface Proposta {
   created_at: string;
 }
 
-interface OportunidadeOption {
-  id: number;
-  titulo: string;
-  lead: number;
-  lead_nome: string;
-  valor: string;
-  etapa: string;
-}
-
-interface OportunidadeItem {
-  id: number;
-  produto_servico: number;
-  produto_servico_nome: string;
-  produto_servico_tipo: string;
-  quantidade: string;
-  preco_unitario: string;
-  subtotal: number;
-  observacao?: string;
-}
-
-interface PropostaTemplate {
-  id: number;
-  nome: string;
-  conteudo: string;
-  is_padrao: boolean;
-  ativo: boolean;
-}
-
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
 
 export default function CrmVendasPropostasPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
   const [propostas, setPropostas] = useState<Proposta[]>([]);
-  const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
-  const [itensOportunidade, setItensOportunidade] = useState<OportunidadeItem[]>([]);
-  const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
-  const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
+  const [oportunidades, setOportunidades] = useState<CrmPropostaOportunidadeOption[]>([]);
+  const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -88,18 +70,22 @@ export default function CrmVendasPropostasPage() {
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
-  const [templates, setTemplates] = useState<PropostaTemplate[]>([]);
-  const [vendedorNome, setVendedorNome] = useState<string>('');
+  const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
+
+  const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
+  const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
+    formData,
+    setFormData
+  );
 
   const handleEnviarCliente = async (propostaId: number, canal: 'email' | 'whatsapp') => {
     setEnviandoId(propostaId);
     try {
-      await apiClient.post(`/crm-vendas/propostas/${propostaId}/enviar_cliente/`, { canal });
-      alert(`Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`);
+      await crmEnviarCliente('propostas', propostaId, canal);
+      alert(crmMensagemEnvioCanalSucesso(canal));
       await loadPropostas(true);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao enviar.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
     } finally {
       setEnviandoId(null);
     }
@@ -110,19 +96,12 @@ export default function CrmVendasPropostasPage() {
       const response = await apiClient.get(`/crm-vendas/propostas/${propostaId}/download_pdf/`, {
         responseType: 'blob',
       });
-      
-      // Criar URL temporária para o blob
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `proposta_${propostaId}_${titulo.replace(/\s+/g, '_')}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      downloadBlobAsFile(
+        response.data instanceof Blob ? response.data : new Blob([response.data]),
+        `proposta_${propostaId}_${titulo.replace(/\s+/g, '_')}.pdf`
+      );
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao baixar PDF.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao baixar PDF.'));
     }
   };
 
@@ -134,8 +113,7 @@ export default function CrmVendasPropostasPage() {
       setPropostas(normalizeListResponse(res.data));
       setError(null);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      setError(e.response?.data?.detail || 'Erro ao carregar propostas.');
+      setError(getCrmApiErrorDetail(err, 'Erro ao carregar propostas.'));
     } finally {
       if (!silent) setLoading(false);
     }
@@ -143,9 +121,9 @@ export default function CrmVendasPropostasPage() {
 
   const loadOportunidades = useCallback(async () => {
     try {
-      const res = await apiClient.get<OportunidadeOption[] | { results: OportunidadeOption[] }>(
-        '/crm-vendas/oportunidades/'
-      );
+      const res = await apiClient.get<
+        CrmPropostaOportunidadeOption[] | { results: CrmPropostaOportunidadeOption[] }
+      >('/crm-vendas/oportunidades/');
       setOportunidades(normalizeListResponse(res.data));
     } catch {
       setOportunidades([]);
@@ -158,7 +136,7 @@ export default function CrmVendasPropostasPage() {
       return;
     }
     try {
-      const res = await apiClient.get<OportunidadeItem[] | { results: OportunidadeItem[] }>(
+      const res = await apiClient.get<CrmOportunidadeItem[] | { results: CrmOportunidadeItem[] }>(
         `/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidadeId}`
       );
       setItensOportunidade(normalizeListResponse(res.data));
@@ -166,15 +144,6 @@ export default function CrmVendasPropostasPage() {
       setItensOportunidade([]);
     }
   }, []);
-
-  const loadLojaInfo = useCallback(async () => {
-    try {
-      const res = await apiClient.get<LojaInfo>(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      setLojaInfo(res.data);
-    } catch {
-      setLojaInfo(null);
-    }
-  }, [slug]);
 
   const loadCrmConfig = useCallback(async () => {
     try {
@@ -187,7 +156,9 @@ export default function CrmVendasPropostasPage() {
 
   const loadTemplates = useCallback(async () => {
     try {
-      const res = await apiClient.get<PropostaTemplate[] | { results: PropostaTemplate[] }>('/crm-vendas/proposta-templates/');
+      const res = await apiClient.get<CrmPropostaTemplate[] | { results: CrmPropostaTemplate[] }>(
+        '/crm-vendas/proposta-templates/'
+      );
       setTemplates(normalizeListResponse(res.data));
     } catch {
       setTemplates([]);
@@ -201,42 +172,11 @@ export default function CrmVendasPropostasPage() {
       setPropostaConteudoPadrao(conteudo);
       alert('Proposta PADRAO salva com sucesso! O conteúdo será usado em novas propostas.');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao salvar.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
       setSalvandoPadrao(false);
     }
   }, []);
-
-  const loadLeadInfo = useCallback(async (leadId: number) => {
-    if (!leadId) {
-      setLeadInfo(null);
-      return;
-    }
-    try {
-      const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
-      setLeadInfo(res.data);
-      // Preencher automaticamente o nome do cliente
-      if (res.data.nome && !formData.nome_cliente_assinatura) {
-        setFormData((f) => ({ ...f, nome_cliente_assinatura: res.data.nome }));
-      }
-    } catch {
-      setLeadInfo(null);
-    }
-  }, [formData.nome_cliente_assinatura]);
-
-  const loadVendedorInfo = useCallback(async () => {
-    try {
-      const res = await apiClient.get<{ nome: string }>('/crm-vendas/vendedores/me/');
-      setVendedorNome(res.data.nome);
-      // Preencher automaticamente o nome do vendedor
-      if (res.data.nome && !formData.nome_vendedor_assinatura) {
-        setFormData((f) => ({ ...f, nome_vendedor_assinatura: res.data.nome }));
-      }
-    } catch {
-      setVendedorNome('');
-    }
-  }, [formData.nome_vendedor_assinatura]);
 
   useEffect(() => {
     loadPropostas();
@@ -345,29 +285,12 @@ export default function CrmVendasPropostasPage() {
       } else if (modalType === 'edit' && selected) {
         const assinaturaAntes = selected.status_assinatura;
         await apiClient.put(`/crm-vendas/propostas/${selected.id}/`, payload);
-        if (assinaturaAntes === 'aguardando_cliente' || assinaturaAntes === 'aguardando_vendedor') {
-          const textoConfirm =
-            assinaturaAntes === 'aguardando_cliente'
-              ? 'A proposta foi alterada. Deseja reenviar ao cliente o e-mail com o link de assinatura digital?'
-              : 'A proposta foi alterada. Deseja reenviar ao vendedor o e-mail com o link de assinatura digital?';
-          if (window.confirm(textoConfirm)) {
-            try {
-              const res = await apiClient.post<{ message?: string }>(
-                `/crm-vendas/propostas/${selected.id}/reenviar_para_assinatura/`
-              );
-              alert(res.data.message || 'Link reenviado.');
-            } catch (err: unknown) {
-              const ex = err as { response?: { data?: { detail?: string } } };
-              alert(ex.response?.data?.detail || 'Erro ao reenviar assinatura.');
-            }
-          }
-        }
+        await reenviarAssinaturaAposEdicaoSeNecessario('proposta', selected.id, assinaturaAntes);
       }
       await loadPropostas(true);
       closeModal();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao salvar.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
       setSubmitting(false);
     }
@@ -381,8 +304,7 @@ export default function CrmVendasPropostasPage() {
       await loadPropostas(true);
       closeModal();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao excluir.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao excluir.'));
     } finally {
       setSubmitting(false);
     }
@@ -463,26 +385,13 @@ export default function CrmVendasPropostasPage() {
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{p.titulo}</td>
                     <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{p.oportunidade_titulo}</td>
                     <td className="py-3 px-4">
-                      {/* Mostrar status de assinatura se houver, senão mostrar status normal */}
-                      {p.status_assinatura && p.status_assinatura !== 'rascunho' ? (
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${
-                          p.status_assinatura === 'concluido' ? 'bg-green-100 dark:bg-green-900/30 text-green-700' :
-                          p.status_assinatura === 'aguardando_vendedor' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700' :
-                          p.status_assinatura === 'aguardando_cliente' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700' :
-                          'bg-gray-100 dark:bg-gray-700 text-gray-600'
-                        }`}>
-                          {STATUS_ASSINATURA_LABEL[p.status_assinatura] || p.status_assinatura}
-                        </span>
-                      ) : (
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${
-                          p.status === 'aceita' ? 'bg-green-100 dark:bg-green-900/30 text-green-700' :
-                          p.status === 'rejeitada' ? 'bg-red-100 dark:bg-red-900/30 text-red-700' :
-                          p.status === 'enviada' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700' :
-                          'bg-gray-100 dark:bg-gray-700 text-gray-600'
-                        }`}>
-                          {STATUS_LABEL[p.status] || p.status}
-                        </span>
-                      )}
+                      <CrmDocumentoStatusBadge
+                        statusAssinatura={p.status_assinatura}
+                        status={p.status}
+                        labelsComercial={STATUS_LABEL}
+                        labelsAssinatura={STATUS_ASSINATURA_LABEL}
+                        variante="proposta"
+                      />
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap">
@@ -540,58 +449,26 @@ export default function CrmVendasPropostasPage() {
         />
       )}
 
-      {modalType === 'view' && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-[80]" onClick={closeModal} />
-          <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Detalhes</h2>
-                <button type="button" onClick={closeModal} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
-              </div>
-              <div className="p-6">
-                {selected && (
-                  <div className="space-y-3">
-                    <p><span className="font-medium">Título:</span> {selected.titulo}</p>
-                    <p><span className="font-medium">Oportunidade:</span> {selected.oportunidade_titulo}</p>
-                    <p><span className="font-medium">Lead:</span> {selected.lead_nome}</p>
-                    <p><span className="font-medium">Status:</span> {STATUS_LABEL[selected.status] || selected.status}</p>
-                    {selected.valor_total && <p><span className="font-medium">Valor:</span> {parseFloat(selected.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
-                    {selected.conteudo && <p><span className="font-medium">Conteúdo:</span><br /><pre className="whitespace-pre-wrap text-sm mt-1">{selected.conteudo}</pre></p>}
-                    <button type="button" onClick={closeModal} className="w-full mt-4 py-2 border rounded-lg">Fechar</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
+      {modalType === 'view' && selected && (
+        <CrmDocumentoDetalhesModal
+          aberto
+          onClose={closeModal}
+          titulo={selected.titulo}
+          oportunidadeTitulo={selected.oportunidade_titulo}
+          leadNome={selected.lead_nome}
+          statusExibicao={STATUS_LABEL[selected.status] || selected.status}
+          valorTotal={selected.valor_total}
+          conteudo={selected.conteudo}
+        />
       )}
 
-      {modalType === 'delete' && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-[80]" onClick={closeModal} />
-          <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Excluir</h2>
-                <button type="button" onClick={closeModal} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
-              </div>
-              <div className="p-6">
-                {selected && (
-                  <div className="space-y-4">
-                    <p className="text-gray-600 dark:text-gray-400">Deseja excluir &quot;{selected.titulo}&quot;?</p>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border rounded-lg">Cancelar</button>
-                      <button type="button" onClick={handleDelete} disabled={submitting} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50">
-                        {submitting ? 'Excluindo...' : 'Excluir'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
+      {modalType === 'delete' && selected && (
+        <CrmConfirmDeleteModal
+          tituloItem={selected.titulo}
+          enviando={submitting}
+          onClose={closeModal}
+          onConfirm={handleDelete}
+        />
       )}
     </div>
   );

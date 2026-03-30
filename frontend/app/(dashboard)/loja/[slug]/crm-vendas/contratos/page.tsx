@@ -5,15 +5,21 @@ import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
+import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
+import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
+import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
+import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import {
   CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, X, FileSignature, ArrowRight, Mail, MessageCircle } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Mail, MessageCircle } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
-import type { LojaInfo, LeadInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
+import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
+import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
 import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
 
 const ModalContratoForm = dynamic(() => import('@/components/crm-vendas/modals/ModalContratoForm'), { ssr: false });
@@ -51,8 +57,6 @@ export default function CrmVendasContratosPage() {
   const slug = (params?.slug as string) ?? '';
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
-  const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
-  const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -69,17 +73,21 @@ export default function CrmVendasContratosPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
-  const [vendedorNome, setVendedorNome] = useState<string>('');
+
+  const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
+  const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
+    formData,
+    setFormData
+  );
 
   const handleEnviarCliente = async (contratoId: number, canal: 'email' | 'whatsapp') => {
     setEnviandoId(contratoId);
     try {
-      await apiClient.post(`/crm-vendas/contratos/${contratoId}/enviar_cliente/`, { canal });
-      alert(`Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`);
+      await crmEnviarCliente('contratos', contratoId, canal);
+      alert(crmMensagemEnvioCanalSucesso(canal));
       await loadContratos();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao enviar.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
     } finally {
       setEnviandoId(null);
     }
@@ -92,8 +100,7 @@ export default function CrmVendasContratosPage() {
       setContratos(normalizeListResponse(res.data));
       setError(null);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      setError(e.response?.data?.detail || 'Erro ao carregar contratos.');
+      setError(getCrmApiErrorDetail(err, 'Erro ao carregar contratos.'));
     } finally {
       setLoading(false);
     }
@@ -109,45 +116,6 @@ export default function CrmVendasContratosPage() {
       setOportunidades([]);
     }
   }, []);
-
-  const loadLojaInfo = useCallback(async () => {
-    try {
-      const res = await apiClient.get<LojaInfo>(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      setLojaInfo(res.data);
-    } catch {
-      setLojaInfo(null);
-    }
-  }, [slug]);
-
-  const loadLeadInfo = useCallback(async (leadId: number) => {
-    if (!leadId) {
-      setLeadInfo(null);
-      return;
-    }
-    try {
-      const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
-      setLeadInfo(res.data);
-      // Preencher automaticamente o nome do cliente
-      if (res.data.nome && !formData.nome_cliente_assinatura) {
-        setFormData((f) => ({ ...f, nome_cliente_assinatura: res.data.nome }));
-      }
-    } catch {
-      setLeadInfo(null);
-    }
-  }, [formData.nome_cliente_assinatura]);
-
-  const loadVendedorInfo = useCallback(async () => {
-    try {
-      const res = await apiClient.get<{ nome: string }>('/crm-vendas/vendedores/me/');
-      setVendedorNome(res.data.nome);
-      // Preencher automaticamente o nome do vendedor
-      if (res.data.nome && !formData.nome_vendedor_assinatura) {
-        setFormData((f) => ({ ...f, nome_vendedor_assinatura: res.data.nome }));
-      }
-    } catch {
-      setVendedorNome('');
-    }
-  }, [formData.nome_vendedor_assinatura]);
 
   useEffect(() => {
     loadContratos();
@@ -249,29 +217,12 @@ export default function CrmVendasContratosPage() {
       } else if (modalType === 'edit' && selected) {
         const assinaturaAntes = selected.status_assinatura;
         await apiClient.put(`/crm-vendas/contratos/${selected.id}/`, payload);
-        if (assinaturaAntes === 'aguardando_cliente' || assinaturaAntes === 'aguardando_vendedor') {
-          const textoConfirm =
-            assinaturaAntes === 'aguardando_cliente'
-              ? 'O contrato foi alterado. Deseja reenviar ao cliente o e-mail com o link de assinatura digital?'
-              : 'O contrato foi alterado. Deseja reenviar ao vendedor o e-mail com o link de assinatura digital?';
-          if (window.confirm(textoConfirm)) {
-            try {
-              const res = await apiClient.post<{ message?: string }>(
-                `/crm-vendas/contratos/${selected.id}/reenviar_para_assinatura/`
-              );
-              alert(res.data.message || 'Link reenviado.');
-            } catch (err: unknown) {
-              const ex = err as { response?: { data?: { detail?: string } } };
-              alert(ex.response?.data?.detail || 'Erro ao reenviar assinatura.');
-            }
-          }
-        }
+        await reenviarAssinaturaAposEdicaoSeNecessario('contrato', selected.id, assinaturaAntes);
       }
       await loadContratos();
       closeModal();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao salvar.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
       setSubmitting(false);
     }
@@ -285,8 +236,7 @@ export default function CrmVendasContratosPage() {
       await loadContratos();
       closeModal();
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao excluir.');
+      alert(getCrmApiErrorDetail(err, 'Erro ao excluir.'));
     } finally {
       setSubmitting(false);
     }
@@ -368,26 +318,13 @@ export default function CrmVendasContratosPage() {
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{c.titulo || c.numero || `Contrato #${c.id}`}</td>
                     <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.oportunidade_titulo}</td>
                     <td className="py-3 px-4">
-                      {/* Mostrar status de assinatura se houver, senão mostrar status normal */}
-                      {c.status_assinatura && c.status_assinatura !== 'rascunho' ? (
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${
-                          c.status_assinatura === 'concluido' ? 'bg-green-100 dark:bg-green-900/30 text-green-700' :
-                          c.status_assinatura === 'aguardando_vendedor' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700' :
-                          c.status_assinatura === 'aguardando_cliente' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700' :
-                          'bg-gray-100 dark:bg-gray-700 text-gray-600'
-                        }`}>
-                          {STATUS_ASSINATURA_LABEL[c.status_assinatura] || c.status_assinatura}
-                        </span>
-                      ) : (
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs ${
-                          c.status === 'assinado' ? 'bg-green-100 dark:bg-green-900/30 text-green-700' :
-                          c.status === 'cancelado' ? 'bg-red-100 dark:bg-red-900/30 text-red-700' :
-                          c.status === 'enviado' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700' :
-                          'bg-gray-100 dark:bg-gray-700 text-gray-600'
-                        }`}>
-                          {STATUS_LABEL[c.status] || c.status}
-                        </span>
-                      )}
+                      <CrmDocumentoStatusBadge
+                        statusAssinatura={c.status_assinatura}
+                        status={c.status}
+                        labelsComercial={STATUS_LABEL}
+                        labelsAssinatura={STATUS_ASSINATURA_LABEL}
+                        variante="contrato"
+                      />
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap">
@@ -432,58 +369,27 @@ export default function CrmVendasContratosPage() {
         />
       )}
 
-      {modalType === 'view' && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-[80]" onClick={closeModal} />
-          <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Detalhes</h2>
-                <button type="button" onClick={closeModal} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
-              </div>
-              <div className="p-6">
-                {selected && (
-                  <div className="space-y-3">
-                    <p><span className="font-medium">Título:</span> {selected.titulo}</p>
-                    <p><span className="font-medium">Oportunidade:</span> {selected.oportunidade_titulo}</p>
-                    <p><span className="font-medium">Lead:</span> {selected.lead_nome}</p>
-                    <p><span className="font-medium">Status:</span> {STATUS_LABEL[selected.status] || selected.status}</p>
-                    {selected.valor_total && <p><span className="font-medium">Valor:</span> {parseFloat(selected.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
-                    {selected.conteudo && <p><span className="font-medium">Conteúdo:</span><br /><pre className="whitespace-pre-wrap text-sm mt-1">{selected.conteudo}</pre></p>}
-                    <button type="button" onClick={closeModal} className="w-full mt-4 py-2 border rounded-lg">Fechar</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
+      {modalType === 'view' && selected && (
+        <CrmDocumentoDetalhesModal
+          aberto
+          onClose={closeModal}
+          titulo={selected.titulo}
+          numero={selected.numero || undefined}
+          oportunidadeTitulo={selected.oportunidade_titulo}
+          leadNome={selected.lead_nome}
+          statusExibicao={STATUS_LABEL[selected.status] || selected.status}
+          valorTotal={selected.valor_total}
+          conteudo={selected.conteudo}
+        />
       )}
 
-      {modalType === 'delete' && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-[80]" onClick={closeModal} />
-          <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Excluir</h2>
-                <button type="button" onClick={closeModal} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
-              </div>
-              <div className="p-6">
-                {selected && (
-                  <div className="space-y-4">
-                    <p className="text-gray-600 dark:text-gray-400">Deseja excluir &quot;{selected.titulo || selected.numero || 'este contrato'}&quot;?</p>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border rounded-lg">Cancelar</button>
-                      <button type="button" onClick={handleDelete} disabled={submitting} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50">
-                        {submitting ? 'Excluindo...' : 'Excluir'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
+      {modalType === 'delete' && selected && (
+        <CrmConfirmDeleteModal
+          tituloItem={selected.titulo || selected.numero || 'este contrato'}
+          enviando={submitting}
+          onClose={closeModal}
+          onConfirm={handleDelete}
+        />
       )}
     </div>
   );

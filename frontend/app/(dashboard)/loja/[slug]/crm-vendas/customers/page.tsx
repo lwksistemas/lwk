@@ -280,7 +280,7 @@ export default function CrmVendasCustomersPage() {
     }
   };
 
-  if (loading) {
+  if (loading && contas.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">

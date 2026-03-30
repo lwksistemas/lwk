@@ -48,24 +48,21 @@ export default function CrmVendasContatosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [contaFiltro, setContaFiltro] = useState<number | null>(null);
 
-  const loadContatos = async (contaId?: number | null) => {
+  /** silent: não troca a página inteira por skeleton (evita lista sumir ao salvar / re-fetch). */
+  const loadContatos = async (contaId?: number | null, silent = false) => {
     try {
-      setLoading(true);
-      console.log('Carregando contatos...');
-      const url = contaId 
+      if (!silent) setLoading(true);
+      const url = contaId
         ? `/crm-vendas/contatos/?conta_id=${contaId}`
         : '/crm-vendas/contatos/';
       const res = await apiClient.get<Contato[] | { results: Contato[] }>(url);
-      console.log('Resposta da API:', res.data);
       const contatosNormalizados = normalizeListResponse(res.data);
-      console.log('Contatos normalizados:', contatosNormalizados);
       setContatos(contatosNormalizados);
       setError(null);
     } catch (err: any) {
-      console.error('Erro ao carregar contatos:', err);
       setError(err.response?.data?.detail || 'Erro ao carregar contatos.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -78,9 +75,10 @@ export default function CrmVendasContatosPage() {
     }
   };
 
+  // Depender só do filtro na URL — [searchParams] muda de referência e re-disparava o efeito (lista piscando).
+  const contaIdNaUrl = searchParams.get('conta_id');
   useEffect(() => {
-    // Detectar filtro por conta_id na URL
-    const contaIdParam = searchParams.get('conta_id');
+    const contaIdParam = contaIdNaUrl;
     if (contaIdParam) {
       const contaId = parseInt(contaIdParam, 10);
       if (!isNaN(contaId)) {
@@ -90,11 +88,11 @@ export default function CrmVendasContatosPage() {
         return;
       }
     }
-    
-    // Carregar todos os contatos se não houver filtro
-    loadContatos();
+    setContaFiltro(null);
+    loadContatos(null);
     loadContas();
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial / mudança de conta_id só
+  }, [contaIdNaUrl]);
 
   // Abrir modal de criação quando ?criar=1
   useEffect(() => {
@@ -242,7 +240,7 @@ export default function CrmVendasContatosPage() {
         await apiClient.put(`/crm-vendas/contatos/${selectedContato.id}/`, payload);
       }
       
-      await loadContatos(contaFiltro);
+      await loadContatos(contaFiltro, true);
       closeModal();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao salvar contato.');
@@ -257,7 +255,7 @@ export default function CrmVendasContatosPage() {
     try {
       setSubmitting(true);
       await apiClient.delete(`/crm-vendas/contatos/${selectedContato.id}/`);
-      await loadContatos();
+      await loadContatos(contaFiltro, true);
       closeModal();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao excluir contato.');
@@ -266,7 +264,7 @@ export default function CrmVendasContatosPage() {
     }
   };
 
-  if (loading) {
+  if (loading && contatos.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">

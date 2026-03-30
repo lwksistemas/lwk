@@ -380,7 +380,7 @@ export default function CrmVendasPropostasPage() {
     }
   };
 
-  if (loading) {
+  if (loading && propostas.length === 0) {
     return (
       <div className="space-y-4">
         <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />

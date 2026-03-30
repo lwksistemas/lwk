@@ -37,7 +37,7 @@ from .serializers import (
     ContratoTemplateSerializer,
     ContratoSerializer,
 )
-from tenants.middleware import get_current_loja_id, get_current_tenant_db
+from tenants.middleware import get_current_loja_id, get_current_tenant_db, ensure_loja_context
 from .utils import get_current_vendedor_id, get_loja_from_context
 from .mixins import CRMPermissionMixin, VendedorFilterMixin, CacheInvalidationMixin
 from .cache import CRMCacheManager
@@ -1283,6 +1283,7 @@ def crm_me(request):
     IMPORTANTE: Owner NUNCA é marcado como vendedor (is_vendedor=False), mesmo se vinculado.
     Apenas vendedores comuns (não-owners) são marcados como is_vendedor=True.
     """
+    ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({
@@ -1341,6 +1342,7 @@ def dashboard_data(request):
     import logging
 
     logger = logging.getLogger(__name__)
+    ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response(_empty_dashboard_response(), status=200)

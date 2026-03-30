@@ -28,4 +28,9 @@ Este documento fixa a ordem de resolução de tenant e os pontos de extensão pa
 
 ## Frontend
 
-- Headers de tenant devem ser centralizados no cliente de API (ex.: `frontend/lib/api-client.ts`), na mesma ordem conceitual (slug canônico para a loja atual).
+- Headers de tenant devem ser centralizados no cliente de API (ex.: `frontend/lib/api-client.ts`).
+- Enviar **`X-Tenant-Slug` e `X-Loja-ID`** quando ambos existirem: o backend resolve **slug antes de ID**; o ID cobre requisições em que o slug ainda não foi enviado (evita respostas paginadas vazias ~52 bytes).
+
+## Views de função (`crm_me`, `dashboard_data`)
+
+- Chamar **`ensure_loja_context(request)`** antes de `get_current_loja_id()` para alinhar thread-local aos headers quando o middleware não tiver aplicado o tenant (ordem de middlewares / timing).

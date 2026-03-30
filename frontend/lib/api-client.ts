@@ -113,12 +113,12 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   if (lojaSlug) {
     config.headers.set('X-Tenant-Slug', lojaSlug);
   }
-  const isLojaDashboardPath = Boolean(pathLojaMatch);
-  if (!isLojaDashboardPath) {
-    const lojaId = sessionStorage.getItem('current_loja_id');
-    if (lojaId) {
-      config.headers.set('X-Loja-ID', lojaId);
-    }
+  // Sempre enviar X-Loja-ID quando existir (fallback). No backend, slug tem prioridade
+  // sobre o ID — evita listas vazias (~52 bytes) quando o slug não chega no header
+  // em alguma requisição paralela (ex.: navegação / layout).
+  const lojaId = sessionStorage.getItem('current_loja_id');
+  if (lojaId) {
+    config.headers.set('X-Loja-ID', lojaId);
   }
   if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);
   if (process.env.NODE_ENV === 'development') {

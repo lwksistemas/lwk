@@ -45,6 +45,7 @@ export default function CrmVendasLeadsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = (params?.slug as string) ?? '';
+  const verParam = searchParams.get('ver');
   const { colunasLeadsVisiveis, origensAtivas } = useCRMConfig();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,9 +92,8 @@ export default function CrmVendasLeadsPage() {
 
   // Abrir modal de visualização quando ?ver=ID (ex.: vindo da busca global)
   useEffect(() => {
-    const verId = searchParams.get('ver');
-    if (!verId) return;
-    const id = parseInt(verId, 10);
+    if (!verParam) return;
+    const id = parseInt(verParam, 10);
     if (isNaN(id)) return;
     const found = leads.find((l) => l.id === id);
     if (found) {
@@ -108,7 +108,7 @@ export default function CrmVendasLeadsPage() {
         })
         .catch(() => {});
     }
-  }, [searchParams.get('ver'), leads, loading, router, slug]);
+  }, [verParam, leads, loading, router, slug]);
 
   const origemLabel = (value: string) => origensAtivas().find((o) => o.key === value)?.label ?? value;
   const statusLabel = (value: string) => STATUS_LEAD_OPCOES.find((o) => o.value === value)?.label ?? value;

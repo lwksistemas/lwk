@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
@@ -202,11 +203,14 @@ export function ImageUpload({
         {/* Preview da imagem */}
         {value ? (
           <div className="relative group w-full sm:w-auto shrink-0">
-            <div className={previewFrameClass}>
-              <img
+            <div className={`relative ${previewFrameClass.replace('flex items-center justify-center', '').trim()}`}>
+              <Image
                 src={value}
                 alt="Preview"
+                fill
                 className={previewImgClass}
+                sizes={isWideHero ? '(max-width: 768px) 100vw, 28rem' : '128px'}
+                unoptimized
               />
             </div>
             

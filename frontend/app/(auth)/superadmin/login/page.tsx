@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import PasswordInput from '@/components/auth/PasswordInput';
@@ -144,7 +145,14 @@ export default function SuperAdminLoginPage() {
         <div>
           {config.logo ? (
             <div className="mx-auto h-16 flex items-center justify-center">
-              <img src={config.logo} alt="Logo" className="max-h-16 object-contain" />
+              <Image
+                src={config.logo}
+                alt="Logo"
+                width={200}
+                height={64}
+                className="max-h-16 w-auto object-contain"
+                unoptimized
+              />
             </div>
           ) : (
             <div 

@@ -77,6 +77,7 @@ export default function CrmVendasContatosPage() {
 
   // Depender só do filtro na URL — [searchParams] muda de referência e re-disparava o efeito (lista piscando).
   const contaIdNaUrl = searchParams.get('conta_id');
+  const verParam = searchParams.get('ver');
   useEffect(() => {
     const contaIdParam = contaIdNaUrl;
     if (contaIdParam) {
@@ -112,9 +113,8 @@ export default function CrmVendasContatosPage() {
 
   // Abrir modal de visualização quando ?ver=ID
   useEffect(() => {
-    const verId = searchParams.get('ver');
-    if (!verId) return;
-    const id = parseInt(verId, 10);
+    if (!verParam) return;
+    const id = parseInt(verParam, 10);
     if (isNaN(id)) return;
     const found = contatos.find((c) => c.id === id);
     if (found) {
@@ -129,7 +129,7 @@ export default function CrmVendasContatosPage() {
         })
         .catch(() => {});
     }
-  }, [searchParams.get('ver'), contatos, loading, slug, router]);
+  }, [verParam, contatos, loading, slug, router]);
 
   const openModal = (type: ModalType, contato?: Contato) => {
     setModalType(type);

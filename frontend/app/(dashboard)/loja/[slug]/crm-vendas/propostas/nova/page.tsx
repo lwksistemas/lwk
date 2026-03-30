@@ -175,6 +175,8 @@ export default function NovaPropostaPage() {
         setFormData((f) => ({ ...f, conteudo: conteudoInicial }));
       }
     }
+    // Intencional: reagir só ao carregar templates/padrão, não a cada tecla em conteudo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- formData.conteudo omitido de propósito
   }, [templates, propostaConteudoPadrao]);
 
   useEffect(() => {

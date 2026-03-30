@@ -36,6 +36,7 @@ export default function CrmVendasCustomersPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+  const verParam = searchParams.get('ver');
   const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,9 +83,8 @@ export default function CrmVendasCustomersPage() {
 
   // Abrir modal de visualização quando ?ver=ID (ex.: vindo da busca global)
   useEffect(() => {
-    const verId = searchParams.get('ver');
-    if (!verId) return;
-    const id = parseInt(verId, 10);
+    if (!verParam) return;
+    const id = parseInt(verParam, 10);
     if (isNaN(id)) return;
     const found = contas.find((c) => c.id === id);
     if (found) {
@@ -99,7 +99,7 @@ export default function CrmVendasCustomersPage() {
         })
         .catch(() => {});
     }
-  }, [searchParams.get('ver'), contas, loading, slug, router]);
+  }, [verParam, contas, loading, slug, router]);
 
   const openModal = (type: ModalType, conta?: Conta) => {
     setModalType(type);

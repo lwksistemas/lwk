@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Card,
@@ -46,11 +47,7 @@ function LoginConfigContent() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    loadConfig();
-  }, [tipo]);
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiClient.get(`/superadmin/login-config-sistema/?tipo=${tipo}`);
@@ -60,7 +57,11 @@ function LoginConfigContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tipo]);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -254,10 +255,13 @@ function LoginConfigContent() {
                 >
                   <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-8 min-h-[400px] flex flex-col items-center justify-center">
                     {config.logo && (
-                      <img 
-                        src={config.logo} 
-                        alt="Logo" 
-                        className="h-16 mb-6 object-contain"
+                      <Image
+                        src={config.logo}
+                        alt="Logo"
+                        width={240}
+                        height={64}
+                        className="h-16 mb-6 w-auto max-w-full object-contain"
+                        unoptimized
                       />
                     )}
                     <h2 

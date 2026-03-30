@@ -106,7 +106,7 @@ export default function CrmVendasPropostasPage() {
     try {
       await apiClient.post(`/crm-vendas/propostas/${propostaId}/enviar_cliente/`, { canal });
       alert(`Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`);
-      await loadPropostas();
+      await loadPropostas(true);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       alert(e.response?.data?.detail || 'Erro ao enviar.');
@@ -136,9 +136,10 @@ export default function CrmVendasPropostasPage() {
     }
   };
 
-  const loadPropostas = useCallback(async () => {
+  /** silent: não ativa loading em tela cheia (evita sumir a lista após salvar/excluir). */
+  const loadPropostas = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await apiClient.get<Proposta[] | { results: Proposta[] }>('/crm-vendas/propostas/');
       setPropostas(normalizeListResponse(res.data));
       setError(null);
@@ -146,7 +147,7 @@ export default function CrmVendasPropostasPage() {
       const e = err as { response?: { data?: { detail?: string } } };
       setError(e.response?.data?.detail || 'Erro ao carregar propostas.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -354,7 +355,7 @@ export default function CrmVendasPropostasPage() {
       } else if (modalType === 'edit' && selected) {
         await apiClient.put(`/crm-vendas/propostas/${selected.id}/`, payload);
       }
-      await loadPropostas();
+      await loadPropostas(true);
       closeModal();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -369,7 +370,7 @@ export default function CrmVendasPropostasPage() {
     try {
       setSubmitting(true);
       await apiClient.delete(`/crm-vendas/propostas/${selected.id}/`);
-      await loadPropostas();
+      await loadPropostas(true);
       closeModal();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -482,7 +483,7 @@ export default function CrmVendasPropostasPage() {
                           documentoId={p.id}
                           statusAssinatura={p.status_assinatura}
                           leadEmail={p.lead_email}
-                          onSucesso={loadPropostas}
+                          onSucesso={() => loadPropostas(true)}
                         />
                         <button
                           type="button"

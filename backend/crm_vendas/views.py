@@ -487,8 +487,8 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
 
     def perform_create(self, serializer):
         """
-        Cache invalidado automaticamente pelo CacheInvalidationMixin.
-        Valida se vendedor existe antes de salvar.
+        Valida vendedor antes de salvar. Invalida cache de contas aqui porque este
+        método substitui o do CacheInvalidationMixin (senão a lista serviria cache stale).
         """
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is not None:
@@ -506,6 +506,7 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
                 serializer.save()
         else:
             serializer.save()
+        self._invalidate_caches()
 
 
 class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
@@ -593,6 +594,7 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
                 serializer.save()
         else:
             serializer.save()
+        self._invalidate_caches()
 
 
 class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
@@ -684,6 +686,7 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
         oportunidade = service.criar_oportunidade(serializer.validated_data)
         # Atualizar serializer com a instância criada
         serializer.instance = oportunidade
+        self._invalidate_caches()
 
     def perform_update(self, serializer):
         """
@@ -695,6 +698,7 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
         oportunidade = service.atualizar_oportunidade(serializer.instance, serializer.validated_data)
         # Atualizar serializer com a instância atualizada
         serializer.instance = oportunidade
+        self._invalidate_caches()
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -781,6 +785,7 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
                 pass  # Notificação é best-effort; não falha a criação
 
             sync_atividade_create(self.request, atividade)
+        self._invalidate_caches()
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):

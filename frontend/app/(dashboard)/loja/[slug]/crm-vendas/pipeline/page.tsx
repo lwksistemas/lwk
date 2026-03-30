@@ -467,16 +467,13 @@ export default function CrmVendasPipelinePage() {
     }
   };
 
-  if (error) {
-    return (
-      <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300">
-        {error}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
+      {error && (
+        <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+          {error}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
           <DollarSign className="w-8 h-8" />
@@ -555,7 +552,7 @@ export default function CrmVendasPipelinePage() {
         </div>
         <PipelineBoard
           oportunidades={oportunidades}
-          loading={loading}
+          loading={loading && oportunidades.length === 0}
           etapas={etapasAtivas()}
           onCardClick={handleCardClick}
           viewMode={viewPipeline}

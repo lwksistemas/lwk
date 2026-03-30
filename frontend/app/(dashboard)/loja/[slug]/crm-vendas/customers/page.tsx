@@ -62,16 +62,17 @@ export default function CrmVendasCustomersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [consultingCNPJ, setConsultingCNPJ] = useState(false);
 
-  const loadContas = async () => {
+  /** silent: não troca a página inteira por skeleton (evita lista sumir após salvar). */
+  const loadContas = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await apiClient.get<Conta[] | { results: Conta[] }>('/crm-vendas/contas/');
       setContas(normalizeListResponse(res.data));
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao carregar clientes.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -255,7 +256,7 @@ export default function CrmVendasCustomersPage() {
         await apiClient.put(`/crm-vendas/contas/${selectedConta.id}/`, formData);
       }
       
-      await loadContas();
+      await loadContas(true);
       closeModal();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao salvar cliente.');
@@ -270,7 +271,7 @@ export default function CrmVendasCustomersPage() {
     try {
       setSubmitting(true);
       await apiClient.delete(`/crm-vendas/contas/${selectedConta.id}/`);
-      await loadContas();
+      await loadContas(true);
       closeModal();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao excluir cliente.');

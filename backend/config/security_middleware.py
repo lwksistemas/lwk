@@ -130,6 +130,11 @@ class SecurityIsolationMiddleware:
                     'code': 'AUTHENTICATION_REQUIRED',
                     'grupo_requerido': 'superadmin'
                 }, status=401)
+
+            # Heartbeat (sessão única / useSessionMonitor): qualquer usuário autenticado
+            # (dono, vendedor CRM, suporte, superadmin). A view usa IsAuthenticated apenas.
+            if path.rstrip('/').endswith('/heartbeat') or '/lojas/heartbeat' in path:
+                return None
             
             # Endpoints permitidos para proprietários de lojas (acessar seus próprios dados)
             owner_allowed_patterns = [

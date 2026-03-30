@@ -37,7 +37,7 @@ from .serializers import (
     ContratoTemplateSerializer,
     ContratoSerializer,
 )
-from tenants.middleware import get_current_loja_id
+from tenants.middleware import get_current_loja_id, get_current_tenant_db
 from .utils import get_current_vendedor_id, get_loja_from_context
 from .mixins import CRMPermissionMixin, VendedorFilterMixin, CacheInvalidationMixin
 from .cache import CRMCacheManager
@@ -170,6 +170,52 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                             admin_item = self._obter_funcionario_administrador_da_loja(loja)
                             results.insert(0, admin_item)
                             logger.info(f"[VendedorViewSet.list] Admin virtual adicionado")
+                        
+                        # Lista vazia com VendedorUsuario: vínculo no public sem linha ativa no tenant
+                        # (órfão, inativo ou loja_id divergente) — recuperar por vendedor_id ou fallback.
+                        if not results and owner_tem_vendedor:
+                            vu = VendedorUsuario.objects.using('default').filter(
+                                user=loja.owner,
+                                loja_id=loja_id,
+                            ).first()
+                            recovered = False
+                            if vu:
+                                tenant_db = get_current_tenant_db()
+                                qs = Vendedor.objects.all_without_filter()
+                                if tenant_db and tenant_db != 'default':
+                                    qs = qs.using(tenant_db)
+                                vend = qs.filter(pk=vu.vendedor_id).first()
+                                if vend and vend.loja_id == loja_id and vend.is_active:
+                                    row = self.get_serializer(vend).data
+                                    if owner_email_lower and (row.get('email') or '').strip().lower() == owner_email_lower:
+                                        row['is_admin'] = True
+                                        row['cargo'] = 'Administrador'
+                                    results = [row]
+                                    recovered = True
+                                    logger.info(
+                                        "[VendedorViewSet.list] Recuperado Vendedor pk=%s (lista estava vazia)",
+                                        vu.vendedor_id,
+                                    )
+                                elif vend:
+                                    logger.warning(
+                                        "[VendedorViewSet.list] Vendedor %s inconsistente "
+                                        "(loja_id=%s, is_active=%s, contexto=%s)",
+                                        vu.vendedor_id,
+                                        vend.loja_id,
+                                        vend.is_active,
+                                        loja_id,
+                                    )
+                                else:
+                                    logger.warning(
+                                        "[VendedorViewSet.list] VendedorUsuario órfão: vendedor_id=%s",
+                                        vu.vendedor_id,
+                                    )
+                            if not recovered:
+                                admin_item = self._obter_funcionario_administrador_da_loja(loja)
+                                results.insert(0, admin_item)
+                                logger.info(
+                                    "[VendedorViewSet.list] Admin virtual (fallback lista vazia + VU)"
+                                )
                         
                         logger.info(f"[VendedorViewSet.list] results FINAL: {len(results)}")
                         

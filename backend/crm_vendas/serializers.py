@@ -286,28 +286,32 @@ class ContaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
     
     def validate_cnpj(self, value):
-        """Valida se CNPJ já existe na loja (apenas se preenchido)."""
-        if not value or value.strip() == '':
+        """Impede duplicata na mesma loja comparando CNPJ só pelos dígitos (formatos diferentes)."""
+        import re
+
+        if not value or not str(value).strip():
             return value
-        
+
+        digits = re.sub(r'\D', '', str(value))
+        if len(digits) < 11:
+            return value
+
         from tenants.middleware import get_current_loja_id
+
         loja_id = get_current_loja_id()
-        
         if not loja_id:
             return value
-        
-        # Verificar se já existe outra conta com mesmo CNPJ na loja
-        queryset = Conta.objects.filter(loja_id=loja_id, cnpj=value)
-        
-        # Se estiver editando, excluir a própria conta da verificação
+
+        qs = Conta.objects.filter(loja_id=loja_id).only('id', 'cnpj')
         if self.instance:
-            queryset = queryset.exclude(id=self.instance.id)
-        
-        if queryset.exists():
-            raise serializers.ValidationError(
-                f'Já existe uma conta cadastrada com o CNPJ {value} nesta loja.'
-            )
-        
+            qs = qs.exclude(pk=self.instance.pk)
+
+        for _pk, other_cnpj in qs.values_list('id', 'cnpj'):
+            if re.sub(r'\D', '', other_cnpj or '') == digits:
+                raise serializers.ValidationError(
+                    'Já existe uma empresa cadastrada com este CNPJ nesta loja.'
+                )
+
         return value
 
 

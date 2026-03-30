@@ -68,6 +68,54 @@ def _configure_tenant_db_for_loja(loja, request=None):
     return True
 
 
+def resolve_loja_from_slug_or_cnpj(tenant_slug: str):
+    """
+    Resolve Loja pelo slug da URL (``Loja.slug``) ou, em último caso, pelo documento.
+
+    Em produção o slug costuma ser o **CPF/CNPJ só com dígitos** (campo editável),
+    ex.: ``41449198000172`` — o primeiro ``filter(slug__iexact=...)`` cobre isso.
+
+    Se não houver linha com esse slug e o segmento tiver **11 ou 14 dígitos**, tenta
+    match em ``cpf_cnpj`` normalizado (fallback para slugs legados ``nome-sufixo`` ou
+    quando slug e documento divergiram).
+    """
+    from superadmin.models import Loja
+    import re
+    from django.db import connection as django_connection
+
+    s = (tenant_slug or '').strip()
+    if not s:
+        return None
+
+    loja = Loja.objects.using('default').filter(slug__iexact=s).first()
+    if loja:
+        return loja
+
+    if not s.isdigit() or len(s) not in (11, 14):
+        return None
+
+    if django_connection.vendor == 'postgresql':
+        qn = django_connection.ops.quote_name(Loja._meta.db_table)
+        with django_connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT id FROM {qn} WHERE regexp_replace(COALESCE(cpf_cnpj, ''), '[^0-9]', '', 'g') = %s LIMIT 1",
+                [s],
+            )
+            row = cursor.fetchone()
+            if row:
+                return Loja.objects.using('default').get(pk=row[0])
+    else:
+        for candidate in (
+            Loja.objects.using('default')
+            .exclude(cpf_cnpj='')
+            .exclude(cpf_cnpj__isnull=True)
+            .iterator(chunk_size=500)
+        ):
+            if re.sub(r'\D', '', candidate.cpf_cnpj or '') == s:
+                return candidate
+    return None
+
+
 def ensure_loja_context(request):
     """
     Garante loja_id + banco/schema do tenant a partir dos headers (alinhado ao TenantMiddleware).
@@ -85,7 +133,7 @@ def ensure_loja_context(request):
         loja = None
         # Slug primeiro: alinhado à URL do app; X-Loja-ID no navegador pode ficar desatualizado.
         if slug:
-            loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
+            loja = resolve_loja_from_slug_or_cnpj(slug)
         if not loja and lid:
             loja_id = int(lid)
             loja = Loja.objects.using('default').filter(id=loja_id).first()
@@ -178,7 +226,7 @@ class TenantMiddleware:
                         
                         logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} encontrada no cache")
                     else:
-                        loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
+                        loja = resolve_loja_from_slug_or_cnpj(tenant_slug)
                         if not loja:
                             raise Loja.DoesNotExist
                         
@@ -455,13 +503,12 @@ class TenantMiddleware:
             return True
         
         try:
-            from superadmin.models import Loja
-            loja = Loja.objects.filter(slug__iexact=tenant_slug).first()
-            
+            loja = resolve_loja_from_slug_or_cnpj(tenant_slug)
+
             if not loja:
                 logger.warning(f"⚠️ Loja não encontrada: {tenant_slug}")
                 return False
-            
+
             return self._validate_user_owns_loja(request, loja)
         except Exception as e:
             logger.error(f"❌ Erro ao validar owner: {e}")

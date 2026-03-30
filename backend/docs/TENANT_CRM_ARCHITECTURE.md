@@ -2,13 +2,20 @@
 
 Este documento fixa a ordem de resolução de tenant e os pontos de extensão para evitar regressões (listas vazias, cache errado, slug vs ID desatualizado).
 
+## Slug da loja (URL)
+
+- No cadastro da loja, o campo **Slug (URL)** é **editável**.
+- Convenção de produção: usar **CPF ou CNPJ sem formatação** (apenas dígitos), ex.: CNPJ `41.449.198/0001-72` → slug `41449198000172`.
+- Login e área da loja: `/loja/41449198000172/login`, CRM: `/loja/41449198000172/crm-vendas/...`.
+- O backend resolve primeiro por `Loja.slug` (case-insensitive). Se não houver match e o segmento for **11 ou 14 dígitos**, há **fallback** por igualdade com `cpf_cnpj` normalizado (útil para lojas antigas com slug gerado automaticamente `nome-sufixo` ou inconsistências).
+
 ## Resolução de loja (backend)
 
 1. **Thread-local**: `tenants.middleware.get_current_loja_id()` e `get_current_tenant_db()` — preenchidos por requisição.
 2. **Middleware** (`TenantMiddleware`): limpa o contexto no início da requisição e resolve loja por URL/header.
 3. **Headers HTTP** (quando ainda não há contexto coerente): usar **`ensure_loja_context(request)`** — mesma regra que o middleware:
    - **`X-Tenant-Slug` antes de `X-Loja-ID`** (o slug reflete a loja “ativa” no app; o ID no cliente pode ficar obsoleto).
-   - Se o slug **falhar na validação** (ex.: CNPJ na URL ≠ `Loja.slug` no banco), o **`TenantMiddleware` tenta `X-Loja-ID`** em seguida — não abortar o tenant só por causa do header de slug.
+   - Se o slug **falhar na validação** (ex.: slug desatualizado no cliente vs `Loja.slug` no banco), o **`TenantMiddleware` tenta `X-Loja-ID`** em seguida — não abortar o tenant só por causa do header de slug.
 4. **Helpers**:
    - `get_loja_from_context(request)` em `crm_vendas/utils.py` deve preferir `ensure_loja_context` em vez de reimplementar leitura de headers.
    - `get_current_vendedor_id` / `is_owner` alinham tenant com `ensure_loja_context` quando necessário.

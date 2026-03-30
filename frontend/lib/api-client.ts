@@ -105,6 +105,9 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
       const stored = sessionStorage.getItem('loja_slug');
       if (stored !== lojaSlug) {
         sessionStorage.setItem('loja_slug', lojaSlug);
+        // Evita current_loja_id de outra loja: backend pode combinar headers de forma
+        // que listas CRM voltem vazias (~52 bytes) mesmo com slug certo na URL.
+        sessionStorage.removeItem('current_loja_id');
       }
     }
   } else {
@@ -126,9 +129,8 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   if (lojaSlug) {
     config.headers.set('X-Tenant-Slug', lojaSlug);
   }
-  // Sempre enviar X-Loja-ID quando existir (fallback). No backend, slug tem prioridade
-  // sobre o ID — evita listas vazias (~52 bytes) quando o slug não chega no header
-  // em alguma requisição paralela (ex.: navegação / layout).
+  // Fallback quando o backend precisa (ex.: slug rejeitado antes do resolve por CNPJ).
+  // ensure_loja_context e resolve por slug/CNPJ priorizam X-Tenant-Slug.
   const lojaId = sessionStorage.getItem('current_loja_id');
   if (lojaId) {
     config.headers.set('X-Loja-ID', lojaId);

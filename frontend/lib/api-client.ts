@@ -91,17 +91,23 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
     const base = PRIMARY_API.endsWith('/api') ? PRIMARY_API : `${PRIMARY_API}/api`;
     config.baseURL = base;
   }
-  // Slug da URL é a fonte de verdade para /loja/... (evita tenant errado quando current_loja_id
-  // no sessionStorage ainda é de outra loja — o middleware priorizava X-Loja-ID e listas vinham vazias).
-  let lojaSlug = sessionStorage.getItem('loja_slug');
-  if (!lojaSlug && window.location.pathname.includes('/loja/')) {
-    const match = window.location.pathname.match(/\/loja\/([^/]+)/);
-    if (match) lojaSlug = match[1];
+  // Slug: em /loja/[slug]/... a URL vence sessionStorage (leitura síncrona). O layout costuma
+  // gravar loja_slug depois do primeiro paint — requisições paralelas já disparadas usavam slug
+  // antigo → X-Tenant-Slug errado → listas vazias intermitentes (~52 bytes).
+  const pathLojaMatch = window.location.pathname.match(/^\/loja\/([^/]+)/);
+  let lojaSlug: string | null = null;
+  if (pathLojaMatch) {
+    lojaSlug = pathLojaMatch[1];
+    const stored = sessionStorage.getItem('loja_slug');
+    if (stored !== lojaSlug) {
+      sessionStorage.setItem('loja_slug', lojaSlug);
+    }
+  } else {
+    lojaSlug = sessionStorage.getItem('loja_slug');
   }
   if (lojaSlug) {
     config.headers.set('X-Tenant-Slug', lojaSlug);
   }
-  const pathLojaMatch = window.location.pathname.match(/^\/loja\/([^/]+)/);
   const isLojaDashboardPath = Boolean(pathLojaMatch);
   if (!isLojaDashboardPath) {
     const lojaId = sessionStorage.getItem('current_loja_id');

@@ -23,9 +23,10 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         logger = logging.getLogger(__name__)
         
         queryset = self.queryset
+        model = queryset.model if queryset is not None else None
         
         # 🛡️ SEGURANÇA CRÍTICA: Validar isolamento por loja
-        if hasattr(self.queryset.model, 'loja_id'):
+        if model is not None and hasattr(model, 'loja_id'):
             from tenants.middleware import get_current_loja_id, ensure_loja_context
             
             if hasattr(self, 'request') and self.request:
@@ -35,13 +36,17 @@ class BaseModelViewSet(viewsets.ModelViewSet):
             if not loja_id:
                 logger.critical(
                     f"🚨 [{self.__class__.__name__}] "
-                    f"Tentativa de acesso ao modelo {self.queryset.model.__name__} "
+                    f"Tentativa de acesso ao modelo {model.__name__} "
                     f"sem loja_id no contexto. Retornando queryset vazio."
                 )
-                return queryset.none()
+                return model._default_manager.none()
+            # queryset = Model.objects... no atributo de classe é avaliado no import com
+            # thread-local sem loja; LojaIsolationManager retorna .none() fixo.
+            # Reconstruir via manager para aplicar o filtro da loja do request atual.
+            queryset = model._default_manager.all()
         
         # Filtro is_active
-        if hasattr(self.queryset.model, 'is_active'):
+        if hasattr(queryset.model, 'is_active'):
             queryset = queryset.filter(is_active=True)
         
         return queryset
@@ -152,9 +157,11 @@ class BaseFuncionarioViewSet(BaseModelViewSet):
         IMPORTANTE: Obter queryset dinamicamente (não usar atributo de classe)
         """
         import logging
-        from tenants.middleware import get_current_loja_id
+        from tenants.middleware import get_current_loja_id, ensure_loja_context
         logger = logging.getLogger(__name__)
         
+        if hasattr(self, 'request') and self.request:
+            ensure_loja_context(self.request)
         loja_id = get_current_loja_id()
         
         if not loja_id:

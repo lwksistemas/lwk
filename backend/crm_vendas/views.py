@@ -476,6 +476,10 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
     # Configuração do CacheInvalidationMixin
     cache_keys = ['contas']
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.select_related('vendedor').prefetch_related('leads', 'contatos')
+
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
         # Adicionar headers para evitar cache do navegador
@@ -532,6 +536,7 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
         Base: BaseModelViewSet (ensure_loja_context + isolamento por loja via LeadManager).
         """
         qs = super().get_queryset()
+        qs = qs.select_related('conta', 'vendedor').prefetch_related('oportunidades')
 
         # Para retrieve (GET /leads/{id}/), owner sempre tem acesso
         if self.action == 'retrieve':
@@ -614,6 +619,7 @@ class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = qs.select_related('conta')
         # Filtros adicionais (além do filtro de vendedor do mixin)
         conta_id = self.request.query_params.get('conta_id')
         if conta_id:
@@ -700,6 +706,7 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = qs.select_related('lead', 'vendedor', 'lead__conta').prefetch_related('atividades')
         # Filtros adicionais (além do filtro de vendedor do mixin)
         # Se não for vendedor, permitir filtrar por vendedor_id via query param
         if get_current_vendedor_id(self.request) is None:
@@ -837,6 +844,10 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = (
+            qs.select_related('oportunidade', 'lead')
+            .defer('google_event_id')
+        )
         # Filtros adicionais (além do filtro de vendedor do mixin)
         concluido = self.request.query_params.get('concluido')
         if concluido is not None:
@@ -882,6 +893,8 @@ class CategoriaProdutoServicoViewSet(BaseModelViewSet):
     def get_queryset(self):
         """Filtra categorias por loja_id e aplica filtros adicionais."""
         from tenants.middleware import get_current_loja_id
+        if hasattr(self, 'request') and self.request:
+            ensure_loja_context(self.request)
         loja_id = get_current_loja_id()
         
         if not loja_id:
@@ -917,6 +930,8 @@ class ProdutoServicoViewSet(BaseModelViewSet):
     def get_queryset(self):
         """Filtra produtos/serviços por loja_id e aplica filtros adicionais."""
         from tenants.middleware import get_current_loja_id
+        if hasattr(self, 'request') and self.request:
+            ensure_loja_context(self.request)
         loja_id = get_current_loja_id()
         
         if not loja_id:
@@ -953,6 +968,7 @@ class OportunidadeItemViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseM
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = qs.select_related('oportunidade', 'produto_servico')
         oportunidade_id = self.request.query_params.get('oportunidade_id')
         if oportunidade_id:
             qs = qs.filter(oportunidade_id=oportunidade_id)
@@ -972,6 +988,9 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = qs.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
+            'oportunidade__itens__produto_servico'
+        )
         oportunidade_id = self.request.query_params.get('oportunidade_id')
         if oportunidade_id:
             qs = qs.filter(oportunidade_id=oportunidade_id)
@@ -1113,6 +1132,8 @@ class PropostaTemplateViewSet(BaseModelViewSet):
     def get_queryset(self):
         """Filtra templates por loja_id e aplica filtros adicionais."""
         from tenants.middleware import get_current_loja_id
+        if hasattr(self, 'request') and self.request:
+            ensure_loja_context(self.request)
         loja_id = get_current_loja_id()
         
         if not loja_id:
@@ -1149,6 +1170,8 @@ class ContratoTemplateViewSet(BaseModelViewSet):
     def get_queryset(self):
         """Filtra templates por loja_id e aplica filtros adicionais."""
         from tenants.middleware import get_current_loja_id
+        if hasattr(self, 'request') and self.request:
+            ensure_loja_context(self.request)
         loja_id = get_current_loja_id()
         
         if not loja_id:
@@ -1186,6 +1209,9 @@ class ContratoViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = qs.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
+            'oportunidade__itens__produto_servico'
+        )
         oportunidade_id = self.request.query_params.get('oportunidade_id')
         if oportunidade_id:
             qs = qs.filter(oportunidade_id=oportunidade_id)

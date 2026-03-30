@@ -148,9 +148,9 @@ class CRMCacheManager:
             'atividades': cls.invalidate_atividades,
         }
         
-        # Obter loja_id do contexto se não fornecido
+        # Obter loja_id do contexto se não fornecido (fonte canônica: tenants.middleware)
         if loja_id is None:
-            from superadmin.middleware import get_current_loja_id
+            from tenants.middleware import get_current_loja_id
             loja_id = get_current_loja_id()
         
         if not loja_id:

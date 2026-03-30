@@ -9,40 +9,26 @@ logger = logging.getLogger(__name__)
 
 def get_loja_from_context(request=None):
     """
-    Obtém a loja do contexto atual (loja_id, headers ou slug).
-    
-    Tenta obter a loja na seguinte ordem:
-    1. Contexto atual (get_current_loja_id)
-    2. Header X-Loja-ID
-    3. Header X-Tenant-Slug
-    
+    Obtém a loja do contexto atual (thread-local) ou, se necessário, via headers.
+
+    Ordem alinhada ao TenantMiddleware / ensure_loja_context:
+    1. ``get_current_loja_id()`` (já preenchido pelo middleware na maioria dos casos)
+    2. Se houver ``request`` e ainda não houver loja: ``ensure_loja_context(request)``
+       (slug antes de X-Loja-ID, e configuração do banco do tenant)
+
     Args:
         request: Request object (opcional)
-    
+
     Returns:
         Loja object ou None se não encontrar
     """
     from superadmin.models import Loja
-    
+
     loja_id = get_current_loja_id()
-    
-    # Tentar obter de headers se não tiver no contexto
     if not loja_id and request:
-        try:
-            lid = request.headers.get('X-Loja-ID')
-            if lid:
-                loja_id = int(lid)
-        except (ValueError, TypeError):
-            pass
-        
-        # Fallback: buscar por slug
-        if not loja_id:
-            slug = (request.headers.get('X-Tenant-Slug') or '').strip()
-            if slug:
-                loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
-                if loja:
-                    loja_id = loja.id
-    
+        ensure_loja_context(request)
+        loja_id = get_current_loja_id()
+
     if not loja_id:
         logger.warning("get_loja_from_context: contexto de loja não encontrado")
         return None
@@ -117,6 +103,9 @@ def is_owner(request):
     if not request or not request.user or not request.user.is_authenticated:
         return False
     loja_id = get_current_loja_id()
+    if not loja_id:
+        ensure_loja_context(request)
+        loja_id = get_current_loja_id()
     if not loja_id:
         return False
     try:

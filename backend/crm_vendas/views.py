@@ -529,9 +529,10 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
         """
         Override para permitir que owner acesse qualquer lead no retrieve().
         IMPORTANTE: Owner sempre pode acessar qualquer lead, mesmo se tiver vendedor vinculado.
+        Base: BaseModelViewSet (ensure_loja_context + isolamento por loja via LeadManager).
         """
-        qs = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()
-        
+        qs = super().get_queryset()
+
         # Para retrieve (GET /leads/{id}/), owner sempre tem acesso
         if self.action == 'retrieve':
             from superadmin.models import Loja

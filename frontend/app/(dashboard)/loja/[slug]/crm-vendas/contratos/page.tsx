@@ -6,6 +6,10 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
+import {
+  CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
+  CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
+} from '@/lib/crm-constants';
 import { Plus, Eye, Edit2, Trash2, X, FileSignature, ArrowRight, Mail, MessageCircle } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
@@ -41,20 +45,6 @@ interface OportunidadeOption {
 }
 
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
-
-const STATUS_LABEL: Record<string, string> = {
-  rascunho: 'Rascunho',
-  enviado: 'Enviado',
-  assinado: 'Assinado',
-  cancelado: 'Cancelado',
-};
-
-const STATUS_ASSINATURA_LABEL: Record<string, string> = {
-  rascunho: 'Rascunho',
-  aguardando_cliente: 'Aguardando Cliente',
-  aguardando_vendedor: 'Aguardando Vendedor',
-  concluido: 'Concluído',
-};
 
 export default function CrmVendasContratosPage() {
   const params = useParams();

@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
+import { normalizeListResponse } from '@/lib/crm-utils';
+import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
 import { ArrowLeft } from 'lucide-react';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
 import type { LojaInfo, LeadInfo, FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
@@ -34,17 +36,6 @@ interface PropostaTemplate {
   conteudo: string;
   is_padrao: boolean;
   ativo: boolean;
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  rascunho: 'Rascunho',
-  enviada: 'Enviada',
-  aceita: 'Aceita',
-  rejeitada: 'Rejeitada',
-};
-
-function normalizeList<T>(data: T[] | { results: T[] }): T[] {
-  return Array.isArray(data) ? data : (data?.results ?? []);
 }
 
 export default function NovaPropostaPage() {
@@ -78,7 +69,7 @@ export default function NovaPropostaPage() {
       const res = await apiClient.get<OportunidadeOption[] | { results: OportunidadeOption[] }>(
         '/crm-vendas/oportunidades/'
       );
-      setOportunidades(normalizeList(res.data));
+      setOportunidades(normalizeListResponse(res.data));
     } catch {
       setOportunidades([]);
     } finally {
@@ -95,7 +86,7 @@ export default function NovaPropostaPage() {
       const res = await apiClient.get<OportunidadeItem[] | { results: OportunidadeItem[] }>(
         `/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidadeId}`
       );
-      setItensOportunidade(normalizeList(res.data));
+      setItensOportunidade(normalizeListResponse(res.data));
     } catch {
       setItensOportunidade([]);
     }
@@ -122,7 +113,7 @@ export default function NovaPropostaPage() {
   const loadTemplates = useCallback(async () => {
     try {
       const res = await apiClient.get<PropostaTemplate[] | { results: PropostaTemplate[] }>('/crm-vendas/proposta-templates/');
-      setTemplates(normalizeList(res.data));
+      setTemplates(normalizeListResponse(res.data));
     } catch {
       setTemplates([]);
     }

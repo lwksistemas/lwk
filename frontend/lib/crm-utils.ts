@@ -12,3 +12,9 @@ export function normalizeListResponse<T>(data: T[] | { results: T[] } | null | u
   if (Array.isArray(data)) return data;
   return (data as { results: T[] }).results ?? [];
 }
+
+/** Extrai mensagem de erro de respostas DRF/axios (uso comum em páginas CRM). */
+export function getCrmApiErrorDetail(err: unknown, fallback: string): string {
+  const e = err as { response?: { data?: { detail?: string } } };
+  return e.response?.data?.detail ?? fallback;
+}

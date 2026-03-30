@@ -1,6 +1,7 @@
 """
-View temporária para debug de permissões.
+View de debug de permissões (apenas com DEBUG=True).
 """
+from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -13,7 +14,11 @@ from .utils import get_current_vendedor_id, is_vendedor_usuario
 def debug_permissions(request):
     """
     Endpoint de debug para verificar permissões do usuário.
+    Desativado em produção (DEBUG=False).
     """
+    if not settings.DEBUG:
+        return Response({'detail': 'Não encontrado.'}, status=404)
+
     loja_id = get_current_loja_id()
     
     debug_info = {

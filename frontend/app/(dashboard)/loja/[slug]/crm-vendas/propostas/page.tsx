@@ -6,6 +6,10 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
+import {
+  CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL,
+  CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
+} from '@/lib/crm-constants';
 import { Plus, Eye, Edit2, Trash2, X, ClipboardList, ArrowRight, Mail, MessageCircle, FileText, FileSignature } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
@@ -58,20 +62,6 @@ interface PropostaTemplate {
 }
 
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
-
-const STATUS_LABEL: Record<string, string> = {
-  rascunho: 'Rascunho',
-  enviada: 'Enviada',
-  aceita: 'Aceita',
-  rejeitada: 'Rejeitada',
-};
-
-const STATUS_ASSINATURA_LABEL: Record<string, string> = {
-  rascunho: 'Rascunho',
-  aguardando_cliente: 'Aguardando Cliente',
-  aguardando_vendedor: 'Aguardando Vendedor',
-  concluido: 'Concluído',
-};
 
 export default function CrmVendasPropostasPage() {
   const params = useParams();

@@ -156,6 +156,7 @@ class AuthService {
       sessionStorage.removeItem('is_gerente');
       sessionStorage.removeItem('current_vendedor_id');
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
+      sessionStorage.removeItem('current_loja_id');
       localStorage.removeItem('token');
       
       // Limpar cookies também

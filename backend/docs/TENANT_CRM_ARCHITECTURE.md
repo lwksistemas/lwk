@@ -8,6 +8,7 @@ Este documento fixa a ordem de resolução de tenant e os pontos de extensão pa
 2. **Middleware** (`TenantMiddleware`): limpa o contexto no início da requisição e resolve loja por URL/header.
 3. **Headers HTTP** (quando ainda não há contexto coerente): usar **`ensure_loja_context(request)`** — mesma regra que o middleware:
    - **`X-Tenant-Slug` antes de `X-Loja-ID`** (o slug reflete a loja “ativa” no app; o ID no cliente pode ficar obsoleto).
+   - Se o slug **falhar na validação** (ex.: CNPJ na URL ≠ `Loja.slug` no banco), o **`TenantMiddleware` tenta `X-Loja-ID`** em seguida — não abortar o tenant só por causa do header de slug.
 4. **Helpers**:
    - `get_loja_from_context(request)` em `crm_vendas/utils.py` deve preferir `ensure_loja_context` em vez de reimplementar leitura de headers.
    - `get_current_vendedor_id` / `is_owner` alinham tenant com `ensure_loja_context` quando necessário.
@@ -30,6 +31,7 @@ Este documento fixa a ordem de resolução de tenant e os pontos de extensão pa
 
 - Headers de tenant devem ser centralizados no cliente de API (ex.: `frontend/lib/api-client.ts`).
 - Enviar **`X-Tenant-Slug` e `X-Loja-ID`** quando ambos existirem: o backend resolve **slug antes de ID**; o ID cobre requisições em que o slug ainda não foi enviado (evita respostas paginadas vazias ~52 bytes).
+- Se `loja_slug` ainda não estiver no `sessionStorage` após login, usar o **cookie `loja_slug`** (gravado no login) como fallback até o layout sincronizar.
 
 ## Views de função (`crm_me`, `dashboard_data`)
 

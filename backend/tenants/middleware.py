@@ -297,9 +297,17 @@ class TenantMiddleware:
         if tenant_slug:
             tenant_slug = tenant_slug.strip()
             if hasattr(request, 'user') and request.user.is_authenticated:
-                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                    return None
-            return tenant_slug
+                if self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                    return tenant_slug
+                # Slug rejeitado (ex.: CNPJ na URL enquanto Loja.slug no banco é outro; ou após
+                # logout/login com storage inconsistente). Não abortar: tentar X-Loja-ID abaixo.
+                logger.debug(
+                    "[_get_tenant_slug] X-Tenant-Slug=%s rejeitado para user=%s; tentando X-Loja-ID",
+                    tenant_slug,
+                    getattr(request.user, "id", None),
+                )
+            else:
+                return tenant_slug
 
         # 2. X-Loja-ID (ex.: páginas fora de /loja/… que só enviam ID)
         loja_id = request.headers.get('X-Loja-ID')

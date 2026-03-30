@@ -110,6 +110,19 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   } else {
     lojaSlug = sessionStorage.getItem('loja_slug');
   }
+  // Após logout/login, sessionStorage pode ainda não ter loja_slug na primeira requisição;
+  // o login grava cookie loja_slug — usar como fallback (mesmo valor canônico do backend).
+  if (!lojaSlug && accessToken && typeof document !== 'undefined') {
+    const m = document.cookie.match(/(?:^|;\s*)loja_slug=([^;]+)/);
+    if (m) {
+      try {
+        lojaSlug = decodeURIComponent(m[1].trim());
+      } catch {
+        lojaSlug = m[1].trim();
+      }
+      if (lojaSlug) sessionStorage.setItem('loja_slug', lojaSlug);
+    }
+  }
   if (lojaSlug) {
     config.headers.set('X-Tenant-Slug', lojaSlug);
   }

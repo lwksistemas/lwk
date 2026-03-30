@@ -83,11 +83,12 @@ def ensure_loja_context(request):
     try:
         from superadmin.models import Loja
         loja = None
-        if lid:
+        # Slug primeiro: alinhado à URL do app; X-Loja-ID no navegador pode ficar desatualizado.
+        if slug:
+            loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
+        if not loja and lid:
             loja_id = int(lid)
             loja = Loja.objects.using('default').filter(id=loja_id).first()
-        if not loja and slug:
-            loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
         if loja:
             return _configure_tenant_db_for_loja(loja, request)
     except (ValueError, TypeError):
@@ -289,10 +290,18 @@ class TenantMiddleware:
         import logging
         logger = logging.getLogger(__name__)
         
-        # 1. Tentar pegar do header X-Loja-ID (PRIORIDADE - ID único)
-        # SEGURANÇA: Com usuário autenticado (sessão), valida posse da loja.
-        # APIs REST usam JWT no DRF — aqui o usuário ainda pode ser AnonymousUser.
-        # Nesse caso NÃO retornar None: deixar cair no X-Tenant-Slug (headers do frontend).
+        # 1. X-Tenant-Slug primeiro (alinhado à URL /loja/[slug]/… no frontend).
+        # X-Loja-ID no sessionStorage pode ficar desatualizado ao trocar de loja → loja_id no
+        # thread-local errado → LojaIsolationManager filtra outro loja_id → listas vazias (~52 bytes).
+        tenant_slug = request.headers.get('X-Tenant-Slug')
+        if tenant_slug:
+            tenant_slug = tenant_slug.strip()
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                    return None
+            return tenant_slug
+
+        # 2. X-Loja-ID (ex.: páginas fora de /loja/… que só enviam ID)
         loja_id = request.headers.get('X-Loja-ID')
         if loja_id and hasattr(request, 'user') and request.user.is_authenticated:
             try:
@@ -301,26 +310,16 @@ class TenantMiddleware:
                 if self._validate_user_owns_loja(request, loja):
                     return loja.slug
                 logger.warning(
-                    f"⚠️ [_get_tenant_slug] X-Loja-ID={loja_id} rejeitado para user={request.user.id}; "
-                    "tentando X-Tenant-Slug (ID pode estar desatualizado no navegador)"
+                    f"⚠️ [_get_tenant_slug] X-Loja-ID={loja_id} rejeitado para user={request.user.id}"
                 )
             except (Loja.DoesNotExist, ValueError):
                 logger.warning(
-                    f"⚠️ [_get_tenant_slug] Loja id={loja_id} inválida; tentando X-Tenant-Slug"
+                    f"⚠️ [_get_tenant_slug] Loja id={loja_id} inválida"
                 )
         elif loja_id:
             logger.debug(
-                "X-Loja-ID presente mas usuário ainda não autenticado na pilha Django (ex.: JWT) — "
-                "usando X-Tenant-Slug se enviado"
+                "X-Loja-ID presente mas usuário ainda não autenticado na pilha Django (ex.: JWT)"
             )
-        
-        # 2. Tentar pegar do header X-Tenant-Slug (fallback, case-insensitive)
-        tenant_slug = request.headers.get('X-Tenant-Slug')
-        if tenant_slug:
-            if hasattr(request, 'user') and request.user.is_authenticated:
-                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                    return None
-            return tenant_slug.strip()
         
         # 3. Tentar pegar do parâmetro de query
         tenant_slug = request.GET.get('tenant')

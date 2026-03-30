@@ -1078,6 +1078,31 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=['post'])
+    @invalidate_cache_on_change('propostas')
+    def reenviar_para_assinatura(self, request, pk=None):
+        """Reenvia e-mail com link de assinatura (novo token) em processo pendente."""
+        from .assinatura_digital_service import reenviar_link_assinatura_pendente
+
+        proposta = self.get_object()
+        loja_id = get_current_loja_id()
+
+        if not proposta.oportunidade or not proposta.oportunidade.lead:
+            return Response(
+                {'detail': 'Proposta sem oportunidade ou lead vinculado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ok, msg, err = reenviar_link_assinatura_pendente(proposta, loja_id, request)
+        if ok:
+            return Response({
+                'message': msg,
+                'status_assinatura': proposta.status_assinatura,
+            })
+        if err and err.startswith('Reenvio só é possível'):
+            return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': err or 'Erro ao reenviar.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class PropostaTemplateViewSet(BaseModelViewSet):
     """Templates de propostas para reutilização."""
@@ -1242,6 +1267,31 @@ class ContratoViewSet(BaseModelViewSet):
                 {'detail': err or 'Erro ao enviar email. Tente novamente.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['post'])
+    @invalidate_cache_on_change('contratos')
+    def reenviar_para_assinatura(self, request, pk=None):
+        """Reenvia e-mail com link de assinatura (novo token) em processo pendente."""
+        from .assinatura_digital_service import reenviar_link_assinatura_pendente
+
+        contrato = self.get_object()
+        loja_id = get_current_loja_id()
+
+        if not contrato.oportunidade or not contrato.oportunidade.lead:
+            return Response(
+                {'detail': 'Contrato sem oportunidade ou lead vinculado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ok, msg, err = reenviar_link_assinatura_pendente(contrato, loja_id, request)
+        if ok:
+            return Response({
+                'message': msg,
+                'status_assinatura': contrato.status_assinatura,
+            })
+        if err and err.startswith('Reenvio só é possível'):
+            return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': err or 'Erro ao reenviar.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 def _empty_dashboard_response():

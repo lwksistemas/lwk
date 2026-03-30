@@ -257,7 +257,25 @@ export default function CrmVendasContratosPage() {
       if (modalType === 'create') {
         await apiClient.post('/crm-vendas/contratos/', payload);
       } else if (modalType === 'edit' && selected) {
+        const assinaturaAntes = selected.status_assinatura;
         await apiClient.put(`/crm-vendas/contratos/${selected.id}/`, payload);
+        if (assinaturaAntes === 'aguardando_cliente' || assinaturaAntes === 'aguardando_vendedor') {
+          const textoConfirm =
+            assinaturaAntes === 'aguardando_cliente'
+              ? 'O contrato foi alterado. Deseja reenviar ao cliente o e-mail com o link de assinatura digital?'
+              : 'O contrato foi alterado. Deseja reenviar ao vendedor o e-mail com o link de assinatura digital?';
+          if (window.confirm(textoConfirm)) {
+            try {
+              const res = await apiClient.post<{ message?: string }>(
+                `/crm-vendas/contratos/${selected.id}/reenviar_para_assinatura/`
+              );
+              alert(res.data.message || 'Link reenviado.');
+            } catch (err: unknown) {
+              const ex = err as { response?: { data?: { detail?: string } } };
+              alert(ex.response?.data?.detail || 'Erro ao reenviar assinatura.');
+            }
+          }
+        }
       }
       await loadContratos();
       closeModal();

@@ -630,6 +630,52 @@ Este é um email automático. Por favor, não responda.
         return False, str(e)
 
 
+def reenviar_link_assinatura_pendente(documento, loja_id, request):
+    """
+    Gera novo token e reenvia o e-mail quando o documento está em
+    aguardando_cliente ou aguardando_vendedor. Remove assinaturas pendentes
+    (não assinadas) do passo atual antes de criar um novo link.
+
+    Returns:
+        tuple: (sucesso: bool, mensagem_sucesso: str | None, erro: str | None)
+    """
+    from .models import AssinaturaDigital
+
+    sa = documento.status_assinatura
+    is_proposta = documento.__class__.__name__ == 'Proposta'
+    fk_field = 'proposta' if is_proposta else 'contrato'
+
+    if sa == 'aguardando_cliente':
+        if not documento.oportunidade or not documento.oportunidade.lead:
+            return False, None, 'Documento sem oportunidade ou lead vinculado.'
+        lead = documento.oportunidade.lead
+        if not lead.email:
+            return False, None, 'Lead não possui email cadastrado.'
+
+        filt = {fk_field: documento, 'tipo': 'cliente', 'assinado': False}
+        AssinaturaDigital.objects.filter(**filt).delete()
+        assinatura = criar_token_assinatura(documento, 'cliente', loja_id)
+        ok, err = enviar_email_assinatura_cliente(documento, assinatura, request)
+        if ok:
+            return True, f'Novo link de assinatura enviado para {lead.email}', None
+        assinatura.delete()
+        return False, None, err or 'Erro ao enviar email.'
+
+    if sa == 'aguardando_vendedor':
+        filt = {fk_field: documento, 'tipo': 'vendedor', 'assinado': False}
+        AssinaturaDigital.objects.filter(**filt).delete()
+        assinatura = criar_token_assinatura(documento, 'vendedor', loja_id)
+        ok, err = enviar_email_assinatura_vendedor(documento, assinatura, request)
+        if ok:
+            return True, 'Novo link de assinatura enviado ao vendedor.', None
+        assinatura.delete()
+        return False, None, err or 'Erro ao enviar email.'
+
+    return False, None, (
+        'Reenvio só é possível quando a assinatura está aguardando cliente ou vendedor.'
+    )
+
+
 def enviar_pdf_final(documento, loja_id):
     """
     Envia PDF final com ambas assinaturas para cliente e vendedor.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileSignature, Mail, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileSignature, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface BotaoAssinaturaDigitalProps {
   documentoId: number;
@@ -20,19 +20,12 @@ export default function BotaoAssinaturaDigital({
 }: BotaoAssinaturaDigitalProps) {
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
-  
-  // Não mostrar botão se já está em processo de assinatura ou concluído
+
+  // Status da assinatura fica só na coluna "Status"; aqui só o fluxo de envio inicial (rascunho).
   if (statusAssinatura !== 'rascunho') {
-    return (
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-        <CheckCircle className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-        <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-          {getStatusDisplay(statusAssinatura)}
-        </span>
-      </div>
-    );
+    return null;
   }
-  
+
   const enviarParaAssinatura = async () => {
     if (!leadEmail) {
       setMensagem({
@@ -41,25 +34,24 @@ export default function BotaoAssinaturaDigital({
       });
       return;
     }
-    
+
     setEnviando(true);
     setMensagem(null);
-    
+
     try {
-      const endpoint = tipoDocumento === 'proposta' 
-        ? `/crm-vendas/propostas/${documentoId}/enviar_para_assinatura/`
-        : `/crm-vendas/contratos/${documentoId}/enviar_para_assinatura/`;
-      
-      // Usar apiClient ao invés de fetch para incluir autenticação
+      const endpoint =
+        tipoDocumento === 'proposta'
+          ? `/crm-vendas/propostas/${documentoId}/enviar_para_assinatura/`
+          : `/crm-vendas/contratos/${documentoId}/enviar_para_assinatura/`;
+
       const { default: apiClient } = await import('@/lib/api-client');
       const res = await apiClient.post(endpoint);
-      
+
       setMensagem({
         tipo: 'sucesso',
         texto: res.data.message || `Email enviado para ${leadEmail}`,
       });
-      
-      // Chamar callback de sucesso após 2 segundos
+
       setTimeout(() => {
         if (onSucesso) {
           onSucesso();
@@ -74,7 +66,7 @@ export default function BotaoAssinaturaDigital({
       setEnviando(false);
     }
   };
-  
+
   return (
     <div className="space-y-2">
       <button
@@ -96,7 +88,7 @@ export default function BotaoAssinaturaDigital({
           </>
         )}
       </button>
-      
+
       {mensagem && (
         <div
           className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
@@ -113,7 +105,7 @@ export default function BotaoAssinaturaDigital({
           <span>{mensagem.texto}</span>
         </div>
       )}
-      
+
       {!leadEmail && (
         <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
@@ -122,15 +114,4 @@ export default function BotaoAssinaturaDigital({
       )}
     </div>
   );
-}
-
-function getStatusDisplay(status: string): string {
-  const statusMap: Record<string, string> = {
-    rascunho: 'Rascunho',
-    aguardando_cliente: 'Aguardando Cliente',
-    aguardando_vendedor: 'Aguardando Vendedor',
-    concluido: 'Concluído',
-    cancelado: 'Cancelado',
-  };
-  return statusMap[status] || status;
 }

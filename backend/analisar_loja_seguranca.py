@@ -22,13 +22,13 @@ def analisar_loja(cnpj):
     print(f"{'='*80}\n")
     
     try:
-        loja = Loja.objects.get(cnpj=cnpj)
+        loja = Loja.objects.get(cpf_cnpj=cnpj)
         
         print(f"📋 INFORMAÇÕES DA LOJA:")
         print(f"   ID: {loja.id}")
         print(f"   Nome: {loja.nome}")
         print(f"   Slug: {loja.slug}")
-        print(f"   CNPJ: {loja.cnpj}")
+        print(f"   CPF/CNPJ: {loja.cpf_cnpj}")
         print(f"   Schema Name: {loja.schema_name}")
         print(f"   Database Name: {loja.database_name}")
         print(f"   Database Created: {loja.database_created}")

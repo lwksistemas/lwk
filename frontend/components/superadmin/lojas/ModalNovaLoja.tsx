@@ -11,6 +11,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
   const [formData, setFormData] = useState({
     nome: '',
     slug: '',
+    atalho: '', // ✅ NOVO v1443: Campo para atalho amigável
     descricao: '',
     cpf_cnpj: '',
     cep: '',
@@ -435,7 +436,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Slug (URL) – editável
+                    Slug (URL Segura) – editável
                   </label>
                   <input
                     type="text"
@@ -448,6 +449,24 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     URL: /loja/{formData.slug || '…'}/login — usa CPF/CNPJ (apenas dígitos). 
                     Ex.: CNPJ 41.449.198/0001-72 → /loja/41449198000172/login
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Atalho (URL Amigável) – opcional
+                  </label>
+                  <input
+                    type="text"
+                    name="atalho"
+                    value={formData.atalho || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="minha-loja-tech"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    URL: /{formData.atalho || '…'} — gerado automaticamente se vazio.
+                    Ex.: "felix-representacoes" → /felix-representacoes
                   </p>
                 </div>
 

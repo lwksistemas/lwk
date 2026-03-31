@@ -123,13 +123,13 @@ class SecurityIsolationMiddleware:
             ]
             
             # 🔍 DEBUG TEMPORÁRIO
-            logger.info(f"🔍 DEBUG: path={path}")
-            logger.info(f"🔍 DEBUG: Verificando endpoints públicos...")
+            print(f"🔍 DEBUG SecurityMiddleware: path={path}")
+            print(f"🔍 DEBUG SecurityMiddleware: Verificando endpoints públicos...")
             for endpoint in public_endpoints:
                 if path.startswith(endpoint):
-                    logger.info(f"✅ DEBUG: Match encontrado com {endpoint}")
+                    print(f"✅ DEBUG SecurityMiddleware: Match encontrado com {endpoint}")
                     return None  # Permitir acesso público
-            logger.info(f"❌ DEBUG: Nenhum match encontrado")
+            print(f"❌ DEBUG SecurityMiddleware: Nenhum match encontrado para {path}")
             
             # POST para criar loja (cadastro público)
             if path == '/api/superadmin/lojas/' and request.method == 'POST':

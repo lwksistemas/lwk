@@ -12,9 +12,9 @@ import { notFound } from 'next/navigation';
 import LoginPage from '@/app/(auth)/loja/[slug]/login/page';
 
 interface AtalhoPageProps {
-  params: {
+  params: Promise<{
     atalho: string;
-  };
+  }>;
 }
 
 /**
@@ -46,7 +46,8 @@ async function getSlugByAtalho(atalho: string): Promise<string | null> {
   }
 }
 
-export default async function AtalhoPage({ params }: AtalhoPageProps) {
+export default async function AtalhoPage(props: AtalhoPageProps) {
+  const params = await props.params;
   const { atalho } = params;
 
   // Buscar slug dinamicamente do backend
@@ -58,6 +59,6 @@ export default async function AtalhoPage({ params }: AtalhoPageProps) {
   }
 
   // Renderizar a página de login usando o slug, mas mantendo a URL com atalho
-  return <LoginPage params={{ slug }} />;
+  return <LoginPage params={Promise.resolve({ slug })} />;
 }
 

@@ -35,11 +35,13 @@ def analisar_loja(identificador):
         print(f"   Nome: {loja.nome}")
         print(f"   Slug: {loja.slug}")
         print(f"   CPF/CNPJ: {loja.cpf_cnpj}")
-        print(f"   Schema Name: {loja.schema_name}")
         print(f"   Database Name: {loja.database_name}")
         print(f"   Database Created: {loja.database_created}")
         print(f"   Tipo: {loja.tipo_loja.nome if loja.tipo_loja else 'N/A'}")
         print(f"   Ativa: {loja.is_active}")
+        
+        # O schema_name é o mesmo que database_name neste sistema
+        schema_name = loja.database_name
         
         # Verificar se schema existe
         print(f"\n🔍 VERIFICAÇÃO DO SCHEMA:")
@@ -48,11 +50,11 @@ def analisar_loja(identificador):
                 SELECT schema_name 
                 FROM information_schema.schemata 
                 WHERE schema_name = %s
-            """, [loja.schema_name])
+            """, [schema_name])
             schema_exists = cursor.fetchone()
             
             if schema_exists:
-                print(f"   ✅ Schema '{loja.schema_name}' existe no banco")
+                print(f"   ✅ Schema '{schema_name}' existe no banco")
                 
                 # Listar tabelas
                 cursor.execute("""
@@ -60,7 +62,7 @@ def analisar_loja(identificador):
                     FROM information_schema.tables 
                     WHERE table_schema = %s
                     ORDER BY table_name
-                """, [loja.schema_name])
+                """, [schema_name])
                 tables = cursor.fetchall()
                 
                 print(f"\n📊 TABELAS NO SCHEMA ({len(tables)} tabelas):")
@@ -95,7 +97,7 @@ def analisar_loja(identificador):
                 """)
                 total_schemas = cursor.fetchone()[0]
                 print(f"   Total de schemas de lojas: {total_schemas}")
-                print(f"   Schema desta loja: {loja.schema_name}")
+                print(f"   Schema desta loja: {schema_name}")
                 print(f"   ✅ Isolamento: Cada loja tem seu próprio schema")
                 
                 # Verificar se há dados
@@ -104,13 +106,13 @@ def analisar_loja(identificador):
                     if tabela in tabelas_encontradas:
                         cursor.execute(f"""
                             SELECT COUNT(*) 
-                            FROM "{loja.schema_name}"."{tabela}"
+                            FROM "{schema_name}"."{tabela}"
                         """)
                         count = cursor.fetchone()[0]
                         print(f"   {tabela}: {count} registros")
                 
             else:
-                print(f"   ❌ Schema '{loja.schema_name}' NÃO existe no banco!")
+                print(f"   ❌ Schema '{schema_name}' NÃO existe no banco!")
                 print(f"   ⚠️  PROBLEMA CRÍTICO: Loja sem schema criado")
                 return False
         

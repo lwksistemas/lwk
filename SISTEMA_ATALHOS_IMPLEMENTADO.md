@@ -198,7 +198,11 @@ https://lwksistemas.com.br/loja/41449198000172/login
 
 ---
 
-## 📝 Formulário de Nova Loja Atualizado (v1443)
+## 📝 Formulário de Nova Loja Atualizado (v1443-v1444)
+
+### Formulários Atualizados
+1. **Admin:** `/superadmin/lojas` (Nova Loja) - v1443
+2. **Público:** `/cadastro` (Cadastro Público) - v1444
 
 ### Campo Adicionado
 - **Atalho (URL Amigável)** - opcional
@@ -206,12 +210,24 @@ https://lwksistemas.com.br/loja/41449198000172/login
 - Customização permitida
 - Validação de unicidade
 
-### Layout
+### Layout (Admin)
 ```
 ┌─────────────────┬─────────────────┬─────────────────┐
 │ Nome da Empresa │ Slug (Segura)   │ Atalho (Amigável)│
 │ *               │ (CPF/CNPJ)      │ (opcional)       │
 └─────────────────┴─────────────────┴─────────────────┘
+```
+
+### Layout (Público)
+```
+┌─────────────────────────────────────────────────────┐
+│ Nome da Empresa *                                   │
+├─────────────────────────────────────────────────────┤
+│ CPF ou CNPJ *                          [Buscar]     │
+├─────────────────────────────────────────────────────┤
+│ Atalho (URL Amigável) – opcional                    │
+│ (deixe vazio para gerar automaticamente)            │
+└─────────────────────────────────────────────────────┘
 ```
 
 ### Textos de Ajuda
@@ -222,5 +238,5 @@ https://lwksistemas.com.br/loja/41449198000172/login
 
 **Data de Conclusão:** 31/03/2026  
 **Versão Backend:** v1441  
-**Versão Frontend:** v1443  
-**Status:** ✅ PRODUÇÃO
+**Versão Frontend:** v1444  
+**Status:** ✅ PRODUÇÃO - TODOS OS FORMULÁRIOS ATUALIZADOS

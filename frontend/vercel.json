@@ -19,20 +19,20 @@
   ],
   "rewrites": [
     {
-      "source": "/felix-representacoes",
-      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/felix-representacoes"
+      "source": "/felix-representacoes/:path*",
+      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/felix-representacoes/:path*"
     },
     {
-      "source": "/harmonis-clinica-de-estetica-a",
-      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/harmonis-clinica-de-estetica-a"
+      "source": "/harmonis-clinica-de-estetica-a/:path*",
+      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/harmonis-clinica-de-estetica-a/:path*"
     },
     {
-      "source": "/ultrasis-informatica-ltda",
-      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/ultrasis-informatica-ltda"
+      "source": "/ultrasis-informatica-ltda/:path*",
+      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/ultrasis-informatica-ltda/:path*"
     },
     {
-      "source": "/us-medical",
-      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/us-medical"
+      "source": "/us-medical/:path*",
+      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/us-medical/:path*"
     }
   ],
   "headers": [

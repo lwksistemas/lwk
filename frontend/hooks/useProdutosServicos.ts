@@ -27,6 +27,7 @@ export interface ProdutoServico {
 export interface Categoria {
   id: number;
   nome: string;
+  descricao?: string;
   cor: string;
   ordem: number;
 }
@@ -157,10 +158,44 @@ export function useCategorias() {
     }
   }, []);
 
+  /**
+   * Cria uma nova categoria.
+   */
+  const criarCategoria = useCallback(async (data: { nome: string; descricao: string; cor: string }) => {
+    await apiClient.post('/crm-vendas/categorias-produtos-servicos/', {
+      ...data,
+      ativo: true,
+      ordem: 0,
+    });
+    await loadCategorias();
+  }, [loadCategorias]);
+
+  /**
+   * Atualiza uma categoria existente.
+   */
+  const atualizarCategoria = useCallback(async (id: number, data: { nome: string; descricao: string; cor: string }) => {
+    await apiClient.put(`/crm-vendas/categorias-produtos-servicos/${id}/`, {
+      ...data,
+      ativo: true,
+    });
+    await loadCategorias();
+  }, [loadCategorias]);
+
+  /**
+   * Deleta uma categoria.
+   */
+  const deletarCategoria = useCallback(async (id: number) => {
+    await apiClient.delete(`/crm-vendas/categorias-produtos-servicos/${id}/`);
+    await loadCategorias();
+  }, [loadCategorias]);
+
   return {
     categorias,
     loading,
     error,
     loadCategorias,
+    criarCategoria,
+    atualizarCategoria,
+    deletarCategoria,
   };
 }

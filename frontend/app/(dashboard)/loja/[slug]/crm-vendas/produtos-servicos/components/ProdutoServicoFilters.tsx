@@ -3,7 +3,7 @@
  * 
  * Responsabilidade única: Renderizar filtros de busca.
  */
-import { Plus } from 'lucide-react';
+import { Plus, FolderOpen } from 'lucide-react';
 import { Categoria } from '@/hooks/useProdutosServicos';
 
 interface ProdutoServicoFiltersProps {
@@ -13,6 +13,7 @@ interface ProdutoServicoFiltersProps {
   onCategoriaChange: (value: string) => void;
   onTipoChange: (value: string) => void;
   onNovoClick: () => void;
+  onGerenciarCategoriasClick?: () => void;
 }
 
 export function ProdutoServicoFilters({
@@ -22,6 +23,7 @@ export function ProdutoServicoFilters({
   onCategoriaChange,
   onTipoChange,
   onNovoClick,
+  onGerenciarCategoriasClick,
 }: ProdutoServicoFiltersProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -55,6 +57,17 @@ export function ProdutoServicoFilters({
           <option value="produto">Produtos</option>
           <option value="servico">Serviços</option>
         </select>
+        {onGerenciarCategoriasClick && (
+          <button
+            type="button"
+            onClick={onGerenciarCategoriasClick}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors shadow-sm"
+            title="Gerenciar Categorias"
+          >
+            <FolderOpen size={18} />
+            <span className="hidden sm:inline">Categorias</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onNovoClick}

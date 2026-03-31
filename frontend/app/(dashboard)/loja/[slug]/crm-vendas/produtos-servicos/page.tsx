@@ -20,6 +20,7 @@ import {
 import { ProdutoServicoFilters } from './components/ProdutoServicoFilters';
 import { ProdutoServicoTable } from './components/ProdutoServicoTable';
 import { ProdutoServicoModal } from './components/ProdutoServicoModal';
+import { CategoriasModal } from './components/CategoriasModal';
 
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
 
@@ -38,6 +39,9 @@ export default function CrmVendasProdutosServicosPage() {
   const {
     categorias,
     loadCategorias,
+    criarCategoria,
+    atualizarCategoria,
+    deletarCategoria,
   } = useCategorias();
 
   // Estados locais para UI
@@ -45,6 +49,7 @@ export default function CrmVendasProdutosServicosPage() {
   const [selected, setSelected] = useState<ProdutoServico | null>(null);
   const [filtroTipo, setFiltroTipo] = useState<string>('');
   const [filtroCategoria, setFiltroCategoria] = useState<string>('');
+  const [modalCategoriasAberto, setModalCategoriasAberto] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     tipo: 'produto',
     codigo: '',
@@ -182,6 +187,7 @@ export default function CrmVendasProdutosServicosPage() {
         onCategoriaChange={setFiltroCategoria}
         onTipoChange={setFiltroTipo}
         onNovoClick={() => openModal('create')}
+        onGerenciarCategoriasClick={() => setModalCategoriasAberto(true)}
       />
 
       {/* Mensagem de erro */}
@@ -210,6 +216,16 @@ export default function CrmVendasProdutosServicosPage() {
         onFormChange={handleFormChange}
         onSubmit={handleSubmit}
         onDelete={handleDelete}
+      />
+
+      {/* Modal de Gerenciamento de Categorias */}
+      <CategoriasModal
+        isOpen={modalCategoriasAberto}
+        categorias={categorias}
+        onClose={() => setModalCategoriasAberto(false)}
+        onCriar={criarCategoria}
+        onEditar={atualizarCategoria}
+        onExcluir={deletarCategoria}
       />
     </div>
   );

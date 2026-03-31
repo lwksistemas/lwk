@@ -1023,8 +1023,11 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
         proposta = self.get_object()
         
         try:
+            # Incluir assinaturas se a proposta estiver concluída (ambas as partes assinaram)
+            incluir_assinaturas = proposta.status == 'concluido'
+            
             # Gerar PDF
-            pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=False)
+            pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=incluir_assinaturas)
             
             # Preparar resposta
             response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')

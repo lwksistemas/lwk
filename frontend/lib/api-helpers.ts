@@ -18,7 +18,7 @@ export { ensureArray, ensureArrayResponse } from './array-helpers';
 export function extractArrayData<T>(response: any): T[] {
   // Usar função consolidada de array-helpers
   const { ensureArray } = require('./array-helpers');
-  return ensureArray<T>(response?.data);
+  return ensureArray(response?.data) as T[];
 }
 
 /**

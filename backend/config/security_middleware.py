@@ -111,6 +111,8 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/lojas/info_publica/',
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
                 '/api/superadmin/lojas/debug_senha_status/',
+                '/api/superadmin/lojas/por-atalho/',  # ✅ NOVO v1431: Buscar loja por atalho
+                '/api/superadmin/lojas/buscar-por-documento/',  # Buscar loja por CPF/CNPJ
                 '/api/superadmin/mercadopago-webhook/',  # Webhook MP (notificações de pagamento)
                 '/api/superadmin/public/',  # ✅ NOVO: Rotas públicas para cadastro de lojas
             ]

@@ -72,17 +72,18 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
         // Redirecionar para a página de login
         console.log(`[AtalhoPage] Redirecionando para: ${targetUrl}`);
         
-        // Tentar redirecionamento com timeout
-        const redirectTimer = setTimeout(() => {
+        // Usar window.location para redirecionamento mais confiável
+        if (typeof window !== 'undefined') {
+          window.location.href = targetUrl;
+        } else {
+          // Fallback para router.push
           router.push(targetUrl);
-        }, 100);
+        }
 
-        // Fallback: se não redirecionar em 3 segundos, mostrar link manual
+        // Fallback: se não redirecionar em 2 segundos, mostrar link manual
         setTimeout(() => {
           setLoading(false);
-        }, 3000);
-
-        return () => clearTimeout(redirectTimer);
+        }, 2000);
       } catch (err) {
         console.error('[AtalhoPage] Exceção:', err);
         setError('Erro ao carregar loja');
@@ -98,11 +99,11 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando...</p>
+          <p className="text-gray-600 mb-2">Carregando...</p>
           {redirectUrl && (
             <p className="text-sm text-gray-500 mt-4">
               Se não for redirecionado automaticamente,{' '}
-              <a href={redirectUrl} className="text-emerald-600 hover:text-emerald-700 underline">
+              <a href={redirectUrl} className="text-emerald-600 hover:text-emerald-700 underline font-medium">
                 clique aqui
               </a>
             </p>

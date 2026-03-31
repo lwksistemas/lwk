@@ -4,6 +4,7 @@ import apiClient from '@/lib/api-client';
 export interface LojaFormData {
   nome: string;
   slug: string;
+  atalho?: string; // ✅ NOVO v1444: Campo para atalho amigável
   descricao: string;
   cpf_cnpj: string;
   cep: string;
@@ -29,6 +30,7 @@ export function useLojaForm(incluirSenha: boolean = true) {
   const [formData, setFormData] = useState<LojaFormData>({
     nome: '',
     slug: '',
+    atalho: '', // ✅ NOVO v1444: Campo para atalho amigável
     descricao: '',
     cpf_cnpj: '',
     cep: '',

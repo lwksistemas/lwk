@@ -116,6 +116,24 @@ export function FormularioCadastroLoja({
               {buscarCnpjLoading ? '...' : 'Buscar'}
             </button>
           </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Atalho (URL Amigável) – opcional
+            </label>
+            <input
+              type="text"
+              name="atalho"
+              value={formData.atalho || ''}
+              onChange={handleChange}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              placeholder="minha-empresa (deixe vazio para gerar automaticamente)"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              URL: /{formData.atalho || '…'} — gerado automaticamente se vazio. 
+              Ex.: "felix-representacoes" → /felix-representacoes
+            </p>
+          </div>
         </div>
       </div>
 

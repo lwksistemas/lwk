@@ -253,7 +253,8 @@ class LojaCreateSerializer(serializers.ModelSerializer):
             'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
             'tipo_loja', 'plano', 'tipo_assinatura', 'provedor_boleto_preferido',
             'owner_full_name', 'owner_username', 'owner_password', 'owner_email', 'owner_telefone', 'dia_vencimento',
-            'logo', 'cor_primaria', 'cor_secundaria', 'dominio_customizado'
+            'logo', 'cor_primaria', 'cor_secundaria', 'dominio_customizado',
+            'atalho', 'subdomain',  # ✅ NOVO v1421: Sistema híbrido de acesso
         ]
     
     def create(self, validated_data):

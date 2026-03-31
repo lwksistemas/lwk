@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.http import JsonResponse
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from superadmin.token_refresh_view import SessionAwareTokenRefreshView
+from superadmin.views import atalho_redirect  # ✅ NOVO v1421: Redirecionamento por atalho
 
 def api_root(request):
     """API Root - Informações do sistema"""
@@ -69,4 +70,10 @@ urlpatterns = [
     path('api/push/', include('push.urls')),
     path('api/crm-vendas/', include('crm_vendas.urls')),
     path('api/homepage/', include('homepage.urls')),
+    
+    # ✅ NOVO v1421: Redirecionamento por atalho (deve vir por último)
+    # Esta rota captura atalhos simples como /felix, /harmonis, etc.
+    # e redireciona para a URL completa da loja
+    # IMPORTANTE: Vem por último para não conflitar com outras rotas
+    path('<str:atalho>/', atalho_redirect, name='atalho_redirect'),
 ]

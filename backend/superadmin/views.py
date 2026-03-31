@@ -3532,3 +3532,64 @@ def login_config_sistema_publico(request, tipo):
     cache.set(cache_key, data, 3600)
     
     return Response(data)
+
+
+# ✅ NOVO v1421: View de redirecionamento por atalho
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+@authentication_classes([])
+def atalho_redirect(request, atalho):
+    """
+    Redireciona atalho curto para URL completa da loja.
+    
+    ✅ NOVO v1421: Sistema híbrido de acesso às lojas
+    
+    Esta view permite acesso fácil às lojas através de atalhos simples,
+    mantendo a segurança através do slug com hash internamente.
+    
+    Exemplos:
+        /felix → /loja/felix-representacoes-a8f3k9/crm-vendas
+        /harmonis → /loja/harmonis-clinica-b7d2m4/crm-vendas
+    
+    Args:
+        request: Request HTTP
+        atalho: Atalho da loja (ex: 'felix')
+    
+    Returns:
+        Redirect para login (se não autenticado) ou dashboard (se autenticado)
+    
+    Raises:
+        Http404: Se loja não encontrada ou inativa
+    """
+    from django.shortcuts import redirect, get_object_or_404
+    
+    # Buscar loja pelo atalho
+    loja = get_object_or_404(Loja, atalho=atalho, is_active=True)
+    
+    # Log para debug
+    logger.info(f"[atalho_redirect] Atalho '{atalho}' → Loja '{loja.nome}' (slug: {loja.slug})")
+    
+    # Se não está logado, redireciona para login da loja
+    if not request.user.is_authenticated:
+        login_url = f'/loja/{loja.slug}/login'
+        logger.info(f"[atalho_redirect] Usuário não autenticado → Redirecionando para {login_url}")
+        return redirect(login_url)
+    
+    # Se está logado, redireciona para o app principal da loja
+    # Determinar app baseado no tipo de loja
+    app_url = 'crm-vendas'  # Padrão
+    
+    if loja.tipo_loja:
+        tipo_codigo = loja.tipo_loja.codigo or ''
+        if tipo_codigo in ['CLIEST', 'CLIBEL']:
+            app_url = 'clinica-beleza'
+        elif tipo_codigo == 'CABEL':
+            app_url = 'cabeleireiro'
+        elif tipo_codigo == 'ECOMM':
+            app_url = 'e-commerce'
+        # Adicionar outros tipos conforme necessário
+    
+    dashboard_url = f'/loja/{loja.slug}/{app_url}'
+    logger.info(f"[atalho_redirect] Usuário autenticado → Redirecionando para {dashboard_url}")
+    
+    return redirect(dashboard_url)

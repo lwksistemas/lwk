@@ -215,6 +215,21 @@ class Loja(models.Model):
     cor_secundaria = models.CharField(max_length=7, blank=True)
     dominio_customizado = models.CharField(max_length=255, blank=True, unique=True, null=True)
     
+    # ✅ NOVO v1421: Sistema híbrido de acesso às lojas
+    atalho = models.SlugField(
+        unique=True,
+        blank=True,
+        max_length=50,
+        help_text='Atalho curto para acesso fácil (ex: felix). Gerado automaticamente a partir do nome.'
+    )
+    subdomain = models.SlugField(
+        unique=True,
+        blank=True,
+        null=True,
+        max_length=50,
+        help_text='Subdomínio personalizado (ex: felix.lwksistemas.com.br). Opcional para planos premium.'
+    )
+    
     # Página de login personalizada
     login_page_url = models.CharField(max_length=255, blank=True)  # ex: /loja/tech-store/login
     login_background = models.URLField(blank=True)
@@ -267,6 +282,9 @@ class Loja(models.Model):
             models.Index(fields=['owner', 'is_active'], name='loja_owner_active_idx'),
             models.Index(fields=['database_name'], name='loja_db_name_idx'),
             models.Index(fields=['storage_ultima_verificacao'], name='loja_storage_check_idx'),
+            # ✅ NOVO v1421: Índices para sistema de acesso híbrido
+            models.Index(fields=['atalho'], name='loja_atalho_idx'),
+            models.Index(fields=['subdomain'], name='loja_subdomain_idx'),
         ]
     
     def _get_slug_suffix_from_cpf_cnpj(self):
@@ -295,6 +313,33 @@ class Loja(models.Model):
             candidate = f"{orig}-{n}"
             n += 1
         return candidate
+    
+    def _generate_unique_atalho(self):
+        """
+        Gera atalho simples e único (sem hash) a partir do nome da loja.
+        
+        ✅ NOVO v1421: Sistema híbrido de acesso
+        
+        O atalho é usado para acesso fácil pelo cliente (ex: /felix)
+        enquanto o slug continua sendo usado internamente com hash para segurança.
+        
+        Returns:
+            str: Atalho único (ex: 'felix-representacoes')
+        """
+        # Base: nome da loja slugificado (máximo 30 caracteres para manter URL curta)
+        base = slugify(self.nome)[:30].rstrip('-')
+        
+        if not base:
+            base = 'loja'
+        
+        # Garantir unicidade: se já existir, adicionar sufixo numérico
+        atalho = base
+        counter = 1
+        while Loja.objects.filter(atalho=atalho).exclude(pk=self.pk).exists():
+            atalho = f"{base}-{counter}"
+            counter += 1
+        
+        return atalho
     
     def clean(self):
         """
@@ -332,8 +377,14 @@ class Loja(models.Model):
                 pass
 
     def save(self, *args, **kwargs):
+        # Gerar slug seguro (com hash) se não existir
         if not self.slug:
             self.slug = self._generate_unique_slug()
+        
+        # ✅ NOVO v1421: Gerar atalho simples (sem hash) se não existir
+        if not self.atalho:
+            self.atalho = self._generate_unique_atalho()
+        
         if not self.database_name:
             self.database_name = f'loja_{self.slug.replace("-", "_")}'
         if not self.login_page_url:
@@ -384,6 +435,51 @@ class Loja(models.Model):
     
     def __str__(self):
         return f"{self.nome} ({self.plano.nome})"
+    
+    def get_url_amigavel(self):
+        """
+        Retorna a URL amigável que o cliente deve usar (prioridade).
+        
+        ✅ NOVO v1421: Sistema híbrido de acesso
+        
+        Ordem de prioridade:
+        1. Domínio customizado (enterprise)
+        2. Subdomínio (premium)
+        3. Atalho simples (padrão)
+        
+        Returns:
+            str: URL completa amigável para o cliente
+        
+        Exemplos:
+            >>> loja.get_url_amigavel()
+            'https://crm.felixrepresentacoes.com.br'  # Se tem domínio próprio
+            'https://felix.lwksistemas.com.br'  # Se tem subdomínio
+            'https://lwksistemas.com.br/felix'  # Padrão (atalho)
+        """
+        if self.dominio_customizado:
+            return f"https://{self.dominio_customizado}"
+        elif self.subdomain:
+            return f"https://{self.subdomain}.lwksistemas.com.br"
+        else:
+            return f"https://lwksistemas.com.br/{self.atalho}"
+    
+    def get_url_segura(self):
+        """
+        Retorna a URL com hash (para uso interno do sistema).
+        
+        ✅ NOVO v1421: Sistema híbrido de acesso
+        
+        Esta URL contém o hash aleatório e é usada internamente pelo sistema
+        para garantir segurança (impossível enumerar lojas).
+        
+        Returns:
+            str: URL completa com slug seguro (contém hash)
+        
+        Exemplo:
+            >>> loja.get_url_segura()
+            'https://lwksistemas.com.br/loja/felix-representacoes-a8f3k9'
+        """
+        return f"https://lwksistemas.com.br/loja/{self.slug}"
 
 
 class FinanceiroLoja(models.Model):

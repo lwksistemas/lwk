@@ -2,6 +2,7 @@
 Comando para adicionar 'valor_estimado' nas colunas_leads de todas as lojas.
 """
 from django.core.management.base import BaseCommand
+from django.db import connection
 from crm_vendas.models_config import CRMConfig
 from superadmin.models import Loja
 
@@ -19,6 +20,9 @@ class Command(BaseCommand):
         
         for loja in lojas:
             try:
+                # Mudar para o schema do tenant
+                connection.set_tenant(loja)
+                
                 # Buscar ou criar configuração
                 config, created = CRMConfig.objects.get_or_create(
                     loja_id=loja.id,

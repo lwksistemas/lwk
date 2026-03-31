@@ -122,8 +122,14 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/public/',  # ✅ NOVO: Rotas públicas para cadastro de lojas
             ]
             
-            if any(path.startswith(endpoint) for endpoint in public_endpoints):
-                return None  # Permitir acesso público
+            # 🔍 DEBUG TEMPORÁRIO
+            logger.info(f"🔍 DEBUG: path={path}")
+            logger.info(f"🔍 DEBUG: Verificando endpoints públicos...")
+            for endpoint in public_endpoints:
+                if path.startswith(endpoint):
+                    logger.info(f"✅ DEBUG: Match encontrado com {endpoint}")
+                    return None  # Permitir acesso público
+            logger.info(f"❌ DEBUG: Nenhum match encontrado")
             
             # POST para criar loja (cadastro público)
             if path == '/api/superadmin/lojas/' and request.method == 'POST':

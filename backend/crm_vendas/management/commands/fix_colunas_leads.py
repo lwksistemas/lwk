@@ -20,8 +20,11 @@ class Command(BaseCommand):
         
         for loja in lojas:
             try:
+                # Construir schema_name a partir do slug
+                schema_name = f"loja_{loja.slug}"
+                
                 # Usar schema_context para mudar para o schema do tenant
-                with schema_context(loja.schema_name):
+                with schema_context(schema_name):
                     # Buscar ou criar configuração
                     config, created = CRMConfig.objects.get_or_create(
                         loja_id=loja.id,

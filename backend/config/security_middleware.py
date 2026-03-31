@@ -29,21 +29,57 @@ class SecurityIsolationMiddleware:
         self.jwt_authenticator = JWTAuthentication()
     
     def __call__(self, request):
-        # 1. Processar autenticação JWT
+        # 1. Verificar se é endpoint público ANTES de autenticar
+        if self._is_public_endpoint(request):
+            return self.get_response(request)
+        
+        # 2. Processar autenticação JWT
         self._authenticate_jwt(request)
         
-        # 2. Verificar isolamento de rotas
+        # 3. Verificar isolamento de rotas
         violation = self._check_route_isolation(request)
         if violation:
             return violation
         
-        # 3. Verificar isolamento de dados de loja
+        # 4. Verificar isolamento de dados de loja
         violation = self._check_store_isolation(request)
         if violation:
             return violation
         
         response = self.get_response(request)
         return response
+    
+    def _is_public_endpoint(self, request):
+        """
+        Verifica se o endpoint é público (não requer autenticação)
+        """
+        path = request.path
+        
+        # Endpoints públicos do superadmin
+        if path.startswith('/api/superadmin/'):
+            public_endpoints = [
+                '/api/superadmin/lojas/info_publica/',
+                '/api/superadmin/lojas/info_publica',
+                '/api/superadmin/lojas/verificar_senha_provisoria/',
+                '/api/superadmin/lojas/verificar_senha_provisoria',
+                '/api/superadmin/lojas/debug_senha_status/',
+                '/api/superadmin/lojas/debug_senha_status',
+                '/api/superadmin/lojas/por-atalho/',
+                '/api/superadmin/lojas/por-atalho',
+                '/api/superadmin/lojas/buscar-por-documento/',
+                '/api/superadmin/lojas/buscar-por-documento',
+                '/api/superadmin/mercadopago-webhook/',
+                '/api/superadmin/public/',
+            ]
+            
+            if any(path.startswith(endpoint) for endpoint in public_endpoints):
+                return True
+            
+            # POST para criar loja (cadastro público)
+            if path == '/api/superadmin/lojas/' and request.method == 'POST':
+                return True
+        
+        return False
     
     def _authenticate_jwt(self, request):
         """

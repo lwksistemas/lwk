@@ -225,8 +225,8 @@ class LojaViewSet(viewsets.ModelViewSet):
         return LojaSerializer
     
     def get_permissions(self):
-        # Permitir acesso público aos endpoints info_publica, debug_auth, create e buscar_por_documento
-        if self.action in ['info_publica', 'debug_auth', 'create', 'buscar_por_documento']:
+        # Permitir acesso público aos endpoints info_publica, debug_auth, create, buscar_por_documento e por_atalho
+        if self.action in ['info_publica', 'debug_auth', 'create', 'buscar_por_documento', 'por_atalho']:
             return []
         # Heartbeat: qualquer usuário autenticado (superadmin ou loja) para monitor de sessão
         if self.action == 'heartbeat':
@@ -439,6 +439,51 @@ class LojaViewSet(viewsets.ModelViewSet):
             
         except Exception as e:
             logger.exception('buscar_por_documento erro para documento=%s: %s', documento_limpo, e)
+            return Response({
+                'error': 'Erro ao buscar loja. Tente novamente.'
+            }, status=500)
+    
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], authentication_classes=[], url_path='por-atalho')
+    def por_atalho(self, request):
+        """
+        Busca loja por atalho (acesso público).
+        Retorna slug e nome da loja para renderizar página de login mantendo URL amigável.
+        
+        ✅ NOVO v1431: Endpoint para sistema de atalhos dinâmico
+        """
+        atalho = request.query_params.get('atalho', '').strip()
+        
+        if not atalho:
+            return Response({'error': 'atalho é obrigatório'}, status=400)
+        
+        try:
+            # Log para debug
+            logger.info(f"[por_atalho] Buscando loja com atalho: {atalho}")
+            
+            # Buscar loja ativa pelo atalho
+            loja = Loja.objects.filter(
+                atalho=atalho,
+                is_active=True
+            ).first()
+            
+            if not loja:
+                logger.warning(f"[por_atalho] Nenhuma loja encontrada com atalho: {atalho}")
+                return Response({
+                    'error': 'Nenhuma loja encontrada com este atalho'
+                }, status=404)
+            
+            logger.info(f"[por_atalho] Loja encontrada: {loja.nome} (slug: {loja.slug}, atalho: {loja.atalho})")
+            
+            # Retornar informações necessárias
+            return Response({
+                'slug': loja.slug,
+                'atalho': loja.atalho,
+                'nome': loja.nome,
+                'logo': loja.logo or None,
+            })
+            
+        except Exception as e:
+            logger.exception('por_atalho erro para atalho=%s: %s', atalho, e)
             return Response({
                 'error': 'Erro ao buscar loja. Tente novamente.'
             }, status=500)

@@ -72,9 +72,14 @@ export function SucessoCadastro({ loja, email }: SucessoCadastroProps) {
           <p className="text-sm text-gray-600 mb-2">URL de acesso ao sistema:</p>
           <p className="font-mono text-sm text-gray-800 break-all">
             {typeof window !== 'undefined' 
-              ? `${window.location.origin}${loja.login_page_url}` 
-              : loja.login_page_url}
+              ? `${window.location.origin}/${loja.atalho || `loja/${loja.slug}/login`}` 
+              : `/${loja.atalho || `loja/${loja.slug}/login`}`}
           </p>
+          {loja.atalho && (
+            <p className="text-xs text-gray-500 mt-2">
+              ✨ URL amigável: /{loja.atalho}
+            </p>
+          )}
         </div>
 
         {/* Próximos passos */}

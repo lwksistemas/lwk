@@ -29,15 +29,8 @@ class SecurityIsolationMiddleware:
         self.jwt_authenticator = JWTAuthentication()
     
     def __call__(self, request):
-        # Log CRÍTICO para debug
-        logger.critical(f"🔥 [SecurityIsolationMiddleware.__call__] Path: {request.path}, Method: {request.method}")
-        
         # 1. Verificar se é endpoint público ANTES de autenticar
-        is_public = self._is_public_endpoint(request)
-        logger.critical(f"🔥 [SecurityIsolationMiddleware.__call__] is_public: {is_public}")
-        
-        if is_public:
-            logger.critical(f"✅ [SecurityIsolationMiddleware.__call__] Endpoint público - permitindo acesso")
+        if self._is_public_endpoint(request):
             return self.get_response(request)
         
         # 2. Processar autenticação JWT
@@ -46,13 +39,11 @@ class SecurityIsolationMiddleware:
         # 3. Verificar isolamento de rotas
         violation = self._check_route_isolation(request)
         if violation:
-            logger.critical(f"❌ [SecurityIsolationMiddleware.__call__] Violação de rota detectada")
             return violation
         
         # 4. Verificar isolamento de dados de loja
         violation = self._check_store_isolation(request)
         if violation:
-            logger.critical(f"❌ [SecurityIsolationMiddleware.__call__] Violação de isolamento detectada")
             return violation
         
         response = self.get_response(request)
@@ -63,9 +54,6 @@ class SecurityIsolationMiddleware:
         Verifica se o endpoint é público (não requer autenticação)
         """
         path = request.path
-        
-        # Log detalhado para debug
-        logger.info(f"🔍 [_is_public_endpoint] Verificando path: {path}")
         
         # Endpoints públicos do superadmin
         if path.startswith('/api/superadmin/'):
@@ -84,16 +72,11 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/public/',
             ]
             
-            for endpoint in public_endpoints:
-                if path.startswith(endpoint):
-                    logger.info(f"✅ [_is_public_endpoint] Endpoint público encontrado: {endpoint}")
-                    return True
-            
-            logger.warning(f"❌ [_is_public_endpoint] Endpoint NÃO é público: {path}")
+            if any(path.startswith(endpoint) for endpoint in public_endpoints):
+                return True
             
             # POST para criar loja (cadastro público)
             if path == '/api/superadmin/lojas/' and request.method == 'POST':
-                logger.info(f"✅ [_is_public_endpoint] POST para criar loja (público)")
                 return True
         
         return False

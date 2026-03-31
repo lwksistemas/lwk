@@ -451,14 +451,9 @@ class LojaViewSet(viewsets.ModelViewSet):
         
         ✅ NOVO v1431: Endpoint para sistema de atalhos dinâmico
         """
-        # Log IMEDIATAMENTE no início
-        logger.critical(f"🔥 [por_atalho] ENDPOINT CHAMADO! Path: {request.path}, Method: {request.method}")
-        logger.critical(f"🔥 [por_atalho] User: {request.user}, Authenticated: {request.user.is_authenticated if hasattr(request, 'user') else 'NO USER'}")
-        
         atalho = request.query_params.get('atalho', '').strip()
         
         if not atalho:
-            logger.critical(f"🔥 [por_atalho] Atalho vazio!")
             return Response({'error': 'atalho é obrigatório'}, status=400)
         
         try:

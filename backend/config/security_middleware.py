@@ -29,8 +29,6 @@ class SecurityIsolationMiddleware:
         self.jwt_authenticator = JWTAuthentication()
     
     def __call__(self, request):
-        print(f"🔍 DEBUG SecurityMiddleware.__call__: path={request.path}")
-        
         # 1. Processar autenticação JWT
         self._authenticate_jwt(request)
         
@@ -103,13 +101,11 @@ class SecurityIsolationMiddleware:
         - Lojas: APENAS /api/{tipo_loja}/ da própria loja
         """
         path = request.path
-        print(f"🔍 DEBUG _check_route_isolation: path={path}")
         
         # ========================================
         # GRUPO 1: SUPER ADMIN
         # ========================================
         if path.startswith('/api/superadmin/'):
-            print(f"🔍 DEBUG: É rota superadmin")
             # Endpoints públicos (sem autenticação)
             public_endpoints = [
                 '/api/superadmin/lojas/info_publica/',
@@ -126,14 +122,8 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/public/',  # ✅ NOVO: Rotas públicas para cadastro de lojas
             ]
             
-            # 🔍 DEBUG TEMPORÁRIO
-            print(f"🔍 DEBUG SecurityMiddleware: path={path}")
-            print(f"🔍 DEBUG SecurityMiddleware: Verificando endpoints públicos...")
-            for endpoint in public_endpoints:
-                if path.startswith(endpoint):
-                    print(f"✅ DEBUG SecurityMiddleware: Match encontrado com {endpoint}")
-                    return None  # Permitir acesso público
-            print(f"❌ DEBUG SecurityMiddleware: Nenhum match encontrado para {path}")
+            if any(path.startswith(endpoint) for endpoint in public_endpoints):
+                return None  # Permitir acesso público
             
             # POST para criar loja (cadastro público)
             if path == '/api/superadmin/lojas/' and request.method == 'POST':

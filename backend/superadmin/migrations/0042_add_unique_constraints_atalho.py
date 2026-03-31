@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0040_add_atalho_subdomain_fields'),
+        ('superadmin', '0041_gerar_atalhos_lojas'),
     ]
 
     operations = [

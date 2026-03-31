@@ -217,13 +217,13 @@ class Loja(models.Model):
     
     # ✅ NOVO v1421: Sistema híbrido de acesso às lojas
     atalho = models.SlugField(
-        unique=False,  # Será True após migration 0041
+        unique=True,
         blank=True,
         max_length=50,
         help_text='Atalho curto para acesso fácil (ex: felix). Gerado automaticamente a partir do nome.'
     )
     subdomain = models.SlugField(
-        unique=False,  # Será True após migration 0041
+        unique=True,
         blank=True,
         null=True,
         max_length=50,

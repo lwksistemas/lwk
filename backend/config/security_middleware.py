@@ -29,8 +29,15 @@ class SecurityIsolationMiddleware:
         self.jwt_authenticator = JWTAuthentication()
     
     def __call__(self, request):
+        # Log CRÍTICO para debug
+        logger.critical(f"🔥 [SecurityIsolationMiddleware.__call__] Path: {request.path}, Method: {request.method}")
+        
         # 1. Verificar se é endpoint público ANTES de autenticar
-        if self._is_public_endpoint(request):
+        is_public = self._is_public_endpoint(request)
+        logger.critical(f"🔥 [SecurityIsolationMiddleware.__call__] is_public: {is_public}")
+        
+        if is_public:
+            logger.critical(f"✅ [SecurityIsolationMiddleware.__call__] Endpoint público - permitindo acesso")
             return self.get_response(request)
         
         # 2. Processar autenticação JWT
@@ -39,11 +46,13 @@ class SecurityIsolationMiddleware:
         # 3. Verificar isolamento de rotas
         violation = self._check_route_isolation(request)
         if violation:
+            logger.critical(f"❌ [SecurityIsolationMiddleware.__call__] Violação de rota detectada")
             return violation
         
         # 4. Verificar isolamento de dados de loja
         violation = self._check_store_isolation(request)
         if violation:
+            logger.critical(f"❌ [SecurityIsolationMiddleware.__call__] Violação de isolamento detectada")
             return violation
         
         response = self.get_response(request)

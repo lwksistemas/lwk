@@ -7,6 +7,7 @@
  * ✅ NOVO v1431: Mantém URL amigável sem expor CNPJ
  * ✅ DINÂMICO: Busca slug automaticamente do backend
  * ✅ v1442: Client-Side Rendering para evitar problemas de SSR
+ * ✅ v1447: window.location.href para redirecionamento confiável
  */
 
 'use client';

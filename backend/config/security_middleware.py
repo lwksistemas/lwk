@@ -53,7 +53,11 @@ class SecurityIsolationMiddleware:
         """
         Verifica se o endpoint é público (não requer autenticação)
         """
+        import sys
         path = request.path
+        
+        # Log detalhado para debug
+        print(f"🔍 [_is_public_endpoint] Verificando path: {path}", file=sys.stderr, flush=True)
         
         # Endpoints públicos do superadmin
         if path.startswith('/api/superadmin/'):
@@ -72,11 +76,16 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/public/',
             ]
             
-            if any(path.startswith(endpoint) for endpoint in public_endpoints):
-                return True
+            for endpoint in public_endpoints:
+                if path.startswith(endpoint):
+                    print(f"✅ [_is_public_endpoint] Endpoint público encontrado: {endpoint}", file=sys.stderr, flush=True)
+                    return True
+            
+            print(f"❌ [_is_public_endpoint] Endpoint NÃO é público", file=sys.stderr, flush=True)
             
             # POST para criar loja (cadastro público)
             if path == '/api/superadmin/lojas/' and request.method == 'POST':
+                print(f"✅ [_is_public_endpoint] POST para criar loja (público)", file=sys.stderr, flush=True)
                 return True
         
         return False

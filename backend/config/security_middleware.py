@@ -109,10 +109,15 @@ class SecurityIsolationMiddleware:
             # Endpoints públicos (sem autenticação)
             public_endpoints = [
                 '/api/superadmin/lojas/info_publica/',
+                '/api/superadmin/lojas/info_publica',  # Sem barra final
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
+                '/api/superadmin/lojas/verificar_senha_provisoria',  # Sem barra final
                 '/api/superadmin/lojas/debug_senha_status/',
+                '/api/superadmin/lojas/debug_senha_status',  # Sem barra final
                 '/api/superadmin/lojas/por-atalho/',  # ✅ NOVO v1431: Buscar loja por atalho
+                '/api/superadmin/lojas/por-atalho',  # ✅ Sem barra final
                 '/api/superadmin/lojas/buscar-por-documento/',  # Buscar loja por CPF/CNPJ
+                '/api/superadmin/lojas/buscar-por-documento',  # Sem barra final
                 '/api/superadmin/mercadopago-webhook/',  # Webhook MP (notificações de pagamento)
                 '/api/superadmin/public/',  # ✅ NOVO: Rotas públicas para cadastro de lojas
             ]

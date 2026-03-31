@@ -2,7 +2,7 @@
 Comando para adicionar 'valor_estimado' nas colunas_leads de todas as lojas.
 """
 from django.core.management.base import BaseCommand
-from django_tenants.utils import schema_context
+from django.db import connection
 from crm_vendas.models_config import CRMConfig
 from superadmin.models import Loja
 
@@ -23,43 +23,69 @@ class Command(BaseCommand):
                 # Construir schema_name a partir do slug
                 schema_name = f"loja_{loja.slug}"
                 
-                # Usar schema_context para mudar para o schema do tenant
-                with schema_context(schema_name):
-                    # Buscar ou criar configuração
-                    config, created = CRMConfig.objects.get_or_create(
-                        loja_id=loja.id,
-                        defaults={
-                            'origens_leads': CRMConfig.get_default_origens(),
-                            'etapas_pipeline': CRMConfig.get_default_etapas(),
-                            'colunas_leads': CRMConfig.get_default_colunas_leads(),
-                            'modulos_ativos': CRMConfig.get_default_modulos(),
-                        }
-                    )
+                # Usar SQL direto para mudar de schema e atualizar
+                with connection.cursor() as cursor:
+                    # Mudar para o schema do tenant
+                    cursor.execute(f"SET search_path TO {schema_name}")
                     
-                    if created:
+                    # Verificar se a configuração existe
+                    cursor.execute("""
+                        SELECT id, colunas_leads 
+                        FROM crm_vendas_config 
+                        WHERE loja_id = %s
+                    """, [loja.id])
+                    
+                    row = cursor.fetchone()
+                    
+                    if not row:
+                        # Criar configuração com valores padrão
+                        colunas_default = ['nome', 'empresa', 'telefone', 'email', 'origem', 'status', 'valor_estimado']
+                        cursor.execute("""
+                            INSERT INTO crm_vendas_config 
+                            (loja_id, origens_leads, etapas_pipeline, colunas_leads, modulos_ativos, created_at, updated_at)
+                            VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                        """, [
+                            loja.id,
+                            '[]',
+                            '[]',
+                            str(colunas_default).replace("'", '"'),
+                            '{}'
+                        ])
                         self.stdout.write(
                             self.style.SUCCESS(
                                 f"✅ Loja {loja.slug} ({loja.nome}): Configuração criada com colunas padrão"
                             )
                         )
                         atualizadas += 1
-                        continue
-                    
-                    # Verificar se valor_estimado está nas colunas
-                    if 'valor_estimado' not in config.colunas_leads:
-                        # Adicionar valor_estimado
-                        config.colunas_leads.append('valor_estimado')
-                        config.save(update_fields=['colunas_leads', 'updated_at'])
-                        self.stdout.write(
-                            self.style.SUCCESS(
-                                f"✅ Loja {loja.slug} ({loja.nome}): valor_estimado adicionado"
-                            )
-                        )
-                        atualizadas += 1
                     else:
-                        self.stdout.write(
-                            f"ℹ️  Loja {loja.slug} ({loja.nome}): já possui valor_estimado"
-                        )
+                        config_id, colunas_leads = row
+                        
+                        # Verificar se valor_estimado já está nas colunas
+                        if 'valor_estimado' not in str(colunas_leads):
+                            # Adicionar valor_estimado
+                            import json
+                            colunas_list = json.loads(colunas_leads) if isinstance(colunas_leads, str) else colunas_leads
+                            colunas_list.append('valor_estimado')
+                            
+                            cursor.execute("""
+                                UPDATE crm_vendas_config 
+                                SET colunas_leads = %s, updated_at = NOW()
+                                WHERE id = %s
+                            """, [json.dumps(colunas_list), config_id])
+                            
+                            self.stdout.write(
+                                self.style.SUCCESS(
+                                    f"✅ Loja {loja.slug} ({loja.nome}): valor_estimado adicionado"
+                                )
+                            )
+                            atualizadas += 1
+                        else:
+                            self.stdout.write(
+                                f"ℹ️  Loja {loja.slug} ({loja.nome}): já possui valor_estimado"
+                            )
+                    
+                    # Voltar para o schema public
+                    cursor.execute("SET search_path TO public")
                     
             except Exception as e:
                 self.stdout.write(

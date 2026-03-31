@@ -2,14 +2,13 @@
  * Página de Atalho de Loja
  * 
  * Esta página captura atalhos simples (ex: /felix-representacoes)
- * e renderiza a página de login da loja mantendo a URL amigável.
+ * e redireciona para a página de login mantendo o atalho na URL através de query param.
  * 
  * ✅ NOVO v1431: Mantém URL amigável sem expor CNPJ
  * ✅ DINÂMICO: Busca slug automaticamente do backend
  */
 
-import { notFound } from 'next/navigation';
-import LoginPage from '@/app/(auth)/loja/[slug]/login/page';
+import { redirect, notFound } from 'next/navigation';
 
 interface AtalhoPageProps {
   params: Promise<{
@@ -58,7 +57,8 @@ export default async function AtalhoPage(props: AtalhoPageProps) {
     notFound();
   }
 
-  // Renderizar a página de login usando o slug, mas mantendo a URL com atalho
-  return <LoginPage params={Promise.resolve({ slug })} />;
+  // Redirecionar para a página de login usando o slug
+  // O atalho será mantido na URL através do histórico do navegador
+  redirect(`/loja/${slug}/login?from=${atalho}`);
 }
 

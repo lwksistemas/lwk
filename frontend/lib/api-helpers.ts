@@ -1,41 +1,13 @@
 /**
  * Helpers para trabalhar com respostas da API
  * Seguindo boas práticas: DRY, type safety, error handling
+ * 
+ * @deprecated Funções de array movidas para array-helpers.ts
+ * Importe de lá: import { ensureArray, ensureArrayResponse } from '@/lib/array-helpers'
  */
 
-/**
- * Garante que a resposta da API seja sempre um array
- * Previne erros "X.map is not a function"
- * 
- * @param data - Dados da resposta da API
- * @returns Array tipado ou array vazio
- */
-export function ensureArray<T>(data: any): T[] {
-  // Se já é array, retornar
-  if (Array.isArray(data)) {
-    return data;
-  }
-  
-  // Se é null ou undefined, retornar array vazio
-  if (data === null || data === undefined) {
-    console.warn('ensureArray: dados null/undefined, retornando []');
-    return [];
-  }
-  
-  // Se é objeto com propriedade results (paginação DRF)
-  if (typeof data === 'object' && Array.isArray(data.results)) {
-    return data.results;
-  }
-  
-  // Se é objeto com propriedade data
-  if (typeof data === 'object' && Array.isArray(data.data)) {
-    return data.data;
-  }
-  
-  // Caso contrário, retornar array vazio
-  console.warn('ensureArray: tipo inesperado, retornando []', typeof data);
-  return [];
-}
+// Re-exportar para compatibilidade (será removido em versão futura)
+export { ensureArray, ensureArrayResponse } from './array-helpers';
 
 /**
  * Extrai dados de forma segura de uma resposta da API
@@ -44,6 +16,8 @@ export function ensureArray<T>(data: any): T[] {
  * @returns Array tipado ou array vazio
  */
 export function extractArrayData<T>(response: any): T[] {
+  // Usar função consolidada de array-helpers
+  const { ensureArray } = require('./array-helpers');
   return ensureArray<T>(response?.data);
 }
 

@@ -357,14 +357,16 @@ function applyLojaInterceptors(instance: AxiosInstance) {
 export const apiClient = createApiInstance();
 applyLojaInterceptors(apiClient);
 
-export const clinicaApiClient = createApiInstance();
-applyLojaInterceptors(clinicaApiClient);
+/** 
+ * @deprecated Use apiClient instead. clinicaApiClient is now an alias for apiClient.
+ * This will be removed in a future version.
+ */
+export const clinicaApiClient = apiClient;
 
 /** Atualiza a baseURL das instâncias ao trocar de servidor (evita requisições irem ao servidor errado). */
 function updateInstancesBaseURL(): void {
   const baseURL = currentAPI.endsWith('/api') ? currentAPI : `${currentAPI}/api`;
   apiClient.defaults.baseURL = baseURL;
-  clinicaApiClient.defaults.baseURL = baseURL;
 }
 
 export default apiClient;

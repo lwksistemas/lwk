@@ -1,5 +1,5 @@
 # Generated manually on 2026-03-31
-# ✅ NOVO v1421: Sistema híbrido de acesso às lojas
+# ✅ NOVO v1421: Adiciona unique constraints após gerar atalhos
 
 from django.db import migrations, models
 
@@ -7,22 +7,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0039_loginconfigsistema'),
+        ('superadmin', '0040_add_atalho_subdomain_fields'),
     ]
 
     operations = [
-        # Adicionar campos SEM unique constraint primeiro
-        migrations.AddField(
+        # Adicionar unique constraint ao campo atalho
+        migrations.AlterField(
             model_name='loja',
             name='atalho',
             field=models.SlugField(
                 blank=True,
                 help_text='Atalho curto para acesso fácil (ex: felix). Gerado automaticamente a partir do nome.',
                 max_length=50,
-                unique=False  # Temporariamente sem unique
+                unique=True  # Agora com unique
             ),
         ),
-        migrations.AddField(
+        # Adicionar unique constraint ao campo subdomain
+        migrations.AlterField(
             model_name='loja',
             name='subdomain',
             field=models.SlugField(
@@ -30,16 +31,7 @@ class Migration(migrations.Migration):
                 help_text='Subdomínio personalizado (ex: felix.lwksistemas.com.br). Opcional para planos premium.',
                 max_length=50,
                 null=True,
-                unique=False  # Temporariamente sem unique
+                unique=True  # Agora com unique
             ),
-        ),
-        # Adicionar índices (não unique)
-        migrations.AddIndex(
-            model_name='loja',
-            index=models.Index(fields=['atalho'], name='loja_atalho_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='loja',
-            index=models.Index(fields=['subdomain'], name='loja_subdomain_idx'),
         ),
     ]

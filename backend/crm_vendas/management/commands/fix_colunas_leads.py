@@ -12,7 +12,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("🔧 Corrigindo colunas_leads em todas as lojas...")
         
-        lojas = Loja.objects.filter(ativo=True)
+        lojas = Loja.objects.filter(is_active=True)
         self.stdout.write(f"📊 Total de lojas ativas: {lojas.count()}")
         
         atualizadas = 0

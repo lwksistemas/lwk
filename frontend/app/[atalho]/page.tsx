@@ -24,6 +24,7 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadAndRedirect() {
@@ -64,9 +65,24 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
           return;
         }
 
+        // Preparar URL de redirecionamento
+        const targetUrl = `/loja/${data.slug}/login?from=${atalho}`;
+        setRedirectUrl(targetUrl);
+
         // Redirecionar para a página de login
-        console.log(`[AtalhoPage] Redirecionando para: /loja/${data.slug}/login?from=${atalho}`);
-        router.push(`/loja/${data.slug}/login?from=${atalho}`);
+        console.log(`[AtalhoPage] Redirecionando para: ${targetUrl}`);
+        
+        // Tentar redirecionamento com timeout
+        const redirectTimer = setTimeout(() => {
+          router.push(targetUrl);
+        }, 100);
+
+        // Fallback: se não redirecionar em 3 segundos, mostrar link manual
+        setTimeout(() => {
+          setLoading(false);
+        }, 3000);
+
+        return () => clearTimeout(redirectTimer);
       } catch (err) {
         console.error('[AtalhoPage] Exceção:', err);
         setError('Erro ao carregar loja');
@@ -83,6 +99,14 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando...</p>
+          {redirectUrl && (
+            <p className="text-sm text-gray-500 mt-4">
+              Se não for redirecionado automaticamente,{' '}
+              <a href={redirectUrl} className="text-emerald-600 hover:text-emerald-700 underline">
+                clique aqui
+              </a>
+            </p>
+          )}
         </div>
       </div>
     );
@@ -99,6 +123,23 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
             className="text-emerald-600 hover:text-emerald-700 underline"
           >
             Voltar para a página inicial
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Se chegou aqui, mostrar link manual
+  if (redirectUrl) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Redirecionando...</p>
+          <a
+            href={redirectUrl}
+            className="inline-block px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+          >
+            Clique aqui para acessar
           </a>
         </div>
       </div>

@@ -14,15 +14,21 @@ django.setup()
 from superadmin.models import Loja
 from django.db import connection
 
-def analisar_loja(cnpj):
+def analisar_loja(identificador):
     """Analisa segurança e estrutura do schema de uma loja"""
     
     print(f"\n{'='*80}")
-    print(f"ANÁLISE DE SEGURANÇA - LOJA {cnpj}")
+    print(f"ANÁLISE DE SEGURANÇA - LOJA {identificador}")
     print(f"{'='*80}\n")
     
     try:
-        loja = Loja.objects.get(cpf_cnpj=cnpj)
+        # Tentar buscar por CPF/CNPJ, slug ou ID
+        if identificador.isdigit() and len(identificador) <= 10:
+            loja = Loja.objects.get(id=int(identificador))
+        elif len(identificador) == 14:  # CNPJ
+            loja = Loja.objects.get(cpf_cnpj=identificador)
+        else:  # Slug
+            loja = Loja.objects.get(slug=identificador)
         
         print(f"📋 INFORMAÇÕES DA LOJA:")
         print(f"   ID: {loja.id}")
@@ -140,7 +146,8 @@ def analisar_loja(cnpj):
         return True
         
     except Loja.DoesNotExist:
-        print(f"\n❌ ERRO: Loja com CNPJ {cnpj} não encontrada no sistema")
+        print(f"\n❌ ERRO: Loja '{identificador}' não encontrada no sistema")
+        print(f"   Tentou buscar por: ID, CPF/CNPJ ou Slug")
         return False
     except Exception as e:
         print(f"\n❌ ERRO: {str(e)}")
@@ -149,5 +156,5 @@ def analisar_loja(cnpj):
         return False
 
 if __name__ == '__main__':
-    cnpj = sys.argv[1] if len(sys.argv) > 1 else "41449198000172"
-    analisar_loja(cnpj)
+    identificador = sys.argv[1] if len(sys.argv) > 1 else "41449198000172"
+    analisar_loja(identificador)

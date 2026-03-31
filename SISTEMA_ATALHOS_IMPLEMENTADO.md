@@ -192,13 +192,35 @@ https://lwksistemas.com.br/loja/41449198000172/login
 ## 🎯 Próximos Passos (Opcional)
 
 1. Adicionar analytics para rastrear uso de atalhos
-2. Permitir customização de atalhos pelo admin
+2. Permitir edição de atalhos pelo admin (já implementado no formulário)
 3. Adicionar validação de atalhos reservados (admin, api, etc)
 4. Implementar cache Redis para o endpoint por-atalho
 
 ---
 
+## 📝 Formulário de Nova Loja Atualizado (v1443)
+
+### Campo Adicionado
+- **Atalho (URL Amigável)** - opcional
+- Geração automática se deixado vazio
+- Customização permitida
+- Validação de unicidade
+
+### Layout
+```
+┌─────────────────┬─────────────────┬─────────────────┐
+│ Nome da Empresa │ Slug (Segura)   │ Atalho (Amigável)│
+│ *               │ (CPF/CNPJ)      │ (opcional)       │
+└─────────────────┴─────────────────┴─────────────────┘
+```
+
+### Textos de Ajuda
+- **Slug:** URL: /loja/41449198000172/login — usa CPF/CNPJ
+- **Atalho:** URL: /felix-representacoes — gerado automaticamente se vazio
+
+---
+
 **Data de Conclusão:** 31/03/2026  
 **Versão Backend:** v1441  
-**Versão Frontend:** v1442  
+**Versão Frontend:** v1443  
 **Status:** ✅ PRODUÇÃO

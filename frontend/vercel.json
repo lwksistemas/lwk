@@ -17,6 +17,24 @@
       "permanent": true
     }
   ],
+  "rewrites": [
+    {
+      "source": "/felix-representacoes",
+      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/felix-representacoes"
+    },
+    {
+      "source": "/harmonis-clinica-de-estetica-a",
+      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/harmonis-clinica-de-estetica-a"
+    },
+    {
+      "source": "/ultrasis-informatica-ltda",
+      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/ultrasis-informatica-ltda"
+    },
+    {
+      "source": "/us-medical",
+      "destination": "https://lwksistemas-38ad47519238.herokuapp.com/us-medical"
+    }
+  ],
   "headers": [
     {
       "source": "/_next/static/(.*)",

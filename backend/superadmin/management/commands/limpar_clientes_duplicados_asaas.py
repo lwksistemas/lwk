@@ -8,8 +8,8 @@ Uso:
     python manage.py limpar_clientes_duplicados_asaas --dry-run
 """
 from django.core.management.base import BaseCommand
-from asaas_integration.models import AsaasCustomer, LojaAssinatura
-from asaas_integration.client import AsaasClient, AsaasConfig
+from asaas_integration.models import AsaasCustomer, LojaAssinatura, AsaasConfig
+from asaas_integration.client import AsaasClient
 from collections import defaultdict
 import logging
 

@@ -4,9 +4,10 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCRMUIStore } from '@/store/crm-ui';
-import { Menu, Search, Grid, Plus, Bell, HelpCircle, User, Users, DollarSign, Building2 } from 'lucide-react';
+import { Menu, Search, Grid, Plus, Bell, HelpCircle, User, Users, DollarSign, Building2, MessageCircle } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import ModalChamado from '@/components/suporte/ModalChamado';
 
 interface BuscaResult {
   leads: { id: number; nome: string; empresa: string; status: string }[];
@@ -29,11 +30,15 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
   const { toggle } = useCRMUIStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNovoMenu, setShowNovoMenu] = useState(false);
+  const [showSuporteMenu, setShowSuporteMenu] = useState(false);
+  const [modalSuporteAberto, setModalSuporteAberto] = useState(false);
+  const [lojaNome, setLojaNome] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BuscaResult | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const novoRef = useRef<HTMLDivElement>(null);
+  const suporteRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,6 +82,9 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
       if (novoRef.current && !novoRef.current.contains(e.target as Node)) {
         setShowNovoMenu(false);
       }
+      if (suporteRef.current && !suporteRef.current.contains(e.target as Node)) {
+        setShowSuporteMenu(false);
+      }
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSearchDropdown(false);
       }
@@ -90,6 +98,15 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
     setSearchResults(null);
     setShowSearchDropdown(false);
   }, []);
+
+  // Carregar nome da loja para o modal de suporte
+  useEffect(() => {
+    if (!slug) return;
+    apiClient
+      .get(`/superadmin/lojas/info_publica/?slug=${slug}`)
+      .then((res) => setLojaNome(res.data?.nome || ''))
+      .catch(() => setLojaNome(''));
+  }, [slug]);
 
   const hasResults = searchResults && (
     searchResults.leads.length > 0 ||
@@ -242,6 +259,54 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
 
       {/* Right Section - Actions */}
       <div className="flex items-center gap-1 sm:gap-2">
+        {/* Botão Suporte */}
+        <div className="relative" ref={suporteRef}>
+          <button
+            type="button"
+            onClick={() => setShowSuporteMenu((v) => !v)}
+            className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
+            title="Suporte"
+          >
+            <MessageCircle size={16} />
+            <span>Suporte</span>
+          </button>
+
+          {/* Mobile Suporte Button */}
+          <button
+            type="button"
+            onClick={() => setShowSuporteMenu((v) => !v)}
+            className="lg:hidden p-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] transition-colors text-gray-600 dark:text-gray-300"
+            aria-label="Suporte"
+            title="Suporte"
+          >
+            <MessageCircle size={20} />
+          </button>
+
+          {showSuporteMenu && slug && (
+            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#16325c] rounded-lg shadow-lg border border-gray-200 dark:border-[#0d1f3c] py-1 z-20">
+              <a
+                href={`/loja/${slug}/suporte`}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
+                onClick={() => setShowSuporteMenu(false)}
+              >
+                <MessageCircle size={16} />
+                Acompanhar chamados
+              </a>
+              <button
+                type="button"
+                className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
+                onClick={() => {
+                  setShowSuporteMenu(false);
+                  setModalSuporteAberto(true);
+                }}
+              >
+                <Plus size={16} />
+                Abrir novo chamado
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* New Button - Estilo Salesforce */}
         <div className="relative" ref={novoRef}>
           <button
@@ -371,6 +436,16 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
           )}
         </div>
       </div>
+
+      {/* Modal de Suporte */}
+      {modalSuporteAberto && (
+        <ModalChamado
+          aberto={modalSuporteAberto}
+          onFechar={() => setModalSuporteAberto(false)}
+          lojaSlug={slug}
+          lojaNome={lojaNome}
+        />
+      )}
     </header>
   );
 }

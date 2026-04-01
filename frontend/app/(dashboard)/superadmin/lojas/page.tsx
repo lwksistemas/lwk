@@ -1,6 +1,7 @@
 /**
  * Página de Gerenciamento de Lojas
  * ✅ REFATORADO v775: Layout em cards, hooks e componentes modulares
+ * ✅ v1459: Adicionado modo de visualização em lista
  */
 'use client';
 
@@ -17,13 +18,16 @@ import {
   LojaCard,
   LojaInfoModal 
 } from '@/components/superadmin/lojas';
+import { LayoutGrid, List } from 'lucide-react';
 
 type ModalType = 'create' | 'edit' | 'delete' | 'info' | null;
+type ViewMode = 'cards' | 'list';
 
 export default function GerenciarLojasPage() {
   const router = useRouter();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [selectedLoja, setSelectedLoja] = useState<Loja | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
   const { lojas, loading, reload } = useLojaList();
   const { excluirLoja, reenviarSenha, criarBanco, loading: actionLoading } = useLojaActions();
@@ -110,12 +114,39 @@ export default function GerenciarLojasPage() {
               </a>
               <h1 className="text-2xl font-bold">Gerenciar Lojas</h1>
             </div>
-            <button
-              onClick={() => setActiveModal('create')}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md transition-colors"
-            >
-              + Nova Loja
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Botões de visualização */}
+              <div className="flex bg-purple-800 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`p-2 rounded transition-colors ${
+                    viewMode === 'cards' 
+                      ? 'bg-purple-600 text-white' 
+                      : 'text-purple-200 hover:text-white'
+                  }`}
+                  title="Visualização em Cards"
+                >
+                  <LayoutGrid className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded transition-colors ${
+                    viewMode === 'list' 
+                      ? 'bg-purple-600 text-white' 
+                      : 'text-purple-200 hover:text-white'
+                  }`}
+                  title="Visualização em Lista"
+                >
+                  <List className="w-5 h-5" />
+                </button>
+              </div>
+              <button
+                onClick={() => setActiveModal('create')}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+              >
+                + Nova Loja
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -179,7 +210,7 @@ export default function GerenciarLojasPage() {
                 Criar Primeira Loja
               </button>
             </div>
-          ) : (
+          ) : viewMode === 'cards' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {lojas.map((loja) => (
                 <LojaCard
@@ -193,6 +224,138 @@ export default function GerenciarLojasPage() {
                   actionLoading={actionLoading}
                 />
               ))}
+            </div>
+          ) : (
+            /* Visualização em Lista */
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Loja
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tipo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        CPF/CNPJ
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Atalho
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Banco
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {lojas.map((loja) => (
+                      <tr key={loja.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              {loja.logo ? (
+                                <img className="h-10 w-10 rounded-full object-cover" src={loja.logo} alt="" />
+                              ) : (
+                                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                  <span className="text-purple-600 font-semibold text-lg">
+                                    {loja.nome.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{loja.nome}</div>
+                              <div className="text-sm text-gray-500">{loja.owner_email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {loja.tipo_app_display}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {loja.cpf_cnpj}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {loja.atalho ? (
+                            <span className="text-purple-600 font-mono">/{loja.atalho}</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {loja.is_active ? (
+                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                              Ativa
+                            </span>
+                          ) : (
+                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                              Inativa
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {loja.database_created ? (
+                            <span className="text-green-600">✓ Criado</span>
+                          ) : (
+                            <button
+                              onClick={() => handleCriarBanco(loja.id)}
+                              disabled={actionLoading}
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              Criar Banco
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleAbrirInfo(loja)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Ver Informações"
+                            >
+                              👁️
+                            </button>
+                            <button
+                              onClick={() => handleEdit(loja)}
+                              className="text-yellow-600 hover:text-yellow-900"
+                              title="Editar"
+                            >
+                              ✏️
+                            </button>
+                            {loja.senha_provisoria && (
+                              <button
+                                onClick={() => handleReenviarSenha(loja)}
+                                disabled={actionLoading}
+                                className="text-green-600 hover:text-green-900"
+                                title="Reenviar Senha"
+                              >
+                                📧
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDelete(loja)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Excluir"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

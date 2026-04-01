@@ -1068,3 +1068,107 @@ class HistoricoAcessosLojaViewSet(BaseModelViewSet):
             'usuarios_mais_ativos': usuarios_mais_ativos,
             'recursos_mais_acessados': recursos_mais_acessados
         })
+
+
+
+class LoginConfigView(APIView):
+    """
+    GET /clinica-estetica/login-config/  → retorna logo, cor_primaria, cor_secundaria
+    PATCH /clinica-estetica/login-config/ → atualiza personalização da tela de login
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import Loja
+        
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            loja = Loja.objects.using('default').get(id=loja_id)
+        except Loja.DoesNotExist:
+            return Response(
+                {'error': 'Loja não encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        tipo = getattr(loja, 'tipo_loja', None)
+        cor_default = getattr(tipo, 'cor_primaria', None) if tipo else None
+        cor_primaria = (loja.cor_primaria or '').strip() or cor_default or '#EC4899'
+        cor_secundaria = (loja.cor_secundaria or '').strip() or '#DB2777'
+        
+        return Response({
+            'logo': (loja.logo or '').strip(),
+            'login_background': (loja.login_background or '').strip(),
+            'login_logo': (loja.login_logo or '').strip(),
+            'cor_primaria': cor_primaria,
+            'cor_secundaria': cor_secundaria,
+        })
+
+    def patch(self, request):
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import Loja
+        
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            loja = Loja.objects.using('default').get(id=loja_id)
+        except Loja.DoesNotExist:
+            return Response(
+                {'error': 'Loja não encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        update_fields = ['updated_at']
+        
+        if 'logo' in request.data:
+            val = (request.data.get('logo') or '').strip()
+            loja.logo = val[:200] if val else ''
+            update_fields.append('logo')
+        
+        if 'login_background' in request.data:
+            val = (request.data.get('login_background') or '').strip()
+            loja.login_background = val[:200] if val else ''
+            update_fields.append('login_background')
+        
+        if 'login_logo' in request.data:
+            val = (request.data.get('login_logo') or '').strip()
+            loja.login_logo = val[:200] if val else ''
+            update_fields.append('login_logo')
+        
+        if 'cor_primaria' in request.data:
+            val = (request.data.get('cor_primaria') or '').strip()
+            if val and val.startswith('#') and len(val) <= 7:
+                loja.cor_primaria = val[:7]
+                update_fields.append('cor_primaria')
+        
+        if 'cor_secundaria' in request.data:
+            val = (request.data.get('cor_secundaria') or '').strip()
+            if val and val.startswith('#') and len(val) <= 7:
+                loja.cor_secundaria = val[:7]
+                update_fields.append('cor_secundaria')
+        
+        loja.save(update_fields=update_fields)
+        
+        # Limpar cache
+        from django.core.cache import cache
+        cache_key = f'loja_info_publica:{loja.slug}'
+        cache.delete(cache_key)
+        
+        return Response({
+            'logo': (loja.logo or '').strip(),
+            'login_background': (loja.login_background or '').strip(),
+            'login_logo': (loja.login_logo or '').strip(),
+            'cor_primaria': (loja.cor_primaria or '').strip(),
+            'cor_secundaria': (loja.cor_secundaria or '').strip(),
+        })

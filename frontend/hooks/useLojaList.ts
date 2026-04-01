@@ -7,6 +7,10 @@ export interface Loja {
   id: number;
   nome: string;
   slug: string;
+  cpf_cnpj: string;
+  atalho?: string;
+  logo?: string;
+  tipo_app_display: string;
   tipo_loja_nome: string;
   plano_nome: string;
   owner_username: string;

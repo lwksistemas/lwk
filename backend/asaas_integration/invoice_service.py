@@ -30,14 +30,16 @@ def _get_municipal_config() -> Dict[str, Optional[str]]:
     code = os.environ.get('ASAAS_INVOICE_SERVICE_CODE', '')
     name = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', '')
     
-    # Se service_id está configurado, usar ele + name (Asaas exige ambos)
-    # O municipalServiceId identifica o serviço, mas o name também é obrigatório
+    # Se service_id está configurado, enviar TODOS os campos
+    # Asaas exige municipalServiceId + municipalServiceName
+    # E o código também precisa ser enviado para aparecer corretamente
     if service_id:
-        # Nome padrão baseado no serviço 14.01 de Ribeirão Preto
+        # Código e nome padrão baseado no serviço 14.01 de Ribeirão Preto
+        default_code = code or '1401'  # Código de 4 dígitos
         default_name = name or 'Reparação e manutenção de computadores e de equipamentos periféricos'
-        logger.info(f"Configuração municipal NF: usando municipalServiceId={service_id}, name={default_name}")
+        logger.info(f"Configuração municipal NF: municipalServiceId={service_id}, code={default_code}, name={default_name}")
         return {
-            'municipal_service_code': None,
+            'municipal_service_code': default_code,
             'municipal_service_name': default_name,
             'municipal_service_id': service_id,
         }

@@ -204,11 +204,11 @@ class AsaasClient:
         if observations:
             data['observations'] = observations
         
-        # ✅ CORREÇÃO v1332: Adicionar informações de impostos (obrigatório para emissão de NF)
-        # ISS (Imposto Sobre Serviços) padrão: 0% (isento ou retido na fonte)
+        # ✅ CORREÇÃO v1477: Configurar alíquota de ISS conforme exigência da prefeitura
+        # Ribeirão Preto-SP exige ISS entre 2% e 5% para serviços
         data['taxes'] = {
             'retainIss': False,  # ISS não retido na fonte
-            'iss': 0.0,  # Alíquota ISS: 0% (ajustar conforme município)
+            'iss': 2.0,  # Alíquota ISS: 2% (mínimo exigido pela prefeitura)
             'cofins': 0.0,  # COFINS: 0%
             'csll': 0.0,  # CSLL: 0%
             'inss': 0.0,  # INSS: 0%

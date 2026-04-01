@@ -1,160 +1,105 @@
-# 🧪 Acompanhamento do Teste de Nota Fiscal
+# 🧪 Acompanhamento de Teste - Nota Fiscal
 
-## 📋 Informações do Teste
+## 📋 Status Atual
 
-**Loja:** Master Representações  
-**Plano:** Profissional CRM (Mensal)  
-**Valor:** R$ 8,00  
-**Vencimento:** 01/05/2026  
-**Status:** Aguardando pagamento  
+**Data:** 01/04/2026
+**Versão:** v1474
+**Status:** ✅ PROBLEMA IDENTIFICADO E CORRIGIDO
 
-## 🔍 Como Acompanhar
+## 🎯 Problema Identificado
 
-### 1. Verificar Status no Heroku
+Nota fiscal sendo rejeitada pela Prefeitura de Ribeirão Preto-SP:
+```
+O Item da Lista de Serviço deve conter 3 a 4 dígitos.
+```
+
+## 🔍 Análise das Tentativas
+
+### Tentativa 1 (v1468) - ❌ FALHOU
+- Campo usado: `municipalServiceCode`
+- Valor: `1401` (4 dígitos)
+- Resultado: REJEITADO pela prefeitura
+
+### Tentativa 2 (v1470) - ❌ FALHOU
+- Campo usado: `municipalServiceCode`
+- Valor: `140118` (6 dígitos)
+- Resultado: REJEITADO pela prefeitura
+
+### Análise da Nota Manual (SUCESSO) ✅
+
+Você emitiu uma nota manualmente que FOI AUTORIZADA. Ao consultar a API, descobrimos:
+
+```
+municipalServiceCode: (vazio)
+municipalServiceId: 262124
+municipalServiceName: 140118 | 14.01 | 9511800 - Reparação e manutenção...
+```
+
+## 💡 Solução Encontrada (v1474)
+
+O problema era o **campo errado**! A nota manual que funcionou usou:
+- ❌ NÃO usar `municipalServiceCode` (código numérico)
+- ✅ USAR `municipalServiceId` = `262124` (ID interno do Asaas)
+
+Quando você emite manualmente no painel do Asaas, ele usa o ID interno do serviço que foi cadastrado na prefeitura, não o código numérico.
+
+## 📝 Configuração Corrigida
 
 ```bash
-# Executar script de verificação
-heroku run python verificar_nf_master.py -a lwksistemas
+ASAAS_INVOICE_SERVICE_ID=262124
 ```
 
-### 2. Monitorar Logs em Tempo Real
+**Variáveis removidas:**
+- ❌ `ASAAS_INVOICE_SERVICE_CODE` (não funciona)
+- ❌ `ASAAS_INVOICE_SERVICE_NAME` (não é necessário)
 
+## 🧪 Próximos Passos
+
+1. ✅ Deploy v1474 aplicado
+2. ⏳ Aguardando pagamento de boleto de teste
+3. ⏳ Verificar emissão automática da nota fiscal
+4. ⏳ Confirmar aceitação pela prefeitura
+
+## 📊 Lojas de Teste
+
+- Master Representações (CNPJ: 22239255889)
+- Felix Representações (CNPJ: 41449198000172)
+
+## 🔗 Referências
+
+- **ID do serviço no Asaas:** `262124`
+- **Código completo:** `140118 | 14.01 | 9511800`
+- **Descrição:** Reparação e manutenção de computadores e de equipamentos periféricos
+- **Documentação:** `CORRECAO_NOTA_FISCAL_v1468.md`
+
+## 📝 Como Testar
+
+### 1. Pagar o boleto de teste
+```
+Felix Representações
+Valor: R$ 8,00
+Vencimento: 25/04/2026
+```
+
+### 2. Aguardar confirmação do pagamento (alguns minutos)
+
+### 3. Verificar emissão da nota fiscal
 ```bash
-# Ver logs relacionados a NF e pagamento
-heroku logs --tail -a lwksistemas | grep -E "NF|nota|invoice|payment|Master"
+heroku run python verificar_nf_felix.sh -a lwksistemas
 ```
 
-### 3. Verificar no Dashboard
+### 4. Conferir no painel do Asaas
+- Acessar: https://www.asaas.com
+- Ir em: Notas Fiscais
+- Verificar se a nota foi AUTORIZADA
 
-Acesse: https://lwksistemas.com.br/superadmin/financeiro
+## ✅ Resultado Esperado
 
-## 📊 Fluxo Esperado
-
-### Passo 1: Pagamento Confirmado
-⏳ **Status:** Aguardando confirmação do Asaas  
-⏱️ **Tempo:** Instantâneo (PIX) ou até 3 dias úteis (boleto)
-
-**O que acontece:**
-- Asaas envia webhook de confirmação
-- Sistema atualiza status do pagamento para "CONFIRMED"
-- Log: `✅ Pagamento confirmado: payment_id=...`
-
-### Passo 2: Emissão da Nota Fiscal
-🔄 **Status:** Processamento automático  
-⏱️ **Tempo:** Alguns segundos após confirmação
-
-**O que acontece:**
-1. Sistema agenda a nota fiscal no Asaas
-2. Envia código de serviço: `1401` (4 dígitos)
-3. Asaas envia para a Prefeitura de Ribeirão Preto
-4. Prefeitura autoriza a nota fiscal
-
-**Logs esperados:**
-```
-NF agendada no Asaas: invoice_id=..., payment=...
-NF emitida no Asaas: invoice_id=...
-Configuração municipal NF: code=1401, name=Reparação e manutenção...
-```
-
-### Passo 3: Nota Fiscal Autorizada
-✅ **Status:** Emitida com sucesso  
-⏱️ **Tempo:** Alguns minutos
-
-**O que acontece:**
-- Nota fiscal recebe status "AUTHORIZED"
-- PDF da nota fica disponível
-- Email enviado para o admin da loja
-
-## ✅ Validações a Fazer
-
-### 1. Código de Serviço
-- [ ] Código enviado: `1401` (4 dígitos)
-- [ ] Sem pontos ou traços
-- [ ] Aceito pela prefeitura
-
-### 2. Dados da Nota
-- [ ] Valor: R$ 8,00
-- [ ] Descrição: "Profissional CRM (Mensal) - Master Representações"
-- [ ] Município: Ribeirão Preto-SP
-
-### 3. Status Final
-- [ ] Status: AUTHORIZED
-- [ ] PDF disponível
-- [ ] Email enviado
-
-## 🚨 Possíveis Erros
-
-### Erro 1: "Item da Lista de Serviço deve conter 3 a 4 dígitos"
-**Causa:** Código com formato incorreto  
-**Solução:** ✅ JÁ CORRIGIDO na v1468
-
-### Erro 2: "Dados cadastrais incompletos"
-**Causa:** Falta informações da loja no Asaas  
-**Solução:** Completar cadastro no painel Asaas
-
-### Erro 3: "Município não configurado"
-**Causa:** Loja não está em Ribeirão Preto  
-**Solução:** Verificar endereço da loja
-
-## 📝 Comandos Úteis
-
-### Verificar configuração atual
-```bash
-heroku config -a lwksistemas | grep ASAAS_INVOICE
-```
-
-**Resultado esperado:**
-```
-ASAAS_INVOICE_SERVICE_CODE:   1401
-ASAAS_INVOICE_SERVICE_NAME:   Reparação e manutenção de computadores e de equipamentos periféricos
-```
-
-### Ver últimos logs
-```bash
-heroku logs --tail -a lwksistemas -n 100
-```
-
-### Executar verificação manual
-```bash
-heroku run python verificar_nf_master.py -a lwksistemas
-```
-
-## 📞 Checklist Pós-Pagamento
-
-Após realizar o pagamento, aguarde alguns minutos e execute:
-
-1. [ ] Verificar status do pagamento no Asaas
-2. [ ] Verificar se a nota fiscal foi agendada
-3. [ ] Verificar se a nota fiscal foi autorizada
-4. [ ] Verificar se o código `1401` foi aceito
-5. [ ] Verificar se o PDF está disponível
-6. [ ] Verificar se o email foi enviado
-7. [ ] Baixar e conferir o PDF da nota fiscal
-
-## 🎯 Resultado Esperado
-
-Se tudo funcionar corretamente, você verá:
-
-```
-✅ Pagamento confirmado
-✅ NF agendada no Asaas: invoice_id=inv_...
-✅ NF emitida no Asaas: invoice_id=inv_...
-✅ Configuração municipal NF: code=1401
-✅ Status: AUTHORIZED
-✅ PDF disponível
-✅ Email enviado para: [email do admin]
-```
-
-## 📧 Notificação por Email
-
-O admin da loja receberá um email com:
-- Assunto: "Nota Fiscal – Assinatura LWK Sistemas"
-- Identificador da NF
-- Descrição do serviço
-- Valor: R$ 8,00
-- Link para download do PDF
+A nota fiscal deve ser emitida automaticamente com:
+- Status: AUTHORIZED
+- Código de serviço: 140118 | 14.01 | 9511800
+- Sem erros da prefeitura
 
 ---
 
-**Teste iniciado em:** 01/04/2026  
-**Status:** ⏳ Aguardando pagamento
+**Correção aplicada em:** 01/04/2026 às 15:30

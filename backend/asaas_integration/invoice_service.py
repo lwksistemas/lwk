@@ -24,28 +24,41 @@ def get_invoice_client():
 def _get_municipal_config() -> Dict[str, Optional[str]]:
     """Serviço municipal para NF (conta LWK na prefeitura)."""
     import os
-    # ✅ CORREÇÃO v1319: Ler diretamente do os.environ para evitar problema com settings
-    code = os.environ.get('ASAAS_INVOICE_SERVICE_CODE', '01.07')
-    name = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
+    # ✅ CORREÇÃO v1474: Priorizar municipalServiceId (ID interno do Asaas)
+    # O ID é mais confiável que o código numérico
     service_id = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
+    code = os.environ.get('ASAAS_INVOICE_SERVICE_CODE', '')
+    name = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', '')
     
+    # Se service_id está configurado, usar apenas ele (não enviar code nem name)
+    # O Asaas preenche automaticamente os outros campos baseado no ID
+    if service_id:
+        logger.info(f"Configuração municipal NF: usando municipalServiceId={service_id}")
+        return {
+            'municipal_service_code': None,
+            'municipal_service_name': None,
+            'municipal_service_id': service_id,
+        }
+    
+    # Fallback: usar code e name (comportamento antigo)
     # ✅ CORREÇÃO v1333: Remover pontuação do código de serviço (prefeitura exige apenas dígitos)
-    # ✅ CORREÇÃO v1469: Aceitar códigos de 3 a 6 dígitos (varia por município)
-    # Ribeirão Preto-SP: 140118 (6 dígitos) ou 14.01 (4 dígitos sem ponto)
     if code:
         code = code.replace('.', '').replace('-', '')
         # Validar que o código tem entre 3 e 6 dígitos
         if len(code) < 3 or len(code) > 6:
             logger.warning(f"Código de serviço municipal com tamanho inválido: {code} (deve ter 3-6 dígitos)")
-        # Não remover zeros à esquerda - manter formato original
     
-    # Log para debug
+    # Se não tem service_id nem code, usar valores padrão antigos
+    if not code:
+        code = '0107'
+        name = name or 'Software sob demanda / Assinatura de sistema'
+    
     logger.info(f"Configuração municipal NF: code={code}, name={name}, service_id={service_id}")
     
     return {
         'municipal_service_code': code if code else None,
-        'municipal_service_name': name,
-        'municipal_service_id': service_id if service_id else None,
+        'municipal_service_name': name if name else None,
+        'municipal_service_id': None,
     }
 
 

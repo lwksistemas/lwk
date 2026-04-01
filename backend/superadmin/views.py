@@ -1775,6 +1775,12 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
                     # Definir search_path para public
                     cursor.execute("SET LOCAL search_path TO public")
                     
+                    # Limpar histórico de acesso global
+                    cursor.execute("DELETE FROM superadmin_historico_acesso_global WHERE user_id = %s", [user_id])
+                    
+                    # Limpar violações de segurança
+                    cursor.execute("DELETE FROM superadmin_violacao_seguranca WHERE user_id = %s", [user_id])
+                    
                     # Limpar grupos e permissões via SQL
                     cursor.execute("DELETE FROM auth_user_groups WHERE user_id = %s", [user_id])
                     cursor.execute("DELETE FROM auth_user_user_permissions WHERE user_id = %s", [user_id])

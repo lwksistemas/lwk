@@ -14,23 +14,23 @@ O sistema estava removendo zeros à esquerda do código de serviço municipal, r
 **Código anterior:** Removia zeros à esquerda (`0107` → `107`)
 **Problema:** Alguns códigos ficavam com menos de 3 dígitos
 
-## ✅ Solução Implementada
+## ✅ Solução Implementada (v1470 - FINAL)
 
-### 1. Correção do Código (v1468)
+### 1. Correção do Código
 
 **Arquivo:** `backend/asaas_integration/invoice_service.py`
 
 **Mudanças:**
-- ✅ Removida lógica que removia zeros à esquerda
-- ✅ Mantido formato de 3-4 dígitos conforme exigido pela prefeitura
-- ✅ Adicionada validação de tamanho do código
+- ✅ Código atualizado para **140118** (6 dígitos)
+- ✅ Validação ajustada para aceitar 3-6 dígitos
 - ✅ Mantém apenas remoção de pontuação (`.` e `-`)
+- ✅ Não remove zeros à esquerda
 
-### 2. Atualização das Variáveis de Ambiente
+### 2. Atualização das Variáveis de Ambiente (CORRETO)
 
 **Código de Serviço Municipal:**
 ```bash
-ASAAS_INVOICE_SERVICE_CODE=1401
+ASAAS_INVOICE_SERVICE_CODE=140118
 ```
 
 **Nome do Serviço:**
@@ -38,10 +38,10 @@ ASAAS_INVOICE_SERVICE_CODE=1401
 ASAAS_INVOICE_SERVICE_NAME="Reparação e manutenção de computadores e de equipamentos periféricos"
 ```
 
-**Referência:**
-- Código: `14.01` (sem ponto = `1401`)
-- Descrição: Item 14.01 da Lista de Serviços
-- CNAE: 9511-8/00 - Reparação e manutenção de computadores e de equipamentos periféricos
+**Referência (baseado em NF emitida manualmente com sucesso):**
+- Código completo: `140118 | 14.01 | 9511800`
+- Descrição: Reparação e manutenção de computadores e de equipamentos periféricos
+- CNAE: 9511-8/00
 
 ## 📋 Configuração Completa
 
@@ -49,9 +49,9 @@ ASAAS_INVOICE_SERVICE_NAME="Reparação e manutenção de computadores e de equi
 
 | Campo | Valor | Formato |
 |-------|-------|---------|
-| Código Original | 14.01 | Com ponto |
-| Código Enviado | 1401 | 4 dígitos (sem ponto) |
-| Tamanho | 4 dígitos | ✅ Válido (3-4 dígitos) |
+| Código Original | 140118 \| 14.01 \| 9511800 | Formato completo |
+| Código Enviado | 140118 | 6 dígitos |
+| Tamanho | 6 dígitos | ✅ Válido (3-6 dígitos) |
 
 ### Informações do Serviço
 
@@ -70,7 +70,7 @@ heroku config -a lwksistemas | grep ASAAS_INVOICE
 
 **Resultado esperado:**
 ```
-ASAAS_INVOICE_SERVICE_CODE:   1401
+ASAAS_INVOICE_SERVICE_CODE:   140118
 ASAAS_INVOICE_SERVICE_NAME:   Reparação e manutenção de computadores e de equipamentos periféricos
 ```
 
@@ -87,23 +87,26 @@ O sistema agora enviará o código `1401` (4 dígitos) para a API do Asaas, que 
 - Após processamento: `107` (3 dígitos) ✅ Válido
 - Problema: Alguns códigos ficavam com formato incorreto
 
-✅ **Após a correção:**
-- Código configurado: `14.01`
-- Após processamento: `1401` (4 dígitos) ✅ Válido
-- Mantém formato original sem remover zeros
+✅ **Após a correção v1470 (FINAL):**
+- Código configurado: `140118`
+- Após processamento: `140118` (6 dígitos) ✅ Válido
+- Mantém formato completo conforme nota emitida manualmente
 
-### Regras da Prefeitura
+### Regras da Prefeitura de Ribeirão Preto
 
-✅ Código deve ter 3 a 4 dígitos
+✅ Código deve ter 3 a 6 dígitos (aceita formato completo)
 ✅ Apenas números (sem pontos ou traços)
 ✅ Deve corresponder à Lista de Serviços do município
+✅ Formato completo: 140118 | 14.01 | 9511800
 
 ## 🚀 Deploy
 
-- **Versão:** v1468
+- **Versão Inicial:** v1468 (código 1401 - 4 dígitos) ❌ Rejeitado
+- **Versão Final:** v1470 (código 140118 - 6 dígitos) ✅ Correto
 - **Data:** 01/04/2026
 - **Status:** ✅ Aplicado em produção
 - **Impacto:** Correção imediata para novas emissões de NF
+- **Baseado em:** Nota fiscal emitida manualmente com sucesso
 
 ## 📝 Próximos Passos
 

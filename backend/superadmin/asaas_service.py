@@ -139,7 +139,15 @@ class LojaAsaasService:
             
             # Criar cobrança via serviço Asaas
             service = self.AsaasPaymentService()
-            resultado = service.create_loja_subscription_payment(loja_data, plano_data)
+            
+            # Verificar se já existe customer_id no financeiro
+            customer_id = financeiro.asaas_customer_id if financeiro.asaas_customer_id else None
+            
+            resultado = service.create_loja_subscription_payment(
+                loja_data, 
+                plano_data,
+                customer_id=customer_id
+            )
             
             if resultado.get('success'):
                 # Atualizar financeiro com dados do Asaas

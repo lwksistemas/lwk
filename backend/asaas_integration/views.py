@@ -730,7 +730,16 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             # Criar cobrança
             from .client import AsaasPaymentService
             service = AsaasPaymentService()
-            resultado = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
+            
+            # Usar customer_id existente da assinatura
+            customer_id = assinatura.asaas_customer.asaas_id if assinatura.asaas_customer else None
+            
+            resultado = service.create_loja_subscription_payment(
+                loja_data, 
+                plano_data, 
+                due_date=due_date_str,
+                customer_id=customer_id
+            )
             
             # Retornar resultado
             if resultado.get('success'):

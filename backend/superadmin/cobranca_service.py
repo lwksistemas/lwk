@@ -81,7 +81,16 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
             
             # Criar cobrança no Asaas
             service = AsaasPaymentService()
-            result = service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
+            
+            # Verificar se já existe customer_id no financeiro
+            customer_id = financeiro.asaas_customer_id if financeiro.asaas_customer_id else None
+            
+            result = service.create_loja_subscription_payment(
+                loja_data, 
+                plano_data, 
+                due_date=due_date_str,
+                customer_id=customer_id
+            )
             
             if not result['success']:
                 logger.error(f"Erro ao criar cobrança Asaas: {result['error']}")

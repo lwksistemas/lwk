@@ -30,10 +30,13 @@ def _get_municipal_config() -> Dict[str, Optional[str]]:
     service_id = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
     
     # ✅ CORREÇÃO v1333: Remover pontuação do código de serviço (prefeitura exige apenas dígitos)
+    # ✅ CORREÇÃO v1468: Manter formato de 3-4 dígitos conforme exigido pela prefeitura
     if code:
         code = code.replace('.', '').replace('-', '')
-        # ✅ CORREÇÃO v1337: Remover zeros à esquerda (prefeitura pode rejeitar "0107", aceita "107")
-        code = code.lstrip('0') or '0'  # Mantém pelo menos um '0' se o código for todo zeros
+        # Validar que o código tem 3 ou 4 dígitos (exigência da prefeitura)
+        if len(code) < 3 or len(code) > 4:
+            logger.warning(f"Código de serviço municipal com tamanho inválido: {code} (deve ter 3-4 dígitos)")
+        # Não remover zeros à esquerda - manter formato original
     
     # Log para debug
     logger.info(f"Configuração municipal NF: code={code}, name={name}, service_id={service_id}")

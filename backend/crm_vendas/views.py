@@ -1417,8 +1417,16 @@ def dashboard_data(request):
     Otimizado: cache 120s, queries consolidadas (pipeline em 1 query).
     
     IMPORTANTE: Owner SEMPRE vê todos os dados, mesmo se tiver vendedor vinculado.
+    
+    Parâmetros de filtro (query params):
+    - periodo: mes_atual (padrão), ultimos_30_dias, ultimos_90_dias, este_ano
+    - data_inicio: data inicial (formato YYYY-MM-DD) para período personalizado
+    - data_fim: data final (formato YYYY-MM-DD) para período personalizado
+    - vendedor_id: ID do vendedor (apenas para owner/admin)
+    - status: todas (padrão), abertas, fechadas
     """
     import logging
+    from datetime import timedelta
 
     logger = logging.getLogger(__name__)
     ensure_loja_context(request)
@@ -1436,18 +1444,38 @@ def dashboard_data(request):
     except Exception:
         pass
 
-    vendedor_id = None if is_owner else get_current_vendedor_id(request)
-    cache_key = CRMCacheManager.get_cache_key(
-        CRMCacheManager.DASHBOARD,
-        loja_id,
-        vendedor_id
-    )
+    # Parâmetros de filtro
+    periodo = request.GET.get('periodo', 'mes_atual')
+    data_inicio_param = request.GET.get('data_inicio')
+    data_fim_param = request.GET.get('data_fim')
+    vendedor_id_filtro = request.GET.get('vendedor_id')
+    status_filtro = request.GET.get('status', 'todas')
     
-    if cache_key:
-        from django.core.cache import cache
-        cached = cache.get(cache_key)
-        if cached:
-            return Response(cached)
+    # Se há filtros ativos, não usar cache
+    tem_filtros = (
+        periodo != 'mes_atual' or 
+        data_inicio_param or 
+        data_fim_param or 
+        vendedor_id_filtro or 
+        status_filtro != 'todas'
+    )
+
+    vendedor_id = None if is_owner else get_current_vendedor_id(request)
+    
+    # Cache apenas se não houver filtros personalizados
+    cache_key = None
+    if not tem_filtros:
+        cache_key = CRMCacheManager.get_cache_key(
+            CRMCacheManager.DASHBOARD,
+            loja_id,
+            vendedor_id
+        )
+        
+        if cache_key:
+            from django.core.cache import cache
+            cached = cache.get(cache_key)
+            if cached:
+                return Response(cached)
 
     last_error = None
     for attempt in range(2):
@@ -1472,11 +1500,55 @@ def dashboard_data(request):
                     Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
                 ).distinct()
                 vendedores_qs = vendedores_qs.filter(id=vendedor_id)
-
-            # Performance e comissão do mês: MESMO critério do PDF (relatorios.calcular_periodo('mes_atual')):
-            # intervalo [primeiro dia do mês, hoje], inclusive.
+            
+            # Aplicar filtro de vendedor específico (apenas para owner/admin)
+            if is_owner and vendedor_id_filtro and vendedor_id_filtro != 'todos':
+                try:
+                    vid = int(vendedor_id_filtro)
+                    leads_qs = leads_qs.filter(
+                        Q(oportunidades__vendedor_id=vid) | Q(vendedor_id=vid)
+                    ).distinct()
+                    opp_qs = opp_qs.filter(vendedor_id=vid)
+                    atividades_qs = atividades_qs.filter(
+                        Q(oportunidade__vendedor_id=vid) |
+                        Q(lead__oportunidades__vendedor_id=vid) |
+                        Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vid)
+                    ).distinct()
+                    vendedores_qs = vendedores_qs.filter(id=vid)
+                except (ValueError, TypeError):
+                    pass
+            
+            # Calcular intervalo de datas baseado no período
             _hoje = timezone.now().date()
-            data_inicio_mes, data_fim_mes = _hoje.replace(day=1), _hoje
+            if periodo == 'personalizado' and data_inicio_param and data_fim_param:
+                try:
+                    from datetime import datetime
+                    data_inicio_filtro = datetime.strptime(data_inicio_param, '%Y-%m-%d').date()
+                    data_fim_filtro = datetime.strptime(data_fim_param, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    data_inicio_filtro = _hoje.replace(day=1)
+                    data_fim_filtro = _hoje
+            elif periodo == 'ultimos_30_dias':
+                data_fim_filtro = _hoje
+                data_inicio_filtro = _hoje - timedelta(days=30)
+            elif periodo == 'ultimos_90_dias':
+                data_fim_filtro = _hoje
+                data_inicio_filtro = _hoje - timedelta(days=90)
+            elif periodo == 'este_ano':
+                data_inicio_filtro = _hoje.replace(month=1, day=1)
+                data_fim_filtro = _hoje
+            else:  # mes_atual (padrão)
+                data_inicio_filtro = _hoje.replace(day=1)
+                data_fim_filtro = _hoje
+            
+            # Aplicar filtro de status
+            if status_filtro == 'abertas':
+                opp_qs = opp_qs.filter(etapa__in=ETAPAS_EM_ANDAMENTO)
+            elif status_filtro == 'fechadas':
+                opp_qs = opp_qs.filter(etapa__in=['closed_won', 'closed_lost'])
+
+            # Performance e comissão do mês: usar o intervalo calculado
+            data_inicio_mes, data_fim_mes = data_inicio_filtro, data_fim_filtro
             filtro_opp_no_mes = (
                 Q(data_fechamento_ganho__gte=data_inicio_mes, data_fechamento_ganho__lte=data_fim_mes)
                 | (

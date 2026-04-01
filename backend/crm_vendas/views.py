@@ -2306,17 +2306,32 @@ class AssinaturaPublicaView(View):
                 logger.exception(f'Erro ao enviar email para vendedor: {e}')
                 # Não falha a assinatura do cliente se email do vendedor falhar
         
-        # Se vendedor assinou, enviar PDF final
+        # Se vendedor assinou, enviar PDF final em background
         elif proximo_status == 'concluido':
             try:
-                enviar_pdf_final(documento, loja_id)
+                # Processar envio do PDF em background para não bloquear a resposta
+                import threading
+                
+                def enviar_pdf_background():
+                    try:
+                        enviar_pdf_final(documento, loja_id)
+                        logger.info(
+                            f'Vendedor assinou, PDF final enviado: '
+                            f'documento={documento.__class__.__name__}#{documento.id}'
+                        )
+                    except Exception as e:
+                        logger.exception(f'Erro ao enviar PDF final em background: {e}')
+                
+                thread = threading.Thread(target=enviar_pdf_background)
+                thread.daemon = True
+                thread.start()
                 
                 logger.info(
-                    f'Vendedor assinou, PDF final enviado: '
+                    f'Vendedor assinou, PDF final sendo processado em background: '
                     f'documento={documento.__class__.__name__}#{documento.id}'
                 )
             except Exception as e:
-                logger.exception(f'Erro ao enviar PDF final: {e}')
+                logger.exception(f'Erro ao iniciar thread de envio do PDF: {e}')
                 # Não falha a assinatura se envio do PDF falhar
         
         return JsonResponse({

@@ -23,20 +23,6 @@ export default function ClinicaEsteticaConfiguracoesPage() {
       icon: LogIn,
       itens: ['Logo', 'Cores e identidade visual'],
     },
-    {
-      titulo: 'Cadastrar funcionários',
-      descricao: 'Gerencie profissionais e equipe da clínica',
-      href: `${base}/funcionarios`,
-      icon: Users,
-      itens: ['Adicionar profissionais', 'Permissões'],
-    },
-    {
-      titulo: 'Personalizar sistema',
-      descricao: 'Personalize o sistema do jeito que você quiser trabalhar',
-      href: `${base}/personalizar`,
-      icon: Sliders,
-      itens: ['Tipos de procedimentos', 'Configurações gerais'],
-    },
   ];
 
   return (
@@ -63,7 +49,7 @@ export default function ClinicaEsteticaConfiguracoesPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4 max-w-2xl">
             {opcoes.map((op) => {
               const Icon = op.icon;
               return (

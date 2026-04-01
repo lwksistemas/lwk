@@ -41,7 +41,7 @@ export default function ClinicaConfiguracoesLoginPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const { data } = await apiClient.get<LoginConfigData>('/clinica-estetica/login-config/');
+      const { data } = await apiClient.get<LoginConfigData>('/clinica/login-config/');
       setLogo((data.logo ?? '').toString());
       setLoginBackground((data.login_background ?? '').toString());
       setLoginLogo((data.login_logo ?? '').toString());
@@ -66,7 +66,7 @@ export default function ClinicaConfiguracoesLoginPage() {
   const saveConfig = async () => {
     setSaving(true);
     try {
-      await apiClient.patch('/clinica-estetica/login-config/', {
+      await apiClient.patch('/clinica/login-config/', {
         logo: logo.trim(),
         login_background: loginBackground.trim(),
         login_logo: loginLogo.trim(),

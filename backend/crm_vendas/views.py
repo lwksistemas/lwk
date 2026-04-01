@@ -1473,10 +1473,22 @@ def dashboard_data(request):
                 ).distinct()
                 vendedores_qs = vendedores_qs.filter(id=vendedor_id)
 
-            # 1 query: totais agregados (receita, pipeline, fechados)
+            # Performance e comissão do mês: MESMO critério do PDF (relatorios.calcular_periodo('mes_atual')):
+            # intervalo [primeiro dia do mês, hoje], inclusive.
+            _hoje = timezone.now().date()
+            data_inicio_mes, data_fim_mes = _hoje.replace(day=1), _hoje
+            filtro_opp_no_mes = (
+                Q(data_fechamento_ganho__gte=data_inicio_mes, data_fechamento_ganho__lte=data_fim_mes)
+                | (
+                    Q(data_fechamento_ganho__isnull=True)
+                    & Q(data_fechamento__gte=data_inicio_mes, data_fechamento__lte=data_fim_mes)
+                )
+            )
+
+            # 1 query: totais agregados (receita DO MÊS, pipeline, fechados)
             agg = opp_qs.aggregate(
                 total_oportunidades=Count('id'),
-                receita=Sum('valor', filter=Q(etapa='closed_won')),
+                receita=Sum('valor', filter=Q(etapa='closed_won') & filtro_opp_no_mes),
                 pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
                 oportunidades_em_andamento=Count('id', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
                 total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost'])),

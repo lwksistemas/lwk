@@ -33,7 +33,7 @@ export function ModalClientes({ loja, onClose, onSuccess }: ModalClientesProps) 
   return (
     <GenericCrudModal
       title="Pacientes"
-      endpoint="/clinica-beleza/patients/"
+      endpoint="/clinica/clientes/"
       fields={clienteFields}
       loja={loja}
       onClose={onClose}

@@ -71,7 +71,7 @@ export default function CrmVendasPipelinePage() {
     itens: [] as { produto_servico_id: number; quantidade: string; preco_unitario: string }[],
   });
   const [itensEditar, setItensEditar] = useState<{ id?: number; produto_servico_id: number; quantidade: string; preco_unitario: string }[]>([]);
-  const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('board');
+  const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('list');
   const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
 
   // Sincronizar vendedor_id com backend ao montar componente

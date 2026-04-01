@@ -1779,7 +1779,7 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
                     cursor.execute("DELETE FROM superadmin_historico_acesso_global WHERE user_id = %s", [user_id])
                     
                     # Limpar violações de segurança
-                    cursor.execute("DELETE FROM superadmin_violacao_seguranca WHERE user_id = %s", [user_id])
+                    cursor.execute("DELETE FROM superadmin_violacoes_seguranca WHERE user_id = %s", [user_id])
                     
                     # Limpar grupos e permissões via SQL
                     cursor.execute("DELETE FROM auth_user_groups WHERE user_id = %s", [user_id])

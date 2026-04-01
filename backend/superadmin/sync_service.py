@@ -542,10 +542,13 @@ class AsaasSyncService:
             financeiro.save()
             logger.info(f"✅ Financeiro salvo com nova data: {proxima_data_cobranca}")
             
-            # Criar próximo boleto no Asaas automaticamente
+            # ✅ ALTERAÇÃO v1479: NÃO criar boleto imediatamente após pagamento
+            # O boleto será criado automaticamente 10 dias antes do vencimento
+            # via comando: python manage.py criar_boletos_proximos
+            
+            # Apenas atualizar data_vencimento da assinatura
             try:
-                from asaas_integration.models import LojaAssinatura, AsaasPayment
-                from asaas_integration.client import AsaasPaymentService
+                from asaas_integration.models import LojaAssinatura
                 
                 logger.info(f"🔍 Buscando LojaAssinatura para slug: {loja.slug}")
                 loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
@@ -556,139 +559,12 @@ class AsaasSyncService:
                 loja_assinatura.data_vencimento = proxima_data_cobranca
                 loja_assinatura.save()
                 logger.info(f"✅ LojaAssinatura.data_vencimento atualizada para {proxima_data_cobranca}")
-                
-                # Verificar se já existe cobrança para essa data (evitar duplicação)
-                logger.info(f"🔍 Verificando cobranças existentes para {proxima_data_cobranca}...")
-                cobranca_existente = AsaasPayment.objects.filter(
-                    customer=loja_assinatura.asaas_customer,
-                    due_date=proxima_data_cobranca,
-                    status__in=['PENDING', 'RECEIVED', 'CONFIRMED']
-                ).exists()
-                
-                if cobranca_existente:
-                    logger.info(f"⚠️ Já existe cobrança para {proxima_data_cobranca}, pulando criação")
-                else:
-                    logger.info(f"✅ Nenhuma cobrança existente, criando novo boleto...")
-                    
-                    # Criar novo boleto no Asaas para o próximo mês
-                    asaas_service = AsaasPaymentService()
-                    
-                    # Preparar dados para nova cobrança
-                    loja_data = {
-                        'nome': loja.nome,
-                        'slug': loja.slug,
-                        'email': loja.owner.email,
-                        'cpf_cnpj': loja.cpf_cnpj or '000.000.000-00',
-                        'telefone': getattr(loja.owner, 'telefone', ''),
-                        # ✅ CORREÇÃO v1320: Incluir endereço completo para emissão de NF
-                        'endereco': loja.logradouro or '',
-                        'numero': loja.numero or '',
-                        'complemento': loja.complemento or '',
-                        'bairro': loja.bairro or '',
-                        'cidade': loja.cidade or '',
-                        'estado': loja.uf or '',
-                        'cep': loja.cep or '',
-                    }
-                    
-                    valor_plano = loja.plano.preco_anual if loja.tipo_assinatura == 'anual' else loja.plano.preco_mensal
-                    plano_data = {
-                        'nome': f"{loja.plano.nome} ({loja.get_tipo_assinatura_display()})",
-                        'preco': valor_plano
-                    }
-                    
-                    logger.info(f"💰 Dados da cobrança:")
-                    logger.info(f"   - Loja: {loja_data['nome']}")
-                    logger.info(f"   - Plano: {plano_data['nome']}")
-                    logger.info(f"   - Valor: R$ {plano_data['preco']}")
-                    logger.info(f"   - Vencimento: {proxima_data_cobranca}")
-                    
-                    # Criar cobrança no Asaas com vencimento no próximo mês
-                    due_date_str = proxima_data_cobranca.strftime('%Y-%m-%d')
-                    logger.info(f"🚀 Chamando Asaas API para criar cobrança...")
-                    result = asaas_service.create_loja_subscription_payment(loja_data, plano_data, due_date=due_date_str)
-                    
-                    if result['success']:
-                        logger.info(f"✅ Cobrança criada no Asaas com sucesso!")
-                        logger.info(f"   - Payment ID: {result['payment_id']}")
-                        logger.info(f"   - Status: {result['status']}")
-                        logger.info(f"   - Valor: R$ {result['value']}")
-                        logger.info(f"   - Vencimento: {result['due_date']}")
-                        
-                        # Criar novo pagamento no banco local
-                        from datetime import datetime
-                        new_payment = AsaasPayment.objects.create(
-                            asaas_id=result['payment_id'],
-                            customer=loja_assinatura.asaas_customer,
-                            external_reference=f"loja_{loja.slug}_assinatura_{proxima_data_cobranca.strftime('%Y%m')}",
-                            billing_type='BOLETO',
-                            status=result['status'],
-                            value=result['value'],
-                            due_date=datetime.strptime(result['due_date'], '%Y-%m-%d').date(),
-                            invoice_url=result['payment_url'],
-                            bank_slip_url=result['boleto_url'],
-                            pix_qr_code=result['pix_qr_code'],
-                            pix_copy_paste=result['pix_copy_paste'],
-                            description=f"Assinatura {plano_data['nome']} - Loja {loja.nome} - {proxima_data_cobranca.strftime('%m/%Y')}",
-                            raw_data=result['raw_payment']
-                        )
-                        
-                        logger.info(f"✅ Pagamento criado no banco local (ID: {new_payment.id})")
-                        
-                        # Atualizar current_payment da assinatura
-                        loja_assinatura.current_payment = new_payment
-                        loja_assinatura.save()
-                        
-                        # Atualizar FinanceiroLoja com dados do novo boleto
-                        financeiro.asaas_customer_id = loja_assinatura.asaas_customer.asaas_id
-                        financeiro.asaas_payment_id = result['payment_id']
-                        financeiro.boleto_url = result['boleto_url']
-                        financeiro.boleto_pdf_url = result['boleto_url']
-                        financeiro.pix_qr_code = result['pix_qr_code']
-                        financeiro.pix_copy_paste = result['pix_copy_paste']
-                        financeiro.save()
-                        
-                        logger.info(f"✅ FinanceiroLoja atualizado com dados do novo boleto")
-                        logger.info(f"   - Customer ID: {financeiro.asaas_customer_id}")
-                        logger.info(f"   - Payment ID: {financeiro.asaas_payment_id}")
-                        logger.info(f"   - Boleto URL: {financeiro.boleto_url[:50] if financeiro.boleto_url else 'None'}...")
-                        
-                        # Criar registro em PagamentoLoja para histórico da loja
-                        try:
-                            from superadmin.models import PagamentoLoja
-                            
-                            # Calcular referência do mês
-                            referencia_mes = proxima_data_cobranca.replace(day=1)
-                            
-                            pagamento_loja = PagamentoLoja.objects.create(
-                                loja=loja,
-                                financeiro=financeiro,
-                                provedor_boleto='asaas',
-                                mercadopago_payment_id='',
-                                asaas_payment_id=result['payment_id'],
-                                valor=result['value'],
-                                status='pendente',
-                                data_vencimento=proxima_data_cobranca,
-                                referencia_mes=referencia_mes,
-                                forma_pagamento='boleto',
-                                boleto_url=result['boleto_url'],
-                                boleto_pdf_url=result['boleto_url'],
-                                pix_copy_paste=result['pix_copy_paste']
-                            )
-                            
-                            logger.info(f"✅ Pagamento salvo no PagamentoLoja (ID: {pagamento_loja.id})")
-                        except Exception as e:
-                            logger.error(f"❌ Erro ao criar PagamentoLoja: {e}")
-                            import traceback
-                            logger.error(traceback.format_exc())
-                        
-                        logger.info(f"✅ Novo boleto criado no Asaas para {loja.nome}: Vencimento {proxima_data_cobranca}")
-                    else:
-                        logger.error(f"❌ Erro ao criar novo boleto no Asaas: {result.get('error')}")
+                logger.info(f"📧 Boleto será criado e enviado automaticamente 10 dias antes do vencimento")
                     
             except LojaAssinatura.DoesNotExist:
                 logger.warning(f"❌ LojaAssinatura não encontrada para loja {loja.slug}")
             except Exception as e:
-                logger.error(f"❌ Erro ao criar próximo boleto: {e}")
+                logger.error(f"❌ Erro ao atualizar LojaAssinatura: {e}")
                 import traceback
                 traceback.print_exc()
             

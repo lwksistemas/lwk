@@ -1761,6 +1761,11 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         
         try:
             with transaction.atomic():
+                # Definir search_path para public para evitar erro com tabelas de outros schemas
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    cursor.execute("SET search_path TO public")
+                
                 # Limpar sessões manualmente antes de excluir (evita problemas de CASCADE)
                 from superadmin.models import UserSession
                 sessoes_count = UserSession.objects.filter(user_id=user_id).count()

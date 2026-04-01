@@ -224,6 +224,98 @@ def auditar_e_opcionalmente_corrigir(
     resultados: list[dict[str, Any]] = []
     resumo = {'total': 0, 'ok': 0, 'falhas': 0, 'corrigidos': 0}
 
+    # Adicionar schemas especiais (public/default e suporte) no início
+    schemas_especiais = [
+        {
+            'schema_nome': 'public',
+            'slug': 'default',
+            'nome': 'Schema Público (Default)',
+            'tipo_nome': 'Sistema',
+            'tipo_slug': 'sistema',
+            'especial': True,
+        },
+        {
+            'schema_nome': 'suporte',
+            'slug': 'suporte',
+            'nome': 'Schema de Suporte',
+            'tipo_nome': 'Suporte',
+            'tipo_slug': 'suporte',
+            'especial': True,
+        },
+    ]
+
+    for schema_esp in schemas_especiais:
+        resumo['total'] += 1
+        audit = {
+            'loja_id': None,
+            'slug': schema_esp['slug'],
+            'nome': schema_esp['nome'],
+            'database_name': schema_esp['schema_nome'],
+            'database_created': True,
+            'tipo_slug': schema_esp['tipo_slug'],
+            'tipo_nome': schema_esp['tipo_nome'],
+            'schema_nome': schema_esp['schema_nome'],
+            'tipo_mapeado': True,
+            'apps_esperados': [],
+            'schema_existe': None,
+            'conexao_ok': False,
+            'tabelas_total': 0,
+            'tabelas_negocio': 0,
+            'apps_detalhe': [],
+            'ok': False,
+            'erro': None,
+            'especial': True,
+        }
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    'SELECT 1 FROM information_schema.schemata WHERE schema_name = %s',
+                    [schema_esp['schema_nome']],
+                )
+                audit['schema_existe'] = cursor.fetchone() is not None
+
+            if audit['schema_existe']:
+                audit['conexao_ok'] = True
+                with connection.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT COUNT(*) FROM information_schema.tables
+                        WHERE table_schema = %s AND table_type = 'BASE TABLE'
+                        """,
+                        [schema_esp['schema_nome']],
+                    )
+                    audit['tabelas_total'] = cur.fetchone()[0]
+                    cur.execute(
+                        """
+                        SELECT COUNT(*) FROM information_schema.tables
+                        WHERE table_schema = %s AND table_type = 'BASE TABLE'
+                          AND table_name NOT LIKE 'django_%%'
+                        """,
+                        [schema_esp['schema_nome']],
+                    )
+                    audit['tabelas_negocio'] = cur.fetchone()[0]
+
+                audit['ok'] = audit['tabelas_total'] > 0
+            else:
+                audit['erro'] = f'Schema "{schema_esp["schema_nome"]}" não existe.'
+
+        except Exception as e:
+            audit['erro'] = f'Erro ao verificar schema: {e}'
+
+        resultados.append({
+            'audit': audit,
+            'correcao': None,
+            'audit_pos': None,
+            'ok_final': audit['ok'],
+        })
+
+        if audit['ok']:
+            resumo['ok'] += 1
+        else:
+            resumo['falhas'] += 1
+
+    # Processar lojas normais
     for loja in lojas:
         resumo['total'] += 1
         audit = auditar_loja(loja)

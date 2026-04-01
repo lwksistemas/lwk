@@ -303,14 +303,49 @@ def auditar_e_opcionalmente_corrigir(
         except Exception as e:
             audit['erro'] = f'Erro ao verificar schema: {e}'
 
+        # Aplicar correção se solicitado e schema não existe
+        correcao: dict[str, Any] | None = None
+        audit_pos: dict[str, Any] | None = None
+        ok_final = bool(audit.get('ok'))
+
+        if aplicar_correcao and not ok_final and not audit['schema_existe']:
+            # Criar schema especial se não existir
+            correcao = {
+                'slug': schema_esp['slug'],
+                'sucesso': False,
+                'mensagem': '',
+            }
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(f'CREATE SCHEMA IF NOT EXISTS {schema_esp["schema_nome"]}')
+                    logger.info(f'Schema {schema_esp["schema_nome"]} criado com sucesso.')
+                correcao['sucesso'] = True
+                correcao['mensagem'] = f'Schema {schema_esp["schema_nome"]} criado.'
+                resumo['corrigidos'] += 1
+
+                # Re-auditar após correção
+                audit_pos = audit.copy()
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        'SELECT 1 FROM information_schema.schemata WHERE schema_name = %s',
+                        [schema_esp['schema_nome']],
+                    )
+                    audit_pos['schema_existe'] = cursor.fetchone() is not None
+                    audit_pos['ok'] = audit_pos['schema_existe']
+                    audit_pos['erro'] = None if audit_pos['schema_existe'] else audit_pos['erro']
+                ok_final = bool(audit_pos.get('ok'))
+            except Exception as e:
+                logger.exception(f'Erro ao criar schema {schema_esp["schema_nome"]}')
+                correcao['mensagem'] = f'Erro ao criar schema: {e}'
+
         resultados.append({
             'audit': audit,
-            'correcao': None,
-            'audit_pos': None,
-            'ok_final': audit['ok'],
+            'correcao': correcao,
+            'audit_pos': audit_pos,
+            'ok_final': ok_final,
         })
 
-        if audit['ok']:
+        if ok_final:
             resumo['ok'] += 1
         else:
             resumo['falhas'] += 1

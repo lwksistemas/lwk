@@ -30,12 +30,13 @@ def _get_municipal_config() -> Dict[str, Optional[str]]:
     service_id = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
     
     # ✅ CORREÇÃO v1333: Remover pontuação do código de serviço (prefeitura exige apenas dígitos)
-    # ✅ CORREÇÃO v1468: Manter formato de 3-4 dígitos conforme exigido pela prefeitura
+    # ✅ CORREÇÃO v1469: Aceitar códigos de 3 a 6 dígitos (varia por município)
+    # Ribeirão Preto-SP: 140118 (6 dígitos) ou 14.01 (4 dígitos sem ponto)
     if code:
         code = code.replace('.', '').replace('-', '')
-        # Validar que o código tem 3 ou 4 dígitos (exigência da prefeitura)
-        if len(code) < 3 or len(code) > 4:
-            logger.warning(f"Código de serviço municipal com tamanho inválido: {code} (deve ter 3-4 dígitos)")
+        # Validar que o código tem entre 3 e 6 dígitos
+        if len(code) < 3 or len(code) > 6:
+            logger.warning(f"Código de serviço municipal com tamanho inválido: {code} (deve ter 3-6 dígitos)")
         # Não remover zeros à esquerda - manter formato original
     
     # Log para debug

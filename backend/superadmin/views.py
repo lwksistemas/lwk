@@ -1760,25 +1760,31 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             )
         
         try:
+            from django.db import connection
+            
             with transaction.atomic():
-                # Definir search_path para public para evitar erro com tabelas de outros schemas
-                from django.db import connection
-                with connection.cursor() as cursor:
-                    cursor.execute("SET search_path TO public")
-                
-                # Limpar sessões manualmente antes de excluir (evita problemas de CASCADE)
+                # Limpar sessões manualmente antes de excluir
                 from superadmin.models import UserSession
                 sessoes_count = UserSession.objects.filter(user_id=user_id).count()
                 UserSession.objects.filter(user_id=user_id).delete()
                 if sessoes_count:
                     logger.info(f"   ✅ {sessoes_count} sessão(ões) removida(s)")
                 
-                # Limpar grupos e permissões
-                user_django.groups.clear()
-                user_django.user_permissions.clear()
+                # Usar SQL direto para excluir, evitando CASCADE do Django que tenta acessar schemas de lojas
+                with connection.cursor() as cursor:
+                    # Definir search_path para public
+                    cursor.execute("SET LOCAL search_path TO public")
+                    
+                    # Limpar grupos e permissões via SQL
+                    cursor.execute("DELETE FROM auth_user_groups WHERE user_id = %s", [user_id])
+                    cursor.execute("DELETE FROM auth_user_user_permissions WHERE user_id = %s", [user_id])
+                    
+                    # Excluir UsuarioSistema (CASCADE do banco vai cuidar das relações)
+                    cursor.execute("DELETE FROM superadmin_usuariosistema WHERE user_id = %s", [user_id])
+                    
+                    # Excluir User do Django
+                    cursor.execute("DELETE FROM auth_user WHERE id = %s", [user_id])
                 
-                # Excluir User do Django (CASCADE vai excluir UsuarioSistema automaticamente)
-                user_django.delete()
                 logger.info(f"✅ Usuário excluído: {username} (ID: {user_id})")
             
             return Response({

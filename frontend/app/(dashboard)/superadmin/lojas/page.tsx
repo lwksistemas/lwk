@@ -27,7 +27,7 @@ export default function GerenciarLojasPage() {
   const router = useRouter();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [selectedLoja, setSelectedLoja] = useState<Loja | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const { lojas, loading, reload } = useLojaList();
   const { excluirLoja, reenviarSenha, criarBanco, loading: actionLoading } = useLojaActions();

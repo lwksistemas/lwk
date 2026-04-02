@@ -27,7 +27,9 @@ class CRMCacheManager:
     ATIVIDADES_VERSION = 'crm_atividades_v'
     
     # TTL padrão
-    DEFAULT_TTL = 120  # 2 minutos
+    # ✅ OTIMIZAÇÃO v1490: Aumentado de 120s para 300s (5 minutos)
+    # Melhora hit rate do Redis sem comprometer atualização de dados
+    DEFAULT_TTL = 300  # 5 minutos
     
     @classmethod
     def get_cache_key(cls, prefix, loja_id, vendedor_id=None, **kwargs):
@@ -122,7 +124,8 @@ class CRMCacheManager:
         try:
             version_key = cls.get_cache_key(cls.ATIVIDADES_VERSION, loja_id)
             v = cache.get(version_key, 0) + 1
-            cache.set(version_key, v, 86400)  # 24 horas
+            # ✅ OTIMIZAÇÃO v1490: Aumentado de 24h para 7 dias
+            cache.set(version_key, v, 604800)  # 7 dias
         except Exception:
             pass
     

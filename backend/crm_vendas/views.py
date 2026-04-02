@@ -536,7 +536,12 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
         Base: BaseModelViewSet (ensure_loja_context + isolamento por loja via LeadManager).
         """
         qs = super().get_queryset()
-        qs = qs.select_related('conta', 'vendedor').prefetch_related('oportunidades')
+        # ✅ OTIMIZAÇÃO v1490: Adicionar prefetch para contatos e oportunidades
+        qs = qs.select_related('conta', 'vendedor').prefetch_related(
+            'oportunidades',
+            'oportunidades__vendedor',  # Prefetch vendedor das oportunidades
+            'contatos'  # Prefetch contatos do lead
+        )
 
         # Para retrieve (GET /leads/{id}/), owner sempre tem acesso
         if self.action == 'retrieve':
@@ -706,7 +711,12 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
 
     def get_queryset(self):
         qs = super().get_queryset()
-        qs = qs.select_related('lead', 'vendedor', 'lead__conta').prefetch_related('atividades')
+        # ✅ OTIMIZAÇÃO v1490: Adicionar prefetch para itens e reduzir N+1 queries
+        qs = qs.select_related('lead', 'vendedor', 'lead__conta').prefetch_related(
+            'atividades',
+            'itens',  # Prefetch itens da oportunidade
+            'itens__produto_servico'  # Prefetch produtos dos itens
+        )
         # Filtros adicionais (além do filtro de vendedor do mixin)
         # Se não for vendedor, permitir filtrar por vendedor_id via query param
         if get_current_vendedor_id(self.request) is None:
@@ -720,8 +730,14 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
 
 
 class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
+    # ✅ OTIMIZAÇÃO v1490: Adicionar prefetch para vendedor e conta
     queryset = (
-        Atividade.objects.select_related('oportunidade', 'lead')
+        Atividade.objects.select_related(
+            'oportunidade',
+            'lead',
+            'oportunidade__vendedor',  # Prefetch vendedor da oportunidade
+            'lead__conta'  # Prefetch conta do lead
+        )
         .defer('google_event_id')  # Evita coluna que pode não existir em schemas antigos
         .all()
     )

@@ -1694,6 +1694,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
         
         ✅ NOVO v1482: Endpoint para download de nota fiscal
         ✅ CORREÇÃO v1484: Buscar nota fiscal corretamente via API Asaas
+        ✅ DEBUG v1487: Logs detalhados para debug
         
         Returns:
             - PDF da nota fiscal (se encontrada)
@@ -1705,35 +1706,52 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
         from django.http import HttpResponse
         
         try:
+            logger.info(f"🧾 [baixar_nota_fiscal] Iniciando - financeiro_id={pk}")
+            
             financeiro = self.get_object()
             loja = financeiro.loja
             
+            logger.info(f"🧾 [baixar_nota_fiscal] Loja: {loja.nome} (slug: {loja.slug})")
+            logger.info(f"🧾 [baixar_nota_fiscal] Payment ID: {financeiro.asaas_payment_id}")
+            
             # Verificar se tem payment_id
             if not financeiro.asaas_payment_id:
+                logger.warning(f"🧾 [baixar_nota_fiscal] Nenhum payment_id encontrado")
                 return Response({
                     'success': False,
                     'error': 'Nenhum pagamento Asaas encontrado para esta loja'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            logger.info(f"Buscando nota fiscal para loja {loja.slug} (payment: {financeiro.asaas_payment_id})")
+            logger.info(f"🧾 [baixar_nota_fiscal] Buscando nota fiscal para payment: {financeiro.asaas_payment_id}")
             
             # Obter cliente Asaas
             config = AsaasConfig.get_config()
             if not config or not config.api_key:
+                logger.error(f"🧾 [baixar_nota_fiscal] Asaas não configurado")
                 return Response({
                     'success': False,
                     'error': 'Asaas não configurado'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
+            logger.info(f"🧾 [baixar_nota_fiscal] Cliente Asaas configurado (sandbox={config.sandbox})")
+            
             client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
             
             # Buscar notas fiscais do pagamento
             try:
+                logger.info(f"🧾 [baixar_nota_fiscal] Chamando API Asaas: GET /invoices?payment={financeiro.asaas_payment_id}")
+                
                 # Endpoint: GET /v3/invoices?payment={payment_id}
                 response = client._make_request('GET', 'invoices', {'payment': financeiro.asaas_payment_id})
+                
+                logger.info(f"🧾 [baixar_nota_fiscal] Resposta da API: {response}")
+                
                 invoices = response.get('data', [])
                 
+                logger.info(f"🧾 [baixar_nota_fiscal] Total de notas encontradas: {len(invoices)}")
+                
                 if not invoices:
+                    logger.warning(f"🧾 [baixar_nota_fiscal] Nenhuma nota fiscal encontrada")
                     return Response({
                         'success': False,
                         'error': 'Nenhuma nota fiscal encontrada para este pagamento. A nota fiscal é emitida automaticamente após a confirmação do pagamento.'
@@ -1742,6 +1760,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                 # Pegar a nota mais recente (status AUTHORIZED)
                 invoice = None
                 for inv in invoices:
+                    logger.info(f"🧾 [baixar_nota_fiscal] Nota encontrada: id={inv.get('id')}, status={inv.get('status')}")
                     if inv.get('status') == 'AUTHORIZED':
                         invoice = inv
                         break
@@ -1749,14 +1768,16 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                 # Se não encontrou autorizada, pegar a primeira
                 if not invoice:
                     invoice = invoices[0]
+                    logger.warning(f"🧾 [baixar_nota_fiscal] Nenhuma nota AUTHORIZED, usando primeira: {invoice.get('id')}")
                 
                 invoice_id = invoice.get('id')
                 status_nf = invoice.get('status')
                 
-                logger.info(f"Nota fiscal encontrada: {invoice_id} (status: {status_nf})")
+                logger.info(f"🧾 [baixar_nota_fiscal] Nota selecionada: {invoice_id} (status: {status_nf})")
                 
                 # Verificar se a nota está autorizada
                 if status_nf != 'AUTHORIZED':
+                    logger.warning(f"🧾 [baixar_nota_fiscal] Nota não autorizada: {status_nf}")
                     return Response({
                         'success': False,
                         'error': f'Nota fiscal ainda não foi autorizada. Status atual: {status_nf}'
@@ -1766,17 +1787,21 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                 # A API Asaas retorna diferentes campos dependendo do tipo
                 pdf_url = invoice.get('pdfUrl')  # URL do PDF da NF
                 
+                logger.info(f"🧾 [baixar_nota_fiscal] pdfUrl: {pdf_url}")
+                
                 if not pdf_url:
                     # Tentar outros campos possíveis
                     pdf_url = invoice.get('invoicePdfUrl') or invoice.get('invoiceUrl')
+                    logger.info(f"🧾 [baixar_nota_fiscal] Tentando campos alternativos: {pdf_url}")
                 
                 if not pdf_url:
+                    logger.error(f"🧾 [baixar_nota_fiscal] Nenhuma URL de PDF encontrada. Invoice completo: {invoice}")
                     return Response({
                         'success': False,
                         'error': 'URL do PDF da nota fiscal não disponível. Aguarde alguns minutos após a emissão.'
                     }, status=status.HTTP_404_NOT_FOUND)
                 
-                logger.info(f"✅ Nota fiscal encontrada: {invoice_id}, PDF: {pdf_url}")
+                logger.info(f"✅ [baixar_nota_fiscal] Sucesso! invoice_id={invoice_id}, pdf_url={pdf_url}")
                 
                 # Retornar URL do PDF
                 return Response({
@@ -1787,14 +1812,15 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                 })
                 
             except Exception as e:
-                logger.error(f"Erro ao buscar nota fiscal: {e}")
+                logger.error(f"❌ [baixar_nota_fiscal] Erro ao buscar nota fiscal: {e}")
+                logger.exception(e)
                 return Response({
                     'success': False,
                     'error': f'Erro ao buscar nota fiscal: {str(e)}'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         except Exception as e:
-            logger.exception(f"Erro ao baixar nota fiscal: {e}")
+            logger.exception(f"❌ [baixar_nota_fiscal] Erro geral: {e}")
             return Response({
                 'success': False,
                 'error': str(e)

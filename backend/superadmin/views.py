@@ -1693,6 +1693,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
         Baixa a nota fiscal mais recente da loja
         
         ✅ NOVO v1482: Endpoint para download de nota fiscal
+        ✅ CORREÇÃO v1484: Buscar nota fiscal corretamente via API Asaas
         
         Returns:
             - PDF da nota fiscal (se encontrada)
@@ -1735,29 +1736,54 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                 if not invoices:
                     return Response({
                         'success': False,
-                        'error': 'Nenhuma nota fiscal encontrada para este pagamento'
+                        'error': 'Nenhuma nota fiscal encontrada para este pagamento. A nota fiscal é emitida automaticamente após a confirmação do pagamento.'
                     }, status=status.HTTP_404_NOT_FOUND)
                 
-                # Pegar a nota mais recente
-                invoice = invoices[0]
-                invoice_id = invoice.get('id')
+                # Pegar a nota mais recente (status AUTHORIZED)
+                invoice = None
+                for inv in invoices:
+                    if inv.get('status') == 'AUTHORIZED':
+                        invoice = inv
+                        break
                 
-                # Buscar URL do PDF
-                pdf_url = invoice.get('pdfUrl') or invoice.get('invoiceUrl')
+                # Se não encontrou autorizada, pegar a primeira
+                if not invoice:
+                    invoice = invoices[0]
+                
+                invoice_id = invoice.get('id')
+                status_nf = invoice.get('status')
+                
+                logger.info(f"Nota fiscal encontrada: {invoice_id} (status: {status_nf})")
+                
+                # Verificar se a nota está autorizada
+                if status_nf != 'AUTHORIZED':
+                    return Response({
+                        'success': False,
+                        'error': f'Nota fiscal ainda não foi autorizada. Status atual: {status_nf}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Buscar URL do PDF da nota fiscal (não do boleto!)
+                # A API Asaas retorna diferentes campos dependendo do tipo
+                pdf_url = invoice.get('pdfUrl')  # URL do PDF da NF
+                
+                if not pdf_url:
+                    # Tentar outros campos possíveis
+                    pdf_url = invoice.get('invoicePdfUrl') or invoice.get('invoiceUrl')
                 
                 if not pdf_url:
                     return Response({
                         'success': False,
-                        'error': 'URL do PDF não disponível'
+                        'error': 'URL do PDF da nota fiscal não disponível. Aguarde alguns minutos após a emissão.'
                     }, status=status.HTTP_404_NOT_FOUND)
                 
-                logger.info(f"✅ Nota fiscal encontrada: {invoice_id}")
+                logger.info(f"✅ Nota fiscal encontrada: {invoice_id}, PDF: {pdf_url}")
                 
-                # Redirecionar para o PDF
+                # Retornar URL do PDF
                 return Response({
                     'success': True,
                     'pdf_url': pdf_url,
-                    'invoice_id': invoice_id
+                    'invoice_id': invoice_id,
+                    'status': status_nf
                 })
                 
             except Exception as e:
@@ -1780,6 +1806,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
         Reenvia nota fiscal por email para o proprietário da loja
         
         ✅ NOVO v1482: Endpoint para reenvio de nota fiscal
+        ✅ CORREÇÃO v1484: Buscar nota fiscal corretamente e validar status
         
         Returns:
             {
@@ -1824,13 +1851,43 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                 if not invoices:
                     return Response({
                         'success': False,
-                        'error': 'Nenhuma nota fiscal encontrada para este pagamento'
+                        'error': 'Nenhuma nota fiscal encontrada para este pagamento. A nota fiscal é emitida automaticamente após a confirmação do pagamento.'
                     }, status=status.HTTP_404_NOT_FOUND)
                 
-                # Pegar a nota mais recente
-                invoice = invoices[0]
+                # Pegar a nota mais recente (status AUTHORIZED)
+                invoice = None
+                for inv in invoices:
+                    if inv.get('status') == 'AUTHORIZED':
+                        invoice = inv
+                        break
+                
+                # Se não encontrou autorizada, pegar a primeira
+                if not invoice:
+                    invoice = invoices[0]
+                
                 invoice_id = invoice.get('id')
-                pdf_url = invoice.get('pdfUrl') or invoice.get('invoiceUrl')
+                status_nf = invoice.get('status')
+                
+                # Verificar se a nota está autorizada
+                if status_nf != 'AUTHORIZED':
+                    return Response({
+                        'success': False,
+                        'error': f'Nota fiscal ainda não foi autorizada. Status atual: {status_nf}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Buscar URL do PDF da nota fiscal
+                pdf_url = invoice.get('pdfUrl')
+                
+                if not pdf_url:
+                    # Tentar outros campos possíveis
+                    pdf_url = invoice.get('invoicePdfUrl') or invoice.get('invoiceUrl')
+                
+                if not pdf_url:
+                    return Response({
+                        'success': False,
+                        'error': 'URL do PDF da nota fiscal não disponível. Aguarde alguns minutos após a emissão.'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
                 value = invoice.get('value', 0)
                 
                 # Enviar email
@@ -1872,6 +1929,9 @@ Equipe LWK Sistemas
                 
                 return Response({
                     'success': True,
+                    'message': f'Nota fiscal reenviada para {owner.email}',
+                    'invoice_id': invoice_id
+                })
                     'message': f'Nota fiscal reenviada para {owner.email}',
                     'invoice_id': invoice_id
                 })

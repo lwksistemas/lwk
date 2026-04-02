@@ -536,11 +536,10 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
         Base: BaseModelViewSet (ensure_loja_context + isolamento por loja via LeadManager).
         """
         qs = super().get_queryset()
-        # ✅ OTIMIZAÇÃO v1490: Adicionar prefetch para contatos e oportunidades
-        qs = qs.select_related('conta', 'vendedor').prefetch_related(
+        # ✅ OTIMIZAÇÃO v1490: Adicionar prefetch para contato e oportunidades
+        qs = qs.select_related('conta', 'vendedor', 'contato').prefetch_related(
             'oportunidades',
-            'oportunidades__vendedor',  # Prefetch vendedor das oportunidades
-            'contatos'  # Prefetch contatos do lead
+            'oportunidades__vendedor'  # Prefetch vendedor das oportunidades
         )
 
         # Para retrieve (GET /leads/{id}/), owner sempre tem acesso

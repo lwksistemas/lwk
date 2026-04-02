@@ -1686,6 +1686,209 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['get'])
+    def baixar_nota_fiscal(self, request, pk=None):
+        """
+        Baixa a nota fiscal mais recente da loja
+        
+        ✅ NOVO v1482: Endpoint para download de nota fiscal
+        
+        Returns:
+            - PDF da nota fiscal (se encontrada)
+            - 404: Nota fiscal não encontrada
+            - 500: Erro ao buscar nota fiscal
+        """
+        from asaas_integration.models import AsaasConfig
+        from asaas_integration.client import AsaasClient
+        from django.http import HttpResponse
+        
+        try:
+            financeiro = self.get_object()
+            loja = financeiro.loja
+            
+            # Verificar se tem payment_id
+            if not financeiro.asaas_payment_id:
+                return Response({
+                    'success': False,
+                    'error': 'Nenhum pagamento Asaas encontrado para esta loja'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            logger.info(f"Buscando nota fiscal para loja {loja.slug} (payment: {financeiro.asaas_payment_id})")
+            
+            # Obter cliente Asaas
+            config = AsaasConfig.get_config()
+            if not config or not config.api_key:
+                return Response({
+                    'success': False,
+                    'error': 'Asaas não configurado'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
+            
+            # Buscar notas fiscais do pagamento
+            try:
+                # Endpoint: GET /v3/invoices?payment={payment_id}
+                response = client._make_request('GET', 'invoices', {'payment': financeiro.asaas_payment_id})
+                invoices = response.get('data', [])
+                
+                if not invoices:
+                    return Response({
+                        'success': False,
+                        'error': 'Nenhuma nota fiscal encontrada para este pagamento'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                # Pegar a nota mais recente
+                invoice = invoices[0]
+                invoice_id = invoice.get('id')
+                
+                # Buscar URL do PDF
+                pdf_url = invoice.get('pdfUrl') or invoice.get('invoiceUrl')
+                
+                if not pdf_url:
+                    return Response({
+                        'success': False,
+                        'error': 'URL do PDF não disponível'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                logger.info(f"✅ Nota fiscal encontrada: {invoice_id}")
+                
+                # Redirecionar para o PDF
+                return Response({
+                    'success': True,
+                    'pdf_url': pdf_url,
+                    'invoice_id': invoice_id
+                })
+                
+            except Exception as e:
+                logger.error(f"Erro ao buscar nota fiscal: {e}")
+                return Response({
+                    'success': False,
+                    'error': f'Erro ao buscar nota fiscal: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        except Exception as e:
+            logger.exception(f"Erro ao baixar nota fiscal: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'])
+    def reenviar_nota_fiscal(self, request, pk=None):
+        """
+        Reenvia nota fiscal por email para o proprietário da loja
+        
+        ✅ NOVO v1482: Endpoint para reenvio de nota fiscal
+        
+        Returns:
+            {
+                "success": true,
+                "message": "Nota fiscal reenviada para email@example.com"
+            }
+        """
+        from asaas_integration.models import AsaasConfig
+        from asaas_integration.client import AsaasClient
+        from django.core.mail import EmailMessage
+        from django.conf import settings
+        
+        try:
+            financeiro = self.get_object()
+            loja = financeiro.loja
+            owner = loja.owner
+            
+            # Verificar se tem payment_id
+            if not financeiro.asaas_payment_id:
+                return Response({
+                    'success': False,
+                    'error': 'Nenhum pagamento Asaas encontrado para esta loja'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            logger.info(f"Reenviando nota fiscal para loja {loja.slug} (email: {owner.email})")
+            
+            # Obter cliente Asaas
+            config = AsaasConfig.get_config()
+            if not config or not config.api_key:
+                return Response({
+                    'success': False,
+                    'error': 'Asaas não configurado'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
+            
+            # Buscar notas fiscais do pagamento
+            try:
+                response = client._make_request('GET', 'invoices', {'payment': financeiro.asaas_payment_id})
+                invoices = response.get('data', [])
+                
+                if not invoices:
+                    return Response({
+                        'success': False,
+                        'error': 'Nenhuma nota fiscal encontrada para este pagamento'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                # Pegar a nota mais recente
+                invoice = invoices[0]
+                invoice_id = invoice.get('id')
+                pdf_url = invoice.get('pdfUrl') or invoice.get('invoiceUrl')
+                value = invoice.get('value', 0)
+                
+                # Enviar email
+                valor_plano = loja.plano.preco_anual if loja.tipo_assinatura == 'anual' else loja.plano.preco_mensal
+                tipo_assinatura = loja.get_tipo_assinatura_display()
+                
+                assunto = f'Nota Fiscal – Assinatura LWK Sistemas - {loja.nome}'
+                
+                corpo = f"""
+Olá,
+
+Segue a nota fiscal referente à assinatura da loja {loja.nome}.
+
+Dados da assinatura:
+- Loja: {loja.nome}
+- Plano: {loja.plano.nome} ({tipo_assinatura})
+- Valor: R$ {valor_plano:.2f}
+- Nota Fiscal: {invoice_id}
+
+Acesse a nota fiscal: {pdf_url}
+
+Em caso de dúvidas, entre em contato com o suporte.
+
+Atenciosamente,
+Equipe LWK Sistemas
+"""
+                
+                from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lwksistemas.com.br')
+                
+                msg = EmailMessage(
+                    subject=assunto,
+                    body=corpo,
+                    from_email=from_email,
+                    to=[owner.email]
+                )
+                msg.send(fail_silently=False)
+                
+                logger.info(f"✅ Nota fiscal reenviada para {owner.email} (loja {loja.slug})")
+                
+                return Response({
+                    'success': True,
+                    'message': f'Nota fiscal reenviada para {owner.email}',
+                    'invoice_id': invoice_id
+                })
+                
+            except Exception as e:
+                logger.error(f"Erro ao reenviar nota fiscal: {e}")
+                return Response({
+                    'success': False,
+                    'error': f'Erro ao reenviar nota fiscal: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        except Exception as e:
+            logger.exception(f"Erro ao reenviar nota fiscal: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PagamentoLojaViewSet(viewsets.ModelViewSet):

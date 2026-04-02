@@ -2,6 +2,7 @@
  * Componente de ações para assinaturas Asaas
  * ✅ REFATORADO v780: Extraído da página de financeiro
  * ✅ NOVO v1484: Adicionados botões de Nota Fiscal
+ * ✅ CORREÇÃO v1488: Usar assinatura.id como financeiro_id
  */
 import { useState } from 'react';
 import type { Pagamento, Assinatura } from '@/hooks/useAssinaturas';
@@ -35,16 +36,17 @@ export function AssinaturaAsaas({
     try {
       setBaixandoNF(true);
       
-      // Buscar financeiro_id da loja
-      const { data: lojas } = await apiClient.get('/superadmin/lojas/');
-      const loja = lojas.find((l: any) => l.slug === assinatura.loja_slug);
+      // O assinatura.id É o financeiro_id (vem da API /superadmin/financeiro-unificado/)
+      const financeiro_id = assinatura.id;
       
-      if (!loja || !loja.financeiro_id) {
-        alert('Financeiro não encontrado para esta loja');
+      if (!financeiro_id) {
+        alert('ID do financeiro não encontrado');
         return;
       }
 
-      const { data } = await apiClient.get(`/superadmin/financeiro/${loja.financeiro_id}/baixar_nota_fiscal/`);
+      console.log(`Baixando nota fiscal para financeiro_id=${financeiro_id}`);
+
+      const { data } = await apiClient.get(`/superadmin/financeiro/${financeiro_id}/baixar_nota_fiscal/`);
       
       if (data.success && data.pdf_url) {
         // Abrir PDF em nova aba
@@ -64,16 +66,17 @@ export function AssinaturaAsaas({
     try {
       setReenviandoNF(true);
       
-      // Buscar financeiro_id da loja
-      const { data: lojas } = await apiClient.get('/superadmin/lojas/');
-      const loja = lojas.find((l: any) => l.slug === assinatura.loja_slug);
+      // O assinatura.id É o financeiro_id (vem da API /superadmin/financeiro-unificado/)
+      const financeiro_id = assinatura.id;
       
-      if (!loja || !loja.financeiro_id) {
-        alert('Financeiro não encontrado para esta loja');
+      if (!financeiro_id) {
+        alert('ID do financeiro não encontrado');
         return;
       }
 
-      const { data } = await apiClient.post(`/superadmin/financeiro/${loja.financeiro_id}/reenviar_nota_fiscal/`);
+      console.log(`Reenviando nota fiscal para financeiro_id=${financeiro_id}`);
+
+      const { data } = await apiClient.post(`/superadmin/financeiro/${financeiro_id}/reenviar_nota_fiscal/`);
       
       if (data.success) {
         alert(data.message || 'Nota fiscal reenviada com sucesso!');

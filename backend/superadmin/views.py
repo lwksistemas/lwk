@@ -1946,7 +1946,6 @@ Equipe LWK Sistemas
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PagamentoLojaViewSet(viewsets.ModelViewSet):

@@ -36,11 +36,11 @@ export function AssinaturaAsaas({
     try {
       setBaixandoNF(true);
       
-      // O assinatura.id É o financeiro_id (vem da API /superadmin/financeiro-unificado/)
-      const financeiro_id = assinatura.id;
+      // ✅ CORREÇÃO v1489: Usar assinatura.financeiro_id (vem do backend)
+      const financeiro_id = assinatura.financeiro_id;
       
       if (!financeiro_id) {
-        alert('ID do financeiro não encontrado');
+        alert('ID do financeiro não encontrado para esta loja');
         return;
       }
 
@@ -66,11 +66,11 @@ export function AssinaturaAsaas({
     try {
       setReenviandoNF(true);
       
-      // O assinatura.id É o financeiro_id (vem da API /superadmin/financeiro-unificado/)
-      const financeiro_id = assinatura.id;
+      // ✅ CORREÇÃO v1489: Usar assinatura.financeiro_id (vem do backend)
+      const financeiro_id = assinatura.financeiro_id;
       
       if (!financeiro_id) {
-        alert('ID do financeiro não encontrado');
+        alert('ID do financeiro não encontrado para esta loja');
         return;
       }
 

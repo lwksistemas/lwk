@@ -47,11 +47,13 @@ class LojaAssinaturaSerializer(serializers.ModelSerializer):
     
     ✅ MODIFICAÇÃO v730: Adicionados campos subscription_status e subscription_status_display
     para diferenciar status da assinatura do status do próximo pagamento.
+    ✅ NOVO v1489: Adicionado campo financeiro_id para botões de nota fiscal
     """
     
     customer_data = AsaasCustomerSerializer(source='asaas_customer', read_only=True)
     current_payment_data = AsaasPaymentSerializer(source='current_payment', read_only=True)
     total_payments = serializers.SerializerMethodField()
+    financeiro_id = serializers.SerializerMethodField()  # ✅ NOVO v1489
     
     # ✅ NOVO v730: Campos para status da assinatura
     subscription_status = serializers.SerializerMethodField()
@@ -63,10 +65,22 @@ class LojaAssinaturaSerializer(serializers.ModelSerializer):
             'id', 'loja_slug', 'loja_nome', 'asaas_customer', 'customer_data',
             'current_payment', 'current_payment_data', 'plano_nome', 'plano_valor',
             'ativa', 'data_ativacao', 'data_vencimento', 'total_payments',
+            'financeiro_id',  # ✅ NOVO v1489
             'subscription_status', 'subscription_status_display',  # ✅ NOVO v730
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_financeiro_id(self, obj):
+        """
+        ✅ NOVO v1489: Retorna o ID do FinanceiroLoja para usar nos endpoints de nota fiscal
+        """
+        try:
+            from superadmin.models import Loja, FinanceiroLoja
+            loja = Loja.objects.get(slug=obj.loja_slug)
+            return loja.financeiro.id if hasattr(loja, 'financeiro') else None
+        except Exception:
+            return None
     
     def get_total_payments(self, obj):
         """Retorna total de pagamentos desta assinatura"""

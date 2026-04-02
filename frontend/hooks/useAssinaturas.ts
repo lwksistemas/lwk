@@ -34,6 +34,7 @@ export interface Assinatura {
   data_vencimento: string;
   current_payment_data: Pagamento | null;
   total_payments: number;
+  financeiro_id?: number;  // ✅ NOVO v1489: ID do FinanceiroLoja para endpoints de NF
   subscription_status?: string;
   subscription_status_display?: string;
 }

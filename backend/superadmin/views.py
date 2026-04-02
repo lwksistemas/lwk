@@ -1932,9 +1932,6 @@ Equipe LWK Sistemas
                     'message': f'Nota fiscal reenviada para {owner.email}',
                     'invoice_id': invoice_id
                 })
-                    'message': f'Nota fiscal reenviada para {owner.email}',
-                    'invoice_id': invoice_id
-                })
                 
             except Exception as e:
                 logger.error(f"Erro ao reenviar nota fiscal: {e}")
@@ -1948,6 +1945,7 @@ Equipe LWK Sistemas
             return Response({
                 'success': False,
                 'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

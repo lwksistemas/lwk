@@ -1,8 +1,11 @@
 /**
  * Componente de ações para assinaturas Asaas
  * ✅ REFATORADO v780: Extraído da página de financeiro
+ * ✅ NOVO v1484: Adicionados botões de Nota Fiscal
  */
+import { useState } from 'react';
 import type { Pagamento, Assinatura } from '@/hooks/useAssinaturas';
+import { apiClient } from '@/lib/api-client';
 
 interface AssinaturaAsaasProps {
   assinatura: Assinatura;
@@ -25,6 +28,66 @@ export function AssinaturaAsaas({
   onExcluir,
   gerandoCobranca
 }: AssinaturaAsaasProps) {
+  const [baixandoNF, setBaixandoNF] = useState(false);
+  const [reenviandoNF, setReenviandoNF] = useState(false);
+
+  const handleBaixarNotaFiscal = async () => {
+    try {
+      setBaixandoNF(true);
+      
+      // Buscar financeiro_id da loja
+      const { data: lojas } = await apiClient.get('/superadmin/lojas/');
+      const loja = lojas.find((l: any) => l.slug === assinatura.loja_slug);
+      
+      if (!loja || !loja.financeiro_id) {
+        alert('Financeiro não encontrado para esta loja');
+        return;
+      }
+
+      const { data } = await apiClient.get(`/superadmin/financeiro/${loja.financeiro_id}/baixar_nota_fiscal/`);
+      
+      if (data.success && data.pdf_url) {
+        // Abrir PDF em nova aba
+        window.open(data.pdf_url, '_blank');
+      } else {
+        alert(data.error || 'Nota fiscal não encontrada');
+      }
+    } catch (error: any) {
+      console.error('Erro ao baixar nota fiscal:', error);
+      alert(error.response?.data?.error || 'Erro ao baixar nota fiscal');
+    } finally {
+      setBaixandoNF(false);
+    }
+  };
+
+  const handleReenviarNotaFiscal = async () => {
+    try {
+      setReenviandoNF(true);
+      
+      // Buscar financeiro_id da loja
+      const { data: lojas } = await apiClient.get('/superadmin/lojas/');
+      const loja = lojas.find((l: any) => l.slug === assinatura.loja_slug);
+      
+      if (!loja || !loja.financeiro_id) {
+        alert('Financeiro não encontrado para esta loja');
+        return;
+      }
+
+      const { data } = await apiClient.post(`/superadmin/financeiro/${loja.financeiro_id}/reenviar_nota_fiscal/`);
+      
+      if (data.success) {
+        alert(data.message || 'Nota fiscal reenviada com sucesso!');
+      } else {
+        alert(data.error || 'Erro ao reenviar nota fiscal');
+      }
+    } catch (error: any) {
+      console.error('Erro ao reenviar nota fiscal:', error);
+      alert(error.response?.data?.error || 'Erro ao reenviar nota fiscal');
+    } finally {
+      setReenviandoNF(false);
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-2">
       <button
@@ -60,6 +123,25 @@ export function AssinaturaAsaas({
         className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 disabled:opacity-50 transition-colors"
       >
         {gerandoCobranca === assinatura.id ? 'Gerando...' : '➕ Nova Cobrança'}
+      </button>
+      
+      {/* ✅ NOVO v1484: Botões de Nota Fiscal */}
+      <button
+        onClick={handleBaixarNotaFiscal}
+        disabled={baixandoNF || !payment.is_paid}
+        className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        title={!payment.is_paid ? 'Nota fiscal disponível apenas para pagamentos confirmados' : 'Baixar nota fiscal'}
+      >
+        {baixandoNF ? '⏳ Baixando...' : '🧾 Baixar NF'}
+      </button>
+      
+      <button
+        onClick={handleReenviarNotaFiscal}
+        disabled={reenviandoNF || !payment.is_paid}
+        className="px-3 py-1 bg-teal-600 text-white text-xs rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        title={!payment.is_paid ? 'Nota fiscal disponível apenas para pagamentos confirmados' : 'Reenviar nota fiscal por email'}
+      >
+        {reenviandoNF ? '⏳ Enviando...' : '📧 Reenviar NF'}
       </button>
       
       <button

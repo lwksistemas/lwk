@@ -292,17 +292,6 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
                 <MessageCircle size={16} />
                 Acompanhar chamados
               </a>
-              <button
-                type="button"
-                className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
-                onClick={() => {
-                  setShowSuporteMenu(false);
-                  setModalSuporteAberto(true);
-                }}
-              >
-                <Plus size={16} />
-                Abrir novo chamado
-              </button>
             </div>
           )}
         </div>

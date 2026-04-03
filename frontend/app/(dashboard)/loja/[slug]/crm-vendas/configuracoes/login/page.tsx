@@ -155,6 +155,7 @@ export default function ConfiguracoesLoginPage() {
               onChange={(url) => setLogo(url)}
               maxSize={2}
               aspectRatio="16:9"
+              folder={`lwksistemas/${slug}`}
             />
 
             {/* Imagem de fundo do login */}
@@ -165,6 +166,7 @@ export default function ConfiguracoesLoginPage() {
               onChange={(url) => setLoginBackground(url)}
               maxSize={5}
               aspectRatio="16:9"
+              folder={`lwksistemas/${slug}`}
             />
 
             {/* Logo específico do login */}
@@ -175,6 +177,7 @@ export default function ConfiguracoesLoginPage() {
               onChange={(url) => setLoginLogo(url)}
               maxSize={2}
               aspectRatio="1:1"
+              folder={`lwksistemas/${slug}`}
             />
 
             {/* Cores pré-definidas */}

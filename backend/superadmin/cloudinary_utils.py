@@ -41,12 +41,13 @@ def extract_public_id_from_url(cloudinary_url: str) -> Optional[str]:
     return None
 
 
-def delete_cloudinary_image(cloudinary_url: str) -> bool:
+def delete_cloudinary_image(cloudinary_url: str, loja_slug: str = None) -> bool:
     """
     Deleta uma imagem do Cloudinary usando sua URL
     
     Args:
         cloudinary_url: URL completa da imagem no Cloudinary
+        loja_slug: Slug da loja (opcional, para validação de propriedade)
         
     Returns:
         True se deletado com sucesso, False caso contrário
@@ -95,6 +96,27 @@ def delete_cloudinary_image(cloudinary_url: str) -> bool:
         if not public_id:
             logger.error(f"Não foi possível extrair public_id da URL: {cloudinary_url}")
             return False
+        
+        # 🔒 SEGURANÇA: Validar propriedade da imagem (se loja_slug fornecido)
+        if loja_slug:
+            # Verificar se a imagem está na pasta da loja
+            expected_prefix = f'lwksistemas/{loja_slug}/'
+            
+            if not public_id.startswith(expected_prefix):
+                # Permitir imagens na pasta genérica 'lwksistemas/' (legado)
+                if not public_id.startswith('lwksistemas/'):
+                    logger.warning(
+                        f"⚠️ Tentativa de deletar imagem fora da pasta lwksistemas: {public_id} "
+                        f"(loja: {loja_slug})"
+                    )
+                    return False
+                
+                # Imagem está em 'lwksistemas/' mas não na subpasta da loja
+                # Permitir por compatibilidade com imagens antigas
+                logger.info(
+                    f"ℹ️ Deletando imagem legada (sem subpasta de loja): {public_id} "
+                    f"(loja: {loja_slug})"
+                )
         
         # Deletar imagem
         result = cloudinary.uploader.destroy(public_id)

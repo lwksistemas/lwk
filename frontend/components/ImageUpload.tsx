@@ -12,6 +12,7 @@ interface ImageUploadProps {
   disabled?: boolean;
   maxSize?: number; // em MB
   aspectRatio?: string; // ex: '16:9', '1:1', '4:3'
+  folder?: string; // pasta no Cloudinary (ex: 'lwksistemas/22239255889')
 }
 
 declare global {
@@ -28,6 +29,7 @@ export function ImageUpload({
   disabled = false,
   maxSize = 5,
   aspectRatio,
+  folder = 'lwksistemas',
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function ImageUpload({
         croppingAspectRatio: aspectRatio ? parseAspectRatio(aspectRatio) : undefined,
         croppingShowDimensions: true,
         showSkipCropButton: false,
-        folder: 'lwksistemas',
+        folder: folder, // 🔒 Pasta específica da loja para isolamento
         resourceType: 'image',
         language: 'pt',
         text: {

@@ -1893,6 +1893,7 @@ class LoginConfigView(CRMPermissionMixin, APIView):
         from superadmin.cloudinary_utils import delete_cloudinary_image
         
         update_fields = ['updated_at']
+        loja_slug = loja.slug  # Slug da loja para validação de propriedade
         
         # Processar logo
         if 'logo' in request.data:
@@ -1901,7 +1902,7 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             
             # Se mudou e tinha uma imagem antiga, deletar do Cloudinary
             if old_logo and old_logo != val and 'cloudinary.com' in old_logo:
-                delete_cloudinary_image(old_logo)
+                delete_cloudinary_image(old_logo, loja_slug)
             
             loja.logo = val[:200] if val else ''
             update_fields.append('logo')
@@ -1913,7 +1914,7 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             
             # Se mudou e tinha uma imagem antiga, deletar do Cloudinary
             if old_background and old_background != val and 'cloudinary.com' in old_background:
-                delete_cloudinary_image(old_background)
+                delete_cloudinary_image(old_background, loja_slug)
             
             loja.login_background = val[:200] if val else ''
             update_fields.append('login_background')
@@ -1925,9 +1926,37 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             
             # Se mudou e tinha uma imagem antiga, deletar do Cloudinary
             if old_login_logo and old_login_logo != val and 'cloudinary.com' in old_login_logo:
-                delete_cloudinary_image(old_login_logo)
+                delete_cloudinary_image(old_login_logo, loja_slug)
             
             loja.login_logo = val[:200] if val else ''
+            update_fields.append('login_logo')
+        
+        # Processar cores
+        if 'cor_primaria' in request.data:
+            val = (request.data.get('cor_primaria') or '').strip()
+            if val and val.startswith('#') and len(val) <= 7:
+                loja.cor_primaria = val[:7]
+                update_fields.append('cor_primaria')
+        if 'cor_secundaria' in request.data:
+            val = (request.data.get('cor_secundaria') or '').strip()
+            if val and val.startswith('#') and len(val) <= 7:
+                loja.cor_secundaria = val[:7]
+                update_fields.append('cor_secundaria')
+        
+        loja.save(update_fields=update_fields)
+        
+        # Limpar cache
+        from django.core.cache import cache
+        cache_key = f'loja_info_publica:{loja.slug}'
+        cache.delete(cache_key)
+        
+        return Response({
+            'logo': (loja.logo or '').strip(),
+            'login_background': (loja.login_background or '').strip(),
+            'login_logo': (loja.login_logo or '').strip(),
+            'cor_primaria': loja.cor_primaria or '#10B981',
+            'cor_secundaria': loja.cor_secundaria or '#059669',
+        })
             update_fields.append('login_logo')
         
         # Processar cores

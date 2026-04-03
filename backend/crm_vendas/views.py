@@ -1957,34 +1957,6 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             'cor_primaria': loja.cor_primaria or '#10B981',
             'cor_secundaria': loja.cor_secundaria or '#059669',
         })
-            update_fields.append('login_logo')
-        
-        # Processar cores
-        if 'cor_primaria' in request.data:
-            val = (request.data.get('cor_primaria') or '').strip()
-            if val and val.startswith('#') and len(val) <= 7:
-                loja.cor_primaria = val[:7]
-                update_fields.append('cor_primaria')
-        if 'cor_secundaria' in request.data:
-            val = (request.data.get('cor_secundaria') or '').strip()
-            if val and val.startswith('#') and len(val) <= 7:
-                loja.cor_secundaria = val[:7]
-                update_fields.append('cor_secundaria')
-        
-        loja.save(update_fields=update_fields)
-        
-        # Limpar cache
-        from django.core.cache import cache
-        cache_key = f'loja_info_publica:{loja.slug}'
-        cache.delete(cache_key)
-        
-        return Response({
-            'logo': (loja.logo or '').strip(),
-            'login_background': (loja.login_background or '').strip(),
-            'login_logo': (loja.login_logo or '').strip(),
-            'cor_primaria': loja.cor_primaria or '#10B981',
-            'cor_secundaria': loja.cor_secundaria or '#059669',
-        })
 
 
 

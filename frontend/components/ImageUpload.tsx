@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
@@ -201,16 +200,19 @@ export function ImageUpload({
 
       <div className="flex flex-col sm:flex-row items-start gap-4">
         {/* Preview da imagem */}
-        {value ? (
+        {value && value.trim() !== '' ? (
           <div className="relative group w-full sm:w-auto shrink-0">
             <div className={`relative ${previewFrameClass.replace('flex items-center justify-center', '').trim()}`}>
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={value}
                 alt="Preview"
-                fill
                 className={previewImgClass}
-                sizes={isWideHero ? '(max-width: 768px) 100vw, 28rem' : '128px'}
-                unoptimized
+                onError={(e) => {
+                  console.error('Erro ao carregar imagem:', value);
+                  // Se houver erro ao carregar, mostrar placeholder
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             </div>
             

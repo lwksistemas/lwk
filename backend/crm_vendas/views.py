@@ -1888,19 +1888,49 @@ class LoginConfigView(CRMPermissionMixin, APIView):
                 {'error': 'Contexto de loja não encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        
+        # Importar função de deleção do Cloudinary
+        from superadmin.cloudinary_utils import delete_cloudinary_image
+        
         update_fields = ['updated_at']
+        
+        # Processar logo
         if 'logo' in request.data:
             val = (request.data.get('logo') or '').strip()
-            loja.logo = val[:200] if val else ''  # URLField max_length=200
+            old_logo = (loja.logo or '').strip()
+            
+            # Se mudou e tinha uma imagem antiga, deletar do Cloudinary
+            if old_logo and old_logo != val and 'cloudinary.com' in old_logo:
+                delete_cloudinary_image(old_logo)
+            
+            loja.logo = val[:200] if val else ''
             update_fields.append('logo')
+        
+        # Processar login_background
         if 'login_background' in request.data:
             val = (request.data.get('login_background') or '').strip()
-            loja.login_background = val[:200] if val else ''  # URLField max_length=200
+            old_background = (loja.login_background or '').strip()
+            
+            # Se mudou e tinha uma imagem antiga, deletar do Cloudinary
+            if old_background and old_background != val and 'cloudinary.com' in old_background:
+                delete_cloudinary_image(old_background)
+            
+            loja.login_background = val[:200] if val else ''
             update_fields.append('login_background')
+        
+        # Processar login_logo
         if 'login_logo' in request.data:
             val = (request.data.get('login_logo') or '').strip()
-            loja.login_logo = val[:200] if val else ''  # URLField max_length=200
+            old_login_logo = (loja.login_logo or '').strip()
+            
+            # Se mudou e tinha uma imagem antiga, deletar do Cloudinary
+            if old_login_logo and old_login_logo != val and 'cloudinary.com' in old_login_logo:
+                delete_cloudinary_image(old_login_logo)
+            
+            loja.login_logo = val[:200] if val else ''
             update_fields.append('login_logo')
+        
+        # Processar cores
         if 'cor_primaria' in request.data:
             val = (request.data.get('cor_primaria') or '').strip()
             if val and val.startswith('#') and len(val) <= 7:
@@ -1911,10 +1941,14 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             if val and val.startswith('#') and len(val) <= 7:
                 loja.cor_secundaria = val[:7]
                 update_fields.append('cor_secundaria')
+        
         loja.save(update_fields=update_fields)
+        
+        # Limpar cache
         from django.core.cache import cache
         cache_key = f'loja_info_publica:{loja.slug}'
         cache.delete(cache_key)
+        
         return Response({
             'logo': (loja.logo or '').strip(),
             'login_background': (loja.login_background or '').strip(),

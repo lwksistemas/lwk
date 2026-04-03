@@ -44,17 +44,25 @@ export default function ConfiguracoesLoginPage() {
     try {
       const { data } = await apiClient.get<LoginConfigData>('/crm-vendas/login-config/');
       console.log('📥 Dados recebidos do backend:', data);
-      console.log('  - logo:', data.logo);
-      console.log('  - login_background:', data.login_background);
-      console.log('  - login_logo:', data.login_logo);
+      console.log('  - logo:', data.logo || '(vazio)');
+      console.log('  - login_background:', data.login_background || '(vazio)');
+      console.log('  - login_logo:', data.login_logo || '(vazio)');
       
-      setLogo((data.logo ?? '').toString());
-      setLoginBackground((data.login_background ?? '').toString());
-      setLoginLogo((data.login_logo ?? '').toString());
+      // Garantir que valores vazios sejam strings vazias, não null/undefined
+      const logoValue = (data.logo ?? '').toString().trim();
+      const backgroundValue = (data.login_background ?? '').toString().trim();
+      const loginLogoValue = (data.login_logo ?? '').toString().trim();
+      
+      setLogo(logoValue);
+      setLoginBackground(backgroundValue);
+      setLoginLogo(loginLogoValue);
       setCorPrimaria((data.cor_primaria ?? '#10B981').toString());
       setCorSecundaria((data.cor_secundaria ?? '#059669').toString());
       
-      console.log('✅ Estados atualizados');
+      console.log('✅ Estados atualizados:');
+      console.log('  - logo state:', logoValue || '(vazio)');
+      console.log('  - loginBackground state:', backgroundValue || '(vazio)');
+      console.log('  - loginLogo state:', loginLogoValue || '(vazio)');
     } catch (err) {
       console.error('❌ Erro ao carregar config:', err);
       setLogo('');
@@ -78,14 +86,23 @@ export default function ConfiguracoesLoginPage() {
   const saveConfig = async () => {
     setSaving(true);
     try {
-      await apiClient.patch('/crm-vendas/login-config/', {
+      const payload = {
         logo: logo.trim(),
         login_background: loginBackground.trim(),
         login_logo: loginLogo.trim(),
         cor_primaria: corPrimaria.startsWith('#') ? corPrimaria : `#${corPrimaria}`,
         cor_secundaria: corSecundaria.startsWith('#') ? corSecundaria : `#${corSecundaria}`,
-      });
-      loadConfig();
+      };
+      
+      console.log('📤 Enviando dados para o backend:', payload);
+      
+      const response = await apiClient.patch('/crm-vendas/login-config/', payload);
+      
+      console.log('✅ Resposta do backend:', response.data);
+      
+      // Recarregar configurações para garantir sincronização
+      await loadConfig();
+      
       alert('Configurações da tela de login salvas com sucesso!');
     } catch (e) {
       const err = e as { response?: { data?: { error?: string; detail?: string } } };
@@ -93,6 +110,7 @@ export default function ConfiguracoesLoginPage() {
         err?.response?.data?.error ||
         (typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
         'Erro ao salvar. Tente novamente.';
+      console.error('❌ Erro ao salvar:', err);
       alert(msg);
     } finally {
       setSaving(false);

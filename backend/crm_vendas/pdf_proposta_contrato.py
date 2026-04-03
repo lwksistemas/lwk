@@ -257,7 +257,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     
     cabecalho = _criar_cabecalho_com_logo(logo_url, 'PROPOSTA COMERCIAL')
     elements.append(cabecalho)
-    elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
+    elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Título)
     
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
     elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
@@ -278,7 +278,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
                 linhas.append(f"<b>Email do administrador:</b> {loja_data['admin_email']}")
             for ln in linhas:
                 elements.append(Paragraph(ln, styles['Normal']))
-            elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
+            elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Dados do Cliente)
 
     # Dados do Cliente
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
@@ -294,7 +294,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         if getattr(lead, 'telefone', ''):
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
-        elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
+        elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Produtos e Serviços)
 
     # Produtos e Serviços da Oportunidade (Valor total ao final)
     itens = []
@@ -437,7 +437,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     
     cabecalho = _criar_cabecalho_com_logo(logo_url, 'CONTRATO')
     elements.append(cabecalho)
-    elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
+    elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Título)
 
     elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', styles['Normal']))
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', styles['Normal']))
@@ -461,7 +461,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
                 linhas.append(f"<b>Email do administrador:</b> {loja_data['admin_email']}")
             for ln in linhas:
                 elements.append(Paragraph(ln, styles['Normal']))
-            elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
+            elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Dados do Cliente)
 
     # Dados do Cliente
     lead = contrato.oportunidade.lead if contrato.oportunidade and contrato.oportunidade.lead else None
@@ -477,7 +477,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         if getattr(lead, 'telefone', ''):
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
-        elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
+        elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Produtos e Serviços)
 
     # Produtos e Serviços da Oportunidade
     itens = []

@@ -1038,8 +1038,9 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
         proposta = self.get_object()
         
         try:
+            # ✅ CORREÇÃO: Verificar status_assinatura (não status)
             # Incluir assinaturas se a proposta estiver concluída (ambas as partes assinaram)
-            incluir_assinaturas = proposta.status == 'concluido'
+            incluir_assinaturas = proposta.status_assinatura == 'concluido'
             
             # Gerar PDF
             pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=incluir_assinaturas)

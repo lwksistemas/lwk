@@ -234,7 +234,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         BytesIO: buffer com o PDF gerado
     """
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*cm, bottomMargin=1*cm, leftMargin=2*cm, rightMargin=2*cm)
     elements = []
     styles = getSampleStyleSheet()
 
@@ -415,7 +415,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         BytesIO: buffer com o PDF gerado
     """
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*cm, bottomMargin=1*cm, leftMargin=2*cm, rightMargin=2*cm)
     elements = []
     styles = getSampleStyleSheet()
 

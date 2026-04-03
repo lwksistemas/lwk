@@ -70,20 +70,20 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 🆘 Abrir Chamado de Suporte
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Descreva sua dúvida, problema ou solicitação de treinamento
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Descreva sua dúvida, problema ou solicitação
               </p>
             </div>
             <button
               onClick={onFechar}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-4 flex-shrink-0"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -93,13 +93,13 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
 
           {/* Mensagem de Sucesso */}
           {sucesso && (
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center">
-                <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-green-600 dark:text-green-400 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <p className="text-green-800 font-medium">
-                  ✅ Chamado criado com sucesso! Nossa equipe entrará em contato em breve.
+                <p className="text-sm text-green-800 dark:text-green-200 font-medium">
+                  Chamado criado com sucesso! Nossa equipe entrará em contato em breve.
                 </p>
               </div>
             </div>
@@ -107,8 +107,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
 
           {/* Mensagem de Erro */}
           {erro && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800">{erro}</p>
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-800 dark:text-red-200">{erro}</p>
             </div>
           )}
 
@@ -116,13 +116,13 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Tipo de Chamado */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Tipo de Chamado *
               </label>
               <select
                 value={formData.tipo}
                 onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 required
               >
                 <option value="duvida">❓ Dúvida</option>
@@ -135,13 +135,13 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
 
             {/* Prioridade */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Prioridade
               </label>
               <select
                 value={formData.prioridade}
                 onChange={(e) => setFormData({ ...formData, prioridade: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               >
                 <option value="baixa">🟢 Baixa</option>
                 <option value="media">🟡 Média</option>
@@ -152,7 +152,7 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
 
             {/* Título */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Título *
               </label>
               <input
@@ -160,7 +160,7 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
                 value={formData.titulo}
                 onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
                 placeholder="Ex: Dúvida sobre cadastro de produtos"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 required
                 maxLength={200}
               />
@@ -168,40 +168,40 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
 
             {/* Descrição */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Descrição *
               </label>
               <textarea
                 value={formData.descricao}
                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                 placeholder="Descreva detalhadamente sua dúvida, problema ou solicitação..."
-                rows={6}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={5}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Quanto mais detalhes você fornecer, mais rápido poderemos ajudar!
               </p>
             </div>
 
             {/* Botões */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={onFechar}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
                 disabled={loading}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                 disabled={loading}
               >
                 {loading ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
@@ -215,9 +215,9 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
           </form>
 
           {/* Informações Adicionais */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="font-medium text-blue-900 mb-2">ℹ️ Tempo de Resposta</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">ℹ️ Tempo de Resposta</h3>
+            <ul className="text-xs text-blue-800 dark:text-blue-300 space-y-1">
               <li>• <strong>Urgente:</strong> Até 2 horas</li>
               <li>• <strong>Alta:</strong> Até 4 horas</li>
               <li>• <strong>Média:</strong> Até 24 horas</li>

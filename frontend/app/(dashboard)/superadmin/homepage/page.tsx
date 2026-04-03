@@ -158,6 +158,12 @@ export default function HomepageConfigPage() {
       const modList = Array.isArray(modRes.data) ? modRes.data : modRes.data?.results ?? [];
       const whyusList = Array.isArray(whyusRes.data) ? whyusRes.data : whyusRes.data?.results ?? [];
       const heroImgList = Array.isArray(heroImgRes.data) ? heroImgRes.data : heroImgRes.data?.results ?? [];
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🖼️ API Response hero-imagens:', heroImgRes.data);
+        console.log('🖼️ Parsed heroImgList:', heroImgList);
+      }
+      
       setFuncionalidades(funcList);
       setModulos(modList);
       setWhyus(whyusList);
@@ -172,6 +178,14 @@ export default function HomepageConfigPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Debug: Log hero images quando mudar (apenas em desenvolvimento)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🖼️ Hero Imagens carregadas:', heroImagens);
+      console.log('🖼️ Total de imagens:', heroImagens.length);
+    }
+  }, [heroImagens]);
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -408,7 +422,7 @@ export default function HomepageConfigPage() {
 
   // Filtrar Hero Imagens
   const filteredHeroImagens = heroImagens.filter((h) => {
-    const matchSearch = h.titulo.toLowerCase().includes(searchHeroImg.toLowerCase());
+    const matchSearch = (h.titulo || '').toLowerCase().includes(searchHeroImg.toLowerCase());
     const matchFilter = filterHeroImgAtivo === 'all' ||
                        (filterHeroImgAtivo === 'ativo' && h.ativo !== false) ||
                        (filterHeroImgAtivo === 'inativo' && h.ativo === false);

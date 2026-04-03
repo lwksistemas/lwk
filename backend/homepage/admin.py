@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import HeroSection, Funcionalidade, ModuloSistema
+from .models import HeroSection, Funcionalidade, ModuloSistema, HeroImagem
 
 
 @admin.register(HeroSection)
@@ -22,3 +22,11 @@ class ModuloSistemaAdmin(admin.ModelAdmin):
     list_editable = ['ativo', 'ordem']
     search_fields = ['nome', 'descricao']
     prepopulated_fields = {'slug': ('nome',)}
+
+
+@admin.register(HeroImagem)
+class HeroImagemAdmin(admin.ModelAdmin):
+    list_display = ['titulo', 'ativo', 'ordem', 'updated_at']
+    list_editable = ['ativo', 'ordem']
+    search_fields = ['titulo']
+    readonly_fields = ['created_at', 'updated_at']

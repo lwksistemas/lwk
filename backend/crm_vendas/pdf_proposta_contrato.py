@@ -260,7 +260,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Título)
     
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
-    elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
+    # Sem Spacer - colar direto
 
     # Dados da Empresa
     if loja_id:
@@ -278,7 +278,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
                 linhas.append(f"<b>Email do administrador:</b> {loja_data['admin_email']}")
             for ln in linhas:
                 elements.append(Paragraph(ln, styles['Normal']))
-            elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Dados do Cliente)
+            # Sem Spacer - colar direto
 
     # Dados do Cliente
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
@@ -294,7 +294,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         if getattr(lead, 'telefone', ''):
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
-        elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Produtos e Serviços)
+        # Sem Spacer - colar direto
 
     # Produtos e Serviços da Oportunidade (Valor total ao final)
     itens = []
@@ -334,14 +334,14 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     conteudo = _strip_html(proposta.conteudo) if proposta.conteudo else 'Conteúdo não informado.'
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
-    elements.append(Spacer(1, 0.05*cm))  # ✅ SUPER REDUZIDO
+    # Sem Spacer - colar direto
 
     # Assinaturas (campos tradicionais + digitais integrados)
     nome_vendedor = getattr(proposta, 'nome_vendedor_assinatura', None) or ''
     nome_cliente = getattr(proposta, 'nome_cliente_assinatura', None) or ''
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
-    elements.append(Spacer(1, 0.01*cm))  # ✅ SUPER REDUZIDO
+    # Sem Spacer - colar direto
     
     # Buscar assinaturas digitais se houver
     assinatura_vendedor = None
@@ -461,7 +461,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
                 linhas.append(f"<b>Email do administrador:</b> {loja_data['admin_email']}")
             for ln in linhas:
                 elements.append(Paragraph(ln, styles['Normal']))
-            elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Dados do Cliente)
+            # Sem Spacer - colar direto
 
     # Dados do Cliente
     lead = contrato.oportunidade.lead if contrato.oportunidade and contrato.oportunidade.lead else None
@@ -477,7 +477,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         if getattr(lead, 'telefone', ''):
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
-        elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Produtos e Serviços)
+        # Sem Spacer - colar direto
 
     # Produtos e Serviços da Oportunidade
     itens = []
@@ -511,14 +511,14 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     conteudo = _strip_html(contrato.conteudo) if contrato.conteudo else 'Conteúdo não informado.'
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
     elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
-    elements.append(Spacer(1, 0.05*cm))  # ✅ SUPER REDUZIDO
+    # Sem Spacer - colar direto
 
     # Assinaturas (campos tradicionais + digitais integrados)
     nome_vendedor = getattr(contrato, 'nome_vendedor_assinatura', None) or ''
     nome_cliente = getattr(contrato, 'nome_cliente_assinatura', None) or ''
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
-    elements.append(Spacer(1, 0.01*cm))  # ✅ SUPER REDUZIDO
+    # Sem Spacer - colar direto
     
     # Buscar assinaturas digitais se houver
     assinatura_vendedor = None

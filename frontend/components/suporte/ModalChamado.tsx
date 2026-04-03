@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { apiClient } from '@/lib/api-client'
+import { errorLogger } from '@/lib/error-logger'
 
 interface ModalChamadoProps {
   aberto: boolean
@@ -14,6 +15,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [erro, setErro] = useState('')
+  const [incluirLogs, setIncluirLogs] = useState(true)
+  const [errorStats, setErrorStats] = useState({ total: 0, frontend: 0, api: 0, navegador: 0 })
   
   const [formData, setFormData] = useState({
     tipo: 'duvida',
@@ -22,15 +25,38 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
     prioridade: 'media'
   })
 
+  // Atualizar estatísticas de erros quando o modal abrir
+  useEffect(() => {
+    if (aberto) {
+      const stats = errorLogger.getStats()
+      setErrorStats(stats)
+      // Auto-incluir logs se houver erros
+      setIncluirLogs(stats.total > 0)
+    }
+  }, [aberto])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setErro('')
 
     try {
+      // Preparar dados do chamado
+      let descricaoCompleta = formData.descricao
+
+      // Adicionar logs de erro se solicitado
+      if (incluirLogs && errorStats.total > 0) {
+        const logsFormatados = errorLogger.getFormattedErrors()
+        descricaoCompleta += '\n\n' + '='.repeat(60)
+        descricaoCompleta += '\n📋 LOGS DE DIAGNÓSTICO AUTOMÁTICO\n'
+        descricaoCompleta += '='.repeat(60)
+        descricaoCompleta += logsFormatados
+      }
+
       // Adicionar informações da loja se disponíveis
       const dadosChamado = {
         ...formData,
+        descricao: descricaoCompleta,
         ...(lojaSlug && { loja_slug: lojaSlug }),
         ...(lojaNome && { loja_nome: lojaNome })
       }
@@ -38,6 +64,11 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
       await apiClient.post('/suporte/criar-chamado/', dadosChamado)
       
       setSucesso(true)
+      
+      // Limpar logs após envio bem-sucedido
+      if (incluirLogs) {
+        errorLogger.clearErrors()
+      }
       
       // Fechar modal após 2 segundos
       setTimeout(() => {
@@ -49,6 +80,7 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
           descricao: '',
           prioridade: 'media'
         })
+        setIncluirLogs(true)
       }, 2000)
       
     } catch (error: any) {
@@ -183,6 +215,35 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
                 Quanto mais detalhes você fornecer, mais rápido poderemos ajudar!
               </p>
             </div>
+
+            {/* Incluir Logs de Diagnóstico */}
+            {errorStats.total > 0 && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="incluirLogs"
+                    checked={incluirLogs}
+                    onChange={(e) => setIncluirLogs(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="incluirLogs" className="text-sm font-medium text-amber-900 dark:text-amber-200 cursor-pointer">
+                      📊 Incluir logs de diagnóstico automático
+                    </label>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      Detectamos {errorStats.total} erro(s) recente(s):
+                      {errorStats.frontend > 0 && <span className="ml-1">🔴 {errorStats.frontend} frontend</span>}
+                      {errorStats.api > 0 && <span className="ml-1">🟠 {errorStats.api} API</span>}
+                      {errorStats.navegador > 0 && <span className="ml-1">🟡 {errorStats.navegador} navegador</span>}
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      ✅ Recomendado: Isso ajuda nossa equipe a resolver seu problema mais rápido
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Botões */}
             <div className="flex gap-3 pt-2">

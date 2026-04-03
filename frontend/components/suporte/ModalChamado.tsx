@@ -234,7 +234,7 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
                     <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
                       Detectamos {errorStats.total} erro(s) recente(s):
                       {errorStats.frontend > 0 && <span className="ml-1">🔴 {errorStats.frontend} frontend</span>}
-                      {errorStats.api > 0 && <span className="ml-1">🟠 {errorStats.api} API</span>}
+                      {errorStats.api > 0 && <span className="ml-1">🟢 {errorStats.api} API</span>}
                       {errorStats.navegador > 0 && <span className="ml-1">🟡 {errorStats.navegador} navegador</span>}
                     </p>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">

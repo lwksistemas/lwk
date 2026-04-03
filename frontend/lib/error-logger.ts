@@ -138,7 +138,7 @@ class ErrorLogger {
     Object.entries(errorsByType).forEach(([tipo, errors]) => {
       const tipoLabel = {
         frontend: '🔴 ERROS FRONTEND',
-        api: '🟠 ERROS API/BACKEND',
+        api: '🟢 ERROS API/BACKEND',
         navegador: '🟡 ERROS NAVEGADOR',
       }[tipo] || tipo.toUpperCase();
 

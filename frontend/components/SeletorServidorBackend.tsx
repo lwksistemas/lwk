@@ -25,8 +25,8 @@ const SERVIDORES: Record<Servidor, ServidorConfig> = {
     icone: '🟣',
   },
   render: {
-    nome: 'Render',
-    url: BACKUP_BACKEND_URL,
+    nome: 'Render (Desabilitado)',
+    url: '', // Desabilitado - Plano Free insuficiente. Reativar quando fizer upgrade para plano pago
     cor: 'blue',
     icone: '🔵',
   },

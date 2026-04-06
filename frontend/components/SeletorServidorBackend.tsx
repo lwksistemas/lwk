@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { setBackendServer } from '@/lib/api-client';
 import { getPrimaryApiRoot, getBackupApiRoot } from '@/lib/api-base';
+import { wakeUpRenderServer, type WakeUpProgress } from '@/lib/wake-up-render';
 
 const PRIMARY_BACKEND_URL = getPrimaryApiRoot();
 const BACKUP_BACKEND_URL = getBackupApiRoot();
@@ -68,6 +69,14 @@ export default function SeletorServidorBackend() {
     heroku: 'verificando',
     render: BACKUP_BACKEND_URL ? 'verificando' : 'offline',
   });
+  
+  // Estados para o modal de acordar servidor
+  const [mostrarModalAcordar, setMostrarModalAcordar] = useState(false);
+  const [progressoAcordar, setProgressoAcordar] = useState<WakeUpProgress>({
+    status: 'checking',
+    message: 'Iniciando...',
+    progress: 0,
+  });
 
   useEffect(() => {
     // Carregar servidor ativo do localStorage
@@ -127,16 +136,37 @@ export default function SeletorServidorBackend() {
     }
 
     setVerificando(true);
+    setMostrarMenu(false);
     
     try {
-      // Verificar se o servidor está online (timeout maior para Render cold start)
+      // Se for trocar para Render, acordar o servidor primeiro
+      if (novoServidor === 'render') {
+        setMostrarModalAcordar(true);
+        
+        const acordou = await wakeUpRenderServer((progress) => {
+          setProgressoAcordar(progress);
+        });
+        
+        if (!acordou) {
+          setMostrarModalAcordar(false);
+          alert('Não foi possível acordar o servidor Render. Tente novamente em alguns minutos.');
+          setVerificando(false);
+          return;
+        }
+        
+        // Aguardar mais 2 segundos para garantir
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      // Verificar se o servidor está online
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
       const targetBase = SERVIDORES[novoServidor].url;
       if (!targetBase) {
         alert('URL do servidor de backup não configurada.');
         setVerificando(false);
+        setMostrarModalAcordar(false);
         return;
       }
 
@@ -146,6 +176,7 @@ export default function SeletorServidorBackend() {
 
       if (novoServidor === 'render' && data.configured === false) {
         alert('Servidor de backup não configurado. Defina NEXT_PUBLIC_API_BACKUP_URL no deploy.');
+        setMostrarModalAcordar(false);
         return;
       }
 
@@ -157,11 +188,12 @@ export default function SeletorServidorBackend() {
         setBackendServer(targetBase);
         
         setServidorAtivo(novoServidor);
-        setMostrarMenu(false);
+        setMostrarModalAcordar(false);
         
         // Recarregar a página para aplicar as mudanças
         window.location.reload();
       } else {
+        setMostrarModalAcordar(false);
         const status = data.status ?? '—';
         const hint =
           novoServidor === 'render' && data.status === 400
@@ -172,6 +204,7 @@ export default function SeletorServidorBackend() {
         );
       }
     } catch {
+      setMostrarModalAcordar(false);
       alert(
         `Erro de rede ao contactar ${SERVIDORES[novoServidor].nome} (timeout ou URL errada). Confira no Vercel: NEXT_PUBLIC_API_BACKUP_URL = URL HTTPS exata do serviço no Render (redeploy após alterar).`,
       );
@@ -293,6 +326,78 @@ export default function SeletorServidorBackend() {
             </div>
           </div>
         </>
+      )}
+      
+      {/* Modal de Acordar Servidor */}
+      {mostrarModalAcordar && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-start space-x-4">
+              {/* Ícone de loading */}
+              <div className="flex-shrink-0">
+                {progressoAcordar.status === 'error' ? (
+                  <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                    <span className="text-2xl">❌</span>
+                  </div>
+                ) : progressoAcordar.status === 'ready' ? (
+                  <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                    <span className="text-2xl">✅</span>
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Conteúdo */}
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                  {progressoAcordar.status === 'error' ? 'Erro' :
+                   progressoAcordar.status === 'ready' ? 'Pronto!' :
+                   'Acordando Servidor Render'}
+                </h3>
+                
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  {progressoAcordar.message}
+                </p>
+                
+                {/* Barra de progresso */}
+                {progressoAcordar.status !== 'error' && progressoAcordar.status !== 'ready' && (
+                  <div className="mb-4">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${progressoAcordar.progress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+                      {Math.round(progressoAcordar.progress)}%
+                    </p>
+                  </div>
+                )}
+                
+                {/* Informação adicional */}
+                {progressoAcordar.status === 'waking' && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      ⏱️ O servidor está no plano Free e pode demorar até 60 segundos para acordar na primeira vez.
+                    </p>
+                  </div>
+                )}
+                
+                {progressoAcordar.status === 'error' && (
+                  <button
+                    onClick={() => setMostrarModalAcordar(false)}
+                    className="w-full mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+                  >
+                    Fechar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

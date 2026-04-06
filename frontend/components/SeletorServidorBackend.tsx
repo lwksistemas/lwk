@@ -67,7 +67,7 @@ export default function SeletorServidorBackend() {
   const [verificando, setVerificando] = useState(false);
   const [statusServidores, setStatusServidores] = useState<Record<Servidor, 'online' | 'offline' | 'verificando'>>({
     heroku: 'verificando',
-    render: BACKUP_BACKEND_URL ? 'verificando' : 'offline',
+    render: 'offline', // Render desabilitado temporariamente
   });
   
   // Estados para o modal de acordar servidor
@@ -332,7 +332,7 @@ export default function SeletorServidorBackend() {
                 onClick={() => {
                   setStatusServidores({
                     heroku: 'verificando',
-                    render: BACKUP_BACKEND_URL ? 'verificando' : 'offline',
+                    render: 'offline', // Render desabilitado temporariamente
                   });
                   verificarStatusServidores();
                 }}

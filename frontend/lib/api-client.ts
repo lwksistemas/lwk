@@ -7,7 +7,7 @@ import { getPrimaryApiRoot, getBackupApiRoot } from './api-base';
 const PRIMARY_API = getPrimaryApiRoot();
 const BACKUP_API = getBackupApiRoot() || undefined;
 const ENABLE_LOJA_FAILOVER = process.env.NEXT_PUBLIC_ENABLE_LOJA_FAILOVER === 'true';
-const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000');
+const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '120000'); // 120s para Render cold start
 
 // ✅ NOVO v787: Suporte para troca manual de servidor
 // Rotas de loja SEMPRE usam Heroku (primário); superadmin pode usar Render

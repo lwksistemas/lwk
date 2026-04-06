@@ -46,31 +46,43 @@ class FinanceiroService:
         return hoje + timedelta(days=dias_para_vencer)
     
     @staticmethod
-    def calcular_proxima_cobranca(dia_vencimento: int) -> date:
+    def calcular_proxima_cobranca(dia_vencimento: int, tipo_assinatura: str = 'mensal') -> date:
         """
-        Calcula data da próxima cobrança no próximo mês
+        Calcula data da próxima cobrança baseada no tipo de assinatura
         
         Args:
             dia_vencimento: Dia do mês para vencimento
+            tipo_assinatura: 'mensal' ou 'anual'
             
         Returns:
             Data da próxima cobrança
         """
         hoje = date.today()
         
-        # Calcular próximo mês
-        if hoje.month == 12:
-            proximo_mes = 1
+        if tipo_assinatura == 'anual':
+            # Para assinatura anual, adicionar 1 ano
             proximo_ano = hoje.year + 1
+            proximo_mes = hoje.month
+            
+            # Ajustar dia se o mês não tiver esse dia (ex: 29 de fevereiro em ano não bissexto)
+            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
+            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
+            
+            return date(proximo_ano, proximo_mes, dia_cobranca)
         else:
-            proximo_mes = hoje.month + 1
-            proximo_ano = hoje.year
-        
-        # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
-        ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
-        dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
-        
-        return date(proximo_ano, proximo_mes, dia_cobranca)
+            # Para assinatura mensal, calcular próximo mês
+            if hoje.month == 12:
+                proximo_mes = 1
+                proximo_ano = hoje.year + 1
+            else:
+                proximo_mes = hoje.month + 1
+                proximo_ano = hoje.year
+            
+            # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
+            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
+            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
+            
+            return date(proximo_ano, proximo_mes, dia_cobranca)
     
     @staticmethod
     def criar_financeiro_loja(loja, dia_vencimento: int = 10):
@@ -132,9 +144,12 @@ class FinanceiroService:
         if dia_vencimento is None:
             dia_vencimento = financeiro.dia_vencimento
         
-        proxima_cobranca = FinanceiroService.calcular_proxima_cobranca(dia_vencimento)
+        # Obter tipo de assinatura da loja
+        tipo_assinatura = financeiro.loja.tipo_assinatura
+        
+        proxima_cobranca = FinanceiroService.calcular_proxima_cobranca(dia_vencimento, tipo_assinatura)
         
         financeiro.data_proxima_cobranca = proxima_cobranca
         financeiro.save()
         
-        logger.info(f"Próxima cobrança atualizada para {proxima_cobranca}")
+        logger.info(f"Próxima cobrança atualizada para {proxima_cobranca} (tipo: {tipo_assinatura})")

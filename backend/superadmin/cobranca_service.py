@@ -278,7 +278,7 @@ class CobrancaService:
         # Atualizar data_proxima_cobranca se dia_vencimento fornecido
         if dia_vencimento:
             financeiro.dia_vencimento = dia_vencimento
-            financeiro.data_proxima_cobranca = self._calcular_proxima_cobranca(dia_vencimento)
+            financeiro.data_proxima_cobranca = self._calcular_proxima_cobranca(dia_vencimento, loja.tipo_assinatura)
             financeiro.save(update_fields=['dia_vencimento', 'data_proxima_cobranca'])
             logger.info(f"Data de vencimento atualizada para dia {dia_vencimento}")
         
@@ -313,28 +313,40 @@ class CobrancaService:
         
         return None
     
-    def _calcular_proxima_cobranca(self, dia_vencimento: int) -> date:
+    def _calcular_proxima_cobranca(self, dia_vencimento: int, tipo_assinatura: str = 'mensal') -> date:
         """
-        Calcula próxima data de cobrança baseada no dia de vencimento
+        Calcula próxima data de cobrança baseada no dia de vencimento e tipo de assinatura
         
         Args:
             dia_vencimento: Dia do mês (1-28)
+            tipo_assinatura: 'mensal' ou 'anual'
         
         Returns:
-            date da próxima cobrança (sempre no próximo mês)
+            date da próxima cobrança (próximo mês para mensal, próximo ano para anual)
         """
         hoje = date.today()
         
-        # Calcular próximo mês
-        if hoje.month == 12:
-            proximo_mes = 1
+        if tipo_assinatura == 'anual':
+            # Para assinatura anual, adicionar 1 ano
             proximo_ano = hoje.year + 1
+            proximo_mes = hoje.month
+            
+            # Ajustar dia se o mês não tiver esse dia (ex: 29 de fevereiro em ano não bissexto)
+            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
+            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
+            
+            return date(proximo_ano, proximo_mes, dia_cobranca)
         else:
-            proximo_mes = hoje.month + 1
-            proximo_ano = hoje.year
-        
-        # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
-        ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
-        dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
-        
-        return date(proximo_ano, proximo_mes, dia_cobranca)
+            # Para assinatura mensal, calcular próximo mês
+            if hoje.month == 12:
+                proximo_mes = 1
+                proximo_ano = hoje.year + 1
+            else:
+                proximo_mes = hoje.month + 1
+                proximo_ano = hoje.year
+            
+            # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
+            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
+            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
+            
+            return date(proximo_ano, proximo_mes, dia_cobranca)

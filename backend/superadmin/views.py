@@ -3849,9 +3849,14 @@ def login_config_sistema_publico(request, tipo):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Tentar obter do cache
+    # Tentar obter do cache (com fallback se Redis não disponível)
     cache_key = f'login_config_sistema:{tipo}'
-    cached_data = cache.get(cache_key)
+    cached_data = None
+    try:
+        cached_data = cache.get(cache_key)
+    except Exception as e:
+        # Redis não disponível, continuar sem cache
+        logger.warning(f'Cache não disponível: {e}')
     
     if cached_data:
         return Response(cached_data)
@@ -3876,8 +3881,12 @@ def login_config_sistema_publico(request, tipo):
         'subtitulo': config.subtitulo or ('Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte'),
     }
     
-    # Cachear por 1 hora
-    cache.set(cache_key, data, 3600)
+    # Cachear por 1 hora (com fallback se Redis não disponível)
+    try:
+        cache.set(cache_key, data, 3600)
+    except Exception as e:
+        # Redis não disponível, continuar sem cache
+        logger.warning(f'Cache não disponível para salvar: {e}')
     
     return Response(data)
 

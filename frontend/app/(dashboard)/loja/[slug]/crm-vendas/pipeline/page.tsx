@@ -73,6 +73,9 @@ export default function CrmVendasPipelinePage() {
   const [itensEditar, setItensEditar] = useState<{ id?: number; produto_servico_id: number; quantidade: string; preco_unitario: string }[]>([]);
   const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('list');
   const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
+  const [imprimindo, setImprimindo] = useState(false);
 
   // Sincronizar vendedor_id com backend ao montar componente
   useEffect(() => {
@@ -385,6 +388,38 @@ export default function CrmVendasPipelinePage() {
     }
   };
 
+  const handleExportarPDF = () => {
+    setImprimindo(true);
+    setTimeout(() => {
+      window.print();
+      setImprimindo(false);
+    }, 100);
+  };
+
+  const oportunidadesFiltradas = oportunidades.filter((op) => {
+    // Filtro por etapa
+    if (filtroEtapaPipeline && op.etapa !== filtroEtapaPipeline) {
+      return false;
+    }
+    
+    // Filtro por período
+    if (dataInicio || dataFim) {
+      const dataOp = new Date(op.created_at);
+      if (dataInicio && dataOp < new Date(dataInicio)) {
+        return false;
+      }
+      if (dataFim) {
+        const dataFimDate = new Date(dataFim);
+        dataFimDate.setHours(23, 59, 59, 999);
+        if (dataOp > dataFimDate) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  });
+
   const handleSalvarEtapa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oportunidadeEditar) return;
@@ -506,54 +541,109 @@ export default function CrmVendasPipelinePage() {
         </div>
       </div>
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-6 hover:shadow-md hover:border-blue-100 dark:hover:border-slate-600 transition-all space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 p-0.5 bg-gray-50 dark:bg-gray-800/80">
-            <button
-              type="button"
-              onClick={() => setViewPipeline('board')}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                viewPipeline === 'board'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              <LayoutGrid size={16} aria-hidden />
-              Quadro
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewPipeline('list')}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                viewPipeline === 'list'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              <List size={16} aria-hidden />
-              Lista
-            </button>
+        <div className="flex flex-col gap-3">
+          {/* Linha 1: Visualização e Etapa */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 p-0.5 bg-gray-50 dark:bg-gray-800/80">
+              <button
+                type="button"
+                onClick={() => setViewPipeline('board')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                  viewPipeline === 'board'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <LayoutGrid size={16} aria-hidden />
+                Quadro
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewPipeline('list')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                  viewPipeline === 'list'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <List size={16} aria-hidden />
+                Lista
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor="filtro-etapa-pipeline" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                Etapa:
+              </label>
+              <select
+                id="filtro-etapa-pipeline"
+                value={filtroEtapaPipeline}
+                onChange={(e) => setFiltroEtapaPipeline(e.target.value)}
+                className="min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              >
+                <option value="">Todos</option>
+                {etapasAtivas().map((et) => (
+                  <option key={et.key} value={et.key}>
+                    {et.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor="filtro-etapa-pipeline" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-              Etapa:
-            </label>
-            <select
-              id="filtro-etapa-pipeline"
-              value={filtroEtapaPipeline}
-              onChange={(e) => setFiltroEtapaPipeline(e.target.value)}
-              className="min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-            >
-              <option value="">Todos</option>
-              {etapasAtivas().map((et) => (
-                <option key={et.key} value={et.key}>
-                  {et.label}
-                </option>
-              ))}
-            </select>
+          
+          {/* Linha 2: Filtros de Período e Ações */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor="data-inicio" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                Período:
+              </label>
+              <input
+                id="data-inicio"
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                placeholder="Data início"
+              />
+              <span className="text-sm text-gray-600 dark:text-gray-400">até</span>
+              <input
+                id="data-fim"
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                placeholder="Data fim"
+              />
+              {(dataInicio || dataFim) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDataInicio('');
+                    setDataFim('');
+                  }}
+                  className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportarPDF}
+                disabled={imprimindo}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                {imprimindo ? 'Preparando...' : 'Imprimir / PDF'}
+              </button>
+            </div>
           </div>
         </div>
         <PipelineBoard
-          oportunidades={oportunidades}
+          oportunidades={oportunidadesFiltradas}
           loading={loading && oportunidades.length === 0}
           etapas={etapasAtivas()}
           onCardClick={handleCardClick}

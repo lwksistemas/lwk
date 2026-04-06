@@ -81,10 +81,27 @@ export default function SeletorServidorBackend() {
   useEffect(() => {
     // Carregar servidor ativo do localStorage
     const servidorSalvo = localStorage.getItem('backend_servidor') as Servidor;
-    if (servidorSalvo && SERVIDORES[servidorSalvo]) {
-      setServidorAtivo(servidorSalvo);
-      // Atualizar a URL base da API usando a função do api-client
-      setBackendServer(SERVIDORES[servidorSalvo].url);
+    
+    // ✅ FALLBACK: Se Render estiver com problemas, forçar Heroku
+    // Verificar se há parâmetro na URL para forçar servidor
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const forceServer = urlParams.get('forceServer') as Servidor;
+      
+      if (forceServer === 'heroku' || forceServer === 'render') {
+        localStorage.setItem('backend_servidor', forceServer);
+        setServidorAtivo(forceServer);
+        setBackendServer(SERVIDORES[forceServer].url);
+        // Remover parâmetro da URL
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (servidorSalvo && SERVIDORES[servidorSalvo]) {
+        setServidorAtivo(servidorSalvo);
+        setBackendServer(SERVIDORES[servidorSalvo].url);
+      } else {
+        // Padrão: Heroku
+        setServidorAtivo('heroku');
+        setBackendServer(SERVIDORES.heroku.url);
+      }
     }
     
     // Verificar status dos servidores

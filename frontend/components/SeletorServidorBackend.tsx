@@ -381,7 +381,7 @@ export default function SeletorServidorBackend() {
                 {progressoAcordar.status === 'waking' && (
                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
                     <p className="text-xs text-blue-800 dark:text-blue-200">
-                      ⏱️ O servidor está no plano Free e pode demorar até 60 segundos para acordar na primeira vez.
+                      ⏱️ O servidor está no plano Free e pode demorar até 90 segundos para acordar completamente (inicialização + banco de dados).
                     </p>
                   </div>
                 )}

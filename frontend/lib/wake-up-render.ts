@@ -23,9 +23,10 @@ export async function wakeUpRenderServer(
   onProgress?: WakeUpCallback
 ): Promise<boolean> {
   const RENDER_URL = 'https://lwksistemas-backup.onrender.com';
-  const MAX_ATTEMPTS = 12; // 12 tentativas
+  const MAX_ATTEMPTS = 18; // 18 tentativas (aumentado de 12)
   const ATTEMPT_INTERVAL = 5000; // 5 segundos entre tentativas
-  const TOTAL_TIMEOUT = 70000; // 70 segundos total
+  const ATTEMPT_INTERVAL_503 = 8000; // 8 segundos quando receber 503 (servidor acordando)
+  const TOTAL_TIMEOUT = 120000; // 120 segundos total (aumentado de 70s)
 
   const updateProgress = (progress: WakeUpProgress) => {
     if (onProgress) {
@@ -53,7 +54,7 @@ export async function wakeUpRenderServer(
 
         // Fazer requisição via API route para evitar CORS
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s por tentativa
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s por tentativa (aumentado de 10s)
 
         const response = await fetch('/api/backend-health?server=render', {
           method: 'GET',
@@ -66,13 +67,29 @@ export async function wakeUpRenderServer(
         if (response.ok) {
           const data = await response.json();
           
-          if (data.ok && data.configured !== false) {
+          // Verificar se o servidor está realmente pronto
+          if (data.ok && data.status === 200 && data.configured !== false) {
             updateProgress({
               status: 'ready',
               message: 'Servidor acordado e pronto!',
               progress: 100,
             });
             return true;
+          }
+          
+          // Se recebeu 503, o servidor está acordando mas ainda não está pronto
+          if (data.status === 503) {
+            updateProgress({
+              status: 'waking',
+              message: `Servidor acordando, inicializando banco de dados... (tentativa ${attempt}/${MAX_ATTEMPTS})`,
+              progress: progressPercent,
+            });
+            
+            // Aguardar mais tempo quando receber 503
+            if (attempt < MAX_ATTEMPTS) {
+              await new Promise(resolve => setTimeout(resolve, ATTEMPT_INTERVAL_503));
+            }
+            continue;
           }
         }
 
@@ -83,6 +100,8 @@ export async function wakeUpRenderServer(
 
       } catch (error) {
         // Timeout ou erro de rede, continuar tentando
+        console.log(`Tentativa ${attempt} falhou:`, error);
+        
         if (attempt === MAX_ATTEMPTS) {
           throw error;
         }
@@ -94,7 +113,7 @@ export async function wakeUpRenderServer(
     // Se chegou aqui, não conseguiu acordar
     updateProgress({
       status: 'error',
-      message: 'Servidor não respondeu após várias tentativas',
+      message: 'Servidor não respondeu após várias tentativas. Tente novamente em alguns minutos.',
       progress: 0,
     });
     return false;
@@ -103,7 +122,7 @@ export async function wakeUpRenderServer(
     console.error('Erro ao acordar servidor Render:', error);
     updateProgress({
       status: 'error',
-      message: 'Erro ao tentar acordar o servidor',
+      message: 'Erro ao tentar acordar o servidor. Tente novamente.',
       progress: 0,
     });
     return false;

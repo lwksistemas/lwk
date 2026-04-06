@@ -1,7 +1,9 @@
-# Botões de Nota Fiscal no Financeiro - v1484
+# Botões de Nota Fiscal no Financeiro - v1489 ✅
 
 ## 📋 Resumo
 Adicionados botões de "Baixar Nota Fiscal" e "Reenviar Nota Fiscal" na página de financeiro do superadmin.
+
+## ✅ STATUS: FUNCIONANDO
 
 ## 🎯 Localização
 **URL:** https://lwksistemas.com.br/superadmin/financeiro
@@ -14,6 +16,7 @@ Adicionados botões de "Baixar Nota Fiscal" e "Reenviar Nota Fiscal" na página 
 - **Endpoint:** `GET /api/superadmin/financeiro/{id}/baixar_nota_fiscal/`
 - **Habilitado:** Apenas para pagamentos confirmados (`is_paid = true`)
 - **Feedback:** Mostra "⏳ Baixando..." durante o processo
+- **Status:** ✅ FUNCIONANDO
 
 ### 2. Botão "Reenviar NF" (📧)
 - **Cor:** Teal (verde-azulado)
@@ -21,6 +24,7 @@ Adicionados botões de "Baixar Nota Fiscal" e "Reenviar Nota Fiscal" na página 
 - **Endpoint:** `POST /api/superadmin/financeiro/{id}/reenviar_nota_fiscal/`
 - **Habilitado:** Apenas para pagamentos confirmados (`is_paid = true`)
 - **Feedback:** Mostra "⏳ Enviando..." durante o processo
+- **Status:** ✅ FUNCIONANDO
 
 ## 📍 Onde Aparecem os Botões
 
@@ -80,9 +84,17 @@ Os botões aparecem na seção "Próximo Pagamento" de cada assinatura Asaas, ju
 ## 🚀 Deploy
 
 **Data:** 01/04/2026
-**Versão:** v1484
+**Versão Final:** v1489 ✅
 **Frontend:** https://lwksistemas.com.br
-**Backend:** Já estava deployado (v1483)
+**Backend:** https://lwksistemas-38ad47519238.herokuapp.com
+
+### Histórico de Versões
+- v1484: Implementação inicial dos botões
+- v1485: Correção de busca de nota fiscal (pdfUrl ao invés de boleto)
+- v1486: Correção de indentação
+- v1487: Adicionados logs detalhados para debug
+- v1488: Correção de busca do financeiro_id
+- v1489: ✅ Adicionado campo financeiro_id no serializer - FUNCIONANDO
 
 ## 🔗 Endpoints Backend (já implementados)
 
@@ -110,18 +122,24 @@ Response:
 }
 ```
 
-## ✅ Testes Recomendados
+## ✅ Testes Realizados
 
-1. Acessar https://lwksistemas.com.br/superadmin/financeiro
-2. Localizar uma assinatura Asaas com pagamento confirmado
-3. Clicar em "🧾 Baixar NF" - deve abrir PDF em nova aba
-4. Clicar em "📧 Reenviar NF" - deve mostrar mensagem de sucesso
-5. Verificar email do proprietário da loja
-6. Testar com pagamento pendente - botões devem estar desabilitados
+1. ✅ Acessar https://lwksistemas.com.br/superadmin/financeiro
+2. ✅ Localizar uma assinatura Asaas com pagamento confirmado
+3. ✅ Clicar em "🧾 Baixar NF" - abre PDF da nota fiscal em nova aba
+4. ✅ Clicar em "📧 Reenviar NF" - mostra mensagem de sucesso
+5. ✅ Verificar email do proprietário da loja - email recebido
+6. ✅ Testar com pagamento pendente - botões desabilitados corretamente
 
-## 📊 Status
+## 📊 Status Final
 
-✅ Implementado
-✅ Testado localmente
-✅ Deploy concluído
+✅ **IMPLEMENTADO E FUNCIONANDO**
+✅ Testado em produção
 ✅ Documentado
+✅ Deploy concluído
+
+## 📝 Observações
+
+- O botão "📄 Baixar Boleto" pode apresentar erro se o pagamento foi feito via PIX (limitação do Asaas)
+- Os botões de Nota Fiscal funcionam independentemente da forma de pagamento
+- Notas fiscais são emitidas automaticamente após confirmação do pagamento

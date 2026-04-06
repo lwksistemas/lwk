@@ -61,26 +61,34 @@ def delete_cloudinary_image(cloudinary_url: str, loja_slug: str = None) -> bool:
         logger.warning(f"URL não é do Cloudinary: {cloudinary_url}")
         return False
     
+    logger.info(f"🗑️ Tentando deletar imagem do Cloudinary: {cloudinary_url} (loja: {loja_slug})")
+    
     try:
         # Importar cloudinary
         try:
             import cloudinary
             import cloudinary.uploader
             from .cloudinary_models import CloudinaryConfig
-        except ImportError:
-            logger.error("Biblioteca cloudinary não está instalada")
+        except ImportError as e:
+            logger.error(f"❌ Biblioteca cloudinary não está instalada: {e}")
             return False
         
         # Obter configuração
-        config = CloudinaryConfig.get_config()
+        try:
+            config = CloudinaryConfig.get_config()
+        except Exception as e:
+            logger.error(f"❌ Erro ao obter configuração do Cloudinary: {e}")
+            return False
         
         if not config.enabled:
-            logger.warning("Cloudinary não está habilitado nas configurações")
+            logger.warning("⚠️ Cloudinary não está habilitado nas configurações")
             return False
         
         if not config.cloud_name or not config.api_key or not config.api_secret:
-            logger.error("Credenciais do Cloudinary não configuradas")
+            logger.error("❌ Credenciais do Cloudinary não configuradas")
             return False
+        
+        logger.info(f"✅ Cloudinary configurado: cloud_name={config.cloud_name}")
         
         # Configurar cloudinary
         cloudinary.config(
@@ -94,8 +102,10 @@ def delete_cloudinary_image(cloudinary_url: str, loja_slug: str = None) -> bool:
         public_id = extract_public_id_from_url(cloudinary_url)
         
         if not public_id:
-            logger.error(f"Não foi possível extrair public_id da URL: {cloudinary_url}")
+            logger.error(f"❌ Não foi possível extrair public_id da URL: {cloudinary_url}")
             return False
+        
+        logger.info(f"📋 Public ID extraído: {public_id}")
         
         # 🔒 SEGURANÇA: Validar propriedade da imagem (se loja_slug fornecido)
         if loja_slug:
@@ -119,7 +129,9 @@ def delete_cloudinary_image(cloudinary_url: str, loja_slug: str = None) -> bool:
                 )
         
         # Deletar imagem
+        logger.info(f"🔄 Chamando cloudinary.uploader.destroy({public_id})...")
         result = cloudinary.uploader.destroy(public_id)
+        logger.info(f"📊 Resultado da deleção: {result}")
         
         if result.get('result') == 'ok':
             logger.info(f"✅ Imagem deletada do Cloudinary: {public_id}")
@@ -132,5 +144,5 @@ def delete_cloudinary_image(cloudinary_url: str, loja_slug: str = None) -> bool:
             return False
             
     except Exception as e:
-        logger.error(f"❌ Exceção ao deletar imagem do Cloudinary: {str(e)}")
+        logger.error(f"❌ Exceção ao deletar imagem do Cloudinary: {str(e)}", exc_info=True)
         return False

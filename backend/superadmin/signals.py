@@ -6,7 +6,7 @@ IMPORTANTE:
 2. Quando uma loja é EXCLUÍDA, deleta TODOS os dados relacionados (cascata)
 3. Arquivos (backups, media) são removidos para evitar órfãos
 """
-from django.db.models.signals import post_save, pre_delete, post_delete
+from django.db.models.signals import post_save, pre_delete, post_delete, pre_save
 from django.dispatch import receiver
 import logging
 import os

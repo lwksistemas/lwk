@@ -814,3 +814,84 @@ def on_payment_confirmed(sender, instance, created, **kwargs):
                 f"❌ Erro ao processar envio de senha para loja {instance.loja.slug}: {e}",
                 exc_info=True
             )
+
+
+
+@receiver(pre_save, sender='superadmin.LoginConfigSistema')
+def delete_old_cloudinary_images(sender, instance, **kwargs):
+    """
+    Exclui imagens antigas do Cloudinary quando uma nova imagem é enviada.
+    
+    Trigger: Antes de salvar LoginConfigSistema
+    
+    Verifica se logo ou login_background foram alterados e exclui a imagem antiga
+    do Cloudinary para evitar acúmulo de imagens não utilizadas.
+    
+    Args:
+        sender: Modelo LoginConfigSistema
+        instance: Instância sendo salva
+        **kwargs: Argumentos adicionais do signal
+    """
+    if not instance.pk:
+        # Nova instância, não há imagem antiga para excluir
+        return
+    
+    try:
+        from superadmin.models import LoginConfigSistema
+        import cloudinary.uploader
+        import re
+        
+        # Buscar instância antiga do banco
+        try:
+            old_instance = LoginConfigSistema.objects.get(pk=instance.pk)
+        except LoginConfigSistema.DoesNotExist:
+            return
+        
+        def extract_public_id(url):
+            """Extrai o public_id de uma URL do Cloudinary"""
+            if not url:
+                return None
+            
+            # Padrão: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/{public_id}.{format}
+            # Exemplo: https://res.cloudinary.com/dzrdbw74w/image/upload/v1234567890/lwksistemas/logo.png
+            match = re.search(r'/upload/(?:v\d+/)?(.+)\.\w+$', url)
+            if match:
+                return match.group(1)
+            return None
+        
+        def delete_cloudinary_image(url, field_name):
+            """Exclui imagem do Cloudinary"""
+            if not url:
+                return
+            
+            public_id = extract_public_id(url)
+            if not public_id:
+                logger.warning(f"   ⚠️ Não foi possível extrair public_id de {url}")
+                return
+            
+            try:
+                result = cloudinary.uploader.destroy(public_id)
+                if result.get('result') == 'ok':
+                    logger.info(f"   ✅ Imagem antiga excluída do Cloudinary: {public_id} ({field_name})")
+                elif result.get('result') == 'not found':
+                    logger.info(f"   ℹ️  Imagem não encontrada no Cloudinary: {public_id} ({field_name})")
+                else:
+                    logger.warning(f"   ⚠️ Resultado inesperado ao excluir imagem: {result}")
+            except Exception as e:
+                logger.error(f"   ❌ Erro ao excluir imagem do Cloudinary ({public_id}): {e}")
+        
+        # Verificar se logo foi alterado
+        if old_instance.logo and old_instance.logo != instance.logo:
+            logger.info(f"🗑️  Logo alterado para {instance.get_tipo_display()}, excluindo imagem antiga...")
+            delete_cloudinary_image(old_instance.logo, 'logo')
+        
+        # Verificar se login_background foi alterado
+        if old_instance.login_background and old_instance.login_background != instance.login_background:
+            logger.info(f"🗑️  Background alterado para {instance.get_tipo_display()}, excluindo imagem antiga...")
+            delete_cloudinary_image(old_instance.login_background, 'login_background')
+    
+    except Exception as e:
+        logger.error(f"❌ Erro ao processar exclusão de imagens antigas: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # Não interrompe o salvamento, apenas loga o erro

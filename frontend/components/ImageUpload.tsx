@@ -204,7 +204,7 @@ export function ImageUpload({
         {/* Preview da imagem */}
         {value && value.trim() !== '' ? (
           <div className="relative group w-full sm:w-auto shrink-0">
-            <div className={`relative ${previewFrameClass.replace('flex items-center justify-center', '').trim()}`}>
+            <div className={previewFrameClass}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={value}

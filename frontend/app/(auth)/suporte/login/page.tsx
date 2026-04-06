@@ -40,10 +40,17 @@ export default function SuporteLoginPage() {
   // Carregar configurações personalizadas
   useEffect(() => {
     const loadConfig = async () => {
+      const timeoutId = setTimeout(() => {
+        console.warn('⚠️ Timeout ao carregar configurações, usando padrão');
+        setConfigLoading(false);
+      }, 5000); // Timeout de 5 segundos
+
       try {
         const res = await apiClient.get('/superadmin/public/login-config-sistema/suporte/');
+        clearTimeout(timeoutId);
         setConfig(res.data);
       } catch (err) {
+        clearTimeout(timeoutId);
         console.error('Erro ao carregar configurações de login:', err);
       } finally {
         setConfigLoading(false);

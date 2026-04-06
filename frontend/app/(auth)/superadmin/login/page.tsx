@@ -40,20 +40,27 @@ export default function SuperAdminLoginPage() {
   // Carregar configurações personalizadas
   useEffect(() => {
     const loadConfig = async () => {
+      let timeoutFired = false;
+      
       const timeoutId = setTimeout(() => {
         console.warn('⚠️ Timeout ao carregar configurações, usando padrão');
+        timeoutFired = true;
         setConfigLoading(false);
       }, 5000); // Timeout de 5 segundos
 
       try {
         const res = await apiClient.get('/superadmin/public/login-config-sistema/superadmin/');
-        clearTimeout(timeoutId);
-        setConfig(res.data);
+        if (!timeoutFired) {
+          clearTimeout(timeoutId);
+          setConfig(res.data);
+          setConfigLoading(false);
+        }
       } catch (err) {
-        clearTimeout(timeoutId);
-        console.error('Erro ao carregar configurações de login:', err);
-      } finally {
-        setConfigLoading(false);
+        if (!timeoutFired) {
+          clearTimeout(timeoutId);
+          console.error('Erro ao carregar configurações de login:', err);
+          setConfigLoading(false);
+        }
       }
     };
     loadConfig();

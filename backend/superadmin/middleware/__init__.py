@@ -115,7 +115,8 @@ class SuperAdminSecurityMiddleware:
             owner_allowed_patterns = [
                 '/alterar_senha_primeiro_acesso/',  # Trocar senha provisória
                 '/reenviar_senha/',                  # Reenviar senha por email
-                '/financeiro/',                      # Dados financeiros da própria loja
+                '/financeiro/',                      # Dados financeiros da própria loja (slug na URL)
+                '/loja-financeiro/',                 # FinanceiroLojaViewSet (router: atualizar_status_asaas, etc.)
                 '/loja-pagamentos/',                 # baixar_boleto_pdf, gerar_pix (IsLojaOwner)
                 '/exportar_backup/',                 # Backup: exportar (loja)
                 '/enviar_backup_agora/',             # Backup: enviar por email agora

@@ -1,7 +1,7 @@
 #!/bin/bash
-# Deploy do frontend LWK Sistemas no Vercel
-# IMPORTANTE: executar a partir da pasta frontend para usar o código correto
+# Deploy só do frontend no Vercel.
+# Para GitHub + Heroku + Vercel juntos, use na raiz: ./deploy-producao.sh
 set -e
 cd "$(dirname "$0")/frontend"
 echo "📦 Deploy do frontend em $(pwd)..."
-vercel --prod
+vercel deploy --prod --yes --force

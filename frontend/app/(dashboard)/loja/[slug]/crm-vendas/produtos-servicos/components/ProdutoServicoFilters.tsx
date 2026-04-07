@@ -3,7 +3,7 @@
  * 
  * Responsabilidade única: Renderizar filtros de busca.
  */
-import { Plus, FolderOpen } from 'lucide-react';
+import { Plus, FolderOpen, ArrowLeft } from 'lucide-react';
 import { Categoria } from '@/hooks/useProdutosServicos';
 
 interface ProdutoServicoFiltersProps {
@@ -14,6 +14,11 @@ interface ProdutoServicoFiltersProps {
   onTipoChange: (value: string) => void;
   onNovoClick: () => void;
   onGerenciarCategoriasClick?: () => void;
+  /** Grade inicial: só título e ações; lista: filtros completos */
+  variant?: 'grid' | 'lista';
+  onVoltarCategorias?: () => void;
+  /** Ex.: nome da categoria selecionada na lista */
+  subtituloLista?: string;
 }
 
 export function ProdutoServicoFilters({
@@ -24,24 +29,44 @@ export function ProdutoServicoFilters({
   onTipoChange,
   onNovoClick,
   onGerenciarCategoriasClick,
+  variant = 'lista',
+  onVoltarCategorias,
+  subtituloLista,
 }: ProdutoServicoFiltersProps) {
+  const isGrid = variant === 'grid';
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
+        {isGrid ? null : (
+          <button
+            type="button"
+            onClick={() => onVoltarCategorias?.()}
+            className="inline-flex items-center gap-1.5 text-sm text-[#0176d3] hover:underline mb-2"
+          >
+            <ArrowLeft className="w-4 h-4" aria-hidden />
+            Voltar às categorias
+          </button>
+        )}
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Cadastrar Serviço e Produto
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Produtos e serviços disponíveis para incluir em novas oportunidades
+          {isGrid
+            ? 'Escolha uma categoria para ver os itens ou veja todos de uma vez'
+            : subtituloLista || 'Produtos e serviços disponíveis para incluir em novas oportunidades'}
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {!isGrid && (
+          <>
         <select
           value={filtroCategoria}
           onChange={(e) => onCategoriaChange(e.target.value)}
           className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
         >
           <option value="">Todas categorias</option>
+          <option value="__sem__">Sem categoria</option>
           {categorias.map((cat) => (
             <option key={cat.id} value={cat.id}>
               {cat.nome}
@@ -57,6 +82,8 @@ export function ProdutoServicoFilters({
           <option value="produto">Produtos</option>
           <option value="servico">Serviços</option>
         </select>
+          </>
+        )}
         {onGerenciarCategoriasClick && (
           <button
             type="button"

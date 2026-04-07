@@ -1,34 +1,30 @@
 /**
- * Página de Produtos e Serviços - Refatorada.
- * 
- * Segue Clean Code e React Best Practices:
- * - Componentes pequenos e focados
- * - Custom hooks para lógica de API
- * - Separação de responsabilidades
- * - Fácil de testar e manter
+ * Página de Produtos e Serviços — grade de categorias e lista filtrada.
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import apiClient from '@/lib/api-client';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import { 
-  useProdutosServicos, 
+import {
+  useProdutosServicos,
   useCategorias,
   ProdutoServico,
   FormData,
+  Filtros,
 } from '@/hooks/useProdutosServicos';
 import { ProdutoServicoFilters } from './components/ProdutoServicoFilters';
 import { ProdutoServicoTable } from './components/ProdutoServicoTable';
 import { ProdutoServicoModal } from './components/ProdutoServicoModal';
 import { CategoriasModal } from './components/CategoriasModal';
+import { CategoriasProdutosGrid } from './components/CategoriasProdutosGrid';
 
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
 
 export default function CrmVendasProdutosServicosPage() {
-  // Custom hooks para lógica de API
   const {
     itens,
-    loading,
+    loading: loadingItens,
     error,
     loadItens,
     criarItem,
@@ -38,18 +34,20 @@ export default function CrmVendasProdutosServicosPage() {
 
   const {
     categorias,
+    loading: loadingCategorias,
     loadCategorias,
     criarCategoria,
     atualizarCategoria,
     deletarCategoria,
   } = useCategorias();
 
-  // Estados locais para UI
+  const [viewMode, setViewMode] = useState<'categorias' | 'lista'>('categorias');
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selected, setSelected] = useState<ProdutoServico | null>(null);
-  const [filtroTipo, setFiltroTipo] = useState<string>('');
-  const [filtroCategoria, setFiltroCategoria] = useState<string>('');
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('');
   const [modalCategoriasAberto, setModalCategoriasAberto] = useState(false);
+  const [countSemCategoria, setCountSemCategoria] = useState<number | null>(null);
   const [formData, setFormData] = useState<FormData>({
     tipo: 'produto',
     codigo: '',
@@ -61,20 +59,56 @@ export default function CrmVendasProdutosServicosPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  // Carregar dados iniciais
+  const buildFiltrosLista = useCallback((): Filtros => {
+    const f: Filtros = {};
+    if (filtroTipo) f.tipo = filtroTipo;
+    if (filtroCategoria === '__sem__') f.semCategoria = true;
+    else if (filtroCategoria) f.categoria = filtroCategoria;
+    return f;
+  }, [filtroTipo, filtroCategoria]);
+
   useEffect(() => {
     loadCategorias();
-    loadItens();
-  }, [loadCategorias, loadItens]);
+  }, [loadCategorias]);
 
-  // Recarregar quando filtros mudarem
   useEffect(() => {
-    loadItens({ tipo: filtroTipo, categoria: filtroCategoria });
-  }, [filtroTipo, filtroCategoria, loadItens]);
+    if (viewMode !== 'categorias') return;
+    let cancelled = false;
+    apiClient
+      .get('/crm-vendas/produtos-servicos/?sem_categoria=true&page_size=1')
+      .then((res) => {
+        const d = res.data as { count?: number; results?: unknown[] };
+        if (cancelled) return;
+        setCountSemCategoria(
+          typeof d.count === 'number' ? d.count : Array.isArray(d.results) ? d.results.length : 0
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCountSemCategoria(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, categorias]);
 
-  /**
-   * Abre modal com tipo e item específicos.
-   */
+  useEffect(() => {
+    if (viewMode !== 'lista') return;
+    if (filtroCategoria === '__sem__') {
+      loadItens({ tipo: filtroTipo, semCategoria: true });
+    } else {
+      loadItens({ tipo: filtroTipo, categoria: filtroCategoria });
+    }
+  }, [viewMode, filtroTipo, filtroCategoria, loadItens]);
+
+  const subtituloLista = useMemo(() => {
+    if (filtroCategoria === '__sem__') return 'Itens sem categoria';
+    if (filtroCategoria) {
+      const c = categorias.find((x) => String(x.id) === filtroCategoria);
+      return c ? `Categoria: ${c.nome}` : undefined;
+    }
+    return 'Todos os produtos e serviços';
+  }, [filtroCategoria, categorias]);
+
   const openModal = (type: ModalType, item?: ProdutoServico) => {
     setModalType(type);
     setSelected(item || null);
@@ -90,36 +124,32 @@ export default function CrmVendasProdutosServicosPage() {
         ativo: item.ativo ?? true,
       });
     } else if (type === 'create') {
+      let cid: number | null = null;
+      if (filtroCategoria && filtroCategoria !== '__sem__') {
+        const n = parseInt(filtroCategoria, 10);
+        if (Number.isFinite(n)) cid = n;
+      }
       setFormData({
         tipo: 'produto',
         codigo: '',
         nome: '',
         descricao: '',
-        categoria: null,
+        categoria: cid,
         preco: '0',
         ativo: true,
       });
     }
   };
 
-  /**
-   * Fecha modal e limpa estados.
-   */
   const closeModal = () => {
     setModalType(null);
     setSelected(null);
   };
 
-  /**
-   * Atualiza dados do formulário.
-   */
   const handleFormChange = (data: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
-  /**
-   * Submete formulário (criar ou editar).
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -130,13 +160,15 @@ export default function CrmVendasProdutosServicosPage() {
 
     try {
       setSubmitting(true);
+      const filtrosReload = viewMode === 'lista' ? buildFiltrosLista() : undefined;
 
       if (modalType === 'create') {
-        await criarItem(formData);
+        await criarItem(formData, filtrosReload);
       } else if (modalType === 'edit' && selected) {
-        await atualizarItem(selected.id, formData);
+        await atualizarItem(selected.id, formData, filtrosReload);
       }
 
+      await loadCategorias();
       closeModal();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -146,15 +178,14 @@ export default function CrmVendasProdutosServicosPage() {
     }
   };
 
-  /**
-   * Deleta item selecionado.
-   */
   const handleDelete = async () => {
     if (!selected) return;
 
     try {
       setSubmitting(true);
-      await deletarItem(selected.id);
+      const filtrosReload = viewMode === 'lista' ? buildFiltrosLista() : undefined;
+      await deletarItem(selected.id, filtrosReload);
+      await loadCategorias();
       closeModal();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -164,23 +195,53 @@ export default function CrmVendasProdutosServicosPage() {
     }
   };
 
-  // Loading state
-  if (loading) {
+  const irParaCategoria = (id: number) => {
+    setFiltroCategoria(String(id));
+    setFiltroTipo('');
+    setViewMode('lista');
+  };
+
+  const irSemCategoria = () => {
+    setFiltroCategoria('__sem__');
+    setFiltroTipo('');
+    setViewMode('lista');
+  };
+
+  const irVerTodos = () => {
+    setFiltroCategoria('');
+    setFiltroTipo('');
+    setViewMode('lista');
+  };
+
+  const voltarCategorias = () => {
+    setViewMode('categorias');
+    setFiltroCategoria('');
+    setFiltroTipo('');
+  };
+
+  if (viewMode === 'categorias' && loadingCategorias) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
           <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-40 animate-pulse" />
         </div>
-        <SkeletonTable rows={5} columns={5} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="h-32 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse"
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Filtros e botão Novo */}
       <ProdutoServicoFilters
+        variant={viewMode === 'categorias' ? 'grid' : 'lista'}
         filtroCategoria={filtroCategoria}
         filtroTipo={filtroTipo}
         categorias={categorias}
@@ -188,24 +249,35 @@ export default function CrmVendasProdutosServicosPage() {
         onTipoChange={setFiltroTipo}
         onNovoClick={() => openModal('create')}
         onGerenciarCategoriasClick={() => setModalCategoriasAberto(true)}
+        onVoltarCategorias={voltarCategorias}
+        subtituloLista={subtituloLista}
       />
 
-      {/* Mensagem de erro */}
       {error && (
         <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
           {error}
         </div>
       )}
 
-      {/* Tabela de produtos/serviços */}
-      <ProdutoServicoTable
-        itens={itens}
-        onView={(item) => openModal('view', item)}
-        onEdit={(item) => openModal('edit', item)}
-        onDelete={(item) => openModal('delete', item)}
-      />
+      {viewMode === 'categorias' ? (
+        <CategoriasProdutosGrid
+          categorias={categorias}
+          countSemCategoria={countSemCategoria}
+          onSelectCategoria={irParaCategoria}
+          onSelectSemCategoria={irSemCategoria}
+          onVerTodos={irVerTodos}
+        />
+      ) : loadingItens ? (
+        <SkeletonTable rows={5} columns={5} />
+      ) : (
+        <ProdutoServicoTable
+          itens={itens}
+          onView={(item) => openModal('view', item)}
+          onEdit={(item) => openModal('edit', item)}
+          onDelete={(item) => openModal('delete', item)}
+        />
+      )}
 
-      {/* Modal (criar/editar/visualizar/deletar) */}
       <ProdutoServicoModal
         modalType={modalType}
         selected={selected}
@@ -218,7 +290,6 @@ export default function CrmVendasProdutosServicosPage() {
         onDelete={handleDelete}
       />
 
-      {/* Modal de Gerenciamento de Categorias */}
       <CategoriasModal
         isOpen={modalCategoriasAberto}
         categorias={categorias}

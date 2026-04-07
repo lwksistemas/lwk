@@ -963,9 +963,13 @@ class ProdutoServicoViewSet(BaseModelViewSet):
         tipo = self.request.query_params.get('tipo')
         if tipo:
             qs = qs.filter(tipo=tipo)
-        categoria = self.request.query_params.get('categoria')
-        if categoria:
-            qs = qs.filter(categoria_id=categoria)
+        sem_cat = self.request.query_params.get('sem_categoria')
+        if sem_cat and str(sem_cat).lower() in ('1', 'true', 'yes'):
+            qs = qs.filter(categoria__isnull=True)
+        else:
+            categoria = self.request.query_params.get('categoria')
+            if categoria:
+                qs = qs.filter(categoria_id=categoria)
         return qs
 
 

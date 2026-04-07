@@ -30,6 +30,8 @@ export interface Categoria {
   descricao?: string;
   cor: string;
   ordem: number;
+  /** Quantidade de produtos/serviços ativos (API) */
+  produtos_count?: number;
 }
 
 export interface FormData {
@@ -42,9 +44,12 @@ export interface FormData {
   ativo: boolean;
 }
 
-interface Filtros {
+export interface Filtros {
   tipo?: string;
+  /** ID da categoria ou vazio para todos (exceto quando semCategoria) */
   categoria?: string;
+  /** Itens sem categoria (mutuamente exclusivo com categoria numérica) */
+  semCategoria?: boolean;
 }
 
 /**
@@ -54,7 +59,7 @@ interface Filtros {
  */
 export function useProdutosServicos() {
   const [itens, setItens] = useState<ProdutoServico[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -67,8 +72,9 @@ export function useProdutosServicos() {
       
       const params: Record<string, string> = {};
       if (filtros?.tipo) params.tipo = filtros.tipo;
-      if (filtros?.categoria) params.categoria = filtros.categoria;
-      
+      if (filtros?.semCategoria) params.sem_categoria = 'true';
+      else if (filtros?.categoria) params.categoria = filtros.categoria;
+
       const query = new URLSearchParams(params).toString();
       const url = query 
         ? `/crm-vendas/produtos-servicos/?${query}` 
@@ -87,33 +93,33 @@ export function useProdutosServicos() {
   /**
    * Cria um novo produto/serviço.
    */
-  const criarItem = useCallback(async (data: FormData) => {
+  const criarItem = useCallback(async (data: FormData, filtros?: Filtros) => {
     const payload = {
       ...data,
       preco: parseFloat(data.preco) || 0,
     };
     await apiClient.post('/crm-vendas/produtos-servicos/', payload);
-    await loadItens();
+    if (filtros !== undefined) await loadItens(filtros);
   }, [loadItens]);
 
   /**
    * Atualiza um produto/serviço existente.
    */
-  const atualizarItem = useCallback(async (id: number, data: FormData) => {
+  const atualizarItem = useCallback(async (id: number, data: FormData, filtros?: Filtros) => {
     const payload = {
       ...data,
       preco: parseFloat(data.preco) || 0,
     };
     await apiClient.put(`/crm-vendas/produtos-servicos/${id}/`, payload);
-    await loadItens();
+    if (filtros !== undefined) await loadItens(filtros);
   }, [loadItens]);
 
   /**
    * Deleta um produto/serviço.
    */
-  const deletarItem = useCallback(async (id: number) => {
+  const deletarItem = useCallback(async (id: number, filtros?: Filtros) => {
     await apiClient.delete(`/crm-vendas/produtos-servicos/${id}/`);
-    await loadItens();
+    if (filtros !== undefined) await loadItens(filtros);
   }, [loadItens]);
 
   return {
@@ -147,7 +153,6 @@ export function useCategorias() {
         '/crm-vendas/categorias-produtos-servicos/?ativo=true'
       );
       const cats = normalizeListResponse(res.data);
-      console.log('Categorias carregadas:', cats);
       setCategorias(cats);
     } catch (err) {
       console.error('Erro ao carregar categorias:', err);

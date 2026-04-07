@@ -506,6 +506,7 @@ export default function CrmVendasPipelinePage() {
 
   return (
     <div className="space-y-8">
+      {/* v1507 - Filtros de período e exportação PDF */}
       {error && (
         <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
           {error}

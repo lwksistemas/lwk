@@ -105,7 +105,11 @@ export default function AssinaturaLojaPage() {
       // Mercado Pago retorna JSON com link para abrir em nova aba
       if (contentType.includes('application/json') || blob.type?.includes('json')) {
         const text = await blob.text()
-        const data = JSON.parse(text) as { boleto_url?: string; provedor?: string }
+        const data = JSON.parse(text) as { boleto_url?: string; provedor?: string; error?: string }
+        if (data?.error) {
+          alert(data.error)
+          return
+        }
         if (data?.boleto_url && data.provedor === 'mercadopago') {
           window.open(data.boleto_url, '_blank', 'noopener,noreferrer')
           return
@@ -120,9 +124,30 @@ export default function AssinaturaLojaPage() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Erro ao baixar boleto:', err)
-      alert('Erro ao abrir/baixar boleto')
+      let msg = 'Erro ao abrir/baixar boleto'
+      const ax =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { status?: number; data?: unknown } }).response
+          : undefined
+      if (ax?.status === 400 && ax.data instanceof Blob) {
+        try {
+          const t = await ax.data.text()
+          const j = JSON.parse(t) as { error?: string }
+          if (j?.error) msg = j.error
+        } catch {
+          /* manter msg genérica */
+        }
+      } else if (
+        ax?.data &&
+        typeof ax.data === 'object' &&
+        ax.data !== null &&
+        'error' in ax.data
+      ) {
+        msg = String((ax.data as { error?: string }).error || msg)
+      }
+      alert(msg)
     }
   }
 

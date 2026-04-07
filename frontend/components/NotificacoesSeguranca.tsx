@@ -19,7 +19,8 @@ interface NotificacoesSegurancaProps {
   onNovaViolacao?: (violacao: Violacao) => void;
 }
 
-const INTERVALO_POLLING_MS = 30000; // 30 segundos
+/** Visível: poll a cada 45s. Com aba em background o intervalo pausa. */
+const INTERVALO_POLLING_MS = 45000;
 
 export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSegurancaProps) {
   const [violacoesNaoLidas, setViolacoesNaoLidas] = useState<Violacao[]>([]);
@@ -67,12 +68,42 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
     }
   };
 
-  // Polling a cada 30 segundos (apenas ao montar; verificarNovasViolacoes estável)
+  const verificarRef = useRef(verificarNovasViolacoes);
+  verificarRef.current = verificarNovasViolacoes;
+
   useEffect(() => {
-    verificarNovasViolacoes();
-    const interval = setInterval(verificarNovasViolacoes, INTERVALO_POLLING_MS);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Executar apenas ao montar; reexecutar com verificarNovasViolacoes causaria loop
+    const run = () => void verificarRef.current();
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const clear = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+    const schedule = () => {
+      clear();
+      intervalId = setInterval(run, INTERVALO_POLLING_MS);
+    };
+    const onVisibility = () => {
+      if (document.hidden) {
+        clear();
+      } else {
+        run();
+        schedule();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    if (!document.hidden) {
+      run();
+      schedule();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      clear();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- montagem única; ref sempre aponta para a última verificação
   }, []);
 
   const mostrarNotificacaoNativa = (violacao: Violacao) => {

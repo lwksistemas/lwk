@@ -107,16 +107,23 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         import logging
         logger = logging.getLogger(__name__)
         
-        # DEBUG: Log do contexto
         loja_id = get_current_loja_id()
-        logger.info(f"[VendedorViewSet.list] loja_id={loja_id}, user={request.user.id if request.user else None}")
+        logger.debug(
+            "[VendedorViewSet.list] loja_id=%s, user=%s",
+            loja_id,
+            request.user.id if request.user else None,
+        )
         
         for attempt in range(2):
             try:
                 response = super().list(request, *args, **kwargs)
                 
-                # DEBUG: Log do queryset
-                logger.info(f"[VendedorViewSet.list] response count={response.data.get('count') if isinstance(response.data, dict) else len(response.data)}")
+                logger.debug(
+                    "[VendedorViewSet.list] response count=%s",
+                    response.data.get('count')
+                    if isinstance(response.data, dict)
+                    else len(response.data),
+                )
                 
                 # Prepend admin (owner) como primeiro item APENAS se não tiver vendedor vinculado
                 loja_id = get_current_loja_id()
@@ -132,12 +139,16 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                             loja_id=loja_id,
                         ).exists()
                         
-                        logger.info(f"[VendedorViewSet.list] owner_tem_vendedor={owner_tem_vendedor}, owner_email={owner_email_lower}")
+                        logger.debug(
+                            "[VendedorViewSet.list] owner_tem_vendedor=%s, owner_email=%s",
+                            owner_tem_vendedor,
+                            owner_email_lower,
+                        )
                         
                         data = response.data
                         results = list(data.get('results', []) if isinstance(data, dict) else (data or []))
                         
-                        logger.info(f"[VendedorViewSet.list] results ANTES de filtrar: {len(results)}")
+                        logger.debug("[VendedorViewSet.list] results ANTES de filtrar: %s", len(results))
                         
                         # Filtrar vendedores legacy (is_admin) que eram owner — só quando o admin
                         # virtual será inserido (owner sem VendedorUsuario). Se o owner já tem
@@ -149,7 +160,7 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                                 (r.get('email') or '').strip().lower() == owner_email_lower
                             )]
                         
-                        logger.info(f"[VendedorViewSet.list] results DEPOIS de filtrar: {len(results)}")
+                        logger.debug("[VendedorViewSet.list] results DEPOIS de filtrar: %s", len(results))
                         
                         # Verificar se owner já existe como vendedor comum (mesmo email)
                         owner_ja_existe_como_vendedor = False
@@ -161,7 +172,10 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                                 r['cargo'] = 'Administrador'
                                 break
                         
-                        logger.info(f"[VendedorViewSet.list] owner_ja_existe_como_vendedor={owner_ja_existe_como_vendedor}")
+                        logger.debug(
+                            "[VendedorViewSet.list] owner_ja_existe_como_vendedor=%s",
+                            owner_ja_existe_como_vendedor,
+                        )
                         
                         # Adicionar admin virtual APENAS se:
                         # 1. Owner NÃO tem VendedorUsuario vinculado E
@@ -169,7 +183,7 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                         if not owner_tem_vendedor and not owner_ja_existe_como_vendedor:
                             admin_item = self._obter_funcionario_administrador_da_loja(loja)
                             results.insert(0, admin_item)
-                            logger.info(f"[VendedorViewSet.list] Admin virtual adicionado")
+                            logger.debug("[VendedorViewSet.list] Admin virtual adicionado")
                         
                         # Lista vazia com VendedorUsuario: vínculo no public sem linha ativa no tenant
                         # (órfão, inativo ou loja_id divergente) — recuperar por vendedor_id ou fallback.
@@ -192,7 +206,7 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                                         row['cargo'] = 'Administrador'
                                     results = [row]
                                     recovered = True
-                                    logger.info(
+                                    logger.debug(
                                         "[VendedorViewSet.list] Recuperado Vendedor pk=%s (lista estava vazia)",
                                         vu.vendedor_id,
                                     )
@@ -213,11 +227,11 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                             if not recovered:
                                 admin_item = self._obter_funcionario_administrador_da_loja(loja)
                                 results.insert(0, admin_item)
-                                logger.info(
+                                logger.debug(
                                     "[VendedorViewSet.list] Admin virtual (fallback lista vazia + VU)"
                                 )
                         
-                        logger.info(f"[VendedorViewSet.list] results FINAL: {len(results)}")
+                        logger.debug("[VendedorViewSet.list] results FINAL: %s", len(results))
                         
                         if isinstance(data, dict):
                             response.data['results'] = results

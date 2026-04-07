@@ -48,7 +48,7 @@ class SessionManager:
         session_id = SessionManager._generate_session_id(user_id, timestamp)
         token_hash = SessionManager._hash_token(token)
         
-        logger.warning(f"🔐 CRIANDO NOVA SESSÃO para usuário {user_id}")
+        logger.info("session.create: user_id=%s", user_id)
         
         try:
             user = User.objects.get(id=user_id)
@@ -56,7 +56,7 @@ class SessionManager:
             # Deletar sessão anterior se existir
             deleted_count = UserSession.objects.filter(user=user).delete()[0]
             if deleted_count > 0:
-                logger.warning(f"🗑️ {deleted_count} sessão(ões) anterior(es) deletada(s)")
+                logger.info("session.create: removed_previous_sessions count=%s user_id=%s", deleted_count, user_id)
             
             # Criar nova sessão
             session = UserSession.objects.create(
@@ -66,14 +66,14 @@ class SessionManager:
                 last_activity=timezone.now()
             )
             
-            logger.warning(f"✅ NOVA SESSÃO CRIADA - ID: {session_id[:16]}...")
+            logger.info("session.create: ok user_id=%s session_prefix=%s", user_id, session_id[:16])
             return session_id
             
         except User.DoesNotExist:
-            logger.error(f"❌ Usuário {user_id} não encontrado")
+            logger.error("session.create: user not found user_id=%s", user_id)
             raise
         except Exception as e:
-            logger.error(f"❌ Erro ao criar sessão: {e}")
+            logger.error("session.create: error user_id=%s: %s", user_id, e)
             raise
     
     @staticmethod
@@ -92,7 +92,7 @@ class SessionManager:
             session = UserSession.objects.filter(user_id=user_id).first()
             
             if not session:
-                logger.warning(f"⚠️ Nenhuma sessão ativa para usuário {user_id}")
+                logger.warning("session.validate: no active session user_id=%s", user_id)
                 return {
                     'valid': False,
                     'reason': 'NO_SESSION',
@@ -100,7 +100,7 @@ class SessionManager:
                 }
             
             if session.token_hash != token_hash:
-                logger.warning(f"🔄 Token diferente detectado para usuário {user_id} - Outra sessão ativa")
+                logger.warning("session.validate: token mismatch (other session) user_id=%s", user_id)
                 return {
                     'valid': False,
                     'reason': 'DIFFERENT_SESSION',
@@ -109,7 +109,7 @@ class SessionManager:
             
             if session.is_expired(SESSION_TIMEOUT_MINUTES):
                 session.delete()
-                logger.warning(f"⏱️ Sessão expirou por inatividade para usuário {user_id}")
+                logger.warning("session.validate: expired inactivity user_id=%s", user_id)
                 return {
                     'valid': False,
                     'reason': 'TIMEOUT',
@@ -119,7 +119,7 @@ class SessionManager:
             return {'valid': True}
             
         except Exception as e:
-            logger.error(f"❌ Erro ao validar sessão: {e}")
+            logger.error("session.validate: error: %s", e)
             return {
                 'valid': False,
                 'reason': 'ERROR',
@@ -136,7 +136,7 @@ class SessionManager:
             if session:
                 session.update_activity()
         except Exception as e:
-            logger.error(f"❌ Erro ao atualizar atividade: {e}")
+            logger.error("session.update_activity: error: %s", e)
     
     @staticmethod
     def destroy_session(user_id: int):
@@ -145,9 +145,9 @@ class SessionManager:
         
         try:
             UserSession.objects.filter(user_id=user_id).delete()
-            logger.info(f"🗑️ Sessão do usuário {user_id} destruída")
+            logger.info("session.destroy: user_id=%s", user_id)
         except Exception as e:
-            logger.error(f"❌ Erro ao destruir sessão: {e}")
+            logger.error("session.destroy: error: %s", e)
     
     @staticmethod
     def get_session_info(user_id: int) -> dict:
@@ -171,5 +171,5 @@ class SessionManager:
                 'will_expire_in_minutes': SESSION_TIMEOUT_MINUTES - inactive_minutes,
             }
         except Exception as e:
-            logger.error(f"❌ Erro ao obter info da sessão: {e}")
+            logger.error("session.get_session_info: error: %s", e)
             return None

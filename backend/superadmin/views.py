@@ -491,8 +491,8 @@ class LojaViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def heartbeat(self, request):
         """
-        Endpoint para manter sessão ativa (heartbeat)
-        Frontend deve chamar este endpoint a cada 5 minutos para evitar timeout
+        Mantém a sessão ativa (atualiza last_activity no SessionManager).
+        O frontend (`useSessionMonitor`) chama a cada 60s; timeout de inatividade no servidor é maior.
         """
         from django.utils import timezone
         from .session_manager import SessionManager

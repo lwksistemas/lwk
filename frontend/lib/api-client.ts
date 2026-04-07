@@ -431,34 +431,5 @@ export async function checkHealth(): Promise<{ healthy: boolean; api: string; er
   }
 }
 
-// ===== HEARTBEAT =====
-
-let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-
-export function startHeartbeat() {
-  if (heartbeatInterval) {
-    logger.log('Heartbeat já está rodando');
-    return;
-  }
-  logger.log('Iniciando heartbeat (5 min)');
-  heartbeatInterval = setInterval(async () => {
-    try {
-      await apiClient.get('/superadmin/lojas/heartbeat/');
-    } catch (err: unknown) {
-      logger.error('Heartbeat falhou:', err);
-      const e = err as { response?: { status?: number } };
-      if (e.response?.status === 401) {
-        stopHeartbeat();
-        clearSessionAndRedirect(getLoginUrlForRedirect());
-      }
-    }
-  }, 5 * 60 * 1000);
-}
-
-export function stopHeartbeat() {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
-    logger.log('Heartbeat parado');
-  }
-}
+// Heartbeat de sessão: use `useSessionMonitor` (frontend/hooks/useSessionMonitor.ts), intervalo 60s,
+// chamando GET /superadmin/lojas/heartbeat/. Não manter segundo intervalo aqui — evita duplicar carga.

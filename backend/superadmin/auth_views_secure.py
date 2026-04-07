@@ -330,7 +330,12 @@ class SecureLoginView(APIView):
             except UsuarioSistema.DoesNotExist:
                 pass
         
-        logger.info(f"✅ Login bem-sucedido: {username} (tipo: {real_user_type}, trocar senha: {precisa_trocar_senha})")
+        logger.info(
+            "login.ok user_id=%s type=%s password_change=%s",
+            user.id,
+            real_user_type,
+            precisa_trocar_senha,
+        )
         
         return Response(response_data, status=status.HTTP_200_OK)
     

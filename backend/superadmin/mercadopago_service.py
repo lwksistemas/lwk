@@ -476,6 +476,12 @@ class LojaMercadoPagoService:
                 timeout=15,
             )
             if resp.status_code != 200:
+                logger.warning(
+                    "MP get_boleto_url payment_id=%s status=%s body=%s",
+                    payment_id,
+                    resp.status_code,
+                    (resp.text or "")[:400],
+                )
                 return None
             data = resp.json()
             td = data.get("transaction_details") or {}
@@ -483,6 +489,13 @@ class LojaMercadoPagoService:
             if not boleto_url and data.get("point_of_interaction"):
                 poi = data.get("point_of_interaction", {})
                 boleto_url = poi.get("transaction_data", {}).get("ticket_url") or ""
+            if not boleto_url:
+                logger.warning(
+                    "MP get_boleto_url sem URL: payment_id=%s method=%s status=%s",
+                    payment_id,
+                    data.get("payment_method_id"),
+                    data.get("status"),
+                )
             return boleto_url or None
         except Exception as e:
             logger.warning("Erro ao obter boleto URL do MP: %s", e)

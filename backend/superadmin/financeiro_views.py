@@ -15,6 +15,70 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def _mercadopago_payment_ids_for_boleto(pagamento):
+    """IDs MP únicos para tentar obter URL do boleto (linha do pagamento + financeiro)."""
+    ids = []
+    pid = (getattr(pagamento, 'mercadopago_payment_id', None) or '').strip()
+    if pid:
+        ids.append(pid)
+    fin = getattr(pagamento, 'financeiro', None)
+    if fin:
+        fid = (getattr(fin, 'mercadopago_payment_id', None) or '').strip()
+        if fid and fid not in ids:
+            ids.append(fid)
+    return ids
+
+
+def _resolve_asaas_payment_id(pagamento):
+    """
+    ID do pagamento Asaas: prioriza PagamentoLoja, depois FinanceiroLoja,
+    depois cobrança pendente/vencida na assinatura Asaas com mesma data de vencimento.
+    """
+    pid = (getattr(pagamento, 'asaas_payment_id', None) or '').strip()
+    if pid:
+        return pid
+    fin = getattr(pagamento, 'financeiro', None)
+    if fin:
+        pid = (getattr(fin, 'asaas_payment_id', None) or '').strip()
+        if pid:
+            return pid
+    try:
+        from asaas_integration.models import LojaAssinatura, AsaasPayment
+
+        ass = (
+            LojaAssinatura.objects.filter(loja_slug=pagamento.loja.slug)
+            .select_related('asaas_customer')
+            .first()
+        )
+        if not ass:
+            return ''
+        qs = AsaasPayment.objects.filter(
+            customer=ass.asaas_customer,
+            status__in=['PENDING', 'OVERDUE'],
+        ).order_by('-due_date')
+        due = getattr(pagamento, 'data_vencimento', None)
+        if due:
+            m = qs.filter(due_date=due).first()
+            if m and m.asaas_id:
+                logger.info(
+                    'baixar_boleto: asaas_id resolvido via AsaasPayment (data=%s) id=%s',
+                    due,
+                    m.asaas_id,
+                )
+                return m.asaas_id
+        m = qs.first()
+        if m and m.asaas_id:
+            logger.info(
+                'baixar_boleto: asaas_id resolvido via último PENDING/OVERDUE id=%s',
+                m.asaas_id,
+            )
+            return m.asaas_id
+    except Exception as e:
+        logger.warning('baixar_boleto: fallback AsaasPayment: %s', e)
+    return ''
+
+
 class IsLojaOwner(permissions.BasePermission):
     """Permissão para proprietário da loja"""
     def has_permission(self, request, view):
@@ -185,45 +249,42 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
         """Baixar PDF do boleto (Asaas) ou redirecionar para o boleto (Mercado Pago)"""
         pagamento = self.get_object()
         
-        # Boleto via Mercado Pago: sempre buscar URL completa na API (a salva é truncada a 200 chars e perde o hash)
-        if getattr(pagamento, 'provedor_boleto', 'asaas') == 'mercadopago' and pagamento.mercadopago_payment_id:
+        # Mercado Pago: tentar todos os IDs (PagamentoLoja + FinanceiroLoja); URL salva pode estar truncada
+        if getattr(pagamento, 'provedor_boleto', 'asaas') == 'mercadopago':
             from .mercadopago_service import LojaMercadoPagoService
+
             mp_service = LojaMercadoPagoService()
-            boleto_url = mp_service.get_boleto_url(pagamento.mercadopago_payment_id)
-            if boleto_url:
-                return Response({'boleto_url': boleto_url, 'provedor': 'mercadopago'})
+            for mp_id in _mercadopago_payment_ids_for_boleto(pagamento):
+                boleto_url = mp_service.get_boleto_url(mp_id)
+                if boleto_url:
+                    return Response({'boleto_url': boleto_url, 'provedor': 'mercadopago'})
             return Response(
-                {'error': 'Link do boleto Mercado Pago não disponível. Verifique se o pagamento existe na conta (produção/sandbox).'},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    'error': (
+                        'Não foi possível obter o link do boleto no Mercado Pago. '
+                        'Confirme se a cobrança é por boleto (não só PIX) e se o token MP é de produção. '
+                        'Se o problema continuar, use o PIX ou atualize o status da cobrança no painel.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        # ✅ NOVO v733: Se não tem mercadopago_payment_id no PagamentoLoja, buscar no FinanceiroLoja
-        if getattr(pagamento, 'provedor_boleto', 'asaas') == 'mercadopago' and not pagamento.mercadopago_payment_id:
-            try:
-                financeiro = pagamento.financeiro or pagamento.loja.financeiro
-                if financeiro and financeiro.mercadopago_payment_id:
-                    from .mercadopago_service import LojaMercadoPagoService
-                    mp_service = LojaMercadoPagoService()
-                    boleto_url = mp_service.get_boleto_url(financeiro.mercadopago_payment_id)
-                    if boleto_url:
-                        return Response({'boleto_url': boleto_url, 'provedor': 'mercadopago'})
-            except Exception as e:
-                logger.warning(f"Erro ao buscar boleto MP do financeiro: {e}")
+
+        # Asaas: ID pode estar só no FinanceiroLoja ou na assinatura Asaas
+        asaas_id = _resolve_asaas_payment_id(pagamento)
+        if not asaas_id:
             return Response(
-                {'error': 'Link do boleto Mercado Pago não disponível. Verifique se o pagamento existe na conta (produção/sandbox).'},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    'error': (
+                        'Nenhum ID de cobrança Asaas vinculado a este pagamento. '
+                        'Gere uma nova cobrança ou sincronize os dados no suporte.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        # Boleto via Asaas
-        if not pagamento.asaas_payment_id:
-            return Response(
-                {'error': 'Pagamento não possui boleto (Asaas/Mercado Pago)'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+
         try:
             asaas_service = LojaAsaasService()
-            pdf_content = asaas_service.baixar_pdf_boleto(pagamento.asaas_payment_id)
+            pdf_content = asaas_service.baixar_pdf_boleto(asaas_id)
             
             if pdf_content:
                 response = HttpResponse(pdf_content, content_type='application/pdf')
@@ -231,10 +292,15 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
                 return response
             else:
                 return Response(
-                    {'error': 'Não foi possível baixar o PDF do boleto'},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {
+                        'error': (
+                            'O Asaas não retornou o PDF (cobrança pode ser só PIX, cancelada ou expirada). '
+                            'Use o PIX na tela ou atualize o status da assinatura.'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-                
+
         except Exception as e:
             logger.error(f"Erro ao baixar PDF: {e}")
             return Response(

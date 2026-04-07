@@ -515,7 +515,7 @@ export default function CrmVendasPipelinePage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
           <DollarSign className="w-8 h-8" />
-          Pipeline de vendas
+          Pipeline de vendas v1507
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <button

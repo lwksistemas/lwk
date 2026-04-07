@@ -7,7 +7,7 @@ import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
-import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, X, Mail, MessageCircle } from 'lucide-react';
+import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, Printer, X, Mail, MessageCircle } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
@@ -402,9 +402,11 @@ export default function CrmVendasPipelinePage() {
       return false;
     }
     
-    // Filtro por período
+    // Filtro por período (data de criação da oportunidade)
     if (dataInicio || dataFim) {
+      if (!op.created_at) return true;
       const dataOp = new Date(op.created_at);
+      if (Number.isNaN(dataOp.getTime())) return true;
       if (dataInicio && dataOp < new Date(dataInicio)) {
         return false;
       }
@@ -506,16 +508,16 @@ export default function CrmVendasPipelinePage() {
 
   return (
     <div className="space-y-8">
-      {/* v1507 - Filtros de período e exportação PDF */}
+      {/* Filtros de período e exportação PDF */}
       {error && (
         <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
           {error}
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
         <h1 className="text-3xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
           <DollarSign className="w-8 h-8" />
-          Pipeline de vendas v1507
+          Pipeline de vendas
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -541,8 +543,8 @@ export default function CrmVendasPipelinePage() {
           </Link>
         </div>
       </div>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-6 hover:shadow-md hover:border-blue-100 dark:hover:border-slate-600 transition-all space-y-4">
-        <div className="flex flex-col gap-3">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-6 hover:shadow-md hover:border-blue-100 dark:hover:border-slate-600 transition-all space-y-4 print:shadow-none print:border-gray-300">
+        <div className="flex flex-col gap-3 print:hidden">
           {/* Linha 1: Visualização e Etapa */}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 p-0.5 bg-gray-50 dark:bg-gray-800/80">
@@ -591,11 +593,14 @@ export default function CrmVendasPipelinePage() {
             </div>
           </div>
           
-          {/* Linha 2: Filtros de Período e Ações */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <label htmlFor="data-inicio" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                Período:
+          {/* Linha 2: Período (início/fim) + Imprimir/PDF na mesma linha */}
+          <div className="flex flex-wrap items-end gap-3">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 pb-2 shrink-0">
+              Período:
+            </span>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <label htmlFor="data-inicio" className="text-xs text-gray-500 dark:text-gray-400">
+                Data início
               </label>
               <input
                 id="data-inicio"
@@ -603,45 +608,52 @@ export default function CrmVendasPipelinePage() {
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
                 className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                placeholder="Data início"
               />
-              <span className="text-sm text-gray-600 dark:text-gray-400">até</span>
+            </div>
+            <span className="text-sm text-gray-500 dark:text-gray-400 pb-2 shrink-0">até</span>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <label htmlFor="data-fim" className="text-xs text-gray-500 dark:text-gray-400">
+                Data fim
+              </label>
               <input
                 id="data-fim"
                 type="date"
                 value={dataFim}
                 onChange={(e) => setDataFim(e.target.value)}
                 className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                placeholder="Data fim"
               />
-              {(dataInicio || dataFim) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDataInicio('');
-                    setDataFim('');
-                  }}
-                  className="text-sm text-red-600 dark:text-red-400 hover:underline"
-                >
-                  Limpar
-                </button>
-              )}
             </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
+            {(dataInicio || dataFim) && (
               <button
                 type="button"
-                onClick={handleExportarPDF}
-                disabled={imprimindo}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
+                onClick={() => {
+                  setDataInicio('');
+                  setDataFim('');
+                }}
+                className="text-sm text-red-600 dark:text-red-400 hover:underline pb-2"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                {imprimindo ? 'Preparando...' : 'Imprimir / PDF'}
+                Limpar período
               </button>
-            </div>
+            )}
+            <button
+              type="button"
+              onClick={handleExportarPDF}
+              disabled={imprimindo}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50 shrink-0"
+            >
+              <Printer className="w-4 h-4" aria-hidden />
+              {imprimindo ? 'Preparando...' : 'Imprimir / PDF'}
+            </button>
           </div>
+        </div>
+        <div className="hidden print:block mb-4 pb-3 border-b border-gray-200 text-gray-900">
+          <p className="text-lg font-semibold">Pipeline de vendas</p>
+          {(dataInicio || dataFim) && (
+            <p className="text-sm text-gray-600 mt-1">
+              Período: {dataInicio ? new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR') : '—'} até{' '}
+              {dataFim ? new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+            </p>
+          )}
         </div>
         <PipelineBoard
           oportunidades={oportunidadesFiltradas}

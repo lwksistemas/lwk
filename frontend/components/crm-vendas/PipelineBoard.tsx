@@ -10,6 +10,8 @@ export interface Oportunidade {
   data_fechamento_ganho?: string | null;
   data_fechamento_perdido?: string | null;
   valor_comissao?: string | null;
+  /** Usado no filtro por período (criação da oportunidade) */
+  created_at?: string;
 }
 
 interface Etapa {

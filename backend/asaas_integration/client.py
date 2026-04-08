@@ -117,7 +117,6 @@ class AsaasClient:
         data = {
             'chargeId': payment_id,
             'name': name or f'Cadastro de Cartão - {payment_id}',
-            'billingType': 'CREDIT_CARD',
             'endDate': (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
         }
         

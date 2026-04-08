@@ -354,10 +354,123 @@ export function FormularioCadastroLoja({
         )}
       </div>
 
-      {/* Seção 5: Dados do Administrador */}
+      {/* Seção 5: Forma de Pagamento */}
+      {formData.plano && (
+        <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+          <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
+            5. Forma de Pagamento
+          </h3>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Escolha como deseja pagar sua assinatura mensal:
+            </p>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Opção: Boleto/PIX */}
+              <label
+                className={`relative border-2 rounded-lg p-5 cursor-pointer transition-all ${
+                  formData.forma_pagamento_preferida === 'boleto'
+                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-gray-200 hover:border-blue-300 dark:border-slate-600'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="forma_pagamento_preferida"
+                  value="boleto"
+                  checked={formData.forma_pagamento_preferida === 'boleto'}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl">🏦</div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                      Boleto ou PIX
+                    </h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Você receberá boleto/PIX todo mês por email
+                    </p>
+                  </div>
+                  {formData.forma_pagamento_preferida === 'boleto' && (
+                    <div className="text-blue-600 text-xl">✓</div>
+                  )}
+                </div>
+              </label>
+
+              {/* Opção: Cartão de Crédito */}
+              <label
+                className={`relative border-2 rounded-lg p-5 cursor-pointer transition-all ${
+                  formData.forma_pagamento_preferida === 'cartao_credito'
+                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-gray-200 hover:border-blue-300 dark:border-slate-600'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="forma_pagamento_preferida"
+                  value="cartao_credito"
+                  checked={formData.forma_pagamento_preferida === 'cartao_credito'}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl">💳</div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                      Cartão de Crédito
+                    </h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Cobrança automática todo mês no cartão
+                    </p>
+                  </div>
+                  {formData.forma_pagamento_preferida === 'cartao_credito' && (
+                    <div className="text-blue-600 text-xl">✓</div>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            {/* Aviso sobre primeira cobrança */}
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded dark:bg-amber-900/20 dark:border-amber-600">
+              <div className="flex items-start gap-3">
+                <span className="text-xl">⚠️</span>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-1">
+                    Importante sobre o pagamento:
+                  </p>
+                  <ul className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                    <li>
+                      • <strong>Primeira cobrança:</strong> Sempre será por boleto/PIX (independente da escolha)
+                    </li>
+                    {formData.forma_pagamento_preferida === 'cartao_credito' && (
+                      <>
+                        <li>
+                          • <strong>Próximas cobranças:</strong> Após o primeiro pagamento, você receberá um link por email para cadastrar seu cartão
+                        </li>
+                        <li>
+                          • <strong>Renovação automática:</strong> A partir do segundo mês, a cobrança será automática no cartão cadastrado
+                        </li>
+                      </>
+                    )}
+                    {formData.forma_pagamento_preferida === 'boleto' && (
+                      <li>
+                        • <strong>Próximas cobranças:</strong> Você continuará recebendo boleto/PIX por email todo mês
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 6: Dados do Administrador */}
       <div className="pb-6">
         <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
-          5. Dados do Administrador
+          6. Dados do Administrador
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

@@ -19,6 +19,7 @@ export interface LojaFormData {
   tipo_assinatura: 'mensal' | 'anual';
   dia_vencimento: number;
   provedor_boleto_preferido: 'asaas' | 'mercadopago';
+  forma_pagamento_preferida: 'boleto' | 'pix' | 'cartao_credito'; // ✅ NOVO: Forma de pagamento
   owner_full_name: string;
   owner_username: string;
   owner_password?: string;
@@ -45,6 +46,7 @@ export function useLojaForm(incluirSenha: boolean = true) {
     tipo_assinatura: 'mensal',
     dia_vencimento: 10,
     provedor_boleto_preferido: 'asaas',
+    forma_pagamento_preferida: 'boleto', // ✅ NOVO: Padrão boleto
     owner_full_name: '',
     owner_username: '',
     owner_password: '',

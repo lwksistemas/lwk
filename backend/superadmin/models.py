@@ -197,6 +197,19 @@ class Loja(models.Model):
         help_text='Provedor de boleto a usar nas cobranças desta loja'
     )
     
+    # ✅ NOVO: Forma de pagamento preferida (primeira cobrança sempre boleto/PIX)
+    FORMA_PAGAMENTO_CHOICES = [
+        ('boleto', 'Boleto Bancário'),
+        ('pix', 'PIX'),
+        ('cartao_credito', 'Cartão de Crédito'),
+    ]
+    forma_pagamento_preferida = models.CharField(
+        max_length=20,
+        choices=FORMA_PAGAMENTO_CHOICES,
+        default='boleto',
+        help_text='Forma de pagamento escolhida pelo administrador (primeira cobrança sempre boleto/PIX)'
+    )
+    
     # Proprietário (administrador da loja — não editável nem excluível após criação)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lojas_owned')
     owner_telefone = models.CharField(max_length=20, blank=True, help_text='Telefone do administrador da loja')
@@ -520,6 +533,36 @@ class FinanceiroLoja(models.Model):
     boleto_pdf_url = models.URLField(blank=True, help_text='URL do PDF do boleto')
     pix_qr_code = models.TextField(blank=True, help_text='QR Code PIX')
     pix_copy_paste = models.TextField(blank=True, help_text='PIX Copia e Cola')
+    
+    # ✅ NOVO: Cartão de crédito (Asaas)
+    asaas_creditcard_token = models.CharField(
+        max_length=100, 
+        blank=True, 
+        help_text='Token do cartão tokenizado no Asaas para cobranças recorrentes'
+    )
+    cartao_ultimos_digitos = models.CharField(
+        max_length=4, 
+        blank=True, 
+        help_text='Últimos 4 dígitos do cartão (para exibição)'
+    )
+    cartao_bandeira = models.CharField(
+        max_length=20, 
+        blank=True, 
+        help_text='Bandeira do cartão (Visa, Mastercard, Elo, etc)'
+    )
+    link_pagamento_cartao = models.URLField(
+        blank=True, 
+        help_text='Link para página de cadastro do cartão (enviado após primeiro pagamento)'
+    )
+    cartao_cadastrado = models.BooleanField(
+        default=False, 
+        help_text='Indica se o cartão já foi cadastrado e tokenizado'
+    )
+    cartao_cadastrado_em = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        help_text='Data e hora em que o cartão foi cadastrado'
+    )
     
     # Totalizadores
     total_pago = models.DecimalField(max_digits=10, decimal_places=2, default=0)

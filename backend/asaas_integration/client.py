@@ -98,6 +98,99 @@ class AsaasClient:
         endpoint = f'payments/{payment_id}'
         return self._make_request('DELETE', endpoint)
     
+    # ✅ NOVO: Métodos para cartão de crédito
+    
+    def create_payment_link(self, payment_id: str, callback_url: str = None) -> Dict[str, Any]:
+        """
+        Cria link de pagamento para cobrança existente
+        Permite que cliente cadastre cartão e pague online
+        
+        Args:
+            payment_id: ID da cobrança no Asaas
+            callback_url: URL de retorno após pagamento (opcional)
+        
+        Returns:
+            dict com url do link de pagamento
+        """
+        endpoint = 'paymentLinks'
+        data = {
+            'chargeId': payment_id,
+            'billingType': 'CREDIT_CARD',
+            'endDate': (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        }
+        
+        if callback_url:
+            data['callbackUrl'] = callback_url
+        
+        return self._make_request('POST', endpoint, data)
+    
+    def tokenize_credit_card(self, card_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Tokeniza cartão de crédito para cobranças recorrentes
+        
+        Args:
+            card_data: {
+                'customer': customer_id,
+                'creditCard': {
+                    'holderName': 'Nome no cartão',
+                    'number': '5162306219378829',
+                    'expiryMonth': '05',
+                    'expiryYear': '2024',
+                    'ccv': '318'
+                },
+                'creditCardHolderInfo': {
+                    'name': 'Nome completo',
+                    'email': 'email@example.com',
+                    'cpfCnpj': '00000000000',
+                    'postalCode': '00000000',
+                    'addressNumber': '123',
+                    'phone': '11999999999'
+                }
+            }
+        
+        Returns:
+            dict com creditCardToken
+        """
+        endpoint = 'creditCard/tokenize'
+        return self._make_request('POST', endpoint, card_data)
+    
+    def charge_credit_card(
+        self, 
+        customer_id: str, 
+        value: float, 
+        credit_card_token: str,
+        description: str = None,
+        due_date: str = None
+    ) -> Dict[str, Any]:
+        """
+        Cria cobrança no cartão de crédito tokenizado
+        
+        Args:
+            customer_id: ID do cliente no Asaas
+            value: Valor da cobrança
+            credit_card_token: Token do cartão tokenizado
+            description: Descrição da cobrança
+            due_date: Data de vencimento (YYYY-MM-DD)
+        
+        Returns:
+            dict com dados da cobrança
+        """
+        endpoint = 'payments'
+        data = {
+            'customer': customer_id,
+            'billingType': 'CREDIT_CARD',
+            'value': value,
+            'dueDate': due_date or (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d'),
+            'creditCard': {
+                'creditCardToken': credit_card_token
+            }
+        }
+        
+        if description:
+            data['description'] = description
+        
+        return self._make_request('POST', endpoint, data)
+    
     def delete_customer(self, customer_id: str) -> Dict[str, Any]:
         """Exclui um cliente no Asaas"""
         endpoint = f'customers/{customer_id}'

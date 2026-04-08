@@ -100,13 +100,14 @@ class AsaasClient:
     
     # ✅ NOVO: Métodos para cartão de crédito
     
-    def create_payment_link(self, payment_id: str, callback_url: str = None) -> Dict[str, Any]:
+    def create_payment_link(self, payment_id: str, name: str = None, callback_url: str = None) -> Dict[str, Any]:
         """
         Cria link de pagamento para cobrança existente
         Permite que cliente cadastre cartão e pague online
         
         Args:
             payment_id: ID da cobrança no Asaas
+            name: Nome do link de pagamento
             callback_url: URL de retorno após pagamento (opcional)
         
         Returns:
@@ -115,6 +116,7 @@ class AsaasClient:
         endpoint = 'paymentLinks'
         data = {
             'chargeId': payment_id,
+            'name': name or f'Cadastro de Cartão - {payment_id}',
             'billingType': 'CREDIT_CARD',
             'endDate': (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
         }

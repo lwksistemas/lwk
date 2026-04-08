@@ -550,7 +550,10 @@ https://lwksistemas.com.br
             payment_id = payment_result.get('id')
             
             # Criar link de pagamento
-            link_result = client.create_payment_link(payment_id)
+            link_result = client.create_payment_link(
+                payment_id,
+                name=f'Cadastro de Cartão - {loja.nome}'
+            )
             payment_link = link_result.get('url', '')
             
             # Salvar link no financeiro

@@ -456,6 +456,9 @@ class AsaasSyncService:
                 
                 logger.info(f"Cartão cadastrado para loja {financeiro.loja.slug}")
                 
+                # Criar próxima cobrança no cartão (30 dias após o primeiro pagamento)
+                self._criar_proxima_cobranca_cartao(financeiro.loja, financeiro)
+                
                 # Enviar email de confirmação
                 self._enviar_email_cartao_cadastrado(financeiro.loja)
                 
@@ -1190,3 +1193,92 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
     
     except Exception as e:
         logger.warning(f"Erro ao criar próximo boleto para loja {loja.slug}: {e}")
+
+    def _criar_proxima_cobranca_cartao(self, loja, financeiro):
+        """
+        Cria próxima cobrança no cartão de crédito 30 dias após o primeiro pagamento
+        """
+        try:
+            from datetime import timedelta
+            from asaas_integration.client import AsaasClient
+            from asaas_integration.models import AsaasConfig
+            
+            logger.info(f"Criando próxima cobrança no cartão para loja {loja.slug}")
+            
+            # Calcular data de vencimento (30 dias após hoje)
+            data_vencimento = (timezone.now() + timedelta(days=30)).date()
+            
+            # Obter configuração do Asaas
+            config = AsaasConfig.get_config()
+            client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
+            
+            # Calcular valor
+            valor = loja.plano.preco_mensal if loja.tipo_assinatura == 'mensal' else loja.plano.preco_anual
+            
+            # Criar cobrança no cartão
+            payment_data = {
+                'customer': financeiro.asaas_customer_id,
+                'billingType': 'CREDIT_CARD',
+                'value': float(valor),
+                'dueDate': data_vencimento.strftime('%Y-%m-%d'),
+                'description': f'Assinatura {loja.plano.nome} (Mensal) - Loja {loja.nome}',
+                'externalReference': f'loja_{loja.slug}_assinatura_{data_vencimento.strftime("%Y%m")}',
+                'creditCard': {
+                    'holderName': loja.owner.get_full_name() or loja.owner.username,
+                    'number': financeiro.cartao_token if financeiro.cartao_token else None,
+                    'expiryMonth': financeiro.cartao_mes_validade if financeiro.cartao_mes_validade else None,
+                    'expiryYear': financeiro.cartao_ano_validade if financeiro.cartao_ano_validade else None,
+                    'ccv': None  # Não armazenamos CVV
+                },
+                'creditCardHolderInfo': {
+                    'name': loja.owner.get_full_name() or loja.owner.username,
+                    'email': loja.owner.email,
+                    'cpfCnpj': loja.cpf_cnpj or loja.owner_cpf,
+                    'postalCode': loja.cep or '00000-000',
+                    'addressNumber': loja.numero or 'S/N',
+                    'phone': loja.owner_telefone or '00000000000'
+                }
+            }
+            
+            # Se temos token do cartão, usar remoteIp para cobrança recorrente
+            if financeiro.cartao_token:
+                payment_data['creditCard'] = {
+                    'creditCardToken': financeiro.cartao_token
+                }
+                payment_data['remoteIp'] = '127.0.0.1'  # IP do servidor para cobrança recorrente
+            
+            payment_result = client.create_payment(payment_data)
+            
+            if payment_result.get('id'):
+                payment_id = payment_result.get('id')
+                logger.info(f"✅ Cobrança criada no cartão: {payment_id} para {data_vencimento}")
+                
+                # Atualizar financeiro
+                financeiro.data_proxima_cobranca = data_vencimento
+                financeiro.save()
+                
+                # Criar registro em PagamentoLoja
+                from superadmin.models import PagamentoLoja
+                referencia_mes = data_vencimento.replace(day=1)
+                
+                PagamentoLoja.objects.create(
+                    loja=loja,
+                    financeiro=financeiro,
+                    provedor_boleto='asaas',
+                    asaas_payment_id=payment_id,
+                    valor=valor,
+                    status='pendente',
+                    data_vencimento=data_vencimento,
+                    referencia_mes=referencia_mes,
+                    forma_pagamento='cartao_credito',
+                )
+                
+                logger.info(f"✅ Próxima cobrança no cartão criada para {loja.slug}: {payment_id}")
+                return True
+            else:
+                logger.error(f"Erro ao criar cobrança no cartão: {payment_result}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Erro ao criar próxima cobrança no cartão: {e}", exc_info=True)
+            return False

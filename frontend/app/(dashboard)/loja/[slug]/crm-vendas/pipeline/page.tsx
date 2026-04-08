@@ -955,11 +955,28 @@ export default function CrmVendasPipelinePage() {
                       {produtosServicos.length === 0 && (
                         <option value="">Nenhum produto cadastrado</option>
                       )}
-                      {produtosServicos.map((ps) => (
-                        <option key={ps.id} value={ps.id}>
-                          {ps.tipo === 'produto' ? 'Produto' : 'Serviço'}: {ps.nome} - {parseFloat(ps.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </option>
-                      ))}
+                      {produtosServicos.length > 0 && (() => {
+                        // Agrupar produtos por categoria
+                        const grouped = produtosServicos.reduce((acc: any, ps: any) => {
+                          const categoria = ps.categoria_nome || 'Sem Categoria';
+                          if (!acc[categoria]) acc[categoria] = [];
+                          acc[categoria].push(ps);
+                          return acc;
+                        }, {});
+                        
+                        // Ordenar categorias alfabeticamente
+                        const categorias = Object.keys(grouped).sort();
+                        
+                        return categorias.map(categoria => (
+                          <optgroup key={categoria} label={categoria}>
+                            {grouped[categoria].map((ps: any) => (
+                              <option key={ps.id} value={ps.id}>
+                                {ps.codigo ? `[${ps.codigo}] ` : ''}{ps.nome} - {parseFloat(ps.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ));
+                      })()}
                     </select>
                     <input
                       type="number"

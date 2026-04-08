@@ -657,47 +657,6 @@ Equipe LWK Sistemas
             )
         except Exception as e:
             logger.error(f"Erro ao enviar email de cartão cadastrado: {e}")
-                    logger.warning(f"Pagamento {payment_id} não encontrado, tentando criar automaticamente")
-                    
-                    try:
-                        pagamento = self._create_payment_from_webhook(payment_data)
-                        if pagamento:
-                            logger.info(f"Pagamento {payment_id} criado automaticamente via webhook")
-                        else:
-                            logger.error(f"Não foi possível criar pagamento {payment_id} automaticamente")
-                            # Retornar sucesso para evitar reenvio do webhook
-                            return {
-                                'success': True,
-                                'payment_id': payment_id,
-                                'status': 'ignored',
-                                'reason': 'Pagamento não encontrado e não foi possível criar automaticamente (loja ou cliente inexistente)'
-                            }
-                    except Exception as e:
-                        logger.error(f"Erro ao criar pagamento automaticamente: {e}")
-                        # Retornar sucesso para evitar reenvio do webhook
-                        return {
-                            'success': True,
-                            'payment_id': payment_id,
-                            'status': 'ignored',
-                            'reason': f'Erro ao criar pagamento automaticamente: {str(e)}'
-                        }
-            
-            if not pagamento:
-                return {
-                    'success': False,
-                    'error': 'Pagamento não encontrado'
-                }
-            
-            logger.info(f"Processando webhook para pagamento {payment_id}, evento: {event}")
-            
-            # Atualizar status do pagamento baseado nos dados do webhook
-            old_status = pagamento.status
-            new_status = payment_data.get('status', 'PENDING')
-            
-            if new_status != old_status:
-                pagamento.status = new_status
-                
-                # Se foi pago, atualizar data de pagamento
                 if new_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
                     pagamento.payment_date = timezone.now()
                 

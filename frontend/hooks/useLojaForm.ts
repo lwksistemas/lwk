@@ -101,23 +101,15 @@ export function useLojaForm(incluirSenha: boolean = true) {
       // Usar endpoints públicos quando não incluir senha (cadastro público)
       const baseUrl = incluirSenha ? '/superadmin' : '/superadmin/public';
       
-      console.log('🔍 Carregando tipos e planos de:', baseUrl);
-      
       const [tiposRes, planosRes] = await Promise.all([
         apiClient.get(`${baseUrl}/tipos-loja/`),
         apiClient.get(`${baseUrl}/planos/`)
       ]);
       
-      const tiposData = tiposRes.data.results || tiposRes.data;
-      const planosData = planosRes.data.results || planosRes.data;
-      
-      console.log('✅ Tipos carregados:', tiposData.length);
-      console.log('✅ Planos carregados:', planosData.length);
-      
-      setTipos(tiposData);
-      setPlanos(planosData);
+      setTipos(tiposRes.data.results || tiposRes.data);
+      setPlanos(planosRes.data.results || planosRes.data);
     } catch (error) {
-      console.error('❌ Erro ao carregar tipos e planos:', error);
+      console.error('Erro ao carregar tipos e planos:', error);
     }
   };
 

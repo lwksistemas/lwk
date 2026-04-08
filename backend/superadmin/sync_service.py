@@ -528,10 +528,14 @@ https://lwksistemas.com.br
         from django.core.mail import send_mail
         from django.conf import settings
         from asaas_integration.client import AsaasClient
+        from asaas_integration.models import AsaasConfig
         
         try:
+            # Obter configuração do Asaas
+            config = AsaasConfig.get_config()
+            
             # Criar link de pagamento para cadastro do cartão
-            client = AsaasClient()
+            client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
             
             # Criar cobrança de teste (R$ 0,01) para tokenizar cartão
             payment_data = {

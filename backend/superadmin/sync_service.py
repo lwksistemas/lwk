@@ -657,65 +657,6 @@ Equipe LWK Sistemas
             )
         except Exception as e:
             logger.error(f"Erro ao enviar email de cartão cadastrado: {e}")
-                if new_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
-                    pagamento.payment_date = timezone.now()
-                
-                pagamento.save()
-                
-                logger.info(f"Pagamento {payment_id} atualizado via webhook: {old_status} -> {new_status}")
-                
-                # IMPORTANTE: Atualizar financeiro da loja se o pagamento foi confirmado
-                loja_atualizada = False
-                loja = self._get_loja_from_payment(pagamento) if new_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'] else None
-                if new_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
-                    try:
-                        loja_atualizada = self._update_loja_financeiro_from_payment(pagamento)
-                        if loja_atualizada:
-                            logger.info(f"Financeiro da loja atualizado automaticamente via webhook")
-                    except Exception as e:
-                        logger.error(f"Erro ao atualizar financeiro da loja: {e}")
-                    # Emissão de Nota Fiscal e envio por e-mail ao admin da loja
-                    if loja:
-                        try:
-                            from asaas_integration.invoice_service import emitir_nf_para_pagamento
-                            nf_value = float(payment_data.get('value', 0))
-                            nf_description = payment_data.get('description') or f"Assinatura - {loja.nome}"
-                            nf_result = emitir_nf_para_pagamento(
-                                asaas_payment_id=payment_id,
-                                loja=loja,
-                                value=nf_value,
-                                description=nf_description,
-                                send_email=True,
-                            )
-                            if nf_result.get('success'):
-                                logger.info(f"NF emitida para pagamento {payment_id}, e-mail enviado: {nf_result.get('email_sent')}")
-                            else:
-                                logger.warning(f"Falha ao emitir NF para {payment_id}: {nf_result.get('error')}")
-                        except Exception as nf_err:
-                            logger.exception(f"Erro ao emitir NF no webhook: {nf_err}")
-                
-                return {
-                    'success': True,
-                    'payment_id': payment_id,
-                    'status_updated': True,
-                    'old_status': old_status,
-                    'new_status': new_status,
-                    'loja_updated': loja_atualizada
-                }
-            
-            return {
-                'success': True,
-                'payment_id': payment_id,
-                'status_updated': False,
-                'message': 'Status já atualizado'
-            }
-            
-        except Exception as e:
-            logger.error(f"Erro ao processar webhook: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
     
     def _create_payment_from_webhook(self, payment_data):
         """Cria pagamento automaticamente a partir dos dados do webhook"""

@@ -16,32 +16,39 @@ def corrigir_numeros_propostas():
     """Corrige números de propostas por tenant."""
     print("🔧 Corrigindo números de propostas...")
     
-    tenants = Store.objects.exclude(schema_name='public')
+    tenants = Store.objects.all()
     total_corrigidas = 0
     
     for tenant in tenants:
-        with schema_context(tenant.schema_name):
-            print(f"\n📍 Tenant: {tenant.schema_name} ({tenant.name})")
-            
-            # Buscar todas as propostas ordenadas por ID (ordem de criação)
-            propostas = Proposta.objects.all().order_by('id')
-            
-            if not propostas.exists():
-                print("   ℹ️  Nenhuma proposta encontrada")
-                continue
-            
-            # Renumerar todas as propostas sequencialmente
-            for idx, proposta in enumerate(propostas, start=1):
-                numero_novo = str(idx).zfill(3)  # 001, 002, 003...
+        # Usar o slug como schema_name
+        schema_name = tenant.slug
+        
+        try:
+            with schema_context(schema_name):
+                print(f"\n📍 Tenant: {schema_name} ({tenant.name})")
                 
-                if proposta.numero != numero_novo:
-                    numero_antigo = proposta.numero or '(vazio)'
-                    proposta.numero = numero_novo
-                    proposta.save(update_fields=['numero'])
-                    print(f"   ✅ Proposta ID {proposta.id}: {numero_antigo} → {numero_novo}")
-                    total_corrigidas += 1
-                else:
-                    print(f"   ✓ Proposta ID {proposta.id}: {proposta.numero} (já correto)")
+                # Buscar todas as propostas ordenadas por ID (ordem de criação)
+                propostas = Proposta.objects.all().order_by('id')
+                
+                if not propostas.exists():
+                    print("   ℹ️  Nenhuma proposta encontrada")
+                    continue
+                
+                # Renumerar todas as propostas sequencialmente
+                for idx, proposta in enumerate(propostas, start=1):
+                    numero_novo = str(idx).zfill(3)  # 001, 002, 003...
+                    
+                    if proposta.numero != numero_novo:
+                        numero_antigo = proposta.numero or '(vazio)'
+                        proposta.numero = numero_novo
+                        proposta.save(update_fields=['numero'])
+                        print(f"   ✅ Proposta ID {proposta.id}: {numero_antigo} → {numero_novo}")
+                        total_corrigidas += 1
+                    else:
+                        print(f"   ✓ Proposta ID {proposta.id}: {proposta.numero} (já correto)")
+        except Exception as e:
+            print(f"   ❌ Erro ao processar tenant {schema_name}: {e}")
+            continue
     
     print(f"\n✅ Total de propostas corrigidas: {total_corrigidas}")
     return total_corrigidas
@@ -50,32 +57,39 @@ def corrigir_numeros_contratos():
     """Corrige números de contratos por tenant."""
     print("\n🔧 Corrigindo números de contratos...")
     
-    tenants = Store.objects.exclude(schema_name='public')
+    tenants = Store.objects.all()
     total_corrigidos = 0
     
     for tenant in tenants:
-        with schema_context(tenant.schema_name):
-            print(f"\n📍 Tenant: {tenant.schema_name} ({tenant.name})")
-            
-            # Buscar todos os contratos ordenados por ID (ordem de criação)
-            contratos = Contrato.objects.all().order_by('id')
-            
-            if not contratos.exists():
-                print("   ℹ️  Nenhum contrato encontrado")
-                continue
-            
-            # Renumerar todos os contratos sequencialmente
-            for idx, contrato in enumerate(contratos, start=1):
-                numero_novo = str(idx).zfill(3)  # 001, 002, 003...
+        # Usar o slug como schema_name
+        schema_name = tenant.slug
+        
+        try:
+            with schema_context(schema_name):
+                print(f"\n📍 Tenant: {schema_name} ({tenant.name})")
                 
-                if contrato.numero != numero_novo:
-                    numero_antigo = contrato.numero or '(vazio)'
-                    contrato.numero = numero_novo
-                    contrato.save(update_fields=['numero'])
-                    print(f"   ✅ Contrato ID {contrato.id}: {numero_antigo} → {numero_novo}")
-                    total_corrigidos += 1
-                else:
-                    print(f"   ✓ Contrato ID {contrato.id}: {contrato.numero} (já correto)")
+                # Buscar todos os contratos ordenados por ID (ordem de criação)
+                contratos = Contrato.objects.all().order_by('id')
+                
+                if not contratos.exists():
+                    print("   ℹ️  Nenhum contrato encontrado")
+                    continue
+                
+                # Renumerar todos os contratos sequencialmente
+                for idx, contrato in enumerate(contratos, start=1):
+                    numero_novo = str(idx).zfill(3)  # 001, 002, 003...
+                    
+                    if contrato.numero != numero_novo:
+                        numero_antigo = contrato.numero or '(vazio)'
+                        contrato.numero = numero_novo
+                        contrato.save(update_fields=['numero'])
+                        print(f"   ✅ Contrato ID {contrato.id}: {numero_antigo} → {numero_novo}")
+                        total_corrigidos += 1
+                    else:
+                        print(f"   ✓ Contrato ID {contrato.id}: {contrato.numero} (já correto)")
+        except Exception as e:
+            print(f"   ❌ Erro ao processar tenant {schema_name}: {e}")
+            continue
     
     print(f"\n✅ Total de contratos corrigidos: {total_corrigidos}")
     return total_corrigidos

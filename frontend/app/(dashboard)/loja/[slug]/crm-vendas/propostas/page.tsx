@@ -35,6 +35,7 @@ interface Proposta {
   oportunidade_titulo: string;
   lead_nome: string;
   lead_email?: string;
+  numero: string;
   titulo: string;
   conteudo: string;
   valor_total: string | null;
@@ -377,6 +378,7 @@ export default function CrmVendasPropostasPage() {
           <table className="w-full min-w-[500px]">
             <thead>
               <tr className="border-b border-gray-200 dark:border-[#0d1f3c] bg-gray-50 dark:bg-[#0d1f3c]/50">
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Número</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Título</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Oportunidade</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
@@ -386,7 +388,7 @@ export default function CrmVendasPropostasPage() {
             <tbody>
               {propostas.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="py-12 text-center text-gray-500 dark:text-gray-400">
                     <ClipboardList size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="font-medium">Nenhuma proposta cadastrada</p>
                     <p className="text-sm mt-1">Clique em &quot;Nova Proposta&quot; ou vá ao Pipeline para criar</p>
@@ -402,6 +404,7 @@ export default function CrmVendasPropostasPage() {
               ) : (
                 propostas.map((p) => (
                   <tr key={p.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
+                    <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{p.numero || '---'}</td>
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{p.titulo}</td>
                     <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{p.oportunidade_titulo}</td>
                     <td className="py-3 px-4">

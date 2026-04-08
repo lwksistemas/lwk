@@ -310,6 +310,7 @@ export default function CrmVendasContratosPage() {
           <table className="w-full min-w-[500px]">
             <thead>
               <tr className="border-b border-gray-200 dark:border-[#0d1f3c] bg-gray-50 dark:bg-[#0d1f3c]/50">
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Número</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Título</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Oportunidade</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
@@ -319,7 +320,7 @@ export default function CrmVendasContratosPage() {
             <tbody>
               {contratos.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="py-12 text-center text-gray-500 dark:text-gray-400">
                     <FileSignature size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="font-medium">Nenhum contrato cadastrado</p>
                     <p className="text-sm mt-1">Crie contratos a partir de oportunidades fechadas como ganhas</p>
@@ -335,7 +336,8 @@ export default function CrmVendasContratosPage() {
               ) : (
                 contratos.map((c) => (
                   <tr key={c.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
-                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{c.titulo || c.numero || `Contrato #${c.id}`}</td>
+                    <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{c.numero || '---'}</td>
+                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{c.titulo || `Contrato #${c.id}`}</td>
                     <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.oportunidade_titulo}</td>
                     <td className="py-3 px-4">
                       <CrmDocumentoStatusBadge

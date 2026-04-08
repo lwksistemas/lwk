@@ -495,12 +495,12 @@ class PropostaSerializer(serializers.ModelSerializer):
         model = Proposta
         fields = [
             'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome', 'lead_email',
-            'titulo', 'conteudo', 'valor_total', 'status', 'status_assinatura',
+            'numero', 'titulo', 'conteudo', 'valor_total', 'status', 'status_assinatura',
             'data_envio', 'data_resposta', 'observacoes',
             'nome_vendedor_assinatura', 'nome_cliente_assinatura',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'numero']
 
 
 class PropostaTemplateSerializer(serializers.ModelSerializer):
@@ -537,7 +537,7 @@ class ContratoSerializer(serializers.ModelSerializer):
             'nome_vendedor_assinatura', 'nome_cliente_assinatura',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'numero']
 
 
 class CRMConfigSerializer(serializers.ModelSerializer):

@@ -537,11 +537,11 @@ https://lwksistemas.com.br
             # Criar link de pagamento para cadastro do cartão
             client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
             
-            # Criar cobrança de teste (R$ 0,01) para tokenizar cartão
+            # Criar cobrança de R$ 5,00 (valor mínimo do Asaas) para tokenizar cartão
             payment_data = {
                 'customer': financeiro.asaas_customer_id,
                 'billingType': 'CREDIT_CARD',
-                'value': 0.01,
+                'value': 5.00,
                 'dueDate': (timezone.now() + timedelta(days=30)).strftime('%Y-%m-%d'),
                 'description': 'Cadastro de cartão para renovação automática'
             }
@@ -572,6 +572,7 @@ Para ativar a renovação automática, cadastre seu cartão agora:
 📋 COMO FUNCIONA:
 • Acesse o link acima
 • Preencha os dados do seu cartão de forma segura
+• Será cobrado R$ 5,00 para validar o cartão
 • A partir do próximo mês, a cobrança será automática
 • Você receberá confirmação por email a cada cobrança
 

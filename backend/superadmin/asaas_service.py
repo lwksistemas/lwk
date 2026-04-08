@@ -119,7 +119,7 @@ class LojaAsaasService:
                 'nome': loja.nome,
                 'email': loja.owner.email,
                 'cpf_cnpj': loja.cpf_cnpj or '00000000000',  # CPF/CNPJ obrigatório
-                'telefone': '',  # Pode ser vazio
+                'telefone': loja.owner_telefone or '',  # ✅ CORREÇÃO: Telefone do administrador para NF
                 # ✅ CORREÇÃO v1320: Incluir endereço completo para emissão de NF
                 'endereco': loja.logradouro or '',
                 'numero': loja.numero or '',

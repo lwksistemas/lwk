@@ -62,7 +62,7 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
                 'slug': loja.slug,
                 'email': loja.owner.email,
                 'cpf_cnpj': loja.cpf_cnpj or '000.000.000-00',
-                'telefone': getattr(loja.owner, 'telefone', ''),
+                'telefone': loja.owner_telefone or '',  # ✅ CORREÇÃO: Telefone do administrador para NF
                 # ✅ CORREÇÃO v1320: Incluir endereço completo para emissão de NF
                 'endereco': loja.logradouro or '',
                 'numero': loja.numero or '',

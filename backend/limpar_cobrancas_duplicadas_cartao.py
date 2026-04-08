@@ -45,27 +45,46 @@ def limpar_cobrancas_duplicadas(slug_loja):
             logger.info("Nenhuma cobrança encontrada")
             return
         
-        # Filtrar cobranças de R$ 5,00 pendentes (cadastro de cartão)
-        cobrancas_cartao = [
+        # Filtrar cobranças de R$ 5,00 de cadastro de cartão
+        cobrancas_cartao_todas = [
             p for p in response.get('data', [])
             if p.get('value') == 5.0 
             and p.get('billingType') == 'CREDIT_CARD'
-            and p.get('status') == 'PENDING'
             and 'Cadastro de cartão' in p.get('description', '')
         ]
         
-        logger.info(f"Encontradas {len(cobrancas_cartao)} cobranças de cadastro de cartão pendentes")
+        logger.info(f"Encontradas {len(cobrancas_cartao_todas)} cobranças de cadastro de cartão")
         
-        if len(cobrancas_cartao) <= 1:
+        # Separar confirmadas e pendentes
+        cobrancas_confirmadas = [p for p in cobrancas_cartao_todas if p.get('status') in ['CONFIRMED', 'RECEIVED']]
+        cobrancas_pendentes = [p for p in cobrancas_cartao_todas if p.get('status') == 'PENDING']
+        
+        logger.info(f"  - {len(cobrancas_confirmadas)} confirmadas")
+        logger.info(f"  - {len(cobrancas_pendentes)} pendentes")
+        
+        cobrancas_remover = []
+        cobranca_manter = None
+        
+        # Se já existe uma confirmada, remover todas as pendentes
+        if cobrancas_confirmadas:
+            logger.info("Já existe cobrança confirmada, removendo todas as pendentes...")
+            cobrancas_remover = cobrancas_pendentes
+            cobranca_manter = cobrancas_confirmadas[0]
+        # Se não tem confirmada, manter apenas a mais recente pendente
+        elif len(cobrancas_pendentes) > 1:
+            logger.info("Mantendo apenas a cobrança pendente mais recente...")
+            cobrancas_pendentes.sort(key=lambda x: x.get('dateCreated'), reverse=True)
+            cobranca_manter = cobrancas_pendentes[0]
+            cobrancas_remover = cobrancas_pendentes[1:]
+        else:
             logger.info("Não há cobranças duplicadas para remover")
             return
         
-        # Manter apenas a mais recente, remover as outras
-        cobrancas_cartao.sort(key=lambda x: x.get('dateCreated'), reverse=True)
-        cobranca_manter = cobrancas_cartao[0]
-        cobrancas_remover = cobrancas_cartao[1:]
+        if not cobrancas_remover:
+            logger.info("Não há cobranças para remover")
+            return
         
-        logger.info(f"Mantendo cobrança: {cobranca_manter.get('id')} (criada em {cobranca_manter.get('dateCreated')})")
+        logger.info(f"Mantendo cobrança: {cobranca_manter.get('id')} (status: {cobranca_manter.get('status')}, criada em {cobranca_manter.get('dateCreated')})")
         logger.info(f"Removendo {len(cobrancas_remover)} cobranças duplicadas...")
         
         for cobranca in cobrancas_remover:

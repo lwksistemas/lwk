@@ -402,6 +402,25 @@ class AsaasSyncService:
                 loja.save()
                 logger.info(f"Loja {loja.slug} desbloqueada")
             
+            # Emitir nota fiscal
+            try:
+                from asaas_integration.invoice_service import emitir_nf_para_pagamento
+                nf_value = float(payment_data.get('value', 0))
+                nf_description = payment_data.get('description') or f"Assinatura - {loja.nome}"
+                nf_result = emitir_nf_para_pagamento(
+                    asaas_payment_id=payment_id,
+                    loja=loja,
+                    value=nf_value,
+                    description=nf_description,
+                    send_email=True,
+                )
+                if nf_result.get('success'):
+                    logger.info(f"NF emitida para pagamento {payment_id}, email enviado: {nf_result.get('email_sent')}")
+                else:
+                    logger.warning(f"Falha ao emitir NF para {payment_id}: {nf_result.get('error')}")
+            except Exception as nf_err:
+                logger.exception(f"Erro ao emitir NF no webhook: {nf_err}")
+            
             return {
                 'success': True,
                 'status': 'confirmed',

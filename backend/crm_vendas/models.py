@@ -518,6 +518,14 @@ class Proposta(LojaIsolationMixin, models.Model):
     
     def save(self, *args, **kwargs):
         """Gera número sequencial automaticamente se não fornecido."""
+        # Garantir que loja_id está definido (chamando save do mixin primeiro se necessário)
+        if not self.loja_id:
+            from tenants.middleware import get_current_loja_id
+            current_loja_id = get_current_loja_id()
+            if current_loja_id:
+                self.loja_id = current_loja_id
+        
+        # Gerar número se não fornecido e loja_id está disponível
         if not self.numero and self.loja_id:
             # Buscar o último número da loja
             ultima_proposta = Proposta.objects.filter(
@@ -596,6 +604,14 @@ class Contrato(LojaIsolationMixin, models.Model):
     
     def save(self, *args, **kwargs):
         """Gera número sequencial automaticamente se não fornecido."""
+        # Garantir que loja_id está definido (chamando save do mixin primeiro se necessário)
+        if not self.loja_id:
+            from tenants.middleware import get_current_loja_id
+            current_loja_id = get_current_loja_id()
+            if current_loja_id:
+                self.loja_id = current_loja_id
+        
+        # Gerar número se não fornecido e loja_id está disponível
         if not self.numero and self.loja_id:
             # Buscar o último número da loja
             ultimo_contrato = Contrato.objects.filter(

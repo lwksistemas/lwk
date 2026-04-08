@@ -102,28 +102,34 @@ class AsaasClient:
     
     def create_payment_link(self, payment_id: str, name: str = None, callback_url: str = None) -> Dict[str, Any]:
         """
-        Cria link de pagamento para cobrança existente
+        Cria link de checkout para cobrança existente
         Permite que cliente cadastre cartão e pague online
         
         Args:
             payment_id: ID da cobrança no Asaas
-            name: Nome do link de pagamento
+            name: Nome do link (não usado neste endpoint)
             callback_url: URL de retorno após pagamento (opcional)
         
         Returns:
             dict com url do link de pagamento
         """
-        endpoint = 'paymentLinks'
-        data = {
-            'chargeId': payment_id,
-            'name': name or f'Cadastro de Cartão - {payment_id}',
-            'endDate': (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        # Para cobranças específicas, usamos o endpoint de checkout
+        endpoint = f'payments/{payment_id}/identificationField'
+        
+        # Primeiro, obter os dados da cobrança
+        payment_data = self._make_request('GET', f'payments/{payment_id}')
+        
+        # O link de checkout já vem na resposta da cobrança
+        if payment_data.get('invoiceUrl'):
+            return {
+                'url': payment_data.get('invoiceUrl'),
+                'id': payment_id
+            }
+        
+        # Se não tiver, retornar erro
+        return {
+            'error': 'Link de pagamento não disponível para esta cobrança'
         }
-        
-        if callback_url:
-            data['callbackUrl'] = callback_url
-        
-        return self._make_request('POST', endpoint, data)
     
     def tokenize_credit_card(self, card_data: Dict[str, Any]) -> Dict[str, Any]:
         """

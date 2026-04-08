@@ -71,6 +71,7 @@ export default function CrmVendasPropostasPage() {
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
+  const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
@@ -177,6 +178,25 @@ export default function CrmVendasPropostasPage() {
       setSalvandoPadrao(false);
     }
   }, []);
+
+  const handleMarcarComoAssinado = async (propostaId: number) => {
+    if (!confirm('Marcar esta proposta como assinada manualmente?\n\nUse esta opção quando o cliente assinar de outra forma (manual, gov.br, etc).')) {
+      return;
+    }
+    try {
+      setAlterandoStatus(propostaId);
+      await apiClient.patch(`/crm-vendas/propostas/${propostaId}/`, {
+        status_assinatura: 'concluido',
+        status: 'aceita',
+      });
+      await loadPropostas(true);
+      alert('Proposta marcada como assinada com sucesso!');
+    } catch (err: unknown) {
+      alert(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
+    } finally {
+      setAlterandoStatus(null);
+    }
+  };
 
   useEffect(() => {
     loadPropostas();
@@ -402,6 +422,17 @@ export default function CrmVendasPropostasPage() {
                           leadEmail={p.lead_email}
                           onSucesso={() => loadPropostas(true)}
                         />
+                        {p.status_assinatura !== 'concluido' && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarcarComoAssinado(p.id)}
+                            disabled={alterandoStatus !== null}
+                            className="p-1.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 disabled:opacity-50"
+                            title="Marcar como assinado manualmente (gov.br, manual, etc)"
+                          >
+                            <FileSignature size={16} />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleDownloadPdf(p.id, p.titulo)}

@@ -73,6 +73,7 @@ export default function CrmVendasContratosPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
+  const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
@@ -90,6 +91,25 @@ export default function CrmVendasContratosPage() {
       alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
     } finally {
       setEnviandoId(null);
+    }
+  };
+
+  const handleMarcarComoAssinado = async (contratoId: number) => {
+    if (!confirm('Marcar este contrato como assinado manualmente?\n\nUse esta opção quando o cliente assinar de outra forma (manual, gov.br, etc).')) {
+      return;
+    }
+    try {
+      setAlterandoStatus(contratoId);
+      await apiClient.patch(`/crm-vendas/contratos/${contratoId}/`, {
+        status_assinatura: 'concluido',
+        status: 'assinado',
+      });
+      await loadContratos();
+      alert('Contrato marcado como assinado com sucesso!');
+    } catch (err: unknown) {
+      alert(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
+    } finally {
+      setAlterandoStatus(null);
     }
   };
 
@@ -335,6 +355,17 @@ export default function CrmVendasContratosPage() {
                           leadEmail={c.lead_email}
                           onSucesso={loadContratos}
                         />
+                        {c.status_assinatura !== 'concluido' && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarcarComoAssinado(c.id)}
+                            disabled={alterandoStatus !== null}
+                            className="p-1.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 disabled:opacity-50"
+                            title="Marcar como assinado manualmente (gov.br, manual, etc)"
+                          >
+                            <FileSignature size={16} />
+                          </button>
+                        )}
                         <button type="button" onClick={() => handleEnviarCliente(c.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
                         <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
                         <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>

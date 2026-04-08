@@ -9,19 +9,19 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 from crm_vendas.models import Proposta, Contrato
-from django_tenants.utils import schema_context, get_tenant_model
+from stores.models import Store
+from django_tenants.utils import schema_context
 
 def corrigir_numeros_propostas():
-    """Corrige números de propostas por loja."""
+    """Corrige números de propostas por tenant."""
     print("🔧 Corrigindo números de propostas...")
     
-    Tenant = get_tenant_model()
-    tenants = Tenant.objects.exclude(schema_name='public')
+    tenants = Store.objects.exclude(schema_name='public')
     total_corrigidas = 0
     
     for tenant in tenants:
         with schema_context(tenant.schema_name):
-            print(f"\n📍 Tenant: {tenant.schema_name}")
+            print(f"\n📍 Tenant: {tenant.schema_name} ({tenant.name})")
             
             # Buscar todas as propostas ordenadas por ID (ordem de criação)
             propostas = Proposta.objects.all().order_by('id')
@@ -47,16 +47,15 @@ def corrigir_numeros_propostas():
     return total_corrigidas
 
 def corrigir_numeros_contratos():
-    """Corrige números de contratos por loja."""
+    """Corrige números de contratos por tenant."""
     print("\n🔧 Corrigindo números de contratos...")
     
-    Tenant = get_tenant_model()
-    tenants = Tenant.objects.exclude(schema_name='public')
+    tenants = Store.objects.exclude(schema_name='public')
     total_corrigidos = 0
     
     for tenant in tenants:
         with schema_context(tenant.schema_name):
-            print(f"\n📍 Tenant: {tenant.schema_name}")
+            print(f"\n📍 Tenant: {tenant.schema_name} ({tenant.name})")
             
             # Buscar todos os contratos ordenados por ID (ordem de criação)
             contratos = Contrato.objects.all().order_by('id')

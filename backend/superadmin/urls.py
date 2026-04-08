@@ -21,7 +21,6 @@ from .financeiro_views import (
     financeiro_unificado
 )
 from .auth_views_secure import SecureLoginView, SecureLogoutView
-from . import webhooks  # ✅ NOVO: Webhooks Asaas
 
 router = DefaultRouter()
 router.register(r'tipos-loja', TipoLojaViewSet, basename='tipo-loja')
@@ -77,10 +76,6 @@ urlpatterns = [
     # ✅ NOVO v738: Rotas de monitoramento de storage
     path('lojas/<int:loja_id>/verificar-storage/', verificar_storage_loja, name='verificar-storage-loja'),
     path('storage/', listar_storage_lojas, name='listar-storage-lojas'),
-    
-    # ✅ NOVO: Webhooks Asaas
-    path('webhooks/asaas/payment-callback', webhooks.asaas_payment_callback, name='asaas-payment-callback'),
-    path('webhooks/asaas/card-registered', webhooks.asaas_card_registered_callback, name='asaas-card-registered'),
     
     # Configuração da Homepage (CRUD)
     path('homepage/', include('homepage.urls_admin')),

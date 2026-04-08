@@ -8,8 +8,9 @@ Uso:
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django_tenants.utils import schema_context, get_tenant_model
+from django_tenants.utils import schema_context
 from crm_vendas.models import Proposta, Contrato
+from stores.models import Store
 
 
 class Command(BaseCommand):
@@ -30,20 +31,18 @@ class Command(BaseCommand):
         self.stdout.write("=" * 80)
         
         try:
-            TenantModel = get_tenant_model()
-            
             if schema_especifico:
                 # Processar apenas um schema específico
                 try:
-                    tenant = TenantModel.objects.get(slug=schema_especifico)
+                    tenant = Store.objects.get(slug=schema_especifico)
                     tenants = [tenant]
                     self.stdout.write(f"\n📍 Processando apenas schema: {schema_especifico}")
-                except TenantModel.DoesNotExist:
+                except Store.DoesNotExist:
                     self.stdout.write(self.style.ERROR(f"\n❌ Schema '{schema_especifico}' não encontrado!"))
                     return
             else:
-                # Processar todos os tenants (exceto public)
-                tenants = TenantModel.objects.exclude(schema_name='public')
+                # Processar todos os tenants
+                tenants = Store.objects.filter(is_active=True)
                 self.stdout.write(f"\n📍 Processando {tenants.count()} schemas...")
             
             total_propostas = 0
@@ -68,7 +67,7 @@ class Command(BaseCommand):
 
     def corrigir_propostas(self, tenant):
         """Corrige números de propostas para um tenant."""
-        schema_name = tenant.schema_name
+        schema_name = tenant.slug
         
         try:
             with schema_context(schema_name):
@@ -105,7 +104,7 @@ class Command(BaseCommand):
 
     def corrigir_contratos(self, tenant):
         """Corrige números de contratos para um tenant."""
-        schema_name = tenant.schema_name
+        schema_name = tenant.slug
         
         try:
             with schema_context(schema_name):

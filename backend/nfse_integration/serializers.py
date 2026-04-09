@@ -24,12 +24,14 @@ class NFSeSerializer(serializers.ModelSerializer):
             'status', 'status_display',
             'pdf_url', 'xml_url',
             'observacoes', 'erro',
+            'asaas_invoice_id', 'asaas_payment_id',
             'created_at', 'updated_at',
         ]
         read_only_fields = [
             'id', 'numero_nf', 'numero_rps', 'codigo_verificacao',
             'data_emissao', 'data_cancelamento',
             'valor_iss', 'xml_rps', 'xml_nfse',
+            'asaas_invoice_id', 'asaas_payment_id',
             'created_at', 'updated_at',
         ]
     

@@ -319,6 +319,8 @@ class NFSeService:
                 'tomador_nome': tomador_nome,
                 'tomador_cpf_cnpj': tomador_cpf_cnpj,
                 'servico_descricao': desc,
+                'asaas_invoice_id': str(invoice_id)[:40],
+                'asaas_payment_id': str(payment_id)[:40],
             }
 
             self._salvar_nfse(resultado, tomador_email)
@@ -539,6 +541,8 @@ class NFSeService:
                 pdf_url=resultado.get('pdf_url', '')[:500],
                 provedor=self.config.provedor_nf,
                 status='emitida',
+                asaas_invoice_id=(resultado.get('asaas_invoice_id') or '')[:40],
+                asaas_payment_id=(resultado.get('asaas_payment_id') or '')[:40],
             )
             
             logger.info(f"NFS-e {resultado['numero_nf']} salva no banco")

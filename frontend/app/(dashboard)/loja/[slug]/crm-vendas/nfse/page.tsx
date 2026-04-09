@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Search, X, Check, AlertCircle } from 'lucide-react';
+import { FileText, Plus, Search, X, Check, AlertCircle, RefreshCw } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 
 /** Resposta DRF paginada ou lista direta */
@@ -28,6 +28,8 @@ interface NFSe {
   status: string;
   status_display: string;
   provedor_display: string;
+  provedor?: string;
+  asaas_invoice_id?: string;
   erro?: string;
 }
 
@@ -37,6 +39,8 @@ export default function NFSePage() {
   const [showModal, setShowModal] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState('');
   const [busca, setBusca] = useState('');
+  const [syncingId, setSyncingId] = useState<number | null>(null);
+  const [syncMsg, setSyncMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => {
     carregarNFSes();
@@ -65,6 +69,26 @@ export default function NFSePage() {
     const doc = (nf.tomador_cpf_cnpj ?? '').toString();
     return num.includes(q) || nome.includes(q) || doc.includes(busca);
   });
+
+  const sincronizarComAsaas = async (e: React.MouseEvent, nf: NFSe) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSyncMsg(null);
+    setSyncingId(nf.id);
+    try {
+      await apiClient.post(`/nfse/${nf.id}/sincronizar-asaas/`);
+      setSyncMsg({ type: 'ok', text: 'Status atualizado conforme o Asaas.' });
+      await carregarNFSes();
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { error?: string } } };
+      setSyncMsg({
+        type: 'err',
+        text: ax.response?.data?.error || 'Não foi possível sincronizar com o Asaas.',
+      });
+    } finally {
+      setSyncingId(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -101,6 +125,18 @@ export default function NFSePage() {
           Emitir NFS-e
         </button>
       </div>
+
+      {syncMsg && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm ${
+            syncMsg.type === 'ok'
+              ? 'bg-green-50 border-green-200 text-green-900 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200'
+              : 'bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200'
+          }`}
+        >
+          {syncMsg.text}
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-4">
@@ -182,13 +218,16 @@ export default function NFSePage() {
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                     Status
                   </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-[1%] whitespace-nowrap">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {nfsesFiltradas.map((nf) => (
                   <tr
                     key={nf.id}
-                    className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50 cursor-pointer"
+                    className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50"
                   >
                     <td className="px-4 py-3 text-sm">
                       <div className="font-medium text-gray-900 dark:text-white">
@@ -239,6 +278,20 @@ export default function NFSePage() {
                           </p>
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {nf.provedor === 'asaas' && (
+                        <button
+                          type="button"
+                          title="Atualizar status com o painel Asaas (útil se a prefeitura rejeitou depois)"
+                          onClick={(e) => sincronizarComAsaas(e, nf)}
+                          disabled={syncingId === nf.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0176d3] hover:bg-[#0176d3]/10 rounded-md disabled:opacity-50"
+                        >
+                          <RefreshCw size={14} className={syncingId === nf.id ? 'animate-spin' : ''} />
+                          Sincronizar
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -178,6 +178,22 @@ class NFSe(LojaIsolationMixin, models.Model):
         verbose_name='Erro',
         help_text='Mensagem de erro se a emissão falhou'
     )
+
+    # Asaas (NFS-e via API da loja) — usado para reconciliar status com webhooks INVOICE_*
+    asaas_invoice_id = models.CharField(
+        max_length=40,
+        blank=True,
+        db_index=True,
+        verbose_name='ID da NF no Asaas',
+        help_text='Identificador inv_xxxxx retornado pela API (sincroniza situação com o painel Asaas)',
+    )
+    asaas_payment_id = models.CharField(
+        max_length=40,
+        blank=True,
+        db_index=True,
+        verbose_name='ID da cobrança no Asaas',
+        help_text='Identificador pay_xxxxx da cobrança vinculada à NFS-e',
+    )
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -197,6 +213,7 @@ class NFSe(LojaIsolationMixin, models.Model):
             models.Index(fields=['numero_rps'], name='nfse_rps_idx'),
             models.Index(fields=['status'], name='nfse_status_idx'),
             models.Index(fields=['tomador_cpf_cnpj'], name='nfse_tomador_idx'),
+            models.Index(fields=['loja_id', 'asaas_invoice_id'], name='nfse_loja_asaas_inv_idx'),
         ]
         # Garantir que número de NF é único por loja
         unique_together = [['loja_id', 'numero_nf']]

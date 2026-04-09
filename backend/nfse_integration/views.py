@@ -254,6 +254,59 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=True, methods=['post'], url_path='sincronizar-asaas')
+    def sincronizar_asaas(self, request, pk=None):
+        """
+        Consulta o Asaas (GET invoice) e atualiza status/erro/PDF no CRM.
+        Útil quando o painel Asaas já mostra «Erro na emissão» e o CRM ainda mostra Emitida.
+        """
+        try:
+            nfse = self.get_object()
+            if nfse.provedor != 'asaas':
+                return Response(
+                    {'error': 'Sincronização disponível apenas para NFS-e emitidas via Asaas.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            loja_id = get_current_loja_id()
+            loja = Loja.objects.get(id=loja_id)
+
+            from crm_vendas.models import CRMConfig
+            from .asaas_webhook_sync import sincronizar_nfse_via_api_asaas
+
+            cfg = CRMConfig.get_or_create_for_loja(loja_id)
+            api_key = (getattr(cfg, 'asaas_api_key', None) or '').strip()
+            if not api_key:
+                return Response(
+                    {
+                        'error': (
+                            'Configure a API Key do Asaas em Configurações → Nota Fiscal '
+                            '(CRM) para sincronizar.'
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            out = sincronizar_nfse_via_api_asaas(
+                nfse,
+                api_key=api_key,
+                sandbox=bool(getattr(cfg, 'asaas_sandbox', False)),
+            )
+            if out.get('error'):
+                return Response({'error': out['error']}, status=status.HTTP_400_BAD_REQUEST)
+
+            nfse.refresh_from_db()
+            return Response(
+                {
+                    'success': True,
+                    'message': 'Status atualizado conforme o Asaas.',
+                    'nfse': NFSeSerializer(nfse).data,
+                }
+            )
+        except Exception as e:
+            logger.exception('Erro ao sincronizar NFS-e com Asaas: %s', e)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=True, methods=['post'])
     def reenviar_email(self, request, pk=None):
         """Reenvia email da NFS-e para o tomador."""

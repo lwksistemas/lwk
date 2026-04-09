@@ -20,6 +20,23 @@ from tenants.middleware import resolve_loja_from_slug_or_cnpj, _configure_tenant
 logger = logging.getLogger(__name__)
 
 
+def _invoice_payload_para_sync(payload: dict) -> tuple:
+    """
+    Retorna (event, invoice_dict) para sincronizar NFSe.
+    O Asaas envia `invoice` no corpo; em alguns eventos pode vir só em `payment`.
+    """
+    event = payload.get('event') or payload.get('type') or ''
+    invoice = payload.get('invoice') if isinstance(payload.get('invoice'), dict) else {}
+    if not invoice.get('id') and isinstance(payload.get('payment'), dict):
+        pay = payload['payment']
+        inv = pay.get('invoice') if isinstance(pay.get('invoice'), dict) else {}
+        if inv.get('id'):
+            invoice = inv
+        elif pay.get('invoiceId'):
+            invoice = {'id': pay.get('invoiceId'), 'status': pay.get('invoiceStatus')}
+    return event, invoice
+
+
 @csrf_exempt
 @api_view(['GET', 'POST', 'HEAD'])
 @permission_classes([AllowAny])
@@ -66,7 +83,15 @@ def asaas_loja_webhook(request, loja_slug: str):
         invoice.get('id'),
     )
 
-    # Espaço futuro: reconciliar NFSe se armazenarmos asaas_payment_id / invoice id no modelo
+    try:
+        ev, inv = _invoice_payload_para_sync(payload)
+        if inv.get('id'):
+            from nfse_integration.asaas_webhook_sync import sincronizar_nfse_com_webhook_invoice
+
+            sincronizar_nfse_com_webhook_invoice(ev, inv)
+    except Exception as sync_err:
+        logger.warning('Falha ao sincronizar NFSe com webhook Asaas: %s', sync_err, exc_info=True)
+
     return Response(
         {
             'status': 'received',

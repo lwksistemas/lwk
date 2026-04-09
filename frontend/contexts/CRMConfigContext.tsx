@@ -9,6 +9,17 @@ interface CRMConfig {
   etapas_pipeline: any[];
   colunas_leads: string[];
   modulos_ativos: Record<string, boolean>;
+  // Configurações de NFS-e
+  provedor_nf: 'asaas' | 'issnet' | 'nacional' | 'manual';
+  provedor_nf_display?: string;
+  issnet_usuario: string;
+  issnet_senha?: string;
+  issnet_certificado: string | null;
+  issnet_senha_certificado?: string;
+  codigo_servico_municipal: string;
+  descricao_servico_padrao: string;
+  aliquota_iss: string;
+  emitir_nf_automaticamente: boolean;
 }
 
 interface CRMConfigContextType {
@@ -47,6 +58,13 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
           pipeline: true,
           atividades: true,
         },
+        provedor_nf: 'asaas',
+        issnet_usuario: '',
+        issnet_certificado: null,
+        codigo_servico_municipal: '1401',
+        descricao_servico_padrao: 'Desenvolvimento e licenciamento de software sob demanda',
+        aliquota_iss: '2.00',
+        emitir_nf_automaticamente: true,
       });
     } finally {
       setLoading(false);

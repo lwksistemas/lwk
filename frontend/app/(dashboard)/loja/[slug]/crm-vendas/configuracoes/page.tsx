@@ -12,6 +12,7 @@ import {
   History,
   Sliders,
   Database,
+  FileText,
 } from 'lucide-react';
 import { authService } from '@/lib/auth';
 
@@ -53,6 +54,13 @@ export default function CrmVendasConfiguracoesPage() {
       href: `${base}/whatsapp`,
       icon: MessageCircle,
       itens: ['Integração WhatsApp', 'Lembretes do calendário'],
+    },
+    {
+      titulo: 'Nota Fiscal (NFS-e)',
+      descricao: 'Configure como as notas fiscais serão emitidas',
+      href: `${base}/nota-fiscal`,
+      icon: FileText,
+      itens: ['Provedor de NF', 'Certificado digital', 'Emissão automática'],
     },
     {
       titulo: 'Backup',

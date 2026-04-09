@@ -198,8 +198,19 @@ class NFSeService:
             except Exception as recv_err:
                 logger.warning('receiveInCash falhou (tentativa segue): %s', recv_err)
 
-            codigo = (self.config.codigo_servico_municipal or '1401').replace('.', '').replace('-', '')[:10]
-            nome_serv = (self.config.descricao_servico_padrao or desc)[:200]
+            # Mesma configuração municipal das NF de assinatura (env ASAAS_INVOICE_*),
+            # com fallback para os campos da loja no CRM se o ambiente não tiver env.
+            from asaas_integration.invoice_service import get_municipal_invoice_config
+
+            municipal = get_municipal_invoice_config()
+            codigo_raw = municipal.get('municipal_service_code') or (
+                self.config.codigo_servico_municipal or '1401'
+            )
+            codigo = str(codigo_raw).replace('.', '').replace('-', '')[:10]
+            nome_serv = (municipal.get('municipal_service_name') or self.config.descricao_servico_padrao or desc)[
+                :200
+            ]
+            service_id = municipal.get('municipal_service_id') or None
             iss_pct = float(self.config.aliquota_iss or 2)
 
             created = client.create_invoice(
@@ -209,6 +220,7 @@ class NFSeService:
                 effective_date=hoje,
                 municipal_service_code=codigo,
                 municipal_service_name=nome_serv,
+                municipal_service_id=service_id,
                 iss_aliquota=iss_pct,
             )
             invoice_id = created.get('id')

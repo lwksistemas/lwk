@@ -249,6 +249,18 @@ export default function ConfiguracaoNotaFiscalPage() {
                   Integrações → API). A chave precisa permitir emissão de notas fiscais (escopo de
                   faturamento/NF conforme o painel Asaas).
                 </p>
+                <p className="text-xs mb-2 text-amber-900/90 dark:text-amber-100/90">
+                  <strong>Serviço municipal na NF:</strong> o backend usa a{' '}
+                  <strong>mesma configuração</strong> das notas de assinatura (variáveis{' '}
+                  <code className="text-[11px] bg-amber-100/80 dark:bg-amber-950/50 px-1 rounded">
+                    ASAAS_INVOICE_*
+                  </code>{' '}
+                  no servidor — código, nome e ID do serviço no Asaas), igual à emissão automática da
+                  mensalidade. Assim, cada loja só precisa da própria API Key; o cadastro fiscal no
+                  Asaas da loja deve ser compatível com esse mesmo serviço (ex.: mesmo município).
+                  Abaixo, código e descrição são <strong>reserva</strong> se o ambiente não tiver
+                  essas variáveis.
+                </p>
                 <a
                   href="https://www.asaas.com/"
                   target="_blank"

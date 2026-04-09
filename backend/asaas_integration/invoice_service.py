@@ -21,6 +21,17 @@ def get_invoice_client():
     return AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
 
 
+def get_municipal_invoice_config() -> Dict[str, Optional[str]]:
+    """
+    Configuração municipal para NF no Asaas (mesma usada nas NF de assinatura LWK).
+
+    Variáveis de ambiente: ASAAS_INVOICE_SERVICE_ID, ASAAS_INVOICE_SERVICE_CODE,
+    ASAAS_INVOICE_SERVICE_NAME. Pode ser reutilizada pelas lojas que emitem NF na
+    própria conta Asaas com o mesmo cadastro municipal (ex.: mesmo município/serviço).
+    """
+    return _get_municipal_config()
+
+
 def _get_municipal_config() -> Dict[str, Optional[str]]:
     """Serviço municipal para NF (conta LWK na prefeitura)."""
     import os

@@ -1,0 +1,13 @@
+# Bibliotecas necessárias para integração NFS-e
+
+# Cliente SOAP para webservices
+zeep==4.2.1
+
+# Manipulação de XML
+lxml==5.1.0
+
+# Assinatura digital de XML
+signxml==3.2.2
+
+# Manipulação de certificados digitais
+cryptography==42.0.0

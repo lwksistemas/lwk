@@ -28,6 +28,7 @@ interface NFSe {
   status: string;
   status_display: string;
   provedor_display: string;
+  erro?: string;
 }
 
 export default function NFSePage() {
@@ -222,12 +223,22 @@ export default function NFSePage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(nf.status)}`}>
-                        {nf.status === 'emitida' && <Check size={14} />}
-                        {nf.status === 'cancelada' && <X size={14} />}
-                        {nf.status === 'erro' && <AlertCircle size={14} />}
-                        {nf.status_display ?? nf.status}
-                      </span>
+                      <div className="flex flex-col items-center gap-1 max-w-[min(100%,280px)] mx-auto">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(nf.status)}`}>
+                          {nf.status === 'emitida' && <Check size={14} />}
+                          {nf.status === 'cancelada' && <X size={14} />}
+                          {nf.status === 'erro' && <AlertCircle size={14} />}
+                          {nf.status_display ?? nf.status}
+                        </span>
+                        {nf.status === 'erro' && nf.erro && (
+                          <p
+                            className="text-xs text-amber-800 dark:text-amber-200/90 text-left line-clamp-2 w-full"
+                            title={nf.erro}
+                          >
+                            {nf.erro}
+                          </p>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -245,6 +256,7 @@ export default function NFSePage() {
             setShowModal(false);
             carregarNFSes();
           }}
+          onRefreshList={() => carregarNFSes()}
         />
       )}
     </div>
@@ -252,7 +264,15 @@ export default function NFSePage() {
 }
 
 // Modal de Emissão de NFS-e
-function ModalEmitirNFSe({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function ModalEmitirNFSe({
+  onClose,
+  onSuccess,
+  onRefreshList,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+  onRefreshList?: () => void;
+}) {
   const [step, setStep] = useState<'escolha' | 'manual' | 'conta'>('escolha');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -348,6 +368,7 @@ function ModalEmitirNFSe({ onClose, onSuccess }: { onClose: () => void; onSucces
     } catch (err: any) {
       console.error('Erro ao emitir NFS-e:', err);
       setError(err.response?.data?.error || 'Erro ao emitir NFS-e');
+      onRefreshList?.();
     } finally {
       setLoading(false);
     }

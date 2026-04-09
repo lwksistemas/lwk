@@ -172,13 +172,19 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                         status=status.HTTP_201_CREATED
                     )
             else:
-                return Response(
-                    {
-                        'success': False,
-                        'error': resultado.get('error', 'Erro desconhecido')
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
+                erro_msg = resultado.get('error', 'Erro desconhecido')
+                nfse_falha = service.registrar_falha_emissao(
+                    erro_msg=erro_msg,
+                    tomador_cpf_cnpj=tomador_cpf_cnpj,
+                    tomador_nome=tomador_nome,
+                    tomador_email=tomador_email,
+                    servico_descricao=serializer.validated_data['servico_descricao'],
+                    valor_servicos=Decimal(str(serializer.validated_data['valor_servicos'])),
                 )
+                body = {'success': False, 'error': erro_msg}
+                if nfse_falha:
+                    body['nfse'] = NFSeSerializer(nfse_falha).data
+                return Response(body, status=status.HTTP_400_BAD_REQUEST)
                 
         except Exception as e:
             logger.exception(f"Erro ao emitir NFS-e: {e}")

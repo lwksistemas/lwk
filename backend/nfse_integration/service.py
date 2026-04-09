@@ -7,6 +7,7 @@ import re
 from typing import Dict, Any, Optional
 from decimal import Decimal
 from datetime import datetime, date
+from uuid import uuid4
 
 import requests
 
@@ -462,6 +463,42 @@ class NFSeService:
         """
         return getattr(self.loja, 'inscricao_municipal', '') or ''
     
+    def registrar_falha_emissao(
+        self,
+        erro_msg: str,
+        tomador_cpf_cnpj: str,
+        tomador_nome: str,
+        tomador_email: str,
+        servico_descricao: str,
+        valor_servicos: Decimal,
+    ):
+        """
+        Grava no banco uma tentativa de emissão que falhou (status=erro).
+        O número da NF é sintético (FALHA-…) para respeitar unicidade por loja.
+        """
+        from .models import NFSe
+
+        numero_nf = f"FALHA-{uuid4().hex[:12]}"
+        try:
+            return NFSe.objects.create(
+                loja_id=self.loja.id,
+                numero_nf=numero_nf[:50],
+                numero_rps=0,
+                codigo_verificacao='',
+                data_emissao=datetime.now(),
+                valor=valor_servicos,
+                tomador_cpf_cnpj=(tomador_cpf_cnpj or '')[:18],
+                tomador_nome=(tomador_nome or '')[:200],
+                tomador_email=tomador_email or '',
+                servico_descricao=(servico_descricao or '')[:500],
+                provedor=self.config.provedor_nf,
+                status='erro',
+                erro=(erro_msg or 'Erro desconhecido')[:2000],
+            )
+        except Exception as e:
+            logger.error('Erro ao registrar falha de NFS-e no banco: %s', e, exc_info=True)
+            return None
+
     def _gerar_numero_rps(self) -> int:
         """
         Gera número sequencial de RPS para a loja.

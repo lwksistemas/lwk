@@ -137,6 +137,10 @@ class SecurityIsolationMiddleware:
         - Lojas: APENAS /api/{tipo_loja}/ da própria loja
         """
         path = request.path
+
+        # Webhook Asaas da conta da LOJA (cada CNPJ no Asaas) — não confundir com /api/asaas/webhook/ (LWK)
+        if path.startswith('/api/crm-vendas/webhooks/asaas/'):
+            return None
         
         # ========================================
         # GRUPO 1: SUPER ADMIN

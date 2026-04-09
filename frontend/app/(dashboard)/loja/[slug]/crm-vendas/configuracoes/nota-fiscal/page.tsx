@@ -1,13 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import apiClient from '@/lib/api-client';
+import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 import { FileText, Upload, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 
 export default function ConfiguracaoNotaFiscalPage() {
   const router = useRouter();
+  const params = useParams();
+  const lojaSlug = typeof params?.slug === 'string' ? params.slug : '';
+  const asaasWebhookUrl = lojaSlug
+    ? `${getPrimaryApiBaseUrl()}/crm-vendas/webhooks/asaas/${encodeURIComponent(lojaSlug)}/`
+    : '';
   const { config, recarregar } = useCRMConfig();
   
   const [loading, setLoading] = useState(false);
@@ -300,6 +306,51 @@ export default function ConfiguracaoNotaFiscalPage() {
                   Usar ambiente sandbox (homologação Asaas)
                 </span>
               </label>
+
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                  Webhook no Asaas (conta da sua loja)
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                  Cada loja usa <strong>sua própria conta</strong> no Asaas. No painel da{' '}
+                  <strong>sua</strong> empresa, abra{' '}
+                  <a
+                    href="https://www.asaas.com/customerConfigIntegrations/webhooks"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#0176d3] underline font-medium"
+                  >
+                    Integrações → Webhooks
+                  </a>{' '}
+                  e cadastre a URL abaixo (método POST). Assim o Asaas notifica este sistema sobre
+                  eventos de <strong>cobranças e notas fiscais</strong> gerados nessa conta — não use
+                  o webhook da LWK (mensalidade do sistema), que é outro endpoint.
+                </p>
+                {asaasWebhookUrl ? (
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <code className="flex-1 text-[11px] sm:text-xs break-all p-3 rounded-lg bg-gray-100 dark:bg-[#0d1f3c] text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-[#0d1f3c]">
+                      {asaasWebhookUrl}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(asaasWebhookUrl);
+                      }}
+                      className="shrink-0 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
+                    >
+                      Copiar URL
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Não foi possível montar a URL (slug da loja indisponível).
+                  </p>
+                )}
+                <p className="text-[11px] text-gray-500 dark:text-gray-500 mt-2">
+                  Sugestão de eventos: pagamentos confirmados/atualizados e, se o painel oferecer,
+                  notificações fiscais relacionadas à NF (conforme as opções do seu Asaas).
+                </p>
+              </div>
             </div>
           </div>
         )}

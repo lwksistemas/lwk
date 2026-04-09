@@ -33,6 +33,7 @@ from .views_google_calendar import (
     google_calendar_disconnect,
 )
 from .views_debug import debug_permissions
+from .views_asaas_webhook import asaas_loja_webhook
 
 router = DefaultRouter()
 router.register(r'vendedores', VendedorViewSet, basename='crm-vendedores')
@@ -50,6 +51,8 @@ router.register(r'contratos', ContratoViewSet, basename='crm-contratos')
 router.register(r'contrato-templates', ContratoTemplateViewSet, basename='crm-contrato-templates')
 
 urlpatterns = [
+    # Webhook Asaas por loja (conta própria no Asaas — configurar URL no painel da loja)
+    path('webhooks/asaas/<str:loja_slug>/', asaas_loja_webhook, name='crm-asaas-loja-webhook'),
     # Debug endpoint (temporário)
     path('debug-permissions/', debug_permissions, name='crm-debug-permissions'),
     

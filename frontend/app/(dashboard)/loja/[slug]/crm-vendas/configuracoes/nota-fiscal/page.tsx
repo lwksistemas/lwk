@@ -107,22 +107,22 @@ export default function ConfiguracaoNotaFiscalPage() {
   const provedorInfo = {
     asaas: {
       titulo: 'Asaas (Intermediário - Padrão)',
-      descricao: 'Emissão através do Asaas. Mais simples, sem necessidade de certificado digital.',
+      descricao: 'Emissão através do Asaas. Mais simples, sem necessidade de certificado digital próprio.',
       campos: [],
     },
     issnet: {
       titulo: 'ISSNet - Ribeirão Preto (Direto)',
-      descricao: 'Emissão direta na Prefeitura de Ribeirão Preto. Requer certificado digital A1 e credenciais.',
+      descricao: 'Emissão direta na Prefeitura de Ribeirão Preto com o CNPJ da sua loja. Requer certificado digital A1 próprio.',
       campos: ['issnet_usuario', 'issnet_senha', 'issnet_certificado', 'issnet_senha_certificado'],
     },
     nacional: {
       titulo: 'API Nacional NFS-e (Direto)',
-      descricao: 'Emissão através da API Nacional NFS-e. Em breve disponível.',
+      descricao: 'Emissão através da API Nacional NFS-e com o CNPJ da sua loja. Em breve disponível.',
       campos: [],
     },
     manual: {
       titulo: 'Emissão Manual',
-      descricao: 'Sem integração automática. Você emitirá as notas manualmente.',
+      descricao: 'Sem integração automática. Você emitirá as notas manualmente no portal da prefeitura.',
       campos: [],
     },
   };
@@ -134,11 +134,27 @@ export default function ConfiguracaoNotaFiscalPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <FileText size={28} />
-          Configuração de Nota Fiscal
+          Configuração de Nota Fiscal da Loja
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Configure como as notas fiscais de serviço serão emitidas
+          Configure como sua loja emitirá notas fiscais para seus clientes
         </p>
+        
+        <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Info size={20} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800 dark:text-blue-200">
+              <p className="font-medium mb-2">⚠️ Importante: Duas emissões diferentes</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li><strong>NF da sua assinatura LWK:</strong> Emitida automaticamente pela LWK Sistemas quando você paga sua mensalidade</li>
+                <li><strong>NF para seus clientes:</strong> Esta configuração é para quando VOCÊ prestar serviços aos SEUS clientes</li>
+              </ul>
+              <p className="mt-2 text-xs">
+                Cada loja tem seu próprio CNPJ e certificado digital. As configurações abaixo são exclusivas da sua loja.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {message && (
@@ -215,12 +231,15 @@ export default function ConfiguracaoNotaFiscalPage() {
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-start gap-3">
               <Info size={20} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
               <div className="text-sm text-blue-800 dark:text-blue-200">
-                <p className="font-medium mb-1">Requisitos para emissão direta:</p>
+                <p className="font-medium mb-1">Requisitos para emissão direta com CNPJ da sua loja:</p>
                 <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>Certificado Digital A1 (e-CNPJ) válido</li>
-                  <li>Credenciais de acesso ao webservice da Prefeitura</li>
-                  <li>Cadastro ativo no portal ISSNet de Ribeirão Preto</li>
+                  <li>Certificado Digital A1 (e-CNPJ) válido <strong>da sua loja</strong></li>
+                  <li>Credenciais de acesso ao webservice da Prefeitura <strong>no nome da sua loja</strong></li>
+                  <li>Cadastro ativo no portal ISSNet de Ribeirão Preto <strong>com CNPJ da sua loja</strong></li>
                 </ul>
+                <p className="mt-2 text-xs font-medium">
+                  ⚠️ Este certificado é diferente do certificado da LWK Sistemas usado para emitir NF da sua assinatura.
+                </p>
               </div>
             </div>
 

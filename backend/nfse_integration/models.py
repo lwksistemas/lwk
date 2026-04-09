@@ -186,6 +186,7 @@ class NFSe(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
     
     class Meta:
+        app_label = 'nfse_integration'
         db_table = 'nfse_integration_nfse'
         verbose_name = 'NFS-e'
         verbose_name_plural = 'NFS-e'

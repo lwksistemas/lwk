@@ -10,15 +10,16 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
-# Endpoints LoteRps (ISSNet / Prefeitura de Ribeirão Preto). Sem espaços no host.
-ISSNET_LOTE_RPS_JWS = '/WsNFe2/LoteRps.jws'
-_ISSNET_LOTE_RPS_PROD = f'https://issdigital.ribeiraopreto.sp.gov.br{ISSNET_LOTE_RPS_JWS}'
-# A Prefeitura não publica um hostname DNS separado para homologação do webservice direto
-# (hosts como issdigital.homologacao.* não resolvem). O teste de homologação usa o mesmo WSDL
-# de produção para validar rede/certificado; credenciais de teste vêm da prefeitura/Nota Control.
+# ISSNet Online (Nota Control) — ABRASF 2.04, município Ribeirão Preto.
+# O host antigo issdigital.ribeiraopreto.sp.gov.br NÃO existe no DNS público (NXDOMAIN).
+# Portal e login: https://www.issnetonline.com.br/ribeiraopreto/ — WSDL operacional:
+ISSNET_RP_NFSE_ASMX = (
+    'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
+)
+# Homologação: sem URL municipal separada estável; mesmo endpoint até confirmação Nota Control.
 ISSNET_URLS = {
-    'producao': _ISSNET_LOTE_RPS_PROD,
-    'homologacao': _ISSNET_LOTE_RPS_PROD,
+    'producao': ISSNET_RP_NFSE_ASMX,
+    'homologacao': ISSNET_RP_NFSE_ASMX,
 }
 
 
@@ -109,15 +110,14 @@ def testar_conexao_issnet(
             out['success'] = True
             if ambiente == 'homologacao':
                 out['message'] = (
-                    'Certificado OK e WSDL do ISSNet acessível. '
-                    'Ribeirão Preto não publica um host exclusivo de homologação para este webservice; '
-                    'a conectividade foi validada no mesmo endpoint de produção. '
-                    'Usuário/senha de teste (se houver) são fornecidos pela prefeitura ou Nota Control. '
-                    'Credenciais serão validadas na primeira emissão de NFS-e.'
+                    'Certificado OK e WSDL do ISSNet Online (Nota Control, ABRASF 2.04) acessível. '
+                    'Não há host DNS separado estável só para homologação; o teste usou o endpoint de '
+                    'produção (nfse.issnetonline.com.br). Credenciais de teste, se existirem, vêm da '
+                    'prefeitura ou Nota Control.'
                 )
             else:
                 out['message'] = (
-                    f'Certificado OK e WSDL do ISSNet acessível ({out["ambiente"]}). '
+                    'Certificado OK e WSDL do ISSNet Online — Ribeirão Preto (ABRASF 2.04) acessível. '
                     'Usuário e senha do ISSNet serão validados na primeira emissão de NFS-e.'
                 )
             return out
@@ -133,8 +133,8 @@ def testar_conexao_issnet(
         err_s = str(e).lower()
         if 'failed to resolve' in err_s or 'name or service not known' in err_s:
             out['detail'] = (
-                'Certificado OK, mas o endereço do webservice não resolve no DNS. '
-                'Confirme na Prefeitura o hostname atual do ISS Digital ou se há bloqueio de rede.'
+                'Certificado OK, mas o hostname do webservice não resolve no DNS. '
+                'Confirme bloqueio de rede/firewall ou se a Nota Control alterou o endpoint ISSNet Online.'
             )
         else:
             out['detail'] = (

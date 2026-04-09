@@ -54,14 +54,58 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
+def _patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
+    """
+    Garante colunas da migration 0045 (asaas_api_key, asaas_sandbox) no schema do tenant.
+
+    Em alguns ambientes ``migrate`` no banco da loja falha (histórico inconsistente);
+    o ADD COLUMN IF NOT EXISTS é seguro no PostgreSQL e desbloqueia o CRMConfig.
+    """
+    from django.db import connections
+    from django.utils import timezone
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        raise RuntimeError(f'Não foi possível configurar o banco {db_name}')
+
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            ALTER TABLE crm_vendas_config
+            ADD COLUMN IF NOT EXISTS asaas_api_key VARCHAR(255) NOT NULL DEFAULT '';
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE crm_vendas_config
+            ADD COLUMN IF NOT EXISTS asaas_sandbox boolean NOT NULL DEFAULT false;
+            """
+        )
+        cursor.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            SELECT %s, %s, %s
+            WHERE NOT EXISTS (
+                SELECT 1 FROM django_migrations
+                WHERE app = %s AND name = %s
+            );
+            """,
+            [
+                'crm_vendas',
+                '0045_add_asaas_loja_nf_fields',
+                timezone.now(),
+                'crm_vendas',
+                '0045_add_asaas_loja_nf_fields',
+            ],
+        )
+
+
 def _get_crm_config_for_loja(loja_id: int):
     """
-    Obtém CRMConfig. Se o schema do tenant ainda não tiver migrations recentes (ex.: 0045
-    asaas_api_key), aplica ``migrate crm_vendas`` nesse banco e tenta de novo.
+    Obtém CRMConfig. Se faltar coluna (ex.: 0045 asaas_api_key), aplica patch SQL no tenant.
     """
-    from django.core.management import call_command
     from django.db.utils import ProgrammingError
-    from core.db_config import ensure_loja_database_config
     from .models import CRMConfig
 
     try:
@@ -74,12 +118,10 @@ def _get_crm_config_for_loja(loja_id: int):
         if not db_name or db_name == 'default':
             raise
         logger.warning(
-            'CRMConfig: colunas ausentes no tenant, aplicando migrate crm_vendas em %s',
+            'CRMConfig: colunas ausentes no tenant, aplicando patch 0045 em %s',
             db_name,
         )
-        if not ensure_loja_database_config(db_name, conn_max_age=0):
-            raise
-        call_command('migrate', 'crm_vendas', '--database', db_name, verbosity=0)
+        _patch_crm_vendas_asaas_columns_if_missing(db_name)
         return CRMConfig.get_or_create_for_loja(loja_id)
 
 

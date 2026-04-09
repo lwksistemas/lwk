@@ -2111,6 +2111,81 @@ def crm_config(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def crm_config_asaas_test(request):
+    """
+    Testa a comunicação com a API Asaas usando a chave da loja (NFS-e).
+
+    Body JSON (opcional):
+      - api_key: se omitido ou vazio, usa a chave já salva em CRMConfig
+      - asaas_sandbox: se omitido, usa o valor salvo na config
+    """
+    from .models import CRMConfig
+
+    try:
+        from asaas_integration.client import AsaasClient
+    except ImportError:
+        return Response(
+            {'success': False, 'detail': 'Cliente Asaas indisponível no servidor.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return Response({'success': False, 'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        cfg = CRMConfig.get_or_create_for_loja(loja_id)
+    except Exception as e:
+        logger.exception('crm_config_asaas_test: config')
+        return Response(
+            {'success': False, 'detail': f'Erro ao carregar configuração: {e}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    body = request.data if isinstance(request.data, dict) else {}
+    api_key = (body.get('api_key') or '').strip()
+    if not api_key:
+        api_key = (getattr(cfg, 'asaas_api_key', None) or '').strip()
+
+    if body.get('asaas_sandbox') is None:
+        sandbox = bool(getattr(cfg, 'asaas_sandbox', False))
+    else:
+        sb = body.get('asaas_sandbox')
+        sandbox = bool(sb) if isinstance(sb, bool) else str(sb).lower() in ('true', '1', 'yes', 'on')
+
+    if not api_key:
+        return Response(
+            {
+                'success': False,
+                'detail': 'Informe a API Key acima ou salve uma chave antes de testar.',
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        client = AsaasClient(api_key=api_key, sandbox=sandbox)
+        client._make_request('GET', 'customers?limit=1')
+        environment = 'sandbox (homologação)' if sandbox else 'produção'
+        return Response(
+            {
+                'success': True,
+                'message': f'Conexão com o Asaas OK ({environment}).',
+                'environment': environment,
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        logger.warning('crm_config_asaas_test falhou: %s', e)
+        err = str(e)
+        if len(err) > 500:
+            err = err[:500] + '…'
+        return Response(
+            {'success': False, 'detail': err or 'Falha ao contactar a API do Asaas.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

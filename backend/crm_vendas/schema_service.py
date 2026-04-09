@@ -1,12 +1,20 @@
 """
 Serviço para configurar/recuperar schema do CRM.
 Usado por: fix_loja_crm (command), auto-recovery nas views.
+
+Deve aplicar os mesmos apps que DatabaseSchemaService na criação da loja
+(inclui nfse_integration para lojas CRM — NFS-e no schema isolado).
 """
 import logging
 import os
 
 from django.db import connection, connections
 from django.core.management import call_command
+
+from superadmin.services.database_schema_service import (
+    APPS_CRITICOS_MIGRACAO_CRM_VENDAS,
+    get_apps_esperados_para_loja,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +55,8 @@ def configurar_schema_crm_loja(loja) -> bool:
                 cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                 logger.info(f"Schema '{schema_name}' criado")
 
-        # 3. Aplicar migrations (fallback CRM se tipo não mapeado — recuperação de schema)
-        base_apps = ['stores', 'products']
-        tipo_apps = {
-            'crm-vendas': ['crm_vendas'],
-            'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
-            'clinica-de-estetica': ['clinica_estetica'],
-            'clinica-estetica': ['clinica_estetica'],
-            'e-commerce': ['ecommerce'],
-            'restaurante': ['restaurante'],
-            'servicos': ['servicos'],
-            'cabeleireiro': ['cabeleireiro'],
-        }
-        apps = base_apps + tipo_apps.get(tipo_slug, ['crm_vendas'])
+        # 3. Aplicar migrations (mesma lista que criar loja: get_apps_esperados_para_loja)
+        apps = get_apps_esperados_para_loja(loja)
 
         for app in apps:
             try:
@@ -70,8 +67,8 @@ def configurar_schema_crm_loja(loja) -> bool:
                 call_command('migrate', app, '--database', db_name, verbosity=0)
                 logger.info(f"Migrations aplicadas: {app}")
             except Exception as e:
-                if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
-                    logger.error(f"Erro crítico ao aplicar migration crm_vendas: {e}")
+                if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
+                    logger.error(f"Erro crítico ao aplicar migration {app}: {e}")
                     return False
                 logger.warning(f"Erro ao aplicar migration {app}: {e}")
 

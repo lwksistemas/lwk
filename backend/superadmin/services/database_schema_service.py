@@ -27,6 +27,9 @@ TIPO_LOJA_EXTRA_APPS = {
     'crm-vendas': ['crm_vendas', 'nfse_integration'],
 }
 
+# Falha de migration nestes apps aborta criação/recuperação de loja tipo CRM Vendas (NFS-e no tenant).
+APPS_CRITICOS_MIGRACAO_CRM_VENDAS = frozenset({'crm_vendas', 'nfse_integration'})
+
 
 def get_apps_esperados_para_loja(loja) -> list[str]:
     """
@@ -273,14 +276,14 @@ class DatabaseSchemaService:
                             
                         except Exception as e:
                             logger.error(f"      ❌ Erro em {migration_name}: {e}")
-                            if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
+                            if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
                                 raise
                     
                     logger.info(f"   ✅ App {app} concluído")
                     
                 except Exception as e:
                     logger.error(f"❌ Erro ao processar app {app}: {e}")
-                    if tipo_slug == 'crm-vendas' and app == 'crm_vendas':
+                    if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
                         raise
                     logger.warning(f"Continuando apesar do erro em {app}")
             

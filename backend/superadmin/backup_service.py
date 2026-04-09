@@ -60,7 +60,7 @@ BACKUP_TIPO_APP_TABLE_PREFIXES = {
     'restaurante': ('stores_', 'products_', 'restaurante_'),
     'servicos': ('stores_', 'products_', 'servicos_'),
     'cabeleireiro': ('stores_', 'products_', 'cabeleireiro_'),
-    'crm-vendas': ('stores_', 'products_', 'crm_vendas_'),
+    'crm-vendas': ('stores_', 'products_', 'crm_vendas_', 'nfse_integration_'),
 }
 # Prefixos a excluir por tipo de app (ex.: clinica_beleza_ não é da clínica de estética)
 BACKUP_TIPO_APP_EXCLUDED_PREFIXES = {
@@ -148,6 +148,7 @@ class BackupConfig:
         TabelaConfig('crm_vendas_oportunidade_item', ordem_exportacao=108, ordem_importacao=108),
         TabelaConfig('crm_vendas_proposta', ordem_exportacao=109, ordem_importacao=109),
         TabelaConfig('crm_vendas_contrato', ordem_exportacao=110, ordem_importacao=110),
+        TabelaConfig('nfse_integration_nfse', ordem_exportacao=111, ordem_importacao=111),
     ]
     
     @classmethod

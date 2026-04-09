@@ -541,11 +541,27 @@ class ContratoSerializer(serializers.ModelSerializer):
 
 
 class CRMConfigSerializer(serializers.ModelSerializer):
+    # Campo somente leitura para mostrar o nome do provedor
+    provedor_nf_display = serializers.CharField(
+        source='get_provedor_nf_display',
+        read_only=True
+    )
+    
     class Meta:
         model = CRMConfig
         fields = [
             'id', 'origens_leads', 'etapas_pipeline', 'colunas_leads',
             'modulos_ativos', 'proposta_conteudo_padrao',
+            # Campos de NFS-e
+            'provedor_nf', 'provedor_nf_display',
+            'issnet_usuario', 'issnet_senha',
+            'issnet_certificado', 'issnet_senha_certificado',
+            'codigo_servico_municipal', 'descricao_servico_padrao',
+            'aliquota_iss', 'emitir_nf_automaticamente',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+        extra_kwargs = {
+            'issnet_senha': {'write_only': True},
+            'issnet_senha_certificado': {'write_only': True},
+        }

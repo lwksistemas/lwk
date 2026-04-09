@@ -55,6 +55,83 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         default='',
         help_text='Conteúdo padrão da proposta comercial (reutilizado ao criar novas propostas)'
     )
+    
+    # ============================================================================
+    # CONFIGURAÇÕES DE EMISSÃO DE NFS-e
+    # ============================================================================
+    
+    PROVEDOR_NF_CHOICES = [
+        ('asaas', 'Asaas (Intermediário - Padrão)'),
+        ('issnet', 'ISSNet - Ribeirão Preto (Direto)'),
+        ('nacional', 'API Nacional NFS-e (Direto)'),
+        ('manual', 'Emissão Manual (Sem integração)'),
+    ]
+    
+    provedor_nf = models.CharField(
+        max_length=20,
+        choices=PROVEDOR_NF_CHOICES,
+        default='asaas',
+        verbose_name='Provedor de Nota Fiscal',
+        help_text='Sistema usado para emitir notas fiscais de serviço'
+    )
+    
+    # Configurações ISSNet (Ribeirão Preto)
+    issnet_usuario = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Usuário ISSNet',
+        help_text='Usuário de acesso ao webservice ISSNet'
+    )
+    
+    issnet_senha = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Senha ISSNet',
+        help_text='Senha de acesso ao webservice ISSNet'
+    )
+    
+    issnet_certificado = models.FileField(
+        upload_to='certificados_nfse/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='Certificado Digital A1',
+        help_text='Arquivo .pfx do certificado digital A1 (e-CNPJ)'
+    )
+    
+    issnet_senha_certificado = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Senha do Certificado',
+        help_text='Senha do arquivo .pfx do certificado digital'
+    )
+    
+    # Configurações gerais de NFS-e
+    codigo_servico_municipal = models.CharField(
+        max_length=10,
+        default='1401',
+        verbose_name='Código do Serviço Municipal',
+        help_text='Código do serviço na lista de serviços do município (ex: 1401)'
+    )
+    
+    descricao_servico_padrao = models.TextField(
+        default='Desenvolvimento e licenciamento de software sob demanda',
+        verbose_name='Descrição Padrão do Serviço',
+        help_text='Descrição que aparecerá nas notas fiscais emitidas'
+    )
+    
+    aliquota_iss = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=2.00,
+        verbose_name='Alíquota ISS (%)',
+        help_text='Alíquota do ISS aplicada (geralmente 2% a 5%)'
+    )
+    
+    emitir_nf_automaticamente = models.BooleanField(
+        default=True,
+        verbose_name='Emitir NF Automaticamente',
+        help_text='Emitir nota fiscal automaticamente ao confirmar pagamento'
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

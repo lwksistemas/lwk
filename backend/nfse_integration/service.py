@@ -258,11 +258,10 @@ class NFSeService:
         """
         Obtém inscrição municipal da loja.
         
-        TODO: Adicionar campo no modelo Loja para armazenar inscrição municipal
-        Por enquanto, retorna vazio.
+        Returns:
+            str: Inscrição municipal da loja
         """
-        # TODO: Implementar campo inscricao_municipal no modelo Loja
-        return ''
+        return getattr(self.loja, 'inscricao_municipal', '') or ''
     
     def _gerar_numero_rps(self) -> int:
         """

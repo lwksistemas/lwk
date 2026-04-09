@@ -70,6 +70,7 @@ urlpatterns = [
     path('api/push/', include('push.urls')),
     path('api/crm-vendas/', include('crm_vendas.urls')),
     path('api/homepage/', include('homepage.urls')),
+    path('api/', include('nfse_integration.urls')),  # API NFS-e
     
     # ✅ NOVO v1421: Redirecionamento por atalho (deve vir por último)
     # Esta rota captura atalhos simples como /felix, /harmonis, etc.

@@ -238,26 +238,529 @@ export default function NFSePage() {
   );
 }
 
-// Componente Modal será criado em arquivo separado
+// Modal de Emissão de NFS-e
 function ModalEmitirNFSe({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [step, setStep] = useState<'escolha' | 'manual' | 'conta'>('escolha');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [contas, setContas] = useState<any[]>([]);
+  const [loadingContas, setLoadingContas] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    conta_id: null as number | null,
+    tomador_cpf_cnpj: '',
+    tomador_nome: '',
+    tomador_email: '',
+    tomador_logradouro: '',
+    tomador_numero: '',
+    tomador_complemento: '',
+    tomador_bairro: '',
+    tomador_cidade: '',
+    tomador_uf: '',
+    tomador_cep: '',
+    servico_descricao: '',
+    valor_servicos: '',
+    enviar_email: true,
+  });
+
+  useEffect(() => {
+    if (step === 'conta') {
+      carregarContas();
+    }
+  }, [step]);
+
+  const carregarContas = async () => {
+    try {
+      setLoadingContas(true);
+      const res = await apiClient.get('/crm-vendas/contas/');
+      setContas(res.data);
+    } catch (error) {
+      console.error('Erro ao carregar contas:', error);
+    } finally {
+      setLoadingContas(false);
+    }
+  };
+
+  const handleContaChange = (contaId: number) => {
+    const conta = contas.find(c => c.id === contaId);
+    if (conta) {
+      setFormData({
+        ...formData,
+        conta_id: contaId,
+        tomador_cpf_cnpj: conta.cnpj || '',
+        tomador_nome: conta.razao_social || conta.nome,
+        tomador_email: conta.email || '',
+        tomador_logradouro: conta.logradouro || '',
+        tomador_numero: conta.numero || '',
+        tomador_complemento: conta.complemento || '',
+        tomador_bairro: conta.bairro || '',
+        tomador_cidade: conta.cidade || '',
+        tomador_uf: conta.uf || '',
+        tomador_cep: conta.cep || '',
+      });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const payload = step === 'conta' 
+        ? {
+            conta_id: formData.conta_id,
+            servico_descricao: formData.servico_descricao,
+            valor_servicos: formData.valor_servicos,
+            enviar_email: formData.enviar_email,
+          }
+        : {
+            tomador_cpf_cnpj: formData.tomador_cpf_cnpj,
+            tomador_nome: formData.tomador_nome,
+            tomador_email: formData.tomador_email,
+            tomador_logradouro: formData.tomador_logradouro,
+            tomador_numero: formData.tomador_numero,
+            tomador_complemento: formData.tomador_complemento,
+            tomador_bairro: formData.tomador_bairro,
+            tomador_cidade: formData.tomador_cidade,
+            tomador_uf: formData.tomador_uf,
+            tomador_cep: formData.tomador_cep,
+            servico_descricao: formData.servico_descricao,
+            valor_servicos: formData.valor_servicos,
+            enviar_email: formData.enviar_email,
+          };
+
+      await apiClient.post('/nfse/emitir/', payload);
+      onSuccess();
+    } catch (err: any) {
+      console.error('Erro ao emitir NFS-e:', err);
+      setError(err.response?.data?.error || 'Erro ao emitir NFS-e');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#16325c] rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-[#16325c] rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-            Emitir NFS-e
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Modal de emissão será implementado no próximo passo...
-          </p>
-          <div className="mt-6 flex justify-end gap-3">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Emitir NFS-e
+            </h2>
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
-              Fechar
+              <X size={24} />
             </button>
           </div>
+
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+              <AlertCircle size={20} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <span className="text-sm text-red-800 dark:text-red-200">{error}</span>
+            </div>
+          )}
+
+          {/* Escolha do Método */}
+          {step === 'escolha' && (
+            <div className="space-y-4">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Como deseja preencher os dados do cliente?
+              </p>
+
+              <button
+                onClick={() => setStep('conta')}
+                className="w-full p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-[#0176d3] hover:bg-[#e3f3ff] dark:hover:bg-[#0176d3]/10 transition-all text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-[#0176d3]/10 rounded-lg">
+                    <FileText size={24} className="text-[#0176d3]" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                      Selecionar Empresa Cadastrada
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Escolha uma empresa já cadastrada no CRM. Os dados serão preenchidos automaticamente.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setStep('manual')}
+                className="w-full p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-[#0176d3] hover:bg-[#e3f3ff] dark:hover:bg-[#0176d3]/10 transition-all text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-[#0176d3]/10 rounded-lg">
+                    <Plus size={24} className="text-[#0176d3]" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                      Preencher Manualmente
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Digite os dados do cliente manualmente. Ideal para clientes não cadastrados.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <div className="flex justify-end pt-4">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Formulário com Conta Cadastrada */}
+          {step === 'conta' && (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Seleção de Conta */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Empresa / Cliente *
+                </label>
+                {loadingContas ? (
+                  <div className="text-center py-4">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#0176d3]"></div>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.conta_id || ''}
+                    onChange={(e) => handleContaChange(Number(e.target.value))}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                  >
+                    <option value="">Selecione uma empresa...</option>
+                    {contas.map((conta) => (
+                      <option key={conta.id} value={conta.id}>
+                        {conta.nome} {conta.cnpj ? `- ${conta.cnpj}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Dados do Serviço */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
+                  Dados do Serviço
+                </h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Descrição do Serviço *
+                    </label>
+                    <textarea
+                      value={formData.servico_descricao}
+                      onChange={(e) => setFormData({ ...formData, servico_descricao: e.target.value })}
+                      required
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      placeholder="Ex: Desenvolvimento de sistema web personalizado"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Valor dos Serviços (R$) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.valor_servicos}
+                      onChange={(e) => setFormData({ ...formData, valor_servicos: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.enviar_email}
+                        onChange={(e) => setFormData({ ...formData, enviar_email: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Enviar NFS-e por email para o cliente
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões */}
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setStep('escolha')}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg"
+                >
+                  Voltar
+                </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-6 py-2 bg-[#0176d3] text-white rounded-lg hover:bg-[#0176d3]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Emitindo...' : 'Emitir NFS-e'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* Formulário Manual */}
+          {step === 'manual' && (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Dados do Cliente */}
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
+                  Dados do Cliente
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      CPF/CNPJ *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tomador_cpf_cnpj}
+                      onChange={(e) => setFormData({ ...formData, tomador_cpf_cnpj: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      placeholder="000.000.000-00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Nome/Razão Social *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tomador_nome}
+                      onChange={(e) => setFormData({ ...formData, tomador_nome: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.tomador_email}
+                      onChange={(e) => setFormData({ ...formData, tomador_email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Endereço */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
+                  Endereço
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      CEP
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tomador_cep}
+                      onChange={(e) => setFormData({ ...formData, tomador_cep: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      placeholder="00000-000"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Logradouro
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tomador_logradouro}
+                      onChange={(e) => setFormData({ ...formData, tomador_logradouro: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Número
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tomador_numero}
+                      onChange={(e) => setFormData({ ...formData, tomador_numero: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Complemento
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tomador_complemento}
+                      onChange={(e) => setFormData({ ...formData, tomador_complemento: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Bairro
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tomador_bairro}
+                      onChange={(e) => setFormData({ ...formData, tomador_bairro: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Cidade *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tomador_cidade}
+                      onChange={(e) => setFormData({ ...formData, tomador_cidade: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      UF *
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={2}
+                      value={formData.tomador_uf}
+                      onChange={(e) => setFormData({ ...formData, tomador_uf: e.target.value.toUpperCase() })}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      placeholder="SP"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados do Serviço */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
+                  Dados do Serviço
+                </h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Descrição do Serviço *
+                    </label>
+                    <textarea
+                      value={formData.servico_descricao}
+                      onChange={(e) => setFormData({ ...formData, servico_descricao: e.target.value })}
+                      required
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      placeholder="Ex: Desenvolvimento de sistema web personalizado"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Valor dos Serviços (R$) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.valor_servicos}
+                      onChange={(e) => setFormData({ ...formData, valor_servicos: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.enviar_email}
+                        onChange={(e) => setFormData({ ...formData, enviar_email: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Enviar NFS-e por email para o cliente
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões */}
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setStep('escolha')}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg"
+                >
+                  Voltar
+                </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-6 py-2 bg-[#0176d3] text-white rounded-lg hover:bg-[#0176d3]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Emitindo...' : 'Emitir NFS-e'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

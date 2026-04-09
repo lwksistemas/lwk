@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0044_auto_20250101_0000'),  # Ajustar para última migration
+        ('superadmin', '0043_add_credit_card_fields'),
     ]
 
     operations = [

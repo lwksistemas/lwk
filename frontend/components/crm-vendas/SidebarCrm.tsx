@@ -273,6 +273,19 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
           </Link>
 
           <Link
+            href={`${base}/nfse`}
+            className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
+              isActive(`${base}/nfse`)
+                ? 'bg-[#0176d3] text-white shadow-sm'
+                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
+            }`}
+            title={collapsed ? 'NFS-e' : undefined}
+          >
+            <FileText size={18} className="shrink-0" />
+            {!collapsed && <span>NFS-e</span>}
+          </Link>
+
+          <Link
             href={`${base}/propostas`}
             className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-all ${
               isActive(`${base}/propostas`)

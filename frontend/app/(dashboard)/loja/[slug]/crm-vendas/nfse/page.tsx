@@ -4,8 +4,17 @@ import { useState, useEffect } from 'react';
 import { FileText, Plus, Search, X, Check, AlertCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 
+/** Resposta DRF paginada ou lista direta */
+function unwrapDrfList<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object' && Array.isArray((data as { results?: unknown }).results)) {
+    return (data as { results: T[] }).results;
+  }
+  return [];
+}
+
 interface NFSe {
-  id: number;
+    id: number;
   numero_nf: string;
   numero_rps: number;
   codigo_verificacao: string;
@@ -39,7 +48,7 @@ export default function NFSePage() {
       if (filtroStatus) params.append('status', filtroStatus);
       
       const res = await apiClient.get(`/nfse/?${params.toString()}`);
-      setNfses(res.data);
+      setNfses(unwrapDrfList<NFSe>(res.data));
     } catch (error) {
       console.error('Erro ao carregar NFS-e:', error);
     } finally {
@@ -47,12 +56,14 @@ export default function NFSePage() {
     }
   };
 
-  const nfsesFiltradas = nfses.filter(nf =>
-    !busca ||
-    nf.numero_nf.toLowerCase().includes(busca.toLowerCase()) ||
-    nf.tomador_nome.toLowerCase().includes(busca.toLowerCase()) ||
-    nf.tomador_cpf_cnpj.includes(busca)
-  );
+  const nfsesFiltradas = nfses.filter((nf) => {
+    if (!busca) return true;
+    const q = busca.toLowerCase();
+    const num = (nf.numero_nf ?? '').toString().toLowerCase();
+    const nome = (nf.tomador_nome ?? '').toString().toLowerCase();
+    const doc = (nf.tomador_cpf_cnpj ?? '').toString();
+    return num.includes(q) || nome.includes(q) || doc.includes(busca);
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -187,7 +198,9 @@ export default function NFSePage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {new Date(nf.data_emissao).toLocaleDateString('pt-BR')}
+                      {nf.data_emissao
+                        ? new Date(nf.data_emissao).toLocaleDateString('pt-BR')
+                        : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="font-medium text-gray-900 dark:text-white">
@@ -202,10 +215,10 @@ export default function NFSePage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-right">
                       <div className="font-medium text-gray-900 dark:text-white">
-                        R$ {parseFloat(nf.valor).toFixed(2)}
+                        R$ {Number(nf.valor ?? 0).toFixed(2)}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        ISS: R$ {parseFloat(nf.valor_iss).toFixed(2)}
+                        ISS: R$ {Number(nf.valor_iss ?? 0).toFixed(2)}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -213,7 +226,7 @@ export default function NFSePage() {
                         {nf.status === 'emitida' && <Check size={14} />}
                         {nf.status === 'cancelada' && <X size={14} />}
                         {nf.status === 'erro' && <AlertCircle size={14} />}
-                        {nf.status_display}
+                        {nf.status_display ?? nf.status}
                       </span>
                     </td>
                   </tr>
@@ -273,7 +286,7 @@ function ModalEmitirNFSe({ onClose, onSuccess }: { onClose: () => void; onSucces
     try {
       setLoadingContas(true);
       const res = await apiClient.get('/crm-vendas/contas/');
-      setContas(res.data);
+      setContas(unwrapDrfList(res.data));
     } catch (error) {
       console.error('Erro ao carregar contas:', error);
     } finally {

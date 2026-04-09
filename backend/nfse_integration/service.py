@@ -512,7 +512,7 @@ class NFSeService:
         
         # Buscar último RPS da loja
         ultimo_rps = NFSe.objects.filter(
-            loja=self.loja
+            loja_id=self.loja.id
         ).order_by('-numero_rps').first()
         
         if ultimo_rps:
@@ -668,7 +668,7 @@ Atenciosamente,
                 if resultado.get('success'):
                     from .models import NFSe
                     NFSe.objects.filter(
-                        loja=self.loja,
+                        loja_id=self.loja.id,
                         numero_nf=numero_nf
                     ).update(status='cancelada')
                 

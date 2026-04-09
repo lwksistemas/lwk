@@ -219,7 +219,7 @@ class NFSe(LojaIsolationMixin, models.Model):
         unique_together = [['loja_id', 'numero_nf']]
     
     def __str__(self):
-        return f'NFS-e {self.numero_nf} - {self.loja.nome if self.loja_id else "N/A"}'
+        return f'NFS-e {self.numero_nf} - loja_id {self.loja_id}'
     
     def get_valor_liquido(self):
         """Retorna valor líquido (valor - ISS)."""

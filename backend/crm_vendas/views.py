@@ -54,6 +54,35 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
+def _get_crm_config_for_loja(loja_id: int):
+    """
+    Obtém CRMConfig. Se o schema do tenant ainda não tiver migrations recentes (ex.: 0045
+    asaas_api_key), aplica ``migrate crm_vendas`` nesse banco e tenta de novo.
+    """
+    from django.core.management import call_command
+    from django.db.utils import ProgrammingError
+    from core.db_config import ensure_loja_database_config
+    from .models import CRMConfig
+
+    try:
+        return CRMConfig.get_or_create_for_loja(loja_id)
+    except ProgrammingError as e:
+        err = str(e).lower()
+        if 'column' not in err or 'does not exist' not in err:
+            raise
+        db_name = get_current_tenant_db()
+        if not db_name or db_name == 'default':
+            raise
+        logger.warning(
+            'CRMConfig: colunas ausentes no tenant, aplicando migrate crm_vendas em %s',
+            db_name,
+        )
+        if not ensure_loja_database_config(db_name, conn_max_age=0):
+            raise
+        call_command('migrate', 'crm_vendas', '--database', db_name, verbosity=0)
+        return CRMConfig.get_or_create_for_loja(loja_id)
+
+
 # ✅ OTIMIZAÇÃO: Paginação para reduzir tempo de resposta
 class CRMPagination(PageNumberPagination):
     page_size = 50
@@ -2064,7 +2093,7 @@ def crm_config(request):
     
     # Buscar ou criar configuração (com auto-recovery se schema não configurado)
     try:
-        config = CRMConfig.get_or_create_for_loja(loja_id)
+        config = _get_crm_config_for_loja(loja_id)
     except Exception as e:
         from django.db.utils import ProgrammingError, OperationalError
         if isinstance(e, (ProgrammingError, OperationalError)):
@@ -2074,7 +2103,7 @@ def crm_config(request):
             loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
             if loja and configurar_schema_crm_loja(loja):
                 try:
-                    config = CRMConfig.get_or_create_for_loja(loja_id)
+                    config = _get_crm_config_for_loja(loja_id)
                 except Exception as retry_err:
                     logger.exception('Erro ao buscar config CRM após recovery: %s', retry_err)
                     return Response(
@@ -2136,7 +2165,7 @@ def crm_config_asaas_test(request):
         return Response({'success': False, 'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        cfg = CRMConfig.get_or_create_for_loja(loja_id)
+        cfg = _get_crm_config_for_loja(loja_id)
     except Exception as e:
         logger.exception('crm_config_asaas_test: config')
         return Response(

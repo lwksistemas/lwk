@@ -2260,6 +2260,121 @@ def crm_config_asaas_test(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def crm_config_issnet_test(request):
+    """
+    Testa certificado PFX e acesso ao WSDL do ISSNet (Ribeirão Preto), sem emitir NF.
+
+    Body JSON ou multipart/form-data:
+      - issnet_usuario, issnet_senha, issnet_senha_certificado (opcionais se já salvos)
+      - issnet_certificado: arquivo .pfx (opcional se já salvo)
+      - homologacao / issnet_homologacao: true/false (produção = false; padrão false)
+    """
+    import os
+    import tempfile
+
+    from nfse_integration.issnet_client import testar_conexao_issnet
+
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return Response({'success': False, 'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        cfg = _get_crm_config_for_loja(loja_id)
+    except Exception as e:
+        logger.exception('crm_config_issnet_test: config')
+        return Response(
+            {'success': False, 'detail': f'Erro ao carregar configuração: {e}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    body = request.data
+
+    def _parse_bool(val):
+        if val is None:
+            return False
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() in ('true', '1', 'yes', 'on')
+
+    homologacao = _parse_bool(body.get('homologacao') or body.get('issnet_homologacao'))
+
+    usuario = (body.get('issnet_usuario') or '').strip() or (getattr(cfg, 'issnet_usuario', None) or '').strip()
+    senha = (body.get('issnet_senha') or '').strip() or (getattr(cfg, 'issnet_senha', None) or '').strip()
+    senha_cert = (body.get('issnet_senha_certificado') or '').strip() or (
+        getattr(cfg, 'issnet_senha_certificado', None) or ''
+    ).strip()
+
+    cert_path = None
+    cleanup_cert = False
+    upload = request.FILES.get('issnet_certificado') if hasattr(request, 'FILES') else None
+    if upload:
+        suf = os.path.splitext(getattr(upload, 'name', '') or '')[1] or '.pfx'
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suf)
+        try:
+            for chunk in upload.chunks():
+                tmp.write(chunk)
+        finally:
+            tmp.close()
+        cert_path = tmp.name
+        cleanup_cert = True
+    elif getattr(cfg, 'issnet_certificado', None) and cfg.issnet_certificado:
+        cert_path = cfg.issnet_certificado.path
+    else:
+        return Response(
+            {
+                'success': False,
+                'detail': 'Envie o arquivo .pfx ou salve a configuração com certificado antes de testar.',
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not usuario:
+        return Response(
+            {'success': False, 'detail': 'Informe o usuário ISSNet.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not senha:
+        return Response(
+            {'success': False, 'detail': 'Informe a senha ISSNet ou salve antes de testar.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not senha_cert:
+        return Response(
+            {'success': False, 'detail': 'Informe a senha do certificado (.pfx) ou salve antes de testar.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        ambiente = 'homologacao' if homologacao else 'producao'
+        resultado = testar_conexao_issnet(
+            usuario=usuario,
+            senha=senha,
+            certificado_path=cert_path,
+            senha_certificado=senha_cert,
+            ambiente=ambiente,
+        )
+        if resultado.get('success'):
+            payload = {
+                'success': True,
+                'message': resultado.get('message') or 'Teste ISSNet OK.',
+                'ambiente': resultado.get('ambiente'),
+            }
+            if resultado.get('certificado_subject'):
+                payload['certificado_subject'] = resultado['certificado_subject']
+            return Response(payload, status=status.HTTP_200_OK)
+
+        detail = resultado.get('detail') or 'Falha no teste do ISSNet.'
+        return Response({'success': False, 'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
+    finally:
+        if cleanup_cert and cert_path:
+            try:
+                os.unlink(cert_path)
+            except OSError:
+                pass
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def gerar_relatorio(request):
     """
     Gera relatório de vendas em PDF.

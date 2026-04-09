@@ -22,6 +22,8 @@ interface CRMConfig {
   emitir_nf_automaticamente: boolean;
   asaas_sandbox?: boolean;
   asaas_api_key_configured?: boolean;
+  /** Senhas ISSNet + certificado já salvas no servidor (teste sem redigitar) */
+  issnet_senhas_salvas?: boolean;
 }
 
 interface CRMConfigContextType {
@@ -69,6 +71,7 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
         emitir_nf_automaticamente: true,
         asaas_sandbox: false,
         asaas_api_key_configured: false,
+        issnet_senhas_salvas: false,
       });
     } finally {
       setLoading(false);

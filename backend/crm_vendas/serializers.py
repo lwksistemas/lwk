@@ -547,9 +547,17 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         read_only=True
     )
     asaas_api_key_configured = serializers.SerializerMethodField()
+    issnet_senhas_salvas = serializers.SerializerMethodField()
 
     def get_asaas_api_key_configured(self, obj):
         return bool((getattr(obj, 'asaas_api_key', None) or '').strip())
+
+    def get_issnet_senhas_salvas(self, obj):
+        """Senha ISSNet e senha do .pfx já persistidas (permite teste sem redigitar)."""
+        return bool(
+            (getattr(obj, 'issnet_senha', None) or '').strip()
+            and (getattr(obj, 'issnet_senha_certificado', None) or '').strip()
+        )
 
     def to_internal_value(self, data):
         """Multipart/form envia booleans como strings ('true'/'false')."""
@@ -573,9 +581,10 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             'codigo_servico_municipal', 'descricao_servico_padrao',
             'aliquota_iss', 'emitir_nf_automaticamente',
             'asaas_api_key', 'asaas_sandbox', 'asaas_api_key_configured',
+            'issnet_senhas_salvas',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'asaas_api_key_configured']
+        read_only_fields = ['created_at', 'updated_at', 'asaas_api_key_configured', 'issnet_senhas_salvas']
         extra_kwargs = {
             'issnet_senha': {'write_only': True},
             'issnet_senha_certificado': {'write_only': True},

@@ -37,6 +37,11 @@ export default function ConfiguracaoNotaFiscalPage() {
   const [asaasTestMessage, setAsaasTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(
     null
   );
+  const [issnetHomologacao, setIssnetHomologacao] = useState(false);
+  const [issnetTestLoading, setIssnetTestLoading] = useState(false);
+  const [issnetTestMessage, setIssnetTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(
+    null
+  );
 
   useEffect(() => {
     if (config) {
@@ -145,6 +150,49 @@ export default function ConfiguracaoNotaFiscalPage() {
       setAsaasTestMessage({ type: 'error', text: String(detail) });
     } finally {
       setAsaasTestLoading(false);
+    }
+  };
+
+  const testarConexaoIssnet = async () => {
+    setIssnetTestLoading(true);
+    setIssnetTestMessage(null);
+    try {
+      const fd = new FormData();
+      fd.append('homologacao', issnetHomologacao ? 'true' : 'false');
+      fd.append('issnet_usuario', formData.issnet_usuario.trim());
+      if (formData.issnet_senha) fd.append('issnet_senha', formData.issnet_senha);
+      if (formData.issnet_senha_certificado) {
+        fd.append('issnet_senha_certificado', formData.issnet_senha_certificado);
+      }
+      if (certificadoFile) fd.append('issnet_certificado', certificadoFile);
+
+      const res = await apiClient.post<{
+        success?: boolean;
+        message?: string;
+        detail?: string;
+        ambiente?: string;
+      }>('/crm-vendas/config/test-issnet/', fd);
+
+      if (res.data?.success) {
+        setIssnetTestMessage({
+          type: 'ok',
+          text: res.data.message || 'Conexão com o ISSNet OK.',
+        });
+      } else {
+        setIssnetTestMessage({
+          type: 'error',
+          text: res.data?.detail || 'Não foi possível validar o ISSNet.',
+        });
+      }
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { detail?: string; message?: string } } };
+      const detail =
+        ax.response?.data?.detail ||
+        ax.response?.data?.message ||
+        (err instanceof Error ? err.message : 'Erro ao testar conexão.');
+      setIssnetTestMessage({ type: 'error', text: String(detail) });
+    } finally {
+      setIssnetTestLoading(false);
     }
   };
 
@@ -549,6 +597,67 @@ export default function ConfiguracaoNotaFiscalPage() {
                   placeholder="Senha do arquivo .pfx"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
                 />
+              </div>
+
+              <div className="md:col-span-2 space-y-3 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={issnetHomologacao}
+                    onChange={(e) => setIssnetHomologacao(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Usar ambiente de homologação do ISSNet (prefeitura)
+                  </span>
+                </label>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-7">
+                  Produção (padrão): emissão real. Marque apenas se a prefeitura forneceu URL de testes.
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void testarConexaoIssnet()}
+                    disabled={
+                      issnetTestLoading ||
+                      !formData.issnet_usuario.trim() ||
+                      (!certificadoFile && !config?.issnet_certificado) ||
+                      (!formData.issnet_senha &&
+                        !formData.issnet_senha_certificado &&
+                        !config?.issnet_senhas_salvas)
+                    }
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#0176d3] text-[#0176d3] dark:text-[#5eb0ff] dark:border-[#5eb0ff] hover:bg-[#0176d3]/10 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {issnetTestLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Testando…
+                      </>
+                    ) : (
+                      'Testar conexão com o ISSNet (Ribeirão Preto)'
+                    )}
+                  </button>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 sm:max-w-md">
+                    Valida o .pfx e tenta acessar o WSDL do webservice (sem emitir nota). Use credenciais
+                    digitadas ou as já salvas; envie um novo .pfx se ainda não salvou.
+                  </p>
+                </div>
+                {issnetTestMessage && (
+                  <div
+                    className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
+                      issnetTestMessage.type === 'ok'
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
+                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+                    }`}
+                  >
+                    {issnetTestMessage.type === 'ok' ? (
+                      <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                    )}
+                    <span>{issnetTestMessage.text}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -10,6 +10,119 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
+# Endpoints LoteRps (ISSNet / Prefeitura de Ribeirão Preto). Sem espaços no host.
+ISSNET_LOTE_RPS_JWS = '/WsNFe2/LoteRps.jws'
+ISSNET_URLS = {
+    'producao': f'https://issdigital.ribeiraopreto.sp.gov.br{ISSNET_LOTE_RPS_JWS}',
+    'homologacao': f'https://issdigital.homologacao.ribeiraopreto.sp.gov.br{ISSNET_LOTE_RPS_JWS}',
+}
+
+
+def testar_conexao_issnet(
+    usuario: str,
+    senha: str,
+    certificado_path: str,
+    senha_certificado: str,
+    ambiente: str = 'producao',
+) -> Dict[str, Any]:
+    """
+    Teste não destrutivo: valida PFX/senha e tenta acessar o WSDL do webservice.
+    Não emite NF. Usuário/senha do portal não são validados via SOAP aqui (só na emissão).
+    """
+    import os
+    import requests
+
+    out: Dict[str, Any] = {
+        'success': False,
+        'message': '',
+        'detail': '',
+        'ambiente': 'homologação' if ambiente == 'homologacao' else 'produção',
+    }
+
+    if not (usuario or '').strip() or not (senha or '').strip():
+        out['detail'] = 'Informe usuário e senha ISSNet.'
+        return out
+
+    path = (certificado_path or '').strip()
+    if not path or not os.path.isfile(path):
+        out['detail'] = 'Certificado .pfx não encontrado no servidor.'
+        return out
+
+    if not (senha_certificado or ''):
+        out['detail'] = 'Informe a senha do certificado (.pfx).'
+        return out
+
+    amb = 'homologacao' if ambiente == 'homologacao' else 'producao'
+    base = ISSNET_URLS.get(amb)
+    if not base:
+        out['detail'] = f'Ambiente ISSNet desconhecido: {ambiente}'
+        return out
+
+    wsdl_url = f'{base}?wsdl'
+
+    try:
+        from cryptography.hazmat.primitives.serialization import pkcs12
+        from cryptography.hazmat.backends import default_backend
+
+        with open(path, 'rb') as f:
+            pfx_data = f.read()
+        _key, certificate, _extra = pkcs12.load_key_and_certificates(
+            pfx_data,
+            senha_certificado.encode(),
+            backend=default_backend(),
+        )
+        if certificate is None:
+            out['detail'] = 'O arquivo .pfx não contém certificado válido.'
+            return out
+
+        try:
+            subj = certificate.subject.rfc4514_string()
+            if subj:
+                out['certificado_subject'] = subj[:500]
+        except Exception:
+            pass
+
+    except Exception as e:
+        logger.warning('testar_conexao_issnet: falha ao abrir PFX: %s', e)
+        out['detail'] = (
+            'Não foi possível abrir o certificado. Verifique o arquivo .pfx e a senha do certificado.'
+        )
+        return out
+
+    try:
+        r = requests.get(
+            wsdl_url,
+            timeout=25,
+            headers={'User-Agent': 'LWK-Sistemas/CRM (teste ISSNet)'},
+        )
+        body_preview = (r.text or '')[:2000].lower()
+        ok_xml = r.status_code == 200 and (
+            'definitions' in body_preview
+            or 'wsdl' in body_preview
+            or 'schema' in body_preview
+        )
+        if ok_xml:
+            out['success'] = True
+            out['message'] = (
+                f'Certificado OK e WSDL do ISSNet acessível ({out["ambiente"]}). '
+                'Usuário e senha do ISSNet serão validados na primeira emissão de NFS-e.'
+            )
+            return out
+
+        out['detail'] = (
+            f'O certificado está válido, mas o WSDL retornou HTTP {r.status_code}. '
+            'Verifique firewall/DNS ou se a prefeitura alterou o endereço do serviço.'
+        )
+        return out
+
+    except requests.exceptions.RequestException as e:
+        logger.warning('testar_conexao_issnet: request WSDL: %s', e)
+        out['detail'] = (
+            'Certificado OK, mas não foi possível contatar o servidor do ISSNet '
+            f'({out["ambiente"]}). Erro: {e}'
+        )
+        return out
+
 
 class ISSNetClient:
     """
@@ -45,13 +158,11 @@ class ISSNetClient:
         self.senha_certificado = senha_certificado
         self.ambiente = ambiente
         
-        # URLs do webservice (Ribeirão Preto)
-        self.urls = {
-            'producao': 'https://issdigital.ribeirao preto.sp.gov.br/WsNFe2/LoteRps.jws',
-            'homologacao': 'https://issdigital.homologacao.ribeirao preto.sp.gov.br/WsNFe2/LoteRps.jws'
-        }
-        
-        self.wsdl_url = f"{self.urls[ambiente]}?wsdl"
+        amb = 'homologacao' if ambiente == 'homologacao' else 'producao'
+        if amb not in ISSNET_URLS:
+            raise ValueError(f"Ambiente ISSNet inválido: {ambiente}")
+        self.urls = dict(ISSNET_URLS)
+        self.wsdl_url = f"{self.urls[amb]}?wsdl"
         
         # Cliente SOAP será inicializado sob demanda
         self._soap_client = None

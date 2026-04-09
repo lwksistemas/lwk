@@ -270,6 +270,27 @@ class AsaasClient:
         endpoint = f'payments/{payment_id}/pixQrCode'
         return self._make_request('GET', endpoint)
 
+    def receive_payment_in_cash(
+        self,
+        payment_id: str,
+        value: float,
+        payment_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Registra recebimento em dinheiro da cobrança (permite seguir com NFS-e sem liquidação bancária).
+        POST /v3/payments/{id}/receiveInCash
+        """
+        from datetime import date
+        if payment_date is None:
+            payment_date = date.today().isoformat()
+        endpoint = f'payments/{payment_id}/receiveInCash'
+        payload = {
+            'paymentDate': payment_date,
+            'value': float(value),
+            'notifyCustomer': False,
+        }
+        return self._make_request('POST', endpoint, payload)
+
     # ---------- Notas Fiscais (INVOICE) ----------
     # Requer permissão INVOICE:WRITE na chave da API Asaas
 
@@ -283,6 +304,7 @@ class AsaasClient:
         municipal_service_name: Optional[str] = None,
         municipal_service_id: Optional[str] = None,
         observations: Optional[str] = None,
+        iss_aliquota: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Agenda uma nota fiscal vinculada a uma cobrança (payment).
@@ -304,16 +326,16 @@ class AsaasClient:
         if observations:
             data['observations'] = observations
         
-        # ✅ CORREÇÃO v1477: Configurar alíquota de ISS conforme exigência da prefeitura
-        # Ribeirão Preto-SP exige ISS entre 2% e 5% para serviços
+        # Alíquota ISS (prefeitura / configuração da loja)
+        iss_pct = float(iss_aliquota) if iss_aliquota is not None else 2.0
         data['taxes'] = {
-            'retainIss': False,  # ISS não retido na fonte
-            'iss': 2.0,  # Alíquota ISS: 2% (mínimo exigido pela prefeitura)
-            'cofins': 0.0,  # COFINS: 0%
-            'csll': 0.0,  # CSLL: 0%
-            'inss': 0.0,  # INSS: 0%
-            'ir': 0.0,  # IR: 0%
-            'pis': 0.0,  # PIS: 0%
+            'retainIss': False,
+            'iss': iss_pct,
+            'cofins': 0.0,
+            'csll': 0.0,
+            'inss': 0.0,
+            'ir': 0.0,
+            'pis': 0.0,
         }
         
         return self._make_request('POST', endpoint, data)

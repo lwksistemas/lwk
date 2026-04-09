@@ -133,6 +133,19 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         help_text='Emitir nota fiscal automaticamente ao confirmar pagamento'
     )
 
+    # Conta Asaas da própria loja (NFS-e para clientes — não confundir com cobrança LWK)
+    asaas_api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='API Key Asaas (loja)',
+        help_text='Chave de API v3 da conta Asaas da loja (Integrações). Necessária para emissão via Asaas por loja.',
+    )
+    asaas_sandbox = models.BooleanField(
+        default=False,
+        verbose_name='Asaas sandbox (homologação)',
+        help_text='Se True, usa api sandbox.asaas.com (chave de testes).',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

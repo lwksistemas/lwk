@@ -15,6 +15,8 @@ export default function ConfiguracaoNotaFiscalPage() {
   
   const [formData, setFormData] = useState({
     provedor_nf: 'asaas' as 'asaas' | 'issnet' | 'nacional' | 'manual',
+    asaas_api_key: '',
+    asaas_sandbox: false,
     issnet_usuario: '',
     issnet_senha: '',
     issnet_senha_certificado: '',
@@ -30,6 +32,8 @@ export default function ConfiguracaoNotaFiscalPage() {
     if (config) {
       setFormData({
         provedor_nf: config.provedor_nf || 'asaas',
+        asaas_api_key: '',
+        asaas_sandbox: config.asaas_sandbox ?? false,
         issnet_usuario: config.issnet_usuario || '',
         issnet_senha: '',
         issnet_senha_certificado: '',
@@ -51,11 +55,16 @@ export default function ConfiguracaoNotaFiscalPage() {
       
       // Adicionar campos de texto
       Object.entries(formData).forEach(([key, value]) => {
-        if (value !== '' && value !== null && value !== undefined) {
-          data.append(key, String(value));
+        if (key === 'asaas_sandbox') return;
+        if (value === '' || value === null || value === undefined) return;
+        if (typeof value === 'boolean') {
+          data.append(key, value ? 'true' : 'false');
+          return;
         }
+        data.append(key, String(value));
       });
-      
+      data.append('asaas_sandbox', formData.asaas_sandbox ? 'true' : 'false');
+
       // Adicionar certificado se houver
       if (certificadoFile) {
         data.append('issnet_certificado', certificadoFile);
@@ -73,6 +82,7 @@ export default function ConfiguracaoNotaFiscalPage() {
       // Limpar senhas após salvar
       setFormData(prev => ({
         ...prev,
+        asaas_api_key: '',
         issnet_senha: '',
         issnet_senha_certificado: '',
       }));
@@ -106,8 +116,9 @@ export default function ConfiguracaoNotaFiscalPage() {
 
   const provedorInfo = {
     asaas: {
-      titulo: 'Asaas (Intermediário - Padrão)',
-      descricao: 'Emissão através do Asaas. Mais simples, sem necessidade de certificado digital próprio.',
+      titulo: 'Asaas (conta da sua loja)',
+      descricao:
+        'Usa a API v3 da conta Asaas da sua empresa. Cadastre a chave em Integrações no Asaas (permissão de notas fiscais).',
       campos: [],
     },
     issnet: {
@@ -220,6 +231,66 @@ export default function ConfiguracaoNotaFiscalPage() {
             })}
           </div>
         </div>
+
+        {/* Conta Asaas da loja (API própria — não é a cobrança LWK) */}
+        {formData.provedor_nf === 'asaas' && (
+          <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              API Asaas da sua loja
+            </h2>
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6 flex items-start gap-3">
+              <Info size={20} className="text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-950 dark:text-amber-100">
+                <p className="font-medium mb-2">Conta Asaas separada da LWK</p>
+                <p className="text-xs mb-2">
+                  A mensalidade do sistema é cobrada pela LWK no Asaas dela. Para emitir NFS-e com o{' '}
+                  <strong>CNPJ da sua loja</strong>, você precisa de{' '}
+                  <strong>conta própria no Asaas</strong> e colar aqui a <strong>API Key</strong> (menu
+                  Integrações → API). A chave precisa permitir emissão de notas fiscais (escopo de
+                  faturamento/NF conforme o painel Asaas).
+                </p>
+                <a
+                  href="https://www.asaas.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#0176d3] underline text-xs font-medium"
+                >
+                  Site Asaas
+                </a>
+              </div>
+            </div>
+            <div className="space-y-4 max-w-xl">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  API Key (token v3)
+                </label>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={formData.asaas_api_key}
+                  onChange={(e) => setFormData({ ...formData, asaas_api_key: e.target.value })}
+                  placeholder={
+                    config?.asaas_api_key_configured
+                      ? '•••••••• (já configurada — digite para substituir)'
+                      : 'Cole a chave da conta Asaas da loja'
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white font-mono text-sm"
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.asaas_sandbox}
+                  onChange={(e) => setFormData({ ...formData, asaas_sandbox: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Usar ambiente sandbox (homologação Asaas)
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
 
         {/* Configurações ISSNet */}
         {formData.provedor_nf === 'issnet' && (

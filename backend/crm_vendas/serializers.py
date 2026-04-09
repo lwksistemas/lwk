@@ -546,7 +546,21 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         source='get_provedor_nf_display',
         read_only=True
     )
-    
+    asaas_api_key_configured = serializers.SerializerMethodField()
+
+    def get_asaas_api_key_configured(self, obj):
+        return bool((getattr(obj, 'asaas_api_key', None) or '').strip())
+
+    def to_internal_value(self, data):
+        """Multipart/form envia booleans como strings ('true'/'false')."""
+        if hasattr(data, 'copy'):
+            data = data.copy()
+        if hasattr(data, 'get') and data.get('asaas_sandbox') is not None:
+            v = data.get('asaas_sandbox')
+            if isinstance(v, str):
+                data['asaas_sandbox'] = v.lower() in ('true', '1', 'on', 'yes')
+        return super().to_internal_value(data)
+
     class Meta:
         model = CRMConfig
         fields = [
@@ -558,10 +572,12 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             'issnet_certificado', 'issnet_senha_certificado',
             'codigo_servico_municipal', 'descricao_servico_padrao',
             'aliquota_iss', 'emitir_nf_automaticamente',
+            'asaas_api_key', 'asaas_sandbox', 'asaas_api_key_configured',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'asaas_api_key_configured']
         extra_kwargs = {
             'issnet_senha': {'write_only': True},
             'issnet_senha_certificado': {'write_only': True},
+            'asaas_api_key': {'write_only': True, 'required': False, 'allow_blank': True},
         }

@@ -20,6 +20,8 @@ interface CRMConfig {
   descricao_servico_padrao: string;
   aliquota_iss: string;
   emitir_nf_automaticamente: boolean;
+  asaas_sandbox?: boolean;
+  asaas_api_key_configured?: boolean;
 }
 
 interface CRMConfigContextType {
@@ -65,6 +67,8 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
         descricao_servico_padrao: 'Desenvolvimento e licenciamento de software sob demanda',
         aliquota_iss: '2.00',
         emitir_nf_automaticamente: true,
+        asaas_sandbox: false,
+        asaas_api_key_configured: false,
       });
     } finally {
       setLoading(false);

@@ -3,9 +3,10 @@ Serviço unificado de emissão de NFS-e
 Escolhe o provedor baseado na configuração da loja
 """
 import logging
+import re
 from typing import Dict, Any, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 
 logger = logging.getLogger(__name__)
 
@@ -134,30 +135,133 @@ class NFSeService:
         enviar_email: bool,
     ) -> Dict[str, Any]:
         """
-        Emite NFS-e via Asaas (intermediário).
-        
-        Nota: Requer que a loja tenha conta no Asaas configurada.
+        Emite NFS-e via API Asaas da própria loja (API key em CRMConfig).
+
+        Fluxo: cliente (tomador) → cobrança → recebimento registrado → NF agendada → autorizada.
+        Requer chave com escopo de notas fiscais (INVOICE) na conta Asaas da loja.
         """
+        from asaas_integration.client import AsaasClient
+
         try:
-            # TODO: Implementar emissão via Asaas
-            # Requer:
-            # 1. Loja ter conta no Asaas
-            # 2. Criar customer no Asaas
-            # 3. Criar payment no Asaas
-            # 4. Emitir NF vinculada ao payment
-            
-            logger.warning("Emissão via Asaas ainda não implementada para lojas")
-            
-            return {
-                'success': False,
-                'error': 'Emissão via Asaas para lojas ainda não implementada. Use ISSNet ou emissão manual.'
+            api_key = (getattr(self.config, 'asaas_api_key', None) or '').strip()
+            if not api_key:
+                return {
+                    'success': False,
+                    'error': (
+                        'Configure a API Key do Asaas da sua loja em '
+                        'Configurações → Nota Fiscal (Integrações → API no painel Asaas). '
+                        'A chave deve ser da conta da sua empresa (não da LWK).'
+                    ),
+                }
+
+            sandbox = bool(getattr(self.config, 'asaas_sandbox', False))
+            client = AsaasClient(api_key=api_key, sandbox=sandbox)
+
+            cpf_cnpj = re.sub(r'\D', '', tomador_cpf_cnpj or '')
+            if len(cpf_cnpj) not in (11, 14):
+                return {
+                    'success': False,
+                    'error': 'CPF/CNPJ do tomador inválido (use 11 ou 14 dígitos).',
+                }
+
+            customer_data = {
+                'name': (tomador_nome or 'Cliente')[:200],
+                'email': (tomador_email or '')[:200],
+                'cpfCnpj': cpf_cnpj,
+                'notificationDisabled': True,
             }
-            
+            cust = client.create_customer(customer_data)
+            customer_id = cust.get('id')
+            if not customer_id:
+                return {'success': False, 'error': 'Asaas não retornou ID do cliente.'}
+
+            valor_float = float(valor_servicos)
+            if valor_float <= 0:
+                return {'success': False, 'error': 'Valor do serviço deve ser maior que zero.'}
+
+            hoje = date.today().isoformat()
+            desc = (servico_descricao or self.config.descricao_servico_padrao or 'Serviço prestado')[:500]
+            payment_data = {
+                'customer': customer_id,
+                'billingType': 'BOLETO',
+                'value': round(valor_float, 2),
+                'dueDate': hoje,
+                'description': desc,
+            }
+            pay = client.create_payment(payment_data)
+            payment_id = pay.get('id')
+            if not payment_id:
+                return {'success': False, 'error': 'Asaas não retornou ID da cobrança.'}
+
+            try:
+                client.receive_payment_in_cash(payment_id, round(valor_float, 2), hoje)
+            except Exception as recv_err:
+                logger.warning('receiveInCash falhou (tentativa segue): %s', recv_err)
+
+            codigo = (self.config.codigo_servico_municipal or '1401').replace('.', '').replace('-', '')[:10]
+            nome_serv = (self.config.descricao_servico_padrao or desc)[:200]
+            iss_pct = float(self.config.aliquota_iss or 2)
+
+            created = client.create_invoice(
+                payment_id=payment_id,
+                service_description=desc,
+                value=round(valor_float, 2),
+                effective_date=hoje,
+                municipal_service_code=codigo,
+                municipal_service_name=nome_serv,
+                iss_aliquota=iss_pct,
+            )
+            invoice_id = created.get('id')
+            if not invoice_id:
+                return {'success': False, 'error': 'Asaas não retornou ID da nota fiscal agendada.'}
+
+            client.authorize_invoice(invoice_id)
+            inv = client.get_invoice(invoice_id)
+
+            numero_nf = str(
+                inv.get('number')
+                or inv.get('invoiceNumber')
+                or inv.get('rpsNumber')
+                or invoice_id
+            )
+            pdf_url = (
+                inv.get('pdfUrl')
+                or inv.get('invoiceUrl')
+                or inv.get('url')
+                or ''
+            )
+            codigo_ver = str(inv.get('validationCode') or inv.get('verificationCode') or '')
+
+            resultado = {
+                'success': True,
+                'numero_nf': numero_nf[:50],
+                'codigo_verificacao': codigo_ver[:50],
+                'data_emissao': datetime.now(),
+                'valor': valor_float,
+                'xml_nfse': '',
+                'pdf_url': pdf_url[:500] if pdf_url else '',
+                'tomador_nome': tomador_nome,
+                'tomador_cpf_cnpj': tomador_cpf_cnpj,
+                'servico_descricao': desc,
+            }
+
+            self._salvar_nfse(resultado, tomador_email)
+            if enviar_email and tomador_email:
+                self._enviar_email_nfse(
+                    tomador_email=tomador_email,
+                    tomador_nome=tomador_nome,
+                    numero_nf=numero_nf,
+                    valor=valor_servicos,
+                    descricao=desc,
+                )
+
+            return resultado
+
         except Exception as e:
             logger.exception(f"Erro ao emitir via Asaas: {e}")
             return {
                 'success': False,
-                'error': str(e)
+                'error': str(e),
             }
     
     def _emitir_via_issnet(
@@ -290,13 +394,17 @@ class NFSeService:
             from .models import NFSe
             
             NFSe.objects.create(
-                loja=self.loja,
+                loja_id=self.loja.id,
                 numero_nf=resultado['numero_nf'],
                 codigo_verificacao=resultado.get('codigo_verificacao', ''),
                 data_emissao=resultado.get('data_emissao', datetime.now()),
                 valor=resultado.get('valor', 0),
                 tomador_email=tomador_email,
+                tomador_nome=resultado.get('tomador_nome', ''),
+                tomador_cpf_cnpj=resultado.get('tomador_cpf_cnpj', ''),
+                servico_descricao=(resultado.get('servico_descricao') or '')[:500],
                 xml_nfse=resultado.get('xml_nfse', ''),
+                pdf_url=resultado.get('pdf_url', '')[:500],
                 provedor=self.config.provedor_nf,
                 status='emitida',
             )

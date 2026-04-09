@@ -284,10 +284,14 @@ class HistoricoAcessoMiddleware:
         # Dividir por /
         parts = [p for p in path.split('/') if p]
         
-        # Procurar por número (ID) nas partes
+        # Procurar por número (ID) nas partes — IntegerField no PG tem limite ~2e9;
+        # slugs numéricos longos (ex.: CNPJ em /webhooks/asaas/41449198000172/) não são IDs.
+        max_int = 2147483647
         for part in parts:
             if part.isdigit():
-                return int(part)
+                val = int(part)
+                if val <= max_int:
+                    return val
         
         return None
     

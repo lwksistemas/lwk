@@ -8,7 +8,62 @@ from typing import Dict, Any, Optional
 from decimal import Decimal
 from datetime import datetime, date
 
+import requests
+
 logger = logging.getLogger(__name__)
+
+
+def _normalize_cep_digits(cep: Optional[str]) -> str:
+    """CEP com 8 dígitos (somente números) para APIs como Asaas."""
+    digits = re.sub(r'\D', '', cep or '')
+    return digits if len(digits) == 8 else ''
+
+
+def _tomador_endereco_para_asaas(endereco: Optional[Dict[str, str]]) -> Dict[str, Any]:
+    """
+    Mapeia o dict de endereço do tomador para campos da API Asaas (customers).
+    https://docs.asaas.com/reference/criar-novo-cliente
+    """
+    if not endereco:
+        endereco = {}
+    logradouro = (endereco.get('logradouro') or '').strip()
+    numero = (endereco.get('numero') or '').strip() or 'S/N'
+    complemento = (endereco.get('complemento') or '').strip()
+    bairro = (endereco.get('bairro') or '').strip()
+    cidade = (endereco.get('cidade') or '').strip()
+    uf = (endereco.get('uf') or '').strip().upper()
+    cep_ok = _normalize_cep_digits(endereco.get('cep'))
+
+    out: Dict[str, Any] = {}
+    if logradouro:
+        out['address'] = logradouro[:200]
+    out['addressNumber'] = str(numero)[:20]
+    if complemento:
+        out['complement'] = complemento[:200]
+    if bairro:
+        out['province'] = bairro[:100]
+    if cep_ok:
+        out['postalCode'] = cep_ok
+    if cidade:
+        out['city'] = cidade[:100]
+    if len(uf) == 2:
+        out['state'] = uf
+    return out
+
+
+def _validar_endereco_asaas_nfse(addr_asaas: Dict[str, Any]) -> Optional[str]:
+    """Retorna mensagem de erro se faltar dado obrigatório para NFS-e no Asaas."""
+    if not addr_asaas.get('address'):
+        return 'Informe o logradouro do tomador (endereço completo é obrigatório para NFS-e no Asaas).'
+    if not addr_asaas.get('postalCode'):
+        return 'Informe um CEP válido (8 dígitos) do tomador.'
+    if not addr_asaas.get('province'):
+        return 'Informe o bairro do tomador.'
+    if not addr_asaas.get('city'):
+        return 'Informe a cidade do tomador.'
+    if not addr_asaas.get('state'):
+        return 'Informe a UF (estado) do tomador com 2 letras.'
+    return None
 
 
 class NFSeService:
@@ -83,6 +138,7 @@ class NFSeService:
                     tomador_cpf_cnpj=tomador_cpf_cnpj,
                     tomador_nome=tomador_nome,
                     tomador_email=tomador_email,
+                    tomador_endereco=tomador_endereco,
                     servico_descricao=servico_descricao,
                     valor_servicos=valor_servicos,
                     enviar_email=enviar_email,
@@ -130,6 +186,7 @@ class NFSeService:
         tomador_cpf_cnpj: str,
         tomador_nome: str,
         tomador_email: str,
+        tomador_endereco: Dict[str, str],
         servico_descricao: str,
         valor_servicos: Decimal,
         enviar_email: bool,
@@ -164,11 +221,17 @@ class NFSeService:
                     'error': 'CPF/CNPJ do tomador inválido (use 11 ou 14 dígitos).',
                 }
 
+            addr_asaas = _tomador_endereco_para_asaas(tomador_endereco)
+            addr_err = _validar_endereco_asaas_nfse(addr_asaas)
+            if addr_err:
+                return {'success': False, 'error': addr_err}
+
             customer_data = {
                 'name': (tomador_nome or 'Cliente')[:200],
                 'email': (tomador_email or '')[:200],
                 'cpfCnpj': cpf_cnpj,
                 'notificationDisabled': True,
+                **addr_asaas,
             }
             cust = client.create_customer(customer_data)
             customer_id = cust.get('id')
@@ -268,6 +331,26 @@ class NFSeService:
                 )
 
             return resultado
+
+        except requests.HTTPError as e:
+            msg = str(e)
+            resp = getattr(e, 'response', None)
+            if resp is not None:
+                try:
+                    body = resp.json()
+                    errs = body.get('errors') or []
+                    texts = []
+                    for item in errs:
+                        if isinstance(item, dict):
+                            t = (item.get('description') or item.get('message') or '').strip()
+                            if t:
+                                texts.append(t)
+                    if texts:
+                        msg = '; '.join(texts)
+                except Exception:
+                    pass
+            logger.warning('Erro ao emitir via Asaas (API): %s', msg)
+            return {'success': False, 'error': msg}
 
         except Exception as e:
             logger.exception(f"Erro ao emitir via Asaas: {e}")

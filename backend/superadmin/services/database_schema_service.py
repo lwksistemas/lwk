@@ -24,7 +24,7 @@ TIPO_LOJA_EXTRA_APPS = {
     'restaurante': ['restaurante'],
     'servicos': ['servicos'],
     'cabeleireiro': ['cabeleireiro'],
-    'crm-vendas': ['crm_vendas'],
+    'crm-vendas': ['crm_vendas', 'nfse_integration'],
 }
 
 

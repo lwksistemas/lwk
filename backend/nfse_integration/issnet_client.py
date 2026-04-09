@@ -12,9 +12,13 @@ logger = logging.getLogger(__name__)
 
 # Endpoints LoteRps (ISSNet / Prefeitura de Ribeirão Preto). Sem espaços no host.
 ISSNET_LOTE_RPS_JWS = '/WsNFe2/LoteRps.jws'
+_ISSNET_LOTE_RPS_PROD = f'https://issdigital.ribeiraopreto.sp.gov.br{ISSNET_LOTE_RPS_JWS}'
+# A Prefeitura não publica um hostname DNS separado para homologação do webservice direto
+# (hosts como issdigital.homologacao.* não resolvem). O teste de homologação usa o mesmo WSDL
+# de produção para validar rede/certificado; credenciais de teste vêm da prefeitura/Nota Control.
 ISSNET_URLS = {
-    'producao': f'https://issdigital.ribeiraopreto.sp.gov.br{ISSNET_LOTE_RPS_JWS}',
-    'homologacao': f'https://issdigital.homologacao.ribeiraopreto.sp.gov.br{ISSNET_LOTE_RPS_JWS}',
+    'producao': _ISSNET_LOTE_RPS_PROD,
+    'homologacao': _ISSNET_LOTE_RPS_PROD,
 }
 
 
@@ -103,10 +107,19 @@ def testar_conexao_issnet(
         )
         if ok_xml:
             out['success'] = True
-            out['message'] = (
-                f'Certificado OK e WSDL do ISSNet acessível ({out["ambiente"]}). '
-                'Usuário e senha do ISSNet serão validados na primeira emissão de NFS-e.'
-            )
+            if ambiente == 'homologacao':
+                out['message'] = (
+                    'Certificado OK e WSDL do ISSNet acessível. '
+                    'Ribeirão Preto não publica um host exclusivo de homologação para este webservice; '
+                    'a conectividade foi validada no mesmo endpoint de produção. '
+                    'Usuário/senha de teste (se houver) são fornecidos pela prefeitura ou Nota Control. '
+                    'Credenciais serão validadas na primeira emissão de NFS-e.'
+                )
+            else:
+                out['message'] = (
+                    f'Certificado OK e WSDL do ISSNet acessível ({out["ambiente"]}). '
+                    'Usuário e senha do ISSNet serão validados na primeira emissão de NFS-e.'
+                )
             return out
 
         out['detail'] = (
@@ -117,10 +130,17 @@ def testar_conexao_issnet(
 
     except requests.exceptions.RequestException as e:
         logger.warning('testar_conexao_issnet: request WSDL: %s', e)
-        out['detail'] = (
-            'Certificado OK, mas não foi possível contatar o servidor do ISSNet '
-            f'({out["ambiente"]}). Erro: {e}'
-        )
+        err_s = str(e).lower()
+        if 'failed to resolve' in err_s or 'name or service not known' in err_s:
+            out['detail'] = (
+                'Certificado OK, mas o endereço do webservice não resolve no DNS. '
+                'Confirme na Prefeitura o hostname atual do ISS Digital ou se há bloqueio de rede.'
+            )
+        else:
+            out['detail'] = (
+                'Certificado OK, mas não foi possível contatar o servidor do ISSNet '
+                f'({out["ambiente"]}). Erro: {e}'
+            )
         return out
 
 

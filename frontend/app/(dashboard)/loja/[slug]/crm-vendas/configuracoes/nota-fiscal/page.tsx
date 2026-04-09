@@ -608,11 +608,23 @@ export default function ConfiguracaoNotaFiscalPage() {
                     className="w-4 h-4"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Usar ambiente de homologação do ISSNet (prefeitura)
+                    Mensagem para cenário de homologação / testes
                   </span>
                 </label>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-7">
-                  Produção (padrão): emissão real. Marque apenas se a prefeitura forneceu URL de testes.
+                  O ISS Digital de Ribeirão Preto não publica um hostname separado só para homologação deste
+                  webservice (o endereço antigo não resolve no DNS). O teste de conexão usa o mesmo WSDL de
+                  produção para validar certificado e rede. Credenciais de teste, se existirem, vêm da
+                  prefeitura ou{' '}
+                  <a
+                    href="https://www.ribeiraopreto.sp.gov.br/portal/fazenda/iss-digital"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#0176d3] underline"
+                  >
+                    ISS Digital
+                  </a>
+                  / Nota Control.
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <button

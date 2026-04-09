@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { clearOrphanStorageForSlug } from '@/lib/storage-cleanup';
+import { authService } from '@/lib/auth';
 import SidebarCrm from '@/components/crm-vendas/SidebarCrm';
 import HeaderCrm from '@/components/crm-vendas/HeaderCrm';
 import { CRMConfigProvider } from '@/contexts/CRMConfigContext';
@@ -64,18 +65,11 @@ export default function CrmVendasLayout({
         user_role?: 'vendedor' | 'administrador';
       }>('/crm-vendas/me/');
       const d = r.data;
-      // IMPORTANTE: Só setar is_vendedor se o BACKEND explicitamente disser que é vendedor
-      // Owner pode ter vendedor_id mas is_vendedor=false (acesso total)
-      if (typeof window !== 'undefined') {
-        if (d?.is_vendedor === true && typeof d?.vendedor_id === 'number') {
-          sessionStorage.setItem('is_vendedor', '1');
-          sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
-        } else if (typeof d?.vendedor_id === 'number') {
-          // Tem vendedor_id mas não é vendedor (owner) - só salva o ID
-          sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
-          // NÃO seta is_vendedor - owner mantém acesso total
-        }
-      }
+      // Owner pode ter vendedor_id com is_vendedor=false — precisa limpar is_vendedor antigo
+      authService.syncCrmMeFlags({
+        is_vendedor: d?.is_vendedor,
+        vendedor_id: d?.vendedor_id ?? null,
+      });
       setUserDisplayName(d?.user_display_name ?? null);
       setUserRole(d?.user_role === 'vendedor' ? 'vendedor' : 'administrador');
     } catch {

@@ -262,6 +262,26 @@ class AuthService {
   }
 
   /**
+   * Sincroniza sessionStorage com GET /crm-vendas/me/.
+   * Deve remover is_vendedor quando o backend retorna false (ex.: dono da loja com vínculo de vendedor),
+   * senão um valor antigo esconde NFS-e, backup, etc. na tela de configurações.
+   */
+  syncCrmMeFlags(d: { is_vendedor?: boolean; vendedor_id?: number | null }): void {
+    if (typeof window === 'undefined') return;
+    if (d.is_vendedor === true && typeof d.vendedor_id === 'number') {
+      sessionStorage.setItem('is_vendedor', '1');
+      sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
+    } else {
+      sessionStorage.removeItem('is_vendedor');
+      if (typeof d.vendedor_id === 'number') {
+        sessionStorage.setItem('current_vendedor_id', String(d.vendedor_id));
+      } else {
+        sessionStorage.removeItem('current_vendedor_id');
+      }
+    }
+  }
+
+  /**
    * Obtém o ID do vendedor logado (quando is_vendedor=true).
    * Usado para associar oportunidades/leads ao vendedor ao criar.
    */

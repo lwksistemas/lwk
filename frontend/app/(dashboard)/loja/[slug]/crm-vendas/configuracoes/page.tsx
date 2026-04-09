@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   CreditCard,
   LogIn,
@@ -15,16 +16,34 @@ import {
   FileText,
 } from 'lucide-react';
 import { authService } from '@/lib/auth';
+import apiClient from '@/lib/api-client';
 
 export default function CrmVendasConfiguracoesPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
-  
-  // Verificar se é owner (administrador) ou gerente - ambos veem todas as opções
-  // Vendedores comuns (não-owners e não-gerentes) veem apenas "Personalizar CRM"
-  const hasAdminAccess = authService.hasAdminAccess();
-  const isVendedor = authService.isVendedor();
+
+  /** Re-sincroniza após /crm-vendas/me/ — sem isso, sessionStorage antigo não re-renderiza e some NFS-e etc. */
+  const [acessoAdmin, setAcessoAdmin] = useState(() => authService.hasAdminAccess());
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const r = await apiClient.get<{
+          is_vendedor?: boolean;
+          vendedor_id?: number | null;
+        }>('/crm-vendas/me/');
+        authService.syncCrmMeFlags(r.data);
+        if (!cancel) setAcessoAdmin(authService.hasAdminAccess());
+      } catch {
+        if (!cancel) setAcessoAdmin(authService.hasAdminAccess());
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, []);
 
   const opcoesAdmin = [
     {
@@ -80,9 +99,11 @@ export default function CrmVendasConfiguracoesPage() {
 
   // Vendedores comuns (não-owners e não-gerentes) veem apenas Personalizar
   // Owner e Gerente de Vendas veem todas as opções
-  const opcoes = (isVendedor && !hasAdminAccess)
-    ? opcoesAdmin.filter((o) => o.href.includes('/personalizar'))
-    : opcoesAdmin;
+  const isVendedor = authService.isVendedor();
+  const opcoes =
+    isVendedor && !acessoAdmin
+      ? opcoesAdmin.filter((o) => o.href.includes('/personalizar'))
+      : opcoesAdmin;
 
   return (
     <div className="space-y-6">

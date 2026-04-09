@@ -339,17 +339,45 @@ export default function ConfiguracaoNotaFiscalPage() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white font-mono text-sm"
                 />
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.asaas_sandbox}
-                  onChange={(e) => setFormData({ ...formData, asaas_sandbox: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Usar ambiente sandbox (homologação Asaas)
-                </span>
-              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.asaas_sandbox}
+                    onChange={(e) => setFormData({ ...formData, asaas_sandbox: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Usar ambiente sandbox (homologação Asaas)
+                  </span>
+                </label>
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 pl-7">
+                  <strong>Produção (recomendado para uso real):</strong> deixe{' '}
+                  <strong>desmarcado</strong> — a API usada é{' '}
+                  <code className="text-[10px] bg-gray-100 dark:bg-[#0d1f3c] px-1 rounded">api.asaas.com</code>{' '}
+                  com chave de produção (
+                  <code className="text-[10px] bg-gray-100 dark:bg-[#0d1f3c] px-1 rounded">$aact_prod_...</code>
+                  ).{' '}
+                  <strong>Sandbox:</strong> marque para testes —{' '}
+                  <code className="text-[10px] bg-gray-100 dark:bg-[#0d1f3c] px-1 rounded">sandbox.asaas.com</code>{' '}
+                  e chave de testes (
+                  <code className="text-[10px] bg-gray-100 dark:bg-[#0d1f3c] px-1 rounded">$aact_hmlg_...</code>
+                  ).
+                </p>
+                <p className="text-[11px] pl-7">
+                  <span
+                    className={
+                      formData.asaas_sandbox
+                        ? 'text-amber-700 dark:text-amber-300 font-medium'
+                        : 'text-green-800 dark:text-green-300 font-medium'
+                    }
+                  >
+                    {formData.asaas_sandbox
+                      ? 'Modo atual: sandbox (homologação)'
+                      : 'Modo atual: produção'}
+                  </span>
+                </p>
+              </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <button
@@ -368,8 +396,8 @@ export default function ConfiguracaoNotaFiscalPage() {
                   )}
                 </button>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 sm:max-w-md">
-                  Envia uma requisição de teste à API (lista de clientes). Use a chave digitada acima ou,
-                  se o campo estiver vazio, a chave já salva.
+                  O teste usa o mesmo modo (produção ou sandbox) indicado acima. Envia um GET à API Asaas
+                  (lista de clientes). Use a chave digitada ou, com campo vazio, a chave já salva.
                 </p>
               </div>
               {asaasTestMessage && (

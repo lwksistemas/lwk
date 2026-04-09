@@ -12,7 +12,7 @@ from django.db import models
 from .models import NFSe
 from .serializers import NFSeSerializer, EmitirNFSeSerializer, CancelarNFSeSerializer
 from .service import NFSeService
-from tenants.middleware import get_current_loja_id
+from tenants.middleware import get_current_loja_id, get_current_tenant_db
 from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,17 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
     
     serializer_class = NFSeSerializer
     permission_classes = [IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        db_name = get_current_tenant_db()
+        if db_name and db_name != 'default':
+            try:
+                from .schema_patch import patch_nfse_asaas_columns_if_missing
+
+                patch_nfse_asaas_columns_if_missing(db_name)
+            except Exception as e:
+                logger.exception('NFSe: falha ao aplicar patch de colunas Asaas no tenant %s: %s', db_name, e)
     
     def get_queryset(self):
         """Retorna apenas NFS-e da loja atual."""

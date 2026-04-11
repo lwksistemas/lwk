@@ -28,10 +28,14 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
     - POST /api/nfse/emitir/ - Emitir nova NFS-e
     - POST /api/nfse/{id}/cancelar/ - Cancelar NFS-e
     - POST /api/nfse/{id}/reenviar_email/ - Reenviar email da NFS-e
+    - DELETE /api/nfse/{id}/ - Excluir NFS-e (apenas da loja atual)
     """
     
     serializer_class = NFSeSerializer
     permission_classes = [IsAuthenticated]
+
+    # Permitir DELETE além dos métodos de ReadOnlyModelViewSet
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
@@ -356,4 +360,39 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def destroy(self, request, pk=None):
+        """
+        Exclui uma NFS-e da loja atual.
+        Apenas NFS-e pertencentes à loja do usuário podem ser excluídas.
+        """
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'error': 'Contexto de loja não encontrado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            nfse = NFSe.objects.filter(id=pk, loja_id=loja_id).first()
+            if not nfse:
+                return Response(
+                    {'error': 'NFS-e não encontrada ou não pertence a esta loja.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            numero = nfse.numero_nf
+            nfse.delete()
+            logger.info(
+                'NFS-e %s (id=%s) excluída por user_id=%s loja_id=%s',
+                numero, pk, request.user.id, loja_id,
+            )
+            return Response(
+                {'success': True, 'message': f'NFS-e {numero} excluída com sucesso.'},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            logger.exception('Erro ao excluir NFS-e id=%s: %s', pk, e)
+            return Response(
+                {'error': f'Erro ao excluir NFS-e: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

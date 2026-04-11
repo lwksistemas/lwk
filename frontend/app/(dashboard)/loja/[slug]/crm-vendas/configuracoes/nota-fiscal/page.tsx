@@ -29,6 +29,10 @@ export default function ConfiguracaoNotaFiscalPage() {
     codigo_servico_municipal: '1401',
     descricao_servico_padrao: 'Desenvolvimento e licenciamento de software sob demanda',
     aliquota_iss: '2.00',
+    inscricao_municipal: '',
+    issnet_serie_rps: '',
+    issnet_ultimo_rps_conhecido: '',
+    issnet_numero_lote: '',
     emitir_nf_automaticamente: true,
   });
   
@@ -55,6 +59,16 @@ export default function ConfiguracaoNotaFiscalPage() {
         codigo_servico_municipal: config.codigo_servico_municipal || '1401',
         descricao_servico_padrao: config.descricao_servico_padrao || 'Desenvolvimento e licenciamento de software sob demanda',
         aliquota_iss: config.aliquota_iss || '2.00',
+        inscricao_municipal: config.inscricao_municipal || '',
+        issnet_serie_rps: config.issnet_serie_rps || '',
+        issnet_ultimo_rps_conhecido:
+          config.issnet_ultimo_rps_conhecido != null && config.issnet_ultimo_rps_conhecido !== undefined
+            ? String(config.issnet_ultimo_rps_conhecido)
+            : '',
+        issnet_numero_lote:
+          config.issnet_numero_lote != null && config.issnet_numero_lote !== undefined
+            ? String(config.issnet_numero_lote)
+            : '',
         emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
       });
     }
@@ -328,6 +342,13 @@ export default function ConfiguracaoNotaFiscalPage() {
               );
             })}
           </div>
+          {formData.provedor_nf === 'issnet' && (
+            <p className="mt-4 text-sm text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-[#0d1f3c] pt-4">
+              <strong>ISSNet:</strong> preencha inscrição municipal, série do RPS e último RPS em{' '}
+              <strong>Configurações Gerais</strong> (logo abaixo). Credenciais e certificado ficam na
+              seção seguinte.
+            </p>
+          )}
         </div>
 
         {/* Conta Asaas da loja (API própria — não é a cobrança LWK) */}
@@ -680,6 +701,90 @@ export default function ConfiguracaoNotaFiscalPage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Configurações Gerais
           </h2>
+
+          {formData.provedor_nf === 'issnet' && (
+            <div className="mb-6 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/80 dark:bg-amber-950/20 p-4">
+              <h3 className="text-sm font-semibold text-amber-950 dark:text-amber-100 mb-1">
+                ISSNet — inscrição municipal, série e RPS
+              </h3>
+              <p className="text-xs text-amber-900/90 dark:text-amber-200/90 mb-4">
+                Preencha estes campos com os mesmos dados do Asaas (Informações da empresa / NFS-e) e da
+                prefeitura. Eles ficam nesta seção para ficarem sempre visíveis ao salvar.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                    Inscrição municipal (prestador) *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.inscricao_municipal}
+                    onChange={(e) => setFormData({ ...formData, inscricao_municipal: e.target.value })}
+                    placeholder="Ex.: 20130440"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    autoComplete="off"
+                  />
+                  <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
+                    Mesmos dígitos do cadastro (ex.: <strong>20130440</strong> no Asaas). Só números.
+                  </p>
+                </div>
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                      Série do RPS
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.issnet_serie_rps}
+                      onChange={(e) => setFormData({ ...formData, issnet_serie_rps: e.target.value })}
+                      placeholder="NFSE"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      autoComplete="off"
+                    />
+                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
+                      Série da NF no Asaas (ex.: NFSE). Vazio = A.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                      Último RPS já emitido
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.issnet_ultimo_rps_conhecido}
+                      onChange={(e) =>
+                        setFormData({ ...formData, issnet_ultimo_rps_conhecido: e.target.value })
+                      }
+                      placeholder="106"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      autoComplete="off"
+                    />
+                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
+                      Próximo envio será esse + 1 (ex.: 107) se ainda não houver NF aqui.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                      Número do lote (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.issnet_numero_lote}
+                      onChange={(e) => setFormData({ ...formData, issnet_numero_lote: e.target.value })}
+                      placeholder="Só se a prefeitura exigir"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                      autoComplete="off"
+                    />
+                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
+                      Só se o lote for diferente do RPS; vazio = mesmo número do RPS.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

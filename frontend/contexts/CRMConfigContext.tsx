@@ -19,6 +19,10 @@ interface CRMConfig {
   codigo_servico_municipal: string;
   descricao_servico_padrao: string;
   aliquota_iss: string;
+  inscricao_municipal?: string;
+  issnet_serie_rps?: string;
+  issnet_ultimo_rps_conhecido?: number | string | null;
+  issnet_numero_lote?: number | string | null;
   emitir_nf_automaticamente: boolean;
   asaas_sandbox?: boolean;
   asaas_api_key_configured?: boolean;

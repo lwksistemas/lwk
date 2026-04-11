@@ -43,7 +43,8 @@ from .mixins import CRMPermissionMixin, VendedorFilterMixin, CacheInvalidationMi
 from .cache import CRMCacheManager
 from .decorators import cache_list_response, require_admin_access, invalidate_cache_on_change
 from .activities_google_sync import sync_atividade_create, sync_atividade_update, sync_atividade_delete
-from .views_enviar_cliente import _enviar_proposta_contrato_cliente
+from .mixins_assinatura import AssinaturaDigitalMixin
+from .mixins_documento import DocumentoQuerysetMixin, EnviarClienteMixin, TemplateViewSetMixin
 from .services import (
     OportunidadeService,
     PropostaService,
@@ -52,53 +53,6 @@ from .services import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
-    """
-    Garante colunas da migration 0045 (asaas_api_key, asaas_sandbox) no schema do tenant.
-
-    Em alguns ambientes ``migrate`` no banco da loja falha (histórico inconsistente);
-    o ADD COLUMN IF NOT EXISTS é seguro no PostgreSQL e desbloqueia o CRMConfig.
-    """
-    from django.db import connections
-    from django.utils import timezone
-    from core.db_config import ensure_loja_database_config
-
-    if not ensure_loja_database_config(db_name, conn_max_age=0):
-        raise RuntimeError(f'Não foi possível configurar o banco {db_name}')
-
-    conn = connections[db_name]
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """
-            ALTER TABLE crm_vendas_config
-            ADD COLUMN IF NOT EXISTS asaas_api_key VARCHAR(255) NOT NULL DEFAULT '';
-            """
-        )
-        cursor.execute(
-            """
-            ALTER TABLE crm_vendas_config
-            ADD COLUMN IF NOT EXISTS asaas_sandbox boolean NOT NULL DEFAULT false;
-            """
-        )
-        cursor.execute(
-            """
-            INSERT INTO django_migrations (app, name, applied)
-            SELECT %s, %s, %s
-            WHERE NOT EXISTS (
-                SELECT 1 FROM django_migrations
-                WHERE app = %s AND name = %s
-            );
-            """,
-            [
-                'crm_vendas',
-                '0045_add_asaas_loja_nf_fields',
-                timezone.now(),
-                'crm_vendas',
-                '0045_add_asaas_loja_nf_fields',
-            ],
-        )
 
 
 def _get_crm_config_for_loja(loja_id: int):
@@ -121,7 +75,8 @@ def _get_crm_config_for_loja(loja_id: int):
             'CRMConfig: colunas ausentes no tenant, aplicando patch 0045 em %s',
             db_name,
         )
-        _patch_crm_vendas_asaas_columns_if_missing(db_name)
+        from .schema_service import patch_crm_vendas_asaas_columns_if_missing
+        patch_crm_vendas_asaas_columns_if_missing(db_name)
         return CRMConfig.get_or_create_for_loja(loja_id)
 
 
@@ -1079,45 +1034,20 @@ class OportunidadeItemViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseM
         return qs
 
 
-class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
+class PropostaViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuerysetMixin, VendedorFilterMixin, BaseModelViewSet):
     """Propostas comerciais vinculadas a oportunidades."""
-    queryset = Proposta.objects.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
-        'oportunidade__itens__produto_servico'
-    ).all()
+    queryset = Proposta.objects.all()
     serializer_class = PropostaSerializer
     pagination_class = CRMPagination
 
     vendedor_filter_field = 'oportunidade__vendedor_id'
     vendedor_filter_related = []
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        qs = qs.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
-            'oportunidade__itens__produto_servico'
-        )
-        oportunidade_id = self.request.query_params.get('oportunidade_id')
-        if oportunidade_id:
-            qs = qs.filter(oportunidade_id=oportunidade_id)
-        status_filter = self.request.query_params.get('status')
-        if status_filter:
-            qs = qs.filter(status=status_filter)
-        return qs
+    # Configuração dos mixins
+    assinatura_doc_label = 'Proposta'
+    assinatura_cache_key = 'propostas'
+    enviar_cliente_label = 'Proposta'
 
-    @action(detail=True, methods=['post'])
-    def enviar_cliente(self, request, pk=None):
-        """Envia proposta ao cliente por email ou WhatsApp."""
-        instance = self.get_object()
-        canal = (request.data.get('canal') or '').strip().lower()
-        if canal not in ('email', 'whatsapp'):
-            return Response(
-                {'detail': 'Informe o canal: email ou whatsapp'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        ok, err = _enviar_proposta_contrato_cliente(instance, canal, request)
-        if ok:
-            return Response({'message': f'Proposta enviada ao cliente por {canal} com sucesso.'})
-        return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
-    
     @action(detail=True, methods=['get'])
     def download_pdf(self, request, pk=None):
         """Baixa o PDF da proposta."""
@@ -1127,321 +1057,52 @@ class PropostaViewSet(VendedorFilterMixin, BaseModelViewSet):
         proposta = self.get_object()
         
         try:
-            # ✅ CORREÇÃO: Verificar status_assinatura (não status)
-            # Incluir assinaturas se a proposta estiver concluída (ambas as partes assinaram)
             incluir_assinaturas = proposta.status_assinatura == 'concluido'
-            
-            # Gerar PDF
             pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=incluir_assinaturas)
             
-            # Preparar resposta
             response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
             filename = f'proposta_{proposta.numero or proposta.id}_{proposta.titulo.replace(" ", "_")}.pdf'
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            
             return response
         except Exception as e:
             return Response(
                 {'detail': f'Erro ao gerar PDF: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
-    @action(detail=True, methods=['post'])
-    @invalidate_cache_on_change('propostas')
-    def enviar_para_assinatura(self, request, pk=None):
-        """
-        Inicia workflow de assinatura digital.
-        Envia email para cliente com link de assinatura.
-        """
-        from .assinatura_digital_service import criar_token_assinatura, enviar_email_assinatura_cliente
-        
-        proposta = self.get_object()
-        loja_id = get_current_loja_id()
-        
-        # Validar que proposta tem oportunidade e lead
-        if not proposta.oportunidade or not proposta.oportunidade.lead:
-            return Response(
-                {'detail': 'Proposta sem oportunidade ou lead vinculado.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        lead = proposta.oportunidade.lead
-        if not lead.email:
-            return Response(
-                {'detail': 'Lead não possui email cadastrado.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Verificar se já existe assinatura pendente
-        if proposta.status_assinatura in ['aguardando_cliente', 'aguardando_vendedor']:
-            return Response(
-                {'detail': f'Proposta já está em processo de assinatura: {proposta.get_status_assinatura_display()}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Criar token de assinatura para cliente
-        assinatura = criar_token_assinatura(proposta, 'cliente', loja_id)
-        
-        # Atualizar status da proposta
-        proposta.status_assinatura = 'aguardando_cliente'
-        proposta.save(update_fields=['status_assinatura', 'updated_at'])
-        
-        # Enviar email com link de assinatura
-        ok, err = enviar_email_assinatura_cliente(proposta, assinatura, request)
-        
-        if ok:
-            return Response({
-                'message': f'Email de assinatura enviado para {lead.email}',
-                'status_assinatura': 'aguardando_cliente'
-            })
-        else:
-            # Reverter status se falhou
-            proposta.status_assinatura = 'rascunho'
-            proposta.save(update_fields=['status_assinatura', 'updated_at'])
-            assinatura.delete()
-            
-            return Response(
-                {'detail': err or 'Erro ao enviar email. Tente novamente.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    @action(detail=True, methods=['post'])
-    @invalidate_cache_on_change('propostas')
-    def reenviar_para_assinatura(self, request, pk=None):
-        """Reenvia e-mail com link de assinatura (novo token) em processo pendente."""
-        from .assinatura_digital_service import reenviar_link_assinatura_pendente
-
-        proposta = self.get_object()
-        loja_id = get_current_loja_id()
-
-        if not proposta.oportunidade or not proposta.oportunidade.lead:
-            return Response(
-                {'detail': 'Proposta sem oportunidade ou lead vinculado.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        ok, msg, err = reenviar_link_assinatura_pendente(proposta, loja_id, request)
-        if ok:
-            return Response({
-                'message': msg,
-                'status_assinatura': proposta.status_assinatura,
-            })
-        if err and err.startswith('Reenvio só é possível'):
-            return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': err or 'Erro ao reenviar.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class PropostaTemplateViewSet(BaseModelViewSet):
+class PropostaTemplateViewSet(TemplateViewSetMixin, BaseModelViewSet):
     """Templates de propostas para reutilização."""
-    queryset = PropostaTemplate.objects.select_related('loja').all()  # ✅ OTIMIZAÇÃO: select_related
+    queryset = PropostaTemplate.objects.all()
     serializer_class = PropostaTemplateSerializer
     pagination_class = CRMPagination
-
-    def get_queryset(self):
-        """Filtra templates por loja_id e aplica filtros adicionais."""
-        from tenants.middleware import get_current_loja_id
-        if hasattr(self, 'request') and self.request:
-            ensure_loja_context(self.request)
-        loja_id = get_current_loja_id()
-        
-        if not loja_id:
-            logger.warning(f"[PropostaTemplateViewSet] Acesso sem loja_id no contexto")
-            return PropostaTemplate.objects.none()
-        
-        # Filtrar por loja_id explicitamente
-        qs = PropostaTemplate.objects.filter(loja_id=loja_id)
-        
-        # Filtrar apenas ativos por padrão
-        ativo = self.request.query_params.get('ativo')
-        if ativo is None or ativo.lower() == 'true':
-            qs = qs.filter(ativo=True)
-        elif ativo.lower() == 'false':
-            qs = qs.filter(ativo=False)
-        
-        return qs
-
-    @action(detail=True, methods=['post'])
-    def marcar_padrao(self, request, pk=None):
-        """Marca este template como padrão (desmarca outros)."""
-        template = self.get_object()
-        template.is_padrao = True
-        template.save()  # O método save() do modelo já desmarca outros
-        return Response({'message': 'Template marcado como padrão.'})
+    template_model = PropostaTemplate
 
 
-class ContratoTemplateViewSet(BaseModelViewSet):
+class ContratoTemplateViewSet(TemplateViewSetMixin, BaseModelViewSet):
     """Templates de contratos para reutilização."""
-    queryset = ContratoTemplate.objects.select_related('loja').all()  # ✅ OTIMIZAÇÃO: select_related
+    queryset = ContratoTemplate.objects.all()
     serializer_class = ContratoTemplateSerializer
     pagination_class = CRMPagination
-
-    def get_queryset(self):
-        """Filtra templates por loja_id e aplica filtros adicionais."""
-        from tenants.middleware import get_current_loja_id
-        if hasattr(self, 'request') and self.request:
-            ensure_loja_context(self.request)
-        loja_id = get_current_loja_id()
-        
-        if not loja_id:
-            logger.warning(f"[ContratoTemplateViewSet] Acesso sem loja_id no contexto")
-            return ContratoTemplate.objects.none()
-        
-        # Filtrar por loja_id explicitamente
-        qs = ContratoTemplate.objects.filter(loja_id=loja_id)
-        
-        # Filtrar apenas ativos por padrão
-        ativo = self.request.query_params.get('ativo')
-        if ativo is None or ativo.lower() == 'true':
-            qs = qs.filter(ativo=True)
-        elif ativo.lower() == 'false':
-            qs = qs.filter(ativo=False)
-        
-        return qs
-
-    @action(detail=True, methods=['post'])
-    def marcar_padrao(self, request, pk=None):
-        """Marca este template como padrão (desmarca outros)."""
-        template = self.get_object()
-        template.is_padrao = True
-        template.save()  # O método save() do modelo já desmarca outros
-        return Response({'message': 'Template marcado como padrão.'})
+    template_model = ContratoTemplate
 
 
-class ContratoViewSet(BaseModelViewSet):
+class ContratoViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuerysetMixin, BaseModelViewSet):
     """Contratos gerados a partir de oportunidades fechadas."""
-    queryset = Contrato.objects.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
-        'oportunidade__itens__produto_servico'
-    ).all()
+    queryset = Contrato.objects.all()
     serializer_class = ContratoSerializer
     pagination_class = CRMPagination
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        qs = qs.select_related('oportunidade', 'oportunidade__lead').prefetch_related(
-            'oportunidade__itens__produto_servico'
-        )
-        oportunidade_id = self.request.query_params.get('oportunidade_id')
-        if oportunidade_id:
-            qs = qs.filter(oportunidade_id=oportunidade_id)
-        status_filter = self.request.query_params.get('status')
-        if status_filter:
-            qs = qs.filter(status=status_filter)
-        return qs
-
-    @action(detail=True, methods=['post'])
-    def enviar_cliente(self, request, pk=None):
-        """Envia contrato ao cliente por email ou WhatsApp."""
-        instance = self.get_object()
-        canal = (request.data.get('canal') or '').strip().lower()
-        if canal not in ('email', 'whatsapp'):
-            return Response(
-                {'detail': 'Informe o canal: email ou whatsapp'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        ok, err = _enviar_proposta_contrato_cliente(instance, canal, request)
-        if ok:
-            return Response({'message': f'Contrato enviado ao cliente por {canal} com sucesso.'})
-        return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['post'])
-    @invalidate_cache_on_change('contratos')
-    def enviar_para_assinatura(self, request, pk=None):
-        """
-        Inicia workflow de assinatura digital.
-        Envia email para cliente com link de assinatura.
-        """
-        from .assinatura_digital_service import criar_token_assinatura, enviar_email_assinatura_cliente
-        
-        contrato = self.get_object()
-        loja_id = get_current_loja_id()
-        
-        # Validar que contrato tem oportunidade e lead
-        if not contrato.oportunidade or not contrato.oportunidade.lead:
-            return Response(
-                {'detail': 'Contrato sem oportunidade ou lead vinculado.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        lead = contrato.oportunidade.lead
-        if not lead.email:
-            return Response(
-                {'detail': 'Lead não possui email cadastrado.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Verificar se já existe assinatura pendente
-        if contrato.status_assinatura in ['aguardando_cliente', 'aguardando_vendedor']:
-            return Response(
-                {'detail': f'Contrato já está em processo de assinatura: {contrato.get_status_assinatura_display()}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Criar token de assinatura para cliente
-        assinatura = criar_token_assinatura(contrato, 'cliente', loja_id)
-        
-        # Atualizar status do contrato
-        contrato.status_assinatura = 'aguardando_cliente'
-        contrato.save(update_fields=['status_assinatura', 'updated_at'])
-        
-        # Enviar email com link de assinatura
-        ok, err = enviar_email_assinatura_cliente(contrato, assinatura, request)
-        
-        if ok:
-            return Response({
-                'message': f'Email de assinatura enviado para {lead.email}',
-                'status_assinatura': 'aguardando_cliente'
-            })
-        else:
-            # Reverter status se falhou
-            contrato.status_assinatura = 'rascunho'
-            contrato.save(update_fields=['status_assinatura', 'updated_at'])
-            assinatura.delete()
-            
-            return Response(
-                {'detail': err or 'Erro ao enviar email. Tente novamente.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    @action(detail=True, methods=['post'])
-    @invalidate_cache_on_change('contratos')
-    def reenviar_para_assinatura(self, request, pk=None):
-        """Reenvia e-mail com link de assinatura (novo token) em processo pendente."""
-        from .assinatura_digital_service import reenviar_link_assinatura_pendente
-
-        contrato = self.get_object()
-        loja_id = get_current_loja_id()
-
-        if not contrato.oportunidade or not contrato.oportunidade.lead:
-            return Response(
-                {'detail': 'Contrato sem oportunidade ou lead vinculado.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        ok, msg, err = reenviar_link_assinatura_pendente(contrato, loja_id, request)
-        if ok:
-            return Response({
-                'message': msg,
-                'status_assinatura': contrato.status_assinatura,
-            })
-        if err and err.startswith('Reenvio só é possível'):
-            return Response({'detail': err}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': err or 'Erro ao reenviar.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # Configuração dos mixins
+    assinatura_doc_label = 'Contrato'
+    assinatura_cache_key = 'contratos'
+    enviar_cliente_label = 'Contrato'
 
 
 def _empty_dashboard_response():
     """Resposta vazia padrão quando não há contexto de loja."""
-    return {
-        'leads': 0,
-        'oportunidades': 0,
-        'receita': 0,
-        'pipeline_aberto': 0,
-        'valor_perdido': 0,
-        'meta_vendas': 0,
-        'taxa_conversao': 0,
-        'pipeline_por_etapa': [],
-        'atividades_hoje': [],
-        'performance_vendedores': [],
-    }
+    from .services_dashboard import empty_dashboard_response
+    return empty_dashboard_response()
 
 
 ETAPAS_PIPELINE = [
@@ -1518,319 +1179,68 @@ def crm_me(request):
 @permission_classes([IsAuthenticated])
 def dashboard_data(request):
     """
-    Dados do dashboard CRM (estilo Salesforce).
-    Otimizado: cache 120s, queries consolidadas (pipeline em 1 query).
-    
-    IMPORTANTE: Owner SEMPRE vê todos os dados, mesmo se tiver vendedor vinculado.
-    
-    Parâmetros de filtro (query params):
-    - periodo: mes_atual (padrão), ultimos_30_dias, ultimos_90_dias, este_ano
-    - data_inicio: data inicial (formato YYYY-MM-DD) para período personalizado
-    - data_fim: data final (formato YYYY-MM-DD) para período personalizado
-    - vendedor_id: ID do vendedor (apenas para owner/admin)
-    - status: todas (padrão), abertas, fechadas
+    Dados do dashboard CRM. Lógica de negócio delegada para services_dashboard.
     """
-    import logging
-    from datetime import timedelta
+    from .services_dashboard import build_dashboard_payload
 
-    logger = logging.getLogger(__name__)
     ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response(_empty_dashboard_response(), status=200)
 
-    # Verificar se é owner ANTES de aplicar filtro de vendedor
+    # Verificar se é owner
     from superadmin.models import Loja
-    is_owner = False
+    is_owner_flag = False
     try:
         loja = Loja.objects.using('default').filter(id=loja_id).first()
         if loja and loja.owner_id == request.user.id:
-            is_owner = True
+            is_owner_flag = True
     except Exception:
         pass
 
-    # Parâmetros de filtro
     periodo = request.GET.get('periodo', 'mes_atual')
     data_inicio_param = request.GET.get('data_inicio')
     data_fim_param = request.GET.get('data_fim')
     vendedor_id_filtro = request.GET.get('vendedor_id')
     status_filtro = request.GET.get('status', 'todas')
-    
-    # Se há filtros ativos, não usar cache
-    tem_filtros = (
-        periodo != 'mes_atual' or 
-        data_inicio_param or 
-        data_fim_param or 
-        vendedor_id_filtro or 
-        status_filtro != 'todas'
-    )
 
-    vendedor_id = None if is_owner else get_current_vendedor_id(request)
-    
-    # Cache apenas se não houver filtros personalizados
+    tem_filtros = (
+        periodo != 'mes_atual' or data_inicio_param or data_fim_param
+        or vendedor_id_filtro or status_filtro != 'todas'
+    )
+    vendedor_id = None if is_owner_flag else get_current_vendedor_id(request)
+
+    # Cache
     cache_key = None
     if not tem_filtros:
-        cache_key = CRMCacheManager.get_cache_key(
-            CRMCacheManager.DASHBOARD,
-            loja_id,
-            vendedor_id
-        )
-        
+        cache_key = CRMCacheManager.get_cache_key(CRMCacheManager.DASHBOARD, loja_id, vendedor_id)
         if cache_key:
             from django.core.cache import cache
             cached = cache.get(cache_key)
             if cached:
                 return Response(cached)
 
-    last_error = None
     for attempt in range(2):
         try:
-            from .models import Lead, Oportunidade, Atividade, Vendedor
-
-            leads_qs = Lead.objects.all()
-            opp_qs = Oportunidade.objects.all()
-            atividades_qs = Atividade.objects.all()
-            vendedores_qs = Vendedor.objects.filter(is_active=True)
-
-            # Aplicar filtro de vendedor APENAS se não for owner
-            if vendedor_id is not None:
-                leads_qs = leads_qs.filter(
-                    Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
-                ).distinct()
-                opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
-                # Atividades: vendedor vê suas atividades + órfãs criadas por ele
-                atividades_qs = atividades_qs.filter(
-                    Q(oportunidade__vendedor_id=vendedor_id) |
-                    Q(lead__oportunidades__vendedor_id=vendedor_id) |
-                    Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
-                ).distinct()
-                vendedores_qs = vendedores_qs.filter(id=vendedor_id)
-            
-            # Aplicar filtro de vendedor específico (apenas para owner/admin)
-            if is_owner and vendedor_id_filtro and vendedor_id_filtro != 'todos':
-                try:
-                    vid = int(vendedor_id_filtro)
-                    leads_qs = leads_qs.filter(
-                        Q(oportunidades__vendedor_id=vid) | Q(vendedor_id=vid)
-                    ).distinct()
-                    opp_qs = opp_qs.filter(vendedor_id=vid)
-                    atividades_qs = atividades_qs.filter(
-                        Q(oportunidade__vendedor_id=vid) |
-                        Q(lead__oportunidades__vendedor_id=vid) |
-                        Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vid)
-                    ).distinct()
-                    vendedores_qs = vendedores_qs.filter(id=vid)
-                except (ValueError, TypeError):
-                    pass
-            
-            # Calcular intervalo de datas baseado no período
-            _hoje = timezone.now().date()
-            if periodo == 'personalizado' and data_inicio_param and data_fim_param:
-                try:
-                    from datetime import datetime
-                    data_inicio_filtro = datetime.strptime(data_inicio_param, '%Y-%m-%d').date()
-                    data_fim_filtro = datetime.strptime(data_fim_param, '%Y-%m-%d').date()
-                except (ValueError, TypeError):
-                    data_inicio_filtro = _hoje.replace(day=1)
-                    data_fim_filtro = _hoje
-            elif periodo == 'ultimos_30_dias':
-                data_fim_filtro = _hoje
-                data_inicio_filtro = _hoje - timedelta(days=30)
-            elif periodo == 'ultimos_90_dias':
-                data_fim_filtro = _hoje
-                data_inicio_filtro = _hoje - timedelta(days=90)
-            elif periodo == 'este_ano':
-                data_inicio_filtro = _hoje.replace(month=1, day=1)
-                data_fim_filtro = _hoje
-            else:  # mes_atual (padrão)
-                data_inicio_filtro = _hoje.replace(day=1)
-                data_fim_filtro = _hoje
-            
-            # Aplicar filtro de status
-            if status_filtro == 'abertas':
-                opp_qs = opp_qs.filter(etapa__in=ETAPAS_EM_ANDAMENTO)
-            elif status_filtro == 'fechadas':
-                opp_qs = opp_qs.filter(etapa__in=['closed_won', 'closed_lost'])
-
-            # Performance e comissão do mês: usar o intervalo calculado
-            data_inicio_mes, data_fim_mes = data_inicio_filtro, data_fim_filtro
-            filtro_opp_no_mes = (
-                Q(data_fechamento_ganho__gte=data_inicio_mes, data_fechamento_ganho__lte=data_fim_mes)
-                | (
-                    Q(data_fechamento_ganho__isnull=True)
-                    & Q(data_fechamento__gte=data_inicio_mes, data_fechamento__lte=data_fim_mes)
-                )
+            payload = build_dashboard_payload(
+                loja_id, vendedor_id, periodo, data_inicio_param,
+                data_fim_param, vendedor_id_filtro, status_filtro, is_owner_flag,
             )
-
-            # 1 query: totais agregados (receita DO MÊS, pipeline, fechados)
-            agg = opp_qs.aggregate(
-                total_oportunidades=Count('id'),
-                receita=Sum('valor', filter=Q(etapa='closed_won') & filtro_opp_no_mes),
-                pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
-                oportunidades_em_andamento=Count('id', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
-                total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost'])),
-                total_ganhos=Count('id', filter=Q(etapa='closed_won')),
-                valor_perdido=Sum('valor', filter=Q(etapa='closed_lost')),
-            )
-            total_oportunidades = agg['total_oportunidades'] or 0
-            receita = float(agg['receita'] or 0)
-            pipeline_aberto = float(agg['pipeline_aberto'] or 0)
-            oportunidades_em_andamento = agg['oportunidades_em_andamento'] or 0
-            total_fechados = agg['total_fechados'] or 0
-            total_ganhos = agg['total_ganhos'] or 0
-            taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
-
-            # 1 query: pipeline por etapa (values + annotate)
-            pipeline_map = {
-                row['etapa']: {'valor': float(row['valor'] or 0), 'quantidade': row['qtd'] or 0}
-                for row in opp_qs.filter(etapa__in=ETAPAS_PIPELINE)
-                .values('etapa')
-                .annotate(valor=Sum('valor'), qtd=Count('id'))
-            }
-            valor_perdido = float(agg.get('valor_perdido') or 0)
-            pipeline_por_etapa = [
-                {'etapa': e, **(pipeline_map.get(e, {'valor': 0, 'quantidade': 0}))}
-                for e in ETAPAS_PIPELINE
-            ]
-
-            # 1 query: total leads
-            total_leads = leads_qs.count()
-
-            # 1 query: atividades próximas (pendentes + concluídas recentemente)
-            hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            proximos_7_dias = hoje_inicio + timedelta(days=7)
-
-            atividades_pendentes = atividades_qs.filter(
-                data__gte=hoje_inicio,
-                data__lt=proximos_7_dias,
-                concluido=False
-            ).order_by('data').values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:10]
-
-            if not atividades_pendentes:
-                atividades_pendentes = atividades_qs.order_by('-data').values(
-                    'id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes'
-                )[:5]
-
-            atividades_hoje_data = list(atividades_pendentes)
-            for a in atividades_hoje_data:
-                if a.get('data'):
-                    a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
-
-            # Performance e comissão do mês: MESMO critério do PDF (relatorios.calcular_periodo('mes_atual')):
-            # intervalo [primeiro dia do mês, hoje], inclusive. Antes o dashboard usava só ">= início do mês",
-            # incluindo datas futuras ou data_fechamento sem teto, divergindo do relatório.
-            _hoje = timezone.now().date()
-            data_inicio_mes, data_fim_mes = _hoje.replace(day=1), _hoje
-            filtro_oportunidades_no_mes = (
-                Q(oportunidades__data_fechamento_ganho__gte=data_inicio_mes, oportunidades__data_fechamento_ganho__lte=data_fim_mes)
-                | (
-                    Q(oportunidades__data_fechamento_ganho__isnull=True)
-                    & Q(
-                        oportunidades__data_fechamento__gte=data_inicio_mes,
-                        oportunidades__data_fechamento__lte=data_fim_mes,
-                    )
-                )
-            )
-            perf_qs = vendedores_qs.annotate(
-                receita_mes=Sum(
-                    'oportunidades__valor',
-                    filter=Q(oportunidades__etapa='closed_won') & filtro_oportunidades_no_mes,
-                ),
-                comissao_mes=Sum(
-                    'oportunidades__valor_comissao',
-                    filter=Q(oportunidades__etapa='closed_won') & filtro_oportunidades_no_mes,
-                ),
-            )
-            performance_vendedores = [
-                {'id': v.id, 'nome': v.nome, 'receita_mes': float(v.receita_mes or 0), 'comissao_mes': float(v.comissao_mes or 0)}
-                for v in perf_qs
-            ]
-
-            filtro_opp_no_mes = (
-                Q(data_fechamento_ganho__gte=data_inicio_mes, data_fechamento_ganho__lte=data_fim_mes)
-                | (
-                    Q(data_fechamento_ganho__isnull=True)
-                    & Q(data_fechamento__gte=data_inicio_mes, data_fechamento__lte=data_fim_mes)
-                )
-            )
-            comissao_total_mes = opp_qs.filter(etapa='closed_won').filter(filtro_opp_no_mes).aggregate(
-                total=Sum('valor_comissao')
-            )['total'] or 0
-
-            # Fechadas no mês sem vendedor OU com registro de vendedor inativo somam no administrador (is_admin).
-            # Só "vendedor nulo" era mesclado antes — o restante (inativo) gerava linha extra / cache antigo.
-            base_fechadas_mes = opp_qs.filter(etapa='closed_won').filter(filtro_opp_no_mes)
-            extras_agg = base_fechadas_mes.filter(
-                Q(vendedor_id__isnull=True) | Q(vendedor__is_active=False)
-            ).aggregate(receita=Sum('valor'), comissao=Sum('valor_comissao'))
-            rec_sem = float(extras_agg['receita'] or 0)
-            com_sem = float(extras_agg['comissao'] or 0)
-            if rec_sem > 0 or com_sem > 0:
-                from .utils import get_vendedor_destino_merge_loja
-
-                admin_v = get_vendedor_destino_merge_loja(loja_id)
-                if admin_v:
-                    merged = False
-                    for row in performance_vendedores:
-                        if row['id'] == admin_v.id:
-                            row['receita_mes'] += rec_sem
-                            row['comissao_mes'] += com_sem
-                            merged = True
-                            break
-                    if not merged:
-                        performance_vendedores.append(
-                            {
-                                'id': admin_v.id,
-                                'nome': admin_v.nome,
-                                'receita_mes': rec_sem,
-                                'comissao_mes': com_sem,
-                            }
-                        )
-                else:
-                    performance_vendedores.append(
-                        {
-                            'id': None,
-                            'nome': 'Sem vendedor',
-                            'receita_mes': rec_sem,
-                            'comissao_mes': com_sem,
-                        }
-                    )
-            performance_vendedores.sort(key=lambda x: -x['receita_mes'])
-
-            payload = {
-                'leads': total_leads,
-                'oportunidades': total_oportunidades,
-                'receita': receita,
-                'pipeline_aberto': pipeline_aberto,
-                'oportunidades_em_andamento': oportunidades_em_andamento,
-                'valor_perdido': valor_perdido,
-                'meta_vendas': 0,
-                'taxa_conversao': taxa_conversao,
-                'pipeline_por_etapa': pipeline_por_etapa,
-                'atividades_hoje': atividades_hoje_data,
-                'performance_vendedores': performance_vendedores,
-                'comissao_total_mes': float(comissao_total_mes),
-            }
             if cache_key:
                 from django.core.cache import cache
                 cache.set(cache_key, payload, 120)
             return Response(payload)
         except Exception as e:
-            last_error = e
             from django.db.utils import ProgrammingError, OperationalError
             if isinstance(e, (ProgrammingError, OperationalError)) and attempt == 0:
-                from superadmin.models import Loja
                 from .schema_service import configurar_schema_crm_loja
-                loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
-                if loja and configurar_schema_crm_loja(loja):
+                loja_obj = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+                if loja_obj and configurar_schema_crm_loja(loja_obj):
                     continue
             logger.exception('Erro no dashboard CRM: %s', e)
-            if isinstance(last_error, (ProgrammingError, OperationalError)):
+            if isinstance(e, (ProgrammingError, OperationalError)):
                 return Response(
-                    {
-                        'detail': 'O banco de dados da loja precisa ser configurado. Entre em contato com o suporte.',
-                        'code': 'SCHEMA_NOT_CONFIGURED',
-                    },
+                    {'detail': 'O banco de dados da loja precisa ser configurado.', 'code': 'SCHEMA_NOT_CONFIGURED'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
             return Response(
@@ -1848,8 +1258,6 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def _get_config(self, request=None):
-        import logging
-        logger = logging.getLogger(__name__)
         loja = get_loja_from_context(request)
         if not loja:
             logger.warning("WhatsAppConfigView: contexto de loja não encontrado")
@@ -1877,17 +1285,11 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
             logger.exception("WhatsAppConfigView._get_config erro: %s", e)
             return None
 
-    @require_admin_access()
-    def get(self, request):
-        config = self._get_config(request)
-        if config is None:
-            return Response(
-                {'error': 'Contexto de loja não encontrado'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    def _serialize_config(self, config):
+        """Serializa config para response (DRY — usado em get e patch)."""
         loja = config.loja
         owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
-        return Response({
+        return {
             'enviar_confirmacao': config.enviar_confirmacao,
             'enviar_lembrete_24h': config.enviar_lembrete_24h,
             'enviar_lembrete_2h': config.enviar_lembrete_2h,
@@ -1898,7 +1300,17 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
             'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
             'whatsapp_phone_id': (getattr(config, 'whatsapp_phone_id', None) or '').strip(),
             'whatsapp_token_set': bool((getattr(config, 'whatsapp_token', None) or '').strip()),
-        })
+        }
+
+    @require_admin_access()
+    def get(self, request):
+        config = self._get_config(request)
+        if config is None:
+            return Response(
+                {'error': 'Contexto de loja não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(self._serialize_config(config))
 
     @require_admin_access()
     def patch(self, request):
@@ -1926,20 +1338,7 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
             config.whatsapp_token = (request.data.get('whatsapp_token') or '').strip()[:512]
             update_fields.append('whatsapp_token')
         config.save(update_fields=update_fields)
-        loja = config.loja
-        owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
-        return Response({
-            'enviar_confirmacao': config.enviar_confirmacao,
-            'enviar_lembrete_24h': config.enviar_lembrete_24h,
-            'enviar_lembrete_2h': config.enviar_lembrete_2h,
-            'enviar_cobranca': config.enviar_cobranca,
-            'enviar_lembrete_tarefas': getattr(config, 'enviar_lembrete_tarefas', True),
-            'owner_telefone': owner_telefone,
-            'whatsapp_numero': (config.whatsapp_numero or '').strip(),
-            'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
-            'whatsapp_phone_id': (config.whatsapp_phone_id or '').strip(),
-            'whatsapp_token_set': bool((config.whatsapp_token or '').strip()),
-        })
+        return Response(self._serialize_config(config))
 
 
 class LoginConfigView(CRMPermissionMixin, APIView):

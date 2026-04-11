@@ -93,3 +93,36 @@ def configurar_schema_crm_loja(loja) -> bool:
     except Exception as e:
         logger.exception("configurar_schema_crm_loja: %s", e)
         return False
+
+
+def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
+    """
+    Garante colunas da migration 0045 (asaas_api_key, asaas_sandbox) no schema do tenant.
+    Movido de views.py (refatoração #10 — SRP: DDL não pertence a views).
+    """
+    from django.db import connections
+    from django.utils import timezone
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        raise RuntimeError(f'Não foi possível configurar o banco {db_name}')
+
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS asaas_api_key VARCHAR(255) NOT NULL DEFAULT '';"
+        )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS asaas_sandbox boolean NOT NULL DEFAULT false;"
+        )
+        cursor.execute(
+            "INSERT INTO django_migrations (app, name, applied) "
+            "SELECT %s, %s, %s "
+            "WHERE NOT EXISTS ("
+            "  SELECT 1 FROM django_migrations WHERE app = %s AND name = %s"
+            ");",
+            ['crm_vendas', '0045_add_asaas_loja_nf_fields', timezone.now(),
+             'crm_vendas', '0045_add_asaas_loja_nf_fields'],
+        )

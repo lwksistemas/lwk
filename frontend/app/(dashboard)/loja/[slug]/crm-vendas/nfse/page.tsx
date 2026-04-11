@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Search, X, Check, AlertCircle, RefreshCw } from 'lucide-react';
+import { FileText, Plus, Search, X, Check, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 
 /** Resposta DRF paginada ou lista direta */
@@ -41,6 +41,7 @@ export default function NFSePage() {
   const [busca, setBusca] = useState('');
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [syncMsg, setSyncMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     carregarNFSes();
@@ -87,6 +88,30 @@ export default function NFSePage() {
       });
     } finally {
       setSyncingId(null);
+    }
+  };
+
+  const excluirNFSe = async (e: React.MouseEvent, nf: NFSe) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!confirm(`Tem certeza que deseja excluir a NFS-e ${nf.numero_nf}?`)) {
+      return;
+    }
+
+    setDeletingId(nf.id);
+    try {
+      await apiClient.delete(`/nfse/${nf.id}/`);
+      setSyncMsg({ type: 'ok', text: 'NFS-e excluída com sucesso.' });
+      await carregarNFSes();
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { error?: string } } };
+      setSyncMsg({
+        type: 'err',
+        text: ax.response?.data?.error || 'Não foi possível excluir a NFS-e.',
+      });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -280,18 +305,30 @@ export default function NFSePage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {nf.provedor === 'asaas' && (
+                      <div className="flex items-center justify-end gap-2">
+                        {nf.provedor === 'asaas' && (
+                          <button
+                            type="button"
+                            title="Atualizar status com o painel Asaas (útil se a prefeitura rejeitou depois)"
+                            onClick={(e) => sincronizarComAsaas(e, nf)}
+                            disabled={syncingId === nf.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0176d3] hover:bg-[#0176d3]/10 rounded-md disabled:opacity-50"
+                          >
+                            <RefreshCw size={14} className={syncingId === nf.id ? 'animate-spin' : ''} />
+                            Sincronizar
+                          </button>
+                        )}
                         <button
                           type="button"
-                          title="Atualizar status com o painel Asaas (útil se a prefeitura rejeitou depois)"
-                          onClick={(e) => sincronizarComAsaas(e, nf)}
-                          disabled={syncingId === nf.id}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0176d3] hover:bg-[#0176d3]/10 rounded-md disabled:opacity-50"
+                          title="Excluir NFS-e"
+                          onClick={(e) => excluirNFSe(e, nf)}
+                          disabled={deletingId === nf.id}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-50"
                         >
-                          <RefreshCw size={14} className={syncingId === nf.id ? 'animate-spin' : ''} />
-                          Sincronizar
+                          <Trash2 size={14} />
+                          Excluir
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -367,6 +367,10 @@ class LojaViewSet(viewsets.ModelViewSet):
         """
         Busca loja por CPF ou CNPJ (acesso público para facilitar login dos clientes).
         Retorna apenas slug e nome da loja para redirecionar para página de login.
+        
+        ✅ OTIMIZAÇÃO: Busca unificada com cpf_cnpj normalizado (sem formatação) + slug exato.
+        Eliminado icontains no slug (risco de match errado) e busca com formatação
+        (dados normalizados pela migration 0046).
         """
         documento = request.query_params.get('documento', '').strip()
         
@@ -383,54 +387,23 @@ class LojaViewSet(viewsets.ModelViewSet):
             }, status=400)
         
         try:
-            # Log para debug
             logger.info(f"[buscar_por_documento] Buscando loja com documento: {documento_limpo}")
             
-            # Buscar loja ativa pelo CPF/CNPJ
-            # Tentar busca exata primeiro
+            # Busca unificada: cpf_cnpj normalizado OU slug exato (uma única query)
+            from django.db.models import Q
             loja = Loja.objects.filter(
-                cpf_cnpj=documento_limpo,
+                Q(cpf_cnpj=documento_limpo) | Q(slug=documento_limpo),
                 is_active=True
             ).first()
             
-            # Se não encontrar, tentar buscar pelo slug (que pode conter o CNPJ)
-            if not loja:
-                logger.info(f"[buscar_por_documento] Não encontrado por cpf_cnpj, tentando por slug")
-                loja = Loja.objects.filter(
-                    slug__icontains=documento_limpo,
-                    is_active=True
-                ).first()
-            
-            # Se ainda não encontrar, tentar buscar com formatação
-            if not loja:
-                logger.info(f"[buscar_por_documento] Tentando buscar com formatação")
-                # Tentar com formatação de CPF ou CNPJ
-                if len(documento_limpo) == 11:
-                    # CPF: 000.000.000-00
-                    doc_formatado = f"{documento_limpo[:3]}.{documento_limpo[3:6]}.{documento_limpo[6:9]}-{documento_limpo[9:]}"
-                else:
-                    # CNPJ: 00.000.000/0000-00
-                    doc_formatado = f"{documento_limpo[:2]}.{documento_limpo[2:5]}.{documento_limpo[5:8]}/{documento_limpo[8:12]}-{documento_limpo[12:]}"
-                
-                loja = Loja.objects.filter(
-                    cpf_cnpj=doc_formatado,
-                    is_active=True
-                ).first()
-            
             if not loja:
                 logger.warning(f"[buscar_por_documento] Nenhuma loja encontrada com documento: {documento_limpo}")
-                
-                # Debug: Listar lojas ativas para verificar
-                lojas_ativas = Loja.objects.filter(is_active=True).values_list('id', 'nome', 'cpf_cnpj', 'slug')[:5]
-                logger.info(f"[buscar_por_documento] Lojas ativas (primeiras 5): {list(lojas_ativas)}")
-                
                 return Response({
                     'error': 'Nenhuma loja encontrada com este CPF/CNPJ'
                 }, status=404)
             
             logger.info(f"[buscar_por_documento] Loja encontrada: {loja.nome} (slug: {loja.slug})")
             
-            # Retornar apenas informações necessárias para redirecionar
             return Response({
                 'slug': loja.slug,
                 'nome': loja.nome,

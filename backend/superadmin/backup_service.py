@@ -702,8 +702,8 @@ class BackupService:
         from .models import Loja
         
         try:
-            # Buscar loja
-            loja = Loja.objects.get(id=loja_id)
+            # Buscar loja (com tipo_loja para filtrar tabelas na importação)
+            loja = Loja.objects.select_related('tipo_loja').get(id=loja_id)
             
             if not loja.database_created:
                 raise BackupImportError("Banco de dados da loja não foi criado")
@@ -790,6 +790,23 @@ class BackupService:
                         if table_name not in vistos:
                             processar.append((table_name, nome))
                             vistos.add(table_name)
+                
+                # ✅ OTIMIZAÇÃO: Filtrar tabelas por tipo da loja (mesmo critério da exportação).
+                # Evita ~50 queries desnecessárias de table_exists para módulos inativos.
+                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() if hasattr(loja, 'tipo_loja') else ''
+                allowed_prefixes = BACKUP_TIPO_APP_TABLE_PREFIXES.get(tipo_slug, ())
+                excluded_prefixes = BACKUP_TIPO_APP_EXCLUDED_PREFIXES.get(tipo_slug, ())
+                if allowed_prefixes:
+                    def _table_allowed_for_import(name):
+                        if any(name.startswith(p) for p in excluded_prefixes):
+                            return False
+                        return any(name.startswith(p) for p in allowed_prefixes)
+                    antes = len(processar)
+                    processar = [(t, f) for t, f in processar if _table_allowed_for_import(t)]
+                    if antes != len(processar):
+                        logger.info(
+                            f"Importação: filtrado {antes - len(processar)} tabela(s) não pertencentes ao tipo '{tipo_slug}'"
+                        )
                 
                 with transaction.atomic(using=loja.database_name):
                     for table_name, csv_filename in processar:

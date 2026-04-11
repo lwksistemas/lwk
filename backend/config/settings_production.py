@@ -207,16 +207,26 @@ else:
     DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
 
 # CACHE - Redis se REDIS_URL existir (Heroku Redis), senão LocMem (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
+# ✅ OTIMIZAÇÃO: Adicionado KEY_PREFIX, TIMEOUT, connection pool, socket timeouts e retry
 _redis_url = os.environ.get('REDIS_URL')
 if _redis_url:
     _redis_options = {'CLIENT_CLASS': 'django_redis.client.DefaultClient'}
+    _pool_kwargs = {
+        'max_connections': 50,
+        'retry_on_timeout': True,
+    }
     if _redis_url.startswith('rediss://'):
-        _redis_options['CONNECTION_POOL_KWARGS'] = {'ssl_cert_reqs': None}
+        _pool_kwargs['ssl_cert_reqs'] = None
+    _redis_options['CONNECTION_POOL_KWARGS'] = _pool_kwargs
+    _redis_options['SOCKET_CONNECT_TIMEOUT'] = 5
+    _redis_options['SOCKET_TIMEOUT'] = 5
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
             'LOCATION': _redis_url,
             'OPTIONS': _redis_options,
+            'KEY_PREFIX': 'lwk',
+            'TIMEOUT': 300,  # 5 minutos padrão (alinhado com CRMCacheManager.DEFAULT_TTL)
         }
     }
 else:

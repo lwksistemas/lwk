@@ -163,7 +163,7 @@ class Loja(models.Model):
     descricao = models.TextField(blank=True)
     
     # Documentos
-    cpf_cnpj = models.CharField(max_length=18, blank=True, help_text='CPF ou CNPJ da loja')
+    cpf_cnpj = models.CharField(max_length=18, blank=True, db_index=True, help_text='CPF ou CNPJ da loja (somente dígitos)')
     
     # Endereço
     cep = models.CharField(max_length=9, blank=True)

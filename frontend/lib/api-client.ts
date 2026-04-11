@@ -258,7 +258,14 @@ function applyLojaInterceptors(instance: AxiosInstance) {
       return response;
     },
     async (error) => {
-      logger.error('API Error:', error.response?.status, error.response?.data?.code);
+      const status = error.response?.status;
+      const code = error.response?.data?.code;
+      const noResponseDetail = `${error.code || 'ERR'} ${error.message || 'sem resposta (rede/CORS ou URL da API)'}`.trim();
+      logger.error(
+        'API Error:',
+        error.response != null ? status : noResponseDetail,
+        error.response != null ? (code ?? '') : ''
+      );
       
       // ✅ FAILOVER v750: Detectar falhas e tentar backup (inclui CORS/rede quando primária indisponível)
       const originalRequest = error.config;

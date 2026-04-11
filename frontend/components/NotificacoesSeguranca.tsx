@@ -43,23 +43,29 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
       const novasViolacoes = response.data.results || [];
       
       if (novasViolacoes.length > 0) {
-        setViolacoesNaoLidas(prev => {
-          const ids = new Set(prev.map(v => v.id));
-          const violacoesUnicas = novasViolacoes.filter((v: Violacao) => !ids.has(v.id));
-          
-          violacoesUnicas.forEach((v: Violacao) => {
-            try {
-              mostrarNotificacaoNativa(v);
-              if (onNovaViolacao) {
-                onNovaViolacao(v);
-              }
-            } catch {
-              // Silenciosamente ignorar erros de notificação
-            }
-          });
-          
-          return [...violacoesUnicas, ...prev].slice(0, 10);
+        // Não chamar onNovaViolacao / setState do pai dentro do updater deste setState
+        // (React: "Cannot update a component while rendering a different component").
+        let novasParaToast: Violacao[] = [];
+        setViolacoesNaoLidas((prev) => {
+          const ids = new Set(prev.map((v) => v.id));
+          novasParaToast = novasViolacoes.filter((v: Violacao) => !ids.has(v.id));
+          if (novasParaToast.length === 0) {
+            return prev;
+          }
+          return [...novasParaToast, ...prev].slice(0, 10);
         });
+        if (novasParaToast.length > 0) {
+          queueMicrotask(() => {
+            novasParaToast.forEach((v: Violacao) => {
+              try {
+                mostrarNotificacaoNativa(v);
+                onNovaViolacao?.(v);
+              } catch {
+                // Silenciosamente ignorar erros de notificação
+              }
+            });
+          });
+        }
       }
       
       desdeRef.current = new Date();

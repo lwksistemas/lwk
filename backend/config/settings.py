@@ -322,6 +322,14 @@ CORS_ALLOWED_ORIGINS = config(
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Nunca permitir todas as origens
 
+# Em DEBUG, permitir Next.js pelo IP da LAN (ex.: http://192.168.0.107:3000) — evita CORS ao abrir pelo IP
+CORS_ALLOWED_ORIGIN_REGEXES = []
+if DEBUG:
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r'^http://192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$',
+        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$',
+    ]
+
 # ✅ OTIMIZAÇÃO v663: Cache de preflight CORS por 24h
 # Reduz requisições OPTIONS em 50% (navegador cacheia por 24h)
 CORS_PREFLIGHT_MAX_AGE = 86400  # 24 horas em segundos

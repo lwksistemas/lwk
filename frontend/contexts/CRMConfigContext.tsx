@@ -20,6 +20,12 @@ interface CRMConfig {
   descricao_servico_padrao: string;
   aliquota_iss: string;
   inscricao_municipal?: string;
+  codigo_cnae?: string;
+  optante_simples_nacional?: boolean;
+  regime_especial_tributacao?: string;
+  incentivador_cultural?: boolean;
+  item_lista_servico?: string;
+  codigo_nbs?: string;
   issnet_serie_rps?: string;
   issnet_ultimo_rps_conhecido?: number | string | null;
   issnet_numero_lote?: number | string | null;

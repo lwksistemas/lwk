@@ -105,6 +105,68 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         help_text='Senha do arquivo .pfx do certificado digital'
     )
     
+    # Informações do Portal Emissor (Asaas / Prefeitura)
+    inscricao_municipal = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='Inscrição Municipal',
+        help_text='Inscrição municipal do prestador (obrigatória para ISSNet)'
+    )
+    codigo_cnae = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='Código CNAE',
+        help_text='Código CNAE da empresa (apenas números, sem formatação)'
+    )
+    optante_simples_nacional = models.BooleanField(
+        default=True,
+        verbose_name='Optante pelo Simples Nacional',
+        help_text='Se a empresa é enquadrada no Simples Nacional (Lei Complementar 123/2006)'
+    )
+    regime_especial_tributacao = models.CharField(
+        max_length=2,
+        blank=True,
+        default='0',
+        verbose_name='Regime Especial de Tributação',
+        help_text='0=Nenhum, 1=Microempresa Municipal, 2=Estimativa, 3=Sociedade de Profissionais, 4=Cooperativa, 5=MEI, 6=ME/EPP Simples Nacional'
+    )
+    incentivador_cultural = models.BooleanField(
+        default=False,
+        verbose_name='Incentivador Cultural',
+        help_text='Se a empresa é incentivadora cultural'
+    )
+    item_lista_servico = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name='Item da Lista de Serviços',
+        help_text='Item da lista de serviço com formatação (ex: 17.02, 08.02)'
+    )
+    codigo_nbs = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='Código NBS',
+        help_text='Código NBS - Nomenclatura Brasileira de Serviços (opcional)'
+    )
+    
+    # Informações da Nota Fiscal de Serviço
+    issnet_serie_rps = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        verbose_name='Série do RPS / Série da NF',
+        help_text='Série utilizada para emissão (ex: NFSE, 1, E). Vazio = A'
+    )
+    issnet_ultimo_rps_conhecido = models.IntegerField(
+        default=0,
+        verbose_name='Último RPS emitido',
+        help_text='Número do RPS da última NF emitida. Próxima emissão usará este + 1'
+    )
+    issnet_numero_lote = models.IntegerField(
+        default=0,
+        verbose_name='Número do Lote',
+        help_text='Número do lote atual (opcional, se vazio usa mesmo número do RPS)'
+    )
+    
     # Configurações gerais de NFS-e
     codigo_servico_municipal = models.CharField(
         max_length=10,

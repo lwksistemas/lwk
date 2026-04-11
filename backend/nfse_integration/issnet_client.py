@@ -377,14 +377,14 @@ class ISSNetClient:
         # Natureza da operação (1=Tributação no município)
         SubElement(inf_rps, 'NaturezaOperacao').text = '1'
         
-        # Regime especial de tributação (não aplicável)
-        SubElement(inf_rps, 'RegimeEspecialTributacao').text = '0'
+        # Regime especial de tributação (configurável)
+        SubElement(inf_rps, 'RegimeEspecialTributacao').text = getattr(self, '_regime_especial', '0') or '0'
         
-        # Optante pelo Simples Nacional
-        SubElement(inf_rps, 'OptanteSimplesNacional').text = '1'  # 1=Sim, 2=Não
+        # Optante pelo Simples Nacional (configurável)
+        SubElement(inf_rps, 'OptanteSimplesNacional').text = '1' if getattr(self, '_optante_simples', True) else '2'
         
-        # Incentivador cultural
-        SubElement(inf_rps, 'IncentivadorCultural').text = '2'  # 2=Não
+        # Incentivador cultural (configurável)
+        SubElement(inf_rps, 'IncentivadorCultural').text = '1' if getattr(self, '_incentivador_cultural', False) else '2'
         
         # Status (1=Normal)
         SubElement(inf_rps, 'Status').text = '1'

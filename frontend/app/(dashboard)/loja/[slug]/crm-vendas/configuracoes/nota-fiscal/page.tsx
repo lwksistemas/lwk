@@ -30,6 +30,12 @@ export default function ConfiguracaoNotaFiscalPage() {
     descricao_servico_padrao: 'Desenvolvimento e licenciamento de software sob demanda',
     aliquota_iss: '2.00',
     inscricao_municipal: '',
+    codigo_cnae: '',
+    optante_simples_nacional: true,
+    regime_especial_tributacao: '0',
+    incentivador_cultural: false,
+    item_lista_servico: '',
+    codigo_nbs: '',
     issnet_serie_rps: '',
     issnet_ultimo_rps_conhecido: '',
     issnet_numero_lote: '',
@@ -60,6 +66,12 @@ export default function ConfiguracaoNotaFiscalPage() {
         descricao_servico_padrao: config.descricao_servico_padrao || 'Desenvolvimento e licenciamento de software sob demanda',
         aliquota_iss: config.aliquota_iss || '2.00',
         inscricao_municipal: config.inscricao_municipal || '',
+        codigo_cnae: config.codigo_cnae || '',
+        optante_simples_nacional: config.optante_simples_nacional ?? true,
+        regime_especial_tributacao: config.regime_especial_tributacao || '0',
+        incentivador_cultural: config.incentivador_cultural ?? false,
+        item_lista_servico: config.item_lista_servico || '',
+        codigo_nbs: config.codigo_nbs || '',
         issnet_serie_rps: config.issnet_serie_rps || '',
         issnet_ultimo_rps_conhecido:
           config.issnet_ultimo_rps_conhecido != null && config.issnet_ultimo_rps_conhecido !== undefined
@@ -705,11 +717,10 @@ export default function ConfiguracaoNotaFiscalPage() {
           {formData.provedor_nf === 'issnet' && (
             <div className="mb-6 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/80 dark:bg-amber-950/20 p-4">
               <h3 className="text-sm font-semibold text-amber-950 dark:text-amber-100 mb-1">
-                ISSNet — inscrição municipal, série e RPS
+                ISSNet — Informações do Portal Emissor
               </h3>
               <p className="text-xs text-amber-900/90 dark:text-amber-200/90 mb-4">
-                Preencha estes campos com os mesmos dados do Asaas (Informações da empresa / NFS-e) e da
-                prefeitura. Eles ficam nesta seção para ficarem sempre visíveis ao salvar.
+                Preencha com os mesmos dados do Asaas (Informações da empresa / NFS-e) e da prefeitura de Ribeirão Preto.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
@@ -727,6 +738,100 @@ export default function ConfiguracaoNotaFiscalPage() {
                   <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
                     Mesmos dígitos do cadastro (ex.: <strong>20130440</strong> no Asaas). Só números.
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                    Código CNAE (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.codigo_cnae}
+                    onChange={(e) => setFormData({ ...formData, codigo_cnae: e.target.value })}
+                    placeholder="Apenas números"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                    Item da Lista de Serviços (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.item_lista_servico}
+                    onChange={(e) => setFormData({ ...formData, item_lista_servico: e.target.value })}
+                    placeholder="Ex.: 17.02 ou 08.02"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    autoComplete="off"
+                  />
+                  <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
+                    Manter formatação com pontos (ex.: 17.02).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                    Código NBS (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.codigo_nbs}
+                    onChange={(e) => setFormData({ ...formData, codigo_nbs: e.target.value })}
+                    placeholder="Nomenclatura Brasileira de Serviços"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
+                    Regime Especial de Tributação
+                  </label>
+                  <select
+                    value={formData.regime_especial_tributacao}
+                    onChange={(e) => setFormData({ ...formData, regime_especial_tributacao: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                  >
+                    <option value="0">Nenhum</option>
+                    <option value="1">Microempresa Municipal</option>
+                    <option value="2">Estimativa</option>
+                    <option value="3">Sociedade de Profissionais</option>
+                    <option value="4">Cooperativa</option>
+                    <option value="5">MEI - Simples Nacional</option>
+                    <option value="6">ME/EPP - Simples Nacional</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.optante_simples_nacional}
+                      onChange={(e) => setFormData({ ...formData, optante_simples_nacional: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-gray-800 dark:text-gray-200">
+                      Optante pelo Simples Nacional
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.incentivador_cultural}
+                      onChange={(e) => setFormData({ ...formData, incentivador_cultural: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-gray-800 dark:text-gray-200">
+                      Incentivador Cultural
+                    </span>
+                  </label>
+                </div>
+                <div className="md:col-span-2 border-t border-amber-200 dark:border-amber-800 pt-4 mt-2">
+                  <h4 className="text-sm font-semibold text-amber-950 dark:text-amber-100 mb-3">
+                    Informações da Nota Fiscal de Serviço
+                  </h4>
                 </div>
                 <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>

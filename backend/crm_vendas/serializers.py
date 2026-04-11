@@ -563,10 +563,12 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         """Multipart/form envia booleans como strings ('true'/'false')."""
         if hasattr(data, 'copy'):
             data = data.copy()
-        if hasattr(data, 'get') and data.get('asaas_sandbox') is not None:
-            v = data.get('asaas_sandbox')
-            if isinstance(v, str):
-                data['asaas_sandbox'] = v.lower() in ('true', '1', 'on', 'yes')
+        bool_fields = ['asaas_sandbox', 'optante_simples_nacional', 'incentivador_cultural', 'emitir_nf_automaticamente']
+        for field in bool_fields:
+            if hasattr(data, 'get') and data.get(field) is not None:
+                v = data.get(field)
+                if isinstance(v, str):
+                    data[field] = v.lower() in ('true', '1', 'on', 'yes')
         return super().to_internal_value(data)
 
     class Meta:
@@ -578,6 +580,12 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             'provedor_nf', 'provedor_nf_display',
             'issnet_usuario', 'issnet_senha',
             'issnet_certificado', 'issnet_senha_certificado',
+            # Portal Emissor (Asaas / Prefeitura)
+            'inscricao_municipal', 'codigo_cnae',
+            'optante_simples_nacional', 'regime_especial_tributacao',
+            'incentivador_cultural', 'item_lista_servico', 'codigo_nbs',
+            # Informações da NF
+            'issnet_serie_rps', 'issnet_ultimo_rps_conhecido', 'issnet_numero_lote',
             'codigo_servico_municipal', 'descricao_servico_padrao',
             'aliquota_iss', 'emitir_nf_automaticamente',
             'asaas_api_key', 'asaas_sandbox', 'asaas_api_key_configured',

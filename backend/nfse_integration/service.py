@@ -416,6 +416,13 @@ class NFSeService:
                 senha_certificado=self.config.issnet_senha_certificado,
                 ambiente='producao'
             )
+            # Passar campos configuráveis do portal emissor
+            client._regime_especial = getattr(self.config, 'regime_especial_tributacao', '0') or '0'
+            client._optante_simples = getattr(self.config, 'optante_simples_nacional', True)
+            client._incentivador_cultural = getattr(self.config, 'incentivador_cultural', False)
+            
+            # Série do RPS configurável
+            serie_rps = (getattr(self.config, 'issnet_serie_rps', '') or '').strip() or 'A'
             
             # Emitir NFS-e
             resultado = client.emitir_nfse(
@@ -458,11 +465,14 @@ class NFSeService:
     
     def _get_inscricao_municipal(self) -> str:
         """
-        Obtém inscrição municipal da loja.
+        Obtém inscrição municipal (CRMConfig primeiro, depois Loja como fallback).
         
         Returns:
             str: Inscrição municipal da loja
         """
+        im = (getattr(self.config, 'inscricao_municipal', '') or '').strip()
+        if im:
+            return im
         return getattr(self.loja, 'inscricao_municipal', '') or ''
     
     def registrar_falha_emissao(

@@ -24,6 +24,7 @@ db_*.sqlite3
 
 # Environment
 .env
+.env.staging
 .env.local
 .env.*.local
 

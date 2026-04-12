@@ -197,7 +197,7 @@ class ISSNetClient:
 
         try:
             key = xmlsec.Key.from_file(key_tmp.name, xmlsec.constants.KeyDataFormatPem)
-            key.load_cert(cert_tmp.name, xmlsec.constants.KeyDataFormatPem)
+            key.load_cert(cert_tmp.name, xmlsec.constants.KeyDataFormatCertPem)
         finally:
             import os
             os.unlink(key_tmp.name)

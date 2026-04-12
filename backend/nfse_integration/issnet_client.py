@@ -194,9 +194,8 @@ class ISSNetClient:
             raise ValueError('InfDeclaracaoPrestacaoServico nao encontrado')
         inf_id = inf_el.get('Id', '')
 
-        # Canonicalizar o InfDeclaracaoPrestacaoServico
-        from lxml.etree import tostring as c14n_tostring
-        inf_c14n = etree.tostring(inf_el, method='c14n2')
+        # Canonicalizar o InfDeclaracaoPrestacaoServico (exclusive c14n)
+        inf_c14n = etree.tostring(inf_el, method='c14n', exclusive=True)
 
         # Calcular digest SHA256 do conteudo canonicalizado
         digest_value = base64.b64encode(hashlib.sha256(inf_c14n).digest()).decode()
@@ -204,12 +203,12 @@ class ISSNetClient:
         # Construir SignedInfo
         signed_info_xml = (
             f'<SignedInfo xmlns="{ds}">'
-            f'<CanonicalizationMethod Algorithm="http://www.w3.org/2006/12/xml-c14n11"/>'
+            f'<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
             f'<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>'
             f'<Reference URI="#{inf_id}">'
             f'<Transforms>'
             f'<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
-            f'<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
+            f'<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
             f'</Transforms>'
             f'<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>'
             f'<DigestValue>{digest_value}</DigestValue>'
@@ -217,9 +216,9 @@ class ISSNetClient:
             f'</SignedInfo>'
         )
 
-        # Canonicalizar SignedInfo para assinatura
+        # Canonicalizar SignedInfo para assinatura (exclusive c14n)
         signed_info_el = etree.fromstring(signed_info_xml.encode('utf-8'))
-        signed_info_c14n = etree.tostring(signed_info_el, method='c14n2')
+        signed_info_c14n = etree.tostring(signed_info_el, method='c14n', exclusive=True)
 
         # Assinar com chave privada RSA-SHA256
         signature_value = base64.b64encode(

@@ -171,9 +171,8 @@ class ISSNetClient:
         """
         Assina XML com certificado digital A1.
         
-        ABRASF 2.04: a Signature fica dentro do elemento Rps,
-        referenciando o Id do InfDeclaracaoPrestacaoServico.
-        Usa xmlsec (lxml + cryptography) diretamente para controle total.
+        ABRASF 2.04 ISSNet: a Signature fica no EnviarLoteRpsEnvio (root),
+        referenciando o Id do LoteRps.
         """
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
@@ -188,48 +187,49 @@ class ISSNetClient:
         ns = NS_NFSE
         ds = 'http://www.w3.org/2000/09/xmldsig#'
 
-        # Encontrar InfDeclaracaoPrestacaoServico
-        inf_el = root.find('.//{%s}InfDeclaracaoPrestacaoServico' % ns)
-        if inf_el is None:
-            raise ValueError('InfDeclaracaoPrestacaoServico nao encontrado')
-        inf_id = inf_el.get('Id', '')
+        # Adicionar Id ao LoteRps para referencia
+        lote_el = root.find('.//{%s}LoteRps' % ns)
+        if lote_el is None:
+            raise ValueError('LoteRps nao encontrado')
+        lote_id = 'lote1'
+        lote_el.set('Id', lote_id)
 
-        # Canonicalizar o InfDeclaracaoPrestacaoServico (exclusive c14n)
-        inf_c14n = etree.tostring(inf_el, method='c14n', exclusive=True)
+        # Canonicalizar o LoteRps (exclusive c14n)
+        lote_c14n = etree.tostring(lote_el, method='c14n', exclusive=True)
 
-        # Calcular digest SHA256 do conteudo canonicalizado
-        digest_value = base64.b64encode(hashlib.sha256(inf_c14n).digest()).decode()
+        # Calcular digest SHA1 (ISSNet geralmente usa SHA1)
+        digest_value = base64.b64encode(hashlib.sha1(lote_c14n).digest()).decode()
 
-        # Construir SignedInfo
+        # Construir SignedInfo com SHA1 (padrao NFS-e brasileira)
         signed_info_xml = (
             f'<SignedInfo xmlns="{ds}">'
             f'<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
-            f'<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>'
-            f'<Reference URI="#{inf_id}">'
+            f'<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>'
+            f'<Reference URI="#{lote_id}">'
             f'<Transforms>'
             f'<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
             f'<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
             f'</Transforms>'
-            f'<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>'
+            f'<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>'
             f'<DigestValue>{digest_value}</DigestValue>'
             f'</Reference>'
             f'</SignedInfo>'
         )
 
-        # Canonicalizar SignedInfo para assinatura (exclusive c14n)
+        # Canonicalizar SignedInfo
         signed_info_el = etree.fromstring(signed_info_xml.encode('utf-8'))
         signed_info_c14n = etree.tostring(signed_info_el, method='c14n', exclusive=True)
 
-        # Assinar com chave privada RSA-SHA256
+        # Assinar com RSA-SHA1
         signature_value = base64.b64encode(
-            private_key.sign(signed_info_c14n, padding.PKCS1v15(), hashes.SHA256())
+            private_key.sign(signed_info_c14n, padding.PKCS1v15(), hashes.SHA1())
         ).decode()
 
-        # Extrair certificado X509 em base64
+        # Certificado X509 em base64
         cert_der = certificate.public_bytes(serialization.Encoding.DER)
         cert_b64 = base64.b64encode(cert_der).decode()
 
-        # Montar elemento Signature completo
+        # Montar Signature
         sig_xml = (
             f'<Signature xmlns="{ds}">'
             f'{signed_info_xml}'
@@ -244,15 +244,11 @@ class ISSNetClient:
 
         sig_el = etree.fromstring(sig_xml.encode('utf-8'))
 
-        # Inserir Signature dentro do Rps, apos InfDeclaracaoPrestacaoServico
-        rps_el = root.find('.//{%s}Rps' % ns)
-        if rps_el is not None:
-            rps_el.append(sig_el)
-        else:
-            inf_el.append(sig_el)
+        # Inserir Signature no root (EnviarLoteRpsEnvio), apos LoteRps
+        root.append(sig_el)
 
         result = etree.tostring(root, encoding='unicode')
-        logger.info('XML assinado com sucesso (manual RSA-SHA256)')
+        logger.info('XML assinado com sucesso (RSA-SHA1, ref LoteRps)')
         return result
 
     # ------------------------------------------------------------------

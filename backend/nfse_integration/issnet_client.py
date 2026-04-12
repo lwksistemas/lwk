@@ -1,26 +1,56 @@
 """
 Cliente para webservice ISSNet de Ribeirão Preto
-Emissão de NFS-e direta na prefeitura
+Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
+
+Referências:
+- WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
+- Operações: GerarNfse, RecepcionarLoteRpsSincrono, ConsultarNfsePorRps, CancelarNfse
+- Cada operação SOAP recebe (nfseCabecMsg: str, nfseDadosMsg: str)
 """
 import logging
-import base64
+import os
+import re
 from datetime import datetime
 from typing import Dict, Any, Optional
 from decimal import Decimal
 
+from lxml import etree
+
 logger = logging.getLogger(__name__)
 
-# ISSNet Online (Nota Control) — ABRASF 2.04, município Ribeirão Preto.
-# O host antigo issdigital.ribeiraopreto.sp.gov.br NÃO existe no DNS público (NXDOMAIN).
-# Portal e login: https://www.issnetonline.com.br/ribeiraopreto/ — WSDL operacional:
+NS_NFSE = 'http://www.abrasf.org.br/nfse.xsd'
+COD_MUNICIPIO_RP = '3543402'
+
 ISSNET_RP_NFSE_ASMX = (
     'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
 )
-# Homologação: sem URL municipal separada estável; mesmo endpoint até confirmação Nota Control.
 ISSNET_URLS = {
     'producao': ISSNET_RP_NFSE_ASMX,
     'homologacao': ISSNET_RP_NFSE_ASMX,
 }
+
+CABEC_MSG = (
+    '<cabecalho xmlns="http://www.abrasf.org.br/nfse.xsd" versao="2.04">'
+    '<versaoDados>2.04</versaoDados>'
+    '</cabecalho>'
+)
+
+
+def _somente_digitos(texto: str) -> str:
+    return re.sub(r'\D', '', texto or '')
+
+
+def _carregar_certificado(pfx_path: str, senha: str):
+    """Carrega chave privada e certificado de um arquivo .pfx."""
+    from cryptography.hazmat.primitives.serialization import pkcs12
+    with open(pfx_path, 'rb') as f:
+        pfx_data = f.read()
+    private_key, certificate, extra = pkcs12.load_key_and_certificates(
+        pfx_data, senha.encode()
+    )
+    if certificate is None:
+        raise ValueError('O arquivo .pfx nao contem certificado valido.')
+    return private_key, certificate, extra
 
 
 def testar_conexao_issnet(
@@ -30,29 +60,20 @@ def testar_conexao_issnet(
     senha_certificado: str,
     ambiente: str = 'producao',
 ) -> Dict[str, Any]:
-    """
-    Teste não destrutivo: valida PFX/senha e tenta acessar o WSDL do webservice.
-    Não emite NF. Usuário/senha do portal não são validados via SOAP aqui (só na emissão).
-    """
-    import os
-    import requests
+    """Teste nao destrutivo: valida PFX/senha e tenta acessar o WSDL."""
+    import requests as req
 
     out: Dict[str, Any] = {
-        'success': False,
-        'message': '',
-        'detail': '',
-        'ambiente': 'homologação' if ambiente == 'homologacao' else 'produção',
+        'success': False, 'message': '', 'detail': '',
+        'ambiente': 'homologacao' if ambiente == 'homologacao' else 'producao',
     }
-
     if not (usuario or '').strip() or not (senha or '').strip():
-        out['detail'] = 'Informe usuário e senha ISSNet.'
+        out['detail'] = 'Informe usuario e senha ISSNet.'
         return out
-
     path = (certificado_path or '').strip()
     if not path or not os.path.isfile(path):
-        out['detail'] = 'Certificado .pfx não encontrado no servidor.'
+        out['detail'] = 'Certificado .pfx nao encontrado no servidor.'
         return out
-
     if not (senha_certificado or ''):
         out['detail'] = 'Informe a senha do certificado (.pfx).'
         return out
@@ -63,272 +84,107 @@ def testar_conexao_issnet(
         out['detail'] = f'Ambiente ISSNet desconhecido: {ambiente}'
         return out
 
-    wsdl_url = f'{base}?wsdl'
-
     try:
-        from cryptography.hazmat.primitives.serialization import pkcs12
-        from cryptography.hazmat.backends import default_backend
-
-        with open(path, 'rb') as f:
-            pfx_data = f.read()
-        _key, certificate, _extra = pkcs12.load_key_and_certificates(
-            pfx_data,
-            senha_certificado.encode(),
-            backend=default_backend(),
-        )
-        if certificate is None:
-            out['detail'] = 'O arquivo .pfx não contém certificado válido.'
-            return out
-
+        _key, cert, _ = _carregar_certificado(path, senha_certificado)
         try:
-            subj = certificate.subject.rfc4514_string()
-            if subj:
-                out['certificado_subject'] = subj[:500]
+            out['certificado_subject'] = cert.subject.rfc4514_string()[:500]
         except Exception:
             pass
-
     except Exception as e:
-        logger.warning('testar_conexao_issnet: falha ao abrir PFX: %s', e)
-        out['detail'] = (
-            'Não foi possível abrir o certificado. Verifique o arquivo .pfx e a senha do certificado.'
-        )
+        logger.warning('testar_conexao_issnet: falha PFX: %s', e)
+        out['detail'] = 'Nao foi possivel abrir o certificado. Verifique .pfx e senha.'
         return out
 
     try:
-        r = requests.get(
-            wsdl_url,
-            timeout=25,
-            headers={'User-Agent': 'LWK-Sistemas/CRM (teste ISSNet)'},
-        )
-        body_preview = (r.text or '')[:2000].lower()
-        ok_xml = r.status_code == 200 and (
-            'definitions' in body_preview
-            or 'wsdl' in body_preview
-            or 'schema' in body_preview
-        )
-        if ok_xml:
+        r = req.get(f'{base}?wsdl', timeout=25, headers={'User-Agent': 'LWK-Sistemas/CRM'})
+        body = (r.text or '')[:2000].lower()
+        if r.status_code == 200 and ('definitions' in body or 'wsdl' in body):
             out['success'] = True
-            if ambiente == 'homologacao':
-                out['message'] = (
-                    'Certificado OK e WSDL do ISSNet Online (Nota Control, ABRASF 2.04) acessível. '
-                    'Não há host DNS separado estável só para homologação; o teste usou o endpoint de '
-                    'produção (nfse.issnetonline.com.br). Credenciais de teste, se existirem, vêm da '
-                    'prefeitura ou Nota Control.'
-                )
-            else:
-                out['message'] = (
-                    'Certificado OK e WSDL do ISSNet Online — Ribeirão Preto (ABRASF 2.04) acessível. '
-                    'Usuário e senha do ISSNet serão validados na primeira emissão de NFS-e.'
-                )
-            return out
-
-        out['detail'] = (
-            f'O certificado está válido, mas o WSDL retornou HTTP {r.status_code}. '
-            'Verifique firewall/DNS ou se a prefeitura alterou o endereço do serviço.'
-        )
-        return out
-
-    except requests.exceptions.RequestException as e:
-        logger.warning('testar_conexao_issnet: request WSDL: %s', e)
-        err_s = str(e).lower()
-        if 'failed to resolve' in err_s or 'name or service not known' in err_s:
-            out['detail'] = (
-                'Certificado OK, mas o hostname do webservice não resolve no DNS. '
-                'Confirme bloqueio de rede/firewall ou se a Nota Control alterou o endpoint ISSNet Online.'
+            out['message'] = (
+                'Certificado OK e WSDL ISSNet Online (ABRASF 2.04) acessivel. '
+                'Credenciais serao validadas na primeira emissao.'
             )
         else:
-            out['detail'] = (
-                'Certificado OK, mas não foi possível contatar o servidor do ISSNet '
-                f'({out["ambiente"]}). Erro: {e}'
-            )
-        return out
+            out['detail'] = f'WSDL retornou HTTP {r.status_code}.'
+    except Exception as e:
+        logger.warning('testar_conexao_issnet: request WSDL: %s', e)
+        out['detail'] = f'Nao foi possivel contatar o ISSNet: {e}'
+    return out
 
 
 class ISSNetClient:
     """
-    Cliente para webservice ISSNet de Ribeirão Preto.
-    
-    Permite emissão de NFS-e diretamente na prefeitura usando:
-    - Certificado digital A1 (.pfx)
-    - Credenciais de acesso (usuário/senha)
-    - Webservice SOAP
+    Cliente SOAP para webservice ISSNet Ribeirao Preto (ABRASF 2.04).
+
+    Usa GerarNfse (sincrono, 1 RPS) em vez de RecepcionarLoteRps (assincrono).
+    Autenticacao: usuario/senha no XML + certificado digital para assinatura.
     """
-    
+
     def __init__(
         self,
         usuario: str,
         senha: str,
         certificado_path: str,
         senha_certificado: str,
-        ambiente: str = 'producao'
+        ambiente: str = 'producao',
     ):
-        """
-        Inicializa cliente ISSNet.
-        
-        Args:
-            usuario: Usuário de acesso ao webservice
-            senha: Senha de acesso ao webservice
-            certificado_path: Caminho para arquivo .pfx do certificado
-            senha_certificado: Senha do certificado digital
-            ambiente: 'producao' ou 'homologacao'
-        """
         self.usuario = usuario
         self.senha = senha
         self.certificado_path = certificado_path
         self.senha_certificado = senha_certificado
-        self.ambiente = ambiente
-        
-        amb = 'homologacao' if ambiente == 'homologacao' else 'producao'
-        if amb not in ISSNET_URLS:
-            raise ValueError(f"Ambiente ISSNet inválido: {ambiente}")
-        self.urls = dict(ISSNET_URLS)
-        self.wsdl_url = f"{self.urls[amb]}?wsdl"
-        
-        # Cliente SOAP será inicializado sob demanda
+        self.ambiente = 'homologacao' if ambiente == 'homologacao' else 'producao'
+        self.base_url = ISSNET_URLS[self.ambiente]
+        self.wsdl_url = f'{self.base_url}?wsdl'
         self._soap_client = None
-    
+
+        # Campos configuraveis (setados pelo service.py)
+        self._regime_especial = '0'
+        self._optante_simples = True
+        self._incentivador_cultural = False
+
     def _get_soap_client(self):
-        """
-        Retorna cliente SOAP configurado com certificado.
-        Inicializa apenas quando necessário (lazy loading).
-        """
+        """Cliente SOAP zeep com lazy loading."""
         if self._soap_client is not None:
             return self._soap_client
-        
-        try:
-            from zeep import Client
-            from zeep.transports import Transport
-            from requests import Session
-            from requests.adapters import HTTPAdapter
-            from urllib3.util.ssl_ import create_urllib3_context
-            import ssl
-            
-            # Carregar certificado
-            with open(self.certificado_path, 'rb') as f:
-                pfx_data = f.read()
-            
-            # Criar contexto SSL com certificado
-            from cryptography.hazmat.primitives.serialization import pkcs12
-            from cryptography.hazmat.backends import default_backend
-            
-            private_key, certificate, additional_certs = pkcs12.load_key_and_certificates(
-                pfx_data,
-                self.senha_certificado.encode(),
-                backend=default_backend()
-            )
-            
-            # Configurar sessão com certificado
-            session = Session()
-            
-            # Criar adapter com certificado
-            # Nota: Zeep + requests + certificado requer configuração especial
-            # Por enquanto, vamos usar uma abordagem simplificada
-            
-            transport = Transport(session=session)
-            
-            # Criar cliente SOAP
-            self._soap_client = Client(self.wsdl_url, transport=transport)
-            
-            logger.info(f"Cliente SOAP ISSNet inicializado: {self.ambiente}")
-            return self._soap_client
-            
-        except ImportError as e:
-            logger.error(f"Bibliotecas necessárias não instaladas: {e}")
-            logger.error("Instale: pip install zeep cryptography")
-            raise
-        except Exception as e:
-            logger.error(f"Erro ao inicializar cliente SOAP: {e}")
-            raise
-    
-    def emitir_nfse(
+        from zeep import Client
+        from zeep.transports import Transport
+        from requests import Session
+
+        session = Session()
+        session.headers.update({'User-Agent': 'LWK-Sistemas/CRM'})
+        transport = Transport(session=session, timeout=30)
+        self._soap_client = Client(self.wsdl_url, transport=transport)
+        logger.info('Cliente SOAP ISSNet inicializado: %s', self.ambiente)
+        return self._soap_client
+
+    # ------------------------------------------------------------------
+    # Assinatura XML
+    # ------------------------------------------------------------------
+    def _assinar_xml(self, xml_str: str) -> str:
+        """Assina XML com certificado digital A1 usando signxml 4.x."""
+        from signxml import XMLSigner
+
+        private_key, certificate, _ = _carregar_certificado(
+            self.certificado_path, self.senha_certificado
+        )
+        root = etree.fromstring(xml_str.encode('utf-8'))
+        signer = XMLSigner(
+            method='enveloped',
+            signature_algorithm='rsa-sha1',
+            digest_algorithm='sha1',
+        )
+        signed = signer.sign(root, key=private_key, cert=certificate)
+        result = etree.tostring(signed, encoding='unicode', pretty_print=True)
+        logger.info('XML assinado com sucesso')
+        return result
+
+    # ------------------------------------------------------------------
+    # Construir XML ABRASF 2.04 — GerarNfseEnvio
+    # ------------------------------------------------------------------
+    def _construir_xml_gerar_nfse(
         self,
         prestador_cnpj: str,
         prestador_inscricao_municipal: str,
-        prestador_razao_social: str,
-        tomador_cpf_cnpj: str,
-        tomador_nome: str,
-        tomador_endereco: Dict[str, str],
-        servico_codigo: str,
-        servico_descricao: str,
-        valor_servicos: Decimal,
-        aliquota_iss: Decimal,
-        numero_rps: int,
-        serie_rps: str = 'A',
-        tipo_rps: int = 1,
-        data_emissao: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
-        """
-        Emite NFS-e no ISSNet.
-        
-        Args:
-            prestador_cnpj: CNPJ do prestador (loja)
-            prestador_inscricao_municipal: Inscrição municipal do prestador
-            prestador_razao_social: Razão social do prestador
-            tomador_cpf_cnpj: CPF/CNPJ do tomador (cliente)
-            tomador_nome: Nome/Razão social do tomador
-            tomador_endereco: Endereço do tomador (dict com logradouro, numero, bairro, cidade, uf, cep)
-            servico_codigo: Código do serviço municipal (ex: '1401')
-            servico_descricao: Descrição do serviço prestado
-            valor_servicos: Valor total dos serviços
-            aliquota_iss: Alíquota do ISS (ex: 2.00 para 2%)
-            numero_rps: Número do RPS
-            serie_rps: Série do RPS (padrão: 'A')
-            tipo_rps: Tipo do RPS (1=RPS, 2=Nota Fiscal Conjugada, 3=Cupom)
-            data_emissao: Data de emissão (padrão: agora)
-        
-        Returns:
-            Dict com resultado da emissão:
-            {
-                'success': bool,
-                'numero_nf': str,
-                'codigo_verificacao': str,
-                'data_emissao': datetime,
-                'xml_nfse': str,
-                'error': str (se houver erro)
-            }
-        """
-        try:
-            if data_emissao is None:
-                data_emissao = datetime.now()
-            
-            # Construir XML do RPS
-            xml_rps = self._construir_xml_rps(
-                prestador_cnpj=prestador_cnpj,
-                prestador_inscricao_municipal=prestador_inscricao_municipal,
-                prestador_razao_social=prestador_razao_social,
-                tomador_cpf_cnpj=tomador_cpf_cnpj,
-                tomador_nome=tomador_nome,
-                tomador_endereco=tomador_endereco,
-                servico_codigo=servico_codigo,
-                servico_descricao=servico_descricao,
-                valor_servicos=valor_servicos,
-                aliquota_iss=aliquota_iss,
-                numero_rps=numero_rps,
-                serie_rps=serie_rps,
-                tipo_rps=tipo_rps,
-                data_emissao=data_emissao,
-            )
-            
-            # Assinar XML com certificado
-            xml_assinado = self._assinar_xml(xml_rps)
-            
-            # Enviar para webservice
-            resultado = self._enviar_lote_rps(xml_assinado)
-            
-            return resultado
-            
-        except Exception as e:
-            logger.exception(f"Erro ao emitir NFS-e: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
-    def _construir_xml_rps(
-        self,
-        prestador_cnpj: str,
-        prestador_inscricao_municipal: str,
-        prestador_razao_social: str,
         tomador_cpf_cnpj: str,
         tomador_nome: str,
         tomador_endereco: Dict[str, str],
@@ -342,280 +198,317 @@ class ISSNetClient:
         data_emissao: datetime,
     ) -> str:
         """
-        Constrói XML do RPS no padrão ISSNet Ribeirão Preto.
-        
-        Returns:
-            str: XML do RPS
+        Constroi XML GerarNfseEnvio no padrao ABRASF 2.04.
+        Usa InfDeclaracaoPrestacaoServico (padrao 2.x).
         """
-        from xml.etree.ElementTree import Element, SubElement, tostring
-        from xml.dom import minidom
-        
-        # Limpar CNPJ/CPF (apenas números)
-        prestador_cnpj = ''.join(filter(str.isdigit, prestador_cnpj))
-        tomador_cpf_cnpj = ''.join(filter(str.isdigit, tomador_cpf_cnpj))
-        
-        # Calcular valores
-        valor_servicos = Decimal(str(valor_servicos))
-        aliquota_iss = Decimal(str(aliquota_iss))
-        valor_iss = (valor_servicos * aliquota_iss / 100).quantize(Decimal('0.01'))
-        valor_liquido = valor_servicos - valor_iss
-        
-        # Root
-        rps = Element('Rps')
-        
-        # Identificação do RPS
-        inf_rps = SubElement(rps, 'InfRps', Id=f'rps{numero_rps}')
-        
-        identificacao_rps = SubElement(inf_rps, 'IdentificacaoRps')
-        SubElement(identificacao_rps, 'Numero').text = str(numero_rps)
-        SubElement(identificacao_rps, 'Serie').text = serie_rps
-        SubElement(identificacao_rps, 'Tipo').text = str(tipo_rps)
-        
-        # Data de emissão
-        SubElement(inf_rps, 'DataEmissao').text = data_emissao.strftime('%Y-%m-%dT%H:%M:%S')
-        
-        # Natureza da operação (1=Tributação no município)
-        SubElement(inf_rps, 'NaturezaOperacao').text = '1'
-        
-        # Regime especial de tributação (configurável)
-        SubElement(inf_rps, 'RegimeEspecialTributacao').text = getattr(self, '_regime_especial', '0') or '0'
-        
-        # Optante pelo Simples Nacional (configurável)
-        SubElement(inf_rps, 'OptanteSimplesNacional').text = '1' if getattr(self, '_optante_simples', True) else '2'
-        
-        # Incentivador cultural (configurável)
-        SubElement(inf_rps, 'IncentivadorCultural').text = '1' if getattr(self, '_incentivador_cultural', False) else '2'
-        
-        # Status (1=Normal)
-        SubElement(inf_rps, 'Status').text = '1'
-        
-        # Prestador
-        prestador = SubElement(inf_rps, 'Prestador')
-        SubElement(prestador, 'Cnpj').text = prestador_cnpj
-        SubElement(prestador, 'InscricaoMunicipal').text = prestador_inscricao_municipal
-        
-        # Tomador
-        tomador = SubElement(inf_rps, 'Tomador')
-        
-        identificacao_tomador = SubElement(tomador, 'IdentificacaoTomador')
-        cpf_cnpj_tomador = SubElement(identificacao_tomador, 'CpfCnpj')
-        
-        if len(tomador_cpf_cnpj) == 11:
-            SubElement(cpf_cnpj_tomador, 'Cpf').text = tomador_cpf_cnpj
+        cnpj_prest = _somente_digitos(prestador_cnpj)
+        doc_tomador = _somente_digitos(tomador_cpf_cnpj)
+
+        valor = Decimal(str(valor_servicos))
+        aliquota = Decimal(str(aliquota_iss))
+        valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
+
+        ns = NS_NFSE
+        root = etree.Element('{%s}GerarNfseEnvio' % ns, nsmap={None: ns})
+        rps_el = etree.SubElement(root, '{%s}Rps' % ns)
+        inf = etree.SubElement(
+            rps_el, '{%s}InfDeclaracaoPrestacaoServico' % ns,
+            Id=f'rps{numero_rps}'
+        )
+
+        # --- Rps (identificacao) ---
+        rps_inner = etree.SubElement(inf, '{%s}Rps' % ns)
+        id_rps = etree.SubElement(rps_inner, '{%s}IdentificacaoRps' % ns)
+        etree.SubElement(id_rps, '{%s}Numero' % ns).text = str(numero_rps)
+        etree.SubElement(id_rps, '{%s}Serie' % ns).text = serie_rps
+        etree.SubElement(id_rps, '{%s}Tipo' % ns).text = str(tipo_rps)
+        etree.SubElement(rps_inner, '{%s}DataEmissao' % ns).text = (
+            data_emissao.strftime('%Y-%m-%d')
+        )
+        etree.SubElement(rps_inner, '{%s}Status' % ns).text = '1'
+
+        # --- Competencia ---
+        etree.SubElement(inf, '{%s}Competencia' % ns).text = (
+            data_emissao.strftime('%Y-%m-%d')
+        )
+
+        # --- Servico ---
+        servico = etree.SubElement(inf, '{%s}Servico' % ns)
+        valores = etree.SubElement(servico, '{%s}Valores' % ns)
+        etree.SubElement(valores, '{%s}ValorServicos' % ns).text = f'{valor:.2f}'
+        etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.4f}'
+
+        etree.SubElement(servico, '{%s}IssRetido' % ns).text = '2'
+        etree.SubElement(servico, '{%s}ResponsavelRetencao' % ns).text = '1'
+        etree.SubElement(servico, '{%s}ItemListaServico' % ns).text = servico_codigo
+        etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = servico_codigo
+        etree.SubElement(servico, '{%s}Discriminacao' % ns).text = servico_descricao
+        etree.SubElement(servico, '{%s}CodigoMunicipio' % ns).text = COD_MUNICIPIO_RP
+        etree.SubElement(servico, '{%s}ExigibilidadeISS' % ns).text = '1'
+        etree.SubElement(servico, '{%s}MunicipioIncidencia' % ns).text = COD_MUNICIPIO_RP
+
+        # --- Prestador ---
+        prestador = etree.SubElement(inf, '{%s}Prestador' % ns)
+        cpf_cnpj_prest = etree.SubElement(prestador, '{%s}CpfCnpj' % ns)
+        etree.SubElement(cpf_cnpj_prest, '{%s}Cnpj' % ns).text = cnpj_prest
+        etree.SubElement(prestador, '{%s}InscricaoMunicipal' % ns).text = (
+            prestador_inscricao_municipal
+        )
+
+        # --- Tomador ---
+        tomador = etree.SubElement(inf, '{%s}Tomador' % ns)
+        id_tom = etree.SubElement(tomador, '{%s}IdentificacaoTomador' % ns)
+        cpf_cnpj_tom = etree.SubElement(id_tom, '{%s}CpfCnpj' % ns)
+        if len(doc_tomador) == 11:
+            etree.SubElement(cpf_cnpj_tom, '{%s}Cpf' % ns).text = doc_tomador
         else:
-            SubElement(cpf_cnpj_tomador, 'Cnpj').text = tomador_cpf_cnpj
-        
-        SubElement(identificacao_tomador, 'RazaoSocial').text = tomador_nome
-        
-        # Endereço do tomador
-        endereco = SubElement(tomador, 'Endereco')
-        SubElement(endereco, 'Endereco').text = tomador_endereco.get('logradouro', '')
-        SubElement(endereco, 'Numero').text = tomador_endereco.get('numero', 'S/N')
-        SubElement(endereco, 'Bairro').text = tomador_endereco.get('bairro', '')
-        SubElement(endereco, 'CodigoMunicipio').text = '3543402'  # Código IBGE Ribeirão Preto
-        SubElement(endereco, 'Uf').text = tomador_endereco.get('uf', 'SP')
-        SubElement(endereco, 'Cep').text = ''.join(filter(str.isdigit, tomador_endereco.get('cep', '')))
-        
-        # Serviço
-        servico = SubElement(inf_rps, 'Servico')
-        
-        valores = SubElement(servico, 'Valores')
-        SubElement(valores, 'ValorServicos').text = f'{valor_servicos:.2f}'
-        SubElement(valores, 'ValorDeducoes').text = '0.00'
-        SubElement(valores, 'ValorPis').text = '0.00'
-        SubElement(valores, 'ValorCofins').text = '0.00'
-        SubElement(valores, 'ValorInss').text = '0.00'
-        SubElement(valores, 'ValorIr').text = '0.00'
-        SubElement(valores, 'ValorCsll').text = '0.00'
-        SubElement(valores, 'IssRetido').text = '2'  # 2=Não retido
-        SubElement(valores, 'ValorIss').text = f'{valor_iss:.2f}'
-        SubElement(valores, 'Aliquota').text = f'{aliquota_iss:.2f}'
-        SubElement(valores, 'DescontoIncondicionado').text = '0.00'
-        SubElement(valores, 'DescontoCondicionado').text = '0.00'
-        
-        SubElement(servico, 'ItemListaServico').text = servico_codigo
-        SubElement(servico, 'CodigoTributacaoMunicipio').text = servico_codigo
-        SubElement(servico, 'Discriminacao').text = servico_descricao
-        SubElement(servico, 'CodigoMunicipio').text = '3543402'  # Ribeirão Preto
-        
-        # Converter para string XML
-        xml_str = tostring(rps, encoding='unicode')
-        
-        # Formatar (pretty print)
-        dom = minidom.parseString(xml_str)
-        xml_formatado = dom.toprettyxml(indent='  ', encoding='UTF-8').decode('utf-8')
-        
-        # Remover declaração XML duplicada
-        xml_formatado = '\n'.join([line for line in xml_formatado.split('\n') if line.strip()])
-        
-        logger.info(f"XML RPS construído: RPS {numero_rps}, Valor R$ {valor_servicos}")
-        
-        return xml_formatado
-    
-    def _assinar_xml(self, xml: str) -> str:
-        """
-        Assina XML com certificado digital.
-        
-        Args:
-            xml: XML a ser assinado
-        
-        Returns:
-            str: XML assinado
-        """
+            etree.SubElement(cpf_cnpj_tom, '{%s}Cnpj' % ns).text = doc_tomador
+        etree.SubElement(tomador, '{%s}RazaoSocial' % ns).text = tomador_nome
+
+        end = etree.SubElement(tomador, '{%s}Endereco' % ns)
+        etree.SubElement(end, '{%s}Endereco' % ns).text = (
+            tomador_endereco.get('logradouro', '')
+        )
+        etree.SubElement(end, '{%s}Numero' % ns).text = (
+            tomador_endereco.get('numero', 'S/N')
+        )
+        bairro = tomador_endereco.get('bairro', '')
+        if bairro:
+            etree.SubElement(end, '{%s}Bairro' % ns).text = bairro
+        etree.SubElement(end, '{%s}CodigoMunicipio' % ns).text = COD_MUNICIPIO_RP
+        etree.SubElement(end, '{%s}Uf' % ns).text = (
+            tomador_endereco.get('uf', 'SP')
+        )
+        cep = _somente_digitos(tomador_endereco.get('cep', ''))
+        if cep:
+            etree.SubElement(end, '{%s}Cep' % ns).text = cep
+
+        email_tom = tomador_endereco.get('email', '')
+        if email_tom:
+            contato = etree.SubElement(tomador, '{%s}Contato' % ns)
+            etree.SubElement(contato, '{%s}Email' % ns).text = email_tom
+
+        # --- Flags ---
+        optante = '1' if self._optante_simples else '2'
+        etree.SubElement(inf, '{%s}OptanteSimplesNacional' % ns).text = optante
+        incentivo = '1' if self._incentivador_cultural else '2'
+        etree.SubElement(inf, '{%s}IncentivoFiscal' % ns).text = incentivo
+
+        xml_str = etree.tostring(root, encoding='unicode', pretty_print=True)
+        logger.info('XML GerarNfse construido: RPS %s, Valor R$ %s', numero_rps, valor)
+        return xml_str
+
+    # ------------------------------------------------------------------
+    # Emitir NFS-e
+    # ------------------------------------------------------------------
+    def emitir_nfse(
+        self,
+        prestador_cnpj: str,
+        prestador_inscricao_municipal: str,
+        prestador_razao_social: str,
+        tomador_cpf_cnpj: str,
+        tomador_nome: str,
+        tomador_endereco: Dict[str, str],
+        servico_codigo: str,
+        servico_descricao: str,
+        valor_servicos: Decimal,
+        aliquota_iss: Decimal,
+        numero_rps: int,
+        serie_rps: str = 'E',
+        tipo_rps: int = 1,
+        data_emissao: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """Emite NFS-e via GerarNfse (sincrono, 1 RPS)."""
         try:
-            from signxml import XMLSigner
-            from lxml import etree
-            from cryptography.hazmat.primitives.serialization import pkcs12
-            from cryptography.hazmat.backends import default_backend
-            
-            # Carregar certificado
-            with open(self.certificado_path, 'rb') as f:
-                pfx_data = f.read()
-            
-            private_key, certificate, additional_certs = pkcs12.load_key_and_certificates(
-                pfx_data,
-                self.senha_certificado.encode(),
-                backend=default_backend()
+            if data_emissao is None:
+                data_emissao = datetime.now()
+
+            xml_rps = self._construir_xml_gerar_nfse(
+                prestador_cnpj=prestador_cnpj,
+                prestador_inscricao_municipal=prestador_inscricao_municipal,
+                tomador_cpf_cnpj=tomador_cpf_cnpj,
+                tomador_nome=tomador_nome,
+                tomador_endereco=tomador_endereco,
+                servico_codigo=servico_codigo,
+                servico_descricao=servico_descricao,
+                valor_servicos=valor_servicos,
+                aliquota_iss=aliquota_iss,
+                numero_rps=numero_rps,
+                serie_rps=serie_rps,
+                tipo_rps=tipo_rps,
+                data_emissao=data_emissao,
             )
-            
-            # Parse XML
-            root = etree.fromstring(xml.encode('utf-8'))
-            
-            # Assinar
-            signer = XMLSigner(
-                method='enveloped',
-                signature_algorithm='rsa-sha1',
-                digest_algorithm='sha1'
-            )
-            
-            signed_root = signer.sign(
-                root,
-                key=private_key,
-                cert=certificate
-            )
-            
-            # Converter de volta para string
-            xml_assinado = etree.tostring(signed_root, encoding='unicode', pretty_print=True)
-            
-            logger.info("XML assinado com sucesso")
-            
-            return xml_assinado
-            
-        except ImportError as e:
-            logger.error(f"Biblioteca signxml não instalada: {e}")
-            logger.error("Instale: pip install signxml lxml")
-            raise
+
+            xml_assinado = self._assinar_xml(xml_rps)
+            resultado = self._enviar_gerar_nfse(xml_assinado)
+            return resultado
+
         except Exception as e:
-            logger.error(f"Erro ao assinar XML: {e}")
-            raise
-    
-    def _enviar_lote_rps(self, xml_assinado: str) -> Dict[str, Any]:
+            logger.exception('Erro ao emitir NFS-e: %s', e)
+            return {'success': False, 'error': str(e)}
+
+    # ------------------------------------------------------------------
+    # Enviar para webservice SOAP
+    # ------------------------------------------------------------------
+    def _enviar_gerar_nfse(self, xml_assinado: str) -> Dict[str, Any]:
         """
-        Envia lote de RPS para o webservice ISSNet.
-        
-        Args:
-            xml_assinado: XML do RPS assinado
-        
-        Returns:
-            Dict com resultado da emissão
+        Chama operacao GerarNfse do webservice ISSNet.
+        Parametros SOAP: nfseCabecMsg (cabecalho) + nfseDadosMsg (XML assinado).
         """
         try:
             client = self._get_soap_client()
-            
-            # Chamar método do webservice
-            response = client.service.RecepcionarLoteRps(
-                xml_assinado,
-                self.usuario,
-                self.senha
+            response = client.service.GerarNfse(
+                nfseCabecMsg=CABEC_MSG,
+                nfseDadosMsg=xml_assinado,
             )
-            
-            # Processar resposta
-            # Nota: A estrutura exata da resposta depende do webservice
-            # Aqui está uma implementação genérica
-            
-            if hasattr(response, 'NumeroNfse'):
-                return {
-                    'success': True,
-                    'numero_nf': response.NumeroNfse,
-                    'codigo_verificacao': getattr(response, 'CodigoVerificacao', ''),
-                    'data_emissao': datetime.now(),
-                    'xml_nfse': str(response)
-                }
-            else:
-                # Erro na emissão
-                erro = getattr(response, 'MensagemRetorno', 'Erro desconhecido')
-                return {
-                    'success': False,
-                    'error': erro
-                }
-                
+            return self._processar_resposta(response)
         except Exception as e:
-            logger.exception(f"Erro ao enviar lote RPS: {e}")
+            logger.exception('Erro ao enviar GerarNfse: %s', e)
+            return {'success': False, 'error': str(e)}
+
+    def _processar_resposta(self, response) -> Dict[str, Any]:
+        """Processa resposta XML do webservice ISSNet."""
+        resp_str = str(response) if response else ''
+        logger.info('Resposta ISSNet (preview): %s', resp_str[:1000])
+
+        # Resposta pode ser string XML ou objeto zeep
+        if isinstance(response, str):
+            return self._parse_resposta_xml(response)
+
+        # Objeto zeep — tentar extrair outputXML
+        output = getattr(response, 'outputXML', None) or resp_str
+        if isinstance(output, str) and output.strip().startswith('<'):
+            return self._parse_resposta_xml(output)
+
+        # Fallback: verificar atributos diretos
+        if hasattr(response, 'ListaMensagemRetorno'):
+            erros = self._extrair_erros(resp_str)
+            return {'success': False, 'error': erros or 'Erro retornado pelo ISSNet'}
+
+        return {
+            'success': False,
+            'error': f'Resposta inesperada do ISSNet: {resp_str[:500]}'
+        }
+
+    def _parse_resposta_xml(self, xml_str: str) -> Dict[str, Any]:
+        """Parse da resposta XML do ISSNet para extrair NFS-e ou erros."""
+        try:
+            root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
+        except etree.XMLSyntaxError:
+            return {'success': False, 'error': f'XML invalido na resposta: {xml_str[:300]}'}
+
+        nsmap = {'ns': NS_NFSE}
+
+        # Verificar erros
+        msgs = root.findall('.//ns:MensagemRetorno', nsmap)
+        if msgs:
+            erros = []
+            for msg in msgs:
+                codigo = msg.findtext('ns:Codigo', '', nsmap)
+                mensagem = msg.findtext('ns:Mensagem', '', nsmap)
+                correcao = msg.findtext('ns:Correcao', '', nsmap)
+                texto = f'[{codigo}] {mensagem}'
+                if correcao:
+                    texto += f' - {correcao}'
+                erros.append(texto)
+            return {'success': False, 'error': '; '.join(erros)}
+
+        # Extrair dados da NFS-e gerada
+        nfse_el = root.find('.//ns:CompNfse/ns:Nfse/ns:InfNfse', nsmap)
+        if nfse_el is None:
+            nfse_el = root.find('.//ns:Nfse/ns:InfNfse', nsmap)
+        if nfse_el is None:
+            nfse_el = root.find('.//{%s}InfNfse' % NS_NFSE)
+
+        if nfse_el is not None:
+            numero = nfse_el.findtext('{%s}Numero' % NS_NFSE, '')
+            cod_ver = nfse_el.findtext('{%s}CodigoVerificacao' % NS_NFSE, '')
+            dt_text = nfse_el.findtext('{%s}DataEmissao' % NS_NFSE, '')
+            dt_emissao = datetime.now()
+            if dt_text:
+                try:
+                    dt_emissao = datetime.fromisoformat(dt_text.replace('Z', '+00:00'))
+                except Exception:
+                    pass
+
             return {
-                'success': False,
-                'error': str(e)
+                'success': True,
+                'numero_nf': numero,
+                'codigo_verificacao': cod_ver,
+                'data_emissao': dt_emissao,
+                'xml_nfse': xml_str,
             }
-    
+
+        return {
+            'success': False,
+            'error': f'NFS-e nao encontrada na resposta: {xml_str[:500]}'
+        }
+
+    def _extrair_erros(self, texto: str) -> str:
+        """Extrai mensagens de erro de texto/XML."""
+        erros = re.findall(r'<Mensagem>(.*?)</Mensagem>', texto)
+        return '; '.join(erros) if erros else texto[:500]
+
+    # ------------------------------------------------------------------
+    # Consultar NFS-e por RPS
+    # ------------------------------------------------------------------
     def consultar_nfse(self, numero_nf: str) -> Dict[str, Any]:
-        """
-        Consulta NFS-e emitida.
-        
-        Args:
-            numero_nf: Número da NFS-e
-        
-        Returns:
-            Dict com dados da NFS-e
-        """
+        """Consulta NFS-e emitida por numero."""
         try:
+            xml_consulta = (
+                f'<ConsultarNfseRpsEnvio xmlns="{NS_NFSE}">'
+                f'<IdentificacaoRps>'
+                f'<Numero>{numero_nf}</Numero>'
+                f'<Serie>E</Serie>'
+                f'<Tipo>1</Tipo>'
+                f'</IdentificacaoRps>'
+                f'<Prestador>'
+                f'<CpfCnpj><Cnpj>{self.usuario}</Cnpj></CpfCnpj>'
+                f'</Prestador>'
+                f'</ConsultarNfseRpsEnvio>'
+            )
             client = self._get_soap_client()
-            
             response = client.service.ConsultarNfsePorRps(
-                numero_nf,
-                self.usuario,
-                self.senha
+                nfseCabecMsg=CABEC_MSG,
+                nfseDadosMsg=xml_consulta,
             )
-            
-            return {
-                'success': True,
-                'data': response
-            }
-            
+            return {'success': True, 'data': str(response)}
         except Exception as e:
-            logger.exception(f"Erro ao consultar NFS-e: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
+            logger.exception('Erro ao consultar NFS-e: %s', e)
+            return {'success': False, 'error': str(e)}
+
+    # ------------------------------------------------------------------
+    # Cancelar NFS-e
+    # ------------------------------------------------------------------
     def cancelar_nfse(self, numero_nf: str, motivo: str) -> Dict[str, Any]:
-        """
-        Cancela NFS-e emitida.
-        
-        Args:
-            numero_nf: Número da NFS-e
-            motivo: Motivo do cancelamento
-        
-        Returns:
-            Dict com resultado do cancelamento
-        """
+        """Cancela NFS-e emitida."""
         try:
-            client = self._get_soap_client()
-            
-            response = client.service.CancelarNfse(
-                numero_nf,
-                motivo,
-                self.usuario,
-                self.senha
+            xml_cancelar = (
+                f'<CancelarNfseEnvio xmlns="{NS_NFSE}">'
+                f'<Pedido>'
+                f'<InfPedidoCancelamento Id="cancel{numero_nf}">'
+                f'<IdentificacaoNfse>'
+                f'<Numero>{numero_nf}</Numero>'
+                f'<CpfCnpj><Cnpj>{self.usuario}</Cnpj></CpfCnpj>'
+                f'<InscricaoMunicipal></InscricaoMunicipal>'
+                f'<CodigoMunicipio>{COD_MUNICIPIO_RP}</CodigoMunicipio>'
+                f'</IdentificacaoNfse>'
+                f'<CodigoCancelamento>1</CodigoCancelamento>'
+                f'</InfPedidoCancelamento>'
+                f'</Pedido>'
+                f'</CancelarNfseEnvio>'
             )
-            
-            return {
-                'success': True,
-                'message': 'NFS-e cancelada com sucesso'
-            }
-            
+            xml_assinado = self._assinar_xml(xml_cancelar)
+            client = self._get_soap_client()
+            response = client.service.CancelarNfse(
+                nfseCabecMsg=CABEC_MSG,
+                nfseDadosMsg=xml_assinado,
+            )
+            resp_str = str(response)
+            if 'MensagemRetorno' in resp_str:
+                erros = self._extrair_erros(resp_str)
+                return {'success': False, 'error': erros}
+            return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
         except Exception as e:
-            logger.exception(f"Erro ao cancelar NFS-e: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            logger.exception('Erro ao cancelar NFS-e: %s', e)
+            return {'success': False, 'error': str(e)}

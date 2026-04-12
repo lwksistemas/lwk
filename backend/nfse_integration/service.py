@@ -376,6 +376,7 @@ class NFSeService:
         """
         Emite NFS-e via ISSNet (direto na prefeitura).
         """
+        cert_path = None
         try:
             from .issnet_client import ISSNetClient
             
@@ -432,7 +433,7 @@ class NFSeService:
             client._incentivador_cultural = getattr(self.config, 'incentivador_cultural', False)
             
             # Série do RPS configurável
-            serie_rps = (getattr(self.config, 'issnet_serie_rps', '') or '').strip() or 'A'
+            serie_rps = (getattr(self.config, 'issnet_serie_rps', '') or '').strip() or 'E'
             
             # Emitir NFS-e
             resultado = client.emitir_nfse(
@@ -447,14 +448,12 @@ class NFSeService:
                 valor_servicos=valor_servicos,
                 aliquota_iss=self.config.aliquota_iss,
                 numero_rps=numero_rps,
+                serie_rps=serie_rps,
             )
             
             # Se sucesso, salvar no banco e enviar email
             if resultado.get('success'):
-                # Salvar NFS-e no banco
                 self._salvar_nfse(resultado, tomador_email)
-                
-                # Enviar email se solicitado
                 if enviar_email and tomador_email:
                     self._enviar_email_nfse(
                         tomador_email=tomador_email,
@@ -472,6 +471,14 @@ class NFSeService:
                 'success': False,
                 'error': str(e)
             }
+        finally:
+            # Limpar arquivo temporário do certificado
+            import os
+            try:
+                if cert_path and os.path.exists(cert_path):
+                    os.unlink(cert_path)
+            except Exception:
+                pass
     
     def _get_inscricao_municipal(self) -> str:
         """
@@ -623,86 +630,94 @@ Atenciosamente,
     def consultar_nfse(self, numero_nf: str) -> Dict[str, Any]:
         """
         Consulta NFS-e emitida.
-        
-        Args:
-            numero_nf: Número da NFS-e
-        
-        Returns:
-            Dict com dados da NFS-e
         """
         try:
             provedor = self.config.provedor_nf
             
             if provedor == 'issnet':
                 from .issnet_client import ISSNetClient
+                import tempfile
+                import os
                 
-                client = ISSNetClient(
-                    usuario=self.config.issnet_usuario,
-                    senha=self.config.issnet_senha,
-                    certificado_path=self.config.issnet_certificado.path,
-                    senha_certificado=self.config.issnet_senha_certificado,
-                )
+                cert_data = self.config.issnet_certificado
+                if not cert_data:
+                    return {'success': False, 'error': 'Certificado nao configurado'}
+                cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+                cert_tmp.write(bytes(cert_data))
+                cert_tmp.close()
+                cert_path = cert_tmp.name
                 
-                return client.consultar_nfse(numero_nf)
+                try:
+                    client = ISSNetClient(
+                        usuario=self.config.issnet_usuario,
+                        senha=self.config.issnet_senha,
+                        certificado_path=cert_path,
+                        senha_certificado=self.config.issnet_senha_certificado,
+                    )
+                    return client.consultar_nfse(numero_nf)
+                finally:
+                    try:
+                        os.unlink(cert_path)
+                    except Exception:
+                        pass
             
             else:
                 return {
                     'success': False,
-                    'error': f'Consulta não suportada para provedor {provedor}'
+                    'error': f'Consulta nao suportada para provedor {provedor}'
                 }
                 
         except Exception as e:
             logger.exception(f"Erro ao consultar NFS-e: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {'success': False, 'error': str(e)}
     
     def cancelar_nfse(self, numero_nf: str, motivo: str) -> Dict[str, Any]:
         """
         Cancela NFS-e emitida.
-        
-        Args:
-            numero_nf: Número da NFS-e
-            motivo: Motivo do cancelamento
-        
-        Returns:
-            Dict com resultado do cancelamento
         """
         try:
             provedor = self.config.provedor_nf
             
             if provedor == 'issnet':
                 from .issnet_client import ISSNetClient
+                import tempfile
+                import os
                 
-                client = ISSNetClient(
-                    usuario=self.config.issnet_usuario,
-                    senha=self.config.issnet_senha,
-                    certificado_path=self.config.issnet_certificado.path,
-                    senha_certificado=self.config.issnet_senha_certificado,
-                )
+                cert_data = self.config.issnet_certificado
+                if not cert_data:
+                    return {'success': False, 'error': 'Certificado nao configurado'}
+                cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+                cert_tmp.write(bytes(cert_data))
+                cert_tmp.close()
+                cert_path = cert_tmp.name
                 
-                resultado = client.cancelar_nfse(numero_nf, motivo)
-                
-                # Atualizar status no banco
-                if resultado.get('success'):
-                    from .models import NFSe
-                    NFSe.objects.filter(
-                        loja_id=self.loja.id,
-                        numero_nf=numero_nf
-                    ).update(status='cancelada')
-                
-                return resultado
+                try:
+                    client = ISSNetClient(
+                        usuario=self.config.issnet_usuario,
+                        senha=self.config.issnet_senha,
+                        certificado_path=cert_path,
+                        senha_certificado=self.config.issnet_senha_certificado,
+                    )
+                    resultado = client.cancelar_nfse(numero_nf, motivo)
+                    if resultado.get('success'):
+                        from .models import NFSe
+                        NFSe.objects.filter(
+                            loja_id=self.loja.id,
+                            numero_nf=numero_nf
+                        ).update(status='cancelada')
+                    return resultado
+                finally:
+                    try:
+                        os.unlink(cert_path)
+                    except Exception:
+                        pass
             
             else:
                 return {
                     'success': False,
-                    'error': f'Cancelamento não suportado para provedor {provedor}'
+                    'error': f'Cancelamento nao suportado para provedor {provedor}'
                 }
                 
         except Exception as e:
             logger.exception(f"Erro ao cancelar NFS-e: {e}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {'success': False, 'error': str(e)}

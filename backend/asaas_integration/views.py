@@ -906,9 +906,12 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                     financeiro.asaas_payment_id = resultado['payment_id']
                     financeiro.boleto_url = resultado.get('boleto_url', '')
                     financeiro.pix_qr_code = resultado.get('pix_qr_code', '')
-                    financeiro.data_proxima_cobranca = resultado['due_date']
+                    # ✅ CORREÇÃO: Para plano anual, próxima cobrança = +1 ano (não a data do boleto atual)
+                    from superadmin.cobranca_service import CobrancaService
+                    dia = financeiro.dia_vencimento or 10
+                    financeiro.data_proxima_cobranca = CobrancaService()._calcular_proxima_cobranca(dia, loja.tipo_assinatura)
                     financeiro.save()
-                    logger.info(f"✅ FinanceiroLoja atualizado com novo boleto")
+                    logger.info(f"✅ FinanceiroLoja atualizado (próxima cobrança: {financeiro.data_proxima_cobranca})")
                 except FinanceiroLoja.DoesNotExist:
                     logger.warning(f"⚠️  FinanceiroLoja não encontrado para {loja.slug}")
                 

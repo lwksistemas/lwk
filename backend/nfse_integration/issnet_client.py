@@ -313,11 +313,13 @@ class ISSNetClient:
         servico = etree.SubElement(inf, '{%s}Servico' % ns)
         valores = etree.SubElement(servico, '{%s}Valores' % ns)
         etree.SubElement(valores, '{%s}ValorServicos' % ns).text = f'{valor:.2f}'
-        etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.4f}'
+        etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{(aliquota / 100):.4f}'
 
         etree.SubElement(servico, '{%s}IssRetido' % ns).text = '2'
-        etree.SubElement(servico, '{%s}ItemListaServico' % ns).text = servico_codigo
-        etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = servico_codigo
+        # ItemListaServico: manter formato original (ex: 17.06 ou 1706)
+        item_lista = servico_codigo or ''
+        etree.SubElement(servico, '{%s}ItemListaServico' % ns).text = item_lista
+        etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = item_lista
         etree.SubElement(servico, '{%s}Discriminacao' % ns).text = servico_descricao
         etree.SubElement(servico, '{%s}CodigoMunicipio' % ns).text = COD_MUNICIPIO_RP
         etree.SubElement(servico, '{%s}ExigibilidadeISS' % ns).text = '1'
@@ -415,8 +417,9 @@ class ISSNetClient:
                 data_emissao=data_emissao,
             )
 
-            xml_assinado = self._assinar_xml(xml_rps)
-            resultado = self._enviar_gerar_nfse(xml_assinado)
+            # Tentar enviar sem assinatura primeiro (ISSNet aceita auth por usuario/senha)
+            # A assinatura sera adicionada quando o schema sem assinatura funcionar
+            resultado = self._enviar_gerar_nfse(xml_rps)
             return resultado
 
         except Exception as e:

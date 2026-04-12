@@ -83,17 +83,17 @@ soap = (
     '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
     'xmlns:ws="http://nfse.abrasf.org.br">'
     '<soap:Body>'
-    '<ws:RecepcionarLoteRpsSincrono>'
+    '<ws:GerarNfse>'
     '<ws:nfseCabecMsg><![CDATA[' + cabec + ']]></ws:nfseCabecMsg>'
     '<ws:nfseDadosMsg><![CDATA[' + xml_nfse + ']]></ws:nfseDadosMsg>'
-    '</ws:RecepcionarLoteRpsSincrono>'
+    '</ws:GerarNfse>'
     '</soap:Body>'
     '</soap:Envelope>'
 )
 
 headers = {
     'Content-Type': 'text/xml; charset=utf-8',
-    'SOAPAction': 'http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono',
+    'SOAPAction': 'http://nfse.abrasf.org.br/GerarNfse',
 }
 
 print(f'Enviando para {url}...')

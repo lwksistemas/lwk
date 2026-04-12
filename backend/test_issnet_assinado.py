@@ -8,23 +8,30 @@ from decimal import Decimal
 from datetime import datetime
 import tempfile
 
-# Buscar config da loja FELIX via ORM
+# Buscar config da loja FELIX via SQL direto
 from superadmin.models import Loja
-from crm_vendas.models import CRMConfig
-from django_tenants.utils import schema_context
-
 loja = Loja.objects.get(cpf_cnpj__contains='41449198000172')
 print(f'Loja: {loja.nome} (schema: {loja.database_name})')
 
-with schema_context(loja.database_name):
-    config = CRMConfig.objects.first()
-    if not config or not config.issnet_certificado:
-        print('Certificado nao encontrado')
-        sys.exit(1)
-    cert_data = bytes(config.issnet_certificado)
-    senha_cert = config.issnet_senha_certificado or ''
-    usuario = config.issnet_usuario or ''
-    senha = config.issnet_senha or ''
+import psycopg2
+db_url = os.environ.get('DATABASE_URL')
+conn = psycopg2.connect(db_url)
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute(f"SET search_path TO {loja.database_name}, public")
+cur.execute("SELECT issnet_certificado, issnet_senha_certificado, issnet_usuario, issnet_senha FROM crm_vendas_crmconfig LIMIT 1")
+row = cur.fetchone()
+cur.close()
+conn.close()
+
+if not row or not row[0]:
+    print('Certificado nao encontrado')
+    sys.exit(1)
+
+cert_data = bytes(row[0])
+senha_cert = row[1] or ''
+usuario = row[2] or ''
+senha = row[3] or ''
 print(f'Certificado: {len(bytes(cert_data))} bytes')
 print(f'Usuario: {usuario}')
 

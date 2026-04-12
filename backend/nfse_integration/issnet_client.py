@@ -187,25 +187,9 @@ class ISSNetClient:
         key_pem = private_key_obj.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption())
         cert_pem = cert_obj.public_bytes(Encoding.PEM)
 
-        # Salvar key e cert como PEM separados
-        key_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
-        key_tmp.write(key_pem)
-        key_tmp.close()
-
-        cert_tmp2 = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
-        cert_tmp2.write(cert_pem)
-        cert_tmp2.close()
-
-        try:
-            key = xmlsec.Key.from_memory(key_pem, xmlsec.constants.KeyDataFormatPem)
-            key.load_cert(cert_tmp2.name, xmlsec.constants.KeyDataFormatCertPem)
-        except AttributeError:
-            # Fallback: tentar com from_file
-            key = xmlsec.Key.from_file(key_tmp.name, xmlsec.constants.KeyDataFormatPem)
-        finally:
-            import os
-            os.unlink(key_tmp.name)
-            os.unlink(cert_tmp2.name)
+        # Carregar key+cert combinados em PEM
+        combined_pem = key_pem + b'\n' + cert_pem
+        key = xmlsec.Key.from_memory(combined_pem, xmlsec.constants.KeyDataFormatPem)
 
         # --- Assinar LoteRps ---
         lote_el = root.find('.//{%s}LoteRps' % NS_NFSE)

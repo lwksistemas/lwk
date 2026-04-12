@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { obterFeriadosBrasil } from '@/lib/feriados-brasil';
+import { AtividadeModal } from './components/AtividadeModal';
 
 const MOBILE_BREAKPOINT = 640;
 
@@ -724,131 +725,17 @@ export default function CalendarioCrmPage() {
       </div>
 
       {modalOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={handleCloseModal} aria-hidden="true" />
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
-            <div
-              className="bg-white dark:bg-gray-800 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {modalAtividade ? 'Editar atividade' : 'Nova atividade'}
-                </h2>
-              </div>
-              <div className="p-6 space-y-4">
-                {error && (
-                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Título
-                  </label>
-                  <input
-                    type="text"
-                    value={form.titulo}
-                    onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
-                    placeholder="Ex: Ligar para cliente"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tipo
-                  </label>
-                  <select
-                    value={form.tipo}
-                    onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as Atividade['tipo'] }))}
-                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
-                  >
-                    {Object.entries(TIPO_LABEL).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Data e hora
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={form.data}
-                    onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
-                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Duração (minutos)
-                  </label>
-                  <select
-                    value={form.duracao_minutos}
-                    onChange={(e) => setForm((f) => ({ ...f, duracao_minutos: Number(e.target.value) }))}
-                    className="w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation"
-                  >
-                    <option value={15}>15 min</option>
-                    <option value={30}>30 min</option>
-                    <option value={45}>45 min</option>
-                    <option value={60}>1 hora</option>
-                    <option value={90}>1h 30min</option>
-                    <option value={120}>2 horas</option>
-                    <option value={180}>3 horas</option>
-                    <option value={240}>4 horas</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Observações
-                  </label>
-                  <textarea
-                    value={form.observacoes}
-                    onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
-                    rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Opcional"
-                  />
-                </div>
-                {modalAtividade && (
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={handleToggleConcluido}
-                      disabled={saving}
-                      className="px-3 py-2 rounded-lg text-sm font-medium bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-                    >
-                      {modalAtividade.concluido ? 'Desmarcar concluída' : 'Marcar concluída'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={saving}
-                      className="px-3 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 touch-manipulation min-h-[44px]"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2.5 rounded-lg bg-[#0176d3] hover:bg-[#0159a8] text-white font-medium disabled:opacity-50 touch-manipulation min-h-[44px]"
-                >
-                  {saving ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        <AtividadeModal
+          atividade={modalAtividade}
+          form={form}
+          saving={saving}
+          error={error}
+          onChange={setForm}
+          onSave={handleSave}
+          onClose={handleCloseModal}
+          onToggleConcluido={modalAtividade ? handleToggleConcluido : undefined}
+          onDelete={modalAtividade ? handleDelete : undefined}
+        />
       )}
     </div>
   );

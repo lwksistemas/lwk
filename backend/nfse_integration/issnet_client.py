@@ -154,6 +154,13 @@ class ISSNetClient:
         session.headers.update({'User-Agent': 'LWK-Sistemas/CRM'})
         transport = Transport(session=session, timeout=30)
         self._soap_client = Client(self.wsdl_url, transport=transport)
+
+        # O WSDL do ISSNet define endpoint relativo (nfse.asmx).
+        # Forcar URL absoluta no service binding.
+        for service in self._soap_client.wsdl.services.values():
+            for port in service.ports.values():
+                port.binding_options['address'] = self.base_url
+
         logger.info('Cliente SOAP ISSNet inicializado: %s', self.ambiente)
         return self._soap_client
 

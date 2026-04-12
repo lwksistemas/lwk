@@ -6,6 +6,7 @@ import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import apiClient from '@/lib/api-client';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react';
+import { AsaasConfigSection } from './components/AsaasConfigSection';
 
 export default function ConfiguracaoNotaFiscalPage() {
   const router = useRouter();
@@ -363,187 +364,19 @@ export default function ConfiguracaoNotaFiscalPage() {
           )}
         </div>
 
-        {/* Conta Asaas da loja (API própria — não é a cobrança LWK) */}
+        {/* Conta Asaas da loja */}
         {formData.provedor_nf === 'asaas' && (
-          <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              API Asaas da sua loja
-            </h2>
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6 flex items-start gap-3">
-              <Info size={20} className="text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-950 dark:text-amber-100">
-                <p className="font-medium mb-2">Conta Asaas separada da LWK</p>
-                <p className="text-xs mb-2">
-                  A mensalidade do sistema é cobrada pela LWK no Asaas dela. Para emitir NFS-e com o{' '}
-                  <strong>CNPJ da sua loja</strong>, você precisa de{' '}
-                  <strong>conta própria no Asaas</strong> e colar aqui a <strong>API Key</strong> (menu
-                  Integrações → API). A chave precisa permitir emissão de notas fiscais (escopo de
-                  faturamento/NF conforme o painel Asaas).
-                </p>
-                <p className="text-xs mb-2 text-amber-900/90 dark:text-amber-100/90">
-                  <strong>Serviço municipal na NF:</strong> o backend usa a{' '}
-                  <strong>mesma configuração</strong> das notas de assinatura (variáveis{' '}
-                  <code className="text-[11px] bg-amber-100/80 dark:bg-amber-950/50 px-1 rounded">
-                    ASAAS_INVOICE_*
-                  </code>{' '}
-                  no servidor — código, nome e ID do serviço no Asaas), igual à emissão automática da
-                  mensalidade. Assim, cada loja só precisa da própria API Key; o cadastro fiscal no
-                  Asaas da loja deve ser compatível com esse mesmo serviço (ex.: mesmo município).
-                  Abaixo, código e descrição são <strong>reserva</strong> se o ambiente não tiver
-                  essas variáveis.
-                </p>
-                <a
-                  href="https://www.asaas.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#0176d3] underline text-xs font-medium"
-                >
-                  Site Asaas
-                </a>
-              </div>
-            </div>
-            <div className="space-y-4 max-w-xl">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  API Key (token v3)
-                </label>
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={formData.asaas_api_key}
-                  onChange={(e) => setFormData({ ...formData, asaas_api_key: e.target.value })}
-                  placeholder={
-                    config?.asaas_api_key_configured
-                      ? '•••••••• (já configurada — digite para substituir)'
-                      : 'Cole a chave da conta Asaas da loja'
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.asaas_sandbox}
-                    onChange={(e) => setFormData({ ...formData, asaas_sandbox: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Usar ambiente sandbox (homologação Asaas)
-                  </span>
-                </label>
-                <p className="text-[11px] text-gray-600 dark:text-gray-400 pl-7">
-                  <strong>Produção (recomendado para uso real):</strong> deixe{' '}
-                  <strong>desmarcado</strong> — a API usada é{' '}
-                  <code className="text-[10px] bg-gray-100 dark:bg-[#0d1f3c] px-1 rounded">api.asaas.com</code>{' '}
-                  com chave de produção (
-                  <code className="text-[10px] bg-gray-100 dark:bg-[#0d1f3c] px-1 rounded">$aact_prod_...</code>
-                  ).{' '}
-                  <strong>Sandbox:</strong> marque para testes —{' '}
-                  <code className="text-[10px] bg-gray-100 dark:bg-[#0d1f3c] px-1 rounded">sandbox.asaas.com</code>{' '}
-                  e chave de testes (
-                  <code className="text-[10px] bg-gray-100 dark:bg-[#0d1f3c] px-1 rounded">$aact_hmlg_...</code>
-                  ).
-                </p>
-                <p className="text-[11px] pl-7">
-                  <span
-                    className={
-                      formData.asaas_sandbox
-                        ? 'text-amber-700 dark:text-amber-300 font-medium'
-                        : 'text-green-800 dark:text-green-300 font-medium'
-                    }
-                  >
-                    {formData.asaas_sandbox
-                      ? 'Modo atual: sandbox (homologação)'
-                      : 'Modo atual: produção'}
-                  </span>
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void testarComunicacaoAsaas()}
-                  disabled={asaasTestLoading || (!formData.asaas_api_key.trim() && !config?.asaas_api_key_configured)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#0176d3] text-[#0176d3] dark:text-[#5eb0ff] dark:border-[#5eb0ff] hover:bg-[#0176d3]/10 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {asaasTestLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Testando…
-                    </>
-                  ) : (
-                    'Testar comunicação com o Asaas'
-                  )}
-                </button>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 sm:max-w-md">
-                  O teste usa o mesmo modo (produção ou sandbox) indicado acima. Envia um GET à API Asaas
-                  (lista de clientes). Use a chave digitada ou, com campo vazio, a chave já salva.
-                </p>
-              </div>
-              {asaasTestMessage && (
-                <div
-                  className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
-                    asaasTestMessage.type === 'ok'
-                      ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
-                      : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
-                  }`}
-                >
-                  {asaasTestMessage.type === 'ok' ? (
-                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                  )}
-                  <span>{asaasTestMessage.text}</span>
-                </div>
-              )}
-
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                  Webhook no Asaas (conta da sua loja)
-                </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                  Cada loja usa <strong>sua própria conta</strong> no Asaas. No painel da{' '}
-                  <strong>sua</strong> empresa, abra{' '}
-                  <a
-                    href="https://www.asaas.com/customerConfigIntegrations/webhooks"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#0176d3] underline font-medium"
-                  >
-                    Integrações → Webhooks
-                  </a>{' '}
-                  e cadastre a URL abaixo (método POST). Assim o Asaas notifica este sistema sobre
-                  eventos de <strong>cobranças e notas fiscais</strong> gerados nessa conta — não use
-                  o webhook da LWK (mensalidade do sistema), que é outro endpoint.
-                </p>
-                {asaasWebhookUrl ? (
-                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                    <code className="flex-1 text-[11px] sm:text-xs break-all p-3 rounded-lg bg-gray-100 dark:bg-[#0d1f3c] text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-[#0d1f3c]">
-                      {asaasWebhookUrl}
-                    </code>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(asaasWebhookUrl);
-                      }}
-                      className="shrink-0 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
-                    >
-                      Copiar URL
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Não foi possível montar a URL (slug da loja indisponível).
-                  </p>
-                )}
-                <p className="text-[11px] text-gray-500 dark:text-gray-500 mt-2">
-                  Sugestão de eventos: pagamentos confirmados/atualizados e, se o painel oferecer,
-                  notificações fiscais relacionadas à NF (conforme as opções do seu Asaas).
-                </p>
-              </div>
-            </div>
-          </div>
+          <AsaasConfigSection
+            apiKey={formData.asaas_api_key}
+            sandbox={formData.asaas_sandbox}
+            apiKeyConfigured={config?.asaas_api_key_configured}
+            webhookUrl={asaasWebhookUrl}
+            testLoading={asaasTestLoading}
+            testMessage={asaasTestMessage}
+            onApiKeyChange={(v) => setFormData({ ...formData, asaas_api_key: v })}
+            onSandboxChange={(v) => setFormData({ ...formData, asaas_sandbox: v })}
+            onTest={() => void testarComunicacaoAsaas()}
+          />
         )}
 
         {/* Configurações ISSNet */}

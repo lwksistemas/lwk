@@ -178,7 +178,11 @@ class ISSNetClient:
 
         # Carregar chave do certificado PFX
         manager = xmlsec.KeysManager()
-        key = xmlsec.Key.from_file(self.certificado_path, xmlsec.constants.KeyDataFormatPkcs12, self.senha_certificado)
+        key = xmlsec.Key.from_file(
+            self.certificado_path,
+            xmlsec.constants.KeyDataFormatPkcs12,
+            password=self.senha_certificado
+        )
         key.load_cert(self.certificado_path, xmlsec.constants.KeyDataFormatPkcs12)
         manager.add_key(key)
 

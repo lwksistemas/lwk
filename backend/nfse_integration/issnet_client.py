@@ -256,7 +256,7 @@ class ISSNetClient:
         return result
 
     # ------------------------------------------------------------------
-    # Construir XML ABRASF 2.04 — GerarNfseEnvio
+    # Construir XML ABRASF 2.04 — EnviarLoteRpsEnvio (ISSNet RP)
     # ------------------------------------------------------------------
     def _construir_xml_gerar_nfse(
         self,
@@ -275,8 +275,8 @@ class ISSNetClient:
         data_emissao: datetime,
     ) -> str:
         """
-        Constroi XML GerarNfseEnvio no padrao ABRASF 2.04.
-        Usa InfDeclaracaoPrestacaoServico (padrao 2.x).
+        Constroi XML EnviarLoteRpsEnvio no padrao ABRASF 2.04 (ISSNet RP).
+        Baseado na lib PHP Focus599Dev/sped-nfse-issnet que funciona.
         """
         cnpj_prest = _somente_digitos(prestador_cnpj)
         doc_tomador = _somente_digitos(tomador_cpf_cnpj)
@@ -286,8 +286,26 @@ class ISSNetClient:
         valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
 
         ns = NS_NFSE
-        root = etree.Element('{%s}GerarNfseEnvio' % ns, nsmap={None: ns})
-        rps_el = etree.SubElement(root, '{%s}Rps' % ns)
+        # Root: EnviarLoteRpsEnvio
+        root = etree.Element('{%s}EnviarLoteRpsEnvio' % ns, nsmap={None: ns})
+
+        # LoteRps com versao
+        lote = etree.SubElement(root, '{%s}LoteRps' % ns, versao='2.04')
+        etree.SubElement(lote, '{%s}NumeroLote' % ns).text = str(numero_rps)
+
+        # Prestador no LoteRps
+        prest_lote = etree.SubElement(lote, '{%s}Prestador' % ns)
+        cpf_cnpj_pl = etree.SubElement(prest_lote, '{%s}CpfCnpj' % ns)
+        etree.SubElement(cpf_cnpj_pl, '{%s}Cnpj' % ns).text = cnpj_prest
+        etree.SubElement(prest_lote, '{%s}InscricaoMunicipal' % ns).text = (
+            prestador_inscricao_municipal
+        )
+
+        etree.SubElement(lote, '{%s}QuantidadeRps' % ns).text = '1'
+
+        # ListaRps > Rps > InfDeclaracaoPrestacaoServico
+        lista = etree.SubElement(lote, '{%s}ListaRps' % ns)
+        rps_el = etree.SubElement(lista, '{%s}Rps' % ns)
         inf = etree.SubElement(
             rps_el, '{%s}InfDeclaracaoPrestacaoServico' % ns,
             Id=f'rps{numero_rps}'
@@ -300,7 +318,7 @@ class ISSNetClient:
         etree.SubElement(id_rps, '{%s}Serie' % ns).text = serie_rps
         etree.SubElement(id_rps, '{%s}Tipo' % ns).text = str(tipo_rps)
         etree.SubElement(rps_inner, '{%s}DataEmissao' % ns).text = (
-            data_emissao.strftime('%Y-%m-%d')
+            data_emissao.strftime('%Y-%m-%dT%H:%M:%S')
         )
         etree.SubElement(rps_inner, '{%s}Status' % ns).text = '1'
 
@@ -311,12 +329,17 @@ class ISSNetClient:
 
         # --- Servico ---
         servico = etree.SubElement(inf, '{%s}Servico' % ns)
+
+        # Valores (ordem conforme schema ISSNet)
         valores = etree.SubElement(servico, '{%s}Valores' % ns)
         etree.SubElement(valores, '{%s}ValorServicos' % ns).text = f'{valor:.2f}'
-        etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{(aliquota / 100):.4f}'
+        etree.SubElement(valores, '{%s}ValorDeducoes' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}ValorIss' % ns).text = f'{valor_iss:.2f}'
+        etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.2f}'
+        etree.SubElement(valores, '{%s}DescontoIncondicionado' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}DescontoCondicionado' % ns).text = '0.00'
 
         etree.SubElement(servico, '{%s}IssRetido' % ns).text = '2'
-        # ItemListaServico: manter formato original (ex: 17.06 ou 1706)
         item_lista = servico_codigo or ''
         etree.SubElement(servico, '{%s}ItemListaServico' % ns).text = item_lista
         etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = item_lista
@@ -333,8 +356,8 @@ class ISSNetClient:
             prestador_inscricao_municipal
         )
 
-        # --- Tomador ---
-        tomador = etree.SubElement(inf, '{%s}Tomador' % ns)
+        # --- TomadorServico (nao Tomador!) ---
+        tomador = etree.SubElement(inf, '{%s}TomadorServico' % ns)
         id_tom = etree.SubElement(tomador, '{%s}IdentificacaoTomador' % ns)
         cpf_cnpj_tom = etree.SubElement(id_tom, '{%s}CpfCnpj' % ns)
         if len(doc_tomador) == 11:
@@ -361,19 +384,17 @@ class ISSNetClient:
         if cep:
             etree.SubElement(end, '{%s}Cep' % ns).text = cep
 
-        email_tom = tomador_endereco.get('email', '')
-        if email_tom:
-            contato = etree.SubElement(tomador, '{%s}Contato' % ns)
-            etree.SubElement(contato, '{%s}Email' % ns).text = email_tom
-
         # --- Flags ---
+        regime = getattr(self, '_regime_especial', '0') or ''
+        if regime and regime != '0':
+            etree.SubElement(inf, '{%s}RegimeEspecialTributacao' % ns).text = regime
         optante = '1' if self._optante_simples else '2'
         etree.SubElement(inf, '{%s}OptanteSimplesNacional' % ns).text = optante
         incentivo = '1' if self._incentivador_cultural else '2'
         etree.SubElement(inf, '{%s}IncentivoFiscal' % ns).text = incentivo
 
         xml_str = etree.tostring(root, encoding='unicode', pretty_print=True)
-        logger.info('XML GerarNfse construido: RPS %s, Valor R$ %s', numero_rps, valor)
+        logger.info('XML EnviarLoteRps construido: RPS %s, Valor R$ %s', numero_rps, valor)
         return xml_str
 
     # ------------------------------------------------------------------
@@ -431,15 +452,14 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     def _enviar_gerar_nfse(self, xml_assinado: str) -> Dict[str, Any]:
         """
-        Chama operacao GerarNfse do webservice ISSNet.
-        Usa raw_response=True porque o ISSNet retorna XML ABRASF direto
-        em vez do outputXML string que o WSDL define.
+        Chama operacao RecepcionarLoteRps do webservice ISSNet.
+        Usa raw_response=True porque o ISSNet retorna XML ABRASF direto.
         """
         try:
             client = self._get_soap_client()
             logger.info('XML enviado ao ISSNet (nfseDadosMsg): %s', xml_assinado[:2000])
             with client.settings(raw_response=True):
-                response = client.service.GerarNfse(
+                response = client.service.RecepcionarLoteRps(
                     nfseCabecMsg=CABEC_MSG,
                     nfseDadosMsg=xml_assinado,
                 )

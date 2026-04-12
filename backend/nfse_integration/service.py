@@ -409,10 +409,20 @@ class NFSeService:
                 numero_rps = self._gerar_numero_rps()
             
             # Criar cliente ISSNet
+            # Certificado salvo como bytes no banco (BinaryField) — gravar em temp file para o client
+            import tempfile
+            cert_data = self.config.issnet_certificado
+            if not cert_data:
+                raise Exception('Certificado .pfx não encontrado. Faça upload na configuração de Nota Fiscal.')
+            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+            cert_tmp.write(bytes(cert_data))
+            cert_tmp.close()
+            cert_path = cert_tmp.name
+
             client = ISSNetClient(
                 usuario=self.config.issnet_usuario,
                 senha=self.config.issnet_senha,
-                certificado_path=self.config.issnet_certificado.path,
+                certificado_path=cert_path,
                 senha_certificado=self.config.issnet_senha_certificado,
                 ambiente='producao'
             )

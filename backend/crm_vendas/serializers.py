@@ -541,26 +541,27 @@ class ContratoSerializer(serializers.ModelSerializer):
 
 
 class CRMConfigSerializer(serializers.ModelSerializer):
-    # Campo somente leitura para mostrar o nome do provedor
-    provedor_nf_display = serializers.CharField(
-        source='get_provedor_nf_display',
-        read_only=True
-    )
+    provedor_nf_display = serializers.CharField(source='get_provedor_nf_display', read_only=True)
     asaas_api_key_configured = serializers.SerializerMethodField()
     issnet_senhas_salvas = serializers.SerializerMethodField()
+    issnet_certificado = serializers.SerializerMethodField()
 
     def get_asaas_api_key_configured(self, obj):
         return bool((getattr(obj, 'asaas_api_key', None) or '').strip())
 
     def get_issnet_senhas_salvas(self, obj):
-        """Senha ISSNet e senha do .pfx já persistidas (permite teste sem redigitar)."""
         return bool(
             (getattr(obj, 'issnet_senha', None) or '').strip()
             and (getattr(obj, 'issnet_senha_certificado', None) or '').strip()
         )
 
+    def get_issnet_certificado(self, obj):
+        """Retorna nome do arquivo se certificado está salvo no banco."""
+        nome = getattr(obj, 'issnet_certificado_nome', '') or ''
+        has_data = bool(getattr(obj, 'issnet_certificado', None))
+        return nome if has_data else ''
+
     def to_internal_value(self, data):
-        """Multipart/form envia booleans como strings ('true'/'false')."""
         if hasattr(data, 'copy'):
             data = data.copy()
         bool_fields = ['asaas_sandbox', 'optante_simples_nacional', 'incentivador_cultural', 'emitir_nf_automaticamente']
@@ -569,22 +570,32 @@ class CRMConfigSerializer(serializers.ModelSerializer):
                 v = data.get(field)
                 if isinstance(v, str):
                     data[field] = v.lower() in ('true', '1', 'on', 'yes')
+        # Remover issnet_certificado do data — tratado manualmente no update()
+        if hasattr(data, 'pop'):
+            data.pop('issnet_certificado', None)
         return super().to_internal_value(data)
+
+    def update(self, instance, validated_data):
+        """Trata upload do certificado .pfx como bytes no banco."""
+        request = self.context.get('request')
+        if request and hasattr(request, 'FILES'):
+            cert_file = request.FILES.get('issnet_certificado')
+            if cert_file:
+                instance.issnet_certificado = cert_file.read()
+                instance.issnet_certificado_nome = cert_file.name or 'certificado.pfx'
+        return super().update(instance, validated_data)
 
     class Meta:
         model = CRMConfig
         fields = [
             'id', 'origens_leads', 'etapas_pipeline', 'colunas_leads',
             'modulos_ativos', 'proposta_conteudo_padrao',
-            # Campos de NFS-e
             'provedor_nf', 'provedor_nf_display',
             'issnet_usuario', 'issnet_senha',
-            'issnet_certificado', 'issnet_senha_certificado',
-            # Portal Emissor (Asaas / Prefeitura)
+            'issnet_certificado', 'issnet_certificado_nome', 'issnet_senha_certificado',
             'inscricao_municipal', 'codigo_cnae',
             'optante_simples_nacional', 'regime_especial_tributacao',
             'incentivador_cultural', 'item_lista_servico', 'codigo_nbs',
-            # Informações da NF
             'issnet_serie_rps', 'issnet_ultimo_rps_conhecido', 'issnet_numero_lote',
             'codigo_servico_municipal', 'descricao_servico_padrao',
             'aliquota_iss', 'emitir_nf_automaticamente',
@@ -592,7 +603,7 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             'issnet_senhas_salvas',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'asaas_api_key_configured', 'issnet_senhas_salvas']
+        read_only_fields = ['created_at', 'updated_at', 'asaas_api_key_configured', 'issnet_senhas_salvas', 'issnet_certificado']
         extra_kwargs = {
             'issnet_senha': {'write_only': True},
             'issnet_senha_certificado': {'write_only': True},

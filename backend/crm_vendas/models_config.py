@@ -90,12 +90,17 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         help_text='Senha de acesso ao webservice ISSNet'
     )
     
-    issnet_certificado = models.FileField(
-        upload_to='certificados_nfse/%Y/%m/',
+    issnet_certificado = models.BinaryField(
         blank=True,
         null=True,
         verbose_name='Certificado Digital A1',
-        help_text='Arquivo .pfx do certificado digital A1 (e-CNPJ)'
+        help_text='Conteúdo binário do arquivo .pfx (salvo no banco, não em disco)'
+    )
+    issnet_certificado_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Nome do arquivo .pfx',
+        help_text='Nome original do arquivo enviado'
     )
     
     issnet_senha_certificado = models.CharField(

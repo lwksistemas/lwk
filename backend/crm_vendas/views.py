@@ -1572,7 +1572,7 @@ def crm_config(request):
         return Response(serializer.data)
     
     elif request.method == 'PATCH':
-        serializer = CRMConfigSerializer(config, data=request.data, partial=True)
+        serializer = CRMConfigSerializer(config, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             # Invalidar cache do dashboard quando configurações mudarem
@@ -1717,7 +1717,12 @@ def crm_config_issnet_test(request):
         cert_path = tmp.name
         cleanup_cert = True
     elif getattr(cfg, 'issnet_certificado', None) and cfg.issnet_certificado:
-        cert_path = cfg.issnet_certificado.path
+        # Certificado salvo como bytes no banco (BinaryField) — gravar em temp file
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+        tmp.write(bytes(cfg.issnet_certificado))
+        tmp.close()
+        cert_path = tmp.name
+        cleanup_cert = True
     else:
         return Response(
             {

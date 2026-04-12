@@ -136,8 +136,28 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
                 f"ALTER TABLE crm_vendas_config "
                 f"ADD COLUMN IF NOT EXISTS {col_name} {col_def};"
             )
+        # Migration 0047: certificado como BinaryField + nome
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS issnet_certificado_nome VARCHAR(255) NOT NULL DEFAULT '';"
+        )
+        # Se issnet_certificado era FileField (varchar), dropar e recriar como bytea
+        try:
+            cursor.execute(
+                "ALTER TABLE crm_vendas_config "
+                "DROP COLUMN IF EXISTS issnet_certificado;"
+            )
+            cursor.execute(
+                "ALTER TABLE crm_vendas_config "
+                "ADD COLUMN IF NOT EXISTS issnet_certificado bytea;"
+            )
+        except Exception:
+            cursor.execute(
+                "ALTER TABLE crm_vendas_config "
+                "ADD COLUMN IF NOT EXISTS issnet_certificado bytea;"
+            )
         # Registrar migrations como aplicadas
-        for mig_name in ['0045_add_asaas_loja_nf_fields', '0046_add_portal_emissor_fields']:
+        for mig_name in ['0045_add_asaas_loja_nf_fields', '0046_add_portal_emissor_fields', '0047_certificado_binary']:
             cursor.execute(
                 "INSERT INTO django_migrations (app, name, applied) "
                 "SELECT %s, %s, %s "

@@ -171,8 +171,8 @@ class ISSNetClient:
         root = etree.fromstring(xml_str.encode('utf-8'))
         signer = XMLSigner(
             method=methods.enveloped,
-            signature_algorithm=SignatureMethod.RSA_SHA1,
-            digest_algorithm=DigestAlgorithm.SHA1,
+            signature_algorithm=SignatureMethod.RSA_SHA256,
+            digest_algorithm=DigestAlgorithm.SHA256,
         )
         signed = signer.sign(root, key=private_key, cert=certificate)
         result = etree.tostring(signed, encoding='unicode', pretty_print=True)

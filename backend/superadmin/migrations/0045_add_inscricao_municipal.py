@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
             name='inscricao_municipal',
             field=models.CharField(
                 blank=True,
+                default='',
                 help_text='Inscrição municipal da loja (para emissão de NFS-e)',
                 max_length=20
             ),

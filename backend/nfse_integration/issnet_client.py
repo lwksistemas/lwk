@@ -168,21 +168,54 @@ class ISSNetClient:
     # Assinatura XML
     # ------------------------------------------------------------------
     def _assinar_xml(self, xml_str: str) -> str:
-        """Assina XML com certificado digital A1 usando signxml 4.x."""
+        """
+        Assina XML com certificado digital A1 usando signxml 4.x.
+        
+        ABRASF 2.04: a assinatura eh enveloped dentro de InfDeclaracaoPrestacaoServico,
+        referenciando o atributo Id desse elemento.
+        """
         from signxml import XMLSigner, methods
         from signxml import SignatureMethod, DigestAlgorithm
 
         private_key, certificate, _ = _carregar_certificado(
             self.certificado_path, self.senha_certificado
         )
+
         root = etree.fromstring(xml_str.encode('utf-8'))
+
+        # Encontrar InfDeclaracaoPrestacaoServico e seu Id
+        ns = NS_NFSE
+        inf_el = root.find('.//{%s}InfDeclaracaoPrestacaoServico' % ns)
+        if inf_el is None:
+            raise ValueError('InfDeclaracaoPrestacaoServico nao encontrado no XML')
+
+        inf_id = inf_el.get('Id', '')
+
+        # Inserir placeholder da Signature dentro do Rps, apos InfDeclaracaoPrestacaoServico
+        rps_el = root.find('.//{%s}Rps' % ns)
+        if rps_el is None:
+            raise ValueError('Elemento Rps nao encontrado no XML')
+
+        ds_ns = 'http://www.w3.org/2000/09/xmldsig#'
+        placeholder = etree.SubElement(rps_el, '{%s}Signature' % ds_ns)
+        placeholder.set('Id', 'placeholder')
+
         signer = XMLSigner(
             method=methods.enveloped,
             signature_algorithm=SignatureMethod.RSA_SHA256,
             digest_algorithm=DigestAlgorithm.SHA256,
         )
-        signed = signer.sign(root, key=private_key, cert=[certificate])
-        result = etree.tostring(signed, encoding='unicode', pretty_print=True)
+        signer.namespaces = {None: ds_ns}
+
+        signed = signer.sign(
+            root,
+            key=private_key,
+            cert=[certificate],
+            reference_uri=f'#{inf_id}' if inf_id else None,
+            id_attribute='Id',
+        )
+
+        result = etree.tostring(signed, encoding='unicode')
         logger.info('XML assinado com sucesso')
         return result
 

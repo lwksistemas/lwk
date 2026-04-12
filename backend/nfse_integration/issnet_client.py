@@ -170,8 +170,8 @@ class ISSNetClient:
         """
         Assina XML com certificado digital A1.
         Dupla assinatura como a lib PHP:
-        1. Assina InfDeclaracaoPrestacaoServico (dentro do Rps)
-        2. Assina EnviarLoteRpsEnvio (root, referenciando Id do LoteRps)
+        1. Assina InfDeclaracaoPrestacaoServico (Signature dentro dele)
+        2. Assina LoteRps (Signature dentro dele)
         """
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
@@ -193,12 +193,10 @@ class ISSNetClient:
             inf_id = inf_el.get('Id', '')
             if inf_id:
                 sig1 = self._criar_signature(inf_el, inf_id, private_key, cert_b64, ds)
-                # Inserir Signature apos InfDeclaracaoPrestacaoServico (dentro do Rps)
-                rps_el = inf_el.getparent()
-                if rps_el is not None:
-                    rps_el.append(sig1)
+                # Signature DENTRO do InfDeclaracaoPrestacaoServico (enveloped)
+                inf_el.append(sig1)
 
-        # --- Etapa 2: Assinar EnviarLoteRpsEnvio (Id no LoteRps) ---
+        # --- Etapa 2: Assinar LoteRps ---
         lote_el = root.find('.//{%s}LoteRps' % NS_NFSE)
         if lote_el is not None:
             lote_id = lote_el.get('Id', '')
@@ -206,34 +204,35 @@ class ISSNetClient:
                 lote_id = 'lote1'
                 lote_el.set('Id', lote_id)
             sig2 = self._criar_signature(lote_el, lote_id, private_key, cert_b64, ds)
-            root.append(sig2)
+            # Signature DENTRO do LoteRps (enveloped)
+            lote_el.append(sig2)
 
         result = etree.tostring(root, encoding='unicode')
-        logger.info('XML assinado (dupla assinatura RSA-SHA1)')
+        logger.info('XML assinado (dupla assinatura enveloped RSA-SHA1)')
         return result
 
     def _criar_signature(self, element, ref_id, private_key, cert_b64, ds):
-        """Cria elemento Signature para um elemento XML referenciado por Id."""
+        """Cria elemento Signature enveloped para um elemento XML."""
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.asymmetric import padding
         import base64
         import hashlib
 
-        # Canonicalizar elemento
-        elem_c14n = etree.tostring(element, method='c14n', exclusive=True)
+        # Canonicalizar elemento (C14N 1.0 inclusivo - padrao NFS-e BR)
+        elem_c14n = etree.tostring(element, method='c14n')
 
         # Digest SHA1
         digest = base64.b64encode(hashlib.sha1(elem_c14n).digest()).decode()
 
-        # SignedInfo
+        # SignedInfo com C14N exclusivo (padrao XMLDSig)
         si_xml = (
             f'<SignedInfo xmlns="{ds}">'
-            f'<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
+            f'<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
             f'<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>'
             f'<Reference URI="#{ref_id}">'
             f'<Transforms>'
             f'<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
-            f'<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
+            f'<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
             f'</Transforms>'
             f'<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>'
             f'<DigestValue>{digest}</DigestValue>'
@@ -241,9 +240,9 @@ class ISSNetClient:
             f'</SignedInfo>'
         )
 
-        # Canonicalizar SignedInfo e assinar
+        # Canonicalizar SignedInfo e assinar (C14N 1.0)
         si_el = etree.fromstring(si_xml.encode('utf-8'))
-        si_c14n = etree.tostring(si_el, method='c14n', exclusive=True)
+        si_c14n = etree.tostring(si_el, method='c14n')
         sig_value = base64.b64encode(
             private_key.sign(si_c14n, padding.PKCS1v15(), hashes.SHA1())
         ).decode()

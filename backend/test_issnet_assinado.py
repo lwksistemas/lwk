@@ -11,7 +11,8 @@ import tempfile
 # Buscar config da loja FELIX
 from django.db import connection
 with connection.cursor() as c:
-    c.execute("SELECT issnet_certificado, issnet_senha_certificado, issnet_usuario, issnet_senha FROM loja_41449198000172.crm_vendas_crmconfig LIMIT 1")
+    c.execute("SET search_path TO loja_41449198000172")
+    c.execute("SELECT issnet_certificado, issnet_senha_certificado, issnet_usuario, issnet_senha FROM crm_vendas_crmconfig LIMIT 1")
     row = c.fetchone()
 
 if not row or not row[0]:

@@ -188,13 +188,13 @@ class ISSNetClient:
         root = etree.fromstring(xml_str.encode('utf-8'))
 
         # --- Etapa 1: Assinar InfDeclaracaoPrestacaoServico ---
-        inf_el = root.find('.//{%s}InfDeclaracaoPrestacaoServico' % NS_NFSE)
-        if inf_el is not None:
-            inf_id = inf_el.get('Id', '')
-            if inf_id:
-                sig1 = self._criar_signature(inf_el, inf_id, private_key, cert_b64, ds)
-                # Signature DENTRO do InfDeclaracaoPrestacaoServico (enveloped)
-                inf_el.append(sig1)
+        # DESABILITADO para teste - apenas assinatura do LoteRps
+        # inf_el = root.find('.//{%s}InfDeclaracaoPrestacaoServico' % NS_NFSE)
+        # if inf_el is not None:
+        #     inf_id = inf_el.get('Id', '')
+        #     if inf_id:
+        #         sig1 = self._criar_signature(inf_el, inf_id, private_key, cert_b64, ds)
+        #         inf_el.append(sig1)
 
         # --- Etapa 2: Assinar LoteRps ---
         lote_el = root.find('.//{%s}LoteRps' % NS_NFSE)

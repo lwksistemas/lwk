@@ -10,15 +10,7 @@ import requests
 url = 'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
 
 xml_nfse = (
-    '<EnviarLoteRpsEnvio xmlns="http://www.abrasf.org.br/nfse.xsd">'
-    '<LoteRps versao="2.04">'
-    '<NumeroLote>999</NumeroLote>'
-    '<Prestador>'
-    '<CpfCnpj><Cnpj>41449198000172</Cnpj></CpfCnpj>'
-    '<InscricaoMunicipal>20130440</InscricaoMunicipal>'
-    '</Prestador>'
-    '<QuantidadeRps>1</QuantidadeRps>'
-    '<ListaRps>'
+    '<GerarNfseEnvio xmlns="http://www.abrasf.org.br/nfse.xsd">'
     '<Rps>'
     '<InfDeclaracaoPrestacaoServico Id="rps999">'
     '<Rps>'
@@ -70,12 +62,10 @@ xml_nfse = (
     '<IncentivoFiscal>2</IncentivoFiscal>'
     '</InfDeclaracaoPrestacaoServico>'
     '</Rps>'
-    '</ListaRps>'
-    '</LoteRps>'
-    '</EnviarLoteRpsEnvio>'
+    '</GerarNfseEnvio>'
 )
 
-cabec = '<cabecalho xmlns="http://www.abrasf.org.br/nfse.xsd" versao="2.04"><versaoDados>2.04</versaoDados></cabecalho>'
+cabec = '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd"><versaoDados>2.04</versaoDados></cabecalho>'
 
 # Escapar XML para dentro do SOAP (usar CDATA)
 soap = (

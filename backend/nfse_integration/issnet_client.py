@@ -174,7 +174,7 @@ class ISSNetClient:
             signature_algorithm=SignatureMethod.RSA_SHA256,
             digest_algorithm=DigestAlgorithm.SHA256,
         )
-        signed = signer.sign(root, key=private_key, cert=certificate)
+        signed = signer.sign(root, key=private_key, cert=[certificate])
         result = etree.tostring(signed, encoding='unicode', pretty_print=True)
         logger.info('XML assinado com sucesso')
         return result

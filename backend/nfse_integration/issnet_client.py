@@ -452,14 +452,14 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     def _enviar_gerar_nfse(self, xml_assinado: str) -> Dict[str, Any]:
         """
-        Chama operacao RecepcionarLoteRps do webservice ISSNet.
-        Usa raw_response=True porque o ISSNet retorna XML ABRASF direto.
+        Chama operacao RecepcionarLoteRpsSincrono do webservice ISSNet.
+        Sincrono: retorna a NFS-e na mesma chamada (melhor para 1 RPS).
         """
         try:
             client = self._get_soap_client()
             logger.info('XML enviado ao ISSNet (nfseDadosMsg): %s', xml_assinado[:2000])
             with client.settings(raw_response=True):
-                response = client.service.RecepcionarLoteRps(
+                response = client.service.RecepcionarLoteRpsSincrono(
                     nfseCabecMsg=CABEC_MSG,
                     nfseDadosMsg=xml_assinado,
                 )
@@ -484,8 +484,30 @@ class ISSNetClient:
             if body is None:
                 body = root.find('.//{http://www.w3.org/2003/05/soap-envelope}Body')
             if body is not None and len(body) > 0:
-                return etree.tostring(body[0], encoding='unicode')
-            # Se nao achou Body, retorna o XML inteiro
+                first = body[0]
+                # Verificar se eh SOAP Fault
+                tag = etree.QName(first.tag).localname if isinstance(first.tag, str) else ''
+                if tag == 'Fault':
+                    faultstring = first.findtext(
+                        '{http://schemas.xmlsoap.org/soap/envelope/}faultstring', ''
+                    ) or first.findtext('faultstring', '')
+                    detail = first.findtext(
+                        '{http://schemas.xmlsoap.org/soap/envelope/}detail', ''
+                    ) or first.findtext('detail', '')
+                    msg = faultstring or 'Erro SOAP desconhecido'
+                    if detail:
+                        msg += f' - {detail}'
+                    # Retornar XML de erro formatado para o parser
+                    ns = NS_NFSE
+                    return (
+                        f'<ListaMensagemRetorno xmlns="{ns}">'
+                        f'<MensagemRetorno>'
+                        f'<Codigo>SOAP</Codigo>'
+                        f'<Mensagem>{msg}</Mensagem>'
+                        f'</MensagemRetorno>'
+                        f'</ListaMensagemRetorno>'
+                    )
+                return etree.tostring(first, encoding='unicode')
             return soap_xml
         except Exception:
             return soap_xml

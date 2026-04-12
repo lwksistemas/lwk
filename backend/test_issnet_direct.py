@@ -10,7 +10,15 @@ import requests
 url = 'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
 
 xml_nfse = (
-    '<GerarNfseEnvio xmlns="http://www.abrasf.org.br/nfse.xsd">'
+    '<EnviarLoteRpsEnvio xmlns="http://www.abrasf.org.br/nfse.xsd">'
+    '<LoteRps versao="2.04">'
+    '<NumeroLote>999</NumeroLote>'
+    '<Prestador>'
+    '<CpfCnpj><Cnpj>41449198000172</Cnpj></CpfCnpj>'
+    '<InscricaoMunicipal>20130440</InscricaoMunicipal>'
+    '</Prestador>'
+    '<QuantidadeRps>1</QuantidadeRps>'
+    '<ListaRps>'
     '<Rps>'
     '<InfDeclaracaoPrestacaoServico Id="rps999">'
     '<Rps>'
@@ -19,7 +27,7 @@ xml_nfse = (
     '<Serie>NF</Serie>'
     '<Tipo>1</Tipo>'
     '</IdentificacaoRps>'
-    '<DataEmissao>2026-04-12</DataEmissao>'
+    '<DataEmissao>2026-04-12T18:00:00</DataEmissao>'
     '<Status>1</Status>'
     '</Rps>'
     '<Competencia>2026-04-12</Competencia>'
@@ -58,10 +66,12 @@ xml_nfse = (
     '<IncentivoFiscal>2</IncentivoFiscal>'
     '</InfDeclaracaoPrestacaoServico>'
     '</Rps>'
-    '</GerarNfseEnvio>'
+    '</ListaRps>'
+    '</LoteRps>'
+    '</EnviarLoteRpsEnvio>'
 )
 
-# Formato EXATO da lib PHP Focus599Dev (sem CDATA, sem namespace prefix nos params)
+# Formato EXATO da lib PHP Focus599Dev
 soap = (
     '<?xml version="1.0" encoding="utf-8"?>'
     '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
@@ -70,21 +80,21 @@ soap = (
     'xmlns:nfse="http://nfse.abrasf.org.br">'
     '<soap:Header/>'
     '<soap:Body>'
-    '<nfse:GerarNfse>'
+    '<nfse:RecepcionarLoteRps>'
     '<nfseCabecMsg>'
     '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
     '<versaoDados>2.04</versaoDados>'
     '</cabecalho>'
     '</nfseCabecMsg>'
     '<nfseDadosMsg>' + xml_nfse + '</nfseDadosMsg>'
-    '</nfse:GerarNfse>'
+    '</nfse:RecepcionarLoteRps>'
     '</soap:Body>'
     '</soap:Envelope>'
 )
 
 headers = {
     'Content-Type': 'text/xml; charset=utf-8',
-    'SOAPAction': 'http://nfse.abrasf.org.br/GerarNfse',
+    'SOAPAction': 'http://nfse.abrasf.org.br/RecepcionarLoteRps',
 }
 
 print(f'Enviando para {url}...')

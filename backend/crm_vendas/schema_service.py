@@ -97,8 +97,8 @@ def configurar_schema_crm_loja(loja) -> bool:
 
 def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
     """
-    Garante colunas da migration 0045 (asaas_api_key, asaas_sandbox) no schema do tenant.
-    Movido de views.py (refatoração #10 — SRP: DDL não pertence a views).
+    Garante colunas das migrations 0045 e 0046 no schema do tenant.
+    Usa ADD COLUMN IF NOT EXISTS (seguro no PostgreSQL).
     """
     from django.db import connections
     from django.utils import timezone
@@ -109,6 +109,7 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
 
     conn = connections[db_name]
     with conn.cursor() as cursor:
+        # Migration 0045: asaas_api_key, asaas_sandbox
         cursor.execute(
             "ALTER TABLE crm_vendas_config "
             "ADD COLUMN IF NOT EXISTS asaas_api_key VARCHAR(255) NOT NULL DEFAULT '';"
@@ -117,12 +118,31 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             "ALTER TABLE crm_vendas_config "
             "ADD COLUMN IF NOT EXISTS asaas_sandbox boolean NOT NULL DEFAULT false;"
         )
-        cursor.execute(
-            "INSERT INTO django_migrations (app, name, applied) "
-            "SELECT %s, %s, %s "
-            "WHERE NOT EXISTS ("
-            "  SELECT 1 FROM django_migrations WHERE app = %s AND name = %s"
-            ");",
-            ['crm_vendas', '0045_add_asaas_loja_nf_fields', timezone.now(),
-             'crm_vendas', '0045_add_asaas_loja_nf_fields'],
-        )
+        # Migration 0046: campos do Portal Emissor
+        columns_0046 = [
+            ("inscricao_municipal", "VARCHAR(20) NOT NULL DEFAULT ''"),
+            ("codigo_cnae", "VARCHAR(20) NOT NULL DEFAULT ''"),
+            ("optante_simples_nacional", "boolean NOT NULL DEFAULT true"),
+            ("regime_especial_tributacao", "VARCHAR(2) NOT NULL DEFAULT '0'"),
+            ("incentivador_cultural", "boolean NOT NULL DEFAULT false"),
+            ("item_lista_servico", "VARCHAR(10) NOT NULL DEFAULT ''"),
+            ("codigo_nbs", "VARCHAR(20) NOT NULL DEFAULT ''"),
+            ("issnet_serie_rps", "VARCHAR(10) NOT NULL DEFAULT ''"),
+            ("issnet_ultimo_rps_conhecido", "integer NOT NULL DEFAULT 0"),
+            ("issnet_numero_lote", "integer NOT NULL DEFAULT 0"),
+        ]
+        for col_name, col_def in columns_0046:
+            cursor.execute(
+                f"ALTER TABLE crm_vendas_config "
+                f"ADD COLUMN IF NOT EXISTS {col_name} {col_def};"
+            )
+        # Registrar migrations como aplicadas
+        for mig_name in ['0045_add_asaas_loja_nf_fields', '0046_add_portal_emissor_fields']:
+            cursor.execute(
+                "INSERT INTO django_migrations (app, name, applied) "
+                "SELECT %s, %s, %s "
+                "WHERE NOT EXISTS ("
+                "  SELECT 1 FROM django_migrations WHERE app = %s AND name = %s"
+                ");",
+                ['crm_vendas', mig_name, timezone.now(), 'crm_vendas', mig_name],
+            )

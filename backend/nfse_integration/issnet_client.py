@@ -162,16 +162,17 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     def _assinar_xml(self, xml_str: str) -> str:
         """Assina XML com certificado digital A1 usando signxml 4.x."""
-        from signxml import XMLSigner
+        from signxml import XMLSigner, methods
+        from signxml import SignatureMethod, DigestAlgorithm
 
         private_key, certificate, _ = _carregar_certificado(
             self.certificado_path, self.senha_certificado
         )
         root = etree.fromstring(xml_str.encode('utf-8'))
         signer = XMLSigner(
-            method='enveloped',
-            signature_algorithm='rsa-sha1',
-            digest_algorithm='sha1',
+            method=methods.enveloped,
+            signature_algorithm=SignatureMethod.RSA_SHA1,
+            digest_algorithm=DigestAlgorithm.SHA1,
         )
         signed = signer.sign(root, key=private_key, cert=certificate)
         result = etree.tostring(signed, encoding='unicode', pretty_print=True)

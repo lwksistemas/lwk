@@ -361,42 +361,42 @@ class ISSNetClient:
     def _enviar_gerar_nfse(self, xml_assinado: str) -> Dict[str, Any]:
         """
         Chama operacao GerarNfse do webservice ISSNet.
-        Parametros SOAP: nfseCabecMsg (cabecalho) + nfseDadosMsg (XML assinado).
+        Usa raw_response=True porque o ISSNet retorna XML ABRASF direto
+        em vez do outputXML string que o WSDL define.
         """
         try:
             client = self._get_soap_client()
-            response = client.service.GerarNfse(
-                nfseCabecMsg=CABEC_MSG,
-                nfseDadosMsg=xml_assinado,
-            )
-            return self._processar_resposta(response)
+            with client.settings(raw_response=True):
+                response = client.service.GerarNfse(
+                    nfseCabecMsg=CABEC_MSG,
+                    nfseDadosMsg=xml_assinado,
+                )
+            # response eh um requests.Response
+            resp_text = response.text if hasattr(response, 'text') else str(response)
+            logger.info('Resposta ISSNet HTTP %s, preview: %s',
+                        getattr(response, 'status_code', '?'), resp_text[:500])
+
+            # Extrair conteudo do SOAP Body
+            xml_body = self._extrair_body_soap(resp_text)
+            return self._parse_resposta_xml(xml_body)
         except Exception as e:
             logger.exception('Erro ao enviar GerarNfse: %s', e)
             return {'success': False, 'error': str(e)}
 
-    def _processar_resposta(self, response) -> Dict[str, Any]:
-        """Processa resposta XML do webservice ISSNet."""
-        resp_str = str(response) if response else ''
-        logger.info('Resposta ISSNet (preview): %s', resp_str[:1000])
-
-        # Resposta pode ser string XML ou objeto zeep
-        if isinstance(response, str):
-            return self._parse_resposta_xml(response)
-
-        # Objeto zeep — tentar extrair outputXML
-        output = getattr(response, 'outputXML', None) or resp_str
-        if isinstance(output, str) and output.strip().startswith('<'):
-            return self._parse_resposta_xml(output)
-
-        # Fallback: verificar atributos diretos
-        if hasattr(response, 'ListaMensagemRetorno'):
-            erros = self._extrair_erros(resp_str)
-            return {'success': False, 'error': erros or 'Erro retornado pelo ISSNet'}
-
-        return {
-            'success': False,
-            'error': f'Resposta inesperada do ISSNet: {resp_str[:500]}'
-        }
+    def _extrair_body_soap(self, soap_xml: str) -> str:
+        """Extrai conteudo do SOAP Body da resposta."""
+        try:
+            root = etree.fromstring(soap_xml.encode('utf-8') if isinstance(soap_xml, str) else soap_xml)
+            # Buscar Body em qualquer namespace SOAP
+            body = root.find('.//{http://schemas.xmlsoap.org/soap/envelope/}Body')
+            if body is None:
+                body = root.find('.//{http://www.w3.org/2003/05/soap-envelope}Body')
+            if body is not None and len(body) > 0:
+                return etree.tostring(body[0], encoding='unicode')
+            # Se nao achou Body, retorna o XML inteiro
+            return soap_xml
+        except Exception:
+            return soap_xml
 
     def _parse_resposta_xml(self, xml_str: str) -> Dict[str, Any]:
         """Parse da resposta XML do ISSNet para extrair NFS-e ou erros."""

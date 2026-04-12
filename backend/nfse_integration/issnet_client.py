@@ -176,15 +176,32 @@ class ISSNetClient:
 
         root = etree.fromstring(xml_str.encode('utf-8'))
 
-        # Carregar chave do certificado PFX
-        manager = xmlsec.KeysManager()
-        key = xmlsec.Key.from_file(
-            self.certificado_path,
-            xmlsec.constants.KeyDataFormatPkcs12,
-            password=self.senha_certificado
+        # Carregar chave do certificado PFX (converter para PEM primeiro)
+        private_key_obj, cert_obj, _ = _carregar_certificado(
+            self.certificado_path, self.senha_certificado
         )
-        key.load_cert(self.certificado_path, xmlsec.constants.KeyDataFormatPkcs12)
-        manager.add_key(key)
+        from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+        import tempfile
+
+        # Salvar key e cert como PEM temporarios
+        key_pem = private_key_obj.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption())
+        cert_pem = cert_obj.public_bytes(Encoding.PEM)
+
+        key_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+        key_tmp.write(key_pem)
+        key_tmp.close()
+
+        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+        cert_tmp.write(cert_pem)
+        cert_tmp.close()
+
+        try:
+            key = xmlsec.Key.from_file(key_tmp.name, xmlsec.constants.KeyDataFormatPem)
+            key.load_cert(cert_tmp.name, xmlsec.constants.KeyDataFormatPem)
+        finally:
+            import os
+            os.unlink(key_tmp.name)
+            os.unlink(cert_tmp.name)
 
         # --- Assinar LoteRps ---
         lote_el = root.find('.//{%s}LoteRps' % NS_NFSE)
@@ -217,7 +234,7 @@ class ISSNetClient:
             xmlsec.template.x509_data_add_certificate(x509_data)
 
             # Assinar
-            ctx = xmlsec.SignatureContext(manager)
+            ctx = xmlsec.SignatureContext()
             ctx.key = key
             ctx.sign(sig_node)
 

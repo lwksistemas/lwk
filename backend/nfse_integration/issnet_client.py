@@ -168,99 +168,60 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     def _assinar_xml(self, xml_str: str) -> str:
         """
-        Assina XML com certificado digital A1.
-        Dupla assinatura como a lib PHP:
-        1. Assina InfDeclaracaoPrestacaoServico (Signature dentro dele)
-        2. Assina LoteRps (Signature dentro dele)
+        Assina XML com certificado digital A1 usando python-xmlsec.
+        Mesma lib C (libxmlsec1) que o PHP usa internamente.
         """
-        from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import padding
-        import base64
-        import hashlib
-
-        private_key, certificate, _ = _carregar_certificado(
-            self.certificado_path, self.senha_certificado
-        )
-        cert_der = certificate.public_bytes(serialization.Encoding.DER)
-        cert_b64 = base64.b64encode(cert_der).decode()
-        ds = 'http://www.w3.org/2000/09/xmldsig#'
+        import xmlsec
+        import tempfile
 
         root = etree.fromstring(xml_str.encode('utf-8'))
 
-        # --- Etapa 1: Assinar InfDeclaracaoPrestacaoServico ---
-        # DESABILITADO para teste - apenas assinatura do LoteRps
-        # inf_el = root.find('.//{%s}InfDeclaracaoPrestacaoServico' % NS_NFSE)
-        # if inf_el is not None:
-        #     inf_id = inf_el.get('Id', '')
-        #     if inf_id:
-        #         sig1 = self._criar_signature(inf_el, inf_id, private_key, cert_b64, ds)
-        #         inf_el.append(sig1)
+        # Carregar chave do certificado PFX
+        manager = xmlsec.KeysManager()
+        key = xmlsec.Key.from_file(self.certificado_path, xmlsec.constants.KeyDataFormatPkcs12, self.senha_certificado)
+        key.load_cert(self.certificado_path, xmlsec.constants.KeyDataFormatPkcs12)
+        manager.add_key(key)
 
-        # --- Etapa 2: Assinar LoteRps ---
+        # --- Assinar LoteRps ---
         lote_el = root.find('.//{%s}LoteRps' % NS_NFSE)
         if lote_el is not None:
             lote_id = lote_el.get('Id', '')
             if not lote_id:
                 lote_id = 'lote1'
                 lote_el.set('Id', lote_id)
-            sig2 = self._criar_signature(lote_el, lote_id, private_key, cert_b64, ds)
-            # Signature DENTRO do LoteRps (enveloped)
-            lote_el.append(sig2)
+
+            # Criar template de Signature dentro do LoteRps
+            sig_node = xmlsec.template.create(
+                lote_el,
+                xmlsec.constants.TransformInclC14N,
+                xmlsec.constants.TransformRsaSha1,
+            )
+            lote_el.append(sig_node)
+
+            # Adicionar Reference
+            ref = xmlsec.template.add_reference(
+                sig_node,
+                xmlsec.constants.TransformSha1,
+                uri=f'#{lote_id}',
+            )
+            xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
+            xmlsec.template.add_transform(ref, xmlsec.constants.TransformInclC14N)
+
+            # Adicionar KeyInfo com X509Data
+            key_info = xmlsec.template.ensure_key_info(sig_node)
+            x509_data = xmlsec.template.add_x509_data(key_info)
+            xmlsec.template.x509_data_add_certificate(x509_data)
+
+            # Assinar
+            ctx = xmlsec.SignatureContext(manager)
+            ctx.key = key
+            ctx.sign(sig_node)
 
         result = etree.tostring(root, encoding='unicode')
-        logger.info('XML assinado (dupla assinatura enveloped RSA-SHA1)')
+        logger.info('XML assinado com xmlsec (RSA-SHA1)')
         return result
 
-    def _criar_signature(self, element, ref_id, private_key, cert_b64, ds):
-        """Cria elemento Signature enveloped para um elemento XML."""
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.asymmetric import padding
-        import base64
-        import hashlib
-
-        # Canonicalizar elemento (C14N 1.0 inclusivo - padrao NFS-e BR)
-        elem_c14n = etree.tostring(element, method='c14n')
-
-        # Digest SHA1
-        digest = base64.b64encode(hashlib.sha1(elem_c14n).digest()).decode()
-
-        # SignedInfo com C14N exclusivo (padrao XMLDSig)
-        si_xml = (
-            f'<SignedInfo xmlns="{ds}">'
-            f'<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
-            f'<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>'
-            f'<Reference URI="#{ref_id}">'
-            f'<Transforms>'
-            f'<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
-            f'<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
-            f'</Transforms>'
-            f'<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>'
-            f'<DigestValue>{digest}</DigestValue>'
-            f'</Reference>'
-            f'</SignedInfo>'
-        )
-
-        # Canonicalizar SignedInfo e assinar (C14N 1.0)
-        si_el = etree.fromstring(si_xml.encode('utf-8'))
-        si_c14n = etree.tostring(si_el, method='c14n')
-        sig_value = base64.b64encode(
-            private_key.sign(si_c14n, padding.PKCS1v15(), hashes.SHA1())
-        ).decode()
-
-        # Montar Signature completa
-        sig_full = (
-            f'<Signature xmlns="{ds}">'
-            f'{si_xml}'
-            f'<SignatureValue>{sig_value}</SignatureValue>'
-            f'<KeyInfo>'
-            f'<X509Data>'
-            f'<X509Certificate>{cert_b64}</X509Certificate>'
-            f'</X509Data>'
-            f'</KeyInfo>'
-            f'</Signature>'
-        )
-        return etree.fromstring(sig_full.encode('utf-8'))
-
+    # Metodo antigo mantido como referencia
     # ------------------------------------------------------------------
     # Construir XML ABRASF 2.04 — EnviarLoteRpsEnvio (ISSNet RP)
     # ------------------------------------------------------------------

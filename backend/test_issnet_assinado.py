@@ -19,7 +19,7 @@ conn = psycopg2.connect(db_url)
 conn.autocommit = True
 cur = conn.cursor()
 cur.execute(f"SET search_path TO {loja.database_name}, public")
-cur.execute("SELECT issnet_certificado, issnet_senha_certificado, issnet_usuario, issnet_senha FROM crm_vendas_crmconfig LIMIT 1")
+cur.execute("SELECT issnet_certificado, issnet_senha_certificado, issnet_usuario, issnet_senha FROM crm_vendas_config LIMIT 1")
 row = cur.fetchone()
 cur.close()
 conn.close()

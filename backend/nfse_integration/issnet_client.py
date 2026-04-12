@@ -169,9 +169,9 @@ class ISSNetClient:
     def _assinar_xml(self, xml_str: str) -> str:
         """
         Assina XML com certificado digital A1.
-        
-        ABRASF 2.04 ISSNet: a Signature fica no EnviarLoteRpsEnvio (root),
-        referenciando o Id do LoteRps.
+        Dupla assinatura como a lib PHP:
+        1. Assina InfDeclaracaoPrestacaoServico (dentro do Rps)
+        2. Assina EnviarLoteRpsEnvio (root, referenciando Id do LoteRps)
         """
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
@@ -181,58 +181,78 @@ class ISSNetClient:
         private_key, certificate, _ = _carregar_certificado(
             self.certificado_path, self.senha_certificado
         )
-
-        root = etree.fromstring(xml_str.encode('utf-8'))
-        ns = NS_NFSE
+        cert_der = certificate.public_bytes(serialization.Encoding.DER)
+        cert_b64 = base64.b64encode(cert_der).decode()
         ds = 'http://www.w3.org/2000/09/xmldsig#'
 
-        # Adicionar Id ao LoteRps para referencia
-        lote_el = root.find('.//{%s}LoteRps' % ns)
-        if lote_el is None:
-            raise ValueError('LoteRps nao encontrado')
-        lote_id = 'lote1'
-        lote_el.set('Id', lote_id)
+        root = etree.fromstring(xml_str.encode('utf-8'))
 
-        # Canonicalizar o LoteRps (exclusive c14n)
-        lote_c14n = etree.tostring(lote_el, method='c14n', exclusive=True)
+        # --- Etapa 1: Assinar InfDeclaracaoPrestacaoServico ---
+        inf_el = root.find('.//{%s}InfDeclaracaoPrestacaoServico' % NS_NFSE)
+        if inf_el is not None:
+            inf_id = inf_el.get('Id', '')
+            if inf_id:
+                sig1 = self._criar_signature(inf_el, inf_id, private_key, cert_b64, ds)
+                # Inserir Signature apos InfDeclaracaoPrestacaoServico (dentro do Rps)
+                rps_el = inf_el.getparent()
+                if rps_el is not None:
+                    rps_el.append(sig1)
 
-        # Calcular digest SHA1 (ISSNet geralmente usa SHA1)
-        digest_value = base64.b64encode(hashlib.sha1(lote_c14n).digest()).decode()
+        # --- Etapa 2: Assinar EnviarLoteRpsEnvio (Id no LoteRps) ---
+        lote_el = root.find('.//{%s}LoteRps' % NS_NFSE)
+        if lote_el is not None:
+            lote_id = lote_el.get('Id', '')
+            if not lote_id:
+                lote_id = 'lote1'
+                lote_el.set('Id', lote_id)
+            sig2 = self._criar_signature(lote_el, lote_id, private_key, cert_b64, ds)
+            root.append(sig2)
 
-        # Construir SignedInfo com SHA1 (padrao NFS-e brasileira)
-        signed_info_xml = (
+        result = etree.tostring(root, encoding='unicode')
+        logger.info('XML assinado (dupla assinatura RSA-SHA1)')
+        return result
+
+    def _criar_signature(self, element, ref_id, private_key, cert_b64, ds):
+        """Cria elemento Signature para um elemento XML referenciado por Id."""
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import padding
+        import base64
+        import hashlib
+
+        # Canonicalizar elemento
+        elem_c14n = etree.tostring(element, method='c14n', exclusive=True)
+
+        # Digest SHA1
+        digest = base64.b64encode(hashlib.sha1(elem_c14n).digest()).decode()
+
+        # SignedInfo
+        si_xml = (
             f'<SignedInfo xmlns="{ds}">'
             f'<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
             f'<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>'
-            f'<Reference URI="#{lote_id}">'
+            f'<Reference URI="#{ref_id}">'
             f'<Transforms>'
             f'<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
             f'<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
             f'</Transforms>'
             f'<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>'
-            f'<DigestValue>{digest_value}</DigestValue>'
+            f'<DigestValue>{digest}</DigestValue>'
             f'</Reference>'
             f'</SignedInfo>'
         )
 
-        # Canonicalizar SignedInfo
-        signed_info_el = etree.fromstring(signed_info_xml.encode('utf-8'))
-        signed_info_c14n = etree.tostring(signed_info_el, method='c14n', exclusive=True)
-
-        # Assinar com RSA-SHA1
-        signature_value = base64.b64encode(
-            private_key.sign(signed_info_c14n, padding.PKCS1v15(), hashes.SHA1())
+        # Canonicalizar SignedInfo e assinar
+        si_el = etree.fromstring(si_xml.encode('utf-8'))
+        si_c14n = etree.tostring(si_el, method='c14n', exclusive=True)
+        sig_value = base64.b64encode(
+            private_key.sign(si_c14n, padding.PKCS1v15(), hashes.SHA1())
         ).decode()
 
-        # Certificado X509 em base64
-        cert_der = certificate.public_bytes(serialization.Encoding.DER)
-        cert_b64 = base64.b64encode(cert_der).decode()
-
-        # Montar Signature
-        sig_xml = (
+        # Montar Signature completa
+        sig_full = (
             f'<Signature xmlns="{ds}">'
-            f'{signed_info_xml}'
-            f'<SignatureValue>{signature_value}</SignatureValue>'
+            f'{si_xml}'
+            f'<SignatureValue>{sig_value}</SignatureValue>'
             f'<KeyInfo>'
             f'<X509Data>'
             f'<X509Certificate>{cert_b64}</X509Certificate>'
@@ -240,15 +260,7 @@ class ISSNetClient:
             f'</KeyInfo>'
             f'</Signature>'
         )
-
-        sig_el = etree.fromstring(sig_xml.encode('utf-8'))
-
-        # Inserir Signature no root (EnviarLoteRpsEnvio), apos LoteRps
-        root.append(sig_el)
-
-        result = etree.tostring(root, encoding='unicode')
-        logger.info('XML assinado com sucesso (RSA-SHA1, ref LoteRps)')
-        return result
+        return etree.fromstring(sig_full.encode('utf-8'))
 
     # ------------------------------------------------------------------
     # Construir XML ABRASF 2.04 — EnviarLoteRpsEnvio (ISSNet RP)
@@ -433,8 +445,9 @@ class ISSNetClient:
                 data_emissao=data_emissao,
             )
 
-            # Enviar sem assinatura para debug (ISSNet retorna erro especifico)
-            resultado = self._enviar_gerar_nfse(xml_rps)
+            # Assinar XML (dupla: Rps + EnviarLoteRpsEnvio) e enviar
+            xml_assinado = self._assinar_xml(xml_rps)
+            resultado = self._enviar_soap_direto(xml_assinado)
             return resultado
 
         except Exception as e:
@@ -442,7 +455,49 @@ class ISSNetClient:
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------
-    # Enviar para webservice SOAP
+    # Enviar via requests direto (formato exato da lib PHP)
+    # ------------------------------------------------------------------
+    def _enviar_soap_direto(self, xml_dados: str) -> Dict[str, Any]:
+        """Envia XML via SOAP direto (sem zeep) com formato da lib PHP."""
+        import requests as req
+
+        cabec = (
+            '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
+            '<versaoDados>2.04</versaoDados>'
+            '</cabecalho>'
+        )
+        soap = (
+            '<?xml version="1.0" encoding="utf-8"?>'
+            '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+            'xmlns:nfse="http://nfse.abrasf.org.br">'
+            '<soap:Header/>'
+            '<soap:Body>'
+            '<nfse:RecepcionarLoteRps>'
+            '<nfseCabecMsg>' + cabec + '</nfseCabecMsg>'
+            '<nfseDadosMsg>' + xml_dados + '</nfseDadosMsg>'
+            '</nfse:RecepcionarLoteRps>'
+            '</soap:Body>'
+            '</soap:Envelope>'
+        )
+        headers = {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'SOAPAction': 'http://nfse.abrasf.org.br/RecepcionarLoteRps',
+        }
+
+        logger.info('Enviando SOAP direto ao ISSNet (%d bytes)', len(soap))
+        try:
+            r = req.post(self.base_url, data=soap.encode('utf-8'), headers=headers, timeout=30)
+            logger.info('Resposta ISSNet HTTP %s, preview: %s', r.status_code, r.text[:500])
+            xml_body = self._extrair_body_soap(r.text)
+            return self._parse_resposta_xml(xml_body)
+        except Exception as e:
+            logger.exception('Erro ao enviar SOAP: %s', e)
+            return {'success': False, 'error': str(e)}
+
+    # ------------------------------------------------------------------
+    # Enviar via zeep (mantido como fallback)
     # ------------------------------------------------------------------
     def _enviar_gerar_nfse(self, xml_assinado: str) -> Dict[str, Any]:
         """

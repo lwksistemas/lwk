@@ -169,54 +169,91 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     def _assinar_xml(self, xml_str: str) -> str:
         """
-        Assina XML com certificado digital A1 usando signxml 4.x.
+        Assina XML com certificado digital A1.
         
-        ABRASF 2.04: a assinatura eh enveloped dentro de InfDeclaracaoPrestacaoServico,
-        referenciando o atributo Id desse elemento.
+        ABRASF 2.04: a Signature fica dentro do elemento Rps,
+        referenciando o Id do InfDeclaracaoPrestacaoServico.
+        Usa xmlsec (lxml + cryptography) diretamente para controle total.
         """
-        from signxml import XMLSigner, methods
-        from signxml import SignatureMethod, DigestAlgorithm
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding
+        import base64
+        import hashlib
 
         private_key, certificate, _ = _carregar_certificado(
             self.certificado_path, self.senha_certificado
         )
 
         root = etree.fromstring(xml_str.encode('utf-8'))
-
-        # Encontrar InfDeclaracaoPrestacaoServico e seu Id
         ns = NS_NFSE
+        ds = 'http://www.w3.org/2000/09/xmldsig#'
+
+        # Encontrar InfDeclaracaoPrestacaoServico
         inf_el = root.find('.//{%s}InfDeclaracaoPrestacaoServico' % ns)
         if inf_el is None:
-            raise ValueError('InfDeclaracaoPrestacaoServico nao encontrado no XML')
-
+            raise ValueError('InfDeclaracaoPrestacaoServico nao encontrado')
         inf_id = inf_el.get('Id', '')
 
-        # Inserir placeholder da Signature dentro do Rps, apos InfDeclaracaoPrestacaoServico
+        # Canonicalizar o InfDeclaracaoPrestacaoServico
+        from lxml.etree import tostring as c14n_tostring
+        inf_c14n = etree.tostring(inf_el, method='c14n2')
+
+        # Calcular digest SHA256 do conteudo canonicalizado
+        digest_value = base64.b64encode(hashlib.sha256(inf_c14n).digest()).decode()
+
+        # Construir SignedInfo
+        signed_info_xml = (
+            f'<SignedInfo xmlns="{ds}">'
+            f'<CanonicalizationMethod Algorithm="http://www.w3.org/2006/12/xml-c14n11"/>'
+            f'<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>'
+            f'<Reference URI="#{inf_id}">'
+            f'<Transforms>'
+            f'<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
+            f'<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>'
+            f'</Transforms>'
+            f'<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>'
+            f'<DigestValue>{digest_value}</DigestValue>'
+            f'</Reference>'
+            f'</SignedInfo>'
+        )
+
+        # Canonicalizar SignedInfo para assinatura
+        signed_info_el = etree.fromstring(signed_info_xml.encode('utf-8'))
+        signed_info_c14n = etree.tostring(signed_info_el, method='c14n2')
+
+        # Assinar com chave privada RSA-SHA256
+        signature_value = base64.b64encode(
+            private_key.sign(signed_info_c14n, padding.PKCS1v15(), hashes.SHA256())
+        ).decode()
+
+        # Extrair certificado X509 em base64
+        cert_der = certificate.public_bytes(serialization.Encoding.DER)
+        cert_b64 = base64.b64encode(cert_der).decode()
+
+        # Montar elemento Signature completo
+        sig_xml = (
+            f'<Signature xmlns="{ds}">'
+            f'{signed_info_xml}'
+            f'<SignatureValue>{signature_value}</SignatureValue>'
+            f'<KeyInfo>'
+            f'<X509Data>'
+            f'<X509Certificate>{cert_b64}</X509Certificate>'
+            f'</X509Data>'
+            f'</KeyInfo>'
+            f'</Signature>'
+        )
+
+        sig_el = etree.fromstring(sig_xml.encode('utf-8'))
+
+        # Inserir Signature dentro do Rps, apos InfDeclaracaoPrestacaoServico
         rps_el = root.find('.//{%s}Rps' % ns)
-        if rps_el is None:
-            raise ValueError('Elemento Rps nao encontrado no XML')
+        if rps_el is not None:
+            rps_el.append(sig_el)
+        else:
+            inf_el.append(sig_el)
 
-        ds_ns = 'http://www.w3.org/2000/09/xmldsig#'
-        placeholder = etree.SubElement(rps_el, '{%s}Signature' % ds_ns)
-        placeholder.set('Id', 'placeholder')
-
-        signer = XMLSigner(
-            method=methods.enveloped,
-            signature_algorithm=SignatureMethod.RSA_SHA256,
-            digest_algorithm=DigestAlgorithm.SHA256,
-        )
-        signer.namespaces = {None: ds_ns}
-
-        signed = signer.sign(
-            root,
-            key=private_key,
-            cert=[certificate],
-            reference_uri=f'#{inf_id}' if inf_id else None,
-            id_attribute='Id',
-        )
-
-        result = etree.tostring(signed, encoding='unicode')
-        logger.info('XML assinado com sucesso')
+        result = etree.tostring(root, encoding='unicode')
+        logger.info('XML assinado com sucesso (manual RSA-SHA256)')
         return result
 
     # ------------------------------------------------------------------
@@ -280,7 +317,6 @@ class ISSNetClient:
         etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.4f}'
 
         etree.SubElement(servico, '{%s}IssRetido' % ns).text = '2'
-        etree.SubElement(servico, '{%s}ResponsavelRetencao' % ns).text = '1'
         etree.SubElement(servico, '{%s}ItemListaServico' % ns).text = servico_codigo
         etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = servico_codigo
         etree.SubElement(servico, '{%s}Discriminacao' % ns).text = servico_descricao
@@ -399,6 +435,7 @@ class ISSNetClient:
         """
         try:
             client = self._get_soap_client()
+            logger.info('XML enviado ao ISSNet (nfseDadosMsg): %s', xml_assinado[:2000])
             with client.settings(raw_response=True):
                 response = client.service.GerarNfse(
                     nfseCabecMsg=CABEC_MSG,

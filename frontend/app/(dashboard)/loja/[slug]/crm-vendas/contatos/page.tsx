@@ -4,60 +4,44 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { Plus, Eye, Edit2, Trash2, X, User, Mail, Phone, Building2, Briefcase } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, User } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
+import { ContatoFormModal } from './components/ContatoFormModal';
+import { ContatoViewModal } from './components/ContatoViewModal';
+import { ContatoDeleteModal } from './components/ContatoDeleteModal';
 
-interface Conta {
-  id: number;
-  nome: string;
-}
-
+interface Conta { id: number; nome: string; }
 interface Contato {
-  id: number;
-  nome: string;
-  email?: string;
-  telefone?: string;
-  cargo?: string;
-  conta: number;
-  conta_nome?: string;
-  observacoes?: string;
-  created_at: string;
+  id: number; nome: string; email?: string; telefone?: string;
+  cargo?: string; conta: number; conta_nome?: string; observacoes?: string; created_at: string;
 }
 
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
+
+const EMPTY_FORM = { nome: '', email: '', telefone: '', cargo: '', conta: '', observacoes: '' };
 
 export default function CrmVendasContatosPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+
   const [contatos, setContatos] = useState<Contato[]>([]);
   const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedContato, setSelectedContato] = useState<Contato | null>(null);
-  const [formData, setFormData] = useState({
-    nome: '',
-    email: '',
-    telefone: '',
-    cargo: '',
-    conta: '',
-    observacoes: '',
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [contaFiltro, setContaFiltro] = useState<number | null>(null);
 
-  /** silent: não troca a página inteira por skeleton (evita lista sumir ao salvar / re-fetch). */
   const loadContatos = async (contaId?: number | null, silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const url = contaId
-        ? `/crm-vendas/contatos/?conta_id=${contaId}`
-        : '/crm-vendas/contatos/';
+      const url = contaId ? `/crm-vendas/contatos/?conta_id=${contaId}` : '/crm-vendas/contatos/';
       const res = await apiClient.get<Contato[] | { results: Contato[] }>(url);
-      const contatosNormalizados = normalizeListResponse(res.data);
-      setContatos(contatosNormalizados);
+      setContatos(normalizeListResponse(res.data));
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao carregar contatos.');
@@ -70,64 +54,42 @@ export default function CrmVendasContatosPage() {
     try {
       const res = await apiClient.get<Conta[] | { results: Conta[] }>('/crm-vendas/contas/');
       setContas(normalizeListResponse(res.data));
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao carregar contas:', err);
     }
   };
 
-  // Depender só do filtro na URL — [searchParams] muda de referência e re-disparava o efeito (lista piscando).
   const contaIdNaUrl = searchParams.get('conta_id');
   const verParam = searchParams.get('ver');
+
   useEffect(() => {
-    const contaIdParam = contaIdNaUrl;
-    if (contaIdParam) {
-      const contaId = parseInt(contaIdParam, 10);
-      if (!isNaN(contaId)) {
-        setContaFiltro(contaId);
-        loadContatos(contaId);
-        loadContas();
-        return;
-      }
+    if (contaIdNaUrl) {
+      const id = parseInt(contaIdNaUrl, 10);
+      if (!isNaN(id)) { setContaFiltro(id); loadContatos(id); loadContas(); return; }
     }
-    setContaFiltro(null);
-    loadContatos(null);
-    loadContas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial / mudança de conta_id só
+    setContaFiltro(null); loadContatos(null); loadContas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contaIdNaUrl]);
 
-  // Abrir modal de criação quando ?criar=1
   useEffect(() => {
     if (searchParams.get('criar') === '1' && contas.length > 0) {
-      const contaIdParam = searchParams.get('conta_id');
-      if (contaIdParam) {
-        const contaId = parseInt(contaIdParam, 10);
-        if (!isNaN(contaId)) {
-          // Pré-selecionar a conta no formulário
-          setFormData((f) => ({ ...f, conta: String(contaId) }));
-        }
-      }
+      const cid = searchParams.get('conta_id');
+      if (cid) setFormData((f) => ({ ...f, conta: cid }));
       openModal('create');
       router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
     }
   }, [searchParams, contas, router, slug]);
 
-  // Abrir modal de visualização quando ?ver=ID
   useEffect(() => {
     if (!verParam) return;
     const id = parseInt(verParam, 10);
     if (isNaN(id)) return;
     const found = contatos.find((c) => c.id === id);
-    if (found) {
-      openModal('view', found);
-      router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
-    } else if (!loading) {
-      apiClient
-        .get<Contato>(`/crm-vendas/contatos/${id}/`)
-        .then((res) => {
-          openModal('view', res.data);
-          router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
-        })
-        .catch(() => {});
+    if (found) { openModal('view', found); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false }); }
+    else if (!loading) {
+      apiClient.get<Contato>(`/crm-vendas/contatos/${id}/`).then((res) => {
+        openModal('view', res.data); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
+      }).catch(() => {});
     }
   }, [verParam, contatos, loading, slug, router]);
 
@@ -135,111 +97,42 @@ export default function CrmVendasContatosPage() {
     setModalType(type);
     setSelectedContato(contato || null);
     if (type === 'edit' && contato) {
-      setFormData({
-        nome: contato.nome || '',
-        email: contato.email || '',
-        telefone: contato.telefone || '',
-        cargo: contato.cargo || '',
-        conta: String(contato.conta) || '',
-        observacoes: contato.observacoes || '',
-      });
+      setFormData({ nome: contato.nome || '', email: contato.email || '', telefone: contato.telefone || '', cargo: contato.cargo || '', conta: String(contato.conta) || '', observacoes: contato.observacoes || '' });
     } else if (type === 'create') {
-      setFormData({
-        nome: '',
-        email: '',
-        telefone: '',
-        cargo: '',
-        conta: '',
-        observacoes: '',
-      });
+      setFormData(EMPTY_FORM);
     }
   };
 
-  const closeModal = () => {
-    setModalType(null);
-    setSelectedContato(null);
-    setFormData({
-      nome: '',
-      email: '',
-      telefone: '',
-      cargo: '',
-      conta: '',
-      observacoes: '',
-    });
-  };
+  const closeModal = () => { setModalType(null); setSelectedContato(null); setFormData(EMPTY_FORM); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.nome.trim()) {
-      alert('Nome é obrigatório');
-      return;
-    }
-
-    if (!formData.conta) {
-      alert('Conta é obrigatória');
-      return;
-    }
-
+    if (!formData.nome.trim()) { alert('Nome é obrigatório'); return; }
+    if (!formData.conta) { alert('Conta é obrigatória'); return; }
     try {
       setSubmitting(true);
-      
-      const payload = {
-        ...formData,
-        conta: parseInt(formData.conta, 10),
-      };
-      
+      const payload = { ...formData, conta: parseInt(formData.conta, 10) };
       if (modalType === 'create') {
-        // 1. Criar o contato
-        const contatoResponse = await apiClient.post('/crm-vendas/contatos/', payload);
-        const novoContato = contatoResponse.data;
-        
-        console.log('✅ Contato criado:', novoContato);
-        
-        // 2. Buscar dados da conta para criar o lead
+        const res = await apiClient.post('/crm-vendas/contatos/', payload);
+        const novoContato = res.data;
         try {
-          const contaResponse = await apiClient.get(`/crm-vendas/contas/${payload.conta}/`);
-          const conta = contaResponse.data;
-          
-          console.log('📋 Conta encontrada:', conta);
-          
-          // 3. Criar Lead automaticamente vinculado ao contato e conta
+          const contaRes = await apiClient.get(`/crm-vendas/contas/${payload.conta}/`);
+          const conta = contaRes.data;
           const leadPayload = {
-            nome: novoContato.nome,
-            empresa: conta.nome,
-            email: novoContato.email || conta.email || '',
-            telefone: novoContato.telefone || conta.telefone || '',
-            origem: 'site',
-            status: 'novo',
-            conta: conta.id,
-            contato: novoContato.id,
-            cpf_cnpj: conta.cnpj || '',
-            cep: conta.cep || '',
-            logradouro: conta.logradouro || '',
-            numero: conta.numero || '',
-            complemento: conta.complemento || '',
-            bairro: conta.bairro || '',
-            cidade: conta.cidade || '',
-            uf: conta.uf || '',
+            nome: novoContato.nome, empresa: conta.nome, email: novoContato.email || conta.email || '',
+            telefone: novoContato.telefone || conta.telefone || '', origem: 'site', status: 'novo',
+            conta: conta.id, contato: novoContato.id, cpf_cnpj: conta.cnpj || '',
+            cep: conta.cep || '', logradouro: conta.logradouro || '', numero: conta.numero || '',
+            complemento: conta.complemento || '', bairro: conta.bairro || '', cidade: conta.cidade || '', uf: conta.uf || '',
           };
-          
-          console.log('🔄 Criando lead automaticamente:', leadPayload);
-          
-          const leadResponse = await apiClient.post('/crm-vendas/leads/', leadPayload);
-          
-          console.log('✅ Lead criado automaticamente:', leadResponse.data);
-          
-          // Mostrar mensagem de sucesso
-          alert(`✅ Contato e Lead criados com sucesso!\n\nContato: ${novoContato.nome}\nLead ID: ${leadResponse.data.id}`);
+          await apiClient.post('/crm-vendas/leads/', leadPayload);
+          alert(`✅ Contato e Lead criados com sucesso!`);
         } catch (leadErr: any) {
-          console.error('⚠️ Erro ao criar lead automaticamente:', leadErr);
-          // Não bloqueia o fluxo se falhar ao criar o lead
-          alert(`✅ Contato criado com sucesso!\n\n⚠️ Não foi possível criar o lead automaticamente: ${leadErr.response?.data?.detail || leadErr.message}`);
+          alert(`✅ Contato criado!\n\n⚠️ Lead automático falhou: ${leadErr.response?.data?.detail || leadErr.message}`);
         }
       } else if (modalType === 'edit' && selectedContato) {
         await apiClient.put(`/crm-vendas/contatos/${selectedContato.id}/`, payload);
       }
-      
       await loadContatos(contaFiltro, true);
       closeModal();
     } catch (err: any) {
@@ -251,7 +144,6 @@ export default function CrmVendasContatosPage() {
 
   const handleDelete = async () => {
     if (!selectedContato) return;
-    
     try {
       setSubmitting(true);
       await apiClient.delete(`/crm-vendas/contatos/${selectedContato.id}/`);
@@ -268,8 +160,8 @@ export default function CrmVendasContatosPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
-          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
+          <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse" />
         </div>
         <SkeletonTable rows={5} columns={5} />
       </div>
@@ -281,51 +173,27 @@ export default function CrmVendasContatosPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Contatos
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Contatos</h1>
           {contaFiltro ? (
             <div className="flex items-center gap-2 mt-1">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Filtrando por conta:
-              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Filtrando por conta:</p>
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                {contas.find(c => c.id === contaFiltro)?.nome || `ID ${contaFiltro}`}
+                {contas.find((c) => c.id === contaFiltro)?.nome || `ID ${contaFiltro}`}
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setContaFiltro(null);
-                  loadContatos(null);
-                  router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
-                }}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-              >
+              <button type="button" onClick={() => { setContaFiltro(null); loadContatos(null); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false }); }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
                 Limpar filtro
               </button>
             </div>
           ) : (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Pessoas vinculadas às contas
-            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Pessoas vinculadas às contas</p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => openModal('create')}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
-        >
-          <Plus size={18} />
-          <span>Novo Contato</span>
+        <button type="button" onClick={() => openModal('create')} className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm">
+          <Plus size={18} /> <span>Novo Contato</span>
         </button>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
-          {error}
-        </div>
-      )}
+      {error && <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">{error}</div>}
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -333,362 +201,52 @@ export default function CrmVendasContatosPage() {
           <table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Nome
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Conta
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Cargo
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Ações
-                </th>
+                {['Nome', 'Conta', 'Cargo', 'Email', 'Ações'].map((h, i) => (
+                  <th key={h} className={`py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider ${i === 4 ? 'text-right' : 'text-left'}`}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {contatos.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="py-12 text-center text-gray-500 dark:text-gray-400"
-                  >
-                    <User size={48} className="mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">Nenhum contato cadastrado</p>
-                    <p className="text-sm mt-1">Clique em "Novo Contato" para começar</p>
+                <tr><td colSpan={5} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <User size={48} className="mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Nenhum contato cadastrado</p>
+                  <p className="text-sm mt-1">Clique em &quot;Novo Contato&quot; para começar</p>
+                </td></tr>
+              ) : contatos.map((c) => (
+                <tr key={c.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#06a59a] to-[#0d9dda] flex items-center justify-center text-white font-semibold text-xs shrink-0">{c.nome.charAt(0).toUpperCase()}</div>
+                      <span className="font-medium text-gray-900 dark:text-white">{c.nome}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.conta_nome || '–'}</td>
+                  <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.cargo || '–'}</td>
+                  <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.email || '–'}</td>
+                  <td className="py-3 px-4">
+                    <div className="flex items-center justify-end gap-1">
+                      <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Visualizar"><Eye size={16} /></button>
+                      <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
+                      <button type="button" onClick={() => openModal('delete', c)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400" title="Excluir"><Trash2 size={16} /></button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                contatos.map((contato) => (
-                  <tr
-                    key={contato.id}
-                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-                  >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#06a59a] to-[#0d9dda] flex items-center justify-center text-white font-semibold text-xs shrink-0">
-                          {contato.nome.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {contato.nome}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
-                      {contato.conta_nome || '–'}
-                    </td>
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
-                      {contato.cargo || '–'}
-                    </td>
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
-                      {contato.email || '–'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => openModal('view', contato)}
-                          className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
-                          title="Visualizar"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openModal('edit', contato)}
-                          className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openModal('delete', contato)}
-                          className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Modals */}
-      {modalType && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={closeModal}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {modalType === 'create' && 'Novo Contato'}
-                  {modalType === 'edit' && 'Editar Contato'}
-                  {modalType === 'view' && 'Detalhes do Contato'}
-                  {modalType === 'delete' && 'Excluir Contato'}
-                </h2>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* Modal Content */}
-              <div className="p-6">
-                {(modalType === 'create' || modalType === 'edit') && (
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Nome <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.nome}
-                          onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                          required
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Conta <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={formData.conta}
-                          onChange={(e) => setFormData({ ...formData, conta: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                          required
-                        >
-                          <option value="">Selecione uma conta</option>
-                          {contas.map((conta) => (
-                            <option key={conta.id} value={conta.id}>
-                              {conta.nome}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Cargo
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.cargo}
-                          onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                          placeholder="Ex: Gerente de Compras"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Telefone
-                        </label>
-                        <input
-                          type="tel"
-                          value={formData.telefone}
-                          onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Email
-                        </label>
-                        <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Observações
-                        </label>
-                        <textarea
-                          value={formData.observacoes}
-                          onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                          rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={closeModal}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        disabled={submitting}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded transition-colors disabled:opacity-50"
-                        disabled={submitting}
-                      >
-                        {submitting ? 'Salvando...' : 'Salvar'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {modalType === 'view' && selectedContato && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-gray-700">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#06a59a] to-[#0d9dda] flex items-center justify-center text-white font-bold text-lg">
-                        {selectedContato.nome.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {selectedContato.nome}
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {selectedContato.cargo || 'Sem cargo definido'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-start gap-2">
-                        <Building2 size={18} className="text-gray-400 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Conta</p>
-                          <p className="text-sm text-gray-900 dark:text-white">{selectedContato.conta_nome}</p>
-                        </div>
-                      </div>
-
-                      {selectedContato.cargo && (
-                        <div className="flex items-start gap-2">
-                          <Briefcase size={18} className="text-gray-400 mt-0.5" />
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Cargo</p>
-                            <p className="text-sm text-gray-900 dark:text-white">{selectedContato.cargo}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedContato.email && (
-                        <div className="flex items-start gap-2">
-                          <Mail size={18} className="text-gray-400 mt-0.5" />
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
-                            <p className="text-sm text-gray-900 dark:text-white">{selectedContato.email}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedContato.telefone && (
-                        <div className="flex items-start gap-2">
-                          <Phone size={18} className="text-gray-400 mt-0.5" />
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Telefone</p>
-                            <p className="text-sm text-gray-900 dark:text-white">{selectedContato.telefone}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {selectedContato.observacoes && (
-                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Observações</p>
-                        <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
-                          {selectedContato.observacoes}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end gap-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={closeModal}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        Fechar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openModal('edit', selectedContato)}
-                        className="px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded transition-colors"
-                      >
-                        Editar
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {modalType === 'delete' && selectedContato && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                      <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400">
-                        <Trash2 size={20} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-red-900 dark:text-red-200">
-                          Tem certeza que deseja excluir este contato?
-                        </p>
-                        <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                          Esta ação não pode ser desfeita.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {selectedContato.nome}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {selectedContato.conta_nome}
-                      </p>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={closeModal}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        disabled={submitting}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDelete}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50"
-                        disabled={submitting}
-                      >
-                        {submitting ? 'Excluindo...' : 'Excluir'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
+      {(modalType === 'create' || modalType === 'edit') && (
+        <ContatoFormModal title={modalType === 'create' ? 'Novo Contato' : 'Editar Contato'} formData={formData} contas={contas} submitting={submitting} onChange={setFormData} onSubmit={handleSubmit} onClose={closeModal} />
+      )}
+      {modalType === 'view' && selectedContato && (
+        <ContatoViewModal contato={selectedContato} onClose={closeModal} onEdit={() => openModal('edit', selectedContato)} />
+      )}
+      {modalType === 'delete' && selectedContato && (
+        <ContatoDeleteModal contato={selectedContato} submitting={submitting} onClose={closeModal} onConfirm={handleDelete} />
       )}
     </div>
   );

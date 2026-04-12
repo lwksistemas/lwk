@@ -36,7 +36,9 @@ export function crmMensagemEnvioCanalSucesso(canal: 'email' | 'whatsapp'): strin
   return `Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`;
 }
 
-/** Formata valor monetário para exibição (listagens/modais CRM). */
+/** Formata valor monetário para exibição (listagens/modais CRM).
+ * @deprecated Use formatCurrency de financeiro-helpers.ts para novos componentes.
+ */
 export function formatCrmBrl(valor: string | number | null | undefined): string {
   if (valor == null || valor === '') return '';
   const n = typeof valor === 'string' ? parseFloat(valor) : valor;

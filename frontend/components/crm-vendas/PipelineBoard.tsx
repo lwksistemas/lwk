@@ -6,6 +6,7 @@ export interface Oportunidade {
   valor: string;
   etapa: string;
   lead_nome: string;
+  vendedor?: number | null;
   vendedor_nome?: string;
   data_fechamento_ganho?: string | null;
   data_fechamento_perdido?: string | null;

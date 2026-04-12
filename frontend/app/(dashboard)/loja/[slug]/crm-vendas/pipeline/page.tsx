@@ -75,6 +75,8 @@ export default function CrmVendasPipelinePage() {
   const [itensEditar, setItensEditar] = useState<{ id?: number; produto_servico_id: number; quantidade: string; preco_unitario: string }[]>([]);
   const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('list');
   const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
+  const [filtroVendedor, setFiltroVendedor] = useState('');
+  const [vendedores, setVendedores] = useState<{ id: number; nome: string }[]>([]);
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [imprimindo, setImprimindo] = useState(false);
@@ -126,6 +128,14 @@ export default function CrmVendasPipelinePage() {
       cancelled = true;
     };
   }, [vendedorIdSynced, slug]);
+
+  // Carregar lista de vendedores para o filtro (apenas admin/owner)
+  useEffect(() => {
+    apiClient
+      .get<{ id: number; nome: string }[] | { results: { id: number; nome: string }[] }>('/crm-vendas/vendedores/')
+      .then((res) => setVendedores(normalizeListResponse(res.data)))
+      .catch(() => setVendedores([]));
+  }, []);
 
   useEffect(() => {
     const leadIdParam = searchParams.get('lead_id');
@@ -404,6 +414,11 @@ export default function CrmVendasPipelinePage() {
       return false;
     }
     
+    // Filtro por vendedor
+    if (filtroVendedor && String(op.vendedor) !== filtroVendedor) {
+      return false;
+    }
+    
     // Filtro por período (data de criação da oportunidade)
     if (dataInicio || dataFim) {
       if (!op.created_at) return true;
@@ -592,6 +607,26 @@ export default function CrmVendasPipelinePage() {
                   </option>
                 ))}
               </select>
+              {vendedores.length > 0 && (
+                <>
+                  <label htmlFor="filtro-vendedor-pipeline" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap ml-2">
+                    Vendedor:
+                  </label>
+                  <select
+                    id="filtro-vendedor-pipeline"
+                    value={filtroVendedor}
+                    onChange={(e) => setFiltroVendedor(e.target.value)}
+                    className="min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  >
+                    <option value="">Todos</option>
+                    {vendedores.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.nome}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
           </div>
           
@@ -650,6 +685,11 @@ export default function CrmVendasPipelinePage() {
         </div>
         <div className="hidden print:block mb-4 pb-3 border-b border-gray-200 text-gray-900">
           <p className="text-lg font-semibold">Pipeline de vendas</p>
+          {filtroVendedor && (
+            <p className="text-sm text-gray-600 mt-1">
+              Vendedor: {vendedores.find((v) => String(v.id) === filtroVendedor)?.nome || filtroVendedor}
+            </p>
+          )}
           {(dataInicio || dataFim) && (
             <p className="text-sm text-gray-600 mt-1">
               Período: {dataInicio ? new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR') : '—'} até{' '}

@@ -438,9 +438,9 @@ class ISSNetClient:
                 data_emissao=data_emissao,
             )
 
-            # Tentar enviar sem assinatura primeiro (ISSNet aceita auth por usuario/senha)
-            # A assinatura sera adicionada quando o schema sem assinatura funcionar
-            resultado = self._enviar_gerar_nfse(xml_rps)
+            # Assinar XML com certificado digital e enviar
+            xml_assinado = self._assinar_xml(xml_rps)
+            resultado = self._enviar_gerar_nfse(xml_assinado)
             return resultado
 
         except Exception as e:

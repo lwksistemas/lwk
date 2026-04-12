@@ -143,20 +143,45 @@ class ISSNetClient:
         self._incentivador_cultural = False
 
     def _get_soap_client(self):
-        """Cliente SOAP zeep com lazy loading."""
+        """Cliente SOAP zeep com lazy loading e certificado SSL (mTLS)."""
         if self._soap_client is not None:
             return self._soap_client
         from zeep import Client
         from zeep.transports import Transport
         from requests import Session
+        import tempfile
+        import os
+        from cryptography.hazmat.primitives.serialization import pkcs12, Encoding, PrivateFormat, NoEncryption
 
         session = Session()
         session.headers.update({'User-Agent': 'LWK-Sistemas/CRM'})
+
+        # Configurar mTLS: extrair key+cert do PFX para arquivos PEM temporarios
+        try:
+            private_key, certificate, _ = _carregar_certificado(
+                self.certificado_path, self.senha_certificado
+            )
+            # Salvar key PEM
+            key_pem = private_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption())
+            key_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+            key_tmp.write(key_pem)
+            key_tmp.close()
+
+            # Salvar cert PEM
+            cert_pem = certificate.public_bytes(Encoding.PEM)
+            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+            cert_tmp.write(cert_pem)
+            cert_tmp.close()
+
+            session.cert = (cert_tmp.name, key_tmp.name)
+            logger.info('mTLS configurado com certificado do cliente')
+        except Exception as e:
+            logger.warning('Nao foi possivel configurar mTLS: %s', e)
+
         transport = Transport(session=session, timeout=30)
         self._soap_client = Client(self.wsdl_url, transport=transport)
 
-        # O WSDL do ISSNet define endpoint relativo (nfse.asmx).
-        # Forcar URL absoluta no service binding.
+        # Forcar URL absoluta (WSDL define endpoint relativo)
         for service in self._soap_client.wsdl.services.values():
             for port in service.ports.values():
                 port.binding_options['address'] = self.base_url

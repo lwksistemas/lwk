@@ -1,4 +1,4 @@
-"""Teste direto do webservice ISSNet sem zeep."""
+"""Teste direto do webservice ISSNet - formato exato da lib PHP."""
 import os
 import sys
 import django
@@ -65,18 +65,23 @@ xml_nfse = (
     '</GerarNfseEnvio>'
 )
 
-cabec = '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd"><versaoDados>2.04</versaoDados></cabecalho>'
-
-# Escapar XML para dentro do SOAP (usar CDATA)
+# Formato EXATO da lib PHP Focus599Dev (sem CDATA, sem namespace prefix nos params)
 soap = (
     '<?xml version="1.0" encoding="utf-8"?>'
     '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-    'xmlns:ws="http://nfse.abrasf.org.br">'
+    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+    'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+    'xmlns:nfse="http://nfse.abrasf.org.br">'
+    '<soap:Header/>'
     '<soap:Body>'
-    '<ws:GerarNfse>'
-    '<ws:nfseCabecMsg><![CDATA[' + cabec + ']]></ws:nfseCabecMsg>'
-    '<ws:nfseDadosMsg><![CDATA[' + xml_nfse + ']]></ws:nfseDadosMsg>'
-    '</ws:GerarNfse>'
+    '<nfse:GerarNfse>'
+    '<nfseCabecMsg>'
+    '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
+    '<versaoDados>2.04</versaoDados>'
+    '</cabecalho>'
+    '</nfseCabecMsg>'
+    '<nfseDadosMsg>' + xml_nfse + '</nfseDadosMsg>'
+    '</nfse:GerarNfse>'
     '</soap:Body>'
     '</soap:Envelope>'
 )

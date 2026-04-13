@@ -43,10 +43,21 @@ def _somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
 
 
+def _soap_cdata(payload: str) -> str:
+    """
+    nfseCabecMsg / nfseDadosMsg são xsd:string no WSDL: o XML interno deve ir como texto.
+    Sem CDATA, o .NET trata tags internas como parte do envelope SOAP e costuma retornar
+    Fault genérico (faultstring 'Error').
+    """
+    safe = (payload or '').replace(']]>', ']]]]><![CDATA[>')
+    return f'<![CDATA[{safe}]]>'
+
+
 def _issnet_fault_possivelmente_transitorio(resposta_texto: str) -> bool:
     """
     Detecta Fault SOAP típico de falha de rede interna no servidor ISSNet (.NET),
     ex.: 'Foi forçado o cancelamento de uma conexão existente pelo host remoto.'
+    ou Fault genérico sem detail (vale uma nova tentativa).
     """
     if not resposta_texto:
         return False
@@ -65,7 +76,12 @@ def _issnet_fault_possivelmente_transitorio(resposta_texto: str) -> bool:
         'broken pipe',
         'connection reset',
     )
-    return any(m in t for m in marcas)
+    if any(m in t for m in marcas):
+        return True
+    m = re.search(r'faultstring[^>]*>\s*([^<]+?)\s*</', resposta_texto, re.IGNORECASE | re.DOTALL)
+    if m and m.group(1).strip().lower() == 'error':
+        return True
+    return False
 
 
 def _carregar_certificado(pfx_path: str, senha: str):
@@ -513,8 +529,8 @@ class ISSNetClient:
             '<soap:Header/>'
             '<soap:Body>'
             '<nfse:RecepcionarLoteRps>'
-            '<nfseCabecMsg>' + cabec + '</nfseCabecMsg>'
-            '<nfseDadosMsg>' + xml_dados + '</nfseDadosMsg>'
+            '<nfseCabecMsg>' + _soap_cdata(cabec) + '</nfseCabecMsg>'
+            '<nfseDadosMsg>' + _soap_cdata(xml_dados) + '</nfseDadosMsg>'
             '</nfse:RecepcionarLoteRps>'
             '</soap:Body>'
             '</soap:Envelope>'

@@ -337,10 +337,11 @@ class ISSNetClient:
         """
         Assina XML com certificado digital A1 usando python-xmlsec.
 
-        Dupla assinatura alinhada ao sped-nfse-issnet (PHP): primeiro o ``Rps``
-        externo (ListaRps/Rps) com Reference URI vazia e so transform enveloped;
-        depois ``EnviarLoteRpsEnvio`` com atributo Id (Reference #Id) como no PHP Signer.
-        A Signature fica dentro do no assinado (como no Signer do pacote ISSNET).
+        Dupla assinatura alinhada ao sped-nfse-issnet (PHP): primeiro o ``Rps`` externo
+        (ListaRps/Rps) com Reference URI vazia e transform enveloped; depois a raiz
+        ``EnviarLoteRpsEnvio`` tambem com URI vazia. O XSD ABRASF nao declara atributo
+        ``Id`` em ``EnviarLoteRpsEnvio`` — colocar ``Id`` invalida o XML e o ASMX costuma
+        responder Fault generico. O PHP, sem ``Id`` na raiz, usa URI vazia no 2o Signer.
         """
         import xmlsec
 
@@ -404,7 +405,6 @@ class ISSNetClient:
 
         lista = root.find('.//{%s}ListaRps' % ns)
         outer_rps = lista.find('{%s}Rps' % ns) if lista is not None else None
-        lote_el = root.find('.//{%s}LoteRps' % ns)
 
         if outer_rps is None:
             logger.warning('Assinatura: ListaRps/Rps externo nao encontrado; XML nao assinado.')
@@ -417,18 +417,10 @@ class ISSNetClient:
         if root_local != 'EnviarLoteRpsEnvio':
             logger.warning('Assinatura: raiz inesperada %s; pulando segunda assinatura.', root_local)
         else:
-            num_lote = ''
-            if lote_el is not None:
-                num_lote = (lote_el.findtext('{%s}NumeroLote' % ns) or '').strip()
-            if not num_lote:
-                num_lote = '1'
-            envio_id = root.get('Id') or f'EnviarLoteRpsEnvio{num_lote}'
-            root.set('Id', envio_id)
-
-            sig_envio = _template_sig_enveloped_only(root, f'#{envio_id}')
+            # Nao definir Id na raiz: servico_enviar_lote_rps_envio.xsd nao permite (sem anyAttribute).
+            sig_envio = _template_sig_enveloped_only(root, '')
             ctx2 = xmlsec.SignatureContext()
             ctx2.key = key
-            ctx2.register_id(root, 'Id', None)
             ctx2.sign(sig_envio)
 
         result = etree.tostring(root, encoding='unicode')
@@ -470,7 +462,7 @@ class ISSNetClient:
         # Root: EnviarLoteRpsEnvio (fluxo oficial PHP ISSNET para RP)
         root = etree.Element('{%s}EnviarLoteRpsEnvio' % ns, nsmap={None: ns})
 
-        # LoteRps: somente versao="2.04" (Id fica na raiz EnviarLoteRpsEnvio para a 2a assinatura)
+        # LoteRps: somente versao="2.04" (2a assinatura e enveloped na raiz, sem Id — ver XSD)
         lote = etree.SubElement(root, '{%s}LoteRps' % ns, versao='2.04')
         etree.SubElement(lote, '{%s}NumeroLote' % ns).text = str(numero_rps)
 

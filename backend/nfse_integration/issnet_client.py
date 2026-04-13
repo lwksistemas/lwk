@@ -4,8 +4,10 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
-- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo (layout espelha sped-nfse-issnet; envio SOAP via Zeep + mTLS).
-- Cada operação SOAP recebe (nfseCabecMsg: str, nfseDadosMsg: str)
+- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo.
+- Envelope SOAP: igual NFePHP ISSNET Common/Tools envelopSOAP — nfseCabecMsg e nfseDadosMsg
+  com XML aninhado (nao como texto escapado tipo Zeep+xsd:string).
+- Cada operação SOAP: nfse:Operacao com nfseCabecMsg + nfseDadosMsg (mTLS).
 """
 import logging
 import os
@@ -21,6 +23,8 @@ from lxml import etree
 logger = logging.getLogger(__name__)
 
 NS_NFSE = 'http://www.abrasf.org.br/nfse.xsd'
+# Namespace das mensagens / operacoes no WSDL (prefixo nfse: no envelope PHP).
+NS_NFSE_WSDL = 'http://nfse.abrasf.org.br'
 COD_MUNICIPIO_RP = '3543402'
 
 ISSNET_RP_NFSE_ASMX = (
@@ -44,6 +48,47 @@ CABEC_MSG = (
 
 def _somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
+
+
+def _strip_xml_declaration(fragment: str) -> str:
+    """Remove declaração <?xml ...?> do início (envelope SOAP já define encoding)."""
+    s = (fragment or '').strip()
+    if s.startswith('<?xml'):
+        s = re.sub(r'^\s*<\?xml[^>]*\?>\s*', '', s, count=1, flags=re.I)
+    return s
+
+
+def _montar_soap_envelope_issnet_nfephp(nome_operacao: str, dados_xml: str) -> str:
+    """
+    Mesma forma que NFePHP NFSe ISSNET Common\\Tools::envelopSOAP:
+    nfseCabecMsg contém <cabecalho> como elemento filho; nfseDadosMsg contém o lote
+    como XML aninhado (não entidades &lt;), para o ASMX aceitar o corpo.
+    """
+    dados = _strip_xml_declaration(dados_xml or '')
+    cabec_filhos = (
+        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
+        '<versaoDados>2.04</versaoDados>'
+        '</cabecalho>'
+    )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+        f'xmlns:nfse="{NS_NFSE_WSDL}">'
+        '<soap:Header/>'
+        '<soap:Body>'
+        f'<nfse:{nome_operacao}>'
+        '<nfseCabecMsg>'
+        f'{cabec_filhos}'
+        '</nfseCabecMsg>'
+        '<nfseDadosMsg>'
+        f'{dados}'
+        '</nfseDadosMsg>'
+        f'</nfse:{nome_operacao}>'
+        '</soap:Body>'
+        '</soap:Envelope>'
+    )
 
 
 def _issnet_corpo_parece_xml(texto: str) -> bool:
@@ -142,7 +187,7 @@ class ISSNetClient:
     Cliente SOAP para webservice ISSNet Ribeirao Preto (ABRASF 2.04).
 
     Emissão: RecepcionarLoteRps + EnviarLoteRpsEnvio (ABRASF 2.04), SOAP + mTLS como sped-nfse-issnet (Focus599Dev).
-    Autenticacao: usuario/senha no XML + certificado digital para assinatura.
+    Credenciais ISSNet (usuario/senha) são exigidas na configuração; o envelope segue NFePHP envelopSOAP.
     """
 
     def __init__(
@@ -571,15 +616,13 @@ class ISSNetClient:
         soap_action_uri: str,
         dados_xml: str,
     ):
-        """POST SOAP 1.1 com mTLS via Zeep (serializacao conforme WSDL ASMX da ISSNet)."""
+        """POST SOAP 1.1 com mTLS (envelope igual NFePHP envelopSOAP: XML aninhado em nfse*Msg)."""
         import os
         import tempfile
 
         import requests as req
 
         logger.debug('ISSNet %s SOAPAction=%s', nome_operacao, soap_action_uri)
-        from zeep import Client
-        from zeep.transports import Transport
 
         cert_path = None
         key_path = None
@@ -611,39 +654,43 @@ class ISSNetClient:
                 ctf.close()
 
             http_timeout = (8, 20)
-            _conn_t, read_t = http_timeout
 
-            session = req.Session()
-            session.headers.update({'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)'})
-            session.cert = (cert_path, key_path)
-            transport = Transport(session=session, timeout=read_t, operation_timeout=read_t)
-            client = Client(self.wsdl_url, transport=transport)
-            for service in client.wsdl.services.values():
-                for port in service.ports.values():
-                    port.binding_options['address'] = self.base_url
-
-            op = getattr(client.service, nome_operacao)
-            dados = dados_xml or ''
-
-            def _zeep_raw_post():
-                with client.settings(raw_response=True):
-                    return op(nfseCabecMsg=CABEC_MSG, nfseDadosMsg=dados)
+            soap = _montar_soap_envelope_issnet_nfephp(nome_operacao, dados_xml)
+            headers = {
+                'Content-Type': 'text/xml; charset=utf-8',
+                'SOAPAction': f'"{soap_action_uri}"',
+                'Connection': 'close',
+                'Accept': 'text/xml',
+                'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
+            }
 
             logger.info(
-                'ISSNet SOAP %s (zeep, nfseDadosMsg ~%d chars) com mTLS',
+                'ISSNet SOAP %s (~%d bytes, envelope NFePHP/nfse aninhado) com mTLS',
                 nome_operacao,
-                len(dados),
+                len(soap.encode('utf-8')),
             )
             try:
-                r = _zeep_raw_post()
+                r = req.post(
+                    self.base_url,
+                    data=soap.encode('utf-8'),
+                    headers=headers,
+                    timeout=http_timeout,
+                    cert=(cert_path, key_path),
+                )
             except (
                 req.exceptions.ConnectionError,
                 req.exceptions.ChunkedEncodingError,
                 req.exceptions.ReadTimeout,
             ) as e:
-                logger.warning('ISSNet SOAP zeep: erro de conexao, uma nova tentativa: %s', e)
+                logger.warning('ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s', e)
                 time.sleep(1.5)
-                r = _zeep_raw_post()
+                r = req.post(
+                    self.base_url,
+                    data=soap.encode('utf-8'),
+                    headers=headers,
+                    timeout=http_timeout,
+                    cert=(cert_path, key_path),
+                )
 
             logger.info(
                 'Resposta ISSNet HTTP %s, preview: %s',
@@ -659,7 +706,13 @@ class ISSNetClient:
                     r.status_code,
                 )
                 time.sleep(2.0)
-                r = _zeep_raw_post()
+                r = req.post(
+                    self.base_url,
+                    data=soap.encode('utf-8'),
+                    headers=headers,
+                    timeout=http_timeout,
+                    cert=(cert_path, key_path),
+                )
                 logger.info(
                     'Resposta ISSNet HTTP %s (apos retry), preview: %s',
                     r.status_code,

@@ -465,7 +465,10 @@ class ISSNetClient:
     # Enviar via requests direto (formato exato da lib PHP)
     # ------------------------------------------------------------------
     def _enviar_soap_direto(self, xml_dados: str) -> Dict[str, Any]:
-        """Envia XML via SOAP direto (sem zeep) com formato da lib PHP."""
+        """Envia XML via SOAP direto (sem zeep) com formato da lib PHP (mTLS + soap+xml)."""
+        import os
+        import tempfile
+
         import requests as req
 
         cabec = (
@@ -488,20 +491,59 @@ class ISSNetClient:
             '</soap:Body>'
             '</soap:Envelope>'
         )
+        # sped-nfse-issnet Soap.php: application/soap+xml + SOAPAction com nome da operacao;
+        # conexao HTTPS com certificado cliente (CURLOPT_SSLCERT / SSLKEY).
         headers = {
-            'Content-Type': 'text/xml; charset=utf-8',
-            'SOAPAction': 'http://nfse.abrasf.org.br/RecepcionarLoteRps',
+            'Content-Type': 'application/soap+xml; charset=utf-8',
+            'SOAPAction': '"RecepcionarLoteRps"',
         }
 
-        logger.info('Enviando SOAP direto ao ISSNet (%d bytes)', len(soap))
+        cert_path = None
+        key_path = None
+        logger.info('Enviando SOAP direto ao ISSNet (%d bytes) com mTLS', len(soap))
         try:
-            r = req.post(self.base_url, data=soap.encode('utf-8'), headers=headers, timeout=30)
+            private_key_obj, cert_obj, _ = _carregar_certificado(
+                self.certificado_path, self.senha_certificado
+            )
+            from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+
+            key_pem = private_key_obj.private_bytes(
+                Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()
+            )
+            cert_pem = cert_obj.public_bytes(Encoding.PEM)
+            ktf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+            ctf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+            try:
+                ktf.write(key_pem)
+                ctf.write(cert_pem)
+                ktf.flush()
+                ctf.flush()
+                key_path = ktf.name
+                cert_path = ctf.name
+            finally:
+                ktf.close()
+                ctf.close()
+
+            r = req.post(
+                self.base_url,
+                data=soap.encode('utf-8'),
+                headers=headers,
+                timeout=30,
+                cert=(cert_path, key_path),
+            )
             logger.info('Resposta ISSNet HTTP %s, preview: %s', r.status_code, r.text[:500])
             xml_body = self._extrair_body_soap(r.text)
             return self._parse_resposta_xml(xml_body)
         except Exception as e:
             logger.exception('Erro ao enviar SOAP: %s', e)
             return {'success': False, 'error': str(e)}
+        finally:
+            for p in (cert_path, key_path):
+                if p and os.path.isfile(p):
+                    try:
+                        os.unlink(p)
+                    except OSError:
+                        pass
 
     # ------------------------------------------------------------------
     # Enviar via zeep (mantido como fallback)

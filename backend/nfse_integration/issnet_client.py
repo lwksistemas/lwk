@@ -53,29 +53,68 @@ def _soap_xsd_string_payload(payload: str) -> str:
     return _xml_escape(payload or '', {'"': '&quot;', "'": '&apos;'})
 
 
-def _soap_envelope_nfse_php(nome_operacao: str, dados_xml: str) -> str:
-    """
-    Envelope SOAP 1.1 alinhado ao WSDL ASMX: parametros no namespace nfse.abrasf.org.br
-    e nfseCabecMsg / nfseDadosMsg como string XML (texto escapado), que e o que o
-    XmlSerializer .NET espera — filhos XML crus dentro desses elementos geram Fault generico.
-    """
+def _soap_corpo_operacao_abrasf(nome_operacao: str, dados_xml: str) -> str:
+    """Filhos nfseCabecMsg/nfseDadosMsg no namespace da operacao (xmlns default no elemento raiz)."""
     cab_esc = _soap_xsd_string_payload(CABEC_MSG)
     dat_esc = _soap_xsd_string_payload(dados_xml or '')
     return (
+        f'<{nome_operacao} xmlns="{NS_NFSE_WSDL}">'
+        f'<nfseCabecMsg>{cab_esc}</nfseCabecMsg>'
+        f'<nfseDadosMsg>{dat_esc}</nfseDadosMsg>'
+        f'</{nome_operacao}>'
+    )
+
+
+def _iter_issnet_soap_envios(nome_operacao: str, dados_xml: str, soap_action_uri: str):
+    """
+    Tentativa 1: SOAP 1.1 + text/xml (WSDL ASMX).
+    Tentativa 2: SOAP 1.2 + application/soap+xml (igual cURL do sped-nfse-issnet PHP).
+    """
+    inner = _soap_corpo_operacao_abrasf(nome_operacao, dados_xml)
+    soap11 = (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
         'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        f'xmlns:nfse="{NS_NFSE_WSDL}">'
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
         '<soap:Header/>'
         '<soap:Body>'
-        f'<nfse:{nome_operacao}>'
-        f'<nfse:nfseCabecMsg>{cab_esc}</nfse:nfseCabecMsg>'
-        f'<nfse:nfseDadosMsg>{dat_esc}</nfse:nfseDadosMsg>'
-        f'</nfse:{nome_operacao}>'
-        '</soap:Body>'
-        '</soap:Envelope>'
+        + inner +
+        '</soap:Body></soap:Envelope>'
     )
+    h11 = {
+        'Content-Type': 'text/xml; charset=utf-8',
+        'SOAPAction': f'"{soap_action_uri}"',
+        'Connection': 'close',
+        'Accept': 'text/xml, application/soap+xml',
+        'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
+    }
+    soap12 = (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">'
+        '<soap:Header/>'
+        '<soap:Body>'
+        + inner +
+        '</soap:Body></soap:Envelope>'
+    )
+    h12 = {
+        'Content-Type': f'application/soap+xml; charset=utf-8; action="{soap_action_uri}"',
+        'SOAPAction': f'"{soap_action_uri}"',
+        'Connection': 'close',
+        'Accept': 'application/soap+xml, text/xml',
+        'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
+    }
+    yield soap11, h11, 'SOAP1.1'
+    yield soap12, h12, 'SOAP1.2'
+
+
+def _issnet_fault_soap_so_generico(resp_text: str) -> bool:
+    """Fault ASMX sem mensagem util (faultstring so 'Error')."""
+    if not resp_text or 'Fault' not in resp_text:
+        return False
+    m = re.search(r'<[^>]*faultstring[^>]*>\s*(.*?)\s*<', resp_text, flags=re.I | re.S)
+    if not m:
+        return False
+    return (m.group(1) or '').strip().lower() == 'error'
 
 
 def _issnet_corpo_parece_xml(texto: str) -> bool:
@@ -601,28 +640,14 @@ class ISSNetClient:
         soap_action_uri: str,
         dados_xml: str,
     ):
-        """POST SOAP 1.1 com mTLS (corpo montado como sped-nfse-issnet PHP). Retorna (dict, xml_body_abrasf)."""
+        """POST SOAP com mTLS: tenta SOAP 1.1 (text/xml) e, se Fault generico, SOAP 1.2 (application/soap+xml)."""
         import os
         import tempfile
 
         import requests as req
 
-        soap = _soap_envelope_nfse_php(nome_operacao, dados_xml)
-        headers = {
-            'Content-Type': 'text/xml; charset=utf-8',
-            'SOAPAction': f'"{soap_action_uri}"',
-            'Connection': 'close',
-            'Accept': 'text/xml',
-            'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
-        }
-
         cert_path = None
         key_path = None
-        logger.info(
-            'ISSNet SOAP %s (%d bytes) com mTLS',
-            nome_operacao,
-            len(soap),
-        )
         try:
             private_key_obj, cert_obj, extra = _carregar_certificado(
                 self.certificado_path, self.senha_certificado
@@ -651,72 +676,98 @@ class ISSNetClient:
                 ctf.close()
 
             http_timeout = (8, 20)
-            try:
-                r = req.post(
-                    self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
-                    timeout=http_timeout,
-                    cert=(cert_path, key_path),
-                )
-            except (
-                req.exceptions.ConnectionError,
-                req.exceptions.ChunkedEncodingError,
-                req.exceptions.ReadTimeout,
-            ) as e:
-                logger.warning('ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s', e)
-                time.sleep(1.5)
-                r = req.post(
-                    self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
-                    timeout=http_timeout,
-                    cert=(cert_path, key_path),
-                )
 
-            logger.info(
-                'Resposta ISSNet HTTP %s, preview: %s',
-                r.status_code,
-                (r.text or '')[:500],
-            )
-            if r.status_code >= 400 or 'Fault' in (r.text or ''):
-                logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
-
-            if r.status_code in (502, 503, 504) and not _issnet_corpo_parece_xml(r.text or ''):
-                logger.warning(
-                    'ISSNet HTTP %s sem XML; repetindo POST uma vez apos 2s',
-                    r.status_code,
-                )
-                time.sleep(2.0)
-                r = req.post(
-                    self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
-                    timeout=http_timeout,
-                    cert=(cert_path, key_path),
-                )
+            for bi, (soap, headers, label) in enumerate(
+                _iter_issnet_soap_envios(nome_operacao, dados_xml, soap_action_uri)
+            ):
+                if bi:
+                    logger.warning(
+                        'ISSNet: nova tentativa com %s apos Fault SOAP generico (s:Client / Error)',
+                        label,
+                    )
                 logger.info(
-                    'Resposta ISSNet HTTP %s (apos retry), preview: %s',
+                    'ISSNet SOAP %s (%d bytes, %s) com mTLS',
+                    nome_operacao,
+                    len(soap),
+                    label,
+                )
+                try:
+                    r = req.post(
+                        self.base_url,
+                        data=soap.encode('utf-8'),
+                        headers=headers,
+                        timeout=http_timeout,
+                        cert=(cert_path, key_path),
+                    )
+                except (
+                    req.exceptions.ConnectionError,
+                    req.exceptions.ChunkedEncodingError,
+                    req.exceptions.ReadTimeout,
+                ) as e:
+                    logger.warning('ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s', e)
+                    time.sleep(1.5)
+                    r = req.post(
+                        self.base_url,
+                        data=soap.encode('utf-8'),
+                        headers=headers,
+                        timeout=http_timeout,
+                        cert=(cert_path, key_path),
+                    )
+
+                logger.info(
+                    'Resposta ISSNet HTTP %s, preview: %s',
                     r.status_code,
                     (r.text or '')[:500],
                 )
+                if r.status_code >= 400 or 'Fault' in (r.text or ''):
+                    logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
 
-            if not _issnet_corpo_parece_xml(r.text or ''):
-                msg = _issnet_decodificar_corpo(r).strip() or '(resposta vazia)'
-                msg = ' '.join(msg.split())
-                return (
-                    {
-                        'success': False,
-                        'error': (
-                            f'O webservice ISSNet respondeu HTTP {r.status_code} sem XML '
-                            f'(serviço indisponível ou erro no balanceador). {msg[:600]}'
-                        ),
-                    },
-                    '',
-                )
+                if r.status_code in (502, 503, 504) and not _issnet_corpo_parece_xml(r.text or ''):
+                    logger.warning(
+                        'ISSNet HTTP %s sem XML; repetindo POST uma vez apos 2s',
+                        r.status_code,
+                    )
+                    time.sleep(2.0)
+                    r = req.post(
+                        self.base_url,
+                        data=soap.encode('utf-8'),
+                        headers=headers,
+                        timeout=http_timeout,
+                        cert=(cert_path, key_path),
+                    )
+                    logger.info(
+                        'Resposta ISSNet HTTP %s (apos retry), preview: %s',
+                        r.status_code,
+                        (r.text or '')[:500],
+                    )
 
-            xml_body = self._extrair_body_soap(r.text)
-            return self._parse_resposta_xml(xml_body), xml_body
+                if not _issnet_corpo_parece_xml(r.text or ''):
+                    msg = _issnet_decodificar_corpo(r).strip() or '(resposta vazia)'
+                    msg = ' '.join(msg.split())
+                    return (
+                        {
+                            'success': False,
+                            'error': (
+                                f'O webservice ISSNet respondeu HTTP {r.status_code} sem XML '
+                                f'(serviço indisponível ou erro no balanceador). {msg[:600]}'
+                            ),
+                        },
+                        '',
+                    )
+
+                if _issnet_fault_soap_so_generico(r.text or '') and bi == 0:
+                    continue
+
+                xml_body = self._extrair_body_soap(r.text)
+                return self._parse_resposta_xml(xml_body), xml_body
+
+            return (
+                {
+                    'success': False,
+                    'error': 'ISSNet: Fault SOAP generico em todas as variantes de envelope.',
+                },
+                '',
+            )
         except Exception as e:
             logger.exception('Erro ao enviar SOAP: %s', e)
             return {'success': False, 'error': str(e)}, ''

@@ -5,8 +5,7 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
 - Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo.
-- Envelope SOAP: igual NFePHP ISSNET Common/Tools envelopSOAP — nfseCabecMsg e nfseDadosMsg
-  com XML aninhado (nao como texto escapado tipo Zeep+xsd:string).
+- Envelope SOAP: nfseCabecMsg e nfseDadosMsg como xsd:string com XML em CDATA (compativel ASMX).
 - Cada operação SOAP: nfse:Operacao com nfseCabecMsg + nfseDadosMsg (mTLS).
 """
 import logging
@@ -58,14 +57,24 @@ def _strip_xml_declaration(fragment: str) -> str:
     return s
 
 
-def _montar_soap_envelope_issnet_nfephp(nome_operacao: str, dados_xml: str) -> str:
+def _cdata_section(payload: str) -> str:
+    """Envolve em CDATA; se existir ']]>', quebra em dois CDATA adjacentes (regra XML)."""
+    s = payload or ''
+    if ']]>' in s:
+        s = s.replace(']]>', ']]]]><![CDATA[>')
+    return f'<![CDATA[{s}]]>'
+
+
+def _montar_soap_envelope_issnet(nome_operacao: str, dados_xml: str) -> str:
     """
-    Mesma forma que NFePHP NFSe ISSNET Common\\Tools::envelopSOAP:
-    nfseCabecMsg contém <cabecalho> como elemento filho; nfseDadosMsg contém o lote
-    como XML aninhado (não entidades &lt;), para o ASMX aceitar o corpo.
+    WSDL define nfseCabecMsg e nfseDadosMsg como xsd:string. O ASMX .NET costuma
+    desserializar como texto; XML aninhado direto ou Zeep como string escapada
+    podem gerar Fault generico. Aqui usamos CDATA com o XML literal (comum em
+    manuais ISSNet / compativel com xsd:string).
+    Operacao sem prefixo, xmlns default = namespace do WSDL (document/literal).
     """
     dados = _strip_xml_declaration(dados_xml or '')
-    cabec_filhos = (
+    cabec_txt = (
         '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
         '<versaoDados>2.04</versaoDados>'
         '</cabecalho>'
@@ -74,18 +83,13 @@ def _montar_soap_envelope_issnet_nfephp(nome_operacao: str, dados_xml: str) -> s
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
         'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        f'xmlns:nfse="{NS_NFSE_WSDL}">'
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
         '<soap:Header/>'
         '<soap:Body>'
-        f'<nfse:{nome_operacao}>'
-        '<nfseCabecMsg>'
-        f'{cabec_filhos}'
-        '</nfseCabecMsg>'
-        '<nfseDadosMsg>'
-        f'{dados}'
-        '</nfseDadosMsg>'
-        f'</nfse:{nome_operacao}>'
+        f'<{nome_operacao} xmlns="{NS_NFSE_WSDL}">'
+        f'<nfseCabecMsg>{_cdata_section(cabec_txt)}</nfseCabecMsg>'
+        f'<nfseDadosMsg>{_cdata_section(dados)}</nfseDadosMsg>'
+        f'</{nome_operacao}>'
         '</soap:Body>'
         '</soap:Envelope>'
     )
@@ -616,7 +620,7 @@ class ISSNetClient:
         soap_action_uri: str,
         dados_xml: str,
     ):
-        """POST SOAP 1.1 com mTLS (envelope igual NFePHP envelopSOAP: XML aninhado em nfse*Msg)."""
+        """POST SOAP 1.1 com mTLS (nfseCabecMsg/nfseDadosMsg em CDATA, operacao com xmlns default)."""
         import os
         import tempfile
 
@@ -655,7 +659,7 @@ class ISSNetClient:
 
             http_timeout = (8, 20)
 
-            soap = _montar_soap_envelope_issnet_nfephp(nome_operacao, dados_xml)
+            soap = _montar_soap_envelope_issnet(nome_operacao, dados_xml)
             headers = {
                 'Content-Type': 'text/xml; charset=utf-8',
                 'SOAPAction': f'"{soap_action_uri}"',
@@ -665,7 +669,7 @@ class ISSNetClient:
             }
 
             logger.info(
-                'ISSNet SOAP %s (~%d bytes, envelope NFePHP/nfse aninhado) com mTLS',
+                'ISSNet SOAP %s (~%d bytes, nfse*Msg CDATA + xmlns op) com mTLS',
                 nome_operacao,
                 len(soap.encode('utf-8')),
             )

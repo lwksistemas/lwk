@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import models
 from .models import Loja, FinanceiroLoja, PagamentoLoja
 from .serializers import FinanceiroLojaSerializer, PagamentoLojaSerializer
 from .asaas_service import LojaAsaasService
@@ -688,12 +689,19 @@ def _assinaturas_unificado():
     # Asaas
     for a in LojaAssinatura.objects.all().select_related('asaas_customer', 'current_payment').order_by('-created_at'):
         data = LojaAssinaturaSerializer(a).data
-        # Adicionar histórico de pagamentos
-        payments = AsaasPayment.objects.filter(
-            external_reference__contains=f"loja_{a.loja_slug}"
-        ).order_by('-due_date')[:20]
-        data['payment_history'] = [
-            {
+
+        # Histórico: combinar AsaasPayment + PagamentoLoja para cobrir todos os cenários
+        history = []
+        seen_asaas_ids = set()
+
+        # 1) AsaasPayment (pagamentos registrados no Asaas local)
+        ap_qs = AsaasPayment.objects.filter(
+            models.Q(external_reference__contains=f"loja_{a.loja_slug}") |
+            models.Q(customer=a.asaas_customer)
+        ).order_by('-due_date').distinct()[:20]
+        for p in ap_qs:
+            seen_asaas_ids.add(p.asaas_id)
+            history.append({
                 'id': p.id,
                 'asaas_id': p.asaas_id,
                 'value': str(p.value),
@@ -703,9 +711,35 @@ def _assinaturas_unificado():
                 'payment_date': p.payment_date.strftime('%Y-%m-%d') if p.payment_date else None,
                 'is_paid': p.is_paid,
                 'bank_slip_url': p.bank_slip_url or '',
-            }
-            for p in payments
-        ]
+            })
+
+        # 2) PagamentoLoja (histórico local que pode ter pagamentos não presentes no AsaasPayment)
+        try:
+            from superadmin.models import Loja as LojaModel
+            loja_obj = LojaModel.objects.filter(slug=a.loja_slug).first()
+            if loja_obj:
+                for pl in PagamentoLoja.objects.filter(loja=loja_obj).order_by('-data_vencimento')[:20]:
+                    aid = pl.asaas_payment_id or ''
+                    if aid and aid in seen_asaas_ids:
+                        continue  # já incluído via AsaasPayment
+                    status_map = {'pago': 'RECEIVED', 'pendente': 'PENDING', 'atrasado': 'OVERDUE', 'cancelado': 'REFUNDED'}
+                    history.append({
+                        'id': pl.id,
+                        'asaas_id': aid,
+                        'value': str(pl.valor),
+                        'status': status_map.get(pl.status, 'PENDING'),
+                        'status_display': pl.get_status_display(),
+                        'due_date': pl.data_vencimento.strftime('%Y-%m-%d') if pl.data_vencimento else None,
+                        'payment_date': pl.data_pagamento.strftime('%Y-%m-%d') if pl.data_pagamento else None,
+                        'is_paid': pl.status == 'pago',
+                        'bank_slip_url': pl.boleto_url or '',
+                    })
+        except Exception:
+            pass
+
+        # Ordenar por data de vencimento (mais recente primeiro)
+        history.sort(key=lambda x: x.get('due_date') or '', reverse=True)
+        data['payment_history'] = history[:20]
         out.append(data)
     # Mercado Pago (FinanceiroLoja com boleto)
     for f in FinanceiroLoja.objects.filter(

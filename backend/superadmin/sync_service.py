@@ -811,6 +811,18 @@ Equipe LWK Sistemas
             financeiro.status_pagamento = 'ativo'
             financeiro.ultimo_pagamento = timezone.now()
             
+            # Atualizar AsaasPayment local se existir
+            try:
+                from asaas_integration.models import AsaasPayment
+                ap = AsaasPayment.objects.filter(asaas_id=payment_id).first()
+                if ap:
+                    ap.status = payment_data.get('status', 'RECEIVED') if isinstance(payment_data, dict) else 'RECEIVED'
+                    ap.payment_date = timezone.now()
+                    ap.save(update_fields=['status', 'payment_date'])
+                    logger.info(f"✅ AsaasPayment {payment_id} atualizado para status={ap.status}")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao atualizar AsaasPayment local: {e}")
+            
             # ✅ MODIFICAÇÃO: Calcular próxima data de cobrança baseada no tipo de assinatura
             # Mensal: 30 dias após pagamento | Anual: 365 dias após pagamento
             data_pagamento = timezone.now().date()  # Data em que o pagamento foi confirmado

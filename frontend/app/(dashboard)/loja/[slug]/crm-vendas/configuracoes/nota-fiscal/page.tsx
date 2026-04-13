@@ -245,26 +245,20 @@ export default function ConfiguracaoNotaFiscalPage() {
       titulo: 'Asaas (conta da sua loja)',
       descricao:
         'Usa a API v3 da conta Asaas da sua empresa. Cadastre a chave em Integrações no Asaas (permissão de notas fiscais).',
-      campos: [],
     },
     issnet: {
       titulo: 'ISSNet - Ribeirão Preto (Direto)',
       descricao: 'Emissão direta na Prefeitura de Ribeirão Preto com o CNPJ da sua loja. Requer certificado digital A1 próprio.',
-      campos: ['issnet_usuario', 'issnet_senha', 'issnet_certificado', 'issnet_senha_certificado'],
     },
     nacional: {
       titulo: 'API Nacional NFS-e (Direto)',
       descricao: 'Emissão através da API Nacional NFS-e com o CNPJ da sua loja. Em breve disponível.',
-      campos: [],
     },
     manual: {
       titulo: 'Emissão Manual',
       descricao: 'Sem integração automática. Você emitirá as notas manualmente no portal da prefeitura.',
-      campos: [],
     },
   };
-
-  const camposObrigatorios = provedorInfo[formData.provedor_nf].campos;
 
   return (
     <div className="space-y-6">
@@ -557,7 +551,10 @@ export default function ConfiguracaoNotaFiscalPage() {
                 ISSNet — Informações do Portal Emissor
               </h3>
               <p className="text-xs text-amber-900/90 dark:text-amber-200/90 mb-4">
-                Preencha com os mesmos dados do Asaas (Informações da empresa / NFS-e) e da prefeitura de Ribeirão Preto.
+                Preencha com os mesmos dados do Asaas (Informações da empresa / NFS-e) e da prefeitura de Ribeirão Preto. Na
+                emissão direta ISSNet, o item da lista LC 116 e o código de tributação no XML são derivados do{' '}
+                <strong>Código do Serviço Municipal</strong> (seção Configurações Gerais abaixo), não destes campos
+                opcionais de referência.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
@@ -593,7 +590,7 @@ export default function ConfiguracaoNotaFiscalPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                    Item da Lista de Serviços (opcional)
+                    Item da Lista de Serviços (opcional — referência)
                   </label>
                   <input
                     type="text"
@@ -604,13 +601,14 @@ export default function ConfiguracaoNotaFiscalPage() {
                     autoComplete="off"
                   />
                   <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
-                    Manter formatação com pontos (ex.: 17.02).
+                    Apenas para alinhar com seu cadastro (Asaas/portal). A integração ISSNet não lê este campo; use o{' '}
+                    <strong>Código do Serviço Municipal</strong> abaixo para classificar o serviço na nota.
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                    Código NBS (opcional)
+                    Código NBS (opcional — referência)
                   </label>
                   <input
                     type="text"
@@ -620,6 +618,9 @@ export default function ConfiguracaoNotaFiscalPage() {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
                     autoComplete="off"
                   />
+                  <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
+                    Não enviado no XML ISSNet atual; mantenha se quiser registro interno alinhado ao cadastro.
+                  </p>
                 </div>
 
                 <div>
@@ -684,7 +685,9 @@ export default function ConfiguracaoNotaFiscalPage() {
                       autoComplete="off"
                     />
                     <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
-                      Série da NF no Asaas (ex.: NFSE). Vazio = A.
+                      Deve coincidir com a série cadastrada no ISSNet. Se vazio, o sistema usa <strong>E</strong> (padrão do
+                      integrador). No Asaas costuma aparecer como NFSE — no ISSNet use a série numérica/letra do seu
+                      cadastro municipal.
                     </p>
                   </div>
                   <div>
@@ -741,7 +744,14 @@ export default function ConfiguracaoNotaFiscalPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Código do serviço na lista municipal (ex: 1401 para desenvolvimento de software)
+                Código do serviço na lista municipal (ex.: 1401 para desenvolvimento de software).
+                {formData.provedor_nf === 'issnet' && (
+                  <>
+                    {' '}
+                    Com ISSNet, este valor é o que a integração usa para montar item da lista LC 116 e tributação no XML
+                    (ABRASF).
+                  </>
+                )}
               </p>
             </div>
 

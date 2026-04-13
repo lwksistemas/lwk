@@ -129,17 +129,34 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
                 )
                 
                 # Criar/atualizar assinatura
-                LojaAssinatura.objects.update_or_create(
-                    loja_slug=loja_data['slug'],
-                    defaults={
-                        'loja_nome': loja_data['nome'],
-                        'asaas_customer': customer,
-                        'current_payment': payment,
-                        'plano_nome': plano_data['nome'],
-                        'plano_valor': plano_data['preco'],
-                        'data_vencimento': payment.due_date
-                    }
-                )
+                # ✅ CORREÇÃO: Não sobrescrever data_vencimento em assinaturas existentes
+                # O data_vencimento correto é calculado pelo webhook quando o pagamento é confirmado
+                # (mensal: +30 dias, anual: +365 dias). Sobrescrever com payment.due_date
+                # causava bug em planos anuais (ex: vencimento ficava 14/04/2026 em vez de 14/04/2027)
+                loja_assinatura_existente = LojaAssinatura.objects.filter(
+                    loja_slug=loja_data['slug']
+                ).first()
+                
+                if loja_assinatura_existente:
+                    # Assinatura já existe: atualizar apenas current_payment e dados do plano
+                    # NÃO sobrescrever data_vencimento
+                    loja_assinatura_existente.loja_nome = loja_data['nome']
+                    loja_assinatura_existente.asaas_customer = customer
+                    loja_assinatura_existente.current_payment = payment
+                    loja_assinatura_existente.plano_nome = plano_data['nome']
+                    loja_assinatura_existente.plano_valor = plano_data['preco']
+                    loja_assinatura_existente.save()
+                else:
+                    # Nova assinatura: usar payment.due_date como data_vencimento inicial
+                    LojaAssinatura.objects.create(
+                        loja_slug=loja_data['slug'],
+                        loja_nome=loja_data['nome'],
+                        asaas_customer=customer,
+                        current_payment=payment,
+                        plano_nome=plano_data['nome'],
+                        plano_valor=plano_data['preco'],
+                        data_vencimento=payment.due_date
+                    )
                 
                 # Atualizar FinanceiroLoja
                 financeiro.provedor_boleto = 'asaas'

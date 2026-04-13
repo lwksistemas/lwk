@@ -184,8 +184,8 @@ export function AssinaturaCard({
         </span>
       </div>
 
-      {/* Pagamento Atual */}
-      {assinatura.current_payment_data && (
+      {/* Pagamento Atual - só mostra se NÃO está pago (pendente/vencido) */}
+      {assinatura.current_payment_data && !assinatura.current_payment_data.is_paid && (
         <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded">
           <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Próximo Pagamento</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-3">

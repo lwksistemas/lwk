@@ -5,8 +5,9 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
 - Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo.
-- Envelope SOAP: nfseCabecMsg e nfseDadosMsg como xsd:string com XML em CDATA (compativel ASMX).
-- Cada operação SOAP: nfse:Operacao com nfseCabecMsg + nfseDadosMsg (mTLS).
+- Envelope SOAP: igual NFePHP ISSNET Common/Tools::envelopSOAP — nfse:Operacao, XML aninhado
+  em nfseCabecMsg/nfseDadosMsg (sem CDATA). Cabeçalho HTTP como Soap.php (application/soap+xml + SOAPAction).
+- Cada operação SOAP com mTLS.
 """
 import logging
 import os
@@ -67,12 +68,35 @@ def _cdata_section(payload: str) -> str:
 
 def _montar_soap_envelope_issnet(nome_operacao: str, dados_xml: str) -> str:
     """
-    WSDL define nfseCabecMsg e nfseDadosMsg como xsd:string. O ASMX .NET costuma
-    desserializar como texto; XML aninhado direto ou Zeep como string escapada
-    podem gerar Fault generico. Aqui usamos CDATA com o XML literal (comum em
-    manuais ISSNet / compativel com xsd:string).
-    Operacao sem prefixo, xmlns default = namespace do WSDL (document/literal).
+    Espelha NFePHP NFSe\\ISSNET\\Common\\Tools::envelopSOAP: corpo SOAP 1.1 com
+    ``<nfse:Operacao>``, ``nfseCabecMsg`` / ``nfseDadosMsg`` contendo filhos XML
+    reais (nao CDATA). Esse e o formato usado pelo sped-nfse-issnet em producao.
     """
+    dados = _strip_xml_declaration(dados_xml or '')
+    cabec_txt = (
+        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
+        '<versaoDados>2.04</versaoDados>'
+        '</cabecalho>'
+    )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+        'xmlns:nfse="http://nfse.abrasf.org.br">'
+        '<soap:Header/>'
+        '<soap:Body>'
+        f'<nfse:{nome_operacao}>'
+        f'<nfseCabecMsg>{cabec_txt}</nfseCabecMsg>'
+        f'<nfseDadosMsg>{dados}</nfseDadosMsg>'
+        f'</nfse:{nome_operacao}>'
+        '</soap:Body>'
+        '</soap:Envelope>'
+    )
+
+
+def _montar_soap_envelope_issnet_cdata(nome_operacao: str, dados_xml: str) -> str:
+    """Alternativa: mensagens em CDATA (alguns ambientes ASMX tratam melhor como xsd:string)."""
     dados = _strip_xml_declaration(dados_xml or '')
     cabec_txt = (
         '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
@@ -93,6 +117,14 @@ def _montar_soap_envelope_issnet(nome_operacao: str, dados_xml: str) -> str:
         '</soap:Body>'
         '</soap:Envelope>'
     )
+
+
+def _issnet_fault_soap_generico(texto: str) -> bool:
+    """Fault tipico ASMX sem detalhe (s:Client + faultstring Error)."""
+    t = (texto or '')
+    if 's:Client' not in t and 'Client</faultcode>' not in t:
+        return False
+    return bool(re.search(r'<faultstring>\s*Error\s*</faultstring>', t, re.I))
 
 
 def _issnet_corpo_parece_xml(texto: str) -> bool:
@@ -620,7 +652,7 @@ class ISSNetClient:
         soap_action_uri: str,
         dados_xml: str,
     ):
-        """POST SOAP 1.1 com mTLS (nfseCabecMsg/nfseDadosMsg em CDATA, operacao com xmlns default)."""
+        """POST SOAP 1.1 com mTLS; envelope e Content-Type alinhados ao sped-nfse-issnet (PHP)."""
         import os
         import tempfile
 
@@ -659,28 +691,41 @@ class ISSNetClient:
 
             http_timeout = (8, 20)
 
-            soap = _montar_soap_envelope_issnet(nome_operacao, dados_xml)
-            headers = {
-                'Content-Type': 'text/xml; charset=utf-8',
-                'SOAPAction': f'"{soap_action_uri}"',
-                'Connection': 'close',
-                'Accept': 'text/xml',
-                'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
-            }
+            # Mesma ordem do PHP: envelope aninhado (Tools::envelopSOAP) + Soap.php headers.
+            soap_primary = _montar_soap_envelope_issnet(nome_operacao, dados_xml)
+            soap_fallback_cdata = _montar_soap_envelope_issnet_cdata(nome_operacao, dados_xml)
+
+            def _headers(content_type: str) -> dict:
+                return {
+                    'Content-Type': content_type,
+                    'SOAPAction': f'"{soap_action_uri}"',
+                    'Connection': 'close',
+                    'Accept': 'text/xml',
+                    'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
+                }
+
+            headers_primary = _headers('application/soap+xml; charset=utf-8')
+            headers_fallback = _headers('text/xml; charset=utf-8')
 
             logger.info(
-                'ISSNet SOAP %s (~%d bytes, nfse*Msg CDATA + xmlns op) com mTLS',
+                'ISSNet SOAP %s (~%d bytes, nfse: op + XML aninhado, application/soap+xml) com mTLS',
                 nome_operacao,
-                len(soap.encode('utf-8')),
+                len(soap_primary.encode('utf-8')),
             )
-            try:
-                r = req.post(
+
+            def _do_post(soap_body: str, hdrs: dict):
+                return req.post(
                     self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
+                    data=soap_body.encode('utf-8'),
+                    headers=hdrs,
                     timeout=http_timeout,
                     cert=(cert_path, key_path),
                 )
+
+            soap = soap_primary
+            headers = headers_primary
+            try:
+                r = _do_post(soap, headers)
             except (
                 req.exceptions.ConnectionError,
                 req.exceptions.ChunkedEncodingError,
@@ -688,13 +733,7 @@ class ISSNetClient:
             ) as e:
                 logger.warning('ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s', e)
                 time.sleep(1.5)
-                r = req.post(
-                    self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
-                    timeout=http_timeout,
-                    cert=(cert_path, key_path),
-                )
+                r = _do_post(soap, headers)
 
             logger.info(
                 'Resposta ISSNet HTTP %s, preview: %s',
@@ -710,18 +749,40 @@ class ISSNetClient:
                     r.status_code,
                 )
                 time.sleep(2.0)
-                r = req.post(
-                    self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
-                    timeout=http_timeout,
-                    cert=(cert_path, key_path),
-                )
+                r = _do_post(soap, headers)
                 logger.info(
                     'Resposta ISSNet HTTP %s (apos retry), preview: %s',
                     r.status_code,
                     (r.text or '')[:500],
                 )
+
+            # Fault generico ASMX: segunda tentativa com CDATA + text/xml (variacao aceita por alguns endpoints).
+            if _issnet_corpo_parece_xml(r.text or '') and _issnet_fault_soap_generico(r.text or ''):
+                logger.warning(
+                    'ISSNet retornou Fault generico; repetindo com CDATA + text/xml (~%d bytes)',
+                    len(soap_fallback_cdata.encode('utf-8')),
+                )
+                soap = soap_fallback_cdata
+                headers = headers_fallback
+                try:
+                    r = _do_post(soap, headers)
+                except (
+                    req.exceptions.ConnectionError,
+                    req.exceptions.ChunkedEncodingError,
+                    req.exceptions.ReadTimeout,
+                ) as e:
+                    logger.warning('ISSNet SOAP POST (fallback): %s', e)
+                    time.sleep(1.5)
+                    r = _do_post(soap, headers)
+                logger.info(
+                    'Resposta ISSNet HTTP %s (fallback), preview: %s',
+                    r.status_code,
+                    (r.text or '')[:500],
+                )
+                if r.status_code >= 400 or 'Fault' in (r.text or ''):
+                    logger.error(
+                        'ISSNet resposta fallback (ate 8000 chars): %s', (r.text or '')[:8000]
+                    )
 
             if not _issnet_corpo_parece_xml(r.text or ''):
                 msg = _issnet_decodificar_corpo(r).strip() or '(resposta vazia)'

@@ -10,6 +10,7 @@ Referências:
 import logging
 import os
 import re
+import time
 from datetime import datetime
 from typing import Dict, Any, Optional
 from decimal import Decimal
@@ -40,6 +41,31 @@ CABEC_MSG = (
 
 def _somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
+
+
+def _issnet_fault_possivelmente_transitorio(resposta_texto: str) -> bool:
+    """
+    Detecta Fault SOAP típico de falha de rede interna no servidor ISSNet (.NET),
+    ex.: 'Foi forçado o cancelamento de uma conexão existente pelo host remoto.'
+    """
+    if not resposta_texto:
+        return False
+    t = resposta_texto.lower()
+    if 'fault' not in t:
+        return False
+    marcas = (
+        'cancelamento',
+        'host remoto',
+        'conexão existente',
+        'conexao existente',
+        'forçado o cancelamento',
+        'forcado o cancelamento',
+        'connection was forcibly',
+        'existing connection',
+        'broken pipe',
+        'connection reset',
+    )
+    return any(m in t for m in marcas)
 
 
 def _carregar_certificado(pfx_path: str, senha: str):
@@ -496,16 +522,20 @@ class ISSNetClient:
         # WSDL (nfseSOAP): soap:binding transport = http://schemas.xmlsoap.org/soap/http → SOAP 1.1.
         # ASMX/.NET espera Content-Type text/xml; application/soap+xml é SOAP 1.2 e costuma gerar Fault genérico.
         # SOAPAction deve coincidir com soap:operation no WSDL (URI entre aspas, HTTP/1.1).
+        # Connection: close evita reuso de socket com servidores ASMX que fecham abruptamente.
         headers = {
             'Content-Type': 'text/xml; charset=utf-8',
             'SOAPAction': f'"{SOAP_ACTION_RECEPCIONAR_LOTE_RPS}"',
+            'Connection': 'close',
+            'Accept': 'text/xml',
+            'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
         }
 
         cert_path = None
         key_path = None
         logger.info('Enviando SOAP direto ao ISSNet (%d bytes) com mTLS', len(soap))
         try:
-            private_key_obj, cert_obj, _ = _carregar_certificado(
+            private_key_obj, cert_obj, extra = _carregar_certificado(
                 self.certificado_path, self.senha_certificado
             )
             from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
@@ -514,6 +544,10 @@ class ISSNetClient:
                 Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()
             )
             cert_pem = cert_obj.public_bytes(Encoding.PEM)
+            if extra:
+                for add in extra:
+                    if add is not None:
+                        cert_pem += add.public_bytes(Encoding.PEM)
             ktf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
             ctf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
             try:
@@ -527,18 +561,60 @@ class ISSNetClient:
                 ktf.close()
                 ctf.close()
 
-            r = req.post(
-                self.base_url,
-                data=soap.encode('utf-8'),
-                headers=headers,
-                timeout=30,
-                cert=(cert_path, key_path),
-            )
-            logger.info('Resposta ISSNet HTTP %s, preview: %s', r.status_code, r.text[:500])
-            if r.status_code >= 400 or 'Fault' in (r.text or ''):
-                logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
-            xml_body = self._extrair_body_soap(r.text)
-            return self._parse_resposta_xml(xml_body)
+            max_tentativas = 2
+            ultima_resposta = None
+            for tentativa in range(1, max_tentativas + 1):
+                try:
+                    r = req.post(
+                        self.base_url,
+                        data=soap.encode('utf-8'),
+                        headers=headers,
+                        timeout=60,
+                        cert=(cert_path, key_path),
+                    )
+                except (
+                    req.exceptions.ConnectionError,
+                    req.exceptions.ChunkedEncodingError,
+                    req.exceptions.ReadTimeout,
+                ) as e:
+                    logger.warning(
+                        'ISSNet SOAP tentativa %s/%s: erro de conexao: %s',
+                        tentativa,
+                        max_tentativas,
+                        e,
+                    )
+                    if tentativa < max_tentativas:
+                        time.sleep(2.0)
+                        continue
+                    return {'success': False, 'error': str(e)}
+
+                ultima_resposta = r
+                logger.info(
+                    'Resposta ISSNet HTTP %s (tentativa %s), preview: %s',
+                    r.status_code,
+                    tentativa,
+                    (r.text or '')[:500],
+                )
+                if r.status_code >= 400 or 'Fault' in (r.text or ''):
+                    logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
+
+                transitorio = r.status_code >= 500 and _issnet_fault_possivelmente_transitorio(
+                    r.text or ''
+                )
+                if transitorio and tentativa < max_tentativas:
+                    logger.warning(
+                        'ISSNet retornou Fault possivelmente transitorio; nova tentativa em 2s'
+                    )
+                    time.sleep(2.0)
+                    continue
+
+                xml_body = self._extrair_body_soap(r.text)
+                return self._parse_resposta_xml(xml_body)
+
+            if ultima_resposta is not None:
+                xml_body = self._extrair_body_soap(ultima_resposta.text)
+                return self._parse_resposta_xml(xml_body)
+            return {'success': False, 'error': 'Sem resposta do ISSNet'}
         except Exception as e:
             logger.exception('Erro ao enviar SOAP: %s', e)
             return {'success': False, 'error': str(e)}

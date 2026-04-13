@@ -69,28 +69,22 @@ def _normalizar_item_lista_servico_abrasf(codigo: Optional[str]) -> str:
 
 
 def _codigo_tributacao_municipio_xml(
-    raw_codigo: Optional[str], item_lista_abrasf: str
+    raw_codigo: Optional[str], _item_lista_abrasf: str
 ) -> str:
     """
     CodigoTributacaoMunicipio (tsCodigoTributacao): string 1..20.
-
-    Quando o cadastro traz codigo longo que **prefixa** o item LC (ex.: ``170602`` e
-    item ``17.06``), alguns ISSNet tratam o tributario como o proprio ``NN.MM`` —
-    enviar só os digitos ``170602`` falha na validacao com Fault generico.
+    Prefeituras costumam exigir o codigo municipal completo (ex.: 170602), distinto
+    do ItemListaServico em formato LC (17.06).
     """
     raw = (raw_codigo or '').strip()
     digits = _somente_digitos(raw)
     if len(digits) >= 5:
-        prefix = _somente_digitos(item_lista_abrasf.replace('.', ''))
-        # Padrao municipal 6 digitos (ex.: 170602 = item 17.06 + sufixo local)
-        if len(prefix) == 4 and len(digits) == 6 and digits.startswith(prefix):
-            return item_lista_abrasf
         return digits[:20]
     if len(digits) == 4:
         return digits
     if re.fullmatch(r'\d{2}\.\d{2}', raw):
         return digits[:20] if digits else raw.replace('.', '')
-    fb = _somente_digitos(item_lista_abrasf)
+    fb = _somente_digitos(_item_lista_abrasf)
     return (fb[:20] if fb else '1401')
 
 

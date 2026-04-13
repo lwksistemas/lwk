@@ -435,9 +435,15 @@ class NFSeService:
             client._optante_simples = getattr(self.config, 'optante_simples_nacional', True)
             client._incentivador_cultural = getattr(self.config, 'incentivador_cultural', False)
             
-            # Série do RPS configurável
+            # Série do RPS configurável (deve coincidir com o cadastro no ISSNet)
             serie_rps = (getattr(self.config, 'issnet_serie_rps', '') or '').strip() or 'E'
-            
+            if serie_rps.upper() == 'NF':
+                logger.warning(
+                    "ISSNet: serie RPS 'NF' no CRM foi normalizada para '1' "
+                    "(evita confusão com rótulo Asaas; em RP o cadastro costuma ser série numérica)."
+                )
+                serie_rps = '1'
+
             im_prest = self._get_inscricao_municipal()
             cnpj_d = re.sub(r'\D', '', self.loja.cpf_cnpj or '')
             logger.info(

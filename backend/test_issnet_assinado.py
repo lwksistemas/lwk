@@ -71,7 +71,7 @@ try:
         valor_servicos=Decimal('10.00'),
         aliquota_iss=Decimal('2.00'),
         numero_rps=998,
-        serie_rps='NF',
+        serie_rps='1',
     )
     print(f'Resultado: {resultado}')
 finally:

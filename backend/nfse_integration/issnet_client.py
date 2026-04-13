@@ -4,7 +4,7 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
-- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo — espelho Focus599Dev/sped-nfse-issnet (RP).
+- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo (layout espelha sped-nfse-issnet; nfse*Msg como string escapada para ASMX .NET).
 - Cada operação SOAP recebe (nfseCabecMsg: str, nfseDadosMsg: str)
 """
 import logging
@@ -36,7 +36,7 @@ ISSNET_URLS = {
     'homologacao': ISSNET_RP_NFSE_ASMX,
 }
 
-# Fragmento dentro de nfseCabecMsg (XML aninhado, como envelopSOAP do sped-nfse-issnet PHP).
+# XML do cabecalho ABRASF (vai como *texto* de nfseCabecMsg no ASMX, com entidades XML).
 CABEC_MSG = (
     '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
     '<versaoDados>2.04</versaoDados>'
@@ -48,12 +48,19 @@ def _somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
 
 
+def _soap_xsd_string_payload(payload: str) -> str:
+    """Serializa conteudo para elemento xsd:string (entidades &lt; etc.)."""
+    return _xml_escape(payload or '', {'"': '&quot;', "'": '&apos;'})
+
+
 def _soap_envelope_nfse_php(nome_operacao: str, dados_xml: str) -> str:
     """
-    Envelope igual ao NFePHP\\NFSe\\ISSNET\\Common\\Tools::envelopSOAP:
-    nfse:<Operacao>, nfseCabecMsg com cabecalho como *filho* (nao string escapada),
-    nfseDadosMsg com o XML do lote como filho (texto/estrutura mista que o ASMX deserializa).
+    Envelope SOAP 1.1 alinhado ao WSDL ASMX: parametros no namespace nfse.abrasf.org.br
+    e nfseCabecMsg / nfseDadosMsg como string XML (texto escapado), que e o que o
+    XmlSerializer .NET espera — filhos XML crus dentro desses elementos geram Fault generico.
     """
+    cab_esc = _soap_xsd_string_payload(CABEC_MSG)
+    dat_esc = _soap_xsd_string_payload(dados_xml or '')
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
@@ -63,10 +70,8 @@ def _soap_envelope_nfse_php(nome_operacao: str, dados_xml: str) -> str:
         '<soap:Header/>'
         '<soap:Body>'
         f'<nfse:{nome_operacao}>'
-        '<nfseCabecMsg>'
-        + CABEC_MSG +
-        '</nfseCabecMsg>'
-        '<nfseDadosMsg>' + (dados_xml or '') + '</nfseDadosMsg>'
+        f'<nfse:nfseCabecMsg>{cab_esc}</nfse:nfseCabecMsg>'
+        f'<nfse:nfseDadosMsg>{dat_esc}</nfse:nfseDadosMsg>'
         f'</nfse:{nome_operacao}>'
         '</soap:Body>'
         '</soap:Envelope>'
@@ -406,7 +411,6 @@ class ISSNetClient:
         etree.SubElement(valores, '{%s}ValorIr' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}ValorCsll' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}OutrasRetencoes' % ns).text = '0.00'
-        etree.SubElement(valores, '{%s}ValTotTributos' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}ValorIss' % ns).text = f'{valor_iss:.2f}'
         etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.2f}'
         etree.SubElement(valores, '{%s}DescontoIncondicionado' % ns).text = '0.00'

@@ -62,4 +62,5 @@ docs_backup/
 # Django collectstatic (gerado no deploy)
 backend/staticfiles/
 .venv/
+.venv-nfse-test/
 .env*.local

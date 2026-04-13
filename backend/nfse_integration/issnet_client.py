@@ -172,7 +172,6 @@ class ISSNetClient:
         Mesma lib C (libxmlsec1) que o PHP usa internamente.
         """
         import xmlsec
-        import tempfile
 
         root = etree.fromstring(xml_str.encode('utf-8'))
 
@@ -181,15 +180,16 @@ class ISSNetClient:
             self.certificado_path, self.senha_certificado
         )
         from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
-        import tempfile
 
-        # Salvar key e cert como PEM temporarios
-        key_pem = private_key_obj.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption())
+        key_pem = private_key_obj.private_bytes(
+            Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()
+        )
         cert_pem = cert_obj.public_bytes(Encoding.PEM)
 
-        # Carregar key+cert combinados em PEM
-        combined_pem = key_pem + b'\n' + cert_pem
-        key = xmlsec.Key.from_memory(combined_pem, xmlsec.constants.KeyDataFormatPem)
+        # Chave e certificado em PEM separados: o PEM unificado carrega a chave mas
+        # nao associa o X509 ao template; load_cert_from_memory preenche X509Data.
+        key = xmlsec.Key.from_memory(key_pem, xmlsec.constants.KeyDataFormatPem)
+        key.load_cert_from_memory(cert_pem, xmlsec.constants.KeyDataFormatPem)
 
         # --- Assinar LoteRps ---
         lote_el = root.find('.//{%s}LoteRps' % NS_NFSE)
@@ -221,9 +221,10 @@ class ISSNetClient:
             x509_data = xmlsec.template.add_x509_data(key_info)
             xmlsec.template.x509_data_add_certificate(x509_data)
 
-            # Assinar
+            # Registrar atributo Id (nao e xml:id) para resolucao da URI da Reference
             ctx = xmlsec.SignatureContext()
             ctx.key = key
+            ctx.register_id(lote_el, 'Id', None)
             ctx.sign(sig_node)
 
         result = etree.tostring(root, encoding='unicode')

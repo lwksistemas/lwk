@@ -53,6 +53,25 @@ def _soap_xsd_string_payload(payload: str) -> str:
     return _xml_escape(payload or '', {'"': '&quot;', "'": '&apos;'})
 
 
+def _issnet_corpo_parece_xml(texto: str) -> bool:
+    if not (texto or '').strip():
+        return False
+    return texto.lstrip().startswith('<')
+
+
+def _issnet_decodificar_corpo(resposta) -> str:
+    """Decodifica bytes da resposta HTTP para mensagens de erro legíveis (UTF-8 / Latin-1)."""
+    raw = getattr(resposta, 'content', None) or b''
+    if not raw:
+        return (getattr(resposta, 'text', None) or '').strip()
+    for enc in ('utf-8', 'utf-8-sig', 'iso-8859-1', 'windows-1252'):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode('utf-8', errors='replace')
+
+
 def _carregar_certificado(pfx_path: str, senha: str):
     """Carrega chave privada e certificado de um arquivo .pfx."""
     from cryptography.hazmat.primitives.serialization import pkcs12
@@ -580,6 +599,37 @@ class ISSNetClient:
             if r.status_code >= 400 or 'Fault' in (r.text or ''):
                 logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
 
+            # 502/503/504 costumam devolver HTML ou texto ("O serviço não está disponível"), não SOAP.
+            if r.status_code in (502, 503, 504) and not _issnet_corpo_parece_xml(r.text or ''):
+                logger.warning(
+                    'ISSNet HTTP %s sem XML; repetindo POST uma vez apos 2s',
+                    r.status_code,
+                )
+                time.sleep(2.0)
+                r = req.post(
+                    self.base_url,
+                    data=soap.encode('utf-8'),
+                    headers=headers,
+                    timeout=http_timeout,
+                    cert=(cert_path, key_path),
+                )
+                logger.info(
+                    'Resposta ISSNet HTTP %s (apos retry), preview: %s',
+                    r.status_code,
+                    (r.text or '')[:500],
+                )
+
+            if not _issnet_corpo_parece_xml(r.text or ''):
+                msg = _issnet_decodificar_corpo(r).strip() or '(resposta vazia)'
+                msg = ' '.join(msg.split())
+                return {
+                    'success': False,
+                    'error': (
+                        f'O webservice ISSNet respondeu HTTP {r.status_code} sem XML '
+                        f'(serviço indisponível ou erro no balanceador). {msg[:600]}'
+                    ),
+                }
+
             xml_body = self._extrair_body_soap(r.text)
             return self._parse_resposta_xml(xml_body)
         except Exception as e:
@@ -668,7 +718,17 @@ class ISSNetClient:
         try:
             root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
         except etree.XMLSyntaxError:
-            return {'success': False, 'error': f'XML invalido na resposta: {xml_str[:300]}'}
+            amostra = (xml_str or '')[:400].strip()
+            amostra = ' '.join(amostra.split())
+            if amostra and not amostra.startswith('<'):
+                return {
+                    'success': False,
+                    'error': (
+                        'Resposta do ISSNet não é XML válido (provável indisponibilidade do serviço). '
+                        f'{amostra}'
+                    ),
+                }
+            return {'success': False, 'error': f'XML inválido na resposta do ISSNet: {amostra}'}
 
         nsmap = {'ns': NS_NFSE}
 

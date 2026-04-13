@@ -38,7 +38,7 @@ xml_nfse = (
     '</Valores>'
     '<IssRetido>2</IssRetido>'
     '<ItemListaServico>17.06</ItemListaServico>'
-    '<CodigoTributacaoMunicipio>170602</CodigoTributacaoMunicipio>'
+    '<CodigoTributacaoMunicipio>17.06</CodigoTributacaoMunicipio>'
     '<Discriminacao>Teste direto</Discriminacao>'
     '<CodigoMunicipio>3543402</CodigoMunicipio>'
     '<ExigibilidadeISS>1</ExigibilidadeISS>'

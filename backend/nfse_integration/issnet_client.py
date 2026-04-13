@@ -4,7 +4,8 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
-- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo.
+- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo;
+  fallback RecepcionarLoteRpsSincrono (mesmo XML) se Fault genérico no assíncrono.
 - WSDL: nfseCabecMsg e nfseDadosMsg sao ``xsd:string``. O ASMX costuma desserializar corretamente quando o
   XML ABRASF vai como *texto* (entidades ``&lt;...&gt;``), CDATA, ou filhos — tentamos nessa ordem em Fault generico.
 - Envelope ``nfse:Operacao`` (namespace http://nfse.abrasf.org.br) + mTLS.
@@ -32,6 +33,9 @@ ISSNET_RP_NFSE_ASMX = (
 )
 # SOAPAction = URI completa do soap:operation no WSDL (document/literal).
 SOAP_ACTION_RECEPCIONAR_LOTE_RPS = 'http://nfse.abrasf.org.br/RecepcionarLoteRps'
+SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO = (
+    'http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono'
+)
 SOAP_ACTION_CONSULTAR_LOTE_RPS = 'http://nfse.abrasf.org.br/ConsultarLoteRps'
 ISSNET_URLS = {
     'producao': ISSNET_RP_NFSE_ASMX,
@@ -68,12 +72,19 @@ def _codigo_tributacao_municipio_xml(
     raw_codigo: Optional[str], item_lista_abrasf: str
 ) -> str:
     """
-    CodigoTributacaoMunicipio (tsCodigoTributacao): string 1..20; municipio costuma
-    exigir codigo proprio (ex. 170602), distinto do item LC em ``NN.MM``.
+    CodigoTributacaoMunicipio (tsCodigoTributacao): string 1..20.
+
+    Quando o cadastro traz codigo longo que **prefixa** o item LC (ex.: ``170602`` e
+    item ``17.06``), alguns ISSNet tratam o tributario como o proprio ``NN.MM`` —
+    enviar só os digitos ``170602`` falha na validacao com Fault generico.
     """
     raw = (raw_codigo or '').strip()
     digits = _somente_digitos(raw)
     if len(digits) >= 5:
+        prefix = _somente_digitos(item_lista_abrasf.replace('.', ''))
+        # Padrao municipal 6 digitos (ex.: 170602 = item 17.06 + sufixo local)
+        if len(prefix) == 4 and len(digits) == 6 and digits.startswith(prefix):
+            return item_lista_abrasf
         return digits[:20]
     if len(digits) == 4:
         return digits
@@ -794,7 +805,11 @@ class ISSNetClient:
             http_timeout = (8, 20)
 
             # Zeep + mTLS: serializa nfse*Msg como o WSDL exige (xsd:string); evita varios Faults genericos.
-            if nome_operacao in ('RecepcionarLoteRps', 'ConsultarLoteRps'):
+            if nome_operacao in (
+                'RecepcionarLoteRps',
+                'RecepcionarLoteRpsSincrono',
+                'ConsultarLoteRps',
+            ):
                 try:
                     rz = self._zeep_chamar_com_mtls(
                         nome_operacao,
@@ -973,6 +988,20 @@ class ISSNetClient:
         )
         if parsed.get('success'):
             return parsed
+        err0 = (parsed.get('error') or '')
+        if 'Erro genérico do webservice ISSNet' in err0 or 'sem detail' in err0.lower():
+            logger.info(
+                'ISSNet: falha no RecepcionarLoteRps; tentando RecepcionarLoteRpsSincrono '
+                '(mesmo EnviarLoteRpsEnvio assinado)'
+            )
+            parsed2, xml_body2 = self._post_soap_operacao(
+                nome_operacao='RecepcionarLoteRpsSincrono',
+                soap_action_uri=SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO,
+                dados_xml=xml_dados,
+            )
+            if parsed2.get('success'):
+                return parsed2
+            parsed, xml_body = parsed2, xml_body2
         proto = self._extrair_protocolo_lote(xml_body)
         if proto and prestador_cnpj and prestador_inscricao_municipal:
             logger.info('ISSNet envio retornou protocolo %s; consultando lote...', proto)

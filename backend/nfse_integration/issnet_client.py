@@ -48,15 +48,6 @@ def _somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
 
 
-def _soap_xsd_string_payload(payload: str) -> str:
-    """
-    nfseCabecMsg / nfseDadosMsg são xsd:string: o XML deve ir como *texto* do elemento,
-    não como filhos do envelope. Usamos entidades XML (&lt; etc.), padrão compatível com
-    ASMX/.NET (equivalente ao que clientes SOAP costumam serializar).
-    """
-    return _xml_escape(payload or '', {'"': '&quot;', "'": '&apos;'})
-
-
 def _soap_envelope_nfse_php(nome_operacao: str, dados_xml: str) -> str:
     """
     Envelope igual ao NFePHP\\NFSe\\ISSNET\\Common\\Tools::envelopSOAP:

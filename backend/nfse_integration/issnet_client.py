@@ -4,7 +4,7 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
-- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo (layout espelha sped-nfse-issnet; nfse*Msg como string escapada para ASMX .NET).
+- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo (layout espelha sped-nfse-issnet; envio SOAP via Zeep + mTLS).
 - Cada operação SOAP recebe (nfseCabecMsg: str, nfseDadosMsg: str)
 """
 import logging
@@ -13,7 +13,7 @@ import re
 import time
 from datetime import datetime
 from xml.sax.saxutils import escape as _xml_escape
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 from decimal import Decimal
 
 from lxml import etree
@@ -21,8 +21,6 @@ from lxml import etree
 logger = logging.getLogger(__name__)
 
 NS_NFSE = 'http://www.abrasf.org.br/nfse.xsd'
-# Namespace do WSDL / mensagens SOAP (parametros da operacao).
-NS_NFSE_WSDL = 'http://nfse.abrasf.org.br'
 COD_MUNICIPIO_RP = '3543402'
 
 ISSNET_RP_NFSE_ASMX = (
@@ -46,51 +44,6 @@ CABEC_MSG = (
 
 def _somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
-
-
-def _soap_xsd_string_payload(payload: str) -> str:
-    """Serializa conteudo para elemento xsd:string (entidades &lt; etc.)."""
-    return _xml_escape(payload or '', {'"': '&quot;', "'": '&apos;'})
-
-
-def _soap_corpo_operacao_abrasf(nome_operacao: str, dados_xml: str) -> str:
-    """Filhos nfseCabecMsg/nfseDadosMsg no namespace da operacao (xmlns default no elemento raiz)."""
-    cab_esc = _soap_xsd_string_payload(CABEC_MSG)
-    dat_esc = _soap_xsd_string_payload(dados_xml or '')
-    return (
-        f'<{nome_operacao} xmlns="{NS_NFSE_WSDL}">'
-        f'<nfseCabecMsg>{cab_esc}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{dat_esc}</nfseDadosMsg>'
-        f'</{nome_operacao}>'
-    )
-
-
-def _montar_soap11_issnet(
-    nome_operacao: str, dados_xml: str, soap_action_uri: str
-) -> Tuple[str, Dict[str, str], str]:
-    """
-    Envelope SOAP 1.1 + text/xml. O nfse.asmx da ISSNet expoe binding Soap11;
-    enviar Soap12 gera Fault de incompatibilidade de versao.
-    """
-    inner = _soap_corpo_operacao_abrasf(nome_operacao, dados_xml)
-    soap11 = (
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
-        '<soap:Header/>'
-        '<soap:Body>'
-        + inner +
-        '</soap:Body></soap:Envelope>'
-    )
-    h11 = {
-        'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': f'"{soap_action_uri}"',
-        'Connection': 'close',
-        'Accept': 'text/xml',
-        'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
-    }
-    return soap11, h11, 'SOAP1.1'
 
 
 def _issnet_corpo_parece_xml(texto: str) -> bool:
@@ -426,6 +379,8 @@ class ISSNetClient:
         etree.SubElement(valores, '{%s}ValorIr' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}ValorCsll' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}OutrasRetencoes' % ns).text = '0.00'
+        # ValTotTributos: sequencia alinhada ao sped-nfse-issnet Make::buildValores (antes de ValorIss).
+        etree.SubElement(valores, '{%s}ValTotTributos' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}ValorIss' % ns).text = f'{valor_iss:.2f}'
         etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.2f}'
         etree.SubElement(valores, '{%s}DescontoIncondicionado' % ns).text = '0.00'
@@ -616,11 +571,15 @@ class ISSNetClient:
         soap_action_uri: str,
         dados_xml: str,
     ):
-        """POST SOAP 1.1 com mTLS (binding ASMX da ISSNet e apenas Soap11)."""
+        """POST SOAP 1.1 com mTLS via Zeep (serializacao conforme WSDL ASMX da ISSNet)."""
         import os
         import tempfile
 
         import requests as req
+
+        logger.debug('ISSNet %s SOAPAction=%s', nome_operacao, soap_action_uri)
+        from zeep import Client
+        from zeep.transports import Transport
 
         cert_path = None
         key_path = None
@@ -652,38 +611,39 @@ class ISSNetClient:
                 ctf.close()
 
             http_timeout = (8, 20)
+            _conn_t, read_t = http_timeout
 
-            soap, headers, label = _montar_soap11_issnet(
-                nome_operacao, dados_xml, soap_action_uri
-            )
+            session = req.Session()
+            session.headers.update({'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)'})
+            session.cert = (cert_path, key_path)
+            transport = Transport(session=session, timeout=read_t, operation_timeout=read_t)
+            client = Client(self.wsdl_url, transport=transport)
+            for service in client.wsdl.services.values():
+                for port in service.ports.values():
+                    port.binding_options['address'] = self.base_url
+
+            op = getattr(client.service, nome_operacao)
+            dados = dados_xml or ''
+
+            def _zeep_raw_post():
+                with client.settings(raw_response=True):
+                    return op(nfseCabecMsg=CABEC_MSG, nfseDadosMsg=dados)
+
             logger.info(
-                'ISSNet SOAP %s (%d bytes, %s) com mTLS',
+                'ISSNet SOAP %s (zeep, nfseDadosMsg ~%d chars) com mTLS',
                 nome_operacao,
-                len(soap),
-                label,
+                len(dados),
             )
             try:
-                r = req.post(
-                    self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
-                    timeout=http_timeout,
-                    cert=(cert_path, key_path),
-                )
+                r = _zeep_raw_post()
             except (
                 req.exceptions.ConnectionError,
                 req.exceptions.ChunkedEncodingError,
                 req.exceptions.ReadTimeout,
             ) as e:
-                logger.warning('ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s', e)
+                logger.warning('ISSNet SOAP zeep: erro de conexao, uma nova tentativa: %s', e)
                 time.sleep(1.5)
-                r = req.post(
-                    self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
-                    timeout=http_timeout,
-                    cert=(cert_path, key_path),
-                )
+                r = _zeep_raw_post()
 
             logger.info(
                 'Resposta ISSNet HTTP %s, preview: %s',
@@ -699,13 +659,7 @@ class ISSNetClient:
                     r.status_code,
                 )
                 time.sleep(2.0)
-                r = req.post(
-                    self.base_url,
-                    data=soap.encode('utf-8'),
-                    headers=headers,
-                    timeout=http_timeout,
-                    cert=(cert_path, key_path),
-                )
+                r = _zeep_raw_post()
                 logger.info(
                     'Resposta ISSNet HTTP %s (apos retry), preview: %s',
                     r.status_code,
@@ -812,6 +766,11 @@ class ISSNetClient:
                     detail = first.findtext(
                         '{http://schemas.xmlsoap.org/soap/envelope/}detail', ''
                     ) or first.findtext('detail', '')
+                    if not (detail or '').strip():
+                        for el in first.iter():
+                            if etree.QName(el.tag).localname == 'detail':
+                                detail = ''.join(el.itertext()).strip()
+                                break
                     msg = faultstring or 'Erro SOAP desconhecido'
                     if (msg or '').strip().lower() == 'error':
                         msg = (

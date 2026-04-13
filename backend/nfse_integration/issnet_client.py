@@ -298,6 +298,38 @@ class ISSNetClient:
         logger.info('Cliente SOAP ISSNet inicializado: %s', self.ambiente)
         return self._soap_client
 
+    def _zeep_chamar_com_mtls(
+        self,
+        nome_operacao: str,
+        dados_xml: str,
+        cert_path: str,
+        key_path: str,
+        timeout_s: int = 25,
+    ):
+        """
+        Uma chamada SOAP via Zeep com certificado cliente (mTLS) na sessao requests.
+        Serializa nfseCabecMsg/nfseDadosMsg como xsd:string conforme o WSDL (evita Fault
+        generico de desserializacao do ASMX em POSTs manuais).
+        """
+        from zeep import Client
+        from zeep.transports import Transport
+        from requests import Session
+
+        session = Session()
+        session.cert = (cert_path, key_path)
+        session.headers['User-Agent'] = 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)'
+        transport = Transport(session=session, timeout=timeout_s)
+        client = Client(self.wsdl_url, transport=transport)
+        for service in client.wsdl.services.values():
+            for port in service.ports.values():
+                port.binding_options['address'] = self.base_url
+        op = getattr(client.service, nome_operacao, None)
+        if op is None:
+            raise AttributeError(f'Operacao {nome_operacao!r} nao existe no WSDL ISSNet')
+        dados = _strip_xml_declaration(dados_xml or '')
+        with client.settings(raw_response=True, strict=False):
+            return op(nfseCabecMsg=CABEC_MSG, nfseDadosMsg=dados)
+
     # ------------------------------------------------------------------
     # Assinatura XML
     # ------------------------------------------------------------------
@@ -724,6 +756,38 @@ class ISSNetClient:
 
             http_timeout = (8, 20)
 
+            # Zeep + mTLS: serializa nfse*Msg como o WSDL exige (xsd:string); evita varios Faults genericos.
+            if nome_operacao in ('RecepcionarLoteRps', 'ConsultarLoteRps'):
+                try:
+                    rz = self._zeep_chamar_com_mtls(
+                        nome_operacao,
+                        dados_xml,
+                        cert_path,
+                        key_path,
+                        timeout_s=http_timeout[1],
+                    )
+                    txt_z = (getattr(rz, 'text', None) or '') if rz is not None else ''
+                    sc = getattr(rz, 'status_code', None)
+                    logger.info(
+                        'ISSNet %s zeep+mTLS HTTP %s, preview: %s',
+                        nome_operacao,
+                        sc,
+                        txt_z[:400],
+                    )
+                    if (sc is not None and sc >= 400) or 'Fault' in txt_z:
+                        logger.error('ISSNet zeep+mTLS resposta (ate 8000 chars): %s', txt_z[:8000])
+                    if _issnet_corpo_parece_xml(txt_z):
+                        if not _issnet_fault_soap_generico(txt_z):
+                            xml_body = self._extrair_body_soap(txt_z)
+                            return self._parse_resposta_xml(xml_body), xml_body
+                    logger.warning(
+                        'ISSNet %s zeep+mTLS sem sucesso (Fault generico ou resposta nao parseavel); '
+                        'tentando POST manual',
+                        nome_operacao,
+                    )
+                except Exception as e:
+                    logger.warning('ISSNet %s zeep+mTLS: %s — tentando POST manual', nome_operacao, e)
+
             def _headers(content_type: str) -> dict:
                 return {
                     'Content-Type': content_type,
@@ -733,13 +797,8 @@ class ISSNetClient:
                     'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
                 }
 
-            # WSDL define nfse*Msg como xsd:string — ordem: texto escapado, XML aninhado (PHP), CDATA.
+            # POST manual: ordem como lib PHP (aninhado), depois CDATA, por ultimo string escapada.
             strategies = (
-                (
-                    _montar_soap_envelope_issnet_xsd_string(nome_operacao, dados_xml),
-                    _headers('text/xml; charset=utf-8'),
-                    'xsd:string (XML escapado) + text/xml',
-                ),
                 (
                     _montar_soap_envelope_issnet(nome_operacao, dados_xml),
                     _headers('application/soap+xml; charset=utf-8'),
@@ -749,6 +808,11 @@ class ISSNetClient:
                     _montar_soap_envelope_issnet_cdata(nome_operacao, dados_xml),
                     _headers('text/xml; charset=utf-8'),
                     'CDATA + text/xml',
+                ),
+                (
+                    _montar_soap_envelope_issnet_xsd_string(nome_operacao, dados_xml),
+                    _headers('text/xml; charset=utf-8'),
+                    'xsd:string (XML escapado) + text/xml',
                 ),
             )
 
@@ -799,6 +863,21 @@ class ISSNetClient:
                         'Resposta ISSNet HTTP %s (apos retry), preview: %s',
                         r.status_code,
                         (r.text or '')[:500],
+                    )
+
+                # ISSNet fora do ar (texto plano) — nao adianta trocar formato do envelope.
+                if r.status_code in (502, 503, 504) and not _issnet_corpo_parece_xml(r.text or ''):
+                    msg = _issnet_decodificar_corpo(r).strip() or '(sem corpo)'
+                    msg = ' '.join(msg.split())
+                    return (
+                        {
+                            'success': False,
+                            'error': (
+                                f'Servico ISSNet indisponivel (HTTP {r.status_code}). '
+                                f'Tente novamente em instantes. {msg[:400]}'
+                            ),
+                        },
+                        '',
                     )
 
                 if not (

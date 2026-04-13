@@ -50,6 +50,33 @@ CABEC_MSG = (
 )
 
 
+def _xml_envio_para_raiz_sincrono_sem_assinar(xml_envio: str) -> str:
+    """
+    RecepcionarLoteRpsSincrono exige a raiz ``EnviarLoteRpsSincronoEnvio``; o mesmo ``LoteRps`` do envio
+    assincrono, com segunda assinatura na raiz (ver ``_assinar_xml``).
+    """
+    s = (xml_envio or '').strip()
+    if 'EnviarLoteRpsSincronoEnvio' in s:
+        return s
+    s = s.replace(
+        f'<EnviarLoteRpsEnvio xmlns="{NS_NFSE}">',
+        f'<EnviarLoteRpsSincronoEnvio xmlns="{NS_NFSE}">',
+        1,
+    )
+    s = s.replace('</EnviarLoteRpsEnvio>', '</EnviarLoteRpsSincronoEnvio>', 1)
+    return s
+
+
+def _issnet_erro_parece_negocio_abrasf(erro: str) -> bool:
+    """Retorno com ``ListaMensagemRetorno`` (codigo entre colchetes) ou resposta sem NF — nao reenviar lote."""
+    err = (erro or '').strip()
+    if re.search(r'\[[A-Za-z]?\d+\]', err):
+        return True
+    if 'NFS-e nao encontrada na resposta' in err:
+        return True
+    return False
+
+
 def _somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
 
@@ -452,7 +479,7 @@ class ISSNetClient:
             ctx.key = key
             ctx.sign(sig_rps)
 
-        if root_local != 'EnviarLoteRpsEnvio':
+        if root_local not in ('EnviarLoteRpsEnvio', 'EnviarLoteRpsSincronoEnvio'):
             logger.warning('Assinatura: raiz inesperada %s; pulando segunda assinatura.', root_local)
         else:
             # Nao definir Id na raiz: servico_enviar_lote_rps_envio.xsd nao permite (sem anyAttribute).
@@ -664,7 +691,10 @@ class ISSNetClient:
         data_emissao: Optional[datetime] = None,
         codigo_cnae: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Emite NFS-e via RecepcionarLoteRps (1 RPS); consulta lote se retornar apenas Protocolo."""
+        """
+        Emite NFS-e (1 RPS): tenta ``RecepcionarLoteRpsSincrono`` com raiz ABRASF correta; se falha de
+        transporte/SOAP, usa ``RecepcionarLoteRps`` e consulta o lote quando vier apenas protocolo.
+        """
         try:
             if data_emissao is None:
                 data_emissao = datetime.now()
@@ -686,13 +716,25 @@ class ISSNetClient:
                 codigo_cnae=codigo_cnae,
             )
 
-            # Assinar XML (dupla: Rps + EnviarLoteRpsEnvio) e enviar
-            xml_assinado = self._assinar_xml(xml_rps)
-            resultado = self._enviar_soap_direto(
-                xml_assinado,
-                prestador_cnpj=prestador_cnpj,
-                prestador_inscricao_municipal=prestador_inscricao_municipal,
+            xml_sinc_u = _xml_envio_para_raiz_sincrono_sem_assinar(xml_rps)
+            xml_sinc_assinado = self._assinar_xml(xml_sinc_u)
+            logger.info('ISSNet: tentando RecepcionarLoteRpsSincrono (EnviarLoteRpsSincronoEnvio assinado)')
+            parsed_s, _body_s = self._post_soap_operacao(
+                nome_operacao='RecepcionarLoteRpsSincrono',
+                soap_action_uri=SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO,
+                dados_xml=xml_sinc_assinado,
             )
+            if parsed_s.get('success'):
+                resultado = parsed_s
+            elif _issnet_erro_parece_negocio_abrasf(parsed_s.get('error') or ''):
+                resultado = parsed_s
+            else:
+                xml_assinado = self._assinar_xml(xml_rps)
+                resultado = self._enviar_soap_direto(
+                    xml_assinado,
+                    prestador_cnpj=prestador_cnpj,
+                    prestador_inscricao_municipal=prestador_inscricao_municipal,
+                )
             resultado['numero_rps'] = numero_rps
             if resultado.get('success'):
                 resultado['valor'] = valor_servicos
@@ -1001,17 +1043,9 @@ class ISSNetClient:
         err0 = (parsed.get('error') or '')
         if 'Erro genérico do webservice ISSNet' in err0 or 'sem detail' in err0.lower():
             logger.info(
-                'ISSNet: falha no RecepcionarLoteRps; tentando RecepcionarLoteRpsSincrono '
-                '(mesmo EnviarLoteRpsEnvio assinado)'
+                'ISSNet: falha generica no RecepcionarLoteRps; fluxo sincrono e feito em emitir_nfse '
+                '(raiz EnviarLoteRpsSincronoEnvio). Segue apenas consulta por protocolo se houver.'
             )
-            parsed2, xml_body2 = self._post_soap_operacao(
-                nome_operacao='RecepcionarLoteRpsSincrono',
-                soap_action_uri=SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO,
-                dados_xml=xml_dados,
-            )
-            if parsed2.get('success'):
-                return parsed2
-            parsed, xml_body = parsed2, xml_body2
         proto = self._extrair_protocolo_lote(xml_body)
         if proto and prestador_cnpj and prestador_inscricao_municipal:
             logger.info('ISSNet envio retornou protocolo %s; consultando lote...', proto)
@@ -1128,12 +1162,19 @@ class ISSNetClient:
         if msgs:
             erros = []
             for msg in msgs:
-                codigo = msg.findtext('ns:Codigo', '', nsmap)
+                codigo = (msg.findtext('ns:Codigo', '', nsmap) or '').strip()
                 mensagem = msg.findtext('ns:Mensagem', '', nsmap)
                 correcao = msg.findtext('ns:Correcao', '', nsmap)
                 texto = f'[{codigo}] {mensagem}'
                 if correcao:
                     texto += f' - {correcao}'
+                if codigo.upper() == 'E138':
+                    texto += (
+                        ' Em Ribeirao Preto (ISSNet), o codigo E138 costuma indicar falta de '
+                        'autorizacao da prefeitura para emissao via webservice em producao para este CNPJ; '
+                        'abra protocolo ou e-mail ao ISS municipal solicitando liberacao do ambiente de '
+                        'integracao (conforme orientacao da prefeitura / Nota Control).'
+                    )
                 erros.append(texto)
             return {'success': False, 'error': '; '.join(erros)}
 

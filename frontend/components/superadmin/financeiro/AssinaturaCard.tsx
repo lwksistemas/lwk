@@ -1,11 +1,12 @@
 /**
  * Componente de card de assinatura (Asaas ou Mercado Pago)
  * ✅ REFATORADO v780: Extraído e modularizado da página de financeiro
- * ✅ NOVO: Histórico de pagamentos expandível + Cancelar NF
+ * ✅ NOVO: Histórico de pagamentos com ações de NF (baixar, reenviar, cancelar)
  */
 import { useState } from 'react';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import type { Assinatura } from '@/hooks/useAssinaturas';
+import { apiClient } from '@/lib/api-client';
 import { AssinaturaAsaas } from './AssinaturaAsaas';
 import { AssinaturaMercadoPago } from './AssinaturaMercadoPago';
 
@@ -42,6 +43,91 @@ function getStatusColor(status: string) {
   return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
 }
 
+/** Botões de ação de NF para cada linha do histórico */
+function HistoricoNFActions({ asaasId, isPaid }: { asaasId: string; isPaid: boolean }) {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handleBaixarNF = async () => {
+    try {
+      setLoading('baixar');
+      const { data } = await apiClient.get(`/superadmin/nf/${asaasId}/baixar/`);
+      if (data.success && data.pdf_url) {
+        window.open(data.pdf_url, '_blank');
+      } else {
+        alert(data.error || 'Nota fiscal não encontrada');
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Erro ao baixar nota fiscal');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleReenviarNF = async () => {
+    try {
+      setLoading('reenviar');
+      const { data } = await apiClient.post(`/superadmin/nf/${asaasId}/reenviar/`);
+      if (data.success) {
+        alert(data.message || 'Nota fiscal reenviada!');
+      } else {
+        alert(data.error || 'Erro ao reenviar');
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Erro ao reenviar nota fiscal');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleCancelarNF = async () => {
+    if (!confirm('Tem certeza que deseja cancelar esta nota fiscal?')) return;
+    try {
+      setLoading('cancelar');
+      const { data } = await apiClient.post(`/superadmin/nf/${asaasId}/cancelar/`);
+      if (data.success) {
+        alert(data.message || 'Nota fiscal cancelada!');
+      } else {
+        alert(data.error || 'Erro ao cancelar');
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Erro ao cancelar nota fiscal');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  if (!isPaid) return null;
+
+  return (
+    <div className="flex gap-1 flex-wrap">
+      <button
+        onClick={handleBaixarNF}
+        disabled={loading !== null}
+        className="px-1.5 py-0.5 bg-indigo-600 text-white text-[10px] rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+        title="Baixar PDF da nota fiscal"
+      >
+        {loading === 'baixar' ? '⏳' : '🧾'} NF
+      </button>
+      <button
+        onClick={handleReenviarNF}
+        disabled={loading !== null}
+        className="px-1.5 py-0.5 bg-teal-600 text-white text-[10px] rounded hover:bg-teal-700 disabled:opacity-50 transition-colors"
+        title="Reenviar NF por email"
+      >
+        {loading === 'reenviar' ? '⏳' : '📧'} Reenviar
+      </button>
+      <button
+        onClick={handleCancelarNF}
+        disabled={loading !== null}
+        className="px-1.5 py-0.5 bg-rose-600 text-white text-[10px] rounded hover:bg-rose-700 disabled:opacity-50 transition-colors"
+        title="Cancelar nota fiscal"
+      >
+        {loading === 'cancelar' ? '⏳' : '❌'} Cancelar
+      </button>
+    </div>
+  );
+}
+
 export function AssinaturaCard({
   assinatura,
   onDownloadBoletoAsaas,
@@ -68,7 +154,7 @@ export function AssinaturaCard({
 
   return (
     <div className="border dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-      {/* Cabeçalho da assinatura */}
+      {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -86,14 +172,9 @@ export function AssinaturaCard({
           <p className="text-sm text-gray-600 dark:text-gray-400">
             {assinatura.plano_nome} - {formatCurrency(assinatura.plano_valor)}
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-500">
-            Vencimento: {formatDate(assinatura.data_vencimento)}
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-500">
-            Total de pagamentos: {assinatura.total_payments}
-          </p>
+          <p className="text-sm text-gray-500">Vencimento: {formatDate(assinatura.data_vencimento)}</p>
+          <p className="text-sm text-gray-500">Total de pagamentos: {assinatura.total_payments}</p>
         </div>
-
         <span className={`px-2 py-1 text-xs rounded-full ${
           assinatura.ativa
             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -106,9 +187,7 @@ export function AssinaturaCard({
       {/* Pagamento Atual */}
       {assinatura.current_payment_data && (
         <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded">
-          <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">
-            Próximo Pagamento
-          </h4>
+          <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Próximo Pagamento</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-3">
             <div>
               <span className="text-gray-600 dark:text-gray-400">Valor:</span>
@@ -124,15 +203,11 @@ export function AssinaturaCard({
             </div>
             <div>
               <span className="text-gray-600 dark:text-gray-400">Status:</span>
-              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-                getStatusColor(assinatura.current_payment_data.status)
-              }`}>
+              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${getStatusColor(assinatura.current_payment_data.status)}`}>
                 {assinatura.current_payment_data.status_display}
               </span>
             </div>
           </div>
-
-          {/* Ações específicas por provedor */}
           {isAsaas ? (
             <AssinaturaAsaas
               assinatura={assinatura}
@@ -173,7 +248,6 @@ export function AssinaturaCard({
           >
             {showHistorico ? '▼' : '▶'} Histórico de Pagamentos ({historico.length})
           </button>
-
           {showHistorico && (
             <div className="mt-2 overflow-x-auto">
               <table className="w-full text-xs">
@@ -204,16 +278,21 @@ export function AssinaturaCard({
                         {pag.payment_date ? formatDate(pag.payment_date) : '-'}
                       </td>
                       <td className="px-2 py-1.5">
-                        {pag.bank_slip_url && (
-                          <a
-                            href={pag.bank_slip_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 dark:text-blue-400 hover:underline"
-                          >
-                            📄 Boleto
-                          </a>
-                        )}
+                        <div className="flex gap-1 items-center flex-wrap">
+                          {pag.bank_slip_url && (
+                            <a
+                              href={pag.bank_slip_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-1.5 py-0.5 bg-blue-600 text-white text-[10px] rounded hover:bg-blue-700 transition-colors"
+                            >
+                              📄 Boleto
+                            </a>
+                          )}
+                          {pag.asaas_id && (
+                            <HistoricoNFActions asaasId={pag.asaas_id} isPaid={pag.is_paid} />
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

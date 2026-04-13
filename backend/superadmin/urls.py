@@ -18,7 +18,10 @@ from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
     PagamentoLojaViewSet as PagamentoViewSet,
     dashboard_financeiro_loja,
-    financeiro_unificado
+    financeiro_unificado,
+    nf_baixar_por_payment,
+    nf_reenviar_por_payment,
+    nf_cancelar_por_payment,
 )
 from .auth_views_secure import SecureLoginView, SecureLogoutView
 
@@ -64,6 +67,11 @@ urlpatterns = [
     path('lojas/recuperar_senha/', recuperar_senha_loja, name='loja-recuperar-senha'),
     path('loja/<str:loja_slug>/financeiro/', dashboard_financeiro_loja, name='dashboard-financeiro-loja'),
     path('financeiro-unificado/', financeiro_unificado, name='financeiro-unificado'),
+    
+    # Endpoints de Nota Fiscal por payment_id (para histórico de pagamentos)
+    path('nf/<str:payment_id>/baixar/', nf_baixar_por_payment, name='nf-baixar-por-payment'),
+    path('nf/<str:payment_id>/reenviar/', nf_reenviar_por_payment, name='nf-reenviar-por-payment'),
+    path('nf/<str:payment_id>/cancelar/', nf_cancelar_por_payment, name='nf-cancelar-por-payment'),
     path('mercadopago-config/', mercadopago_config, name='mercadopago-config'),
     path('mercadopago-config/test/', mercadopago_test, name='mercadopago-config-test'),
     path('mercadopago-webhook/', mercadopago_webhook, name='mercadopago-webhook'),

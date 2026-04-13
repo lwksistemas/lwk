@@ -4,7 +4,7 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
-- Operações: RecepcionarLoteRpsSincrono (EnviarLoteRpsSincronoEnvio), ConsultarNfsePorRps, CancelarNfse
+- Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo — espelho Focus599Dev/sped-nfse-issnet (RP).
 - Cada operação SOAP recebe (nfseCabecMsg: str, nfseDadosMsg: str)
 """
 import logging
@@ -29,17 +29,16 @@ ISSNET_RP_NFSE_ASMX = (
     'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
 )
 # SOAPAction = URI completa do soap:operation no WSDL (document/literal).
-SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO = (
-    'http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono'
-)
+SOAP_ACTION_RECEPCIONAR_LOTE_RPS = 'http://nfse.abrasf.org.br/RecepcionarLoteRps'
+SOAP_ACTION_CONSULTAR_LOTE_RPS = 'http://nfse.abrasf.org.br/ConsultarLoteRps'
 ISSNET_URLS = {
     'producao': ISSNET_RP_NFSE_ASMX,
     'homologacao': ISSNET_RP_NFSE_ASMX,
 }
 
-# versao do cabecalho (envelope) costuma ser 1.00; versaoDados indica o layout ABRASF do nfseDadosMsg.
+# Fragmento dentro de nfseCabecMsg (XML aninhado, como envelopSOAP do sped-nfse-issnet PHP).
 CABEC_MSG = (
-    '<cabecalho xmlns="http://www.abrasf.org.br/nfse.xsd" versao="1.00">'
+    '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
     '<versaoDados>2.04</versaoDados>'
     '</cabecalho>'
 )
@@ -58,23 +57,26 @@ def _soap_xsd_string_payload(payload: str) -> str:
     return _xml_escape(payload or '', {'"': '&quot;', "'": '&apos;'})
 
 
-def _soap_envelope_recepcionar_lote_rps_sincrono(cabec: str, xml_dados: str) -> str:
+def _soap_envelope_nfse_php(nome_operacao: str, dados_xml: str) -> str:
     """
-    Monta o SOAP 1.1. Os filhos nfseCabecMsg / nfseDadosMsg devem estar no mesmo
-    namespace da operacao (http://nfse.abrasf.org.br); com prefixo so no pai,
-    eles ficam sem namespace e o ASMX costuma responder Fault generico s:Client.
+    Envelope igual ao NFePHP\\NFSe\\ISSNET\\Common\\Tools::envelopSOAP:
+    nfse:<Operacao>, nfseCabecMsg com cabecalho como *filho* (nao string escapada),
+    nfseDadosMsg com o XML do lote como filho (texto/estrutura mista que o ASMX deserializa).
     """
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
         'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+        f'xmlns:nfse="{NS_NFSE_WSDL}">'
         '<soap:Header/>'
         '<soap:Body>'
-        f'<RecepcionarLoteRpsSincrono xmlns="{NS_NFSE_WSDL}">'
-        '<nfseCabecMsg>' + _soap_xsd_string_payload(cabec) + '</nfseCabecMsg>'
-        '<nfseDadosMsg>' + _soap_xsd_string_payload(xml_dados) + '</nfseDadosMsg>'
-        '</RecepcionarLoteRpsSincrono>'
+        f'<nfse:{nome_operacao}>'
+        '<nfseCabecMsg>'
+        + CABEC_MSG +
+        '</nfseCabecMsg>'
+        '<nfseDadosMsg>' + (dados_xml or '') + '</nfseDadosMsg>'
+        f'</nfse:{nome_operacao}>'
         '</soap:Body>'
         '</soap:Envelope>'
     )
@@ -175,7 +177,7 @@ class ISSNetClient:
     """
     Cliente SOAP para webservice ISSNet Ribeirao Preto (ABRASF 2.04).
 
-    Emissão: RecepcionarLoteRpsSincrono + EnviarLoteRpsSincronoEnvio (ABRASF 2.04), SOAP direto + mTLS.
+    Emissão: RecepcionarLoteRps + EnviarLoteRpsEnvio (ABRASF 2.04), SOAP + mTLS como sped-nfse-issnet (Focus599Dev).
     Autenticacao: usuario/senha no XML + certificado digital para assinatura.
     """
 
@@ -231,7 +233,7 @@ class ISSNetClient:
 
         Dupla assinatura alinhada ao sped-nfse-issnet (PHP): primeiro o ``Rps``
         externo (ListaRps/Rps) com Reference URI vazia e so transform enveloped;
-        depois a raiz do lote síncrono (``EnviarLoteRpsSincronoEnvio``) com atributo Id e mesma politica de Reference.
+        depois ``EnviarLoteRpsEnvio`` com atributo Id (Reference #Id) como no PHP Signer.
         A Signature fica dentro do no assinado (como no Signer do pacote ISSNET).
         """
         import xmlsec
@@ -306,7 +308,7 @@ class ISSNetClient:
             ctx.key = key
             ctx.sign(sig_rps)
 
-        if root_local not in ('EnviarLoteRpsSincronoEnvio', 'EnviarLoteRpsEnvio'):
+        if root_local != 'EnviarLoteRpsEnvio':
             logger.warning('Assinatura: raiz inesperada %s; pulando segunda assinatura.', root_local)
         else:
             num_lote = ''
@@ -314,12 +316,7 @@ class ISSNetClient:
                 num_lote = (lote_el.findtext('{%s}NumeroLote' % ns) or '').strip()
             if not num_lote:
                 num_lote = '1'
-            default_id = (
-                f'EnviarLoteRpsSincronoEnvio{num_lote}'
-                if root_local == 'EnviarLoteRpsSincronoEnvio'
-                else f'EnviarLoteRpsEnvio{num_lote}'
-            )
-            envio_id = root.get('Id') or default_id
+            envio_id = root.get('Id') or f'EnviarLoteRpsEnvio{num_lote}'
             root.set('Id', envio_id)
 
             sig_envio = _template_sig_enveloped_only(root, f'#{envio_id}')
@@ -334,7 +331,7 @@ class ISSNetClient:
 
     # Metodo antigo mantido como referencia
     # ------------------------------------------------------------------
-    # Construir XML ABRASF 2.04 — EnviarLoteRpsSincronoEnvio (ISSNet RP, op. RecepcionarLoteRpsSincrono)
+    # Construir XML ABRASF 2.04 — EnviarLoteRpsEnvio (ISSNet RP, op. RecepcionarLoteRps)
     # ------------------------------------------------------------------
     def _construir_xml_gerar_nfse(
         self,
@@ -354,8 +351,7 @@ class ISSNetClient:
         codigo_cnae: Optional[str] = None,
     ) -> str:
         """
-        Constroi XML EnviarLoteRpsSincronoEnvio no padrao ABRASF 2.04 (ISSNet RP).
-        RecepcionarLoteRpsSincrono exige este root; EnviarLoteRpsEnvio é do fluxo assíncrono.
+        Constroi XML EnviarLoteRpsEnvio no padrao ABRASF 2.04 (ISSNet Ribeirao Preto / sped-nfse-issnet).
         """
         cnpj_prest = _somente_digitos(prestador_cnpj)
         doc_tomador = _somente_digitos(tomador_cpf_cnpj)
@@ -365,13 +361,11 @@ class ISSNetClient:
         valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
 
         ns = NS_NFSE
-        # Root: EnviarLoteRpsSincronoEnvio (par RecepcionarLoteRpsSincrono / ISSNet ABRASF 2.04)
-        root = etree.Element('{%s}EnviarLoteRpsSincronoEnvio' % ns, nsmap={None: ns})
+        # Root: EnviarLoteRpsEnvio (fluxo oficial PHP ISSNET para RP)
+        root = etree.Element('{%s}EnviarLoteRpsEnvio' % ns, nsmap={None: ns})
 
-        # LoteRps com versao (Id alinhado a manuais ISSNet / CIGAM)
-        lote = etree.SubElement(
-            root, '{%s}LoteRps' % ns, Id=str(numero_rps), versao='2.04'
-        )
+        # LoteRps: somente versao="2.04" (Id fica na raiz EnviarLoteRpsEnvio para a 2a assinatura)
+        lote = etree.SubElement(root, '{%s}LoteRps' % ns, versao='2.04')
         etree.SubElement(lote, '{%s}NumeroLote' % ns).text = str(numero_rps)
 
         # Prestador no LoteRps
@@ -421,6 +415,7 @@ class ISSNetClient:
         etree.SubElement(valores, '{%s}ValorIr' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}ValorCsll' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}OutrasRetencoes' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}ValTotTributos' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}ValorIss' % ns).text = f'{valor_iss:.2f}'
         etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.2f}'
         etree.SubElement(valores, '{%s}DescontoIncondicionado' % ns).text = '0.00'
@@ -485,11 +480,7 @@ class ISSNetClient:
 
         # Sem pretty_print: evita espaços extras no XML assinado (C14N / validação).
         xml_str = etree.tostring(root, encoding='unicode', pretty_print=False)
-        logger.info(
-            'XML EnviarLoteRpsSincronoEnvio construido: RPS %s, Valor R$ %s',
-            numero_rps,
-            valor,
-        )
+        logger.info('XML EnviarLoteRpsEnvio construido: RPS %s, Valor R$ %s', numero_rps, valor)
         return xml_str
 
     # ------------------------------------------------------------------
@@ -513,7 +504,7 @@ class ISSNetClient:
         data_emissao: Optional[datetime] = None,
         codigo_cnae: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Emite NFS-e via RecepcionarLoteRpsSincrono (1 RPS)."""
+        """Emite NFS-e via RecepcionarLoteRps (1 RPS); consulta lote se retornar apenas Protocolo."""
         try:
             if data_emissao is None:
                 data_emissao = datetime.now()
@@ -535,9 +526,13 @@ class ISSNetClient:
                 codigo_cnae=codigo_cnae,
             )
 
-            # Assinar XML (dupla: Rps + EnviarLoteRpsSincronoEnvio) e enviar
+            # Assinar XML (dupla: Rps + EnviarLoteRpsEnvio) e enviar
             xml_assinado = self._assinar_xml(xml_rps)
-            resultado = self._enviar_soap_direto(xml_assinado)
+            resultado = self._enviar_soap_direto(
+                xml_assinado,
+                prestador_cnpj=prestador_cnpj,
+                prestador_inscricao_municipal=prestador_inscricao_municipal,
+            )
             return resultado
 
         except Exception as e:
@@ -545,24 +540,82 @@ class ISSNetClient:
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------
-    # Enviar via requests direto (formato exato da lib PHP)
+    # Protocolo / consulta de lote (fluxo assincrono ABRASF)
     # ------------------------------------------------------------------
-    def _enviar_soap_direto(self, xml_dados: str) -> Dict[str, Any]:
-        """Envia XML via SOAP 1.1 direto (sem zeep), mTLS + text/xml conforme WSDL ASMX."""
+    @staticmethod
+    def _extrair_protocolo_lote(xml_abrasf: str) -> Optional[str]:
+        """Numero do protocolo em EnviarLoteRpsResposta (qualquer namespace)."""
+        if not (xml_abrasf or '').strip():
+            return None
+        try:
+            root = etree.fromstring(
+                xml_abrasf.encode('utf-8') if isinstance(xml_abrasf, str) else xml_abrasf
+            )
+            for el in root.iter():
+                if etree.QName(el.tag).localname == 'Protocolo':
+                    t = (el.text or '').strip()
+                    if t:
+                        return t
+        except Exception:
+            return None
+        return None
+
+    def _consultar_lote_rps_ate_nfse(
+        self,
+        protocolo: str,
+        prestador_cnpj: str,
+        prestador_inscricao_municipal: str,
+        tentativas: int = 10,
+        intervalo_s: float = 1.5,
+    ) -> Dict[str, Any]:
+        """ConsultarLoteRps ate obter CompNfse ou esgotar tentativas."""
+        cnpj = _somente_digitos(prestador_cnpj)
+        im = (prestador_inscricao_municipal or '').strip()
+        xml_consulta = (
+            f'<ConsultarLoteRpsEnvio xmlns="{NS_NFSE}">'
+            f'<Prestador><CpfCnpj><Cnpj>{cnpj}</Cnpj></CpfCnpj>'
+            f'<InscricaoMunicipal>{_xml_escape(im)}</InscricaoMunicipal></Prestador>'
+            f'<Protocolo>{_xml_escape((protocolo or "").strip())}</Protocolo>'
+            f'</ConsultarLoteRpsEnvio>'
+        )
+        for tent in range(tentativas):
+            if tent > 0:
+                time.sleep(intervalo_s)
+            out, _xml_b = self._post_soap_operacao(
+                nome_operacao='ConsultarLoteRps',
+                soap_action_uri=SOAP_ACTION_CONSULTAR_LOTE_RPS,
+                dados_xml=xml_consulta,
+            )
+            if out.get('success'):
+                return out
+            err = out.get('error') or ''
+            if 'NFS-e nao encontrada na resposta' in err and tent < tentativas - 1:
+                logger.info(
+                    'ISSNet consulta lote protocolo %s tentativa %s/%s sem NF ainda',
+                    protocolo,
+                    tent + 1,
+                    tentativas,
+                )
+                continue
+            return out
+        return {'success': False, 'error': 'Tempo esgotado aguardando NFS-e apos envio do lote.'}
+
+    def _post_soap_operacao(
+        self,
+        nome_operacao: str,
+        soap_action_uri: str,
+        dados_xml: str,
+    ):
+        """POST SOAP 1.1 com mTLS (corpo montado como sped-nfse-issnet PHP). Retorna (dict, xml_body_abrasf)."""
         import os
         import tempfile
 
         import requests as req
 
-        cabec = CABEC_MSG
-        soap = _soap_envelope_recepcionar_lote_rps_sincrono(cabec, xml_dados)
-        # WSDL (nfseSOAP): soap:binding transport = http://schemas.xmlsoap.org/soap/http → SOAP 1.1.
-        # ASMX/.NET espera Content-Type text/xml; application/soap+xml é SOAP 1.2 e costuma gerar Fault genérico.
-        # SOAPAction deve coincidir com soap:operation no WSDL (URI entre aspas, HTTP/1.1).
-        # Connection: close evita reuso de socket com servidores ASMX que fecham abruptamente.
+        soap = _soap_envelope_nfse_php(nome_operacao, dados_xml)
         headers = {
             'Content-Type': 'text/xml; charset=utf-8',
-            'SOAPAction': f'"{SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO}"',
+            'SOAPAction': f'"{soap_action_uri}"',
             'Connection': 'close',
             'Accept': 'text/xml',
             'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
@@ -570,7 +623,11 @@ class ISSNetClient:
 
         cert_path = None
         key_path = None
-        logger.info('Enviando SOAP direto ao ISSNet (%d bytes) com mTLS', len(soap))
+        logger.info(
+            'ISSNet SOAP %s (%d bytes) com mTLS',
+            nome_operacao,
+            len(soap),
+        )
         try:
             private_key_obj, cert_obj, extra = _carregar_certificado(
                 self.certificado_path, self.senha_certificado
@@ -598,8 +655,6 @@ class ISSNetClient:
                 ktf.close()
                 ctf.close()
 
-            # (connect, read): Heroku encerra HTTP em ~30s (H12). Uma chamada ISSNet + assinatura
-            # precisa ficar abaixo disso; não repetir POST em Fault SOAP (duplicaria tempo).
             http_timeout = (8, 20)
             try:
                 r = req.post(
@@ -632,7 +687,6 @@ class ISSNetClient:
             if r.status_code >= 400 or 'Fault' in (r.text or ''):
                 logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
 
-            # 502/503/504 costumam devolver HTML ou texto ("O serviço não está disponível"), não SOAP.
             if r.status_code in (502, 503, 504) and not _issnet_corpo_parece_xml(r.text or ''):
                 logger.warning(
                     'ISSNet HTTP %s sem XML; repetindo POST uma vez apos 2s',
@@ -655,19 +709,22 @@ class ISSNetClient:
             if not _issnet_corpo_parece_xml(r.text or ''):
                 msg = _issnet_decodificar_corpo(r).strip() or '(resposta vazia)'
                 msg = ' '.join(msg.split())
-                return {
-                    'success': False,
-                    'error': (
-                        f'O webservice ISSNet respondeu HTTP {r.status_code} sem XML '
-                        f'(serviço indisponível ou erro no balanceador). {msg[:600]}'
-                    ),
-                }
+                return (
+                    {
+                        'success': False,
+                        'error': (
+                            f'O webservice ISSNet respondeu HTTP {r.status_code} sem XML '
+                            f'(serviço indisponível ou erro no balanceador). {msg[:600]}'
+                        ),
+                    },
+                    '',
+                )
 
             xml_body = self._extrair_body_soap(r.text)
-            return self._parse_resposta_xml(xml_body)
+            return self._parse_resposta_xml(xml_body), xml_body
         except Exception as e:
             logger.exception('Erro ao enviar SOAP: %s', e)
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': str(e)}, ''
         finally:
             for p in (cert_path, key_path):
                 if p and os.path.isfile(p):
@@ -677,18 +734,44 @@ class ISSNetClient:
                         pass
 
     # ------------------------------------------------------------------
+    # Enviar via requests direto (formato exato da lib PHP)
+    # ------------------------------------------------------------------
+    def _enviar_soap_direto(
+        self,
+        xml_dados: str,
+        prestador_cnpj: str = '',
+        prestador_inscricao_municipal: str = '',
+    ) -> Dict[str, Any]:
+        """RecepcionarLoteRps; se vier apenas Protocolo, consulta o lote ate obter a NFSe."""
+        parsed, xml_body = self._post_soap_operacao(
+            nome_operacao='RecepcionarLoteRps',
+            soap_action_uri=SOAP_ACTION_RECEPCIONAR_LOTE_RPS,
+            dados_xml=xml_dados,
+        )
+        if parsed.get('success'):
+            return parsed
+        proto = self._extrair_protocolo_lote(xml_body)
+        if proto and prestador_cnpj and prestador_inscricao_municipal:
+            logger.info('ISSNet envio retornou protocolo %s; consultando lote...', proto)
+            return self._consultar_lote_rps_ate_nfse(
+                proto,
+                prestador_cnpj,
+                prestador_inscricao_municipal,
+            )
+        return parsed
+
+    # ------------------------------------------------------------------
     # Enviar via zeep (mantido como fallback)
     # ------------------------------------------------------------------
     def _enviar_gerar_nfse(self, xml_assinado: str) -> Dict[str, Any]:
         """
-        Chama operacao RecepcionarLoteRpsSincrono do webservice ISSNet.
-        Sincrono: retorna a NFS-e na mesma chamada (melhor para 1 RPS).
+        Chama operacao RecepcionarLoteRps do webservice ISSNet (fallback zeep).
         """
         try:
             client = self._get_soap_client()
             logger.info('XML enviado ao ISSNet (nfseDadosMsg): %s', xml_assinado[:2000])
             with client.settings(raw_response=True):
-                response = client.service.RecepcionarLoteRpsSincrono(
+                response = client.service.RecepcionarLoteRps(
                     nfseCabecMsg=CABEC_MSG,
                     nfseDadosMsg=xml_assinado,
                 )

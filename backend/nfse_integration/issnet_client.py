@@ -484,10 +484,10 @@ class ISSNetClient:
             'xmlns:nfse="http://nfse.abrasf.org.br">'
             '<soap:Header/>'
             '<soap:Body>'
-            '<nfse:RecepcionarLoteRpsSincrono>'
+            '<nfse:RecepcionarLoteRps>'
             '<nfseCabecMsg>' + cabec + '</nfseCabecMsg>'
             '<nfseDadosMsg>' + xml_dados + '</nfseDadosMsg>'
-            '</nfse:RecepcionarLoteRpsSincrono>'
+            '</nfse:RecepcionarLoteRps>'
             '</soap:Body>'
             '</soap:Envelope>'
         )
@@ -495,7 +495,7 @@ class ISSNetClient:
         # conexao HTTPS com certificado cliente (CURLOPT_SSLCERT / SSLKEY).
         headers = {
             'Content-Type': 'application/soap+xml; charset=utf-8',
-            'SOAPAction': '"http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono"',
+            'SOAPAction': '"RecepcionarLoteRps"',
         }
 
         cert_path = None
@@ -532,6 +532,8 @@ class ISSNetClient:
                 cert=(cert_path, key_path),
             )
             logger.info('Resposta ISSNet HTTP %s, preview: %s', r.status_code, r.text[:500])
+            if r.status_code >= 400 or 'Fault' in (r.text or ''):
+                logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
             xml_body = self._extrair_body_soap(r.text)
             return self._parse_resposta_xml(xml_body)
         except Exception as e:

@@ -508,7 +508,9 @@ class ISSNetClient:
 
         # LoteRps: somente versao="2.04" (2a assinatura e enveloped na raiz, sem Id — ver XSD)
         lote = etree.SubElement(root, '{%s}LoteRps' % ns, versao='2.04')
-        etree.SubElement(lote, '{%s}NumeroLote' % ns).text = str(numero_rps)
+        nlote_cfg = int(getattr(self, '_numero_lote_config', 0) or 0)
+        numero_lote = nlote_cfg if nlote_cfg > 0 else int(numero_rps)
+        etree.SubElement(lote, '{%s}NumeroLote' % ns).text = str(numero_lote)
 
         # Prestador no LoteRps
         prest_lote = etree.SubElement(lote, '{%s}Prestador' % ns)
@@ -639,7 +641,13 @@ class ISSNetClient:
 
         # Sem pretty_print: evita espaços extras no XML assinado (C14N / validação).
         xml_str = etree.tostring(root, encoding='unicode', pretty_print=False)
-        logger.info('XML EnviarLoteRpsEnvio construido: RPS %s, Valor R$ %s', numero_rps, valor)
+        logger.info(
+            'XML EnviarLoteRpsEnvio construido: RPS %s serie %r lote %s, Valor R$ %s',
+            numero_rps,
+            serie_rps,
+            numero_lote,
+            valor,
+        )
         return xml_str
 
     # ------------------------------------------------------------------
@@ -692,11 +700,20 @@ class ISSNetClient:
                 prestador_cnpj=prestador_cnpj,
                 prestador_inscricao_municipal=prestador_inscricao_municipal,
             )
+            resultado['numero_rps'] = numero_rps
+            if resultado.get('success'):
+                resultado['valor'] = valor_servicos
+                resultado.setdefault('tomador_nome', tomador_nome)
+                resultado.setdefault('tomador_cpf_cnpj', tomador_cpf_cnpj)
+                resultado.setdefault(
+                    'servico_descricao',
+                    (servico_descricao or '')[:500],
+                )
             return resultado
 
         except Exception as e:
             logger.exception('Erro ao emitir NFS-e: %s', e)
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': str(e), 'numero_rps': numero_rps}
 
     # ------------------------------------------------------------------
     # Protocolo / consulta de lote (fluxo assincrono ABRASF)
@@ -1067,7 +1084,9 @@ class ISSNetClient:
                     if (msg or '').strip().lower() == 'error':
                         msg = (
                             'Erro genérico do webservice ISSNet (sem detail). '
-                            'Verifique certificado mTLS, cadastro na prefeitura e XML (RPS/assinatura).'
+                            'Verifique certificado mTLS, cadastro na prefeitura e XML (RPS/assinatura). '
+                            'Se o mesmo RPS foi tentado várias vezes, confira no portal ISSNet o último '
+                            'RPS aceito e atualize no CRM o campo «Último RPS conhecido».'
                         )
                     if detail:
                         msg += f' - {detail}'

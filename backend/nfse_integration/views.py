@@ -195,6 +195,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                     tomador_email=tomador_email,
                     servico_descricao=serializer.validated_data['servico_descricao'],
                     valor_servicos=Decimal(str(serializer.validated_data['valor_servicos'])),
+                    numero_rps=int(resultado.get('numero_rps') or 0),
                 )
                 body = {'success': False, 'error': erro_msg}
                 if nfse_falha:

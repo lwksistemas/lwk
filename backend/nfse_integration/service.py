@@ -427,6 +427,9 @@ class NFSeService:
                 senha_certificado=self.config.issnet_senha_certificado,
                 ambiente='producao'
             )
+            client._numero_lote_config = int(
+                getattr(self.config, 'issnet_numero_lote', 0) or 0
+            )
             # Passar campos configuráveis do portal emissor
             client._regime_especial = getattr(self.config, 'regime_especial_tributacao', '0') or '0'
             client._optante_simples = getattr(self.config, 'optante_simples_nacional', True)
@@ -435,10 +438,21 @@ class NFSeService:
             # Série do RPS configurável
             serie_rps = (getattr(self.config, 'issnet_serie_rps', '') or '').strip() or 'E'
             
+            im_prest = self._get_inscricao_municipal()
+            cnpj_d = re.sub(r'\D', '', self.loja.cpf_cnpj or '')
+            logger.info(
+                'ISSNet emissao prestador CNPJ=%s...%s IM=%s RPS=%s serie=%r',
+                cnpj_d[:4],
+                cnpj_d[-4:] if len(cnpj_d) >= 8 else cnpj_d,
+                (im_prest or '')[:12],
+                numero_rps,
+                serie_rps,
+            )
+
             # Emitir NFS-e
             resultado = client.emitir_nfse(
                 prestador_cnpj=self.loja.cpf_cnpj,
-                prestador_inscricao_municipal=self._get_inscricao_municipal(),
+                prestador_inscricao_municipal=im_prest,
                 prestador_razao_social=self.loja.nome,
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
@@ -451,7 +465,7 @@ class NFSeService:
                 serie_rps=serie_rps,
                 codigo_cnae=(getattr(self.config, 'codigo_cnae', None) or '').strip() or None,
             )
-            
+
             # Se sucesso, salvar no banco e enviar email
             if resultado.get('success'):
                 self._salvar_nfse(resultado, tomador_email)
@@ -468,9 +482,11 @@ class NFSeService:
             
         except Exception as e:
             logger.exception(f"Erro ao emitir via ISSNet: {e}")
+            nr = locals().get('numero_rps')
             return {
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                'numero_rps': int(nr) if nr is not None else 0,
             }
         finally:
             # Limpar arquivo temporário do certificado
@@ -501,6 +517,7 @@ class NFSeService:
         tomador_email: str,
         servico_descricao: str,
         valor_servicos: Decimal,
+        numero_rps: int = 0,
     ):
         """
         Grava no banco uma tentativa de emissão que falhou (status=erro).
@@ -515,7 +532,7 @@ class NFSeService:
             return NFSe.objects.create(
                 loja_id=self.loja.id,
                 numero_nf=numero_nf[:50],
-                numero_rps=0,
+                numero_rps=int(numero_rps or 0),
                 codigo_verificacao='',
                 data_emissao=timezone.now(),
                 valor=valor_servicos,
@@ -533,18 +550,29 @@ class NFSeService:
 
     def _gerar_numero_rps(self) -> int:
         """
-        Próximo RPS: maior entre (último no CRM + 1) e (último conhecido no portal ISSNet + 1),
-        para não reutilizar número já aceito na prefeitura.
+        Próximo RPS: maior entre (maior numero_rps ja gravado na loja + 1) e
+        (último conhecido no portal ISSNet + 1), para nao reutilizar RPS ja usado.
         """
+        from django.db.models import Max
+
         from .models import NFSe
 
-        ultimo_rps = NFSe.objects.filter(loja_id=self.loja.id).order_by('-numero_rps').first()
-        db_next = ultimo_rps.numero_rps + 1 if ultimo_rps else 1
+        mx = NFSe.objects.filter(loja_id=self.loja.id).aggregate(m=Max('numero_rps'))['m']
+        mx = int(mx or 0)
+        db_next = mx + 1
 
         portal_ult = int(getattr(self.config, 'issnet_ultimo_rps_conhecido', 0) or 0)
         if portal_ult > 0:
-            return max(db_next, portal_ult + 1)
-        return db_next
+            nxt = max(db_next, portal_ult + 1)
+        else:
+            nxt = db_next
+        logger.info(
+            'ISSNet proximo RPS: max_numero_rps_BD=%s portal_ultimo=%s -> usando %s',
+            mx,
+            portal_ult,
+            nxt,
+        )
+        return nxt
     
     def _salvar_nfse(self, resultado: Dict[str, Any], tomador_email: str):
         """
@@ -556,6 +584,7 @@ class NFSeService:
             NFSe.objects.create(
                 loja_id=self.loja.id,
                 numero_nf=resultado['numero_nf'],
+                numero_rps=int(resultado.get('numero_rps') or 0),
                 codigo_verificacao=resultado.get('codigo_verificacao', ''),
                 data_emissao=resultado.get('data_emissao', datetime.now()),
                 valor=resultado.get('valor', 0),

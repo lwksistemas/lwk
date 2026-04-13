@@ -497,23 +497,27 @@ class ISSNetClient:
             etree.SubElement(cpf_cnpj_tom, '{%s}Cnpj' % ns).text = doc_tomador
         etree.SubElement(tomador, '{%s}RazaoSocial' % ns).text = tomador_nome
 
+        # tcEndereco (ABRASF): Bairro e Cep sao obrigatorios (minOccurs=1); tsCep = [0-9]{8}.
         end = etree.SubElement(tomador, '{%s}Endereco' % ns)
         etree.SubElement(end, '{%s}Endereco' % ns).text = (
-            tomador_endereco.get('logradouro', '')
+            (tomador_endereco.get('logradouro') or '').strip() or 'Nao informado'
         )
         etree.SubElement(end, '{%s}Numero' % ns).text = (
-            tomador_endereco.get('numero', 'S/N')
+            (tomador_endereco.get('numero') or '').strip() or 'S/N'
         )
-        bairro = tomador_endereco.get('bairro', '')
-        if bairro:
-            etree.SubElement(end, '{%s}Bairro' % ns).text = bairro
+        compl = (tomador_endereco.get('complemento') or '').strip()
+        if compl:
+            etree.SubElement(end, '{%s}Complemento' % ns).text = compl
+        bairro = (tomador_endereco.get('bairro') or '').strip() or 'Nao informado'
+        etree.SubElement(end, '{%s}Bairro' % ns).text = bairro[:60]
         etree.SubElement(end, '{%s}CodigoMunicipio' % ns).text = COD_MUNICIPIO_RP
         etree.SubElement(end, '{%s}Uf' % ns).text = (
-            tomador_endereco.get('uf', 'SP')
+            (tomador_endereco.get('uf') or 'SP').strip()[:2] or 'SP'
         )
-        cep = _somente_digitos(tomador_endereco.get('cep', ''))
-        if cep:
-            etree.SubElement(end, '{%s}Cep' % ns).text = cep
+        cep = _somente_digitos(tomador_endereco.get('cep', ''))[:8]
+        if len(cep) != 8:
+            cep = '00000000'
+        etree.SubElement(end, '{%s}Cep' % ns).text = cep
 
         # --- Flags ---
         regime = getattr(self, '_regime_especial', '0') or ''

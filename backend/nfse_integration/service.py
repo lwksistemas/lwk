@@ -505,6 +505,8 @@ class NFSeService:
         Grava no banco uma tentativa de emissão que falhou (status=erro).
         O número da NF é sintético (FALHA-…) para respeitar unicidade por loja.
         """
+        from django.utils import timezone
+
         from .models import NFSe
 
         numero_nf = f"FALHA-{uuid4().hex[:12]}"
@@ -514,7 +516,7 @@ class NFSeService:
                 numero_nf=numero_nf[:50],
                 numero_rps=0,
                 codigo_verificacao='',
-                data_emissao=datetime.now(),
+                data_emissao=timezone.now(),
                 valor=valor_servicos,
                 tomador_cpf_cnpj=(tomador_cpf_cnpj or '')[:18],
                 tomador_nome=(tomador_nome or '')[:200],

@@ -24,6 +24,8 @@ COD_MUNICIPIO_RP = '3543402'
 ISSNET_RP_NFSE_ASMX = (
     'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
 )
+# Soap.php usa o 2o argumento de send() como SOAPAction (URL completa), nao o nome curto da operacao.
+SOAP_ACTION_RECEPCIONAR_LOTE_RPS = 'http://nfse.abrasf.org.br/RecepcionarLoteRps'
 ISSNET_URLS = {
     'producao': ISSNET_RP_NFSE_ASMX,
     'homologacao': ISSNET_RP_NFSE_ASMX,
@@ -491,11 +493,12 @@ class ISSNetClient:
             '</soap:Body>'
             '</soap:Envelope>'
         )
-        # sped-nfse-issnet Soap.php: application/soap+xml + SOAPAction com nome da operacao;
-        # conexao HTTPS com certificado cliente (CURLOPT_SSLCERT / SSLKEY).
+        # sped-nfse-issnet Soap.php: Content-Type application/soap+xml;
+        # SOAPAction = $soapAction (URL completa), ver Tools::enviaRPS + Soap::send headers.
+        # ASMX costuma exigir o mesmo URI no SOAPAction que no WSDL (namespace + metodo).
         headers = {
             'Content-Type': 'application/soap+xml; charset=utf-8',
-            'SOAPAction': '"RecepcionarLoteRps"',
+            'SOAPAction': f'"{SOAP_ACTION_RECEPCIONAR_LOTE_RPS}"',
         }
 
         cert_path = None

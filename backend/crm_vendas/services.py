@@ -78,21 +78,22 @@ class OportunidadeService:
                     f'Vendedor logado vendedor_id={self.vendedor_id} não existe no tenant, ignorando'
                 )
 
-        # Regra 2: Herdar vendedor do lead
+        # Regra 2: Herdar vendedor do lead — validar que existe no tenant
         lead = validated_data.get('lead')
         if lead and not _oportunidade_tem_vendedor(validated_data) and getattr(lead, 'vendedor_id', None):
-            validated_data['vendedor_id'] = lead.vendedor_id
-            validated_data.pop('vendedor', None)
-            logger.info(
-                f'Oportunidade herdou vendedor do lead: '
-                f'lead_id={lead.id}, vendedor_id={lead.vendedor_id}'
-            )
-            return Oportunidade.objects.create(**validated_data)
+            if Vendedor.objects.filter(id=lead.vendedor_id).exists():
+                validated_data['vendedor_id'] = lead.vendedor_id
+                validated_data.pop('vendedor', None)
+                logger.info(
+                    f'Oportunidade herdou vendedor do lead: '
+                    f'lead_id={lead.id}, vendedor_id={lead.vendedor_id}'
+                )
+                return Oportunidade.objects.create(**validated_data)
 
-        # Regra 3: Dono da loja sem vínculo explícito → vendedor administrador da loja (is_admin / e-mail)
+        # Regra 3: Vendedor administrador da loja — validar que existe no tenant
         if not _oportunidade_tem_vendedor(validated_data):
             padrao = get_vendedor_padrao_admin_loja(self.request)
-            if padrao:
+            if padrao and Vendedor.objects.filter(id=padrao).exists():
                 validated_data['vendedor_id'] = padrao
                 validated_data.pop('vendedor', None)
                 logger.info(
@@ -101,6 +102,8 @@ class OportunidadeService:
                     self.user_id,
                 )
                 return Oportunidade.objects.create(**validated_data)
+            elif padrao:
+                logger.warning(f'Vendedor admin vendedor_id={padrao} não existe no tenant, ignorando')
 
         # Regra 4: Criar sem vendedor (warning)
         if not _oportunidade_tem_vendedor(validated_data):

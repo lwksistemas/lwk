@@ -359,7 +359,41 @@ class AsaasSyncService:
         try:
             financeiro.status_pagamento = 'ativo'
             financeiro.ultimo_pagamento = timezone.now()
+            
+            # Calcular próxima data de cobrança baseada no tipo de assinatura
+            data_pagamento = timezone.now().date()
+            tipo_assinatura = loja.tipo_assinatura
+            if tipo_assinatura == 'anual':
+                proxima_data = data_pagamento + timedelta(days=365)
+            else:
+                proxima_data = data_pagamento + timedelta(days=30)
+            
+            financeiro.data_proxima_cobranca = proxima_data
             financeiro.save()
+            
+            logger.info(f"📅 Próxima cobrança: {proxima_data} ({tipo_assinatura}, +{'365' if tipo_assinatura == 'anual' else '30'} dias)")
+            
+            # Atualizar AsaasPayment local se existir
+            try:
+                from asaas_integration.models import AsaasPayment
+                ap = AsaasPayment.objects.filter(asaas_id=payment_id).first()
+                if ap:
+                    ap.status = payment_data.get('status', 'RECEIVED') if isinstance(payment_data, dict) else 'RECEIVED'
+                    ap.payment_date = timezone.now()
+                    ap.save(update_fields=['status', 'payment_date'])
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao atualizar AsaasPayment local: {e}")
+            
+            # Atualizar LojaAssinatura.data_vencimento
+            try:
+                from asaas_integration.models import LojaAssinatura
+                loja_assinatura = LojaAssinatura.objects.filter(loja_slug=loja.slug).first()
+                if loja_assinatura:
+                    loja_assinatura.data_vencimento = proxima_data
+                    loja_assinatura.save(update_fields=['data_vencimento'])
+                    logger.info(f"✅ LojaAssinatura.data_vencimento → {proxima_data}")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro ao atualizar LojaAssinatura: {e}")
             
             # Atualizar pagamento
             pagamento = PagamentoLoja.objects.filter(

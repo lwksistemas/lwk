@@ -169,7 +169,11 @@ class ISSNetClient:
     def _assinar_xml(self, xml_str: str) -> str:
         """
         Assina XML com certificado digital A1 usando python-xmlsec.
-        Mesma lib C (libxmlsec1) que o PHP usa internamente.
+
+        Dupla assinatura alinhada ao sped-nfse-issnet (PHP): primeiro o ``Rps``
+        externo (ListaRps/Rps) com Reference URI vazia e so transform enveloped;
+        depois ``EnviarLoteRpsEnvio`` com atributo Id e mesma politica de Reference.
+        A Signature fica dentro do no assinado (como no Signer do pacote ISSNET).
         """
         import xmlsec
 
@@ -191,44 +195,77 @@ class ISSNetClient:
         key = xmlsec.Key.from_memory(key_pem, xmlsec.constants.KeyDataFormatPem)
         key.load_cert_from_memory(cert_pem, xmlsec.constants.KeyDataFormatPem)
 
-        # --- Assinar LoteRps ---
-        lote_el = root.find('.//{%s}LoteRps' % NS_NFSE)
-        if lote_el is not None:
-            lote_id = lote_el.get('Id', '')
-            if not lote_id:
-                lote_id = 'lote1'
-                lote_el.set('Id', lote_id)
-
-            # Criar template de Signature dentro do LoteRps
-            sig_node = xmlsec.template.create(
-                lote_el,
-                xmlsec.constants.TransformInclC14N,
-                xmlsec.constants.TransformRsaSha1,
-            )
-            lote_el.append(sig_node)
-
-            # Adicionar Reference
-            ref = xmlsec.template.add_reference(
-                sig_node,
-                xmlsec.constants.TransformSha1,
-                uri=f'#{lote_id}',
-            )
-            xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
-            xmlsec.template.add_transform(ref, xmlsec.constants.TransformInclC14N)
-
-            # Adicionar KeyInfo com X509Data
+        def _append_x509_template(sig_node):
             key_info = xmlsec.template.ensure_key_info(sig_node)
             x509_data = xmlsec.template.add_x509_data(key_info)
             xmlsec.template.x509_data_add_certificate(x509_data)
 
-            # Registrar atributo Id (nao e xml:id) para resolucao da URI da Reference
+        def _template_sig_enveloped_only(parent_el, ref_uri):
+            """Monta Signature como ultimo filho de parent_el; Reference so com enveloped."""
+            sig_node = xmlsec.template.create(
+                parent_el,
+                xmlsec.constants.TransformInclC14N,
+                xmlsec.constants.TransformRsaSha1,
+            )
+            parent_el.append(sig_node)
+            ref = xmlsec.template.add_reference(
+                sig_node,
+                xmlsec.constants.TransformSha1,
+                uri=ref_uri,
+            )
+            xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
+            _append_x509_template(sig_node)
+            return sig_node
+
+        ns = NS_NFSE
+        root_local = etree.QName(root.tag).localname if root.tag else ''
+
+        # Cancelamento ABRASF: um unico Signer no elemento Pedido (Id), como no sped-nfse-issnet
+        if root_local == 'CancelarNfseEnvio':
+            pedido = root.find('{%s}Pedido' % ns)
+            if pedido is not None:
+                pedido_id = (pedido.get('Id') or '').strip() or 'Pedido1'
+                pedido.set('Id', pedido_id)
+                sig_ped = _template_sig_enveloped_only(pedido, f'#{pedido_id}')
+                ctx_c = xmlsec.SignatureContext()
+                ctx_c.key = key
+                ctx_c.register_id(pedido, 'Id', None)
+                ctx_c.sign(sig_ped)
+            result = etree.tostring(root, encoding='unicode')
+            logger.info('XML assinado com xmlsec (cancelamento Pedido)')
+            return result
+
+        lista = root.find('.//{%s}ListaRps' % ns)
+        outer_rps = lista.find('{%s}Rps' % ns) if lista is not None else None
+        lote_el = root.find('.//{%s}LoteRps' % ns)
+
+        if outer_rps is None:
+            logger.warning('Assinatura: ListaRps/Rps externo nao encontrado; XML nao assinado.')
+        else:
+            sig_rps = _template_sig_enveloped_only(outer_rps, '')
             ctx = xmlsec.SignatureContext()
             ctx.key = key
-            ctx.register_id(lote_el, 'Id', None)
-            ctx.sign(sig_node)
+            ctx.sign(sig_rps)
+
+        if root_local != 'EnviarLoteRpsEnvio':
+            logger.warning('Assinatura: raiz inesperada %s; pulando segunda assinatura.', root_local)
+        else:
+            num_lote = ''
+            if lote_el is not None:
+                num_lote = (lote_el.findtext('{%s}NumeroLote' % ns) or '').strip()
+            if not num_lote:
+                num_lote = '1'
+            envio_id = root.get('Id') or f'EnviarLoteRpsEnvio{num_lote}'
+            root.set('Id', envio_id)
+
+            sig_envio = _template_sig_enveloped_only(root, f'#{envio_id}')
+            ctx2 = xmlsec.SignatureContext()
+            ctx2.key = key
+            ctx2.register_id(root, 'Id', None)
+            ctx2.sign(sig_envio)
 
         result = etree.tostring(root, encoding='unicode')
-        logger.info('XML assinado com xmlsec (RSA-SHA1)')
+        logger.info('XML assinado com xmlsec (RSA-SHA1, dupla assinatura ISSNET)')
         return result
 
     # Metodo antigo mantido como referencia

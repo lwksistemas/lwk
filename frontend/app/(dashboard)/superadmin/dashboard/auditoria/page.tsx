@@ -82,6 +82,8 @@ export default function AuditoriaPage() {
         ok: boolean;
         erro?: string | null;
         schema_existe?: boolean | null;
+        tabelas_total?: number;
+        tabelas_negocio?: number;
         apps_detalhe?: Array<{ app: string; ok: boolean; tabelas_prefixo: number; migrations_registradas: number }>;
       };
       correcao?: { sucesso?: boolean; mensagem?: string } | null;

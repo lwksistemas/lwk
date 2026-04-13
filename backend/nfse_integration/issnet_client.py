@@ -5,9 +5,9 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
 - Operações: RecepcionarLoteRps (EnviarLoteRpsEnvio) + ConsultarLoteRps se vier só Protocolo.
-- Envelope SOAP: igual NFePHP ISSNET Common/Tools::envelopSOAP — nfse:Operacao, XML aninhado
-  em nfseCabecMsg/nfseDadosMsg (sem CDATA). Cabeçalho HTTP como Soap.php (application/soap+xml + SOAPAction).
-- Cada operação SOAP com mTLS.
+- WSDL: nfseCabecMsg e nfseDadosMsg sao ``xsd:string``. O ASMX costuma desserializar corretamente quando o
+  XML ABRASF vai como *texto* (entidades ``&lt;...&gt;``), CDATA, ou filhos — tentamos nessa ordem em Fault generico.
+- Envelope ``nfse:Operacao`` (namespace http://nfse.abrasf.org.br) + mTLS.
 """
 import logging
 import os
@@ -66,6 +66,34 @@ def _cdata_section(payload: str) -> str:
     return f'<![CDATA[{s}]]>'
 
 
+def _montar_soap_envelope_issnet_xsd_string(nome_operacao: str, dados_xml: str) -> str:
+    """
+    nfseCabecMsg / nfseDadosMsg como conteudo textual unico (entidades XML), alinhado ao tipo WSDL xsd:string.
+    Evita que o XmlSerializer do ASMX trate filhos XML como estrutura em vez de string.
+    """
+    dados = _strip_xml_declaration(dados_xml or '')
+    cabec_raw = (
+        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
+        '<versaoDados>2.04</versaoDados>'
+        '</cabecalho>'
+    )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+        'xmlns:nfse="http://nfse.abrasf.org.br">'
+        '<soap:Header/>'
+        '<soap:Body>'
+        f'<nfse:{nome_operacao}>'
+        f'<nfseCabecMsg>{_xml_escape(cabec_raw)}</nfseCabecMsg>'
+        f'<nfseDadosMsg>{_xml_escape(dados)}</nfseDadosMsg>'
+        f'</nfse:{nome_operacao}>'
+        '</soap:Body>'
+        '</soap:Envelope>'
+    )
+
+
 def _montar_soap_envelope_issnet(nome_operacao: str, dados_xml: str) -> str:
     """
     Espelha NFePHP NFSe\\ISSNET\\Common\\Tools::envelopSOAP: corpo SOAP 1.1 com
@@ -96,7 +124,7 @@ def _montar_soap_envelope_issnet(nome_operacao: str, dados_xml: str) -> str:
 
 
 def _montar_soap_envelope_issnet_cdata(nome_operacao: str, dados_xml: str) -> str:
-    """Alternativa: mensagens em CDATA (alguns ambientes ASMX tratam melhor como xsd:string)."""
+    """Mensagens em CDATA com nfse:Operacao (igual Tools::envelopSOAP)."""
     dados = _strip_xml_declaration(dados_xml or '')
     cabec_txt = (
         '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
@@ -107,13 +135,14 @@ def _montar_soap_envelope_issnet_cdata(nome_operacao: str, dados_xml: str) -> st
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
         'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+        'xmlns:nfse="http://nfse.abrasf.org.br">'
         '<soap:Header/>'
         '<soap:Body>'
-        f'<{nome_operacao} xmlns="{NS_NFSE_WSDL}">'
+        f'<nfse:{nome_operacao}>'
         f'<nfseCabecMsg>{_cdata_section(cabec_txt)}</nfseCabecMsg>'
         f'<nfseDadosMsg>{_cdata_section(dados)}</nfseDadosMsg>'
-        f'</{nome_operacao}>'
+        f'</nfse:{nome_operacao}>'
         '</soap:Body>'
         '</soap:Envelope>'
     )
@@ -695,10 +724,6 @@ class ISSNetClient:
 
             http_timeout = (8, 20)
 
-            # Mesma ordem do PHP: envelope aninhado (Tools::envelopSOAP) + Soap.php headers.
-            soap_primary = _montar_soap_envelope_issnet(nome_operacao, dados_xml)
-            soap_fallback_cdata = _montar_soap_envelope_issnet_cdata(nome_operacao, dados_xml)
-
             def _headers(content_type: str) -> dict:
                 return {
                     'Content-Type': content_type,
@@ -708,13 +733,23 @@ class ISSNetClient:
                     'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
                 }
 
-            headers_primary = _headers('application/soap+xml; charset=utf-8')
-            headers_fallback = _headers('text/xml; charset=utf-8')
-
-            logger.info(
-                'ISSNet SOAP %s (~%d bytes, nfse: op + XML aninhado, application/soap+xml) com mTLS',
-                nome_operacao,
-                len(soap_primary.encode('utf-8')),
+            # WSDL define nfse*Msg como xsd:string — ordem: texto escapado, XML aninhado (PHP), CDATA.
+            strategies = (
+                (
+                    _montar_soap_envelope_issnet_xsd_string(nome_operacao, dados_xml),
+                    _headers('text/xml; charset=utf-8'),
+                    'xsd:string (XML escapado) + text/xml',
+                ),
+                (
+                    _montar_soap_envelope_issnet(nome_operacao, dados_xml),
+                    _headers('application/soap+xml; charset=utf-8'),
+                    'XML aninhado + application/soap+xml (PHP)',
+                ),
+                (
+                    _montar_soap_envelope_issnet_cdata(nome_operacao, dados_xml),
+                    _headers('text/xml; charset=utf-8'),
+                    'CDATA + text/xml',
+                ),
             )
 
             def _do_post(soap_body: str, hdrs: dict):
@@ -726,67 +761,57 @@ class ISSNetClient:
                     cert=(cert_path, key_path),
                 )
 
-            soap = soap_primary
-            headers = headers_primary
-            try:
-                r = _do_post(soap, headers)
-            except (
-                req.exceptions.ConnectionError,
-                req.exceptions.ChunkedEncodingError,
-                req.exceptions.ReadTimeout,
-            ) as e:
-                logger.warning('ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s', e)
-                time.sleep(1.5)
-                r = _do_post(soap, headers)
-
-            logger.info(
-                'Resposta ISSNet HTTP %s, preview: %s',
-                r.status_code,
-                (r.text or '')[:500],
-            )
-            if r.status_code >= 400 or 'Fault' in (r.text or ''):
-                logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
-
-            if r.status_code in (502, 503, 504) and not _issnet_corpo_parece_xml(r.text or ''):
-                logger.warning(
-                    'ISSNet HTTP %s sem XML; repetindo POST uma vez apos 2s',
-                    r.status_code,
-                )
-                time.sleep(2.0)
-                r = _do_post(soap, headers)
+            r = None
+            for strat_idx, (soap_try, headers_try, label) in enumerate(strategies):
                 logger.info(
-                    'Resposta ISSNet HTTP %s (apos retry), preview: %s',
-                    r.status_code,
-                    (r.text or '')[:500],
+                    'ISSNet SOAP %s (~%d bytes, %s) com mTLS',
+                    nome_operacao,
+                    len(soap_try.encode('utf-8')),
+                    label,
                 )
-
-            # Fault generico ASMX: segunda tentativa com CDATA + text/xml (variacao aceita por alguns endpoints).
-            if _issnet_corpo_parece_xml(r.text or '') and _issnet_fault_soap_generico(r.text or ''):
-                logger.warning(
-                    'ISSNet retornou Fault generico; repetindo com CDATA + text/xml (~%d bytes)',
-                    len(soap_fallback_cdata.encode('utf-8')),
-                )
-                soap = soap_fallback_cdata
-                headers = headers_fallback
                 try:
-                    r = _do_post(soap, headers)
+                    r = _do_post(soap_try, headers_try)
                 except (
                     req.exceptions.ConnectionError,
                     req.exceptions.ChunkedEncodingError,
                     req.exceptions.ReadTimeout,
                 ) as e:
-                    logger.warning('ISSNet SOAP POST (fallback): %s', e)
+                    logger.warning('ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s', e)
                     time.sleep(1.5)
-                    r = _do_post(soap, headers)
+                    r = _do_post(soap_try, headers_try)
+
                 logger.info(
-                    'Resposta ISSNet HTTP %s (fallback), preview: %s',
+                    'Resposta ISSNet HTTP %s, preview: %s',
                     r.status_code,
                     (r.text or '')[:500],
                 )
                 if r.status_code >= 400 or 'Fault' in (r.text or ''):
-                    logger.error(
-                        'ISSNet resposta fallback (ate 8000 chars): %s', (r.text or '')[:8000]
+                    logger.error('ISSNet resposta (ate 8000 chars): %s', (r.text or '')[:8000])
+
+                if r.status_code in (502, 503, 504) and not _issnet_corpo_parece_xml(r.text or ''):
+                    logger.warning(
+                        'ISSNet HTTP %s sem XML; repetindo POST uma vez apos 2s',
+                        r.status_code,
                     )
+                    time.sleep(2.0)
+                    r = _do_post(soap_try, headers_try)
+                    logger.info(
+                        'Resposta ISSNet HTTP %s (apos retry), preview: %s',
+                        r.status_code,
+                        (r.text or '')[:500],
+                    )
+
+                if not (
+                    _issnet_corpo_parece_xml(r.text or '')
+                    and _issnet_fault_soap_generico(r.text or '')
+                ):
+                    break
+                if strat_idx >= len(strategies) - 1:
+                    break
+                logger.warning(
+                    'ISSNet Fault generico com estrategia %r; tentando formato alternativo',
+                    label,
+                )
 
             if not _issnet_corpo_parece_xml(r.text or ''):
                 msg = _issnet_decodificar_corpo(r).strip() or '(resposta vazia)'

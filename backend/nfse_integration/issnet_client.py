@@ -484,10 +484,10 @@ class ISSNetClient:
             'xmlns:nfse="http://nfse.abrasf.org.br">'
             '<soap:Header/>'
             '<soap:Body>'
-            '<nfse:RecepcionarLoteRps>'
+            '<nfse:RecepcionarLoteRpsSincrono>'
             '<nfseCabecMsg>' + cabec + '</nfseCabecMsg>'
             '<nfseDadosMsg>' + xml_dados + '</nfseDadosMsg>'
-            '</nfse:RecepcionarLoteRps>'
+            '</nfse:RecepcionarLoteRpsSincrono>'
             '</soap:Body>'
             '</soap:Envelope>'
         )
@@ -495,7 +495,7 @@ class ISSNetClient:
         # conexao HTTPS com certificado cliente (CURLOPT_SSLCERT / SSLKEY).
         headers = {
             'Content-Type': 'application/soap+xml; charset=utf-8',
-            'SOAPAction': '"RecepcionarLoteRps"',
+            'SOAPAction': '"http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono"',
         }
 
         cert_path = None

@@ -1947,6 +1947,81 @@ Equipe LWK Sistemas
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+    @action(detail=True, methods=['post'])
+    def cancelar_nota_fiscal(self, request, pk=None):
+        """
+        Cancela a nota fiscal mais recente da loja no Asaas.
+        """
+        from asaas_integration.models import AsaasConfig
+        from asaas_integration.client import AsaasClient
+
+        try:
+            financeiro = self.get_object()
+            loja = financeiro.loja
+
+            if not financeiro.asaas_payment_id:
+                return Response({
+                    'success': False,
+                    'error': 'Nenhum pagamento Asaas encontrado para esta loja'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            config = AsaasConfig.get_config()
+            if not config or not config.api_key:
+                return Response({
+                    'success': False,
+                    'error': 'Asaas não configurado'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
+
+            response = client._make_request('GET', 'invoices', {'payment': financeiro.asaas_payment_id})
+            invoices = response.get('data', [])
+
+            if not invoices:
+                return Response({
+                    'success': False,
+                    'error': 'Nenhuma nota fiscal encontrada para este pagamento'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Pegar a nota mais recente autorizada
+            invoice = None
+            for inv in invoices:
+                if inv.get('status') in ('AUTHORIZED', 'SCHEDULED'):
+                    invoice = inv
+                    break
+
+            if not invoice:
+                invoice = invoices[0]
+
+            invoice_id = invoice.get('id')
+            status_nf = invoice.get('status')
+
+            if status_nf == 'CANCELED':
+                return Response({
+                    'success': False,
+                    'error': 'Nota fiscal já está cancelada'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            logger.info(f"Cancelando nota fiscal {invoice_id} (status: {status_nf}) para loja {loja.nome}")
+
+            result = client.cancel_invoice(invoice_id)
+
+            logger.info(f"✅ Nota fiscal {invoice_id} cancelada para loja {loja.nome}")
+
+            return Response({
+                'success': True,
+                'message': f'Nota fiscal {invoice_id} cancelada com sucesso',
+                'invoice_id': invoice_id
+            })
+
+        except Exception as e:
+            logger.exception(f"Erro ao cancelar nota fiscal: {e}")
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class PagamentoLojaViewSet(viewsets.ModelViewSet):
     serializer_class = PagamentoLojaSerializer
     permission_classes = [IsSuperAdmin]

@@ -24,6 +24,18 @@ export interface Pagamento {
   provedor?: 'asaas' | 'mercadopago';
 }
 
+export interface HistoricoPagamento {
+  id: number;
+  asaas_id: string;
+  value: string;
+  status: string;
+  status_display: string;
+  due_date: string | null;
+  payment_date: string | null;
+  is_paid: boolean;
+  bank_slip_url: string;
+}
+
 export interface Assinatura {
   id: number | string;
   loja_slug: string;
@@ -37,6 +49,7 @@ export interface Assinatura {
   financeiro_id?: number;  // ✅ NOVO v1489: ID do FinanceiroLoja para endpoints de NF
   subscription_status?: string;
   subscription_status_display?: string;
+  payment_history?: HistoricoPagamento[];
 }
 
 export function useAssinaturas() {

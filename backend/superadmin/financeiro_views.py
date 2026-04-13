@@ -681,13 +681,32 @@ def _financeiro_unificado_stats():
 
 def _assinaturas_unificado():
     """Lista unificada de assinaturas (Asaas + Mercado Pago) no formato esperado pelo frontend."""
-    from asaas_integration.models import LojaAssinatura
+    from asaas_integration.models import LojaAssinatura, AsaasPayment
     from asaas_integration.serializers import LojaAssinaturaSerializer
 
     out = []
     # Asaas
     for a in LojaAssinatura.objects.all().select_related('asaas_customer', 'current_payment').order_by('-created_at'):
-        out.append(LojaAssinaturaSerializer(a).data)
+        data = LojaAssinaturaSerializer(a).data
+        # Adicionar histórico de pagamentos
+        payments = AsaasPayment.objects.filter(
+            external_reference__contains=f"loja_{a.loja_slug}"
+        ).order_by('-due_date')[:20]
+        data['payment_history'] = [
+            {
+                'id': p.id,
+                'asaas_id': p.asaas_id,
+                'value': str(p.value),
+                'status': p.status,
+                'status_display': p.get_status_display(),
+                'due_date': p.due_date.strftime('%Y-%m-%d') if p.due_date else None,
+                'payment_date': p.payment_date.strftime('%Y-%m-%d') if p.payment_date else None,
+                'is_paid': p.is_paid,
+                'bank_slip_url': p.bank_slip_url or '',
+            }
+            for p in payments
+        ]
+        out.append(data)
     # Mercado Pago (FinanceiroLoja com boleto)
     for f in FinanceiroLoja.objects.filter(
         provedor_boleto='mercadopago'
@@ -736,6 +755,7 @@ def _assinaturas_unificado():
             'subscription_status_display': subscription_status_display,  # ✅ NOVO v730
             'data_vencimento': data_venc,
             'total_payments': 1,
+            'financeiro_id': f.id,
             'current_payment_data': {
                 'id': payment_pk,
                 'asaas_id': f.mercadopago_payment_id,
@@ -752,6 +772,20 @@ def _assinaturas_unificado():
                 'is_pending': not is_pago,
                 'is_overdue': False,
             },
+            'payment_history': [
+                {
+                    'id': p.id,
+                    'asaas_id': p.mercadopago_payment_id or p.asaas_payment_id or '',
+                    'value': str(p.valor),
+                    'status': 'RECEIVED' if p.status == 'pago' else 'PENDING' if p.status == 'pendente' else 'OVERDUE',
+                    'status_display': p.get_status_display(),
+                    'due_date': p.data_vencimento.strftime('%Y-%m-%d') if p.data_vencimento else None,
+                    'payment_date': p.data_pagamento.strftime('%Y-%m-%d') if p.data_pagamento else None,
+                    'is_paid': p.status == 'pago',
+                    'bank_slip_url': p.boleto_url or '',
+                }
+                for p in PagamentoLoja.objects.filter(loja=loja, financeiro=f).order_by('-data_vencimento')[:20]
+            ],
         })
     return out
 

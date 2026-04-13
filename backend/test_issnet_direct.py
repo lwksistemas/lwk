@@ -27,7 +27,7 @@ xml_nfse = (
     '<Serie>1</Serie>'
     '<Tipo>1</Tipo>'
     '</IdentificacaoRps>'
-    '<DataEmissao>2026-04-12T18:00:00</DataEmissao>'
+    '<DataEmissao>2026-04-12</DataEmissao>'
     '<Status>1</Status>'
     '</Rps>'
     '<Competencia>2026-04-12</Competencia>'

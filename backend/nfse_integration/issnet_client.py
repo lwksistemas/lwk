@@ -530,9 +530,8 @@ class ISSNetClient:
         etree.SubElement(id_rps, '{%s}Numero' % ns).text = str(numero_rps)
         etree.SubElement(id_rps, '{%s}Serie' % ns).text = serie_rps
         etree.SubElement(id_rps, '{%s}Tipo' % ns).text = str(tipo_rps)
-        etree.SubElement(rps_inner, '{%s}DataEmissao' % ns).text = (
-            data_emissao.strftime('%Y-%m-%dT%H:%M:%S')
-        )
+        # ABRASF tcInfRps: DataEmissao e xsd:date (AAAA-MM-DD), nao dateTime.
+        etree.SubElement(rps_inner, '{%s}DataEmissao' % ns).text = data_emissao.strftime('%Y-%m-%d')
         etree.SubElement(rps_inner, '{%s}Status' % ns).text = '1'
 
         # --- Competencia ---

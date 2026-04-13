@@ -21,6 +21,8 @@ from lxml import etree
 logger = logging.getLogger(__name__)
 
 NS_NFSE = 'http://www.abrasf.org.br/nfse.xsd'
+# Namespace do WSDL / mensagens SOAP (parametros da operacao).
+NS_NFSE_WSDL = 'http://nfse.abrasf.org.br'
 COD_MUNICIPIO_RP = '3543402'
 
 ISSNET_RP_NFSE_ASMX = (
@@ -54,6 +56,28 @@ def _soap_xsd_string_payload(payload: str) -> str:
     ASMX/.NET (equivalente ao que clientes SOAP costumam serializar).
     """
     return _xml_escape(payload or '', {'"': '&quot;', "'": '&apos;'})
+
+
+def _soap_envelope_recepcionar_lote_rps_sincrono(cabec: str, xml_dados: str) -> str:
+    """
+    Monta o SOAP 1.1. Os filhos nfseCabecMsg / nfseDadosMsg devem estar no mesmo
+    namespace da operacao (http://nfse.abrasf.org.br); com prefixo so no pai,
+    eles ficam sem namespace e o ASMX costuma responder Fault generico s:Client.
+    """
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
+        '<soap:Header/>'
+        '<soap:Body>'
+        f'<RecepcionarLoteRpsSincrono xmlns="{NS_NFSE_WSDL}">'
+        '<nfseCabecMsg>' + _soap_xsd_string_payload(cabec) + '</nfseCabecMsg>'
+        '<nfseDadosMsg>' + _soap_xsd_string_payload(xml_dados) + '</nfseDadosMsg>'
+        '</RecepcionarLoteRpsSincrono>'
+        '</soap:Body>'
+        '</soap:Envelope>'
+    )
 
 
 def _issnet_corpo_parece_xml(texto: str) -> bool:
@@ -327,6 +351,7 @@ class ISSNetClient:
         serie_rps: str,
         tipo_rps: int,
         data_emissao: datetime,
+        codigo_cnae: Optional[str] = None,
     ) -> str:
         """
         Constroi XML EnviarLoteRpsSincronoEnvio no padrao ABRASF 2.04 (ISSNet RP).
@@ -386,10 +411,16 @@ class ISSNetClient:
         # --- Servico ---
         servico = etree.SubElement(inf, '{%s}Servico' % ns)
 
-        # Valores (ordem conforme schema ISSNet)
+        # Valores: sequencia alinhada ao manual ISSNet/ABRASF 2.04 (retencoes federais antes de ValorIss).
         valores = etree.SubElement(servico, '{%s}Valores' % ns)
         etree.SubElement(valores, '{%s}ValorServicos' % ns).text = f'{valor:.2f}'
         etree.SubElement(valores, '{%s}ValorDeducoes' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}ValorPis' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}ValorCofins' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}ValorInss' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}ValorIr' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}ValorCsll' % ns).text = '0.00'
+        etree.SubElement(valores, '{%s}OutrasRetencoes' % ns).text = '0.00'
         etree.SubElement(valores, '{%s}ValorIss' % ns).text = f'{valor_iss:.2f}'
         etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.2f}'
         etree.SubElement(valores, '{%s}DescontoIncondicionado' % ns).text = '0.00'
@@ -398,6 +429,9 @@ class ISSNetClient:
         etree.SubElement(servico, '{%s}IssRetido' % ns).text = '2'
         item_lista = servico_codigo or ''
         etree.SubElement(servico, '{%s}ItemListaServico' % ns).text = item_lista
+        cnae_digits = _somente_digitos(codigo_cnae or '')
+        if cnae_digits:
+            etree.SubElement(servico, '{%s}CodigoCnae' % ns).text = cnae_digits
         etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = item_lista
         etree.SubElement(servico, '{%s}Discriminacao' % ns).text = servico_descricao
         etree.SubElement(servico, '{%s}CodigoMunicipio' % ns).text = COD_MUNICIPIO_RP
@@ -451,7 +485,11 @@ class ISSNetClient:
 
         # Sem pretty_print: evita espaços extras no XML assinado (C14N / validação).
         xml_str = etree.tostring(root, encoding='unicode', pretty_print=False)
-        logger.info('XML EnviarLoteRps construido: RPS %s, Valor R$ %s', numero_rps, valor)
+        logger.info(
+            'XML EnviarLoteRpsSincronoEnvio construido: RPS %s, Valor R$ %s',
+            numero_rps,
+            valor,
+        )
         return xml_str
 
     # ------------------------------------------------------------------
@@ -473,6 +511,7 @@ class ISSNetClient:
         serie_rps: str = 'E',
         tipo_rps: int = 1,
         data_emissao: Optional[datetime] = None,
+        codigo_cnae: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Emite NFS-e via RecepcionarLoteRpsSincrono (1 RPS)."""
         try:
@@ -493,6 +532,7 @@ class ISSNetClient:
                 serie_rps=serie_rps,
                 tipo_rps=tipo_rps,
                 data_emissao=data_emissao,
+                codigo_cnae=codigo_cnae,
             )
 
             # Assinar XML (dupla: Rps + EnviarLoteRpsSincronoEnvio) e enviar
@@ -515,21 +555,7 @@ class ISSNetClient:
         import requests as req
 
         cabec = CABEC_MSG
-        soap = (
-            '<?xml version="1.0" encoding="utf-8"?>'
-            '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-            'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-            'xmlns:nfse="http://nfse.abrasf.org.br">'
-            '<soap:Header/>'
-            '<soap:Body>'
-            '<nfse:RecepcionarLoteRpsSincrono>'
-            '<nfseCabecMsg>' + _soap_xsd_string_payload(cabec) + '</nfseCabecMsg>'
-            '<nfseDadosMsg>' + _soap_xsd_string_payload(xml_dados) + '</nfseDadosMsg>'
-            '</nfse:RecepcionarLoteRpsSincrono>'
-            '</soap:Body>'
-            '</soap:Envelope>'
-        )
+        soap = _soap_envelope_recepcionar_lote_rps_sincrono(cabec, xml_dados)
         # WSDL (nfseSOAP): soap:binding transport = http://schemas.xmlsoap.org/soap/http → SOAP 1.1.
         # ASMX/.NET espera Content-Type text/xml; application/soap+xml é SOAP 1.2 e costuma gerar Fault genérico.
         # SOAPAction deve coincidir com soap:operation no WSDL (URI entre aspas, HTTP/1.1).

@@ -449,6 +449,7 @@ class NFSeService:
                 aliquota_iss=self.config.aliquota_iss,
                 numero_rps=numero_rps,
                 serie_rps=serie_rps,
+                codigo_cnae=(getattr(self.config, 'codigo_cnae', None) or '').strip() or None,
             )
             
             # Se sucesso, salvar no banco e enviar email

@@ -312,7 +312,13 @@ export default function AuditoriaPage() {
                                 )}
                               </td>
                               <td className="p-2 text-gray-700 dark:text-gray-300 break-words max-w-md">
-                                {err || (row.ok_final ? '—' : 'Ver apps esperados')}
+                                {a.tabelas_total > 0 && (
+                                  <span className="text-blue-600 dark:text-blue-400 mr-2">
+                                    {a.tabelas_total} tabelas ({a.tabelas_negocio} negócio)
+                                  </span>
+                                )}
+                                {err && <span className="text-red-500">{err}</span>}
+                                {!err && a.tabelas_total === 0 && (row.ok_final ? '—' : 'Ver apps esperados')}
                               </td>
                             </tr>
                           );

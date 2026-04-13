@@ -50,9 +50,10 @@ class OportunidadeService:
         Cria uma oportunidade aplicando regras de negócio.
         
         Regras de atribuição de vendedor (em ordem de prioridade):
-        1. Usar vendedor logado (VendedorUsuario)
+        1. Usar vendedor logado (VendedorUsuario) — se existir no tenant
         2. Herdar vendedor do lead
-        3. Criar sem vendedor (com warning)
+        3. Usar vendedor admin padrão da loja
+        4. Criar sem vendedor (com warning)
         
         Args:
             validated_data: Dados validados do serializer
@@ -60,15 +61,22 @@ class OportunidadeService:
         Returns:
             Oportunidade: Instância criada
         """
-        # Regra 1: Vendedor logado (VendedorUsuario) tem prioridade
+        from .models import Vendedor
+        
+        # Regra 1: Vendedor logado (VendedorUsuario) tem prioridade — validar que existe no tenant
         if self.vendedor_id and not _oportunidade_tem_vendedor(validated_data):
-            validated_data['vendedor_id'] = self.vendedor_id
-            validated_data.pop('vendedor', None)
-            logger.info(
-                f'Oportunidade criada com vendedor logado: '
-                f'vendedor_id={self.vendedor_id}, user_id={self.user_id}'
-            )
-            return Oportunidade.objects.create(**validated_data)
+            if Vendedor.objects.filter(id=self.vendedor_id).exists():
+                validated_data['vendedor_id'] = self.vendedor_id
+                validated_data.pop('vendedor', None)
+                logger.info(
+                    f'Oportunidade criada com vendedor logado: '
+                    f'vendedor_id={self.vendedor_id}, user_id={self.user_id}'
+                )
+                return Oportunidade.objects.create(**validated_data)
+            else:
+                logger.warning(
+                    f'Vendedor logado vendedor_id={self.vendedor_id} não existe no tenant, ignorando'
+                )
 
         # Regra 2: Herdar vendedor do lead
         lead = validated_data.get('lead')

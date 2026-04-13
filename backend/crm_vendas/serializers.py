@@ -397,20 +397,41 @@ class ContatoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 
 
 class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
-    lead_nome = serializers.CharField(source='lead.nome', read_only=True)
+    lead_nome = serializers.SerializerMethodField()
     vendedor_nome = serializers.CharField(source='vendedor.nome', read_only=True)
+    conta_nome = serializers.SerializerMethodField()
 
     uppercase_fields = ['titulo']
 
     class Meta:
         model = Oportunidade
         fields = [
-            'id', 'titulo', 'lead', 'lead_nome', 'valor', 'etapa', 'vendedor', 'vendedor_nome',
+            'id', 'titulo', 'lead', 'lead_nome', 'conta_nome', 'valor', 'etapa', 'vendedor', 'vendedor_nome',
             'probabilidade', 'data_fechamento_prevista', 'data_fechamento',
             'data_fechamento_ganho', 'data_fechamento_perdido', 'valor_comissao',
             'observacoes', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    def get_lead_nome(self, obj):
+        """Retorna nome da empresa (Conta) se vinculada, senão nome do lead."""
+        if obj.lead:
+            if obj.lead.conta_id:
+                try:
+                    return obj.lead.conta.nome
+                except Exception:
+                    pass
+            return obj.lead.nome
+        return ''
+
+    def get_conta_nome(self, obj):
+        """Retorna nome da empresa (Conta) se vinculada ao lead."""
+        if obj.lead and obj.lead.conta_id:
+            try:
+                return obj.lead.conta.nome
+            except Exception:
+                pass
+        return None
 
 
 class AtividadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):

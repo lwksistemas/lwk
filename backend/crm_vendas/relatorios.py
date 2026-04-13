@@ -19,6 +19,22 @@ from PIL import Image as PILImage
 from .models import Oportunidade, Vendedor
 from .utils import get_vendedor_destino_merge_loja
 
+
+def _nome_cliente_venda(venda):
+    """
+    Retorna o nome do cliente para exibição em relatórios.
+    Prioridade: nome da empresa (Conta) > nome do lead > título da oportunidade.
+    """
+    if venda.lead:
+        # Se tem Conta (empresa) vinculada, usar nome da empresa
+        if venda.lead.conta_id:
+            try:
+                return venda.lead.conta.nome
+            except Exception:
+                pass
+        return venda.lead.nome
+    return venda.titulo
+
 logger = logging.getLogger(__name__)
 
 
@@ -290,7 +306,7 @@ def _adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportuni
     for venda in oportunidades_qs:
         data_venda = venda.data_fechamento_ganho or venda.data_fechamento
         data_str = data_venda.strftime('%d/%m/%Y') if data_venda else '-'
-        cliente = venda.lead.nome if venda.lead else venda.titulo
+        cliente = _nome_cliente_venda(venda)
         valor = float(venda.valor or 0)
         comissao_venda = float(venda.valor_comissao or 0)
 
@@ -351,7 +367,7 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str) -> BytesIO:
     oportunidades = Oportunidade.objects.filter(
         loja_id=loja_id,
         etapa='closed_won',
-    ).filter(_filtro_datas_fechamento_ganho(data_inicio, data_fim)).select_related('vendedor', 'lead')
+    ).filter(_filtro_datas_fechamento_ganho(data_inicio, data_fim)).select_related('vendedor', 'lead', 'lead__conta')
     
     # Calcular totais
     totais = oportunidades.aggregate(
@@ -458,7 +474,7 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
     base = (
         Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won')
         .filter(_filtro_datas_fechamento_ganho(data_inicio, data_fim))
-        .select_related('vendedor', 'lead')
+        .select_related('vendedor', 'lead', 'lead__conta')
     )
 
     titulo = 'Relatório de Vendas por Vendedor'

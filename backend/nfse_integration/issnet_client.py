@@ -467,7 +467,7 @@ class ISSNetClient:
     # Enviar via requests direto (formato exato da lib PHP)
     # ------------------------------------------------------------------
     def _enviar_soap_direto(self, xml_dados: str) -> Dict[str, Any]:
-        """Envia XML via SOAP direto (sem zeep) com formato da lib PHP (mTLS + soap+xml)."""
+        """Envia XML via SOAP 1.1 direto (sem zeep), mTLS + text/xml conforme WSDL ASMX."""
         import os
         import tempfile
 
@@ -493,11 +493,11 @@ class ISSNetClient:
             '</soap:Body>'
             '</soap:Envelope>'
         )
-        # sped-nfse-issnet Soap.php: Content-Type application/soap+xml;
-        # SOAPAction = $soapAction (URL completa), ver Tools::enviaRPS + Soap::send headers.
-        # ASMX costuma exigir o mesmo URI no SOAPAction que no WSDL (namespace + metodo).
+        # WSDL (nfseSOAP): soap:binding transport = http://schemas.xmlsoap.org/soap/http → SOAP 1.1.
+        # ASMX/.NET espera Content-Type text/xml; application/soap+xml é SOAP 1.2 e costuma gerar Fault genérico.
+        # SOAPAction deve coincidir com soap:operation no WSDL (URI entre aspas, HTTP/1.1).
         headers = {
-            'Content-Type': 'application/soap+xml; charset=utf-8',
+            'Content-Type': 'text/xml; charset=utf-8',
             'SOAPAction': f'"{SOAP_ACTION_RECEPCIONAR_LOTE_RPS}"',
         }
 

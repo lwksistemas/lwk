@@ -156,8 +156,17 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
                 "ALTER TABLE crm_vendas_config "
                 "ADD COLUMN IF NOT EXISTS issnet_certificado bytea;"
             )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS issnet_ambiente_homologacao boolean NOT NULL DEFAULT false;"
+        )
         # Registrar migrations como aplicadas
-        for mig_name in ['0045_add_asaas_loja_nf_fields', '0046_add_portal_emissor_fields', '0047_certificado_binary']:
+        for mig_name in [
+            '0045_add_asaas_loja_nf_fields',
+            '0046_add_portal_emissor_fields',
+            '0047_certificado_binary',
+            '0049_crmconfig_issnet_ambiente_homologacao',
+        ]:
             cursor.execute(
                 "INSERT INTO django_migrations (app, name, applied) "
                 "SELECT %s, %s, %s "

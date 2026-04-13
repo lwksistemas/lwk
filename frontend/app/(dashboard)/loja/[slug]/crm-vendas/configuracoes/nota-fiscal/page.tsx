@@ -40,6 +40,7 @@ export default function ConfiguracaoNotaFiscalPage() {
     issnet_serie_rps: '',
     issnet_ultimo_rps_conhecido: '',
     issnet_numero_lote: '',
+    issnet_ambiente_homologacao: false,
     emitir_nf_automaticamente: true,
   });
   
@@ -48,7 +49,6 @@ export default function ConfiguracaoNotaFiscalPage() {
   const [asaasTestMessage, setAsaasTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(
     null
   );
-  const [issnetHomologacao, setIssnetHomologacao] = useState(false);
   const [issnetTestLoading, setIssnetTestLoading] = useState(false);
   const [issnetTestMessage, setIssnetTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(
     null
@@ -82,6 +82,7 @@ export default function ConfiguracaoNotaFiscalPage() {
           config.issnet_numero_lote != null && config.issnet_numero_lote !== undefined
             ? String(config.issnet_numero_lote)
             : '',
+        issnet_ambiente_homologacao: config.issnet_ambiente_homologacao ?? false,
         emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
       });
     }
@@ -185,7 +186,7 @@ export default function ConfiguracaoNotaFiscalPage() {
     setIssnetTestMessage(null);
     try {
       const fd = new FormData();
-      fd.append('homologacao', issnetHomologacao ? 'true' : 'false');
+      fd.append('homologacao', formData.issnet_ambiente_homologacao ? 'true' : 'false');
       fd.append('issnet_usuario', formData.issnet_usuario.trim());
       if (formData.issnet_senha) fd.append('issnet_senha', formData.issnet_senha);
       if (formData.issnet_senha_certificado) {
@@ -469,19 +470,22 @@ export default function ConfiguracaoNotaFiscalPage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={issnetHomologacao}
-                    onChange={(e) => setIssnetHomologacao(e.target.checked)}
+                    checked={formData.issnet_ambiente_homologacao}
+                    onChange={(e) =>
+                      setFormData({ ...formData, issnet_ambiente_homologacao: e.target.checked })
+                    }
                     className="w-4 h-4"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Mensagem para cenário de homologação / testes
+                    Homologação / teste (ISSNet)
                   </span>
                 </label>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-7">
-                  O ISS Digital de Ribeirão Preto não publica um hostname separado só para homologação deste
-                  webservice (o endereço antigo não resolve no DNS). O teste de conexão usa o mesmo WSDL de
-                  produção para validar certificado e rede. Credenciais de teste, se existirem, vêm da
-                  prefeitura ou{' '}
+                  Opção salva no CRM: emissão e teste de conexão usam o flag de ambiente homologação. Para
+                  Ribeirão Preto (ABRASF 2.04) o WSDL é o mesmo da produção — não existe outro hostname
+                  público verificado para este contrato. Isso não substitui a liberação municipal (ex. E138):
+                  estar logado no portal também não autentica o servidor. Credenciais ou ambiente de testes,
+                  se existirem, vêm da prefeitura ou{' '}
                   <a
                     href="https://www.ribeiraopreto.sp.gov.br/portal/fazenda/iss-digital"
                     target="_blank"
@@ -490,7 +494,7 @@ export default function ConfiguracaoNotaFiscalPage() {
                   >
                     ISS Digital
                   </a>
-                  / Nota Control.
+                  .
                 </p>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <button

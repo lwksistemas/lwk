@@ -362,6 +362,12 @@ class NFSeService:
                 'error': str(e),
             }
     
+    def _issnet_ambiente_str(self) -> str:
+        """producao | homologacao (RP usa o mesmo WSDL; ver issnet_client.ISSNET_URLS)."""
+        if getattr(self.config, 'issnet_ambiente_homologacao', False):
+            return 'homologacao'
+        return 'producao'
+
     def _emitir_via_issnet(
         self,
         tomador_cpf_cnpj: str,
@@ -420,12 +426,15 @@ class NFSeService:
             cert_tmp.close()
             cert_path = cert_tmp.name
 
+            amb_iss = self._issnet_ambiente_str()
+            if amb_iss == 'homologacao':
+                logger.info('ISSNet emissao com flag homologacao (mesmo endpoint WSDL em RP se nao houver URL alternativa).')
             client = ISSNetClient(
                 usuario=self.config.issnet_usuario,
                 senha=self.config.issnet_senha,
                 certificado_path=cert_path,
                 senha_certificado=self.config.issnet_senha_certificado,
-                ambiente='producao'
+                ambiente=amb_iss,
             )
             client._numero_lote_config = int(
                 getattr(self.config, 'issnet_numero_lote', 0) or 0
@@ -687,6 +696,7 @@ Atenciosamente,
                         senha=self.config.issnet_senha,
                         certificado_path=cert_path,
                         senha_certificado=self.config.issnet_senha_certificado,
+                        ambiente=self._issnet_ambiente_str(),
                     )
                     return client.consultar_nfse(numero_nf)
                 finally:
@@ -731,6 +741,7 @@ Atenciosamente,
                         senha=self.config.issnet_senha,
                         certificado_path=cert_path,
                         senha_certificado=self.config.issnet_senha_certificado,
+                        ambiente=self._issnet_ambiente_str(),
                     )
                     resultado = client.cancelar_nfse(numero_nf, motivo)
                     if resultado.get('success'):

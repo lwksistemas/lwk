@@ -109,7 +109,15 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         verbose_name='Senha do Certificado',
         help_text='Senha do arquivo .pfx do certificado digital'
     )
-    
+    issnet_ambiente_homologacao = models.BooleanField(
+        default=False,
+        verbose_name='ISSNet homologação (teste)',
+        help_text=(
+            'Se True, o cliente usa o ambiente “homologação” (em RP o WSDL é o mesmo da produção; '
+            'não substitui liberação municipal nem evita E138). Use se a prefeitura orientar.'
+        ),
+    )
+
     # Informações do Portal Emissor (Asaas / Prefeitura)
     inscricao_municipal = models.CharField(
         max_length=20,

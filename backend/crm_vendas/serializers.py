@@ -564,7 +564,13 @@ class CRMConfigSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         if hasattr(data, 'copy'):
             data = data.copy()
-        bool_fields = ['asaas_sandbox', 'optante_simples_nacional', 'incentivador_cultural', 'emitir_nf_automaticamente']
+        bool_fields = [
+            'asaas_sandbox',
+            'optante_simples_nacional',
+            'incentivador_cultural',
+            'emitir_nf_automaticamente',
+            'issnet_ambiente_homologacao',
+        ]
         for field in bool_fields:
             if hasattr(data, 'get') and data.get(field) is not None:
                 v = data.get(field)
@@ -597,6 +603,7 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             'optante_simples_nacional', 'regime_especial_tributacao',
             'incentivador_cultural', 'item_lista_servico', 'codigo_nbs',
             'issnet_serie_rps', 'issnet_ultimo_rps_conhecido', 'issnet_numero_lote',
+            'issnet_ambiente_homologacao',
             'codigo_servico_municipal', 'descricao_servico_padrao',
             'aliquota_iss', 'emitir_nf_automaticamente',
             'asaas_api_key', 'asaas_sandbox', 'asaas_api_key_configured',

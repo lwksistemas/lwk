@@ -31,7 +31,10 @@ COD_MUNICIPIO_RP = '3543402'
 ISSNET_RP_NFSE_ASMX = (
     'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
 )
-# SOAPAction = URI completa do soap:operation no WSDL (document/literal).
+# Ribeirao Preto ABRASF 2.04: nao ha URL publica alternativa de homologacao para este contrato
+# (URLs legadas tipo homologaabrasf/webservicenfse204 retornam 404). O homolog generico ISSNet
+# (servicos.asmx) e outro layout SOAP e nao serve a este cliente.
+# O flag ``homologacao`` no CRM usa o mesmo endpoint ate a prefeitura informar outro.
 SOAP_ACTION_RECEPCIONAR_LOTE_RPS = 'http://nfse.abrasf.org.br/RecepcionarLoteRps'
 SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO = (
     'http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono'
@@ -304,6 +307,11 @@ def testar_conexao_issnet(
                 'Certificado OK e WSDL ISSNet Online (ABRASF 2.04) acessivel. '
                 'Credenciais serao validadas na primeira emissao.'
             )
+            if amb == 'homologacao':
+                out['message'] += (
+                    ' Em Ribeirao Preto este WSDL e o mesmo da producao; homologacao de negocio depende '
+                    'da prefeitura (liberacao / credenciais de teste), nao de outro hostname.'
+                )
         else:
             out['detail'] = f'WSDL retornou HTTP {r.status_code}.'
     except Exception as e:
@@ -336,6 +344,13 @@ class ISSNetClient:
         self.base_url = ISSNET_URLS[self.ambiente]
         self.wsdl_url = f'{self.base_url}?wsdl'
         self._soap_client = None
+        if self.ambiente == 'homologacao':
+            logger.warning(
+                'ISSNet RP ABRASF 2.04: ambiente homologacao — mesmo WSDL de producao (%s). '
+                'Liberacao municipal (ex. E138) e cadastro continuam valendo; confirme com a prefeitura '
+                'se existe ambiente de testes separado.',
+                self.base_url,
+            )
 
         # Campos configuraveis (setados pelo service.py)
         self._regime_especial = '0'

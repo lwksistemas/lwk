@@ -29,6 +29,8 @@ interface CRMConfig {
   issnet_serie_rps?: string;
   issnet_ultimo_rps_conhecido?: number | string | null;
   issnet_numero_lote?: number | string | null;
+  /** Em RP o WSDL costuma ser o mesmo da produção; ver texto na tela de NF. */
+  issnet_ambiente_homologacao?: boolean;
   emitir_nf_automaticamente: boolean;
   asaas_sandbox?: boolean;
   asaas_api_key_configured?: boolean;
@@ -82,6 +84,7 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
         asaas_sandbox: false,
         asaas_api_key_configured: false,
         issnet_senhas_salvas: false,
+        issnet_ambiente_homologacao: false,
       });
     } finally {
       setLoading(false);

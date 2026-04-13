@@ -654,15 +654,21 @@ def _financeiro_unificado_stats():
     from django.db.models import Sum
     from decimal import Decimal
 
-    # Asaas
+    # Asaas (AsaasPayment local)
     total_asaas = LojaAssinatura.objects.count()
     ativas_asaas = LojaAssinatura.objects.filter(ativa=True).count()
     pag_asaas = AsaasPayment.objects
-    pendentes_asaas = pag_asaas.filter(status='PENDING').count()
-    pagos_asaas = pag_asaas.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']).count()
+    pagos_asaas_count = pag_asaas.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']).count()
     vencidos_asaas = pag_asaas.filter(status='OVERDUE').count()
     receita_asaas = pag_asaas.filter(status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']).aggregate(t=Sum('value'))['t'] or Decimal('0')
     pendente_asaas = pag_asaas.filter(status__in=['PENDING', 'OVERDUE']).aggregate(t=Sum('value'))['t'] or Decimal('0')
+    pendentes_asaas_count = pag_asaas.filter(status='PENDING').count()
+
+    # PagamentoLoja pagos que não estão no AsaasPayment (pagamentos antigos)
+    asaas_ids_locais = set(pag_asaas.values_list('asaas_id', flat=True))
+    pl_pagos = PagamentoLoja.objects.filter(status='pago').exclude(asaas_payment_id__in=asaas_ids_locais)
+    receita_pl = pl_pagos.aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    pagos_pl_count = pl_pagos.count()
 
     # Mercado Pago (FinanceiroLoja com boleto MP)
     mp_fin = FinanceiroLoja.objects.filter(provedor_boleto='mercadopago', mercadopago_payment_id__isnull=False).exclude(mercadopago_payment_id='')
@@ -672,10 +678,10 @@ def _financeiro_unificado_stats():
     return {
         'total_assinaturas': total_asaas + total_mp,
         'assinaturas_ativas': ativas_asaas + total_mp,
-        'pagamentos_pendentes': pendentes_asaas + total_mp,
-        'pagamentos_pagos': pagos_asaas,
+        'pagamentos_pendentes': pendentes_asaas_count + total_mp,
+        'pagamentos_pagos': pagos_asaas_count + pagos_pl_count,
         'pagamentos_vencidos': vencidos_asaas,
-        'receita_total': float(receita_asaas),
+        'receita_total': float(receita_asaas + receita_pl),
         'receita_pendente': float(pendente_asaas) + float(pendente_mp),
     }
 
@@ -830,10 +836,45 @@ def _pagamentos_unificado():
     from asaas_integration.serializers import AsaasPaymentSerializer
 
     out = []
+    seen_asaas_ids = set()
+
+    # 1) AsaasPayment (pagamentos registrados localmente do Asaas)
     for p in AsaasPayment.objects.all().select_related('customer').order_by('-due_date'):
         d = AsaasPaymentSerializer(p).data
         d['provedor'] = 'asaas'
         out.append(d)
+        if p.asaas_id:
+            seen_asaas_ids.add(p.asaas_id)
+
+    # 2) PagamentoLoja Asaas que não estão no AsaasPayment (pagamentos antigos)
+    for pl in PagamentoLoja.objects.filter(
+        provedor_boleto='asaas'
+    ).exclude(
+        asaas_payment_id=''
+    ).select_related('loja', 'loja__owner', 'financeiro').order_by('-data_vencimento'):
+        if pl.asaas_payment_id in seen_asaas_ids:
+            continue
+        status_map = {'pago': 'RECEIVED', 'pendente': 'PENDING', 'atrasado': 'OVERDUE', 'cancelado': 'REFUNDED'}
+        is_pago = pl.status == 'pago'
+        out.append({
+            'id': pl.id,
+            'asaas_id': pl.asaas_payment_id,
+            'customer_name': pl.loja.nome,
+            'customer_email': getattr(pl.loja.owner, 'email', '') if pl.loja.owner else '',
+            'value': str(pl.valor),
+            'status': status_map.get(pl.status, 'PENDING'),
+            'status_display': pl.get_status_display(),
+            'due_date': pl.data_vencimento.strftime('%Y-%m-%d') if pl.data_vencimento else None,
+            'payment_date': pl.data_pagamento.strftime('%Y-%m-%d') if pl.data_pagamento else None,
+            'bank_slip_url': pl.boleto_url or '',
+            'pix_copy_paste': pl.pix_copy_paste or '',
+            'is_paid': is_pago,
+            'is_pending': pl.status == 'pendente',
+            'is_overdue': pl.status == 'atrasado',
+            'provedor': 'asaas',
+        })
+
+    # 3) Mercado Pago
     for f in FinanceiroLoja.objects.filter(
         provedor_boleto='mercadopago'
     ).exclude(mercadopago_payment_id='').select_related('loja'):

@@ -26,8 +26,10 @@ COD_MUNICIPIO_RP = '3543402'
 ISSNET_RP_NFSE_ASMX = (
     'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
 )
-# Soap.php usa o 2o argumento de send() como SOAPAction (URL completa), nao o nome curto da operacao.
-SOAP_ACTION_RECEPCIONAR_LOTE_RPS = 'http://nfse.abrasf.org.br/RecepcionarLoteRps'
+# SOAPAction = URI completa do soap:operation no WSDL (document/literal).
+SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO = (
+    'http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono'
+)
 ISSNET_URLS = {
     'producao': ISSNET_RP_NFSE_ASMX,
     'homologacao': ISSNET_RP_NFSE_ASMX,
@@ -148,7 +150,7 @@ class ISSNetClient:
     """
     Cliente SOAP para webservice ISSNet Ribeirao Preto (ABRASF 2.04).
 
-    Usa GerarNfse (sincrono, 1 RPS) em vez de RecepcionarLoteRps (assincrono).
+    Emissão: RecepcionarLoteRpsSincrono + EnviarLoteRpsEnvio (ABRASF 2.04), SOAP direto + mTLS.
     Autenticacao: usuario/senha no XML + certificado digital para assinatura.
     """
 
@@ -439,7 +441,8 @@ class ISSNetClient:
         incentivo = '1' if self._incentivador_cultural else '2'
         etree.SubElement(inf, '{%s}IncentivoFiscal' % ns).text = incentivo
 
-        xml_str = etree.tostring(root, encoding='unicode', pretty_print=True)
+        # Sem pretty_print: evita espaços extras no XML assinado (C14N / validação).
+        xml_str = etree.tostring(root, encoding='unicode', pretty_print=False)
         logger.info('XML EnviarLoteRps construido: RPS %s, Valor R$ %s', numero_rps, valor)
         return xml_str
 
@@ -503,11 +506,7 @@ class ISSNetClient:
 
         import requests as req
 
-        cabec = (
-            '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
-            '<versaoDados>2.04</versaoDados>'
-            '</cabecalho>'
-        )
+        cabec = CABEC_MSG
         soap = (
             '<?xml version="1.0" encoding="utf-8"?>'
             '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
@@ -516,10 +515,10 @@ class ISSNetClient:
             'xmlns:nfse="http://nfse.abrasf.org.br">'
             '<soap:Header/>'
             '<soap:Body>'
-            '<nfse:RecepcionarLoteRps>'
+            '<nfse:RecepcionarLoteRpsSincrono>'
             '<nfseCabecMsg>' + _soap_xsd_string_payload(cabec) + '</nfseCabecMsg>'
             '<nfseDadosMsg>' + _soap_xsd_string_payload(xml_dados) + '</nfseDadosMsg>'
-            '</nfse:RecepcionarLoteRps>'
+            '</nfse:RecepcionarLoteRpsSincrono>'
             '</soap:Body>'
             '</soap:Envelope>'
         )
@@ -529,7 +528,7 @@ class ISSNetClient:
         # Connection: close evita reuso de socket com servidores ASMX que fecham abruptamente.
         headers = {
             'Content-Type': 'text/xml; charset=utf-8',
-            'SOAPAction': f'"{SOAP_ACTION_RECEPCIONAR_LOTE_RPS}"',
+            'SOAPAction': f'"{SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO}"',
             'Connection': 'close',
             'Accept': 'text/xml',
             'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
@@ -704,10 +703,16 @@ class ISSNetClient:
                         f'<ListaMensagemRetorno xmlns="{ns}">'
                         f'<MensagemRetorno>'
                         f'<Codigo>SOAP</Codigo>'
-                        f'<Mensagem>{msg}</Mensagem>'
+                        f'<Mensagem>{_xml_escape(msg)}</Mensagem>'
                         f'</MensagemRetorno>'
                         f'</ListaMensagemRetorno>'
                     )
+                # ASMX devolve o XML ABRASF dentro de outputXML (xsd:string no WSDL).
+                for el in first.iter():
+                    if etree.QName(el.tag).localname == 'outputXML':
+                        inner = (el.text or '').strip()
+                        if inner:
+                            return inner
                 return etree.tostring(first, encoding='unicode')
             return soap_xml
         except Exception:

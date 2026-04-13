@@ -532,22 +532,18 @@ class NFSeService:
 
     def _gerar_numero_rps(self) -> int:
         """
-        Gera número sequencial de RPS para a loja.
-        
-        Returns:
-            int: Próximo número de RPS
+        Próximo RPS: maior entre (último no CRM + 1) e (último conhecido no portal ISSNet + 1),
+        para não reutilizar número já aceito na prefeitura.
         """
         from .models import NFSe
-        
-        # Buscar último RPS da loja
-        ultimo_rps = NFSe.objects.filter(
-            loja_id=self.loja.id
-        ).order_by('-numero_rps').first()
-        
-        if ultimo_rps:
-            return ultimo_rps.numero_rps + 1
-        else:
-            return 1
+
+        ultimo_rps = NFSe.objects.filter(loja_id=self.loja.id).order_by('-numero_rps').first()
+        db_next = ultimo_rps.numero_rps + 1 if ultimo_rps else 1
+
+        portal_ult = int(getattr(self.config, 'issnet_ultimo_rps_conhecido', 0) or 0)
+        if portal_ult > 0:
+            return max(db_next, portal_ult + 1)
+        return db_next
     
     def _salvar_nfse(self, resultado: Dict[str, Any], tomador_email: str):
         """

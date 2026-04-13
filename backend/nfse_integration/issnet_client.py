@@ -50,6 +50,39 @@ def _somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
 
 
+def _normalizar_item_lista_servico_abrasf(codigo: Optional[str]) -> str:
+    """
+    ItemListaServico (LC 116 / ABRASF tsItemListaServico): enumeracao ``NN.MM``.
+    Cadastros costumam usar ``170602`` ou ``1401`` sem ponto — invalido no XSD.
+    """
+    raw = (codigo or '').strip()
+    if re.fullmatch(r'\d{2}\.\d{2}', raw):
+        return raw
+    digits = _somente_digitos(raw)
+    if len(digits) >= 4:
+        return f'{digits[0:2]}.{digits[2:4]}'
+    return '14.01'
+
+
+def _codigo_tributacao_municipio_xml(
+    raw_codigo: Optional[str], item_lista_abrasf: str
+) -> str:
+    """
+    CodigoTributacaoMunicipio (tsCodigoTributacao): string 1..20; municipio costuma
+    exigir codigo proprio (ex. 170602), distinto do item LC em ``NN.MM``.
+    """
+    raw = (raw_codigo or '').strip()
+    digits = _somente_digitos(raw)
+    if len(digits) >= 5:
+        return digits[:20]
+    if len(digits) == 4:
+        return digits
+    if re.fullmatch(r'\d{2}\.\d{2}', raw):
+        return digits[:20] if digits else raw.replace('.', '')
+    fb = _somente_digitos(item_lista_abrasf)
+    return (fb[:20] if fb else '1401')
+
+
 def _strip_xml_declaration(fragment: str) -> str:
     """Remove declaração <?xml ...?> do início (envelope SOAP já define encoding)."""
     s = (fragment or '').strip()
@@ -521,12 +554,24 @@ class ISSNetClient:
         etree.SubElement(valores, '{%s}DescontoCondicionado' % ns).text = '0.00'
 
         etree.SubElement(servico, '{%s}IssRetido' % ns).text = '2'
-        item_lista = servico_codigo or ''
+        item_lista = _normalizar_item_lista_servico_abrasf(servico_codigo)
+        cod_tributacao = _codigo_tributacao_municipio_xml(servico_codigo, item_lista)
+        if (servico_codigo or '').strip() and (
+            (servico_codigo or '').strip() != item_lista
+            or _somente_digitos(servico_codigo or '') != cod_tributacao
+        ):
+            logger.info(
+                'ISSNet codigo servico: config %r -> ItemListaServico %r, '
+                'CodigoTributacaoMunicipio %r',
+                servico_codigo,
+                item_lista,
+                cod_tributacao,
+            )
         etree.SubElement(servico, '{%s}ItemListaServico' % ns).text = item_lista
         cnae_digits = _somente_digitos(codigo_cnae or '')
         if cnae_digits:
             etree.SubElement(servico, '{%s}CodigoCnae' % ns).text = cnae_digits
-        etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = item_lista
+        etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = cod_tributacao
         etree.SubElement(servico, '{%s}Discriminacao' % ns).text = servico_descricao
         etree.SubElement(servico, '{%s}CodigoMunicipio' % ns).text = COD_MUNICIPIO_RP
         etree.SubElement(servico, '{%s}ExigibilidadeISS' % ns).text = '1'

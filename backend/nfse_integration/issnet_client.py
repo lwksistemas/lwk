@@ -4,7 +4,7 @@ Emissão de NFS-e direta na prefeitura — padrão ABRASF 2.04
 
 Referências:
 - WSDL: https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx?wsdl
-- Operações: GerarNfse, RecepcionarLoteRpsSincrono, ConsultarNfsePorRps, CancelarNfse
+- Operações: RecepcionarLoteRpsSincrono (EnviarLoteRpsSincronoEnvio), ConsultarNfsePorRps, CancelarNfse
 - Cada operação SOAP recebe (nfseCabecMsg: str, nfseDadosMsg: str)
 """
 import logging
@@ -35,8 +35,9 @@ ISSNET_URLS = {
     'homologacao': ISSNET_RP_NFSE_ASMX,
 }
 
+# versao do cabecalho (envelope) costuma ser 1.00; versaoDados indica o layout ABRASF do nfseDadosMsg.
 CABEC_MSG = (
-    '<cabecalho xmlns="http://www.abrasf.org.br/nfse.xsd" versao="2.04">'
+    '<cabecalho xmlns="http://www.abrasf.org.br/nfse.xsd" versao="1.00">'
     '<versaoDados>2.04</versaoDados>'
     '</cabecalho>'
 )
@@ -150,7 +151,7 @@ class ISSNetClient:
     """
     Cliente SOAP para webservice ISSNet Ribeirao Preto (ABRASF 2.04).
 
-    Emissão: RecepcionarLoteRpsSincrono + EnviarLoteRpsEnvio (ABRASF 2.04), SOAP direto + mTLS.
+    Emissão: RecepcionarLoteRpsSincrono + EnviarLoteRpsSincronoEnvio (ABRASF 2.04), SOAP direto + mTLS.
     Autenticacao: usuario/senha no XML + certificado digital para assinatura.
     """
 
@@ -206,7 +207,7 @@ class ISSNetClient:
 
         Dupla assinatura alinhada ao sped-nfse-issnet (PHP): primeiro o ``Rps``
         externo (ListaRps/Rps) com Reference URI vazia e so transform enveloped;
-        depois ``EnviarLoteRpsEnvio`` com atributo Id e mesma politica de Reference.
+        depois a raiz do lote síncrono (``EnviarLoteRpsSincronoEnvio``) com atributo Id e mesma politica de Reference.
         A Signature fica dentro do no assinado (como no Signer do pacote ISSNET).
         """
         import xmlsec
@@ -281,7 +282,7 @@ class ISSNetClient:
             ctx.key = key
             ctx.sign(sig_rps)
 
-        if root_local != 'EnviarLoteRpsEnvio':
+        if root_local not in ('EnviarLoteRpsSincronoEnvio', 'EnviarLoteRpsEnvio'):
             logger.warning('Assinatura: raiz inesperada %s; pulando segunda assinatura.', root_local)
         else:
             num_lote = ''
@@ -289,7 +290,12 @@ class ISSNetClient:
                 num_lote = (lote_el.findtext('{%s}NumeroLote' % ns) or '').strip()
             if not num_lote:
                 num_lote = '1'
-            envio_id = root.get('Id') or f'EnviarLoteRpsEnvio{num_lote}'
+            default_id = (
+                f'EnviarLoteRpsSincronoEnvio{num_lote}'
+                if root_local == 'EnviarLoteRpsSincronoEnvio'
+                else f'EnviarLoteRpsEnvio{num_lote}'
+            )
+            envio_id = root.get('Id') or default_id
             root.set('Id', envio_id)
 
             sig_envio = _template_sig_enveloped_only(root, f'#{envio_id}')
@@ -304,7 +310,7 @@ class ISSNetClient:
 
     # Metodo antigo mantido como referencia
     # ------------------------------------------------------------------
-    # Construir XML ABRASF 2.04 — EnviarLoteRpsEnvio (ISSNet RP)
+    # Construir XML ABRASF 2.04 — EnviarLoteRpsSincronoEnvio (ISSNet RP, op. RecepcionarLoteRpsSincrono)
     # ------------------------------------------------------------------
     def _construir_xml_gerar_nfse(
         self,
@@ -323,8 +329,8 @@ class ISSNetClient:
         data_emissao: datetime,
     ) -> str:
         """
-        Constroi XML EnviarLoteRpsEnvio no padrao ABRASF 2.04 (ISSNet RP).
-        Baseado na lib PHP Focus599Dev/sped-nfse-issnet que funciona.
+        Constroi XML EnviarLoteRpsSincronoEnvio no padrao ABRASF 2.04 (ISSNet RP).
+        RecepcionarLoteRpsSincrono exige este root; EnviarLoteRpsEnvio é do fluxo assíncrono.
         """
         cnpj_prest = _somente_digitos(prestador_cnpj)
         doc_tomador = _somente_digitos(tomador_cpf_cnpj)
@@ -334,11 +340,13 @@ class ISSNetClient:
         valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
 
         ns = NS_NFSE
-        # Root: EnviarLoteRpsEnvio
-        root = etree.Element('{%s}EnviarLoteRpsEnvio' % ns, nsmap={None: ns})
+        # Root: EnviarLoteRpsSincronoEnvio (par RecepcionarLoteRpsSincrono / ISSNet ABRASF 2.04)
+        root = etree.Element('{%s}EnviarLoteRpsSincronoEnvio' % ns, nsmap={None: ns})
 
-        # LoteRps com versao
-        lote = etree.SubElement(root, '{%s}LoteRps' % ns, versao='2.04')
+        # LoteRps com versao (Id alinhado a manuais ISSNet / CIGAM)
+        lote = etree.SubElement(
+            root, '{%s}LoteRps' % ns, Id=str(numero_rps), versao='2.04'
+        )
         etree.SubElement(lote, '{%s}NumeroLote' % ns).text = str(numero_rps)
 
         # Prestador no LoteRps
@@ -466,7 +474,7 @@ class ISSNetClient:
         tipo_rps: int = 1,
         data_emissao: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        """Emite NFS-e via GerarNfse (sincrono, 1 RPS)."""
+        """Emite NFS-e via RecepcionarLoteRpsSincrono (1 RPS)."""
         try:
             if data_emissao is None:
                 data_emissao = datetime.now()
@@ -487,7 +495,7 @@ class ISSNetClient:
                 data_emissao=data_emissao,
             )
 
-            # Assinar XML (dupla: Rps + EnviarLoteRpsEnvio) e enviar
+            # Assinar XML (dupla: Rps + EnviarLoteRpsSincronoEnvio) e enviar
             xml_assinado = self._assinar_xml(xml_rps)
             resultado = self._enviar_soap_direto(xml_assinado)
             return resultado

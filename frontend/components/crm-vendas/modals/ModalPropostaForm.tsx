@@ -63,6 +63,8 @@ export interface FormDataProposta {
   titulo: string;
   conteudo: string;
   valor_total: string;
+  desconto_tipo: 'percentual' | 'valor';
+  desconto_valor: string;
   status: string;
   nome_vendedor_assinatura?: string;
   nome_cliente_assinatura?: string;

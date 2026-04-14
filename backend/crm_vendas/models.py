@@ -477,6 +477,11 @@ class Proposta(LojaIsolationMixin, models.Model):
         ('cancelado', 'Cancelado'),
     ]
 
+    DESCONTO_TIPO_CHOICES = [
+        ('percentual', 'Percentual'),
+        ('valor', 'Valor fixo'),
+    ]
+
     oportunidade = models.ForeignKey(
         Oportunidade,
         on_delete=models.CASCADE,
@@ -486,6 +491,18 @@ class Proposta(LojaIsolationMixin, models.Model):
     titulo = models.CharField(max_length=255)
     conteudo = models.TextField(blank=True, help_text='Conteúdo da proposta em texto ou HTML')
     valor_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    desconto_tipo = models.CharField(
+        max_length=15,
+        choices=DESCONTO_TIPO_CHOICES,
+        default='percentual',
+        help_text='Tipo de desconto: percentual (%) ou valor fixo (R$)',
+    )
+    desconto_valor = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text='Valor do desconto (percentual ou fixo, conforme desconto_tipo)',
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='rascunho')
     data_envio = models.DateTimeField(null=True, blank=True)
     data_resposta = models.DateTimeField(null=True, blank=True)
@@ -545,6 +562,18 @@ class Proposta(LojaIsolationMixin, models.Model):
         
         super().save(*args, **kwargs)
 
+    @property
+    def valor_com_desconto(self):
+        """Calcula o valor final após aplicar o desconto."""
+        from decimal import Decimal
+        base = self.valor_total or Decimal('0')
+        desconto = self.desconto_valor or Decimal('0')
+        if desconto <= 0 or base <= 0:
+            return base
+        if self.desconto_tipo == 'percentual':
+            return max(base - (base * desconto / Decimal('100')), Decimal('0'))
+        return max(base - desconto, Decimal('0'))
+
 
 class Contrato(LojaIsolationMixin, models.Model):
     """Contrato gerado a partir de oportunidade fechada como ganha."""
@@ -563,6 +592,11 @@ class Contrato(LojaIsolationMixin, models.Model):
         ('cancelado', 'Cancelado'),
     ]
 
+    DESCONTO_TIPO_CHOICES = [
+        ('percentual', 'Percentual'),
+        ('valor', 'Valor fixo'),
+    ]
+
     oportunidade = models.OneToOneField(
         Oportunidade,
         on_delete=models.CASCADE,
@@ -572,6 +606,18 @@ class Contrato(LojaIsolationMixin, models.Model):
     titulo = models.CharField(max_length=255)
     conteudo = models.TextField(blank=True, help_text='Conteúdo do contrato')
     valor_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    desconto_tipo = models.CharField(
+        max_length=15,
+        choices=DESCONTO_TIPO_CHOICES,
+        default='percentual',
+        help_text='Tipo de desconto: percentual (%) ou valor fixo (R$)',
+    )
+    desconto_valor = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text='Valor do desconto (percentual ou fixo, conforme desconto_tipo)',
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='rascunho')
     data_envio = models.DateTimeField(null=True, blank=True)
     data_assinatura = models.DateTimeField(null=True, blank=True)
@@ -630,6 +676,18 @@ class Contrato(LojaIsolationMixin, models.Model):
             self.numero = str(proximo_num).zfill(3)  # 001, 002, 003, etc.
         
         super().save(*args, **kwargs)
+
+    @property
+    def valor_com_desconto(self):
+        """Calcula o valor final após aplicar o desconto."""
+        from decimal import Decimal
+        base = self.valor_total or Decimal('0')
+        desconto = self.desconto_valor or Decimal('0')
+        if desconto <= 0 or base <= 0:
+            return base
+        if self.desconto_tipo == 'percentual':
+            return max(base - (base * desconto / Decimal('100')), Decimal('0'))
+        return max(base - desconto, Decimal('0'))
 
 
 class PropostaTemplate(LojaIsolationMixin, models.Model):

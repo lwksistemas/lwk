@@ -9,6 +9,8 @@ export interface FormDataContrato {
   titulo: string;
   conteudo: string;
   valor_total: string;
+  desconto_tipo: 'percentual' | 'valor';
+  desconto_valor: string;
   status: string;
   nome_vendedor_assinatura?: string;
   nome_cliente_assinatura?: string;
@@ -222,6 +224,44 @@ export default function ModalContratoForm({
               className={inputClass}
               placeholder="0,00"
             />
+          </div>
+
+          {/* Desconto */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Desconto</label>
+            <div className="flex gap-2 items-end">
+              <select
+                value={form.desconto_tipo || 'percentual'}
+                onChange={(e) => onFormChange((f) => ({ ...f, desconto_tipo: e.target.value as 'percentual' | 'valor' }))}
+                className={`${inputClass} max-w-[160px]`}
+              >
+                <option value="percentual">Percentual (%)</option>
+                <option value="valor">Valor fixo (R$)</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                max={form.desconto_tipo === 'percentual' ? '100' : undefined}
+                value={form.desconto_valor || ''}
+                onChange={(e) => onFormChange((f) => ({ ...f, desconto_valor: e.target.value }))}
+                className={`${inputClass} max-w-[160px]`}
+                placeholder={form.desconto_tipo === 'percentual' ? '0%' : '0,00'}
+              />
+            </div>
+            {form.valor_total && form.desconto_valor && parseFloat(form.desconto_valor) > 0 && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                Valor com desconto:{' '}
+                {(() => {
+                  const base = parseFloat(form.valor_total) || 0;
+                  const desc = parseFloat(form.desconto_valor) || 0;
+                  const final_val = form.desconto_tipo === 'percentual'
+                    ? Math.max(base - (base * desc / 100), 0)
+                    : Math.max(base - desc, 0);
+                  return final_val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                })()}
+              </p>
+            )}
           </div>
 
           {/* Conteúdo */}

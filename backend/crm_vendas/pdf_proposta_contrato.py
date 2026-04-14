@@ -328,6 +328,18 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     # Valor total ao final dos Produtos e Serviços
     valor_str = _formatar_valor(proposta.valor_total)
     elements.append(Paragraph(f'<b>Valor total:</b> {valor_str}', styles['Normal']))
+    
+    # Desconto (se houver)
+    desconto_valor = getattr(proposta, 'desconto_valor', None) or 0
+    if desconto_valor and float(desconto_valor) > 0:
+        desconto_tipo = getattr(proposta, 'desconto_tipo', 'percentual')
+        if desconto_tipo == 'percentual':
+            elements.append(Paragraph(f'<b>Desconto:</b> {desconto_valor}%', styles['Normal']))
+        else:
+            elements.append(Paragraph(f'<b>Desconto:</b> {_formatar_valor(desconto_valor)}', styles['Normal']))
+        valor_final = getattr(proposta, 'valor_com_desconto', proposta.valor_total)
+        elements.append(Paragraph(f'<b>Valor com desconto:</b> {_formatar_valor(valor_final)}', styles['Normal']))
+    
     elements.append(Spacer(1, 0.05*cm))  # ✅ SUPER REDUZIDO
 
     # Conteúdo
@@ -443,6 +455,18 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', styles['Normal']))
     valor_str = _formatar_valor(contrato.valor_total)
     elements.append(Paragraph(f'<b>Valor total:</b> {valor_str}', styles['Normal']))
+    
+    # Desconto (se houver)
+    desconto_valor = getattr(contrato, 'desconto_valor', None) or 0
+    if desconto_valor and float(desconto_valor) > 0:
+        desconto_tipo = getattr(contrato, 'desconto_tipo', 'percentual')
+        if desconto_tipo == 'percentual':
+            elements.append(Paragraph(f'<b>Desconto:</b> {desconto_valor}%', styles['Normal']))
+        else:
+            elements.append(Paragraph(f'<b>Desconto:</b> {_formatar_valor(desconto_valor)}', styles['Normal']))
+        valor_final = getattr(contrato, 'valor_com_desconto', contrato.valor_total)
+        elements.append(Paragraph(f'<b>Valor com desconto:</b> {_formatar_valor(valor_final)}', styles['Normal']))
+    
     elements.append(Spacer(1, 0.03*cm))  # ✅ SUPER REDUZIDO
 
     # Dados da Empresa

@@ -11,6 +11,9 @@ interface CrmDocumentoDetalhesModalProps {
   leadNome: string;
   statusExibicao: string;
   valorTotal?: string | null;
+  descontoTipo?: 'percentual' | 'valor' | string;
+  descontoValor?: string | number | null;
+  valorComDesconto?: string | null;
   conteudo?: string | null;
   /** ex.: número do contrato */
   numero?: string | null;
@@ -27,6 +30,9 @@ export default function CrmDocumentoDetalhesModal({
   leadNome,
   statusExibicao,
   valorTotal,
+  descontoTipo,
+  descontoValor,
+  valorComDesconto,
   conteudo,
   numero,
 }: CrmDocumentoDetalhesModalProps) {
@@ -66,6 +72,20 @@ export default function CrmDocumentoDetalhesModal({
                 <p>
                   <span className="font-medium">Valor:</span> {formatCrmBrl(valorTotal)}
                 </p>
+              ) : null}
+              {descontoValor && Number(descontoValor) > 0 ? (
+                <>
+                  <p>
+                    <span className="font-medium">Desconto:</span>{' '}
+                    {descontoTipo === 'percentual' ? `${descontoValor}%` : formatCrmBrl(String(descontoValor))}
+                  </p>
+                  {valorComDesconto ? (
+                    <p>
+                      <span className="font-medium">Valor com desconto:</span>{' '}
+                      <span className="text-green-600 dark:text-green-400">{formatCrmBrl(valorComDesconto)}</span>
+                    </p>
+                  ) : null}
+                </>
               ) : null}
               {conteudo ? (
                 <p>

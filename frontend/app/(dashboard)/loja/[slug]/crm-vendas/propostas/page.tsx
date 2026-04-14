@@ -39,6 +39,9 @@ interface Proposta {
   titulo: string;
   conteudo: string;
   valor_total: string | null;
+  desconto_tipo: 'percentual' | 'valor';
+  desconto_valor: string;
+  valor_com_desconto: string | null;
   status: string;
   status_assinatura?: string;
   data_envio: string | null;
@@ -63,6 +66,8 @@ export default function CrmVendasPropostasPage() {
     titulo: '',
     conteudo: '',
     valor_total: '',
+    desconto_tipo: 'percentual',
+    desconto_valor: '',
     status: 'rascunho' as string,
     nome_vendedor_assinatura: '',
     nome_cliente_assinatura: '',
@@ -237,6 +242,8 @@ export default function CrmVendasPropostasPage() {
         titulo: item.titulo || '',
         conteudo: item.conteudo || '',
         valor_total: item.valor_total || '',
+        desconto_tipo: (item as unknown as { desconto_tipo?: 'percentual' | 'valor' }).desconto_tipo || 'percentual',
+        desconto_valor: String((item as unknown as { desconto_valor?: string }).desconto_valor || ''),
         status: item.status || 'rascunho',
         nome_vendedor_assinatura: '',
         nome_cliente_assinatura: '',
@@ -251,6 +258,8 @@ export default function CrmVendasPropostasPage() {
         titulo: '',
         conteudo: conteudoInicial,
         valor_total: '',
+        desconto_tipo: 'percentual',
+        desconto_valor: '',
         status: 'rascunho',
         nome_vendedor_assinatura: '',
         nome_cliente_assinatura: '',
@@ -297,6 +306,8 @@ export default function CrmVendasPropostasPage() {
         titulo: formData.titulo.trim(),
         conteudo: formData.conteudo,
         valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
+        desconto_tipo: formData.desconto_tipo || 'percentual',
+        desconto_valor: formData.desconto_valor ? parseFloat(formData.desconto_valor) : 0,
         status: formData.status,
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
@@ -492,6 +503,9 @@ export default function CrmVendasPropostasPage() {
           leadNome={selected.lead_nome}
           statusExibicao={STATUS_LABEL[selected.status] || selected.status}
           valorTotal={selected.valor_total}
+          descontoTipo={selected.desconto_tipo}
+          descontoValor={selected.desconto_valor}
+          valorComDesconto={selected.valor_com_desconto}
           conteudo={selected.conteudo}
         />
       )}

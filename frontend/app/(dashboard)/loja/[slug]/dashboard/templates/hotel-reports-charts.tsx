@@ -146,7 +146,7 @@ export default function HotelReportsCharts({
                     className="text-gray-500"
                   />
                   <Tooltip
-                    formatter={(value: number) => [formatMoney(value), 'Receita']}
+                    formatter={(value) => [formatMoney(Number(value ?? 0)), 'Receita']}
                     labelFormatter={(_, payload) => {
                       const p = payload?.[0]?.payload as { data?: string } | undefined;
                       return p?.data ? formatDayLabel(p.data) : '';
@@ -173,8 +173,8 @@ export default function HotelReportsCharts({
                   <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
                   <Tooltip
-                    formatter={(value: number, _name, item) => [
-                      `${value}% (${(item?.payload as { ocupados: number; total: number }).ocupados}/${
+                    formatter={(value, _name, item) => [
+                      `${Number(value ?? 0)}% (${(item?.payload as { ocupados: number; total: number }).ocupados}/${
                         (item?.payload as { ocupados: number; total: number }).total
                       } quartos)`,
                       'Ocupação',

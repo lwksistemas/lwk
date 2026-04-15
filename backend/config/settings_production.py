@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'ecommerce',
     'restaurante',
     'servicos',
+    'hotel.apps.HotelConfig',  # App de hotelaria (Hotel / Pousada)
     'cabeleireiro',  # App de cabeleireiro/salão de beleza
     'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
     'push.apps.PushConfig',  # Push notifications (VAPID)

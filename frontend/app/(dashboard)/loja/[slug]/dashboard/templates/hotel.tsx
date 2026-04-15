@@ -3,6 +3,17 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowRight,
+  BedDouble,
+  Building2,
+  ClipboardList,
+  DoorOpen,
+  LogIn,
+  LogOut,
+  Sparkles,
+  TrendingUp,
+} from 'lucide-react';
 import apiClient from '@/lib/api-client';
 
 type LojaInfo = {
@@ -21,26 +32,40 @@ function StatCard({
   value,
   sub,
   accent,
+  icon: Icon,
 }: {
   title: string;
   value: string;
   sub?: string;
   accent: string;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-      <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</p>
-      <div className="mt-2 flex items-end justify-between gap-3">
-        <p className="text-3xl font-bold" style={{ color: accent }}>
-          {value}
-        </p>
-        {sub ? <p className="text-xs text-gray-500 dark:text-gray-400 text-right">{sub}</p> : null}
+    <div className="group relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 opacity-90"
+        style={{ background: `linear-gradient(90deg, ${accent}, ${accent}99)` }}
+      />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{title}</p>
+          <p className="mt-2 truncate text-3xl font-bold tabular-nums tracking-tight" style={{ color: accent }}>
+            {value}
+          </p>
+          {sub ? <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{sub}</p> : null}
+        </div>
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/40"
+          style={{ color: accent }}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
     </div>
   );
 }
 
-function ActionCard({
+function QuickLink({
   title,
   description,
   href,
@@ -54,20 +79,41 @@ function ActionCard({
   return (
     <Link
       href={href}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 hover:shadow-md transition-shadow border-l-4"
-      style={{ borderLeftColor: accent }}
+      className="group flex min-w-0 flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-gray-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800/80 dark:hover:border-gray-600"
     >
-      <p className="font-semibold text-gray-900 dark:text-gray-100">{title}</p>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{description}</p>
-      <div className="mt-3 text-sm font-medium" style={{ color: accent }}>
-        Abrir →
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900 dark:text-gray-100">{title}</p>
+          <p className="mt-1 text-sm leading-snug text-gray-600 dark:text-gray-400">{description}</p>
+        </div>
+        <span
+          className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-white"
+          style={{ backgroundColor: accent }}
+        >
+          Ir
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </span>
       </div>
     </Link>
   );
 }
 
+function statusLabel(status: string): string {
+  const map: Record<string, string> = {
+    pendente: 'Pendente',
+    confirmada: 'Confirmada',
+    checkin: 'Hospedado',
+    checkout: 'Encerrada',
+    cancelada: 'Cancelada',
+    no_show: 'No-show',
+  };
+  return map[status] || status;
+}
+
 export default function DashboardHotel({ loja }: { loja: LojaInfo }) {
   const accent = loja.cor_primaria || '#0EA5E9';
+  const accentSoft = `${accent}14`;
+
   const [dashboard, setDashboard] = useState<{
     kpis: {
       ocupacao_hoje_percent: number;
@@ -144,201 +190,226 @@ export default function DashboardHotel({ loja }: { loja: LojaInfo }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-bold" style={{ color: accent }}>
-          Dashboard — Hotelaria
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Visão operacional do dia: ocupação, check-ins/outs, reservas e pendências de governança.
-        </p>
+      {/* Cabeçalho */}
+      <div
+        className="relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+        style={{ background: `linear-gradient(135deg, ${accentSoft} 0%, transparent 55%)` }}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-gray-200/80 bg-white/70 px-3 py-1 text-xs font-medium text-gray-700 backdrop-blur dark:border-gray-600 dark:bg-gray-900/40 dark:text-gray-200">
+              <Building2 className="h-3.5 w-3.5" style={{ color: accent }} aria-hidden />
+              Operação hoje
+            </div>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Dashboard — Hotelaria</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+              Resumo de ocupação, movimentação e pendências. Use os atalhos à direita para ir direto aos cadastros.
+            </p>
+          </div>
+          <Link
+            href={`/loja/${loja.slug}/hotel`}
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+            style={{ backgroundColor: accent }}
+          >
+            Abrir módulo Hotel
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPIs */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Ocupação hoje"
           value={statsLoading ? '…' : occupancyLabel}
-          sub={kpis ? `${kpis.quartos_ocupados} / ${kpis.quartos_total} aptos` : 'Aptos ocupados / total'}
+          sub={kpis ? `${kpis.quartos_ocupados} de ${kpis.quartos_total} quartos` : 'Quartos ocupados / total'}
           accent={accent}
+          icon={BedDouble}
         />
-        <StatCard title="Check-ins" value={statsLoading ? '…' : String(kpis?.checkins_hoje ?? '—')} sub="Previstos para hoje" accent={accent} />
-        <StatCard title="Check-outs" value={statsLoading ? '…' : String(kpis?.checkouts_hoje ?? '—')} sub="Saídas previstas" accent={accent} />
-        <StatCard title="Diária média" value={statsLoading ? '…' : adrLabel} sub="ADR (mês)" accent={accent} />
+        <StatCard
+          title="Check-ins hoje"
+          value={statsLoading ? '…' : String(kpis?.checkins_hoje ?? '—')}
+          sub="Chegadas previstas"
+          accent={accent}
+          icon={LogIn}
+        />
+        <StatCard
+          title="Check-outs hoje"
+          value={statsLoading ? '…' : String(kpis?.checkouts_hoje ?? '—')}
+          sub="Saídas previstas"
+          accent={accent}
+          icon={LogOut}
+        />
+        <StatCard
+          title="Diária média (ADR)"
+          value={statsLoading ? '…' : adrLabel}
+          sub="Mês corrente"
+          accent={accent}
+          icon={TrendingUp}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 lg:col-span-2">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-semibold text-gray-900 dark:text-gray-100">Operação do dia</p>
-            <Link
-              href={`/loja/${loja.slug}/hotel/reservas`}
-              className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Ver reservas →
-            </Link>
-          </div>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Chegadas</p>
-              <p className="mt-2 text-2xl font-bold" style={{ color: accent }}>
-                {statsLoading ? '…' : String(kpis?.checkins_hoje ?? '—')}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Reservas com check-in hoje</p>
-            </div>
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Saídas</p>
-              <p className="mt-2 text-2xl font-bold" style={{ color: accent }}>
-                {statsLoading ? '…' : String(kpis?.checkouts_hoje ?? '—')}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Hóspedes com check-out hoje</p>
-            </div>
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Pendências</p>
-              <p className="mt-2 text-2xl font-bold" style={{ color: accent }}>
-                {statsLoading ? '…' : String(kpis?.pendencias_governanca ?? '—')}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Governança / manutenção</p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Chegadas de hoje</p>
-                <Link href={`/loja/${loja.slug}/hotel/reservas?data_checkin=hoje`} className="text-xs text-gray-600 dark:text-gray-300 hover:underline">
-                  Abrir
-                </Link>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
+        {/* Operação + listas (sem duplicar os mesmos números em blocos gigantes) */}
+        <div className="space-y-4 lg:col-span-2">
+          <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <DoorOpen className="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden />
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">Operação do dia</p>
               </div>
-              <div className="mt-3 space-y-2">
-                {statsLoading ? (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Carregando…</p>
-                ) : dashboard?.chegadas_hoje?.length ? (
-                  dashboard.chegadas_hoje.slice(0, 6).map((r) => (
-                    <div key={r.id} className="flex items-center justify-between gap-3">
-                      <p className="text-xs text-gray-900 dark:text-gray-100 truncate">
-                        <span className="font-medium">{r.quarto_numero || '—'}</span>
-                        <span className="text-gray-500 dark:text-gray-400"> · </span>
+              <Link
+                href={`/loja/${loja.slug}/hotel/reservas`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-800 transition hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900/50 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                Ver todas as reservas
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <ListPanel
+                title="Chegadas de hoje"
+                empty="Nenhuma chegada prevista para hoje."
+                loading={statsLoading}
+                accent={accent}
+                actionHref={`/loja/${loja.slug}/hotel/reservas?data_checkin=hoje`}
+                actionLabel="Lista"
+              >
+                {dashboard?.chegadas_hoje?.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-transparent bg-gray-50/80 px-2.5 py-2 dark:bg-gray-900/40"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                         {r.hospede_nome || 'Hóspede'}
                       </p>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                        {r.status}
-                      </span>
+                      <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                        Quarto {r.quarto_numero || '—'}
+                        {r.quarto_nome ? ` · ${r.quarto_nome}` : ''}
+                      </p>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Nenhuma chegada prevista.</p>
-                )}
-              </div>
-            </div>
+                    <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-600">
+                      {statusLabel(r.status)}
+                    </span>
+                  </li>
+                ))}
+              </ListPanel>
 
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Saídas de hoje</p>
-                <Link href={`/loja/${loja.slug}/hotel/reservas?data_checkout=hoje`} className="text-xs text-gray-600 dark:text-gray-300 hover:underline">
-                  Abrir
-                </Link>
-              </div>
-              <div className="mt-3 space-y-2">
-                {statsLoading ? (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Carregando…</p>
-                ) : dashboard?.saidas_hoje?.length ? (
-                  dashboard.saidas_hoje.slice(0, 6).map((r) => (
-                    <div key={r.id} className="flex items-center justify-between gap-3">
-                      <p className="text-xs text-gray-900 dark:text-gray-100 truncate">
-                        <span className="font-medium">{r.quarto_numero || '—'}</span>
-                        <span className="text-gray-500 dark:text-gray-400"> · </span>
+              <ListPanel
+                title="Saídas de hoje"
+                empty="Nenhuma saída prevista para hoje."
+                loading={statsLoading}
+                accent={accent}
+                actionHref={`/loja/${loja.slug}/hotel/reservas?data_checkout=hoje`}
+                actionLabel="Lista"
+              >
+                {dashboard?.saidas_hoje?.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-transparent bg-gray-50/80 px-2.5 py-2 dark:bg-gray-900/40"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                         {r.hospede_nome || 'Hóspede'}
                       </p>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                        {r.status}
-                      </span>
+                      <p className="truncate text-xs text-gray-500 dark:text-gray-400">Quarto {r.quarto_numero || '—'}</p>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Nenhuma saída prevista.</p>
-                )}
-              </div>
+                    <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-600 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-600">
+                      {statusLabel(r.status)}
+                    </span>
+                  </li>
+                ))}
+              </ListPanel>
+
+              <ListPanel
+                title="Pendências (governança)"
+                empty="Sem pendências abertas."
+                loading={statsLoading}
+                accent={accent}
+                actionHref={`/loja/${loja.slug}/hotel/governanca`}
+                actionLabel="Abrir"
+              >
+                {dashboard?.pendencias_governanca?.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-transparent bg-gray-50/80 px-2.5 py-2 dark:bg-gray-900/40"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {t.descricao || t.tipo || 'Tarefa'}
+                      </p>
+                      <p className="truncate text-xs text-gray-500 dark:text-gray-400">Quarto {t.quarto_numero || '—'}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-800">
+                      P{t.prioridade}
+                    </span>
+                  </li>
+                ))}
+              </ListPanel>
             </div>
 
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Pendências</p>
-                <Link href={`/loja/${loja.slug}/hotel/governanca`} className="text-xs text-gray-600 dark:text-gray-300 hover:underline">
-                  Abrir
-                </Link>
-              </div>
-              <div className="mt-3 space-y-2">
-                {statsLoading ? (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Carregando…</p>
-                ) : dashboard?.pendencias_governanca?.length ? (
-                  dashboard.pendencias_governanca.slice(0, 6).map((t) => (
-                    <div key={t.id} className="flex items-center justify-between gap-3">
-                      <p className="text-xs text-gray-900 dark:text-gray-100 truncate">
-                        <span className="font-medium">{t.quarto_numero || '—'}</span>
-                        <span className="text-gray-500 dark:text-gray-400"> · </span>
-                        {t.descricao || t.tipo}
-                      </p>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                        P{t.prioridade}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Sem pendências abertas.</p>
-                )}
-              </div>
-            </div>
+            <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+              {dashboard
+                ? 'Dados atualizados pelo módulo Hotel ao carregar esta página.'
+                : 'Cadastre quartos e reservas para ver o resumo do dia.'}
+            </p>
           </div>
 
-          <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            {dashboard ? 'Dashboard carregado em tempo real via API do módulo Hotel.' : 'Cadastre quartos, reservas e tarefas para ver o resumo do dia aqui.'}
+          {/* Um único bloco “insights” em vez de 3 placeholders vazios */}
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gradient-to-br from-gray-50 to-white p-5 dark:border-gray-700 dark:from-gray-900/30 dark:to-gray-800">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-600">
+                  <Sparkles className="h-5 w-5" style={{ color: accent }} aria-hidden />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white">Relatórios e gráficos</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Em breve: receita por período, ocupação por categoria de quarto e indicadores de satisfação — no mesmo padrão do CRM e da clínica.
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex w-fit items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                Roadmap
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-          <p className="font-semibold text-gray-900 dark:text-gray-100">Atalhos rápidos</p>
+        {/* Atalhos: sem border-l que “quebra” no layout estreito */}
+        <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden />
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">Atalhos rápidos</p>
+          </div>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Acesso direto às telas mais usadas na operação.</p>
           <div className="mt-4 space-y-3">
-            <ActionCard
+            <QuickLink
               title="Nova reserva"
-              description="Cadastrar reserva, período, tarifa e canal."
+              description="Período, hóspede, quarto, tarifa e canal."
               href={`/loja/${loja.slug}/hotel/reservas?novo=1`}
               accent={accent}
             />
-            <ActionCard
-              title="Check-in / Check-out"
-              description="Atualizar status da hospedagem e pagamentos."
+            <QuickLink
+              title="Reservas e check-in/out"
+              description="Lista completa e ações de hospedagem."
               href={`/loja/${loja.slug}/hotel/reservas`}
               accent={accent}
             />
-            <ActionCard
-              title="Quartos"
-              description="Atualizar status: disponível/ocupado/limpeza/manutenção."
+            <QuickLink
+              title="Quartos e status"
+              description="Disponível, ocupado, limpeza ou manutenção."
               href={`/loja/${loja.slug}/hotel/quartos`}
               accent={accent}
             />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-          <p className="font-semibold text-gray-900 dark:text-gray-100">Receitas</p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Faturamento do período e parcelas pendentes.</p>
-          <div className="mt-4 h-24 rounded-lg bg-gray-50 dark:bg-gray-900 border border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            Gráfico (em breve)
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-          <p className="font-semibold text-gray-900 dark:text-gray-100">Distribuição de ocupação</p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Por tipo de quarto e categoria.</p>
-          <div className="mt-4 h-24 rounded-lg bg-gray-50 dark:bg-gray-900 border border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            Gráfico (em breve)
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-          <p className="font-semibold text-gray-900 dark:text-gray-100">Satisfação</p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Avaliações e ocorrências recentes.</p>
-          <div className="mt-4 h-24 rounded-lg bg-gray-50 dark:bg-gray-900 border border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            Widget (em breve)
+            <QuickLink
+              title="Governança"
+              description="Tarefas de limpeza e manutenção por quarto."
+              href={`/loja/${loja.slug}/hotel/governanca`}
+              accent={accent}
+            />
           </div>
         </div>
       </div>
@@ -346,3 +417,47 @@ export default function DashboardHotel({ loja }: { loja: LojaInfo }) {
   );
 }
 
+function ListPanel({
+  title,
+  empty,
+  loading,
+  children,
+  accent,
+  actionHref,
+  actionLabel,
+}: {
+  title: string;
+  empty: string;
+  loading: boolean;
+  children?: React.ReactNode;
+  accent: string;
+  actionHref: string;
+  actionLabel: string;
+}) {
+  const items = Array.isArray(children) ? children : null;
+  const hasItems = Boolean(items && items.length);
+
+  return (
+    <div className="flex min-h-[220px] flex-col rounded-xl border border-gray-200/90 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-900/20">
+      <div className="flex items-center justify-between gap-2 border-b border-gray-200/80 px-3 py-2.5 dark:border-gray-700">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white">{title}</p>
+        <Link
+          href={actionHref}
+          className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-white shadow-sm"
+          style={{ backgroundColor: accent }}
+        >
+          {actionLabel}
+        </Link>
+      </div>
+      <ul className="flex flex-1 flex-col gap-1.5 p-2">
+        {loading ? (
+          <li className="px-2 py-6 text-center text-xs text-gray-500 dark:text-gray-400">Carregando…</li>
+        ) : hasItems ? (
+          items!.slice(0, 6)
+        ) : (
+          <li className="px-2 py-6 text-center text-xs text-gray-500 dark:text-gray-400">{empty}</li>
+        )}
+      </ul>
+    </div>
+  );
+}

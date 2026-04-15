@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos } from '@/lib/loja-tipo';
+import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos, isTipoHotel } from '@/lib/loja-tipo';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import BackupButton from '@/components/loja/BackupButton';
 
@@ -21,6 +21,7 @@ const DashboardClinicaBeleza = dynamic(() => import('./templates/clinica-beleza'
 const DashboardRestaurante = dynamic(() => import('./templates/restaurante'), { loading: DashboardChunkSkeleton });
 const DashboardServicos = dynamic(() => import('./templates/servicos'), { loading: DashboardChunkSkeleton });
 const DashboardCabeleireiro = dynamic(() => import('./templates/dashboard-cabeleireiro-novo'), { loading: DashboardChunkSkeleton });
+const DashboardHotel = dynamic(() => import('./templates/hotel'), { loading: DashboardChunkSkeleton });
 
 interface LojaInfo {
   id: number;
@@ -304,6 +305,7 @@ function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoRestaurante(loja.tipo_loja_nome)) return <DashboardRestaurante loja={loja} />;
   if (isTipoServicos(loja.tipo_loja_nome)) return <DashboardServicos loja={loja} />;
   if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} />;
+  if (isTipoHotel(loja.tipo_loja_nome)) return <DashboardHotel loja={loja} />;
   return <DashboardGenerico loja={loja} />;
 }
 

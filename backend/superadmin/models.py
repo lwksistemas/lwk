@@ -100,6 +100,8 @@ class TipoLoja(models.Model):
                 'crm-vendas': 'CRMVND', 'e-commerce': 'ECOMM', 'ecommerce': 'ECOMM',
                 'restaurante': 'REST', 'servicos': 'SERV', 'cabeleireiro': 'CABEL',
                 'clinica-estetica': 'CLIEST',
+                # Hotelaria
+                'hotel': 'HOTEL', 'pousada': 'HOTEL', 'hotel-pousada': 'HOTEL', 'pousada-hotel': 'HOTEL',
             }
             self.codigo = slug_to_codigo.get((self.slug or '').strip(), '')
         super().save(*args, **kwargs)

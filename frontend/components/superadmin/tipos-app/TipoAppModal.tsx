@@ -154,6 +154,7 @@ export function TipoAppModal({ onClose, onSuccess, editingTipo }: TipoAppModalPr
                   <option value="ecommerce">E-commerce</option>
                   <option value="servicos">Serviços</option>
                   <option value="restaurante">Restaurante</option>
+                  <option value="hotel">Hotel / Pousada</option>
                 </select>
               </div>
             </div>

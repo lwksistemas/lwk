@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'ecommerce',  # App de e-commerce
     'restaurante',  # App de restaurante
     'servicos',  # App de serviços
+    'hotel.apps.HotelConfig',  # App de hotelaria (Hotel / Pousada)
     'cabeleireiro.apps.CabeleireiroConfig',  # App de cabeleireiro/salão de beleza
     'clinica_beleza.apps.ClinicaBelezaConfig',  # App de clínica da beleza
     'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)

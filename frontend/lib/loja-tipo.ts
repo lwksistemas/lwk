@@ -38,3 +38,8 @@ export function isTipoServicos(tipoLojaNome: string): boolean {
   const s = normalizarTipo(tipoLojaNome);
   return s.includes('servicos') || s.includes('servico');
 }
+
+export function isTipoHotel(tipoLojaNome: string): boolean {
+  const s = normalizarTipo(tipoLojaNome);
+  return s.includes('hotel') || s.includes('pousada') || s.includes('hospedagem');
+}

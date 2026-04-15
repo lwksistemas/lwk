@@ -103,6 +103,19 @@ class Command(BaseCommand):
                 'tem_agendamento': True,
                 'tem_delivery': False,
                 'tem_estoque': False
+            },
+            {
+                'nome': 'Hotel / Pousada',
+                'slug': 'hotel-pousada',
+                'descricao': 'Sistema de administração hoteleira com reservas, hóspedes, apartamentos, check-in/out, tarifas e financeiro',
+                'dashboard_template': 'hotel',
+                'cor_primaria': '#0EA5E9',
+                'cor_secundaria': '#0284C7',
+                'tem_produtos': False,
+                'tem_servicos': True,
+                'tem_agendamento': True,
+                'tem_delivery': False,
+                'tem_estoque': True
             }
         ]
         
@@ -283,6 +296,45 @@ class Command(BaseCommand):
                 'tem_whatsapp_integration': False,
                 'is_active': True,
                 'ordem': 1
+            },
+            # Planos Hotel / Pousada
+            {
+                'nome': 'Básico Hotel',
+                'slug': 'basico-hotel',
+                'tipo_slug': 'hotel-pousada',
+                'descricao': 'Plano básico para pousadas e pequenos hotéis',
+                'preco_mensal': Decimal('119.90'),
+                'preco_anual': Decimal('1199.00'),
+                'max_usuarios': 5,
+                'max_produtos': 50,
+                'max_pedidos_mes': 1000,
+                'espaco_storage_gb': 10,
+                'tem_relatorios_avancados': False,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': False,
+                'tem_dominio_customizado': False,
+                'tem_whatsapp_integration': True,
+                'is_active': True,
+                'ordem': 1
+            },
+            {
+                'nome': 'Profissional Hotel',
+                'slug': 'profissional-hotel',
+                'tipo_slug': 'hotel-pousada',
+                'descricao': 'Plano completo para hotéis com operação e relatórios avançados',
+                'preco_mensal': Decimal('249.90'),
+                'preco_anual': Decimal('2499.00'),
+                'max_usuarios': 25,
+                'max_produtos': 300,
+                'max_pedidos_mes': 5000,
+                'espaco_storage_gb': 50,
+                'tem_relatorios_avancados': True,
+                'tem_api_acesso': True,
+                'tem_suporte_prioritario': True,
+                'tem_dominio_customizado': True,
+                'tem_whatsapp_integration': True,
+                'is_active': True,
+                'ordem': 2
             }
         ]
         

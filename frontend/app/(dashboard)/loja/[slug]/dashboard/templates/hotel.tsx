@@ -1,20 +1,29 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   BedDouble,
-  Building2,
   ClipboardList,
   DoorOpen,
   LogIn,
   LogOut,
-  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import type { HotelRelatorios } from './hotel-reports-charts';
+
+const HotelReportsCharts = dynamic(() => import('./hotel-reports-charts'), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="h-[320px] animate-pulse rounded-xl bg-gray-100 dark:bg-gray-900" />
+    </div>
+  ),
+});
 
 type LojaInfo = {
   id: number;
@@ -112,7 +121,6 @@ function statusLabel(status: string): string {
 
 export default function DashboardHotel({ loja }: { loja: LojaInfo }) {
   const accent = loja.cor_primaria || '#0EA5E9';
-  const accentSoft = `${accent}14`;
 
   const [dashboard, setDashboard] = useState<{
     kpis: {
@@ -150,6 +158,7 @@ export default function DashboardHotel({ loja }: { loja: LojaInfo }) {
       descricao: string;
       quarto_numero: string;
     }>;
+    relatorios?: HotelRelatorios;
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
 
@@ -190,33 +199,6 @@ export default function DashboardHotel({ loja }: { loja: LojaInfo }) {
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
-      <div
-        className="relative overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-        style={{ background: `linear-gradient(135deg, ${accentSoft} 0%, transparent 55%)` }}
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-gray-200/80 bg-white/70 px-3 py-1 text-xs font-medium text-gray-700 backdrop-blur dark:border-gray-600 dark:bg-gray-900/40 dark:text-gray-200">
-              <Building2 className="h-3.5 w-3.5" style={{ color: accent }} aria-hidden />
-              Operação hoje
-            </div>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Dashboard — Hotelaria</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-              Resumo de ocupação, movimentação e pendências. Use os atalhos à direita para ir direto aos cadastros.
-            </p>
-          </div>
-          <Link
-            href={`/loja/${loja.slug}/hotel`}
-            className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-            style={{ backgroundColor: accent }}
-          >
-            Abrir módulo Hotel
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        </div>
-      </div>
-
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -357,24 +339,8 @@ export default function DashboardHotel({ loja }: { loja: LojaInfo }) {
             </p>
           </div>
 
-          {/* Um único bloco “insights” em vez de 3 placeholders vazios */}
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-gradient-to-br from-gray-50 to-white p-5 dark:border-gray-700 dark:from-gray-900/30 dark:to-gray-800">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-600">
-                  <Sparkles className="h-5 w-5" style={{ color: accent }} aria-hidden />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 dark:text-white">Relatórios e gráficos</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Em breve: receita por período, ocupação por categoria de quarto e indicadores de satisfação — no mesmo padrão do CRM e da clínica.
-                  </p>
-                </div>
-              </div>
-              <span className="inline-flex w-fit items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-                Roadmap
-              </span>
-            </div>
+          <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <HotelReportsCharts loading={statsLoading} accent={accent} relatorios={dashboard?.relatorios} />
           </div>
         </div>
 

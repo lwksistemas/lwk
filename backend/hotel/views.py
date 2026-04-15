@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
 
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -196,6 +196,63 @@ class HotelDashboardViewSet(ViewSet):
             .order_by('-prioridade', 'status', 'id')[:20]
         )
 
+        # Relatórios (gráficos no dashboard): receita, ocupação por tipo, indicadores operacionais
+        start_30 = hoje - timedelta(days=29)
+        rev_rows = (
+            Reserva.objects.filter(data_checkin__gte=start_30, data_checkin__lte=hoje)
+            .exclude(status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW])
+            .values('data_checkin')
+            .annotate(total=Sum('valor_total'))
+        )
+        rev_map = {row['data_checkin']: float(row['total'] or 0) for row in rev_rows}
+        receita_diaria = []
+        d = start_30
+        while d <= hoje:
+            receita_diaria.append({'data': d.isoformat(), 'valor': round(rev_map.get(d, 0.0), 2)})
+            d += timedelta(days=1)
+        receita_total_30d = round(sum(r['valor'] for r in receita_diaria), 2)
+
+        ocup_rows = (
+            Quarto.objects.filter(is_active=True)
+            .values('tipo')
+            .annotate(total=Count('id'), ocupados=Count('id', filter=Q(status=Quarto.STATUS_OCUPADO)))
+            .order_by('-total')
+        )
+        ocupacao_por_tipo = []
+        for row in ocup_rows:
+            label = (row.get('tipo') or '').strip() or 'Sem categoria'
+            tot = int(row['total'] or 0)
+            occ = int(row['ocupados'] or 0)
+            pct = round((occ / tot) * 100, 1) if tot else 0.0
+            ocupacao_por_tipo.append({'tipo': label, 'total': tot, 'ocupados': occ, 'ocupacao_percent': pct})
+
+        primeiro_dia_mes_atual = hoje.replace(day=1)
+        r_mes = Reserva.objects.filter(data_checkin__gte=primeiro_dia_mes_atual, data_checkin__lte=hoje)
+        reservas_mes = r_mes.count()
+        no_show_mes = r_mes.filter(status=Reserva.STATUS_NO_SHOW).count()
+        cancelamentos_mes = r_mes.filter(status=Reserva.STATUS_CANCELADA).count()
+        tarefas_concluidas_mes = GovernancaTarefa.objects.filter(
+            status=GovernancaTarefa.STATUS_CONCLUIDA,
+            concluido_em__date__gte=primeiro_dia_mes_atual,
+            concluido_em__date__lte=hoje,
+        ).count()
+        base = max(reservas_mes, 1)
+        taxa_problema = ((no_show_mes + cancelamentos_mes) / base) * 100
+        indice_operacional = max(0.0, min(10.0, round(10.0 - min(5.0, taxa_problema / 10.0), 1)))
+
+        relatorios = {
+            'receita_diaria': receita_diaria,
+            'receita_total_30d': receita_total_30d,
+            'ocupacao_por_tipo': ocupacao_por_tipo,
+            'indicadores': {
+                'reservas_mes': reservas_mes,
+                'no_show_mes': no_show_mes,
+                'cancelamentos_mes': cancelamentos_mes,
+                'tarefas_concluidas_mes': tarefas_concluidas_mes,
+                'indice_operacional': indice_operacional,
+            },
+        }
+
         data = {
             'kpis': {
                 'ocupacao_hoje_percent': round(float(ocupacao_pct), 2),
@@ -241,6 +298,7 @@ class HotelDashboardViewSet(ViewSet):
                 }
                 for t in pendencias
             ],
+            'relatorios': relatorios,
         }
         return Response(data)
 

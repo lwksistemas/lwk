@@ -50,7 +50,7 @@ export default function HotelLoginConfigPage() {
     setSaving(true);
     setMsg(null);
     try {
-      await apiClient.put('/crm-vendas/login-config/', config);
+      await apiClient.patch('/crm-vendas/login-config/', config);
       setMsg('Salvo com sucesso!');
     } catch {
       setMsg('Erro ao salvar.');

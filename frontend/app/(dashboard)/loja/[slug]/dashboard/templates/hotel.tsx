@@ -205,28 +205,28 @@ export default function DashboardHotel({ loja }: { loja: LojaInfo }) {
           title="Ocupação hoje"
           value={statsLoading ? '…' : occupancyLabel}
           sub={kpis ? `${kpis.quartos_ocupados} de ${kpis.quartos_total} quartos` : 'Quartos ocupados / total'}
-          accent={accent}
+          accent="#0EA5E9"
           icon={BedDouble}
         />
         <StatCard
           title="Check-ins hoje"
           value={statsLoading ? '…' : String(kpis?.checkins_hoje ?? '—')}
           sub="Chegadas previstas"
-          accent={accent}
+          accent="#10B981"
           icon={LogIn}
         />
         <StatCard
           title="Check-outs hoje"
           value={statsLoading ? '…' : String(kpis?.checkouts_hoje ?? '—')}
           sub="Saídas previstas"
-          accent={accent}
+          accent="#F59E0B"
           icon={LogOut}
         />
         <StatCard
           title="Diária média (ADR)"
           value={statsLoading ? '…' : adrLabel}
           sub="Mês corrente"
-          accent={accent}
+          accent="#8B5CF6"
           icon={TrendingUp}
         />
       </div>

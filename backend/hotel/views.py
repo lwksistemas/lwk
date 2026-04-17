@@ -1,3 +1,4 @@
+import logging
 from datetime import date, timedelta
 
 from django.db.models import Avg, Count, Q, Sum
@@ -18,6 +19,8 @@ from .serializers import (
     GovernancaTarefaSerializer,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class HospedeViewSet(BaseModelViewSet):
     serializer_class = HospedeSerializer
@@ -32,7 +35,7 @@ class QuartoViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = Quarto.objects.all()
+        qs = Quarto.objects.filter(is_active=True)
         status_param = self.request.query_params.get('status')
         if status_param:
             qs = qs.filter(status=status_param)
@@ -44,7 +47,7 @@ class TarifaViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = Tarifa.objects.all()
+        qs = Tarifa.objects.filter(is_active=True)
         tipo_quarto = self.request.query_params.get('tipo_quarto')
         if tipo_quarto:
             qs = qs.filter(tipo_quarto=tipo_quarto)
@@ -56,7 +59,7 @@ class ReservaViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = Reserva.objects.select_related('hospede', 'quarto', 'tarifa').all()
+        qs = Reserva.objects.select_related('hospede', 'quarto', 'tarifa').filter(is_active=True)
         params = self.request.query_params
         if params.get('status'):
             qs = qs.filter(status=params.get('status'))
@@ -74,43 +77,47 @@ class ReservaViewSet(BaseModelViewSet):
     def checkin(self, request, pk=None):
         reserva = self.get_object()
         if reserva.status in (Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW):
-            return Response({'detail': 'Reserva cancelada/no-show não permite check-in.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'Reserva cancelada/no-show não permite check-in.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         reserva.status = Reserva.STATUS_CHECKIN
         reserva.save(update_fields=['status', 'updated_at'])
-        try:
-            quarto = reserva.quarto
-            quarto.status = Quarto.STATUS_OCUPADO
-            quarto.save(update_fields=['status', 'updated_at'])
-        except Exception:
-            pass
+        quarto = reserva.quarto
+        quarto.status = Quarto.STATUS_OCUPADO
+        quarto.save(update_fields=['status', 'updated_at'])
         return Response(self.get_serializer(reserva).data)
 
     @action(detail=True, methods=['post'])
     def checkout(self, request, pk=None):
         reserva = self.get_object()
         if reserva.status != Reserva.STATUS_CHECKIN:
-            return Response({'detail': 'Apenas reservas em check-in podem fazer check-out.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'Apenas reservas em check-in podem fazer check-out.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         reserva.status = Reserva.STATUS_CHECKOUT
         reserva.save(update_fields=['status', 'updated_at'])
-        try:
-            quarto = reserva.quarto
-            quarto.status = Quarto.STATUS_LIMPEZA
-            quarto.save(update_fields=['status', 'updated_at'])
-        except Exception:
-            pass
+        quarto = reserva.quarto
+        quarto.status = Quarto.STATUS_LIMPEZA
+        quarto.save(update_fields=['status', 'updated_at'])
         return Response(self.get_serializer(reserva).data)
 
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
         hoje = date.today()
         qs = self.get_queryset()
-        quartos_total = Quarto.objects.count()
-        quartos_ocupados = Quarto.objects.filter(status=Quarto.STATUS_OCUPADO).count()
+        quartos_qs = Quarto.objects.filter(is_active=True)
+        quartos_total = quartos_qs.count()
+        quartos_ocupados = quartos_qs.filter(status=Quarto.STATUS_OCUPADO).count()
 
-        checkins_hoje = qs.filter(data_checkin=hoje).exclude(status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW]).count()
-        checkouts_hoje = qs.filter(data_checkout=hoje).exclude(status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW]).count()
+        checkins_hoje = qs.filter(data_checkin=hoje).exclude(
+            status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW]
+        ).count()
+        checkouts_hoje = qs.filter(data_checkout=hoje).exclude(
+            status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW]
+        ).count()
 
-        # ADR simples: média de valor_diaria das reservas confirmadas/checkin/checkout no mês
         primeiro_dia_mes = hoje.replace(day=1)
         adr = (
             qs.filter(
@@ -122,47 +129,47 @@ class ReservaViewSet(BaseModelViewSet):
             .get('v')
         ) or 0
 
-        ocupacao_pct = 0
-        if quartos_total:
-            ocupacao_pct = (quartos_ocupados / quartos_total) * 100
+        ocupacao_pct = (quartos_ocupados / quartos_total) * 100 if quartos_total else 0
 
-        pendencias = GovernancaTarefa.objects.filter(status__in=[GovernancaTarefa.STATUS_ABERTA, GovernancaTarefa.STATUS_EM_ANDAMENTO]).count()
+        pendencias = GovernancaTarefa.objects.filter(
+            is_active=True,
+            status__in=[GovernancaTarefa.STATUS_ABERTA, GovernancaTarefa.STATUS_EM_ANDAMENTO],
+        ).count()
 
-        return Response(
-            {
-                'ocupacao_hoje_percent': round(float(ocupacao_pct), 2),
-                'quartos_total': quartos_total,
-                'quartos_ocupados': quartos_ocupados,
-                'checkins_hoje': checkins_hoje,
-                'checkouts_hoje': checkouts_hoje,
-                'adr_mes': float(adr),
-                'pendencias_governanca': pendencias,
-            }
-        )
+        return Response({
+            'ocupacao_hoje_percent': round(float(ocupacao_pct), 2),
+            'quartos_total': quartos_total,
+            'quartos_ocupados': quartos_ocupados,
+            'checkins_hoje': checkins_hoje,
+            'checkouts_hoje': checkouts_hoje,
+            'adr_mes': float(adr),
+            'pendencias_governanca': pendencias,
+        })
 
 
 class HotelDashboardViewSet(ViewSet):
+    """
+    Dashboard do hotel — todas as queries filtradas pelo LojaIsolationManager
+    para garantir isolamento multi-tenant.
+    """
     permission_classes = [IsAuthenticated]
 
     def list(self, request):
         hoje = date.today()
 
-        # KPIs (mesma base do endpoint /reservas/estatisticas/)
-        quartos_total = Quarto.objects.count()
-        quartos_ocupados = Quarto.objects.filter(status=Quarto.STATUS_OCUPADO).count()
+        # Querysets isolados por loja (LojaIsolationManager filtra automaticamente)
+        quartos_qs = Quarto.objects.filter(is_active=True)
+        reservas_qs = Reserva.objects.select_related('hospede', 'quarto', 'tarifa').filter(is_active=True)
+        gov_qs = GovernancaTarefa.objects.filter(is_active=True)
+
+        # KPIs
+        quartos_total = quartos_qs.count()
+        quartos_ocupados = quartos_qs.filter(status=Quarto.STATUS_OCUPADO).count()
         ocupacao_pct = (quartos_ocupados / quartos_total) * 100 if quartos_total else 0
 
-        reservas_qs = Reserva.objects.select_related('hospede', 'quarto', 'tarifa').all()
-        checkins_hoje = (
-            reservas_qs.filter(data_checkin=hoje)
-            .exclude(status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW])
-            .count()
-        )
-        checkouts_hoje = (
-            reservas_qs.filter(data_checkout=hoje)
-            .exclude(status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW])
-            .count()
-        )
+        excluir_status = [Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW]
+        checkins_hoje = reservas_qs.filter(data_checkin=hoje).exclude(status__in=excluir_status).count()
+        checkouts_hoje = reservas_qs.filter(data_checkout=hoje).exclude(status__in=excluir_status).count()
 
         primeiro_dia_mes = hoje.replace(day=1)
         adr = (
@@ -175,32 +182,32 @@ class HotelDashboardViewSet(ViewSet):
             .get('v')
         ) or 0
 
-        pendencias_count = GovernancaTarefa.objects.filter(
+        pendencias_count = gov_qs.filter(
             status__in=[GovernancaTarefa.STATUS_ABERTA, GovernancaTarefa.STATUS_EM_ANDAMENTO]
         ).count()
 
         # Listas operacionais
         chegadas = (
             reservas_qs.filter(data_checkin=hoje)
-            .exclude(status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW])
+            .exclude(status__in=excluir_status)
             .order_by('status', 'quarto__numero', 'id')[:20]
         )
         saidas = (
             reservas_qs.filter(data_checkout=hoje)
-            .exclude(status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW])
+            .exclude(status__in=excluir_status)
             .order_by('status', 'quarto__numero', 'id')[:20]
         )
         pendencias = (
-            GovernancaTarefa.objects.select_related('quarto')
+            gov_qs.select_related('quarto')
             .filter(status__in=[GovernancaTarefa.STATUS_ABERTA, GovernancaTarefa.STATUS_EM_ANDAMENTO])
             .order_by('-prioridade', 'status', 'id')[:20]
         )
 
-        # Relatórios (gráficos no dashboard): receita, ocupação por tipo, indicadores operacionais
+        # Relatórios
         start_30 = hoje - timedelta(days=29)
         rev_rows = (
-            Reserva.objects.filter(data_checkin__gte=start_30, data_checkin__lte=hoje)
-            .exclude(status__in=[Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW])
+            reservas_qs.filter(data_checkin__gte=start_30, data_checkin__lte=hoje)
+            .exclude(status__in=excluir_status)
             .values('data_checkin')
             .annotate(total=Sum('valor_total'))
         )
@@ -213,7 +220,7 @@ class HotelDashboardViewSet(ViewSet):
         receita_total_30d = round(sum(r['valor'] for r in receita_diaria), 2)
 
         ocup_rows = (
-            Quarto.objects.filter(is_active=True)
+            quartos_qs
             .values('tipo')
             .annotate(total=Count('id'), ocupados=Count('id', filter=Q(status=Quarto.STATUS_OCUPADO)))
             .order_by('-total')
@@ -226,14 +233,13 @@ class HotelDashboardViewSet(ViewSet):
             pct = round((occ / tot) * 100, 1) if tot else 0.0
             ocupacao_por_tipo.append({'tipo': label, 'total': tot, 'ocupados': occ, 'ocupacao_percent': pct})
 
-        primeiro_dia_mes_atual = hoje.replace(day=1)
-        r_mes = Reserva.objects.filter(data_checkin__gte=primeiro_dia_mes_atual, data_checkin__lte=hoje)
+        r_mes = reservas_qs.filter(data_checkin__gte=primeiro_dia_mes, data_checkin__lte=hoje)
         reservas_mes = r_mes.count()
         no_show_mes = r_mes.filter(status=Reserva.STATUS_NO_SHOW).count()
         cancelamentos_mes = r_mes.filter(status=Reserva.STATUS_CANCELADA).count()
-        tarefas_concluidas_mes = GovernancaTarefa.objects.filter(
+        tarefas_concluidas_mes = gov_qs.filter(
             status=GovernancaTarefa.STATUS_CONCLUIDA,
-            concluido_em__date__gte=primeiro_dia_mes_atual,
+            concluido_em__date__gte=primeiro_dia_mes,
             concluido_em__date__lte=hoje,
         ).count()
         base = max(reservas_mes, 1)
@@ -308,7 +314,7 @@ class GovernancaTarefaViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = GovernancaTarefa.objects.select_related('quarto').all()
+        qs = GovernancaTarefa.objects.select_related('quarto').filter(is_active=True)
         params = self.request.query_params
         if params.get('status'):
             qs = qs.filter(status=params.get('status'))
@@ -325,4 +331,3 @@ class GovernancaTarefaViewSet(BaseModelViewSet):
         tarefa.concluido_em = timezone.now()
         tarefa.save(update_fields=['status', 'concluido_em', 'updated_at'])
         return Response(self.get_serializer(tarefa).data)
-

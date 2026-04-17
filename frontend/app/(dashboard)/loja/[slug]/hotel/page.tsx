@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { BedDouble, Users, CalendarDays, Tag, Wrench, Settings } from 'lucide-react';
 
+/* Hotel Home - v2 */
+
 function CardLink({
   href,
   title,

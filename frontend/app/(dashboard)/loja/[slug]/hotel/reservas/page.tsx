@@ -90,13 +90,58 @@ export default function HotelReservasPage() {
     if (ok) { setModalOpen(false); setEditing(null); resetForm(); }
   };
 
-  const autofillTarifa = (tarifaId: string) => {
-    setForm((f) => ({ ...f, tarifa: tarifaId }));
-    const t = tarifas.find((x) => String(x.id) === String(tarifaId));
-    if (!t) return;
-    const diaria = Number(String(t.valor_diaria).replace(',', '.')) || 0;
-    setForm((f) => ({ ...f, valor_diaria: String(diaria.toFixed(2)) }));
+  /** Calcula número de noites entre duas datas */
+  const calcNoites = (checkin: string, checkout: string): number => {
+    if (!checkin || !checkout) return 0;
+    const d1 = new Date(checkin + 'T00:00:00');
+    const d2 = new Date(checkout + 'T00:00:00');
+    const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 0;
   };
+
+  /** Recalcula valor_total = diária × noites */
+  const recalcTotal = (diaria: string, checkin: string, checkout: string): string => {
+    const noites = calcNoites(checkin, checkout);
+    const valorDiaria = Number(String(diaria).replace(',', '.')) || 0;
+    if (noites > 0 && valorDiaria > 0) return (noites * valorDiaria).toFixed(2);
+    return '';
+  };
+
+  const handleCheckinChange = (v: string) => {
+    setForm((f) => {
+      const updated = { ...f, data_checkin: v };
+      updated.valor_total = recalcTotal(updated.valor_diaria, v, updated.data_checkout);
+      return updated;
+    });
+  };
+
+  const handleCheckoutChange = (v: string) => {
+    setForm((f) => {
+      const updated = { ...f, data_checkout: v };
+      updated.valor_total = recalcTotal(updated.valor_diaria, updated.data_checkin, v);
+      return updated;
+    });
+  };
+
+  const handleDiariaChange = (v: string) => {
+    setForm((f) => {
+      const updated = { ...f, valor_diaria: v };
+      updated.valor_total = recalcTotal(v, updated.data_checkin, updated.data_checkout);
+      return updated;
+    });
+  };
+
+  const autofillTarifa = (tarifaId: string) => {
+    const t = tarifas.find((x) => String(x.id) === String(tarifaId));
+    const diaria = t ? (Number(String(t.valor_diaria).replace(',', '.')) || 0).toFixed(2) : '';
+    setForm((f) => {
+      const updated = { ...f, tarifa: tarifaId, valor_diaria: diaria };
+      updated.valor_total = recalcTotal(diaria, updated.data_checkin, updated.data_checkout);
+      return updated;
+    });
+  };
+
+  const noites = calcNoites(form.data_checkin, form.data_checkout);
 
   const resumo = useMemo(() => ({
     total: items.length,
@@ -192,8 +237,8 @@ export default function HotelReservasPage() {
                 {tarifas.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
             </div>
-            <div className="space-y-2"><Label>Check-in *</Label><Input type="date" value={form.data_checkin} onChange={(e) => setForm((f) => ({ ...f, data_checkin: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Check-out *</Label><Input type="date" value={form.data_checkout} onChange={(e) => setForm((f) => ({ ...f, data_checkout: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Check-in *</Label><Input type="date" value={form.data_checkin} onChange={(e) => handleCheckinChange(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Check-out *</Label><Input type="date" value={form.data_checkout} onChange={(e) => handleCheckoutChange(e.target.value)} /></div>
             <div className="space-y-2">
               <Label>Status</Label>
               <select className={selectClass} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Reserva['status'] }))}>
@@ -204,8 +249,19 @@ export default function HotelReservasPage() {
             <div className="space-y-2"><Label>Adultos</Label><Input type="number" min={0} value={form.adultos} onChange={(e) => setForm((f) => ({ ...f, adultos: Number(e.target.value || 0) }))} /></div>
             <div className="space-y-2"><Label>Crianças</Label><Input type="number" min={0} value={form.criancas} onChange={(e) => setForm((f) => ({ ...f, criancas: Number(e.target.value || 0) }))} /></div>
             <div className="space-y-2"><Label>Canal</Label><Input value={form.canal} onChange={(e) => setForm((f) => ({ ...f, canal: e.target.value }))} placeholder="Direto / Booking / Expedia" /></div>
-            <div className="space-y-2"><Label>Valor diária (R$)</Label><Input value={form.valor_diaria} onChange={(e) => setForm((f) => ({ ...f, valor_diaria: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Valor total (R$)</Label><Input value={form.valor_total} onChange={(e) => setForm((f) => ({ ...f, valor_total: e.target.value }))} /></div>
+            <div className="space-y-2">
+              <Label>Valor diária (R$)</Label>
+              <Input value={form.valor_diaria} onChange={(e) => handleDiariaChange(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Valor total (R$){noites > 0 ? ` — ${noites} noite${noites > 1 ? 's' : ''}` : ''}</Label>
+              <Input value={form.valor_total} onChange={(e) => setForm((f) => ({ ...f, valor_total: e.target.value }))} />
+              {noites > 0 && form.valor_diaria && (
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  {noites} noite{noites > 1 ? 's' : ''} × R$ {Number(String(form.valor_diaria).replace(',', '.')).toFixed(2)} = R$ {(noites * Number(String(form.valor_diaria).replace(',', '.'))).toFixed(2)}
+                </p>
+              )}
+            </div>
             <div className="space-y-2 lg:col-span-3">
               <Label>Observações</Label>
               <textarea className="w-full min-h-[96px] px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100" value={form.observacoes} onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))} />

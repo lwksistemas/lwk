@@ -14,7 +14,7 @@ import {
   CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Mail, MessageCircle } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Mail, MessageCircle, Ban } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
@@ -113,6 +113,23 @@ export default function CrmVendasContratosPage() {
       alert('Contrato marcado como assinado com sucesso!');
     } catch (err: unknown) {
       alert(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
+    } finally {
+      setAlterandoStatus(null);
+    }
+  };
+
+  const handleCancelarContrato = async (contratoId: number) => {
+    if (!confirm('Cancelar este contrato?\n\nO contrato será marcado como cancelado e ficará no histórico de negociações.')) {
+      return;
+    }
+    try {
+      setAlterandoStatus(contratoId);
+      await apiClient.patch(`/crm-vendas/contratos/${contratoId}/`, {
+        status: 'cancelado',
+      });
+      await loadContratos();
+    } catch (err: unknown) {
+      alert(getCrmApiErrorDetail(err, 'Erro ao cancelar contrato.'));
     } finally {
       setAlterandoStatus(null);
     }
@@ -383,6 +400,17 @@ export default function CrmVendasContratosPage() {
                         <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
                         <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
                         <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
+                        {c.status !== 'cancelado' && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelarContrato(c.id)}
+                            disabled={alterandoStatus !== null}
+                            className="p-1.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50"
+                            title="Cancelar contrato (manter no histórico)"
+                          >
+                            <Ban size={16} />
+                          </button>
+                        )}
                         <button type="button" onClick={() => openModal('delete', c)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600" title="Excluir"><Trash2 size={16} /></button>
                       </div>
                     </td>

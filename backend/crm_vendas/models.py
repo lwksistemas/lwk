@@ -467,6 +467,7 @@ class Proposta(LojaIsolationMixin, models.Model):
         ('enviada', 'Enviada'),
         ('aceita', 'Aceita'),
         ('rejeitada', 'Rejeitada'),
+        ('cancelada', 'Cancelada'),
     ]
     
     STATUS_ASSINATURA_CHOICES = [

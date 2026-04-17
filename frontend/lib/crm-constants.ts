@@ -8,6 +8,7 @@ export const CRM_PROPOSTA_STATUS_LABEL: Record<string, string> = {
   enviada: 'Enviada',
   aceita: 'Aceita',
   rejeitada: 'Rejeitada',
+  cancelada: 'Cancelada',
 };
 
 /** Status comercial do contrato */

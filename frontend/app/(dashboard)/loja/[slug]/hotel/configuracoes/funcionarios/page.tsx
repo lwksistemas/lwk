@@ -123,7 +123,28 @@ export default function HotelFuncionariosPage() {
       ) : items.length === 0 ? (
         <div className="text-center py-20"><svg className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg><p className="text-lg font-medium text-gray-600 dark:text-gray-400">Nenhum funcionário cadastrado</p></div>
       ) : (
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <>
+          {/* Mobile: Cards */}
+          <div className="sm:hidden space-y-3">
+            {items.map((f) => (
+              <div key={f.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-semibold text-gray-900 dark:text-white">{f.nome}</p>
+                  {f.cargo && <span className="shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">{f.cargo}</span>}
+                </div>
+                <div className="space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {f.email && <p>{f.email}</p>}
+                  {f.telefone && <p>{f.telefone}</p>}
+                </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <Button variant="outline" onClick={() => openEdit(f)} className="min-h-[32px] text-xs">Editar</Button>
+                  <Button variant="destructive" onClick={() => remove(f)} className="min-h-[32px] text-xs ml-auto">Excluir</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop: Table */}
+          <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/80 border-b border-gray-200 dark:border-gray-700">
@@ -150,6 +171,7 @@ export default function HotelFuncionariosPage() {
           </table>
           </div>
         </div>
+        </>
       )}
       </div>
 

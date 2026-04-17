@@ -45,7 +45,26 @@ export default function HotelHospedesPage() {
         ) : error && !modalOpen ? (<div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">{error}</div>
         ) : items.length === 0 ? (<div className="text-center py-20"><Users className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" /><p className="text-lg font-medium text-gray-600 dark:text-gray-400">Nenhum hóspede cadastrado</p></div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <>
+            {/* Mobile: Cards */}
+            <div className="sm:hidden space-y-3">
+              {items.map((h) => (
+                <div key={h.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
+                  <p className="font-semibold text-gray-900 dark:text-white">{h.nome}</p>
+                  <div className="mt-1 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {h.documento && <p>Doc: {h.documento}</p>}
+                    {h.telefone && <p>Tel: {h.telefone}</p>}
+                    {h.email && <p>{h.email}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 mt-3">
+                    <button onClick={() => openEdit(h)} className="px-3 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium flex items-center gap-1 active:scale-95"><Edit2 className="w-3.5 h-3.5" /> Editar</button>
+                    <button onClick={() => remove(h.id, h.nome)} className="px-3 py-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-medium flex items-center gap-1 active:scale-95 ml-auto"><Trash2 className="w-3.5 h-3.5" /> Excluir</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: Table */}
+            <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/80 border-b border-gray-200 dark:border-gray-700">
@@ -72,6 +91,7 @@ export default function HotelHospedesPage() {
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} maxWidth="2xl">

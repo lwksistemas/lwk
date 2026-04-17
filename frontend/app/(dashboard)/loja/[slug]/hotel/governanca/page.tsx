@@ -51,7 +51,32 @@ export default function HotelGovernancaPage() {
         ) : error && !modalOpen ? (<div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">{error}</div>
         ) : items.length === 0 ? (<div className="text-center py-20"><Wrench className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" /><p className="text-lg font-medium text-gray-600 dark:text-gray-400">Nenhuma tarefa cadastrada</p></div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <>
+            {/* Mobile: Cards */}
+            <div className="sm:hidden space-y-3">
+              {items.map((t) => (
+                <div key={t.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">Quarto {t.quarto_numero || String(t.quarto)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.descricao || '—'}</p>
+                    </div>
+                    <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${prioridadeBadge(t.prioridade)}`}>{prioridadeLabel(t.prioridade)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap mb-3">
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${GOVERNANCA_TIPO_BADGE[t.tipo] || 'bg-gray-100 text-gray-600'}`}>{GOVERNANCA_TIPO_LABEL[t.tipo]}</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${GOVERNANCA_STATUS_BADGE[t.status] || 'bg-gray-100 text-gray-600'}`}>{GOVERNANCA_STATUS_LABEL[t.status]}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={() => openEdit(t)} className="px-3 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium flex items-center gap-1 active:scale-95"><Edit2 className="w-3.5 h-3.5" /> Editar</button>
+                    {t.status !== 'concluida' && <button onClick={() => postAction(t.id, 'concluir')} className="px-3 py-1.5 rounded-md bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs font-medium flex items-center gap-1 active:scale-95"><CheckCircle className="w-3.5 h-3.5" /> Concluir</button>}
+                    <button onClick={() => remove(t.id, `tarefa #${t.id}`)} className="px-3 py-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-medium flex items-center gap-1 active:scale-95 ml-auto"><Trash2 className="w-3.5 h-3.5" /> Excluir</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: Table */}
+            <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/80 border-b border-gray-200 dark:border-gray-700">
@@ -83,6 +108,7 @@ export default function HotelGovernancaPage() {
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} maxWidth="3xl">

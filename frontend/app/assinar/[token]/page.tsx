@@ -224,6 +224,11 @@ export default function AssinaturaPage() {
           <p className="text-xs text-gray-400 text-center">
             Você pode fechar esta página agora.
           </p>
+          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <p className="text-xs text-green-700 text-center">
+              Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -402,6 +407,11 @@ export default function AssinaturaPage() {
           <p className="text-xs text-gray-500 text-center mt-4">
             Ao assinar, você concorda que esta assinatura tem validade legal equivalente à assinatura manuscrita.
           </p>
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-xs text-gray-500 text-center">
+              Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
+            </p>
+          </div>
         </div>
       </div>
     </div>

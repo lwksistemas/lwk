@@ -235,6 +235,12 @@ export default function NovaPropostaPage() {
           vendedorNome={vendedorNome}
         />
       </div>
+
+      <div className="mt-4 px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+          Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
+        </p>
+      </div>
     </div>
   );
 }

@@ -408,7 +408,23 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
     ]))
     elements.append(assinatura_table)
-    elements.append(Spacer(1, 0.5*cm))  # Reduzido de 1cm para 0.5cm
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Mensagem de validade jurídica
+    validade_style = ParagraphStyle(
+        'ValidadeJuridica',
+        parent=styles['Normal'],
+        fontSize=7,
+        textColor=colors.HexColor('#666666'),
+        alignment=TA_CENTER,
+        spaceBefore=6,
+        spaceAfter=0,
+    )
+    elements.append(Paragraph(
+        'Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, '
+        'com registro de data, hora e endereço IP.',
+        validade_style,
+    ))
 
     doc.build(elements)
     buffer.seek(0)
@@ -597,7 +613,23 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
     ]))
     elements.append(assinatura_table)
-    elements.append(Spacer(1, 0.5*cm))  # Reduzido de 1cm para 0.5cm
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Mensagem de validade jurídica
+    validade_style = ParagraphStyle(
+        'ValidadeJuridicaContrato',
+        parent=styles['Normal'],
+        fontSize=7,
+        textColor=colors.HexColor('#666666'),
+        alignment=TA_CENTER,
+        spaceBefore=6,
+        spaceAfter=0,
+    )
+    elements.append(Paragraph(
+        'Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, '
+        'com registro de data, hora e endereço IP.',
+        validade_style,
+    ))
 
     doc.build(elements)
     buffer.seek(0)

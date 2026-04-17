@@ -94,6 +94,11 @@ export default function CrmDocumentoDetalhesModal({
                   <pre className="whitespace-pre-wrap text-sm mt-1">{conteudo}</pre>
                 </p>
               ) : null}
+              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
+                </p>
+              </div>
               <button type="button" onClick={onClose} className="w-full mt-4 py-2 border rounded-lg">
                 Fechar
               </button>

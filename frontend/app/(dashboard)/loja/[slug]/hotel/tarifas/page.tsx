@@ -27,15 +27,15 @@ export default function HotelTarifasPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <div className="bg-gradient-to-r from-sky-600 to-cyan-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <div className="flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+          <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/15 rounded-lg"><Tag className="w-6 h-6" /></div>
-              <div><h1 className="text-2xl font-bold">Tarifas</h1><p className="text-white/80 text-sm">Tarifário base e valores de diária ({items.length})</p></div>
+              <div className="p-2 bg-white/15 rounded-lg hidden sm:block"><Tag className="w-6 h-6" /></div>
+              <div><h1 className="text-xl sm:text-2xl font-bold">Tarifas</h1><p className="text-white/80 text-xs sm:text-sm">Tarifário base ({items.length})</p></div>
             </div>
             <div className="flex items-center gap-2">
-              <Link href={`/loja/${slug}/hotel`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Voltar</Link>
-              <button onClick={openNew} className="px-4 py-2 bg-white text-sky-700 font-semibold rounded-md hover:bg-sky-50 transition-colors text-sm flex items-center gap-1 shadow"><Plus className="w-4 h-4" /> Nova tarifa</button>
+              <Link href={`/loja/${slug}/hotel`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1 active:scale-95"><ArrowLeft className="w-4 h-4" /> Voltar</Link>
+              <button onClick={openNew} className="px-3 sm:px-4 py-2 bg-white text-sky-700 font-semibold rounded-md hover:bg-sky-50 transition-colors text-sm flex items-center gap-1 shadow active:scale-95 ml-auto"><Plus className="w-4 h-4" /> Nova tarifa</button>
             </div>
           </div>
         </div>
@@ -45,7 +45,25 @@ export default function HotelTarifasPage() {
         ) : error && !modalOpen ? (<div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">{error}</div>
         ) : items.length === 0 ? (<div className="text-center py-20"><Tag className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" /><p className="text-lg font-medium text-gray-600 dark:text-gray-400">Nenhuma tarifa cadastrada</p></div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <>
+            {/* Mobile: Cards */}
+            <div className="sm:hidden space-y-3">
+              {items.map((t) => (
+                <div key={t.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="font-semibold text-gray-900 dark:text-white">{t.nome}</p>
+                    <span className="shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">R$ {Number(String(t.valor_diaria).replace(',', '.')).toFixed(2)}</span>
+                  </div>
+                  {t.tipo_quarto && <p className="text-xs text-gray-500 dark:text-gray-400">{t.tipo_quarto}</p>}
+                  <div className="flex items-center gap-2 mt-3">
+                    <button onClick={() => openEdit(t)} className="px-3 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium flex items-center gap-1 active:scale-95"><Edit2 className="w-3.5 h-3.5" /> Editar</button>
+                    <button onClick={() => remove(t.id, t.nome)} className="px-3 py-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-medium flex items-center gap-1 active:scale-95 ml-auto"><Trash2 className="w-3.5 h-3.5" /> Excluir</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: Table */}
+            <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/80 border-b border-gray-200 dark:border-gray-700">
@@ -70,6 +88,7 @@ export default function HotelTarifasPage() {
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} maxWidth="2xl">

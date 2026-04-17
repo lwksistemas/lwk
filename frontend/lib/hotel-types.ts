@@ -102,3 +102,44 @@ export const GOVERNANCA_STATUS_LABEL: Record<GovernancaTarefa['status'], string>
   em_andamento: 'Em andamento',
   concluida: 'Concluída',
 };
+
+/** Formata data ISO (YYYY-MM-DD) para DD/MM/YYYY */
+export function formatDateBR(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+/** Classes CSS para badge de status de reserva */
+export const RESERVA_STATUS_BADGE: Record<string, string> = {
+  pendente: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  confirmada: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  checkin: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  checkout: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+  cancelada: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  no_show: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+};
+
+/** Classes CSS para badge de status de quarto */
+export const QUARTO_STATUS_BADGE: Record<string, string> = {
+  disponivel: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  ocupado: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  limpeza: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  manutencao: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+};
+
+/** Classes CSS para badge de status de governança */
+export const GOVERNANCA_STATUS_BADGE: Record<string, string> = {
+  aberta: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  em_andamento: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  concluida: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+};
+
+/** Classes CSS para badge de tipo de governança */
+export const GOVERNANCA_TIPO_BADGE: Record<string, string> = {
+  limpeza: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
+  manutencao: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+  enxoval: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+  outros: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+};

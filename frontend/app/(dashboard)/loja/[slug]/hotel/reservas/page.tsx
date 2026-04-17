@@ -131,25 +131,25 @@ export default function HotelReservasPage() {
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       {/* Header */}
       <div className="bg-gradient-to-r from-sky-600 to-cyan-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <div className="flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/15 rounded-lg">
+              <div className="p-2 bg-white/15 rounded-lg hidden sm:block">
                 <CalendarDays className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">Reservas</h1>
-                <p className="text-white/80 text-sm">
+                <h1 className="text-xl sm:text-2xl font-bold">Reservas</h1>
+                <p className="text-white/80 text-xs sm:text-sm">
                   Total: {resumo.total} • Confirmadas: {resumo.confirmadas} • Hospedagem: {resumo.checkin}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link href={`/loja/${slug}/hotel`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1">
-                <ArrowLeft className="w-4 h-4" /> Voltar
+              <Link href={`/loja/${slug}/hotel`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1 active:scale-95">
+                <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">Voltar</span>
               </Link>
-              <button onClick={openNew} className="px-4 py-2 bg-white text-sky-700 font-semibold rounded-md hover:bg-sky-50 transition-colors text-sm flex items-center gap-1 shadow">
-                <Plus className="w-4 h-4" /> Nova reserva
+              <button onClick={openNew} className="px-3 sm:px-4 py-2 bg-white text-sky-700 font-semibold rounded-md hover:bg-sky-50 transition-colors text-sm flex items-center gap-1 shadow active:scale-95">
+                <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Nova reserva</span><span className="xs:hidden">Novo</span>
               </button>
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function HotelReservasPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600" />
@@ -168,62 +168,103 @@ export default function HotelReservasPage() {
           <div className="text-center py-20">
             <CalendarDays className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
             <p className="text-lg font-medium text-gray-600 dark:text-gray-400">Nenhuma reserva cadastrada</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Clique em "Nova reserva" para começar</p>
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Clique em &quot;Nova reserva&quot; para começar</p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/80 border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">#</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Hóspede</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Quarto</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Período</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Canal</th>
-                    <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {items.map((r) => (
-                    <tr key={r.id} className="hover:bg-sky-50/50 dark:hover:bg-gray-800/50 transition-colors">
-                      <td className="py-3 px-4 font-mono text-gray-500">#{r.id}</td>
-                      <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{r.hospede_nome || String(r.hospede)}</td>
-                      <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{r.quarto_numero || String(r.quarto)}</td>
-                      <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{formatDateBR(r.data_checkin)} → {formatDateBR(r.data_checkout)}</td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${RESERVA_STATUS_BADGE[r.status] || 'bg-gray-100 text-gray-600'}`}>
-                          {RESERVA_STATUS_LABEL[r.status]}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{r.canal || '—'}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button onClick={() => openEdit(r)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-sky-600 transition-colors" title="Editar">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
-                            <button onClick={() => postAction(r.id, 'checkin')} className="px-2.5 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50 text-xs font-medium transition-colors flex items-center gap-1" title="Check-in">
-                              <LogIn className="w-3.5 h-3.5" /> Check-in
-                            </button>
-                          )}
-                          {r.status === 'checkin' && (
-                            <button onClick={() => postAction(r.id, 'checkout')} className="px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 text-xs font-medium transition-colors flex items-center gap-1" title="Check-out">
-                              <LogOut className="w-3.5 h-3.5" /> Check-out
-                            </button>
-                          )}
-                          <button onClick={() => remove(r.id, `reserva #${r.id}`)} className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-600 transition-colors" title="Excluir">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <>
+            {/* Mobile: Cards */}
+            <div className="sm:hidden space-y-3">
+              {items.map((r) => (
+                <div key={r.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-white truncate">{r.hospede_nome || String(r.hospede)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Quarto {r.quarto_numero || String(r.quarto)} • {r.canal || 'Direto'}</p>
+                    </div>
+                    <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${RESERVA_STATUS_BADGE[r.status] || 'bg-gray-100 text-gray-600'}`}>
+                      {RESERVA_STATUS_LABEL[r.status]}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                    {formatDateBR(r.data_checkin)} → {formatDateBR(r.data_checkout)}
+                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={() => openEdit(r)} className="px-3 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium flex items-center gap-1 active:scale-95">
+                      <Edit2 className="w-3.5 h-3.5" /> Editar
+                    </button>
+                    {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
+                      <button onClick={() => postAction(r.id, 'checkin')} className="px-3 py-1.5 rounded-md bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs font-medium flex items-center gap-1 active:scale-95">
+                        <LogIn className="w-3.5 h-3.5" /> Check-in
+                      </button>
+                    )}
+                    {r.status === 'checkin' && (
+                      <button onClick={() => postAction(r.id, 'checkout')} className="px-3 py-1.5 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-medium flex items-center gap-1 active:scale-95">
+                        <LogOut className="w-3.5 h-3.5" /> Check-out
+                      </button>
+                    )}
+                    <button onClick={() => remove(r.id, `reserva #${r.id}`)} className="px-3 py-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-medium flex items-center gap-1 active:scale-95 ml-auto">
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+
+            {/* Desktop/Tablet: Table */}
+            <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/80 border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">#</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Hóspede</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Quarto</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Período</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Canal</th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {items.map((r) => (
+                      <tr key={r.id} className="hover:bg-sky-50/50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="py-3 px-4 font-mono text-gray-500">#{r.id}</td>
+                        <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{r.hospede_nome || String(r.hospede)}</td>
+                        <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{r.quarto_numero || String(r.quarto)}</td>
+                        <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{formatDateBR(r.data_checkin)} → {formatDateBR(r.data_checkout)}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${RESERVA_STATUS_BADGE[r.status] || 'bg-gray-100 text-gray-600'}`}>
+                            {RESERVA_STATUS_LABEL[r.status]}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{r.canal || '—'}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button onClick={() => openEdit(r)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-sky-600 transition-colors" title="Editar">
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
+                              <button onClick={() => postAction(r.id, 'checkin')} className="px-2.5 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50 text-xs font-medium transition-colors flex items-center gap-1" title="Check-in">
+                                <LogIn className="w-3.5 h-3.5" /> Check-in
+                              </button>
+                            )}
+                            {r.status === 'checkin' && (
+                              <button onClick={() => postAction(r.id, 'checkout')} className="px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 text-xs font-medium transition-colors flex items-center gap-1" title="Check-out">
+                                <LogOut className="w-3.5 h-3.5" /> Check-out
+                              </button>
+                            )}
+                            <button onClick={() => remove(r.id, `reserva #${r.id}`)} className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-600 transition-colors" title="Excluir">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

@@ -69,7 +69,7 @@ export default function HotelQuartosPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {loading ? (
           <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600" /></div>
         ) : error && !modalOpen ? (
@@ -80,7 +80,27 @@ export default function HotelQuartosPage() {
             <p className="text-lg font-medium text-gray-600 dark:text-gray-400">Nenhum quarto cadastrado</p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <>
+            {/* Mobile: Cards */}
+            <div className="sm:hidden space-y-3">
+              {items.map((q) => (
+                <div key={q.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">Quarto {q.numero}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{q.nome || q.tipo || '—'} • Cap: {q.capacidade}</p>
+                    </div>
+                    <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${QUARTO_STATUS_BADGE[q.status] || 'bg-gray-100 text-gray-600'}`}>{QUARTO_STATUS_LABEL[q.status]}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-3">
+                    <button onClick={() => openEdit(q)} className="px-3 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium flex items-center gap-1 active:scale-95"><Edit2 className="w-3.5 h-3.5" /> Editar</button>
+                    <button onClick={() => remove(q.id, q.numero)} className="px-3 py-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-medium flex items-center gap-1 active:scale-95 ml-auto"><Trash2 className="w-3.5 h-3.5" /> Excluir</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: Table */}
+            <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -117,6 +137,7 @@ export default function HotelQuartosPage() {
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
 

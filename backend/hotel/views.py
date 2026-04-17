@@ -10,13 +10,14 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from core.views import BaseModelViewSet
-from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa
+from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario
 from .serializers import (
     HospedeSerializer,
     QuartoSerializer,
     TarifaSerializer,
     ReservaSerializer,
     GovernancaTarefaSerializer,
+    FuncionarioSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -331,3 +332,11 @@ class GovernancaTarefaViewSet(BaseModelViewSet):
         tarefa.concluido_em = timezone.now()
         tarefa.save(update_fields=['status', 'concluido_em', 'updated_at'])
         return Response(self.get_serializer(tarefa).data)
+
+
+class FuncionarioViewSet(BaseModelViewSet):
+    serializer_class = FuncionarioSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Funcionario.objects.filter(is_active=True)

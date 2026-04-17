@@ -1,7 +1,7 @@
 from django.db.models import Q
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
-from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa
+from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario
 
 
 class HospedeSerializer(BaseLojaSerializer):
@@ -89,3 +89,13 @@ class GovernancaTarefaSerializer(BaseLojaSerializer):
             'is_active', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'concluido_em', 'loja_id']
+
+
+class FuncionarioSerializer(BaseLojaSerializer):
+    class Meta:
+        model = Funcionario
+        fields = [
+            'id', 'nome', 'email', 'cargo', 'telefone',
+            'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']

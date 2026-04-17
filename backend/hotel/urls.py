@@ -8,6 +8,7 @@ from .views import (
     ReservaViewSet,
     GovernancaTarefaViewSet,
     HotelDashboardViewSet,
+    FuncionarioViewSet,
 )
 
 router = DefaultRouter()
@@ -17,6 +18,7 @@ router.register(r'tarifas', TarifaViewSet, basename='hotel-tarifas')
 router.register(r'reservas', ReservaViewSet, basename='hotel-reservas')
 router.register(r'governanca-tarefas', GovernancaTarefaViewSet, basename='hotel-governanca-tarefas')
 router.register(r'dashboard', HotelDashboardViewSet, basename='hotel-dashboard')
+router.register(r'funcionarios', FuncionarioViewSet, basename='hotel-funcionarios')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { BedDouble, Users, CalendarDays, Tag, Wrench } from 'lucide-react';
+import { BedDouble, Users, CalendarDays, Tag, Wrench, Settings } from 'lucide-react';
 
 function CardLink({
   href,
@@ -89,6 +89,12 @@ export default function HotelHomePage() {
               title="Governança"
               description="Pendências de limpeza/manutenção/enxoval por quarto."
               icon={<Wrench className="w-6 h-6" />}
+            />
+            <CardLink
+              href={`/loja/${slug}/hotel/configuracoes`}
+              title="Configurações"
+              description="Assinatura, funcionários, login e backup de dados."
+              icon={<Settings className="w-6 h-6" />}
             />
           </div>
         </div>

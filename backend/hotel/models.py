@@ -195,3 +195,28 @@ class GovernancaTarefa(LojaIsolationMixin, models.Model):
     def __str__(self):
         return f'{self.get_tipo_display()} - Quarto {self.quarto.numero}'
 
+
+
+class Funcionario(LojaIsolationMixin, models.Model):
+    """Funcionário do hotel (recepcionista, camareira, etc.)."""
+
+    nome = models.CharField(max_length=200)
+    email = models.EmailField(blank=True, default='')
+    cargo = models.CharField(max_length=100, blank=True, default='')
+    telefone = models.CharField(max_length=30, blank=True, default='')
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'hotel_funcionarios'
+        ordering = ['nome']
+        indexes = [
+            models.Index(fields=['loja_id', 'is_active'], name='hotel_func_loja_act_idx'),
+        ]
+
+    def __str__(self):
+        return self.nome

@@ -25,6 +25,8 @@ TIPO_LOJA_EXTRA_APPS = {
     'servicos': ['servicos'],
     'cabeleireiro': ['cabeleireiro'],
     'crm-vendas': ['crm_vendas', 'nfse_integration'],
+    'hotel-pousada': ['hotel'],
+    'hotel': ['hotel'],
 }
 
 # Falha de migration nestes apps aborta criação/recuperação de loja tipo CRM Vendas (NFS-e no tenant).

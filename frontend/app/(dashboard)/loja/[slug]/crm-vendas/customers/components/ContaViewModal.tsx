@@ -1,10 +1,17 @@
 'use client';
 
-import { Mail, Phone, MapPin, Tag } from 'lucide-react';
+import { Mail, Phone, MapPin, Tag, Building2 } from 'lucide-react';
 import { ModalShell } from './ContaFormModal';
+
+const TIPO_LABELS: Record<string, string> = {
+  cliente: 'Cliente',
+  prestadora: 'Prestadora de Serviço',
+  ambos: 'Cliente e Prestadora',
+};
 
 interface Conta {
   id: number; nome: string; segmento: string;
+  tipo?: string;
   email?: string; telefone?: string; cidade?: string; uf?: string;
 }
 
@@ -28,6 +35,7 @@ export function ContaViewModal({ conta, onClose, onEdit }: Props) {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {conta.tipo && <InfoItem icon={<Building2 size={18} />} label="Tipo" value={TIPO_LABELS[conta.tipo] || conta.tipo} />}
           {conta.email && <InfoItem icon={<Mail size={18} />} label="Email" value={conta.email} />}
           {conta.telefone && <InfoItem icon={<Phone size={18} />} label="Telefone" value={conta.telefone} />}
           {(conta.cidade || conta.uf) && <InfoItem icon={<MapPin size={18} />} label="Localização" value={[conta.cidade, conta.uf].filter(Boolean).join(' - ')} />}

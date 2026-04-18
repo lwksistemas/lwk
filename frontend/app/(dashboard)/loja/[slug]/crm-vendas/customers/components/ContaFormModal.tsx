@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 
 export interface ContaFormData {
   nome: string; razao_social: string; cnpj: string; inscricao_estadual: string;
-  segmento: string; telefone: string; email: string; site: string;
+  tipo: string; segmento: string; telefone: string; email: string; site: string;
   cep: string; logradouro: string; numero: string; complemento: string;
   bairro: string; cidade: string; uf: string; observacoes: string;
 }
@@ -46,6 +46,14 @@ export function ContaFormModal({ title, formData, submitting, consultingCNPJ, on
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Empresa <span className="text-red-500">*</span></label>
+            <select value={formData.tipo} onChange={(e) => set('tipo', e.target.value)} className={inputClass} required>
+              <option value="cliente">Cliente</option>
+              <option value="prestadora">Prestadora de Serviço</option>
+              <option value="ambos">Cliente e Prestadora</option>
+            </select>
+          </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Razão Social</label>
             <input type="text" value={formData.razao_social} onChange={(e) => set('razao_social', e.target.value)} className={inputClass} />

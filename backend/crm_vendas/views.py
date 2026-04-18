@@ -518,7 +518,17 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        return qs.select_related('vendedor').prefetch_related('leads', 'contatos')
+        qs = qs.select_related('vendedor').prefetch_related('leads', 'contatos')
+        # Filtro por tipo (cliente, prestadora, ambos)
+        tipo = self.request.query_params.get('tipo')
+        if tipo:
+            if tipo == 'prestadora':
+                qs = qs.filter(tipo__in=['prestadora', 'ambos'])
+            elif tipo == 'cliente':
+                qs = qs.filter(tipo__in=['cliente', 'ambos'])
+            else:
+                qs = qs.filter(tipo=tipo)
+        return qs
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
@@ -672,7 +682,7 @@ class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
 
 
 class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
-    queryset = Oportunidade.objects.select_related('lead', 'vendedor', 'lead__conta').prefetch_related('atividades').all()
+    queryset = Oportunidade.objects.select_related('lead', 'vendedor', 'lead__conta', 'empresa_prestadora').prefetch_related('atividades').all()
     serializer_class = OportunidadeSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
     
@@ -751,7 +761,7 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
     def get_queryset(self):
         qs = super().get_queryset()
         # ✅ OTIMIZAÇÃO v1490: Adicionar prefetch para itens e reduzir N+1 queries
-        qs = qs.select_related('lead', 'vendedor', 'lead__conta').prefetch_related(
+        qs = qs.select_related('lead', 'vendedor', 'lead__conta', 'empresa_prestadora').prefetch_related(
             'atividades',
             'itens',  # Prefetch itens da oportunidade
             'itens__produto_servico'  # Prefetch produtos dos itens

@@ -278,7 +278,7 @@ class ContaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     class Meta:
         model = Conta
         fields = [
-            'id', 'nome', 'razao_social', 'cnpj', 'inscricao_estadual', 'segmento', 
+            'id', 'nome', 'razao_social', 'cnpj', 'inscricao_estadual', 'tipo', 'segmento', 
             'telefone', 'email', 'site',
             'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
             'endereco', 'observacoes', 'created_at', 'updated_at',
@@ -400,13 +400,16 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
     lead_nome = serializers.SerializerMethodField()
     vendedor_nome = serializers.CharField(source='vendedor.nome', read_only=True)
     conta_nome = serializers.SerializerMethodField()
+    empresa_prestadora_nome = serializers.SerializerMethodField()
 
     uppercase_fields = ['titulo']
 
     class Meta:
         model = Oportunidade
         fields = [
-            'id', 'titulo', 'lead', 'lead_nome', 'conta_nome', 'valor', 'etapa', 'vendedor', 'vendedor_nome',
+            'id', 'titulo', 'lead', 'lead_nome', 'conta_nome',
+            'empresa_prestadora', 'empresa_prestadora_nome',
+            'valor', 'etapa', 'vendedor', 'vendedor_nome',
             'probabilidade', 'data_fechamento_prevista', 'data_fechamento',
             'data_fechamento_ganho', 'data_fechamento_perdido', 'valor_comissao',
             'observacoes', 'created_at', 'updated_at',
@@ -429,6 +432,15 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
         if obj.lead and obj.lead.conta_id:
             try:
                 return obj.lead.conta.nome
+            except Exception:
+                pass
+        return None
+
+    def get_empresa_prestadora_nome(self, obj):
+        """Retorna nome da empresa prestadora de serviço vinculada à oportunidade."""
+        if obj.empresa_prestadora_id:
+            try:
+                return obj.empresa_prestadora.nome
             except Exception:
                 pass
         return None

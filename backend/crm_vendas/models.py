@@ -53,10 +53,22 @@ class Vendedor(LojaIsolationMixin, models.Model):
 
 class Conta(LojaIsolationMixin, models.Model):
     """Conta (empresa)."""
+    TIPO_CHOICES = [
+        ('cliente', 'Cliente'),
+        ('prestadora', 'Prestadora de Serviço'),
+        ('ambos', 'Cliente e Prestadora'),
+    ]
+
     nome = models.CharField(max_length=255, help_text='Nome fantasia da empresa')
     razao_social = models.CharField(max_length=255, blank=True, help_text='Razão social da empresa')
     cnpj = models.CharField(max_length=18, blank=True, help_text='CNPJ da empresa (formato: 00.000.000/0000-00)')
     inscricao_estadual = models.CharField(max_length=20, blank=True, help_text='Inscrição estadual')
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default='cliente',
+        help_text='Tipo da empresa: cliente, prestadora de serviço ou ambos',
+    )
     vendedor = models.ForeignKey(
         'Vendedor',
         on_delete=models.SET_NULL,
@@ -94,6 +106,7 @@ class Conta(LojaIsolationMixin, models.Model):
             models.Index(fields=['loja_id', 'nome'], name='crm_conta_loja_nome_idx'),
             models.Index(fields=['loja_id', 'vendedor'], name='crm_conta_loja_vend_idx'),
             models.Index(fields=['loja_id', 'created_at'], name='crm_conta_loja_created_idx'),
+            models.Index(fields=['loja_id', 'tipo'], name='crm_conta_loja_tipo_idx'),
         ]
 
     def __str__(self):
@@ -233,6 +246,14 @@ class Oportunidade(LojaIsolationMixin, models.Model):
         Lead,
         on_delete=models.CASCADE,
         related_name='oportunidades',
+    )
+    empresa_prestadora = models.ForeignKey(
+        Conta,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='oportunidades_prestadas',
+        help_text='Empresa para a qual o serviço é prestado nesta oportunidade',
     )
     valor = models.DecimalField(max_digits=12, decimal_places=2)
     etapa = models.CharField(max_length=50, choices=ETAPA_CHOICES, default='prospecting')

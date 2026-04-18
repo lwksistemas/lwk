@@ -23,6 +23,18 @@ class QuartoSerializer(BaseLojaSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at', 'loja_id']
 
+    def validate_numero(self, value):
+        """Valida unicidade do número do quarto na mesma loja, excluindo a instância atual."""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        if loja_id:
+            qs = Quarto.objects.filter(loja_id=loja_id, numero=value)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError('Já existe um quarto com este número.')
+        return value
+
 
 class TarifaSerializer(BaseLojaSerializer):
     class Meta:

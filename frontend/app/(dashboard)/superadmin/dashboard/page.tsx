@@ -91,6 +91,13 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'teal',
   },
   {
+    title: 'Auditoria de Schemas',
+    description: 'Verifica tabelas por loja e corrige schemas incompletos',
+    icon: '🗄️',
+    href: '/superadmin/dashboard/schemas',
+    color: 'indigo',
+  },
+  {
     title: 'Alertas de Segurança',
     description: 'Monitoramento de violações e atividades suspeitas',
     icon: '🚨',

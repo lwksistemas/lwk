@@ -67,31 +67,6 @@ export default function AuditoriaPage() {
   const [horariosPico, setHorariosPico] = useState<HorarioPico[]>([]);
   const [taxaSucesso, setTaxaSucesso] = useState<TaxaSucesso | null>(null);
 
-  const [schemaLoading, setSchemaLoading] = useState(false);
-  const [schemaResult, setSchemaResult] = useState<{
-    postgresql?: boolean;
-    mensagem?: string;
-    aplicar_correcao?: boolean;
-    resumo?: { total: number; ok: number; falhas: number; corrigidos: number };
-    resultados?: Array<{
-      audit: {
-        loja_id: number;
-        slug: string;
-        nome: string;
-        tipo_slug: string;
-        ok: boolean;
-        erro?: string | null;
-        schema_existe?: boolean | null;
-        tabelas_total?: number;
-        tabelas_negocio?: number;
-        apps_detalhe?: Array<{ app: string; ok: boolean; tabelas_prefixo: number; migrations_registradas: number }>;
-      };
-      correcao?: { sucesso?: boolean; mensagem?: string } | null;
-      audit_pos?: Record<string, unknown> | null;
-      ok_final: boolean;
-    }>;
-  } | null>(null);
-
   useEffect(() => {
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
       router.push('/superadmin/login');
@@ -165,33 +140,6 @@ export default function AuditoriaPage() {
     setDataFim('');
   };
 
-  const executarAuditoriaSchema = async (aplicarCorrecao: boolean) => {
-    if (aplicarCorrecao) {
-      const ok = window.confirm(
-        'Serão aplicadas migrations nos schemas das lojas com falha (até 80 lojas ativas). ' +
-          'Pode levar alguns minutos. Continuar?'
-      );
-      if (!ok) return;
-    }
-    try {
-      setSchemaLoading(true);
-      setSchemaResult(null);
-      const { data } = await apiClient.post(
-        '/superadmin/security-dashboard/verificar_corrigir_schemas_lojas/',
-        { aplicar_correcao: aplicarCorrecao, limite: 80 }
-      );
-      setSchemaResult(data);
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { detail?: string } }; message?: string };
-      setSchemaResult({
-        postgresql: false,
-        mensagem: ax?.response?.data?.detail || ax?.message || 'Falha ao executar auditoria de schemas.',
-      });
-    } finally {
-      setSchemaLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -243,97 +191,6 @@ export default function AuditoriaPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Schemas PostgreSQL por loja */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6 border border-slate-200 dark:border-slate-600">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Banco isolado por loja (schema PostgreSQL)
-          </h3>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Verifica se cada loja ativa tem as tabelas esperadas para o tipo (CRM, clínica, etc.). Opcionalmente
-            aplica migrations para corrigir schemas incompletos.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={schemaLoading}
-              onClick={() => executarAuditoriaSchema(false)}
-              className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {schemaLoading ? 'Processando…' : 'Verificar schemas'}
-            </button>
-            <button
-              type="button"
-              disabled={schemaLoading}
-              onClick={() => executarAuditoriaSchema(true)}
-              className="px-4 py-2 rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Verificar e corrigir
-            </button>
-          </div>
-
-          {schemaResult && (
-            <div className="mt-4 text-sm">
-              {schemaResult.postgresql === false && (
-                <p className="text-amber-700 dark:text-amber-300">
-                  {schemaResult.mensagem ||
-                    'Ambiente sem PostgreSQL no servidor de API: a auditoria de schema só se aplica em produção (Heroku).'}
-                </p>
-              )}
-              {schemaResult.postgresql !== false && schemaResult.resumo && (
-                <div className="rounded-md bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2">
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
-                    Resumo: {schemaResult.resumo.total} loja(s) — {schemaResult.resumo.ok} OK,{' '}
-                    {schemaResult.resumo.falhas} com falha
-                    {schemaResult.aplicar_correcao ? ` — ${schemaResult.resumo.corrigidos} correção(ões) aplicada(s)` : ''}
-                  </p>
-                  <div className="max-h-64 overflow-y-auto border border-slate-200 dark:border-slate-600 rounded">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
-                        <tr>
-                          <th className="p-2">Slug</th>
-                          <th className="p-2">Tipo</th>
-                          <th className="p-2">OK</th>
-                          <th className="p-2">Detalhe</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(schemaResult.resultados || []).map((row, i) => {
-                          const a = row.audit;
-                          const badApps =
-                            a.apps_detalhe?.filter((x) => !x.ok).map((x) => x.app).join(', ') || '';
-                          const err = a.erro || (badApps ? `Apps: ${badApps}` : '');
-                          return (
-                            <tr key={i} className="border-t border-slate-200 dark:border-slate-600">
-                              <td className="p-2 font-mono">{a.slug}</td>
-                              <td className="p-2">{a.tipo_slug}</td>
-                              <td className="p-2">
-                                {row.ok_final ? (
-                                  <span className="text-green-600 dark:text-green-400">Sim</span>
-                                ) : (
-                                  <span className="text-red-600 dark:text-red-400">Não</span>
-                                )}
-                              </td>
-                              <td className="p-2 text-gray-700 dark:text-gray-300 break-words max-w-md">
-                                {(a.tabelas_total ?? 0) > 0 && (
-                                  <span className="text-blue-600 dark:text-blue-400 mr-2">
-                                    {a.tabelas_total} tabelas ({a.tabelas_negocio ?? 0} negócio)
-                                  </span>
-                                )}
-                                {err && <span className="text-red-500">{err}</span>}
-                                {!err && !(a.tabelas_total ?? 0) && (row.ok_final ? '—' : 'Ver apps esperados')}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Seletor de Período */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Período de Análise</h3>

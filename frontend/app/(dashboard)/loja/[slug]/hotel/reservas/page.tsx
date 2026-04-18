@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Reserva, Hospede, Quarto, Tarifa } from '@/lib/hotel-types';
 import { RESERVA_STATUS_LABEL, RESERVA_STATUS_BADGE, ASSINATURA_STATUS_LABEL, ASSINATURA_STATUS_BADGE, formatDateBR } from '@/lib/hotel-types';
-import { CalendarDays, Plus, Edit2, LogIn, LogOut, Trash2, ArrowLeft, FileSignature, FileText, MoreVertical, Send, RefreshCw, AlertCircle } from 'lucide-react';
+import { CalendarDays, Plus, Edit2, LogIn, LogOut, Trash2, ArrowLeft, FileSignature, FileText, MoreVertical, Send, RefreshCw, AlertCircle, Ban } from 'lucide-react';
 
 type HospedeOption = Pick<Hospede, 'id' | 'nome'>;
 type QuartoOption = Pick<Quarto, 'id' | 'numero' | 'nome'>;
@@ -161,6 +161,16 @@ export default function HotelReservasPage() {
     }
   };
 
+  const cancelarReserva = async (reservaId: number) => {
+    if (!confirm('Cancelar esta reserva? O histórico será mantido.')) return;
+    try {
+      await apiClient.patch(`/hotel/reservas/${reservaId}/`, { status: 'cancelada' });
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao cancelar reserva.');
+    }
+  };
+
   const noites = calcNoites(form.data_checkin, form.data_checkout);
 
   const resumo = useMemo(() => ({
@@ -262,9 +272,15 @@ export default function HotelReservasPage() {
                         <LogOut className="w-3.5 h-3.5" /> Check-out
                       </button>
                     )}
-                    <button onClick={() => remove(r.id, `reserva #${r.id}`)} className="px-3 py-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-medium flex items-center gap-1 active:scale-95 ml-auto">
-                      <Trash2 className="w-3.5 h-3.5" /> Excluir
-                    </button>
+                    {r.status === 'pendente' ? (
+                      <button onClick={() => remove(r.id, `reserva #${r.id}`)} className="px-3 py-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-medium flex items-center gap-1 active:scale-95 ml-auto">
+                        <Trash2 className="w-3.5 h-3.5" /> Excluir
+                      </button>
+                    ) : r.status !== 'cancelada' && (
+                      <button onClick={() => cancelarReserva(r.id)} className="px-3 py-1.5 rounded-md bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 text-xs font-medium flex items-center gap-1 active:scale-95 ml-auto">
+                        <Ban className="w-3.5 h-3.5" /> Cancelar
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -356,19 +372,27 @@ export default function HotelReservasPage() {
                 </button>
                 <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
                 {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
-                  <button onClick={() => { postAction(r.id, 'checkin'); setMenuAberto(null); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <button onClick={() => { setMenuAberto(null); postAction(r.id, 'checkin'); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                     <LogIn size={18} className="text-green-500" /> Fazer Check-in
                   </button>
                 )}
                 {r.status === 'checkin' && (
-                  <button onClick={() => { postAction(r.id, 'checkout'); setMenuAberto(null); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <button onClick={() => { setMenuAberto(null); postAction(r.id, 'checkout'); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                     <LogOut size={18} className="text-blue-500" /> Fazer Check-out
                   </button>
                 )}
                 <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                <button onClick={() => { remove(r.id, `reserva #${r.id}`); setMenuAberto(null); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                  <Trash2 size={18} /> Excluir Reserva
-                </button>
+                {r.status === 'pendente' ? (
+                  <button onClick={() => { setMenuAberto(null); setTimeout(() => remove(r.id, `reserva #${r.id}`), 100); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                    <Trash2 size={18} /> Excluir Reserva
+                  </button>
+                ) : r.status !== 'cancelada' ? (
+                  <button onClick={() => { setMenuAberto(null); cancelarReserva(r.id); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20">
+                    <Ban size={18} /> Cancelar Reserva
+                  </button>
+                ) : (
+                  <p className="px-4 py-3 text-xs text-gray-500">Reserva já cancelada</p>
+                )}
               </div>
               <div className="p-3 border-t border-gray-200 dark:border-gray-700">
                 <button onClick={() => setMenuAberto(null)} className="w-full py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium">

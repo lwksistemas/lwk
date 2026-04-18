@@ -75,6 +75,15 @@ class ReservaViewSet(BaseModelViewSet):
             qs = qs.filter(hospede_id=params.get('hospede_id'))
         return qs
 
+    def perform_destroy(self, instance):
+        """Só permite excluir reservas pendentes."""
+        if instance.status != Reserva.STATUS_PENDENTE:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(
+                {'detail': 'Apenas reservas pendentes podem ser excluídas. Use "Cancelar" para manter o histórico.'}
+            )
+        instance.delete()
+
     @action(detail=True, methods=['post'])
     def checkin(self, request, pk=None):
         reserva = self.get_object()

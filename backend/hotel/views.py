@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from core.views import BaseModelViewSet
-from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario
+from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura
 from .serializers import (
     HospedeSerializer,
     QuartoSerializer,
@@ -18,6 +18,7 @@ from .serializers import (
     ReservaSerializer,
     GovernancaTarefaSerializer,
     FuncionarioSerializer,
+    ReservaTemplateSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,70 @@ class ReservaViewSet(BaseModelViewSet):
         quarto.status = Quarto.STATUS_LIMPEZA
         quarto.save(update_fields=['status', 'updated_at'])
         return Response(self.get_serializer(reserva).data)
+
+    @action(detail=True, methods=['post'])
+    def enviar_para_assinatura(self, request, pk=None):
+        """Envia confirmação de reserva para assinatura digital do hóspede."""
+        from core.assinatura_service import criar_assinatura, enviar_email_parte1
+        from .assinatura_adapter import ReservaAssinaturaAdapter
+        from tenants.middleware import get_current_loja_id
+
+        reserva = self.get_object()
+        loja_id = get_current_loja_id()
+        adapter = ReservaAssinaturaAdapter()
+
+        if not reserva.hospede or not reserva.hospede.email:
+            return Response({'detail': 'Hóspede não possui email cadastrado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if reserva.status_assinatura in ('aguardando_hospede', 'aguardando_funcionario'):
+            return Response(
+                {'detail': f'Reserva já está em processo de assinatura: {reserva.get_status_assinatura_display()}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        assinatura = criar_assinatura(adapter, reserva, 'hospede', loja_id)
+        reserva.status_assinatura = 'aguardando_hospede'
+        reserva.save(update_fields=['status_assinatura', 'updated_at'])
+
+        ok, err = enviar_email_parte1(adapter, reserva, assinatura, loja_id)
+        if ok:
+            return Response({
+                'message': f'Email de assinatura enviado para {reserva.hospede.email}',
+                'status_assinatura': 'aguardando_hospede',
+            })
+
+        # Reverter
+        reserva.status_assinatura = 'rascunho'
+        reserva.save(update_fields=['status_assinatura', 'updated_at'])
+        assinatura.delete()
+        return Response({'detail': err or 'Erro ao enviar email.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def reenviar_para_assinatura(self, request, pk=None):
+        """Reenvia link de assinatura."""
+        from core.assinatura_service import reenviar_link
+        from .assinatura_adapter import ReservaAssinaturaAdapter
+        from tenants.middleware import get_current_loja_id
+
+        reserva = self.get_object()
+        adapter = ReservaAssinaturaAdapter()
+        ok, msg, err = reenviar_link(adapter, reserva, get_current_loja_id())
+        if ok:
+            return Response({'message': msg})
+        return Response({'detail': err or 'Erro ao reenviar.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'])
+    def download_pdf(self, request, pk=None):
+        """Baixa PDF da confirmação de reserva."""
+        from django.http import HttpResponse
+        from .pdf_reserva import gerar_pdf_reserva
+
+        reserva = self.get_object()
+        incluir = reserva.status_assinatura == 'concluido'
+        pdf = gerar_pdf_reserva(reserva, incluir_assinaturas=incluir)
+        response = HttpResponse(pdf.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="reserva_{reserva.id}.pdf"'
+        return response
 
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
@@ -340,3 +405,152 @@ class FuncionarioViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         return Funcionario.objects.filter(is_active=True)
+
+
+class ReservaTemplateViewSet(BaseModelViewSet):
+    """Templates de confirmação de reserva."""
+    serializer_class = ReservaTemplateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ReservaTemplate.objects.filter(ativo=True)
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        if instance.is_padrao:
+            ReservaTemplate.objects.filter(loja_id=instance.loja_id, is_padrao=True).exclude(pk=instance.pk).update(is_padrao=False)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        if instance.is_padrao:
+            ReservaTemplate.objects.filter(loja_id=instance.loja_id, is_padrao=True).exclude(pk=instance.pk).update(is_padrao=False)
+
+
+# ---------------------------------------------------------------------------
+# View pública de assinatura de reserva (sem autenticação)
+# ---------------------------------------------------------------------------
+from django.views import View
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.conf import settings
+
+
+def _configurar_tenant_reserva(loja_id):
+    """Configura tenant para assinatura pública de reserva."""
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+    from superadmin.models import Loja
+    from core.db_config import ensure_loja_database_config
+
+    set_current_loja_id(loja_id)
+    loja = Loja.objects.using('default').filter(id=loja_id).first()
+    if not loja:
+        return 'Link de assinatura inválido.'
+
+    db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
+    if not ensure_loja_database_config(db_name, conn_max_age=0) or db_name not in settings.DATABASES:
+        return 'Serviço temporariamente indisponível.'
+
+    set_current_tenant_db(db_name)
+    return None
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ReservaAssinaturaPublicaView(View):
+    """
+    View pública para assinatura digital de reservas.
+    GET /api/hotel/assinar-reserva/{token}/ — dados da reserva
+    POST /api/hotel/assinar-reserva/{token}/ — registra assinatura
+    """
+
+    def get(self, request, token):
+        from core.assinatura_service import decodificar_token, normalizar_token_url
+        from .assinatura_adapter import ReservaAssinaturaAdapter
+
+        token = normalizar_token_url(token)
+        payload = decodificar_token(token)
+        if not payload or not payload.get('loja_id'):
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
+
+        loja_id = payload['loja_id']
+        err = _configurar_tenant_reserva(loja_id)
+        if err:
+            return JsonResponse({'error': err}, status=400)
+
+        adapter = ReservaAssinaturaAdapter()
+        assinatura = adapter.buscar_assinatura_por_token(token)
+        if not assinatura:
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
+        if assinatura.assinado:
+            return JsonResponse({'error': 'Este documento já foi assinado.'}, status=400)
+        if assinatura.is_expirado:
+            return JsonResponse({'error': 'Este link expirou.'}, status=400)
+
+        reserva = assinatura.reserva
+        return JsonResponse({
+            'tipo_documento': 'reserva',
+            'titulo': adapter.get_titulo(reserva),
+            'valor_total': str(reserva.valor_total or '0.00'),
+            'nome_assinante': assinatura.nome_assinante,
+            'tipo_assinante': assinatura.tipo,
+            'tipo_assinante_display': assinatura.get_tipo_display(),
+            'hospede_nome': reserva.hospede.nome if reserva.hospede else '',
+            'quarto': f'{reserva.quarto.numero} - {reserva.quarto.nome or ""}' if reserva.quarto else '',
+            'data_checkin': str(reserva.data_checkin) if reserva.data_checkin else '',
+            'data_checkout': str(reserva.data_checkout) if reserva.data_checkout else '',
+            'conteudo_confirmacao': reserva.conteudo_confirmacao or '',
+        })
+
+    def post(self, request, token):
+        from core.assinatura_service import (
+            decodificar_token, normalizar_token_url, registrar_assinatura,
+            criar_assinatura, enviar_email_parte2, enviar_pdf_final,
+        )
+        from .assinatura_adapter import ReservaAssinaturaAdapter
+
+        token = normalizar_token_url(token)
+        payload = decodificar_token(token)
+        if not payload or not payload.get('loja_id'):
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
+
+        loja_id = payload['loja_id']
+        err = _configurar_tenant_reserva(loja_id)
+        if err:
+            return JsonResponse({'error': err}, status=400)
+
+        adapter = ReservaAssinaturaAdapter()
+        assinatura = adapter.buscar_assinatura_por_token(token)
+        if not assinatura:
+            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
+        if assinatura.assinado:
+            return JsonResponse({'error': 'Este documento já foi assinado.'}, status=400)
+        if assinatura.is_expirado:
+            return JsonResponse({'error': 'Este link expirou.'}, status=400)
+
+        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '0.0.0.0'))
+        if ',' in ip:
+            ip = ip.split(',')[0].strip()
+        ua = request.META.get('HTTP_USER_AGENT', '')
+
+        novo_status = registrar_assinatura(adapter, assinatura, ip, ua)
+        reserva = assinatura.reserva
+
+        # Se hóspede assinou, criar token para funcionário e enviar email
+        if novo_status == 'aguardando_funcionario':
+            assinatura_func = criar_assinatura(adapter, reserva, 'funcionario', loja_id)
+            enviar_email_parte2(adapter, reserva, assinatura_func, loja_id)
+
+        # Se funcionário assinou, enviar PDF final
+        if novo_status == 'concluido':
+            enviar_pdf_final(adapter, reserva, loja_id)
+
+        STATUS_DISPLAY = {
+            'aguardando_funcionario': 'Aguardando Funcionário',
+            'concluido': 'Concluído',
+        }
+
+        return JsonResponse({
+            'success': True,
+            'proximo_status': novo_status,
+            'proximo_status_display': STATUS_DISPLAY.get(novo_status, novo_status),
+        })

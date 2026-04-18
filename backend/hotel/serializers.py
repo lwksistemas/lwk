@@ -1,7 +1,7 @@
 from django.db.models import Q
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
-from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario
+from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura
 
 
 class HospedeSerializer(BaseLojaSerializer):
@@ -36,6 +36,7 @@ class TarifaSerializer(BaseLojaSerializer):
 
 class ReservaSerializer(BaseLojaSerializer):
     hospede_nome = serializers.CharField(source='hospede.nome', read_only=True)
+    hospede_email = serializers.CharField(source='hospede.email', read_only=True)
     quarto_numero = serializers.CharField(source='quarto.numero', read_only=True)
     quarto_nome = serializers.CharField(source='quarto.nome', read_only=True)
     tarifa_nome = serializers.CharField(source='tarifa.nome', read_only=True, allow_null=True)
@@ -43,9 +44,11 @@ class ReservaSerializer(BaseLojaSerializer):
     class Meta:
         model = Reserva
         fields = [
-            'id', 'hospede', 'hospede_nome', 'quarto', 'quarto_numero', 'quarto_nome',
+            'id', 'hospede', 'hospede_nome', 'hospede_email', 'quarto', 'quarto_numero', 'quarto_nome',
             'tarifa', 'tarifa_nome', 'data_checkin', 'data_checkout',
             'adultos', 'criancas', 'canal', 'status',
+            'status_assinatura', 'conteudo_confirmacao',
+            'nome_hospede_assinatura', 'nome_funcionario_assinatura',
             'valor_diaria', 'valor_total', 'observacoes',
             'is_active', 'created_at', 'updated_at',
         ]
@@ -99,3 +102,24 @@ class FuncionarioSerializer(BaseLojaSerializer):
             'is_active', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+
+class ReservaTemplateSerializer(BaseLojaSerializer):
+    class Meta:
+        model = ReservaTemplate
+        fields = [
+            'id', 'nome', 'conteudo', 'is_padrao', 'ativo',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+
+class ReservaAssinaturaSerializer(BaseLojaSerializer):
+    class Meta:
+        model = ReservaAssinatura
+        fields = [
+            'id', 'reserva', 'tipo', 'nome_assinante', 'email_assinante',
+            'ip_address', 'assinado', 'assinado_em',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'ip_address', 'assinado', 'assinado_em']

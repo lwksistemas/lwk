@@ -127,6 +127,18 @@ class Reserva(LojaIsolationMixin, models.Model):
     valor_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     observacoes = models.TextField(blank=True, default='')
 
+    # Assinatura digital
+    STATUS_ASSINATURA_CHOICES = [
+        ('rascunho', 'Rascunho'),
+        ('aguardando_hospede', 'Aguardando Hóspede'),
+        ('aguardando_funcionario', 'Aguardando Funcionário'),
+        ('concluido', 'Concluído'),
+    ]
+    status_assinatura = models.CharField(max_length=25, choices=STATUS_ASSINATURA_CHOICES, default='rascunho')
+    conteudo_confirmacao = models.TextField(blank=True, default='', help_text='Texto da confirmação enviada ao hóspede')
+    nome_hospede_assinatura = models.CharField(max_length=200, blank=True, default='')
+    nome_funcionario_assinatura = models.CharField(max_length=200, blank=True, default='')
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -220,3 +232,77 @@ class Funcionario(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return self.nome
+
+
+class ReservaTemplate(LojaIsolationMixin, models.Model):
+    """Template de mensagem para confirmação de reserva."""
+
+    nome = models.CharField(max_length=200)
+    conteudo = models.TextField(help_text='Texto da confirmação. Use {hospede}, {quarto}, {checkin}, {checkout}, {valor_total}, {diarias} como variáveis.')
+    is_padrao = models.BooleanField(default=False, help_text='Template padrão para novas confirmações')
+    ativo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'hotel_reserva_templates'
+        ordering = ['-is_padrao', 'nome']
+        indexes = [
+            models.Index(fields=['loja_id', 'ativo'], name='hotel_restpl_loja_act_idx'),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+    def save(self, *args, **kwargs):
+        if self.is_padrao:
+            ReservaTemplate.objects.filter(loja_id=self.loja_id, is_padrao=True).exclude(pk=self.pk).update(is_padrao=False)
+        super().save(*args, **kwargs)
+
+
+class ReservaAssinatura(LojaIsolationMixin, models.Model):
+    """Registro de assinatura digital para Reservas de hotel."""
+
+    TIPO_CHOICES = [
+        ('hospede', 'Hóspede'),
+        ('funcionario', 'Funcionário'),
+    ]
+
+    reserva = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name='assinaturas')
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
+    nome_assinante = models.CharField(max_length=200)
+    email_assinante = models.EmailField()
+
+    ip_address = models.GenericIPAddressField(default='0.0.0.0')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    user_agent = models.TextField(blank=True, default='')
+
+    token = models.CharField(max_length=255, unique=True, db_index=True)
+    token_expira_em = models.DateTimeField()
+
+    assinado = models.BooleanField(default=False)
+    assinado_em = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'hotel_reserva_assinaturas'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['loja_id', 'token'], name='hotel_rassin_loja_tok_idx'),
+            models.Index(fields=['reserva', 'tipo'], name='hotel_rassin_res_tipo_idx'),
+        ]
+
+    def __str__(self):
+        status = 'Assinado' if self.assinado else 'Pendente'
+        return f"{self.get_tipo_display()} - {self.nome_assinante} ({status})"
+
+    @property
+    def is_expirado(self):
+        from django.utils import timezone
+        return timezone.now() > self.token_expira_em

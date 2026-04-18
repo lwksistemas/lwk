@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Reserva, Hospede, Quarto, Tarifa } from '@/lib/hotel-types';
 import { RESERVA_STATUS_LABEL, RESERVA_STATUS_BADGE, ASSINATURA_STATUS_LABEL, ASSINATURA_STATUS_BADGE, formatDateBR } from '@/lib/hotel-types';
-import { CalendarDays, Plus, Edit2, LogIn, LogOut, Trash2, ArrowLeft, FileSignature, FileText, MoreVertical, Send, RefreshCw } from 'lucide-react';
+import { CalendarDays, Plus, Edit2, LogIn, LogOut, Trash2, ArrowLeft, FileSignature, FileText, MoreVertical, Send, RefreshCw, AlertCircle } from 'lucide-react';
 
 type HospedeOption = Pick<Hospede, 'id' | 'nome'>;
 type QuartoOption = Pick<Quarto, 'id' | 'numero' | 'nome'>;
@@ -309,52 +309,9 @@ export default function HotelReservasPage() {
                             <button onClick={() => openEdit(r)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-sky-600 transition-colors" title="Editar">
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <div className="relative">
-                              <button onClick={() => setMenuAberto(menuAberto === r.id ? null : r.id)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors" title="Mais ações">
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                              {menuAberto === r.id && (
-                                <>
-                                  <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
-                                  <div className="absolute right-0 bottom-full mb-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
-                                    {/* Assinatura digital */}
-                                    {r.status_assinatura === 'rascunho' && r.hospede_email && (
-                                      <button onClick={() => enviarParaAssinatura(r.id)} disabled={enviandoAssinatura !== null} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50">
-                                        <Send size={15} className="text-indigo-500" /> Enviar para Assinatura
-                                      </button>
-                                    )}
-                                    {r.status_assinatura === 'rascunho' && !r.hospede_email && (
-                                      <p className="px-3 py-2 text-xs text-amber-600 dark:text-amber-400">Hóspede sem email cadastrado</p>
-                                    )}
-                                    {(r.status_assinatura === 'aguardando_hospede' || r.status_assinatura === 'aguardando_funcionario') && (
-                                      <button onClick={() => reenviarAssinatura(r.id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <RefreshCw size={15} className="text-amber-500" /> Reenviar Link
-                                      </button>
-                                    )}
-                                    {/* PDF */}
-                                    <button onClick={() => downloadPdf(r.id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                      <FileText size={15} className="text-red-500" /> Baixar PDF
-                                    </button>
-                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                                    {/* Check-in / Check-out */}
-                                    {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
-                                      <button onClick={() => { postAction(r.id, 'checkin'); setMenuAberto(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <LogIn size={15} className="text-green-500" /> Check-in
-                                      </button>
-                                    )}
-                                    {r.status === 'checkin' && (
-                                      <button onClick={() => { postAction(r.id, 'checkout'); setMenuAberto(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <LogOut size={15} className="text-blue-500" /> Check-out
-                                      </button>
-                                    )}
-                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                                    <button onClick={() => { remove(r.id, `reserva #${r.id}`); setMenuAberto(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                                      <Trash2 size={15} /> Excluir
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
+                            <button onClick={() => setMenuAberto(menuAberto === r.id ? null : r.id)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors" title="Mais ações">
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -366,6 +323,62 @@ export default function HotelReservasPage() {
           </>
         )}
       </div>
+
+      {/* Modal de Ações */}
+      {menuAberto !== null && (() => {
+        const r = items.find((i) => i.id === menuAberto);
+        if (!r) return null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setMenuAberto(null)}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-900 dark:text-white">Ações — {r.hospede_nome}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Quarto {r.quarto_numero} • {formatDateBR(r.data_checkin)} → {formatDateBR(r.data_checkout)}</p>
+              </div>
+              <div className="py-1">
+                {r.status_assinatura === 'rascunho' && r.hospede_email && (
+                  <button onClick={() => enviarParaAssinatura(r.id)} disabled={enviandoAssinatura !== null} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50">
+                    <Send size={18} className="text-indigo-500" /> Enviar para Assinatura Digital
+                  </button>
+                )}
+                {r.status_assinatura === 'rascunho' && !r.hospede_email && (
+                  <p className="px-4 py-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                    <AlertCircle size={14} /> Hóspede sem email cadastrado
+                  </p>
+                )}
+                {(r.status_assinatura === 'aguardando_hospede' || r.status_assinatura === 'aguardando_funcionario') && (
+                  <button onClick={() => reenviarAssinatura(r.id)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <RefreshCw size={18} className="text-amber-500" /> Reenviar Link de Assinatura
+                  </button>
+                )}
+                <button onClick={() => downloadPdf(r.id)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <FileText size={18} className="text-red-500" /> Baixar PDF
+                </button>
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
+                  <button onClick={() => { postAction(r.id, 'checkin'); setMenuAberto(null); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <LogIn size={18} className="text-green-500" /> Fazer Check-in
+                  </button>
+                )}
+                {r.status === 'checkin' && (
+                  <button onClick={() => { postAction(r.id, 'checkout'); setMenuAberto(null); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <LogOut size={18} className="text-blue-500" /> Fazer Check-out
+                  </button>
+                )}
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                <button onClick={() => { remove(r.id, `reserva #${r.id}`); setMenuAberto(null); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <Trash2 size={18} /> Excluir Reserva
+                </button>
+              </div>
+              <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+                <button onClick={() => setMenuAberto(null)} className="w-full py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium">
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Modal */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} maxWidth="4xl">

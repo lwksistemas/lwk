@@ -133,7 +133,7 @@ class ReservaAssinaturaAdapter(AssinaturaAdapter):
     def on_assinatura_concluida(self, reserva, loja_id: int):
         """Quando ambas as partes assinaram, muda status da reserva para Confirmada."""
         from .models import Reserva
-        if reserva.status == Reserva.STATUS_PENDENTE:
+        if reserva.status not in (Reserva.STATUS_CANCELADA, Reserva.STATUS_CHECKOUT, Reserva.STATUS_CHECKIN):
             reserva.status = Reserva.STATUS_CONFIRMADA
             reserva.save(update_fields=['status', 'updated_at'])
             logger.info(f'Reserva #{reserva.id} confirmada automaticamente após assinatura digital.')

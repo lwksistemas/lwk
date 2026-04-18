@@ -41,6 +41,7 @@ export interface Reserva {
   id: number;
   hospede: number;
   hospede_nome?: string;
+  hospede_email?: string;
   quarto: number;
   quarto_numero?: string;
   quarto_nome?: string | null;
@@ -52,6 +53,10 @@ export interface Reserva {
   criancas: number;
   canal: string;
   status: 'pendente' | 'confirmada' | 'checkin' | 'checkout' | 'cancelada' | 'no_show';
+  status_assinatura?: 'rascunho' | 'aguardando_hospede' | 'aguardando_funcionario' | 'concluido';
+  conteudo_confirmacao?: string;
+  nome_hospede_assinatura?: string;
+  nome_funcionario_assinatura?: string;
   valor_diaria: string | number;
   valor_total: string | number;
   observacoes: string;
@@ -119,6 +124,20 @@ export const RESERVA_STATUS_BADGE: Record<string, string> = {
   checkout: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
   cancelada: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   no_show: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+};
+
+export const ASSINATURA_STATUS_LABEL: Record<string, string> = {
+  rascunho: 'Não enviada',
+  aguardando_hospede: 'Aguardando Hóspede',
+  aguardando_funcionario: 'Aguardando Funcionário',
+  concluido: 'Assinada',
+};
+
+export const ASSINATURA_STATUS_BADGE: Record<string, string> = {
+  rascunho: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+  aguardando_hospede: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  aguardando_funcionario: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  concluido: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
 };
 
 /** Classes CSS para badge de status de quarto */

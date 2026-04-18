@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Reserva, Hospede, Quarto, Tarifa } from '@/lib/hotel-types';
-import { RESERVA_STATUS_LABEL, RESERVA_STATUS_BADGE, formatDateBR } from '@/lib/hotel-types';
-import { CalendarDays, Plus, Edit2, LogIn, LogOut, Trash2, ArrowLeft } from 'lucide-react';
+import { RESERVA_STATUS_LABEL, RESERVA_STATUS_BADGE, ASSINATURA_STATUS_LABEL, ASSINATURA_STATUS_BADGE, formatDateBR } from '@/lib/hotel-types';
+import { CalendarDays, Plus, Edit2, LogIn, LogOut, Trash2, ArrowLeft, FileSignature, FileText, MoreVertical, Send, RefreshCw } from 'lucide-react';
 
 type HospedeOption = Pick<Hospede, 'id' | 'nome'>;
 type QuartoOption = Pick<Quarto, 'id' | 'numero' | 'nome'>;
@@ -31,6 +31,8 @@ export default function HotelReservasPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Reserva | null>(null);
+  const [menuAberto, setMenuAberto] = useState<number | null>(null);
+  const [enviandoAssinatura, setEnviandoAssinatura] = useState<number | null>(null);
   const [form, setForm] = useState({
     hospede: '', quarto: '', tarifa: '', data_checkin: '', data_checkout: '',
     adultos: 2, criancas: 0, canal: 'Direto', status: 'pendente' as Reserva['status'],
@@ -117,6 +119,48 @@ export default function HotelReservasPage() {
     setForm((f) => { const u = { ...f, tarifa: tarifaId, valor_diaria: diaria }; u.valor_total = recalcTotal(diaria, u.data_checkin, u.data_checkout); return u; });
   };
 
+  const enviarParaAssinatura = async (reservaId: number) => {
+    setEnviandoAssinatura(reservaId);
+    setMenuAberto(null);
+    try {
+      const res = await apiClient.post(`/hotel/reservas/${reservaId}/enviar_para_assinatura/`);
+      alert(res.data?.message || 'Email de assinatura enviado!');
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao enviar para assinatura.');
+    } finally {
+      setEnviandoAssinatura(null);
+    }
+  };
+
+  const reenviarAssinatura = async (reservaId: number) => {
+    setMenuAberto(null);
+    try {
+      const res = await apiClient.post(`/hotel/reservas/${reservaId}/reenviar_para_assinatura/`);
+      alert(res.data?.message || 'Link reenviado!');
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao reenviar.');
+    }
+  };
+
+  const downloadPdf = async (reservaId: number) => {
+    setMenuAberto(null);
+    try {
+      const res = await apiClient.get(`/hotel/reservas/${reservaId}/download_pdf/`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `reserva_${reservaId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert('Erro ao baixar PDF.');
+    }
+  };
+
   const noites = calcNoites(form.data_checkin, form.data_checkout);
 
   const resumo = useMemo(() => ({
@@ -185,12 +229,25 @@ export default function HotelReservasPage() {
                       {RESERVA_STATUS_LABEL[r.status]}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                    {formatDateBR(r.data_checkin)} → {formatDateBR(r.data_checkout)}
-                  </p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      {formatDateBR(r.data_checkin)} → {formatDateBR(r.data_checkout)}
+                    </p>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${ASSINATURA_STATUS_BADGE[r.status_assinatura || 'rascunho']}`}>
+                      {ASSINATURA_STATUS_LABEL[r.status_assinatura || 'rascunho']}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <button onClick={() => openEdit(r)} className="px-3 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium flex items-center gap-1 active:scale-95">
                       <Edit2 className="w-3.5 h-3.5" /> Editar
+                    </button>
+                    {r.status_assinatura === 'rascunho' && r.hospede_email && (
+                      <button onClick={() => enviarParaAssinatura(r.id)} disabled={enviandoAssinatura !== null} className="px-3 py-1.5 rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 text-xs font-medium flex items-center gap-1 active:scale-95 disabled:opacity-50">
+                        <Send className="w-3.5 h-3.5" /> Assinatura
+                      </button>
+                    )}
+                    <button onClick={() => downloadPdf(r.id)} className="px-3 py-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 text-xs font-medium flex items-center gap-1 active:scale-95">
+                      <FileText className="w-3.5 h-3.5" /> PDF
                     </button>
                     {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
                       <button onClick={() => postAction(r.id, 'checkin')} className="px-3 py-1.5 rounded-md bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs font-medium flex items-center gap-1 active:scale-95">
@@ -221,6 +278,7 @@ export default function HotelReservasPage() {
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Quarto</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Período</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Assinatura</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Canal</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Ações</th>
                     </tr>
@@ -237,25 +295,63 @@ export default function HotelReservasPage() {
                             {RESERVA_STATUS_LABEL[r.status]}
                           </span>
                         </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${ASSINATURA_STATUS_BADGE[r.status_assinatura || 'rascunho']}`}>
+                            {ASSINATURA_STATUS_LABEL[r.status_assinatura || 'rascunho']}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{r.canal || '—'}</td>
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-end gap-1.5">
                             <button onClick={() => openEdit(r)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-sky-600 transition-colors" title="Editar">
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
-                              <button onClick={() => postAction(r.id, 'checkin')} className="px-2.5 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50 text-xs font-medium transition-colors flex items-center gap-1" title="Check-in">
-                                <LogIn className="w-3.5 h-3.5" /> Check-in
+                            <div className="relative">
+                              <button onClick={() => setMenuAberto(menuAberto === r.id ? null : r.id)} className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors" title="Mais ações">
+                                <MoreVertical className="w-4 h-4" />
                               </button>
-                            )}
-                            {r.status === 'checkin' && (
-                              <button onClick={() => postAction(r.id, 'checkout')} className="px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 text-xs font-medium transition-colors flex items-center gap-1" title="Check-out">
-                                <LogOut className="w-3.5 h-3.5" /> Check-out
-                              </button>
-                            )}
-                            <button onClick={() => remove(r.id, `reserva #${r.id}`)} className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-600 transition-colors" title="Excluir">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                              {menuAberto === r.id && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
+                                  <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
+                                    {/* Assinatura digital */}
+                                    {r.status_assinatura === 'rascunho' && r.hospede_email && (
+                                      <button onClick={() => enviarParaAssinatura(r.id)} disabled={enviandoAssinatura !== null} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50">
+                                        <Send size={15} className="text-indigo-500" /> Enviar para Assinatura
+                                      </button>
+                                    )}
+                                    {r.status_assinatura === 'rascunho' && !r.hospede_email && (
+                                      <p className="px-3 py-2 text-xs text-amber-600 dark:text-amber-400">Hóspede sem email cadastrado</p>
+                                    )}
+                                    {(r.status_assinatura === 'aguardando_hospede' || r.status_assinatura === 'aguardando_funcionario') && (
+                                      <button onClick={() => reenviarAssinatura(r.id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                        <RefreshCw size={15} className="text-amber-500" /> Reenviar Link
+                                      </button>
+                                    )}
+                                    {/* PDF */}
+                                    <button onClick={() => downloadPdf(r.id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                      <FileText size={15} className="text-red-500" /> Baixar PDF
+                                    </button>
+                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                    {/* Check-in / Check-out */}
+                                    {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
+                                      <button onClick={() => { postAction(r.id, 'checkin'); setMenuAberto(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                        <LogIn size={15} className="text-green-500" /> Check-in
+                                      </button>
+                                    )}
+                                    {r.status === 'checkin' && (
+                                      <button onClick={() => { postAction(r.id, 'checkout'); setMenuAberto(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                        <LogOut size={15} className="text-blue-500" /> Check-out
+                                      </button>
+                                    )}
+                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                    <button onClick={() => { remove(r.id, `reserva #${r.id}`); setMenuAberto(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                      <Trash2 size={15} /> Excluir
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>

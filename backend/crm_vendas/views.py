@@ -1043,6 +1043,34 @@ class OportunidadeItemViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseM
             qs = qs.filter(oportunidade_id=oportunidade_id)
         return qs
 
+    def _recalcular_valor_oportunidade(self, oportunidade_id):
+        """Recalcula valor da oportunidade e sincroniza propostas/contratos em rascunho."""
+        from django.db.models import Sum, F
+        itens = OportunidadeItem.objects.filter(oportunidade_id=oportunidade_id)
+        total = itens.aggregate(
+            total=Sum(F('quantidade') * F('preco_unitario'))
+        )['total'] or 0
+        Oportunidade.objects.filter(id=oportunidade_id).update(valor=total)
+        # Sincronizar propostas e contratos em rascunho
+        Proposta.objects.filter(oportunidade_id=oportunidade_id, status='rascunho').update(valor_total=total)
+        Contrato.objects.filter(oportunidade_id=oportunidade_id, status='rascunho').update(valor_total=total)
+
+    def perform_create(self, serializer):
+        serializer.save()
+        self._recalcular_valor_oportunidade(serializer.instance.oportunidade_id)
+        self._invalidate_caches()
+
+    def perform_update(self, serializer):
+        serializer.save()
+        self._recalcular_valor_oportunidade(serializer.instance.oportunidade_id)
+        self._invalidate_caches()
+
+    def perform_destroy(self, instance):
+        oportunidade_id = instance.oportunidade_id
+        instance.delete()
+        self._recalcular_valor_oportunidade(oportunidade_id)
+        self._invalidate_caches()
+
 
 class PropostaViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuerysetMixin, VendedorFilterMixin, BaseModelViewSet):
     """Propostas comerciais vinculadas a oportunidades."""

@@ -158,6 +158,24 @@ class OportunidadeService:
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+
+        # Sincronizar valor_total das propostas em rascunho quando valor da oportunidade muda
+        if 'valor' in validated_data:
+            from .models import Proposta, Contrato
+            novo_valor = validated_data['valor']
+            propostas_atualizadas = Proposta.objects.filter(
+                oportunidade_id=instance.id,
+                status='rascunho',
+            ).update(valor_total=novo_valor)
+            contratos_atualizados = Contrato.objects.filter(
+                oportunidade_id=instance.id,
+                status='rascunho',
+            ).update(valor_total=novo_valor)
+            if propostas_atualizadas or contratos_atualizados:
+                logger.info(
+                    'Valor atualizado: %d proposta(s) e %d contrato(s) em rascunho (oportunidade_id=%s, valor=%s)',
+                    propostas_atualizadas, contratos_atualizados, instance.id, novo_valor,
+                )
         
         return instance
 

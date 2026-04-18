@@ -192,6 +192,9 @@ export default function HotelReservasPage() {
               <Link href={`/loja/${slug}/hotel`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1 active:scale-95">
                 <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">Voltar</span>
               </Link>
+              <Link href={`/loja/${slug}/hotel/reserva-templates`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1 active:scale-95">
+                <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Templates</span>
+              </Link>
               <button onClick={openNew} className="px-3 sm:px-4 py-2 bg-white text-sky-700 font-semibold rounded-md hover:bg-sky-50 transition-colors text-sm flex items-center gap-1 shadow active:scale-95">
                 <Plus className="w-4 h-4" /> <span className="hidden xs:inline">Nova reserva</span><span className="xs:hidden">Novo</span>
               </button>

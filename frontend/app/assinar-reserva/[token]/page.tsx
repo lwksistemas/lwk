@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { CheckCircle, AlertCircle, Hotel, User, Calendar, DollarSign } from 'lucide-react';
+import { CheckCircle, AlertCircle, Hotel, User, Calendar, DollarSign, FileText, Download } from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 
 interface ReservaData {
@@ -32,6 +32,8 @@ export default function AssinarReservaPage() {
   const [assinando, setAssinando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [proximoStatus, setProximoStatus] = useState('');
+  const [aceitouTermos, setAceitouTermos] = useState(false);
+  const [baixandoPdf, setBaixandoPdf] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -47,7 +49,7 @@ export default function AssinarReservaPage() {
   }, [tokenApi]);
 
   useEffect(() => {
-    if (sucesso) { const t = setTimeout(() => window.close(), 3000); return () => clearTimeout(t); }
+    if (sucesso) { const t = setTimeout(() => window.close(), 5000); return () => clearTimeout(t); }
   }, [sucesso]);
 
   const assinar = async () => {
@@ -65,6 +67,22 @@ export default function AssinarReservaPage() {
       setProximoStatus(data.proximo_status_display || data.proximo_status);
     } catch { setErro('Erro ao assinar. Tente novamente.'); }
     finally { setAssinando(false); }
+  };
+
+  const baixarPdf = async () => {
+    setBaixandoPdf(true);
+    try {
+      const url = getPrimaryApiBaseUrl();
+      const res = await fetch(`${url}/hotel/assinar-reserva/${tokenApi}/pdf/`);
+      if (!res.ok) { alert('Erro ao baixar PDF.'); return; }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = 'confirmacao_reserva.pdf';
+      link.click();
+      window.URL.revokeObjectURL(link.href);
+    } catch { alert('Erro ao baixar PDF.'); }
+    finally { setBaixandoPdf(false); }
   };
 
   const formatDate = (d: string) => {
@@ -114,6 +132,8 @@ export default function AssinarReservaPage() {
 
   if (!reserva) return null;
 
+  const temTermos = !!reserva.conteudo_confirmacao?.trim();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-lg mx-auto">
@@ -162,19 +182,48 @@ export default function AssinarReservaPage() {
               </div>
             </div>
 
-            {/* Conteúdo da confirmação */}
-            {reserva.conteudo_confirmacao && (
-              <div className="border-t pt-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Termos e Condições</h3>
-                <div className="text-sm text-gray-600 whitespace-pre-wrap max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3">
+            {/* Botão baixar PDF */}
+            <button
+              onClick={baixarPdf}
+              disabled={baixandoPdf}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition font-medium text-sm border border-red-200 disabled:opacity-50"
+            >
+              <Download size={16} />
+              {baixandoPdf ? 'Baixando...' : 'Baixar PDF da Confirmação'}
+            </button>
+
+            {/* Termos e Condições */}
+            {temTermos && (
+              <div className="border border-amber-200 bg-amber-50 rounded-lg overflow-hidden">
+                <div className="px-4 py-2 bg-amber-100 border-b border-amber-200">
+                  <h3 className="text-sm font-semibold text-amber-800 flex items-center gap-1">
+                    <FileText size={14} /> Regras e Termos do Hotel — Leia antes de assinar
+                  </h3>
+                </div>
+                <div className="p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed">
                   {reserva.conteudo_confirmacao}
                 </div>
               </div>
             )}
 
+            {/* Checkbox de aceite */}
+            {temTermos && (
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={aceitouTermos}
+                  onChange={(e) => setAceitouTermos(e.target.checked)}
+                  className="mt-0.5 h-5 w-5 text-indigo-600 rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-700">
+                  Li e aceito os termos, regras e condições do hotel descritos acima.
+                </span>
+              </label>
+            )}
+
             {erro && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
-                <AlertCircle size={16} className="text-red-500" />
+                <AlertCircle size={16} className="text-red-500 shrink-0" />
                 <span className="text-sm text-red-700">{erro}</span>
               </div>
             )}
@@ -182,14 +231,20 @@ export default function AssinarReservaPage() {
             {/* Botão assinar */}
             <button
               onClick={assinar}
-              disabled={assinando}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition"
+              disabled={assinando || (temTermos && !aceitouTermos)}
+              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {assinando ? 'Assinando...' : '✍️ Assinar Digitalmente'}
             </button>
 
+            {temTermos && !aceitouTermos && (
+              <p className="text-xs text-amber-600 text-center">
+                Você precisa aceitar os termos acima para assinar.
+              </p>
+            )}
+
             <p className="text-xs text-gray-500 text-center">
-              Ao assinar, você concorda com os termos acima. Sua assinatura será registrada com data, hora e IP.
+              Ao assinar, sua assinatura será registrada com data, hora e IP.
             </p>
           </div>
         </div>

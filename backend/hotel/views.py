@@ -125,6 +125,23 @@ class ReservaViewSet(BaseModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Preencher conteudo_confirmacao com template padrão se vazio
+        if not reserva.conteudo_confirmacao.strip():
+            tpl = ReservaTemplate.objects.filter(loja_id=loja_id, is_padrao=True, ativo=True).first()
+            if not tpl:
+                tpl = ReservaTemplate.objects.filter(loja_id=loja_id, ativo=True).first()
+            if tpl:
+                diarias = (reserva.data_checkout - reserva.data_checkin).days if reserva.data_checkin and reserva.data_checkout else 0
+                conteudo = tpl.conteudo
+                conteudo = conteudo.replace('{hospede}', reserva.hospede.nome if reserva.hospede else '')
+                conteudo = conteudo.replace('{quarto}', str(reserva.quarto.numero) if reserva.quarto else '')
+                conteudo = conteudo.replace('{checkin}', reserva.data_checkin.strftime('%d/%m/%Y') if reserva.data_checkin else '')
+                conteudo = conteudo.replace('{checkout}', reserva.data_checkout.strftime('%d/%m/%Y') if reserva.data_checkout else '')
+                conteudo = conteudo.replace('{valor_total}', f'R$ {reserva.valor_total:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.') if reserva.valor_total else 'R$ 0,00')
+                conteudo = conteudo.replace('{diarias}', str(diarias))
+                reserva.conteudo_confirmacao = conteudo
+                reserva.save(update_fields=['conteudo_confirmacao', 'updated_at'])
+
         assinatura = criar_assinatura(adapter, reserva, 'hospede', loja_id)
         reserva.status_assinatura = 'aguardando_hospede'
         reserva.save(update_fields=['status_assinatura', 'updated_at'])
@@ -554,3 +571,38 @@ class ReservaAssinaturaPublicaView(View):
             'proximo_status': novo_status,
             'proximo_status_display': STATUS_DISPLAY.get(novo_status, novo_status),
         })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ReservaAssinaturaPdfView(View):
+    """
+    View pública para baixar PDF da reserva (sem autenticação).
+    GET /api/hotel/assinar-reserva/{token}/pdf/
+    """
+
+    def get(self, request, token):
+        from core.assinatura_service import decodificar_token, normalizar_token_url
+        from .assinatura_adapter import ReservaAssinaturaAdapter
+        from .pdf_reserva import gerar_pdf_reserva
+        from django.http import HttpResponse
+
+        token = normalizar_token_url(token)
+        payload = decodificar_token(token)
+        if not payload or not payload.get('loja_id'):
+            return JsonResponse({'error': 'Link inválido.'}, status=400)
+
+        loja_id = payload['loja_id']
+        err = _configurar_tenant_reserva(loja_id)
+        if err:
+            return JsonResponse({'error': err}, status=400)
+
+        adapter = ReservaAssinaturaAdapter()
+        assinatura = adapter.buscar_assinatura_por_token(token)
+        if not assinatura:
+            return JsonResponse({'error': 'Link inválido.'}, status=400)
+
+        reserva = assinatura.reserva
+        pdf = gerar_pdf_reserva(reserva, incluir_assinaturas=False)
+        response = HttpResponse(pdf.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="confirmacao_reserva_{reserva.id}.pdf"'
+        return response

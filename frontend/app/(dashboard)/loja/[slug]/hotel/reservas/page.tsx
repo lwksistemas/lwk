@@ -271,7 +271,7 @@ export default function HotelReservasPage() {
             </div>
 
             {/* Desktop/Tablet: Table */}
-            <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -316,7 +316,7 @@ export default function HotelReservasPage() {
                               {menuAberto === r.id && (
                                 <>
                                   <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
-                                  <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
+                                  <div className="absolute right-0 bottom-full mb-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
                                     {/* Assinatura digital */}
                                     {r.status_assinatura === 'rascunho' && r.hospede_email && (
                                       <button onClick={() => enviarParaAssinatura(r.id)} disabled={enviandoAssinatura !== null} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50">

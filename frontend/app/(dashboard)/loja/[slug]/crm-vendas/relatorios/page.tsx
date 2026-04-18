@@ -8,6 +8,7 @@ import { StatsCards } from './components/StatsCards';
 import { RelatorioForm } from './components/RelatorioForm';
 
 interface Vendedor { id: number; nome: string; email: string; }
+interface EmpresaPrestadora { id: number; nome: string; cnpj?: string; }
 interface DashboardData {
   receita: number;
   comissao_total_mes: number;
@@ -18,8 +19,10 @@ export default function RelatoriosPage() {
   const [periodo, setPeriodo] = useState('mes_atual');
   const [tipoRelatorio, setTipoRelatorio] = useState('vendas_total');
   const [vendedorSelecionado, setVendedorSelecionado] = useState('todos');
+  const [empresaPrestadoraSelecionada, setEmpresaPrestadoraSelecionada] = useState('todas');
   const [gerando, setGerando] = useState(false);
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const [empresasPrestadoras, setEmpresasPrestadoras] = useState<EmpresaPrestadora[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVendedor, setIsVendedor] = useState(false);
@@ -37,6 +40,10 @@ export default function RelatoriosPage() {
           const resV = await apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/');
           setVendedores(normalizeListResponse(resV.data));
         } catch { setVendedores([]); }
+        try {
+          const resEP = await apiClient.get<EmpresaPrestadora[] | { results: EmpresaPrestadora[] }>('/crm-vendas/contas/?tipo=prestadora');
+          setEmpresasPrestadoras(normalizeListResponse(resEP.data));
+        } catch { setEmpresasPrestadoras([]); }
         const resD = await apiClient.get<DashboardData>('/crm-vendas/dashboard/');
         setDashboardData(resD.data);
       } catch (err) { console.error('Erro ao carregar dados:', err); }
@@ -52,7 +59,8 @@ export default function RelatoriosPage() {
     setGerando(true);
     try {
       const vendedorIdPayload = isVendedor ? meuVendedorId : (vendedorSelecionado !== 'todos' ? vendedorSelecionado : null);
-      const payload = { tipo: tipoRelatorio, periodo, vendedor_id: vendedorIdPayload, acao };
+      const empresaPrestadoraPayload = empresaPrestadoraSelecionada !== 'todas' ? parseInt(empresaPrestadoraSelecionada, 10) : null;
+      const payload = { tipo: tipoRelatorio, periodo, vendedor_id: vendedorIdPayload, empresa_prestadora_id: empresaPrestadoraPayload, acao };
 
       if (acao === 'pdf') {
         const res = await apiClient.post('/crm-vendas/relatorios/gerar/', payload, { responseType: 'blob' });
@@ -102,12 +110,15 @@ export default function RelatoriosPage() {
         periodo={periodo}
         vendedorSelecionado={vendedorSelecionado}
         vendedores={vendedores}
+        empresasPrestadoras={empresasPrestadoras}
+        empresaPrestadoraSelecionada={empresaPrestadoraSelecionada}
         isVendedor={isVendedor}
         gerando={gerando}
         loading={loading}
         onTipoChange={setTipoRelatorio}
         onPeriodoChange={setPeriodo}
         onVendedorChange={setVendedorSelecionado}
+        onEmpresaPrestadoraChange={setEmpresaPrestadoraSelecionada}
         onGerar={handleGerar}
       />
 

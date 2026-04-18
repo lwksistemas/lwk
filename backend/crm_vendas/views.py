@@ -1822,6 +1822,7 @@ def gerar_relatorio(request):
     tipo = request.data.get('tipo', 'vendas_total')
     periodo = request.data.get('periodo', 'mes_atual')
     vendedor_id = request.data.get('vendedor_id')
+    empresa_prestadora_id = request.data.get('empresa_prestadora_id')
     acao = request.data.get('acao', 'pdf')
     
     # Verificar se é o proprietário da loja (admin tem acesso total)
@@ -1841,10 +1842,10 @@ def gerar_relatorio(request):
     try:
         # Gerar PDF
         if tipo == 'vendas_total':
-            pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo)
+            pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo, empresa_prestadora_id=empresa_prestadora_id)
             filename = f'relatorio_vendas_total_{periodo}.pdf'
         elif tipo in ['vendas_vendedor', 'comissoes']:
-            pdf_buffer = gerar_relatorio_vendas_vendedor(loja_id, periodo, vendedor_id)
+            pdf_buffer = gerar_relatorio_vendas_vendedor(loja_id, periodo, vendedor_id, empresa_prestadora_id=empresa_prestadora_id)
             filename = f'relatorio_vendas_vendedor_{periodo}.pdf'
         else:
             return Response({'detail': 'Tipo de relatório inválido.'}, status=400)

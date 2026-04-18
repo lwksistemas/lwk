@@ -1,20 +1,24 @@
 'use client';
 
-import { Download, Mail, Calendar, DollarSign, Users, TrendingUp } from 'lucide-react';
+import { Download, Mail, Calendar, DollarSign, Users, TrendingUp, Building2 } from 'lucide-react';
 
 interface Vendedor { id: number; nome: string; }
+interface EmpresaPrestadora { id: number; nome: string; cnpj?: string; }
 
 interface Props {
   tipoRelatorio: string;
   periodo: string;
   vendedorSelecionado: string;
   vendedores: Vendedor[];
+  empresasPrestadoras: EmpresaPrestadora[];
+  empresaPrestadoraSelecionada: string;
   isVendedor: boolean;
   gerando: boolean;
   loading: boolean;
   onTipoChange: (tipo: string) => void;
   onPeriodoChange: (periodo: string) => void;
   onVendedorChange: (id: string) => void;
+  onEmpresaPrestadoraChange: (id: string) => void;
   onGerar: (acao: 'pdf' | 'email') => void;
 }
 
@@ -36,7 +40,7 @@ const PERIODOS = [
   { value: 'personalizado', label: 'Período Personalizado' },
 ];
 
-export function RelatorioForm({ tipoRelatorio, periodo, vendedorSelecionado, vendedores, isVendedor, gerando, loading, onTipoChange, onPeriodoChange, onVendedorChange, onGerar }: Props) {
+export function RelatorioForm({ tipoRelatorio, periodo, vendedorSelecionado, vendedores, empresasPrestadoras, empresaPrestadoraSelecionada, isVendedor, gerando, loading, onTipoChange, onPeriodoChange, onVendedorChange, onEmpresaPrestadoraChange, onGerar }: Props) {
   return (
     <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Gerar Relatório</h2>
@@ -83,6 +87,19 @@ export function RelatorioForm({ tipoRelatorio, periodo, vendedorSelecionado, ven
         )}
         {tipoRelatorio === 'vendas_vendedor' && isVendedor && (
           <p className="text-sm text-gray-600 dark:text-gray-400">Relatório das suas vendas</p>
+        )}
+
+        {/* Empresa Prestadora */}
+        {empresasPrestadoras.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <Building2 size={16} className="inline mr-1" /> Empresa Prestadora
+            </label>
+            <select value={empresaPrestadoraSelecionada} onChange={(e) => onEmpresaPrestadoraChange(e.target.value)} disabled={loading} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+              <option value="todas">Todas as Empresas</option>
+              {empresasPrestadoras.map((ep) => <option key={ep.id} value={ep.id}>{ep.nome}{ep.cnpj ? ` (${ep.cnpj})` : ''}</option>)}
+            </select>
+          </div>
         )}
 
         {/* Ações */}

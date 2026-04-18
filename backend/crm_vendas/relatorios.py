@@ -339,7 +339,7 @@ def _adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportuni
     elements.append(Spacer(1, 1 * cm))
 
 
-def gerar_relatorio_vendas_total(loja_id: int, periodo: str) -> BytesIO:
+def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_id: int = None) -> BytesIO:
     """
     Gera relatório PDF com total de vendas de todos os vendedores.
     """
@@ -363,11 +363,22 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str) -> BytesIO:
     elements.append(Spacer(1, 0.5*cm))
     
     # Buscar oportunidades fechadas ganhas no período
-    # Nota: data_fechamento_ganho e data_fechamento são DateField, não DateTimeField - comparar direto
     oportunidades = Oportunidade.objects.filter(
         loja_id=loja_id,
         etapa='closed_won',
-    ).filter(_filtro_datas_fechamento_ganho(data_inicio, data_fim)).select_related('vendedor', 'lead', 'lead__conta')
+    ).filter(_filtro_datas_fechamento_ganho(data_inicio, data_fim)).select_related('vendedor', 'lead', 'lead__conta', 'empresa_prestadora')
+
+    # Filtro por empresa prestadora
+    if empresa_prestadora_id:
+        oportunidades = oportunidades.filter(empresa_prestadora_id=empresa_prestadora_id)
+        try:
+            from .models import Conta
+            ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
+            if ep:
+                elements.append(Paragraph(f'Empresa Prestadora: {ep.nome}', styles['Normal']))
+                elements.append(Spacer(1, 0.3*cm))
+        except Exception:
+            pass
     
     # Calcular totais
     totais = oportunidades.aggregate(
@@ -457,7 +468,7 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str) -> BytesIO:
     return buffer
 
 
-def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int = None) -> BytesIO:
+def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int = None, empresa_prestadora_id: int = None) -> BytesIO:
     """
     Gera relatório PDF com vendas por vendedor específico ou todos.
     Para o vendedor destino da mesclagem (admin / e-mail do dono / primeiro ativo), inclui também
@@ -474,11 +485,26 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
     base = (
         Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won')
         .filter(_filtro_datas_fechamento_ganho(data_inicio, data_fim))
-        .select_related('vendedor', 'lead', 'lead__conta')
+        .select_related('vendedor', 'lead', 'lead__conta', 'empresa_prestadora')
     )
+
+    # Filtro por empresa prestadora
+    if empresa_prestadora_id:
+        base = base.filter(empresa_prestadora_id=empresa_prestadora_id)
 
     titulo = 'Relatório de Vendas por Vendedor'
     is_todos = vendedor_id is None or str(vendedor_id).lower() == 'todos'
+
+    # Info da empresa prestadora para o título
+    _ep_nome = None
+    if empresa_prestadora_id:
+        try:
+            from .models import Conta
+            ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
+            if ep:
+                _ep_nome = ep.nome
+        except Exception:
+            pass
 
     logo_url = _obter_logo_loja(loja_id)
 

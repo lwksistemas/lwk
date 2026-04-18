@@ -26,7 +26,8 @@ interface ModalEditarLojaProps {
 export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaProps) {
   const [formData, setFormData] = useState({
     nome: loja.nome,
-    is_active: loja.is_active
+    is_active: loja.is_active,
+    owner_email_edit: loja.owner_email || '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -35,12 +36,20 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
     setLoading(true);
 
     try {
-      await apiClient.patch(`/superadmin/lojas/${loja.id}/`, formData);
+      const payload: Record<string, unknown> = {
+        nome: formData.nome,
+        is_active: formData.is_active,
+      };
+      // Só envia owner_email_edit se mudou
+      if (formData.owner_email_edit.trim() && formData.owner_email_edit.trim() !== loja.owner_email) {
+        payload.owner_email_edit = formData.owner_email_edit.trim();
+      }
+      await apiClient.patch(`/superadmin/lojas/${loja.id}/`, payload);
       alert('✅ Loja atualizada com sucesso!');
       onSuccess();
     } catch (error: any) {
       console.error('Erro ao atualizar loja:', error);
-      alert(`❌ Erro ao atualizar loja: ${error.response?.data?.error || 'Erro desconhecido'}`);
+      alert(`❌ Erro ao atualizar loja: ${error.response?.data?.error || error.response?.data?.owner_email_edit?.[0] || 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }
@@ -88,13 +97,30 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
 
           {/* Informações Somente Leitura — administrador da loja não pode ser editado nem excluído */}
           <div>
+            <h4 className="text-lg font-semibold mb-3 text-gray-700">Administrador da Loja</h4>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email do Administrador
+                </label>
+                <input
+                  type="email"
+                  value={formData.owner_email_edit}
+                  onChange={(e) => setFormData({ ...formData, owner_email_edit: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500"
+                  placeholder="email@exemplo.com"
+                />
+                <p className="text-xs text-gray-500 mt-1">Usuário: {loja.owner_username}</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
             <h4 className="text-lg font-semibold mb-3 text-gray-700">Informações (Somente Leitura)</h4>
             <div className="bg-gray-50 p-4 rounded-md space-y-2 text-sm">
               <p><strong>Slug:</strong> {loja.slug}</p>
               <p><strong>Tipo:</strong> {loja.tipo_loja_nome}</p>
               <p><strong>Plano:</strong> {loja.plano_nome}</p>
-              <p><strong>Usuário Administrador da Loja:</strong> {loja.owner_username} ({loja.owner_email}){loja.owner_telefone ? ` · Tel: ${loja.owner_telefone}` : ''}</p>
-              <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded mt-1">O administrador vinculado à loja não pode ser editado nem excluído.</p>
               <p><strong>Banco Criado:</strong> {loja.database_created ? '✅ Sim' : '❌ Não'}</p>
               <p><strong>URL Login:</strong> <a href={loja.login_page_url} target="_blank" className="text-purple-600 hover:underline">{loja.login_page_url}</a></p>
             </div>

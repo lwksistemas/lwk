@@ -228,6 +228,7 @@ class LojaSerializer(serializers.ModelSerializer):
     plano_nome = serializers.CharField(source='plano.nome', read_only=True)
     owner_username = serializers.CharField(source='owner.username', read_only=True)
     owner_email = serializers.CharField(source='owner.email', read_only=True)
+    owner_email_edit = serializers.EmailField(write_only=True, required=False, allow_blank=True)
     financeiro = FinanceiroLojaSerializer(read_only=True)
     tipo_assinatura_display = serializers.CharField(source='get_tipo_assinatura_display', read_only=True)
     
@@ -235,6 +236,14 @@ class LojaSerializer(serializers.ModelSerializer):
         model = Loja
         fields = '__all__'
         read_only_fields = ['database_name', 'database_created', 'login_page_url', 'senha_provisoria', 'owner', 'owner_telefone']
+
+    def update(self, instance, validated_data):
+        new_email = validated_data.pop('owner_email_edit', None)
+        instance = super().update(instance, validated_data)
+        if new_email and new_email.strip() and instance.owner:
+            instance.owner.email = new_email.strip()
+            instance.owner.save(update_fields=['email'])
+        return instance
 
 
 class LojaCreateSerializer(serializers.ModelSerializer):

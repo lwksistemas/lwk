@@ -20,7 +20,7 @@ def apply():
     print(f"Encontradas {lojas.count()} lojas ativas\n")
 
     for loja in lojas:
-        schema = loja.schema_name if hasattr(loja, 'schema_name') else f"loja_{loja.cnpj.replace('.','').replace('/','').replace('-','')}"
+        schema = loja.schema_name if hasattr(loja, 'schema_name') else loja.database_name
         print(f"🔄 Schema: {schema} ({loja.nome})")
         try:
             with connection.cursor() as cursor:

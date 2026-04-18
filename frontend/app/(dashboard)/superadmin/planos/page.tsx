@@ -123,14 +123,42 @@ export default function PlanosPage() {
                   </a>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {tipos.map((tipo) => (
-                    <TipoAppCard
-                      key={tipo.id}
-                      tipo={tipo}
-                      onClick={() => handleSelectTipo(tipo.id)}
-                    />
-                  ))}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Tipo de App</th>
+                          <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Lojas</th>
+                          <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tipos.map((tipo) => (
+                          <tr key={tipo.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer" onClick={() => handleSelectTipo(tipo.id)}>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tipo.cor_primaria || '#6b21a8' }} />
+                                <span className="font-medium text-gray-900 dark:text-white">{tipo.nome}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{tipo.total_lojas}</span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${tipo.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
+                                {tipo.is_active ? 'Ativo' : 'Inativo'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button className="px-3 py-1 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded hover:bg-purple-200 dark:hover:bg-purple-900/50">Ver Planos →</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
@@ -172,15 +200,51 @@ export default function PlanosPage() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {planos.map((plano) => (
-                    <PlanoCard
-                      key={plano.id}
-                      plano={plano}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
-                  ))}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Plano</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Mensal</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Anual</th>
+                          <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Lojas</th>
+                          <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                          <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {planos.map((plano) => (
+                          <tr key={plano.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td className="py-3 px-4">
+                              <span className="font-medium text-gray-900 dark:text-white">{plano.nome}</span>
+                              {plano.descricao && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{plano.descricao}</p>}
+                            </td>
+                            <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-white">
+                              {parseFloat(plano.preco_mensal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-400">
+                              {parseFloat(plano.preco_anual).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{plano.total_lojas}</span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${plano.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
+                                {plano.is_active ? 'Ativo' : 'Inativo'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex justify-end gap-1">
+                                <button onClick={() => handleEdit(plano)} className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50">Editar</button>
+                                <button onClick={() => handleDelete(plano)} className="px-3 py-1 text-sm bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50">Excluir</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>

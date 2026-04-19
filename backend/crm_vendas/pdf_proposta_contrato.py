@@ -222,6 +222,16 @@ def _formatar_endereco_lead(lead):
     return ', '.join(p for p in parts if p).strip() or '—'
 
 
+def _formatar_nome_usuario(user):
+    """Tenta montar um nome legível para o usuário (vendedor)."""
+    if not user:
+        return '—'
+    first_name = getattr(user, 'first_name', '') or ''
+    last_name = getattr(user, 'last_name', '') or ''
+    full = f'{first_name} {last_name}'.strip()
+    return full or getattr(user, 'nome', '') or getattr(user, 'username', '') or '—'
+
+
 def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     """
     Gera PDF da proposta comercial com Dados da Loja, Cliente e Produtos/Serviços.
@@ -295,6 +305,15 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
         # Sem Spacer - colar direto
+
+    # Dados do Vendedor
+    vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, 'vendedor', None) else None
+    if vendedor:
+        elements.append(Paragraph('<b>Dados do Vendedor</b>', section_style))
+        elements.append(Paragraph(f"<b>Nome:</b> {_formatar_nome_usuario(vendedor)}", styles['Normal']))
+        vendedor_email = getattr(vendedor, 'email', '') or ''
+        if vendedor_email:
+            elements.append(Paragraph(f"<b>Email:</b> {vendedor_email}", styles['Normal']))
 
     # Produtos e Serviços da Oportunidade (Valor total ao final)
     itens = []
@@ -518,6 +537,15 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
         # Sem Spacer - colar direto
+
+    # Dados do Vendedor
+    vendedor = contrato.oportunidade.vendedor if contrato.oportunidade and getattr(contrato.oportunidade, 'vendedor', None) else None
+    if vendedor:
+        elements.append(Paragraph('<b>Dados do Vendedor</b>', section_style))
+        elements.append(Paragraph(f"<b>Nome:</b> {_formatar_nome_usuario(vendedor)}", styles['Normal']))
+        vendedor_email = getattr(vendedor, 'email', '') or ''
+        if vendedor_email:
+            elements.append(Paragraph(f"<b>Email:</b> {vendedor_email}", styles['Normal']))
 
     # Produtos e Serviços da Oportunidade
     itens = []

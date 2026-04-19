@@ -13,7 +13,9 @@ interface DocumentoData {
   tipo_assinante: string;
   tipo_assinante_display: string;
   lead_nome: string;
+  lead_email?: string;
   lead_empresa: string;
+  vendedor_email?: string;
 }
 
 export default function AssinaturaPage() {
@@ -40,12 +42,14 @@ export default function AssinaturaPage() {
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfInlineLoading, setPdfInlineLoading] = useState(false);
   const [pdfInlineError, setPdfInlineError] = useState(false);
-  const [pdfIframeRendered, setPdfIframeRendered] = useState(false);
+  /** Usuário abriu o PDF em nova aba ou acionou baixar (sem iframe — evita botão nativo "Abrir" no iOS). */
+  const [pdfInteracaoFeita, setPdfInteracaoFeita] = useState(false);
   const [declarouLeituraCompleta, setDeclarouLeituraCompleta] = useState(false);
   const [pdfReloadKey, setPdfReloadKey] = useState(0);
   const pdfBlobUrlRef = useRef<string | null>(null);
 
-  const podeAssinar = pdfIframeRendered && declarouLeituraCompleta;
+  const pdfPronto = Boolean(pdfBlobUrl) && !pdfInlineLoading && !pdfInlineError;
+  const podeAssinar = pdfPronto && pdfInteracaoFeita && declarouLeituraCompleta;
 
   useEffect(() => {
     pdfBlobUrlRef.current = pdfBlobUrl;
@@ -108,7 +112,7 @@ export default function AssinaturaPage() {
       });
       setPdfInlineLoading(true);
       setPdfInlineError(false);
-      setPdfIframeRendered(false);
+      setPdfInteracaoFeita(false);
       setDeclarouLeituraCompleta(false);
       try {
         const backendUrl = getPrimaryApiBaseUrl();
@@ -172,6 +176,7 @@ export default function AssinaturaPage() {
   const visualizarPdf = async () => {
     if (pdfBlobUrl) {
       window.open(pdfBlobUrl, '_blank', 'noopener,noreferrer');
+      setPdfInteracaoFeita(true);
       return;
     }
     setBaixandoPdf(true);
@@ -186,6 +191,7 @@ export default function AssinaturaPage() {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
+      setPdfInteracaoFeita(true);
       setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
     } catch {
       setErro('Erro ao carregar PDF. Verifique sua conexão.');
@@ -205,6 +211,7 @@ export default function AssinaturaPage() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        setPdfInteracaoFeita(true);
         return;
       }
       const backendUrl = getPrimaryApiBaseUrl();
@@ -222,6 +229,7 @@ export default function AssinaturaPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      setPdfInteracaoFeita(true);
     } catch {
       setErro('Erro ao baixar PDF. Verifique sua conexão.');
     } finally {
@@ -362,6 +370,9 @@ export default function AssinaturaPage() {
                 <div className="flex-1">
                   <p className="text-sm text-gray-500">Cliente</p>
                   <p className="text-lg font-semibold text-gray-900">{documento.lead_nome}</p>
+                  {documento.lead_email && (
+                    <p className="text-sm text-gray-600">{documento.lead_email}</p>
+                  )}
                   {documento.lead_empresa && (
                     <p className="text-sm text-gray-600">{documento.lead_empresa}</p>
                   )}
@@ -378,6 +389,11 @@ export default function AssinaturaPage() {
                 <span className="inline-block mt-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
                   {documento?.tipo_assinante_display}
                 </span>
+                {documento?.vendedor_email && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    E-mail do vendedor: <span className="font-medium text-gray-700">{documento.vendedor_email}</span>
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -386,7 +402,7 @@ export default function AssinaturaPage() {
           <div className="mt-6 pt-6 border-t">
             <p className="text-sm font-semibold text-gray-800 mb-1">Documento completo (PDF)</p>
             <p className="text-xs text-gray-500 mb-3">
-              O documento é exibido abaixo. Por segurança, a assinatura só é liberada após o carregamento do PDF e após você confirmar que leu o conteúdo.
+              Use um dos botões abaixo para abrir o PDF em nova aba ou baixar. Por segurança, a assinatura só é liberada depois dessa etapa e da confirmação de leitura.
             </p>
 
             {pdfInlineLoading && !pdfBlobUrl && (
@@ -410,26 +426,12 @@ export default function AssinaturaPage() {
             )}
 
             {pdfBlobUrl && !pdfInlineError && (
-              <div className="space-y-3">
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-inner">
-                  <iframe
-                    title="Documento para leitura e assinatura"
-                    src={`${pdfBlobUrl}#toolbar=1&navpanes=0`}
-                    className="h-[75vh] max-h-[900px] min-h-[320px] w-full bg-white"
-                    onLoad={() => setPdfIframeRendered(true)}
-                  />
-                </div>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-blue-200 bg-blue-50/80 p-4 text-sm text-gray-800">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    checked={declarouLeituraCompleta}
-                    onChange={(e) => setDeclarouLeituraCompleta(e.target.checked)}
-                  />
-                  <span>
-                    Declaro que li integralmente o conteúdo do PDF exibido acima e estou ciente das cláusulas antes de assinar digitalmente.
-                  </span>
-                </label>
+              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
+                <FileText className="mx-auto mb-2 h-10 w-10 text-gray-400" aria-hidden />
+                <p className="text-sm font-medium text-gray-800">Documento pronto</p>
+                <p className="mt-1 text-xs text-gray-600">
+                  Abra em nova aba ou baixe o arquivo para ler com calma antes de assinar.
+                </p>
               </div>
             )}
 
@@ -453,6 +455,20 @@ export default function AssinaturaPage() {
                 <span className="text-sm font-medium">Baixar PDF</span>
               </button>
             </div>
+
+            {pdfBlobUrl && !pdfInlineError && (
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-blue-200 bg-blue-50/80 p-4 text-sm text-gray-800">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  checked={declarouLeituraCompleta}
+                  onChange={(e) => setDeclarouLeituraCompleta(e.target.checked)}
+                />
+                <span>
+                  Declaro que li integralmente o conteúdo do PDF (aberto em nova aba ou baixado) e estou ciente das cláusulas antes de assinar digitalmente.
+                </span>
+              </label>
+            )}
           </div>
         </div>
         
@@ -466,7 +482,7 @@ export default function AssinaturaPage() {
               </h3>
               <p className="text-sm text-yellow-700">
                 Ao clicar em &quot;Assinar documento&quot;, você concorda com os termos deste documento.
-                A assinatura só pode ser feita após o PDF ser exibido na página e após a confirmação de leitura. O registro inclui data, hora e endereço IP.
+                A assinatura só pode ser feita após abrir ou baixar o PDF e após a confirmação de leitura. O registro inclui data, hora e endereço IP.
               </p>
             </div>
           </div>
@@ -486,10 +502,10 @@ export default function AssinaturaPage() {
         <div className="bg-white rounded-b-2xl shadow-xl p-8">
           {!podeAssinar && !assinando && (
             <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
-              {!pdfIframeRendered && pdfBlobUrl
-                ? 'Aguarde o PDF terminar de carregar na área acima.'
-                : !pdfIframeRendered
-                  ? 'Carregue o PDF acima para habilitar a assinatura.'
+              {!pdfPronto
+                ? 'Aguarde o carregamento do documento.'
+                : !pdfInteracaoFeita
+                  ? 'Toque em &quot;Abrir PDF em nova aba&quot; ou em &quot;Baixar PDF&quot; antes de assinar.'
                   : 'Marque a caixa confirmando que leu o PDF para habilitar a assinatura.'}
             </p>
           )}

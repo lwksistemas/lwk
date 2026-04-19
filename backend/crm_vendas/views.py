@@ -2004,6 +2004,10 @@ class AssinaturaPublicaView(View):
         tipo_documento = 'proposta' if assinatura.proposta else 'contrato'
         
         # Retornar dados do documento
+        oportunidade = getattr(documento, 'oportunidade', None)
+        lead = getattr(oportunidade, 'lead', None) if oportunidade else None
+        vendedor = getattr(oportunidade, 'vendedor', None) if oportunidade else None
+
         return JsonResponse({
             'tipo_documento': tipo_documento,
             'titulo': documento.titulo,
@@ -2011,8 +2015,10 @@ class AssinaturaPublicaView(View):
             'nome_assinante': assinatura.nome_assinante,
             'tipo_assinante': assinatura.tipo,
             'tipo_assinante_display': assinatura.get_tipo_display(),
-            'lead_nome': documento.oportunidade.lead.nome if documento.oportunidade else '',
-            'lead_empresa': getattr(documento.oportunidade.lead, 'empresa', '') if documento.oportunidade else '',
+            'lead_nome': getattr(lead, 'nome', '') or '',
+            'lead_email': getattr(lead, 'email', '') or '',
+            'lead_empresa': getattr(lead, 'empresa', '') or '',
+            'vendedor_email': getattr(vendedor, 'email', '') or '',
         })
     
     def post(self, request, token):

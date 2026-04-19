@@ -394,10 +394,15 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
                 assinatura_cliente = ass
     
     # Montar dados da tabela com informações de assinatura digital
-    vendedor_info = [nome_vendedor, 'Vendedor']
+    # Formato desejado: "Vendedor: NOME" e "Cliente: NOME" na mesma linha.
+    vendedor_nome_fmt = (nome_vendedor or _formatar_nome_usuario(vendedor)).strip() or '—'
+    cliente_nome_fmt = (nome_cliente or getattr(lead, 'nome', '') or '—').strip() or '—'
+
+    vendedor_info = [f"Vendedor: {vendedor_nome_fmt}"]
     if vendedor_email:
         vendedor_info.append(f"<font size='8'>Email: {vendedor_email}</font>")
-    cliente_info = [nome_cliente, 'Cliente']
+
+    cliente_info = [f"Cliente: {cliente_nome_fmt}"]
     if lead_email:
         cliente_info.append(f"<font size='8'>Email: {lead_email}</font>")
     
@@ -617,10 +622,15 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
                 assinatura_cliente = ass
     
     # Montar dados da tabela com informações de assinatura digital
-    vendedor_info = [nome_vendedor, 'Vendedor']
+    # Formato desejado: "Vendedor: NOME" e "Cliente: NOME" na mesma linha.
+    vendedor_nome_fmt = (nome_vendedor or _formatar_nome_usuario(vendedor)).strip() or '—'
+    cliente_nome_fmt = (nome_cliente or getattr(lead, 'nome', '') or '—').strip() or '—'
+
+    vendedor_info = [f"Vendedor: {vendedor_nome_fmt}"]
     if vendedor_email:
         vendedor_info.append(f"<font size='8'>Email: {vendedor_email}</font>")
-    cliente_info = [nome_cliente, 'Cliente']
+
+    cliente_info = [f"Cliente: {cliente_nome_fmt}"]
     if lead_email:
         cliente_info.append(f"<font size='8'>Email: {lead_email}</font>")
     

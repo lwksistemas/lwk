@@ -10,10 +10,57 @@ Isolamento por loja:
 """
 import logging
 import re
-from django.db import connection
+from django.db import connection, connections
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _pg_objects_already_exist(exc: BaseException) -> bool:
+    """True quando o SQL da migration falhou só porque tabela/índice/sequence já existe no schema."""
+    text = str(exc).lower()
+    if 'already exists' in text:
+        return True
+    if 'duplicate' in text and any(
+        k in text for k in ('relation', 'table', 'index', 'constraint', 'sequence')
+    ):
+        return True
+    cause = getattr(exc, '__cause__', None)
+    if cause is not None and cause is not exc:
+        return _pg_objects_already_exist(cause)
+    return False
+
+
+def _record_migration_if_missing(alias: str, schema_name: str, app_label: str, migration_name: str) -> None:
+    """Marca migration como aplicada (equivalente a migrate --fake) se ainda não estiver em django_migrations."""
+    conn = connections[alias]
+    with conn.cursor() as cur:
+        cur.execute(f'SET search_path TO "{schema_name}", public')
+        cur.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            SELECT %s, %s, NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM django_migrations WHERE app = %s AND name = %s
+            )
+            """,
+            [app_label, migration_name, app_label, migration_name],
+        )
+
+
+def _reset_tenant_connection(alias: str) -> None:
+    """Evita 'current transaction is aborted' em requisições seguintes (ex.: re-auditoria)."""
+    if alias not in connections:
+        return
+    conn = connections[alias]
+    try:
+        conn.rollback()
+    except Exception:
+        pass
+    try:
+        conn.close()
+    except Exception:
+        pass
 
 # Apps extras por slug de TipoLoja (única fonte para migrate / auditoria)
 TIPO_LOJA_EXTRA_APPS = {
@@ -139,7 +186,6 @@ class DatabaseSchemaService:
             True se aplicado com sucesso
         """
         from django.core.management import call_command
-        from django.db import connections
         from django.db.migrations.executor import MigrationExecutor
         from io import StringIO
         
@@ -254,37 +300,54 @@ class DatabaseSchemaService:
                             
                             if not sql or sql.strip() == '--':
                                 logger.info(f"      ⚠️  Migration {migration_name} sem SQL")
-                                # Registrar como aplicada mesmo assim
-                                with conn.cursor() as cur:
-                                    cur.execute(f'SET search_path TO "{schema_name}", public')
-                                    cur.execute(
-                                        "INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, NOW())",
-                                        [app_label, migration_name]
-                                    )
+                                _record_migration_if_missing(
+                                    loja.database_name, schema_name, app_label, migration_name
+                                )
                                 continue
                             
                             # Executar SQL no schema
                             with conn.cursor() as cur:
                                 cur.execute(f'SET search_path TO "{schema_name}", public')
                                 cur.execute(sql)
-                                
-                                # Registrar migration como aplicada
                                 cur.execute(
                                     "INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, NOW())",
-                                    [app_label, migration_name]
+                                    [app_label, migration_name],
                                 )
                             
                             logger.info(f"      ✅ {migration_name}")
                             
                         except Exception as e:
                             logger.error(f"      ❌ Erro em {migration_name}: {e}")
+                            try:
+                                conn.rollback()
+                            except Exception:
+                                pass
+                            if _pg_objects_already_exist(e):
+                                logger.warning(
+                                    f"      ⚠️  Objetos já existem no schema; "
+                                    f"registrando {migration_name} como aplicada (--fake)."
+                                )
+                                try:
+                                    _record_migration_if_missing(
+                                        loja.database_name,
+                                        schema_name,
+                                        app_label,
+                                        migration_name,
+                                    )
+                                except Exception as fake_err:
+                                    logger.error(f"      ❌ Falha ao registrar migration fake: {fake_err}")
                             if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
-                                raise
+                                if not _pg_objects_already_exist(e):
+                                    raise
                     
                     logger.info(f"   ✅ App {app} concluído")
                     
                 except Exception as e:
                     logger.error(f"❌ Erro ao processar app {app}: {e}")
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
                     if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
                         raise
                     logger.warning(f"Continuando apesar do erro em {app}")
@@ -326,6 +389,8 @@ class DatabaseSchemaService:
             import traceback
             logger.error(traceback.format_exc())
             return False
+        finally:
+            _reset_tenant_connection(loja.database_name)
 
     @staticmethod
     def _mover_tabelas_public_para_schema(loja, schema_name: str, apps_to_migrate: list) -> None:

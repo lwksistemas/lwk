@@ -12,24 +12,29 @@ class MultiTenantRouter:
     """
     Router que direciona queries para o banco correto baseado no app/model
     """
-    
+
     # Apps que usam o banco de suporte
-    suporte_apps = {'suporte'}
-    
-    # Apps que usam bancos de loja (schema isolado por loja)
-    loja_apps = {
-        'stores',
-        'products',
-        'clinica_estetica',
-        'clinica_beleza',  # Clínica da Beleza - tabelas isoladas por schema
-        'cabeleireiro',
-        'ecommerce',
-        'restaurante',
-        'servicos',
-        'whatsapp',  # Config e log WhatsApp isolados por loja (1 tabela por schema)
-        'crm_vendas',  # CRM Vendas - leads, contas, oportunidades no schema da loja
-        'nfse_integration',  # NFS-e emitidas no schema da loja (alinhado ao LojaIsolationManager)
-    }
+    suporte_apps = frozenset({'suporte'})
+
+    # Apps com dados por loja (schema loja_* / SQLite db_loja_*).
+    # Manter alinhado a: modelos com LojaIsolationMixin + LojaIsolationManager em */models.py
+    # e INSTALLED_APPS. Novo módulo tenant: incluir aqui + migrations só em loja_* (allow_migrate).
+    loja_apps = frozenset(
+        (
+            'cabeleireiro',
+            'clinica_beleza',
+            'clinica_estetica',
+            'crm_vendas',
+            'ecommerce',
+            'hotel',
+            'nfse_integration',
+            'products',
+            'restaurante',
+            'servicos',
+            'stores',
+            'whatsapp',
+        )
+    )
     
     def db_for_read(self, model, **hints):
         """Direciona leitura para o banco correto"""

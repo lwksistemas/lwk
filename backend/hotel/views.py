@@ -29,7 +29,9 @@ class HospedeViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Hospede.objects.all()
+        # Alinhar a quartos/tarifas/reservas: destroy faz soft delete (is_active=False).
+        # .all() mantinha hóspedes "excluídos" na lista (DELETE 204 sem sumir da UI).
+        return Hospede.objects.filter(is_active=True)
 
 
 class QuartoViewSet(BaseModelViewSet):

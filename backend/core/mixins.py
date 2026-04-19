@@ -144,7 +144,15 @@ class LojaIsolationMixin(models.Model):
             raise ValidationError({
                 'loja_id': 'Loja não existe. Não é permitido criar registro para loja inexistente.'
             })
-        
+
+        # Django 4.2+: save() resolve `using` só via router; reforço explícito para o schema da loja.
+        # (loja_apps em db_router já inclui hotel; manter using evita divergência futura.)
+        if 'using' not in kwargs:
+            from tenants.middleware import get_current_tenant_db
+            tenant_db = get_current_tenant_db()
+            if tenant_db and tenant_db != 'default':
+                kwargs['using'] = tenant_db
+
         super().save(*args, **kwargs)
     
     def delete(self, *args, **kwargs):
@@ -166,7 +174,13 @@ class LojaIsolationMixin(models.Model):
             raise ValidationError({
                 'loja_id': 'Você não pode deletar dados de outra loja'
             })
-        
+
+        if 'using' not in kwargs:
+            from tenants.middleware import get_current_tenant_db
+            tenant_db = get_current_tenant_db()
+            if tenant_db and tenant_db != 'default':
+                kwargs['using'] = tenant_db
+
         super().delete(*args, **kwargs)
 
 

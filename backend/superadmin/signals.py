@@ -329,8 +329,8 @@ def delete_all_loja_data(sender, instance, **kwargs):
     já roda dentro da transação do loja.delete(). Transações aninhadas criam
     savepoints e podem causar rollback silencioso, impedindo a exclusão da loja.
     
-    Este signal garante que nenhum dado órfão fique no banco quando uma loja é deletada.
-    Deleta em cascata:
+    Sempre tenta DROP SCHEMA (PostgreSQL) e rede TABELAS_LOJA_ID_DEFAULT, mesmo sem tipo_loja.
+    Deleta em cascata (quando tipo_loja está definido):
     - Funcionários/Vendedores
     - Clientes
     - Agendamentos
@@ -354,11 +354,12 @@ def delete_all_loja_data(sender, instance, **kwargs):
     tipo_loja_nome = getattr(instance.tipo_loja, 'nome', None) if instance.tipo_loja else None
     
     logger.info(f"🗑️ Iniciando exclusão em cascata para loja: {loja_nome} (ID: {loja_id})")
-    
     if not tipo_loja_nome:
-        logger.warning(f"⚠️ Tipo de app não disponível para {loja_nome}, pulando exclusão de dados relacionados")
-        return
-    
+        logger.warning(
+            f"⚠️ Tipo de app não disponível para {loja_nome} (ID {loja_id}): "
+            "sem DELETE linha-a-linha por modelo; execução segue para DROP SCHEMA / rede de segurança."
+        )
+
     try:
         # Alias do banco da loja: usar schema isolado (evita deletar no default e criar órfãos)
         from django.conf import settings
@@ -596,7 +597,14 @@ def delete_all_loja_data(sender, instance, **kwargs):
             _delete_cabeleireiro(Servico, 'serviços')
             _delete_cabeleireiro(Profissional, 'profissionais')
             _delete_cabeleireiro(Cliente, 'clientes')
-        
+
+        elif tipo_loja_nome:
+            # Hotel, E-commerce e outros: sem ramo explícito acima — tabelas somem com DROP SCHEMA CASCADE.
+            logger.info(
+                f"   ℹ️ Tipo {tipo_loja_nome!r}: sem exclusão linha-a-linha neste signal; "
+                "schema tenant será removido por DROP SCHEMA CASCADE."
+            )
+
         # NOTA: A exclusão do owner é feita na views.py após a exclusão da loja
         # para evitar TransactionManagementError
         

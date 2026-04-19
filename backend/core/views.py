@@ -66,6 +66,12 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         """
         Soft delete - marca como inativo ao invés de deletar
         """
+        # ViewSets que sobrescrevem get_queryset sem super() não chamam ensure_loja_context;
+        # reforça tenant (slug/DB) antes de get_object/save no schema correto.
+        if getattr(self, 'request', None):
+            from tenants.middleware import ensure_loja_context
+            ensure_loja_context(self.request)
+
         instance = self.get_object()
         if hasattr(instance, 'is_active'):
             instance.is_active = False

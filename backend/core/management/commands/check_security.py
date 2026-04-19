@@ -7,9 +7,14 @@ Uso:
 """
 from django.core.management.base import BaseCommand
 from django.apps import apps
-from django.db import models
 
+from config.db_router import MultiTenantRouter
 from core.mixins import LojaIsolationMixin
+
+# Subconjunto de loja_apps: modelos com LojaIsolationMixin (stores/products são legado).
+_LOJA_APPS_ISOLATION = tuple(
+    sorted(MultiTenantRouter.loja_apps - frozenset({'stores', 'products'}))
+)
 
 
 class Command(BaseCommand):
@@ -60,13 +65,7 @@ class Command(BaseCommand):
         
         self.stdout.write("1. Verificando modelos sem LojaIsolationMixin...")
         
-        # Apps que devem ter isolamento
-        loja_apps = [
-            'crm_vendas', 'clinica_estetica', 'restaurante',
-            'ecommerce', 'servicos', 'whatsapp'
-        ]
-        
-        for app_label in loja_apps:
+        for app_label in _LOJA_APPS_ISOLATION:
             try:
                 app_config = apps.get_app_config(app_label)
                 for model in app_config.get_models():
@@ -95,12 +94,7 @@ class Command(BaseCommand):
         
         self.stdout.write("2. Verificando índices em loja_id...")
         
-        loja_apps = [
-            'crm_vendas', 'clinica_estetica', 'restaurante',
-            'ecommerce', 'servicos', 'whatsapp'
-        ]
-        
-        for app_label in loja_apps:
+        for app_label in _LOJA_APPS_ISOLATION:
             try:
                 app_config = apps.get_app_config(app_label)
                 for model in app_config.get_models():
@@ -144,12 +138,7 @@ class Command(BaseCommand):
         
         self.stdout.write("3. Verificando constraints unique...")
         
-        loja_apps = [
-            'crm_vendas', 'clinica_estetica', 'restaurante',
-            'ecommerce', 'servicos', 'whatsapp'
-        ]
-        
-        for app_label in loja_apps:
+        for app_label in _LOJA_APPS_ISOLATION:
             try:
                 app_config = apps.get_app_config(app_label)
                 for model in app_config.get_models():

@@ -14,7 +14,7 @@ interface AppDetalhe {
 }
 
 interface AuditResult {
-  loja_id: number;
+  loja_id: number | null;
   slug: string;
   nome: string;
   tipo_slug: string;
@@ -41,9 +41,22 @@ interface SchemaResult {
   resultados?: SchemaRow[];
 }
 
+const SCHEMA_AUDIT_LIMITE = 200;
+
+function isTimeoutLike(err: unknown): boolean {
+  const ax = err as { code?: string; message?: string };
+  const msg = (ax?.message || '').toLowerCase();
+  return (
+    ax?.code === 'ECONNABORTED' ||
+    msg.includes('timeout') ||
+    msg.includes('exceeded')
+  );
+}
+
 export default function SchemasPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [progressText, setProgressText] = useState<string | null>(null);
   const [result, setResult] = useState<SchemaResult | null>(null);
   const [filtro, setFiltro] = useState<'todos' | 'ok' | 'falha'>('todos');
 
@@ -53,28 +66,111 @@ export default function SchemasPage() {
     }
   }, [router]);
 
+  const postAuditoria = (body: Record<string, unknown>) =>
+    apiClient.post<SchemaResult>(
+      '/superadmin/security-dashboard/verificar_corrigir_schemas_lojas/',
+      body
+    );
+
+  /** Uma requisição por loja com falha evita timeout do Heroku (~30s) em correção em massa. */
+  const executarCorrecaoEmLotes = async () => {
+    setProgressText('Auditoria inicial…');
+    const { data: inicial } = await postAuditoria({
+      aplicar_correcao: false,
+      limite: SCHEMA_AUDIT_LIMITE,
+    });
+    setResult(inicial);
+
+    const ids = (inicial.resultados || [])
+      .filter((r) => !r.ok_final && r.audit.loja_id != null)
+      .map((r) => r.audit.loja_id as number);
+
+    if (ids.length === 0) {
+      setProgressText(null);
+      return;
+    }
+
+    for (let i = 0; i < ids.length; i++) {
+      const lojaId = ids[i];
+      setProgressText(`Aplicando correção: loja ${i + 1} de ${ids.length} (id ${lojaId})…`);
+      await postAuditoria({
+        aplicar_correcao: true,
+        loja_id: lojaId,
+      });
+    }
+
+    setProgressText('Atualizando auditoria…');
+    const { data: finalData } = await postAuditoria({
+      aplicar_correcao: false,
+      limite: SCHEMA_AUDIT_LIMITE,
+    });
+    setResult(finalData);
+    setProgressText(null);
+  };
+
+  const corrigirUmaLoja = async (lojaId: number) => {
+    const ok = window.confirm(
+      `Aplicar migrations apenas nesta loja (id ${lojaId})? Pode levar até um minuto.`
+    );
+    if (!ok) return;
+    try {
+      setLoading(true);
+      setProgressText(`Corrigindo loja id ${lojaId}…`);
+      await postAuditoria({ aplicar_correcao: true, loja_id: lojaId });
+      setProgressText('Atualizando auditoria…');
+      const { data } = await postAuditoria({
+        aplicar_correcao: false,
+        limite: SCHEMA_AUDIT_LIMITE,
+      });
+      setResult(data);
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { detail?: string } }; message?: string };
+      const detail = ax?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : ax?.message || 'Falha ao corrigir loja.';
+      setResult((prev) => ({
+        mensagem: msg,
+        resultados: prev?.resultados,
+        resumo: prev?.resumo,
+      }));
+    } finally {
+      setProgressText(null);
+      setLoading(false);
+    }
+  };
+
   const executar = async (aplicarCorrecao: boolean) => {
     if (aplicarCorrecao) {
       const ok = window.confirm(
-        'Serão aplicadas migrations nos schemas das lojas com falha. Pode levar alguns minutos. Continuar?'
+        'Serão aplicadas migrations nos schemas das lojas com falha. Em produção (Heroku) a correção é feita em várias requisições curtas para evitar timeout. Continuar?'
       );
       if (!ok) return;
     }
     try {
       setLoading(true);
+      setProgressText(null);
       setResult(null);
-      const { data } = await apiClient.post(
-        '/superadmin/security-dashboard/verificar_corrigir_schemas_lojas/',
-        { aplicar_correcao: aplicarCorrecao, limite: 80 }
-      );
-      setResult(data);
+      if (aplicarCorrecao) {
+        await executarCorrecaoEmLotes();
+      } else {
+        const { data } = await postAuditoria({
+          aplicar_correcao: false,
+          limite: SCHEMA_AUDIT_LIMITE,
+        });
+        setResult(data);
+      }
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { detail?: string } }; message?: string };
-      setResult({
-        postgresql: false,
-        mensagem: ax?.response?.data?.detail || ax?.message || 'Falha ao executar auditoria.',
-      });
+      const detail = ax?.response?.data?.detail;
+      const fallback = ax?.message || 'Falha ao executar auditoria.';
+      const msg = typeof detail === 'string' ? detail : fallback;
+      setResult((prev) => ({
+        ...prev,
+        mensagem: isTimeoutLike(err)
+          ? 'Tempo da requisição esgotado (comum no Heroku com muitas lojas). Use «Corrigir esta loja» por linha ou tente de novo.'
+          : msg,
+      }));
     } finally {
+      setProgressText(null);
       setLoading(false);
     }
   };
@@ -131,6 +227,11 @@ export default function SchemasPage() {
               <Wrench size={18} />
               Verificar e corrigir
             </button>
+            {progressText && (
+              <span className="text-sm text-gray-600 dark:text-gray-300 w-full sm:w-auto sm:ml-2">
+                {progressText}
+              </span>
+            )}
             {result?.resumo && (
               <div className="ml-auto flex gap-4 text-sm">
                 <span className="text-gray-600 dark:text-gray-400">{result.resumo.total} lojas</span>
@@ -144,12 +245,22 @@ export default function SchemasPage() {
           </div>
         </div>
 
-        {/* Mensagem de erro */}
+        {/* Aviso PostgreSQL / ambiente */}
         {result?.postgresql === false && (
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
             <p className="text-amber-700 dark:text-amber-300 flex items-center gap-2">
               <AlertTriangle size={18} />
               {result.mensagem || 'Ambiente sem PostgreSQL: auditoria de schema só se aplica em produção.'}
+            </p>
+          </div>
+        )}
+
+        {/* Erro geral (timeout, rede, etc.) sem confundir com «sem PostgreSQL» */}
+        {result?.mensagem && result.postgresql !== false && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <p className="text-red-700 dark:text-red-300 flex items-center gap-2">
+              <AlertTriangle size={18} />
+              {result.mensagem}
             </p>
           </div>
         )}
@@ -183,6 +294,7 @@ export default function SchemasPage() {
                     <th className="text-center py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Tabelas</th>
                     <th className="text-center py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Status</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Apps</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Ações</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Detalhe</th>
                   </tr>
                 </thead>
@@ -190,6 +302,9 @@ export default function SchemasPage() {
                   {filtrados.map((row, i) => {
                     const a = row.audit;
                     const badApps = a.apps_detalhe?.filter((x) => !x.ok) || [];
+                    const lojaId = a.loja_id;
+                    const podeCorrigirLoja =
+                      typeof lojaId === 'number' && !row.ok_final && !loading;
                     return (
                       <tr key={i} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                         <td className="py-3 px-4">
@@ -228,6 +343,19 @@ export default function SchemasPage() {
                               </span>
                             ))}
                           </div>
+                        </td>
+                        <td className="py-3 px-4 align-top">
+                          {podeCorrigirLoja ? (
+                            <button
+                              type="button"
+                              onClick={() => corrigirUmaLoja(lojaId)}
+                              className="text-xs px-2 py-1 rounded bg-amber-600 text-white hover:bg-amber-700 whitespace-nowrap"
+                            >
+                              Corrigir esta loja
+                            </button>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-xs text-gray-600 dark:text-gray-400 max-w-xs break-words">
                           {a.erro && <span className="text-red-500">{a.erro}</span>}

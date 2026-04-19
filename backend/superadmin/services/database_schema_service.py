@@ -48,6 +48,28 @@ def _record_migration_if_missing(alias: str, schema_name: str, app_label: str, m
         )
 
 
+def _rollback_and_reconnect(alias: str) -> None:
+    """
+    Após erro em cur.execute(sql) com script multi-statement (ex.: BEGIN do sqlmigrate),
+    só rollback pode não bastar; fecha e reabre a conexão do tenant.
+    """
+    if alias not in connections:
+        return
+    conn = connections[alias]
+    try:
+        conn.rollback()
+    except Exception:
+        pass
+    try:
+        conn.close()
+    except Exception:
+        pass
+    try:
+        conn.ensure_connection()
+    except Exception:
+        pass
+
+
 def _reset_tenant_connection(alias: str) -> None:
     """Evita 'current transaction is aborted' em requisições seguintes (ex.: re-auditoria)."""
     if alias not in connections:
@@ -318,10 +340,8 @@ class DatabaseSchemaService:
                             
                         except Exception as e:
                             logger.error(f"      ❌ Erro em {migration_name}: {e}")
-                            try:
-                                conn.rollback()
-                            except Exception:
-                                pass
+                            _rollback_and_reconnect(loja.database_name)
+                            conn = connections[loja.database_name]
                             if _pg_objects_already_exist(e):
                                 logger.warning(
                                     f"      ⚠️  Objetos já existem no schema; "
@@ -344,14 +364,15 @@ class DatabaseSchemaService:
                     
                 except Exception as e:
                     logger.error(f"❌ Erro ao processar app {app}: {e}")
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
+                    _rollback_and_reconnect(loja.database_name)
+                    conn = connections[loja.database_name]
                     if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
                         raise
                     logger.warning(f"Continuando apesar do erro em {app}")
             
+            _rollback_and_reconnect(loja.database_name)
+            conn = connections[loja.database_name]
+
             # Verificar se tabelas foram criadas
             with conn.cursor() as cur:
                 cur.execute(

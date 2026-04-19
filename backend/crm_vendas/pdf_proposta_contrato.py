@@ -426,10 +426,12 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     
     assinatura_table = Table(assinatura_data, colWidths=[8*cm, 8*cm])
     assinatura_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         ('TOPPADDING', (0, 0), (-1, 0), 3),  # Reduzido de 5 para 3
         ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
     ]))
@@ -647,10 +649,12 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     
     assinatura_table = Table(assinatura_data, colWidths=[8*cm, 8*cm])
     assinatura_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         ('TOPPADDING', (0, 0), (-1, 0), 3),  # Reduzido de 5 para 3
         ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
     ]))

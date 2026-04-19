@@ -60,7 +60,12 @@ class Quarto(LojaIsolationMixin, models.Model):
         db_table = 'hotel_quartos'
         ordering = ['numero']
         constraints = [
-            models.UniqueConstraint(fields=['loja_id', 'numero'], name='hotel_quarto_loja_numero_uniq'),
+            # Só quartos ativos: permite soft delete e novo cadastro com o mesmo número.
+            models.UniqueConstraint(
+                fields=['loja_id', 'numero'],
+                name='hotel_quarto_loja_numero_active_uniq',
+                condition=models.Q(is_active=True),
+            ),
         ]
         indexes = [
             models.Index(fields=['loja_id', 'status'], name='hotel_quarto_loja_status_idx'),

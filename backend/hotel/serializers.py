@@ -28,7 +28,7 @@ class QuartoSerializer(BaseLojaSerializer):
         from tenants.middleware import get_current_loja_id
         loja_id = get_current_loja_id()
         if loja_id:
-            qs = Quarto.objects.filter(loja_id=loja_id, numero=value)
+            qs = Quarto.objects.filter(loja_id=loja_id, numero=value, is_active=True)
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():

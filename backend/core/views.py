@@ -69,7 +69,12 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         if hasattr(instance, 'is_active'):
             instance.is_active = False
-            instance.save()
+            # Só is_active/updated_at: evita UPDATE em todos os campos (ex.: numero
+            # desatualizado na instância vs. DB) e violação de UNIQUE em hotel_quartos.
+            uf = ['is_active']
+            if hasattr(instance, 'updated_at'):
+                uf.append('updated_at')
+            instance.save(update_fields=uf)
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             # Se não tem is_active, faz delete normal

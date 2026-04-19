@@ -370,6 +370,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     # Assinaturas (campos tradicionais + digitais integrados)
     nome_vendedor = getattr(proposta, 'nome_vendedor_assinatura', None) or ''
     nome_cliente = getattr(proposta, 'nome_cliente_assinatura', None) or ''
+    lead_email = getattr(lead, 'email', '') or '' if lead else ''
+    vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, 'vendedor', None) else None
+    vendedor_email = getattr(vendedor, 'email', '') or '' if vendedor else ''
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
     # Sem Spacer - colar direto
@@ -392,7 +395,11 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     
     # Montar dados da tabela com informações de assinatura digital
     vendedor_info = [nome_vendedor, 'Vendedor']
+    if vendedor_email:
+        vendedor_info.append(f"<font size='8'>Email: {vendedor_email}</font>")
     cliente_info = [nome_cliente, 'Cliente']
+    if lead_email:
+        cliente_info.append(f"<font size='8'>Email: {lead_email}</font>")
     
     # Adicionar info de assinatura digital se houver
     if assinatura_vendedor:
@@ -584,6 +591,9 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     # Assinaturas (campos tradicionais + digitais integrados)
     nome_vendedor = getattr(contrato, 'nome_vendedor_assinatura', None) or ''
     nome_cliente = getattr(contrato, 'nome_cliente_assinatura', None) or ''
+    lead_email = getattr(lead, 'email', '') or '' if lead else ''
+    vendedor = contrato.oportunidade.vendedor if contrato.oportunidade and getattr(contrato.oportunidade, 'vendedor', None) else None
+    vendedor_email = getattr(vendedor, 'email', '') or '' if vendedor else ''
     
     elements.append(Paragraph('<b>Assinaturas</b>', section_style))
     # Sem Spacer - colar direto
@@ -606,7 +616,11 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     
     # Montar dados da tabela com informações de assinatura digital
     vendedor_info = [nome_vendedor, 'Vendedor']
+    if vendedor_email:
+        vendedor_info.append(f"<font size='8'>Email: {vendedor_email}</font>")
     cliente_info = [nome_cliente, 'Cliente']
+    if lead_email:
+        cliente_info.append(f"<font size='8'>Email: {lead_email}</font>")
     
     # Adicionar info de assinatura digital se houver
     if assinatura_vendedor:

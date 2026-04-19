@@ -485,6 +485,17 @@ export default function CrmVendasPropostasPage() {
                                 >
                                   <MessageCircle size={15} className="text-green-500" /> Enviar por WhatsApp
                                 </button>
+                                <BotaoAssinaturaDigital
+                                  variant="menuItem"
+                                  tipoDocumento="proposta"
+                                  documentoId={p.id}
+                                  statusAssinatura={p.status_assinatura}
+                                  leadEmail={p.lead_email}
+                                  onSucesso={() => {
+                                    loadPropostas(true);
+                                    setMenuAberto(null);
+                                  }}
+                                />
                                 <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
                                 {p.status_assinatura !== 'concluido' && (
                                   <button

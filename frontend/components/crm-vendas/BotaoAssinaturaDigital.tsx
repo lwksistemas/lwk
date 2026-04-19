@@ -9,6 +9,8 @@ interface BotaoAssinaturaDigitalProps {
   statusAssinatura?: string;
   leadEmail?: string;
   onSucesso?: () => void;
+  /** Linha de menu (dropdown) — mesmo padrão visual dos outros itens da lista. */
+  variant?: 'default' | 'menuItem';
 }
 
 export default function BotaoAssinaturaDigital({
@@ -17,6 +19,7 @@ export default function BotaoAssinaturaDigital({
   statusAssinatura = 'rascunho',
   leadEmail,
   onSucesso,
+  variant = 'default',
 }: BotaoAssinaturaDigitalProps) {
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
@@ -66,6 +69,49 @@ export default function BotaoAssinaturaDigital({
       setEnviando(false);
     }
   };
+
+  if (variant === 'menuItem') {
+    return (
+      <div className="space-y-0">
+        <button
+          type="button"
+          onClick={enviarParaAssinatura}
+          disabled={enviando || !leadEmail}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+          title={!leadEmail ? 'Lead precisa ter email cadastrado' : 'Enviar para assinatura digital'}
+        >
+          {enviando ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent shrink-0" />
+              <span>Enviando...</span>
+            </>
+          ) : (
+            <>
+              <FileSignature size={15} className="text-green-600 dark:text-green-400 shrink-0" />
+              <span>Enviar para Assinatura Digital</span>
+            </>
+          )}
+        </button>
+        {mensagem && (
+          <div
+            className={`mx-3 mb-2 text-xs px-2 py-1.5 rounded ${
+              mensagem.tipo === 'sucesso'
+                ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
+                : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+            }`}
+          >
+            {mensagem.texto}
+          </div>
+        )}
+        {!leadEmail && !mensagem && (
+          <p className="text-xs text-yellow-600 dark:text-yellow-400 px-3 pb-2 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3 shrink-0" />
+            Lead precisa ter email cadastrado
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">

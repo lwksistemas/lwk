@@ -306,15 +306,6 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
         # Sem Spacer - colar direto
 
-    # Dados do Vendedor
-    vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, 'vendedor', None) else None
-    if vendedor:
-        elements.append(Paragraph('<b>Dados do Vendedor</b>', section_style))
-        elements.append(Paragraph(f"<b>Nome:</b> {_formatar_nome_usuario(vendedor)}", styles['Normal']))
-        vendedor_email = getattr(vendedor, 'email', '') or ''
-        if vendedor_email:
-            elements.append(Paragraph(f"<b>Email:</b> {vendedor_email}", styles['Normal']))
-
     # Produtos e Serviços da Oportunidade (Valor total ao final)
     itens = []
     if proposta.oportunidade:
@@ -551,15 +542,6 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
             elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
         elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
         # Sem Spacer - colar direto
-
-    # Dados do Vendedor
-    vendedor = contrato.oportunidade.vendedor if contrato.oportunidade and getattr(contrato.oportunidade, 'vendedor', None) else None
-    if vendedor:
-        elements.append(Paragraph('<b>Dados do Vendedor</b>', section_style))
-        elements.append(Paragraph(f"<b>Nome:</b> {_formatar_nome_usuario(vendedor)}", styles['Normal']))
-        vendedor_email = getattr(vendedor, 'email', '') or ''
-        if vendedor_email:
-            elements.append(Paragraph(f"<b>Email:</b> {vendedor_email}", styles['Normal']))
 
     # Produtos e Serviços da Oportunidade
     itens = []

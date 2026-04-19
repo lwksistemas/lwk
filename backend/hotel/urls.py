@@ -26,7 +26,8 @@ router.register(r'reserva-templates', ReservaTemplateViewSet, basename='hotel-re
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('assinar-reserva/<path:token>/', ReservaAssinaturaPublicaView.as_view(), name='hotel-assinar-reserva'),
+    # Rota /pdf/ ANTES da genérica: <path:token> é greedy e absorveria ".../pdf" no token → 400.
     path('assinar-reserva/<path:token>/pdf/', ReservaAssinaturaPdfView.as_view(), name='hotel-assinar-reserva-pdf'),
+    path('assinar-reserva/<path:token>/', ReservaAssinaturaPublicaView.as_view(), name='hotel-assinar-reserva'),
 ]
 

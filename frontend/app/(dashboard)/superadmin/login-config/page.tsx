@@ -245,15 +245,29 @@ function LoginConfigContent() {
               </CardHeader>
               <CardContent>
                 <div 
-                  className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700"
+                  className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 relative"
                   style={{
-                    backgroundImage: config.login_background ? `url(${config.login_background})` : 'none',
-                    backgroundColor: config.login_background ? 'transparent' : '#f3f4f6',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
+                    backgroundColor: '#f3f4f6',
                   }}
                 >
-                  <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-8 min-h-[400px] flex flex-col items-center justify-center">
+                  {config.login_background && (
+                    <>
+                      <div
+                        className="absolute inset-y-0 left-0 w-1/2"
+                        style={{
+                          background: `url(${config.login_background}) left center / auto 100% no-repeat`,
+                        }}
+                      />
+                      <div
+                        className="absolute inset-y-0 right-0 w-1/2"
+                        style={{
+                          background: `url(${config.login_background}) right center / auto 100% no-repeat`,
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/25" />
+                    </>
+                  )}
+                  <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-8 min-h-[400px] flex flex-col items-center justify-center relative" style={{ zIndex: 2 }}>
                     {config.logo && (
                       <Image
                         src={config.logo}

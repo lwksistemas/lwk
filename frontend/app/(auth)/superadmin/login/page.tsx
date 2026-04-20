@@ -147,15 +147,45 @@ export default function SuperAdminLoginPage() {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
-        backgroundImage: config.login_background ? `url(${config.login_background})` : 'none',
-        backgroundColor: config.login_background ? 'transparent' : `${config.cor_primaria}`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        backgroundColor: config.cor_primaria,
       }}
     >
-      <div className="max-w-md w-full space-y-8 p-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl">
+      {config.login_background && (
+        <>
+          {/* Foto completa na lateral esquerda */}
+          <div
+            className="hidden sm:block absolute inset-y-0 left-0 w-1/2"
+            style={{
+              background: `url(${config.login_background}) left center / auto 100% no-repeat`,
+              zIndex: 0,
+            }}
+          />
+          {/* Foto completa na lateral direita */}
+          <div
+            className="hidden sm:block absolute inset-y-0 right-0 w-1/2"
+            style={{
+              background: `url(${config.login_background}) right center / auto 100% no-repeat`,
+              zIndex: 0,
+            }}
+          />
+          {/* Em telas pequenas, usa cover como fallback */}
+          <div
+            className="sm:hidden absolute inset-0"
+            style={{
+              background: `url(${config.login_background}) center/cover no-repeat`,
+              zIndex: 0,
+            }}
+          />
+          {/* Overlay leve para legibilidade */}
+          <div
+            className="absolute inset-0 bg-black/25"
+            style={{ zIndex: 1 }}
+          />
+        </>
+      )}
+      <div className="max-w-md w-full space-y-8 p-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl relative" style={{ zIndex: 2 }}>
         <div>
           {config.logo ? (
             <div className="mx-auto h-16 flex items-center justify-center">

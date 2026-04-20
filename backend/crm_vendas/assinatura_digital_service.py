@@ -318,13 +318,21 @@ def enviar_email_assinatura_cliente(documento, assinatura, request):
                                     </tr>
                                 </table>
                                 
-                                <!-- CTA Button -->
+                                <!-- CTA Button (bulletproof Outlook-compatible) -->
                                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
                                     <tr>
                                         <td align="center">
-                                            <a href="{link_assinatura}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);">
+                                            <!--[if mso]>
+                                            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{link_assinatura}" style="height:52px;v-text-anchor:middle;width:340px;" arcsize="12%" strokecolor="#667eea" fillcolor="#667eea">
+                                                <w:anchorlock/>
+                                                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">&#9997; Visualizar e Assinar Documento</center>
+                                            </v:roundrect>
+                                            <![endif]-->
+                                            <!--[if !mso]><!-- -->
+                                            <a href="{link_assinatura}" style="display: inline-block; background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; mso-hide: all;">
                                                 ✍️ Visualizar e Assinar Documento
                                             </a>
+                                            <!--<![endif]-->
                                         </td>
                                     </tr>
                                 </table>
@@ -538,13 +546,21 @@ def enviar_email_assinatura_vendedor(documento, assinatura, request):
                                     </tr>
                                 </table>
                                 
-                                <!-- CTA Button -->
+                                <!-- CTA Button (bulletproof Outlook-compatible) -->
                                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
                                     <tr>
                                         <td align="center">
-                                            <a href="{link_assinatura}" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);">
+                                            <!--[if mso]>
+                                            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{link_assinatura}" style="height:52px;v-text-anchor:middle;width:340px;" arcsize="12%" strokecolor="#10b981" fillcolor="#10b981">
+                                                <w:anchorlock/>
+                                                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">&#9997; Visualizar e Assinar Documento</center>
+                                            </v:roundrect>
+                                            <![endif]-->
+                                            <!--[if !mso]><!-- -->
+                                            <a href="{link_assinatura}" style="display: inline-block; background-color: #10b981; background-image: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; mso-hide: all;">
                                                 ✍️ Visualizar e Assinar Documento
                                             </a>
+                                            <!--<![endif]-->
                                         </td>
                                     </tr>
                                 </table>

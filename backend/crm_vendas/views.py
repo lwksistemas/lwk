@@ -680,6 +680,42 @@ class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
             qs = qs.filter(conta_id=conta_id)
         return qs
 
+    def perform_update(self, serializer):
+        """
+        Ao editar um Contato, propaga nome/email/telefone para os Leads vinculados
+        (Lead mantém cópia denormalizada desses campos).
+        """
+        instance_antes = self.get_object()
+        nome_antes = instance_antes.nome
+        email_antes = instance_antes.email
+        telefone_antes = instance_antes.telefone
+
+        instance = serializer.save()
+
+        update_fields = {}
+        if instance.nome != nome_antes:
+            update_fields['nome'] = instance.nome
+        if instance.email != email_antes:
+            update_fields['email'] = instance.email or ''
+        if instance.telefone != telefone_antes:
+            update_fields['telefone'] = instance.telefone or ''
+
+        if update_fields:
+            updated = Lead.objects.filter(contato_id=instance.id).update(**update_fields)
+            if updated:
+                logger.info(
+                    'Contato %s atualizado: propagados %s para %d Lead(s) vinculado(s).',
+                    instance.id, list(update_fields.keys()), updated,
+                )
+                try:
+                    CRMCacheManager.invalidate_dashboard(
+                        getattr(instance, 'loja_id', None)
+                    )
+                except Exception:
+                    pass
+
+        self._invalidate_caches()
+
 
 class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     queryset = Oportunidade.objects.select_related('lead', 'vendedor', 'lead__conta', 'empresa_prestadora').prefetch_related('atividades').all()

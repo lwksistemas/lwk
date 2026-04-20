@@ -218,12 +218,13 @@ def registrar_assinatura(adapter: AssinaturaAdapter, assinatura, ip_address: str
 
 def _render_email_html(titulo_header: str, cor_gradient: str, corpo_html: str, loja_nome: str) -> str:
     ano = timezone.now().year
+    cor_solida = cor_gradient.split(' ')[0].strip()
     return f"""<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f4f4;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:20px 0;"><tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1);">
-<tr><td style="background:linear-gradient(135deg,{cor_gradient});padding:40px 30px;border-radius:8px 8px 0 0;text-align:center;">
+<tr><td bgcolor="{cor_solida}" style="background-color:{cor_solida};background-image:linear-gradient(135deg,{cor_gradient});padding:40px 30px;border-radius:8px 8px 0 0;text-align:center;">
 <h1 style="color:#fff;margin:0;font-size:28px;font-weight:600;">{titulo_header}</h1>
 </td></tr>
 <tr><td style="padding:40px 30px;">{corpo_html}</td></tr>
@@ -266,7 +267,14 @@ def enviar_email_parte1(adapter: AssinaturaAdapter, documento, assinatura, loja_
 <tr><td style="color:#10b981;font-size:20px;font-weight:700;">{valor}</td></tr>
 </table></td></tr></table>
 <table width="100%" style="margin-bottom:30px;"><tr><td align="center">
-<a href="{link}" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-decoration:none;padding:16px 40px;border-radius:6px;font-size:16px;font-weight:600;">✍️ Visualizar e Assinar</a>
+<!--[if mso]>
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{link}" style="height:52px;v-text-anchor:middle;width:300px;" arcsize="12%" strokecolor="#667eea" fillcolor="#667eea">
+<w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">&#9997; Visualizar e Assinar</center>
+</v:roundrect>
+<![endif]-->
+<!--[if !mso]><!-- -->
+<a href="{link}" style="display:inline-block;background-color:#667eea;background-image:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff !important;text-decoration:none;padding:16px 40px;border-radius:6px;font-size:16px;font-weight:600;mso-hide:all;">✍️ Visualizar e Assinar</a>
+<!--<![endif]-->
 </td></tr></table>
 <table width="100%" style="background:#fff3cd;border-radius:4px;margin-bottom:20px;"><tr><td style="padding:15px;">
 <p style="color:#856404;font-size:13px;margin:0;">⏰ Link válido por <strong>{TOKEN_EXPIRACAO_DIAS} dias</strong>.</p>
@@ -304,7 +312,14 @@ def enviar_email_parte2(adapter: AssinaturaAdapter, documento, assinatura, loja_
 <tr><td style="color:#10b981;font-size:20px;font-weight:700;">{valor}</td></tr>
 </table></td></tr></table>
 <table width="100%" style="margin-bottom:30px;"><tr><td align="center">
-<a href="{link}" style="display:inline-block;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;text-decoration:none;padding:16px 40px;border-radius:6px;font-size:16px;font-weight:600;">✍️ Visualizar e Assinar</a>
+<!--[if mso]>
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{link}" style="height:52px;v-text-anchor:middle;width:300px;" arcsize="12%" strokecolor="#10b981" fillcolor="#10b981">
+<w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">&#9997; Visualizar e Assinar</center>
+</v:roundrect>
+<![endif]-->
+<!--[if !mso]><!-- -->
+<a href="{link}" style="display:inline-block;background-color:#10b981;background-image:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#ffffff !important;text-decoration:none;padding:16px 40px;border-radius:6px;font-size:16px;font-weight:600;mso-hide:all;">✍️ Visualizar e Assinar</a>
+<!--<![endif]-->
 </td></tr></table>"""
 
     html = _render_email_html(f'✅ {label1} Assinou!', '#10b981 0%, #059669 100%', corpo, loja_nome)

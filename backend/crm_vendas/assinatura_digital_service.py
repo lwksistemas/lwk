@@ -265,9 +265,9 @@ def enviar_email_assinatura_cliente(documento, assinatura, request):
             <tr>
                 <td align="center">
                     <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <!-- Header -->
+                        <!-- Header (Outlook-compatible: bgcolor + background-color sólido, gradient como enhancement) -->
                         <tr>
-                            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                            <td bgcolor="#667eea" style="background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
                                 <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">
                                     📄 Assinatura Digital
                                 </h1>
@@ -482,9 +482,9 @@ def enviar_email_assinatura_vendedor(documento, assinatura, request):
             <tr>
                 <td align="center">
                     <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <!-- Header -->
+                        <!-- Header (Outlook-compatible: bgcolor + background-color sólido, gradient como enhancement) -->
                         <tr>
-                            <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                            <td bgcolor="#10b981" style="background-color: #10b981; background-image: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
                                 <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">
                                     ✅ Cliente Assinou!
                                 </h1>
@@ -776,9 +776,9 @@ def enviar_pdf_final(documento, loja_id):
             <tr>
                 <td align="center">
                     <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <!-- Header -->
+                        <!-- Header (Outlook-compatible: bgcolor + background-color sólido, gradient como enhancement) -->
                         <tr>
-                            <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                            <td bgcolor="#10b981" style="background-color: #10b981; background-image: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
                                 <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">
                                     🎉 Documento Assinado!
                                 </h1>

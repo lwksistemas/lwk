@@ -63,9 +63,9 @@ def email_senha_provisoria_html(
             <tr>
                 <td align="center">
                     <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <!-- Header -->
+                        <!-- Header (Outlook-compatible: bgcolor + background-color sólido) -->
                         <tr>
-                            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
+                            <td bgcolor="#667eea" style="background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
                                 <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">
                                     🔐 {titulo_principal}
                                 </h1>
@@ -116,13 +116,21 @@ def email_senha_provisoria_html(
                                     </tr>
                                 </table>
                                 
-                                <!-- CTA Button -->
+                                <!-- CTA Button (bulletproof Outlook-compatible) -->
                                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
                                     <tr>
                                         <td align="center">
-                                            <a href="{url_login}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);">
+                                            <!--[if mso]>
+                                            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{url_login}" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="12%" strokecolor="#667eea" fillcolor="#667eea">
+                                                <w:anchorlock/>
+                                                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">&#128640; Acessar Sistema</center>
+                                            </v:roundrect>
+                                            <![endif]-->
+                                            <!--[if !mso]><!-- -->
+                                            <a href="{url_login}" style="display: inline-block; background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; mso-hide: all;">
                                                 🚀 Acessar Sistema
                                             </a>
+                                            <!--<![endif]-->
                                         </td>
                                     </tr>
                                 </table>

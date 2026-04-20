@@ -208,23 +208,42 @@ export default function LojaLoginDinamicoPage() {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
-        background: loginBackground 
-          ? `url(${loginBackground}) center/cover no-repeat`
+        background: loginBackground
+          ? undefined
           : `linear-gradient(to bottom right, ${corPrimaria}, ${corSecundaria})`,
-        position: 'relative'
       }}
     >
-      {/* Overlay escuro se houver imagem de fundo */}
       {loginBackground && (
-        <div 
-          className="absolute inset-0 bg-black/40"
-          style={{ zIndex: 0 }}
-        />
+        <>
+          {/* Camada 1: imagem borrada preenchendo as laterais (sem barras vazias) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `url(${loginBackground}) center/cover no-repeat`,
+              filter: 'blur(24px) brightness(0.7)',
+              transform: 'scale(1.1)',
+              zIndex: 0,
+            }}
+          />
+          {/* Camada 2: imagem completa, sem corte (contain) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `url(${loginBackground}) center/contain no-repeat`,
+              zIndex: 1,
+            }}
+          />
+          {/* Overlay escuro para legibilidade do card */}
+          <div
+            className="absolute inset-0 bg-black/30"
+            style={{ zIndex: 2 }}
+          />
+        </>
       )}
       
-      <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 3 }}>
         {/* Header */}
         <div>
           <div className="mx-auto flex items-center justify-center">

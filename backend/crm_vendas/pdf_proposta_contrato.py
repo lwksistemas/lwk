@@ -386,8 +386,10 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     
     # Montar dados da tabela com informações de assinatura digital
     # Formato desejado: "Vendedor: NOME" e "Cliente: NOME" na mesma linha.
-    vendedor_nome_fmt = (nome_vendedor or _formatar_nome_usuario(vendedor)).strip() or '—'
-    cliente_nome_fmt = (nome_cliente or getattr(lead, 'nome', '') or '—').strip() or '—'
+    # Normaliza ambos em MAIÚSCULAS para manter consistência visual
+    # (Lead.nome já é uppercased pelo serializer; User.first_name/last_name não são).
+    vendedor_nome_fmt = (nome_vendedor or _formatar_nome_usuario(vendedor)).strip().upper() or '—'
+    cliente_nome_fmt = (nome_cliente or getattr(lead, 'nome', '') or '—').strip().upper() or '—'
 
     vendedor_info = [f"Vendedor: {vendedor_nome_fmt}"]
     if vendedor_email:
@@ -605,8 +607,10 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     
     # Montar dados da tabela com informações de assinatura digital
     # Formato desejado: "Vendedor: NOME" e "Cliente: NOME" na mesma linha.
-    vendedor_nome_fmt = (nome_vendedor or _formatar_nome_usuario(vendedor)).strip() or '—'
-    cliente_nome_fmt = (nome_cliente or getattr(lead, 'nome', '') or '—').strip() or '—'
+    # Normaliza ambos em MAIÚSCULAS para manter consistência visual
+    # (Lead.nome já é uppercased pelo serializer; User.first_name/last_name não são).
+    vendedor_nome_fmt = (nome_vendedor or _formatar_nome_usuario(vendedor)).strip().upper() or '—'
+    cliente_nome_fmt = (nome_cliente or getattr(lead, 'nome', '') or '—').strip().upper() or '—'
 
     vendedor_info = [f"Vendedor: {vendedor_nome_fmt}"]
     if vendedor_email:

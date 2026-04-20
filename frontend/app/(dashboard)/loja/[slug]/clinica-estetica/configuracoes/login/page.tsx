@@ -253,16 +253,28 @@ export default function ClinicaConfiguracoesLoginPage() {
                   <div
                     className="rounded-lg border border-gray-200 overflow-hidden relative"
                     style={{
-                      background: loginBackground 
-                        ? `url(${loginBackground}) center/cover no-repeat`
-                        : `linear-gradient(to bottom right, ${corPrimariaHex}, ${corSecundariaHex})`,
+                      background: `linear-gradient(to bottom right, ${corPrimariaHex}, ${corSecundariaHex})`,
                       minHeight: '300px',
                     }}
                   >
                     {loginBackground && (
-                      <div className="absolute inset-0 bg-black/40" />
+                      <>
+                        <div
+                          className="absolute inset-y-0 left-0 w-1/2"
+                          style={{
+                            background: `url(${loginBackground}) left center / auto 100% no-repeat`,
+                          }}
+                        />
+                        <div
+                          className="absolute inset-y-0 right-0 w-1/2"
+                          style={{
+                            background: `url(${loginBackground}) right center / auto 100% no-repeat`,
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/25" />
+                      </>
                     )}
-                    
+
                     <div className="p-6 flex flex-col items-center relative z-10">
                       <div
                         className="w-14 h-14 rounded-full flex items-center justify-center mb-3 overflow-hidden"

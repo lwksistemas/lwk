@@ -113,6 +113,20 @@ export default function CrmVendasPropostasPage() {
     }
   };
 
+  const handleDownloadDocx = async (propostaId: number, titulo: string) => {
+    try {
+      const response = await apiClient.get(`/crm-vendas/propostas/${propostaId}/download_docx/`, {
+        responseType: 'blob',
+      });
+      downloadBlobAsFile(
+        response.data instanceof Blob ? response.data : new Blob([response.data]),
+        `proposta_${propostaId}_${titulo.replace(/\s+/g, '_')}.docx`
+      );
+    } catch (err: unknown) {
+      alert(getCrmApiErrorDetail(err, 'Erro ao baixar Word.'));
+    }
+  };
+
   /** silent: não ativa loading em tela cheia (evita sumir a lista após salvar/excluir). */
   const loadPropostas = useCallback(async (silent = false) => {
     try {
@@ -468,6 +482,13 @@ export default function CrmVendasPropostasPage() {
                                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                                 >
                                   <FileText size={15} className="text-red-500" /> Baixar PDF
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { handleDownloadDocx(p.id, p.titulo); setMenuAberto(null); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  <FileText size={15} className="text-blue-600" /> Baixar Word
                                 </button>
                                 <button
                                   type="button"

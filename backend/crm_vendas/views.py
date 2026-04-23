@@ -1144,6 +1144,29 @@ class PropostaViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuery
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=['get'])
+    def download_docx(self, request, pk=None):
+        """Baixa o Word (DOCX) da proposta."""
+        from django.http import HttpResponse
+        from .docx_proposta_contrato import gerar_docx_proposta
+
+        proposta = self.get_object()
+        try:
+            docx_buffer = gerar_docx_proposta(proposta)
+            response = HttpResponse(
+                docx_buffer.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            safe_titulo = (proposta.titulo or "").replace(" ", "_")
+            filename = f'proposta_{proposta.numero or proposta.id}_{safe_titulo}.docx'
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+        except Exception as e:
+            return Response(
+                {"detail": f"Erro ao gerar DOCX: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class PropostaTemplateViewSet(TemplateViewSetMixin, BaseModelViewSet):
     """Templates de propostas para reutilização."""
@@ -1171,6 +1194,50 @@ class ContratoViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuery
     assinatura_doc_label = 'Contrato'
     assinatura_cache_key = 'contratos'
     enviar_cliente_label = 'Contrato'
+
+    @action(detail=True, methods=['get'])
+    def download_pdf(self, request, pk=None):
+        """Baixa o PDF do contrato."""
+        from .pdf_proposta_contrato import gerar_pdf_contrato
+        from django.http import HttpResponse
+
+        contrato = self.get_object()
+        try:
+            incluir_assinaturas = contrato.status_assinatura == 'concluido'
+            pdf_buffer = gerar_pdf_contrato(contrato, incluir_assinaturas=incluir_assinaturas)
+
+            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            filename = f'contrato_{contrato.numero or contrato.id}_{contrato.titulo.replace(" ", "_")}.pdf'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        except Exception as e:
+            return Response(
+                {'detail': f'Erro ao gerar PDF: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['get'])
+    def download_docx(self, request, pk=None):
+        """Baixa o Word (DOCX) do contrato."""
+        from django.http import HttpResponse
+        from .docx_proposta_contrato import gerar_docx_contrato
+
+        contrato = self.get_object()
+        try:
+            docx_buffer = gerar_docx_contrato(contrato)
+            response = HttpResponse(
+                docx_buffer.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            safe_titulo = (contrato.titulo or "").replace(" ", "_")
+            filename = f'contrato_{contrato.numero or contrato.id}_{safe_titulo}.docx'
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+        except Exception as e:
+            return Response(
+                {"detail": f"Erro ao gerar DOCX: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 def _empty_dashboard_response():

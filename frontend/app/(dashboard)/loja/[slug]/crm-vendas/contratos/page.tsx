@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso, downloadBlobAsFile } from '@/lib/crm-utils';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
@@ -96,6 +96,34 @@ export default function CrmVendasContratosPage() {
       alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
     } finally {
       setEnviandoId(null);
+    }
+  };
+
+  const handleDownloadPdf = async (contratoId: number, titulo: string) => {
+    try {
+      const response = await apiClient.get(`/crm-vendas/contratos/${contratoId}/download_pdf/`, {
+        responseType: 'blob',
+      });
+      downloadBlobAsFile(
+        response.data instanceof Blob ? response.data : new Blob([response.data]),
+        `contrato_${contratoId}_${titulo.replace(/\s+/g, '_')}.pdf`
+      );
+    } catch (err: unknown) {
+      alert(getCrmApiErrorDetail(err, 'Erro ao baixar PDF.'));
+    }
+  };
+
+  const handleDownloadDocx = async (contratoId: number, titulo: string) => {
+    try {
+      const response = await apiClient.get(`/crm-vendas/contratos/${contratoId}/download_docx/`, {
+        responseType: 'blob',
+      });
+      downloadBlobAsFile(
+        response.data instanceof Blob ? response.data : new Blob([response.data]),
+        `contrato_${contratoId}_${titulo.replace(/\s+/g, '_')}.docx`
+      );
+    } catch (err: unknown) {
+      alert(getCrmApiErrorDetail(err, 'Erro ao baixar Word.'));
     }
   };
 
@@ -378,6 +406,22 @@ export default function CrmVendasContratosPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadPdf(c.id, c.titulo)}
+                          className="px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 text-xs"
+                          title="Baixar PDF"
+                        >
+                          PDF
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadDocx(c.id, c.titulo)}
+                          className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 text-xs"
+                          title="Baixar Word"
+                        >
+                          Word
+                        </button>
                         <BotaoAssinaturaDigital
                           tipoDocumento="contrato"
                           documentoId={c.id}

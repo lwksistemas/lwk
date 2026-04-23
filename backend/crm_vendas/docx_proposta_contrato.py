@@ -10,15 +10,120 @@ Implementação simples (sem conversão HTML->DOCX completa):
 """
 
 from io import BytesIO
-import re
+from html.parser import HTMLParser
 
 
-def _strip_html(html: str) -> str:
+class _HtmlToDocxBlocksParser(HTMLParser):
+    """
+    Parser simples para transformar HTML em blocos (parágrafos e listas).
+    Suporta: <p>, <br>, <b>/<strong>, <i>/<em>, <ul>/<ol>/<li>.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.blocks = []  # list[dict]
+        self._cur_runs = []
+        self._cur_is_list_item = False
+        self._in_list = False
+        self._list_style = "List Bullet"
+        self._bold = 0
+        self._italic = 0
+
+    def _flush_paragraph(self):
+        runs = [r for r in self._cur_runs if (r.get("text") or "").strip() != ""]
+        if runs:
+            if self._cur_is_list_item:
+                self.blocks.append({"type": "li", "runs": runs, "style": self._list_style})
+            else:
+                self.blocks.append({"type": "p", "runs": runs})
+        self._cur_runs = []
+        self._cur_is_list_item = False
+
+    def _append_text(self, text: str):
+        if not text:
+            return
+        self._cur_runs.append(
+            {
+                "text": text,
+                "bold": self._bold > 0,
+                "italic": self._italic > 0,
+            }
+        )
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if tag in ("p",):
+            self._flush_paragraph()
+        elif tag == "br":
+            self._flush_paragraph()
+        elif tag in ("strong", "b"):
+            self._bold += 1
+        elif tag in ("em", "i"):
+            self._italic += 1
+        elif tag in ("ul", "ol"):
+            self._flush_paragraph()
+            self._in_list = True
+            self._list_style = "List Bullet" if tag == "ul" else "List Number"
+        elif tag == "li":
+            self._flush_paragraph()
+            self._cur_is_list_item = self._in_list
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag in ("p",):
+            self._flush_paragraph()
+        elif tag in ("strong", "b"):
+            self._bold = max(0, self._bold - 1)
+        elif tag in ("em", "i"):
+            self._italic = max(0, self._italic - 1)
+        elif tag in ("ul", "ol"):
+            self._flush_paragraph()
+            self._in_list = False
+
+    def handle_data(self, data):
+        if not data:
+            return
+        txt = data.replace("\xa0", " ")
+        self._append_text(txt)
+
+    def finalize(self):
+        self._flush_paragraph()
+        # Normalização: junta múltiplos espaços dentro de cada run
+        for b in self.blocks:
+            for r in b.get("runs", []):
+                r["text"] = " ".join((r.get("text") or "").split())
+        self.blocks = [b for b in self.blocks if any((r.get("text") or "") for r in b.get("runs", []))]
+        return self.blocks
+
+
+def _add_html_as_docx(document, html: str):
+    """
+    Adiciona HTML ao DOCX com layout simples (parágrafos + listas).
+    """
     if not html:
-        return ""
-    text = re.sub(r"<[^>]+>", " ", str(html))
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+        document.add_paragraph("Conteúdo não informado.")
+        return
+
+    parser = _HtmlToDocxBlocksParser()
+    parser.feed(str(html))
+    blocks = parser.finalize()
+
+    if not blocks:
+        document.add_paragraph("Conteúdo não informado.")
+        return
+
+    for b in blocks:
+        if b.get("type") == "li":
+            p = document.add_paragraph(style=b.get("style") or "List Bullet")
+        else:
+            p = document.add_paragraph()
+        for run_data in b["runs"]:
+            t = run_data.get("text") or ""
+            if not t:
+                continue
+            run = p.add_run(t)
+            run.bold = bool(run_data.get("bold"))
+            run.italic = bool(run_data.get("italic"))
 
 
 def _formatar_valor(valor) -> str:
@@ -173,8 +278,7 @@ def gerar_docx_proposta(proposta) -> BytesIO:
         doc.add_paragraph("Nenhum item cadastrado.")
 
     doc.add_heading("Conteúdo", level=2)
-    conteudo = _strip_html(getattr(proposta, "conteudo", "") or "") or "Conteúdo não informado."
-    doc.add_paragraph(conteudo)
+    _add_html_as_docx(doc, getattr(proposta, "conteudo", "") or "")
 
     doc.add_heading("Assinaturas", level=2)
     vendedor = (
@@ -263,8 +367,7 @@ def gerar_docx_contrato(contrato) -> BytesIO:
         doc.add_paragraph("Nenhum item cadastrado.")
 
     doc.add_heading("Conteúdo", level=2)
-    conteudo = _strip_html(getattr(contrato, "conteudo", "") or "") or "Conteúdo não informado."
-    doc.add_paragraph(conteudo)
+    _add_html_as_docx(doc, getattr(contrato, "conteudo", "") or "")
 
     doc.add_heading("Assinaturas", level=2)
     vendedor = (

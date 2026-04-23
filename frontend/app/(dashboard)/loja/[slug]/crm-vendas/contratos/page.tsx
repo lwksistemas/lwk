@@ -14,7 +14,7 @@ import {
   CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Mail, MessageCircle, Ban } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Mail, MessageCircle, Ban, MoreVertical, FileText } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
@@ -79,6 +79,7 @@ export default function CrmVendasContratosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
+  const [menuAberto, setMenuAberto] = useState<number | null>(null);
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
@@ -405,23 +406,38 @@ export default function CrmVendasContratosPage() {
                       />
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex justify-end gap-1 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadPdf(c.id, c.titulo)}
-                          className="px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 text-xs"
-                          title="Baixar PDF"
-                        >
-                          PDF
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadDocx(c.id, c.titulo)}
-                          className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 text-xs"
-                          title="Baixar Word"
-                        >
-                          Word
-                        </button>
+                      <div className="flex justify-end gap-1 flex-wrap items-center">
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setMenuAberto(menuAberto === c.id ? null : c.id)}
+                            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
+                            title="Mais ações"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {menuAberto === c.id && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
+                              <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
+                                <button
+                                  type="button"
+                                  onClick={() => { handleDownloadPdf(c.id, c.titulo); setMenuAberto(null); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  <FileText size={15} className="text-red-500" /> Baixar PDF
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { handleDownloadDocx(c.id, c.titulo); setMenuAberto(null); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  <FileText size={15} className="text-blue-600" /> Baixar Word
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                         <BotaoAssinaturaDigital
                           tipoDocumento="contrato"
                           documentoId={c.id}

@@ -9,6 +9,7 @@ from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.db.migrations.exceptions import InconsistentMigrationHistory
 from django.db import connections
+import re
 from superadmin.models import Loja
 from core.db_config import ensure_loja_database_config
 
@@ -138,6 +139,24 @@ class Command(BaseCommand):
                         self._force_mark_migration_applied(
                             loja.database_name, 'contenttypes', '0002_remove_content_type_name'
                         )
+                        call_command('migrate', *migrate_args, **migrate_kwargs)
+                    else:
+                        # Tentativa genérica: se a mensagem trouxer "dependency app.migration", reparar o histórico.
+                        m = re.search(r"dependency\s+([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)", msg)
+                        if m and not fake:
+                            dep_app, dep_name = m.group(1), m.group(2)
+                            self.stdout.write(self.style.WARNING(f"  ⚠️ Dependência faltando no histórico: {dep_app}.{dep_name}. Reparando..."))
+                            self._force_mark_migration_applied(loja.database_name, dep_app, dep_name)
+                            call_command('migrate', *migrate_args, **migrate_kwargs)
+                        else:
+                            raise
+                except Exception as e:
+                    # Caso legado: contenttypes.0002 tenta remover coluna "name" que já não existe.
+                    # Isso bloqueia o migrate inteiro. Quando detectado, marcar a migration como aplicada e tentar de novo.
+                    msg = str(e)
+                    if 'column "name" of relation "django_content_type" does not exist' in msg and not fake:
+                        self.stdout.write(self.style.WARNING("  ⚠️ contenttypes sem coluna name. Marcando contenttypes.0002 como aplicada e tentando novamente..."))
+                        self._force_mark_migration_applied(loja.database_name, 'contenttypes', '0002_remove_content_type_name')
                         call_command('migrate', *migrate_args, **migrate_kwargs)
                     else:
                         raise

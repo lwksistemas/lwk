@@ -7,6 +7,7 @@ Uso:
 """
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
+from django.db.migrations.exceptions import InconsistentMigrationHistory
 from superadmin.models import Loja
 from core.db_config import ensure_loja_database_config
 
@@ -62,8 +63,21 @@ class Command(BaseCommand):
                 
                 if fake:
                     migrate_kwargs['fake'] = True
-                
-                call_command('migrate', *migrate_args, **migrate_kwargs)
+
+                try:
+                    call_command('migrate', *migrate_args, **migrate_kwargs)
+                except InconsistentMigrationHistory as e:
+                    # Algumas lojas antigas ficaram com histórico fora de ordem (ex.: stores.0001 antes de auth.0001).
+                    # Nesses casos, as tabelas normalmente já existem; então alinhar o histórico com fake-initial/fake
+                    # e tentar novamente para permitir o deploy em esquema isolado.
+                    msg = str(e)
+                    if 'applied before its dependency auth.0001_initial' in msg and not fake:
+                        self.stdout.write(self.style.WARNING("  ⚠️ Histórico inconsistente detectado. Tentando corrigir (auth/contenttypes fake-initial)..."))
+                        call_command('migrate', 'contenttypes', database=loja.database_name, interactive=False, verbosity=0, fake_initial=True)
+                        call_command('migrate', 'auth', database=loja.database_name, interactive=False, verbosity=0, fake_initial=True)
+                        call_command('migrate', *migrate_args, **migrate_kwargs)
+                    else:
+                        raise
                 
                 self.stdout.write(
                     self.style.SUCCESS(f"  ✅ Migrations aplicadas com sucesso")

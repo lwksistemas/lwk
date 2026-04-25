@@ -16,6 +16,20 @@ from core.db_config import ensure_loja_database_config
 class Command(BaseCommand):
     help = 'Aplica migrations em todas as lojas ativas'
 
+    def _column_exists(self, database: str, table: str, column: str) -> bool:
+        with connections[database].cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 1
+                  FROM information_schema.columns
+                 WHERE table_name = %s
+                   AND column_name = %s
+                 LIMIT 1
+                """,
+                [table, column],
+            )
+            return cursor.fetchone() is not None
+
     def _force_mark_migration_applied(self, database: str, app: str, name: str) -> bool:
         """
         Em lojas legadas, já houve casos de `django_migrations` ficar incompleto (ex.: falta auth.0001),
@@ -86,6 +100,18 @@ class Command(BaseCommand):
                 if fake:
                     migrate_kwargs['fake'] = True
 
+                # ✅ Reparos preventivos para lojas legadas
+                # Django contenttypes 0002_remove_content_type_name remove a coluna "name".
+                # Em bases muito antigas essa coluna pode já não existir, então a migration quebra.
+                try:
+                    if not self._column_exists(loja.database_name, 'django_content_type', 'name'):
+                        self._force_mark_migration_applied(
+                            loja.database_name, 'contenttypes', '0002_remove_content_type_name'
+                        )
+                except Exception:
+                    # Best-effort: se tabela ainda não existe, deixa o migrate criar normalmente
+                    pass
+
                 try:
                     call_command('migrate', *migrate_args, **migrate_kwargs)
                 except InconsistentMigrationHistory as e:
@@ -106,6 +132,12 @@ class Command(BaseCommand):
                         # 2) Rodar migrate dessas deps com fake-initial (se tabelas já existem) e tentar novamente
                         call_command('migrate', 'contenttypes', database=loja.database_name, interactive=False, verbosity=0, fake_initial=True)
                         call_command('migrate', 'auth', database=loja.database_name, interactive=False, verbosity=0, fake_initial=True)
+                        call_command('migrate', *migrate_args, **migrate_kwargs)
+                    elif 'dependency contenttypes.0002_remove_content_type_name' in msg and not fake:
+                        self.stdout.write(self.style.WARNING("  ⚠️ Dependência contenttypes.0002 faltando no histórico. Reparando e tentando novamente..."))
+                        self._force_mark_migration_applied(
+                            loja.database_name, 'contenttypes', '0002_remove_content_type_name'
+                        )
                         call_command('migrate', *migrate_args, **migrate_kwargs)
                     else:
                         raise

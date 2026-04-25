@@ -23,6 +23,41 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
+def _render_template_confirmacao(reserva: Reserva, template_texto: str) -> str:
+    diarias = (reserva.data_checkout - reserva.data_checkin).days if reserva.data_checkin and reserva.data_checkout else 0
+    conteudo = template_texto or ''
+    conteudo = conteudo.replace('{hospede}', reserva.hospede.nome if reserva.hospede else '')
+    conteudo = conteudo.replace('{quarto}', str(reserva.quarto.numero) if reserva.quarto else '')
+    conteudo = conteudo.replace('{checkin}', reserva.data_checkin.strftime('%d/%m/%Y') if reserva.data_checkin else '')
+    conteudo = conteudo.replace('{checkout}', reserva.data_checkout.strftime('%d/%m/%Y') if reserva.data_checkout else '')
+    conteudo = conteudo.replace(
+        '{valor_total}',
+        f'R$ {reserva.valor_total:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.') if reserva.valor_total else 'R$ 0,00'
+    )
+    conteudo = conteudo.replace('{diarias}', str(diarias))
+    return conteudo
+
+
+def _preencher_conteudo_confirmacao_se_vazio(reserva: Reserva, loja_id: int | None):
+    """
+    Garante que `reserva.conteudo_confirmacao` exista para exibição/PDF/assinatura.
+    Antes, isso só era preenchido no envio para assinatura; com isso, o template salvo
+    passa a aparecer também ao visualizar/baixar a confirmação.
+    """
+    if reserva.conteudo_confirmacao and reserva.conteudo_confirmacao.strip():
+        return
+
+    qs = ReservaTemplate.objects.filter(ativo=True)
+    if loja_id:
+        qs = qs.filter(loja_id=loja_id)
+
+    tpl = qs.filter(is_padrao=True).first() or qs.first()
+    if not tpl:
+        return
+
+    reserva.conteudo_confirmacao = _render_template_confirmacao(reserva, tpl.conteudo)
+    reserva.save(update_fields=['conteudo_confirmacao', 'updated_at'])
+
 
 class HospedeViewSet(BaseModelViewSet):
     serializer_class = HospedeSerializer
@@ -136,22 +171,7 @@ class ReservaViewSet(BaseModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Preencher conteudo_confirmacao com template padrão se vazio
-        if not reserva.conteudo_confirmacao.strip():
-            tpl = ReservaTemplate.objects.filter(loja_id=loja_id, is_padrao=True, ativo=True).first()
-            if not tpl:
-                tpl = ReservaTemplate.objects.filter(loja_id=loja_id, ativo=True).first()
-            if tpl:
-                diarias = (reserva.data_checkout - reserva.data_checkin).days if reserva.data_checkin and reserva.data_checkout else 0
-                conteudo = tpl.conteudo
-                conteudo = conteudo.replace('{hospede}', reserva.hospede.nome if reserva.hospede else '')
-                conteudo = conteudo.replace('{quarto}', str(reserva.quarto.numero) if reserva.quarto else '')
-                conteudo = conteudo.replace('{checkin}', reserva.data_checkin.strftime('%d/%m/%Y') if reserva.data_checkin else '')
-                conteudo = conteudo.replace('{checkout}', reserva.data_checkout.strftime('%d/%m/%Y') if reserva.data_checkout else '')
-                conteudo = conteudo.replace('{valor_total}', f'R$ {reserva.valor_total:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.') if reserva.valor_total else 'R$ 0,00')
-                conteudo = conteudo.replace('{diarias}', str(diarias))
-                reserva.conteudo_confirmacao = conteudo
-                reserva.save(update_fields=['conteudo_confirmacao', 'updated_at'])
+        _preencher_conteudo_confirmacao_se_vazio(reserva, loja_id)
 
         assinatura = criar_assinatura(adapter, reserva, 'hospede', loja_id)
         reserva.status_assinatura = 'aguardando_hospede'
@@ -189,8 +209,10 @@ class ReservaViewSet(BaseModelViewSet):
         """Baixa PDF da confirmação de reserva."""
         from django.http import HttpResponse
         from .pdf_reserva import gerar_pdf_reserva
+        from tenants.middleware import get_current_loja_id
 
         reserva = self.get_object()
+        _preencher_conteudo_confirmacao_se_vazio(reserva, get_current_loja_id())
         incluir = reserva.status_assinatura == 'concluido'
         pdf = gerar_pdf_reserva(reserva, incluir_assinaturas=incluir)
         response = HttpResponse(pdf.getvalue(), content_type='application/pdf')
@@ -515,6 +537,7 @@ class ReservaAssinaturaPublicaView(View):
             return JsonResponse({'error': 'Este link expirou.'}, status=400)
 
         reserva = assinatura.reserva
+        _preencher_conteudo_confirmacao_se_vazio(reserva, loja_id)
         return JsonResponse({
             'tipo_documento': 'reserva',
             'titulo': adapter.get_titulo(reserva),

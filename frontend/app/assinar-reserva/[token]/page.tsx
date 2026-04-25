@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { CheckCircle, AlertCircle, Hotel, User, Calendar, DollarSign, FileText, Download } from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
@@ -34,6 +34,8 @@ export default function AssinarReservaPage() {
   const [proximoStatus, setProximoStatus] = useState('');
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [baixandoPdf, setBaixandoPdf] = useState(false);
+  const [confirmacaoVisualizada, setConfirmacaoVisualizada] = useState(false);
+  const termosRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -47,6 +49,12 @@ export default function AssinarReservaPage() {
       finally { setLoading(false); }
     })();
   }, [tokenApi]);
+
+  useEffect(() => {
+    // Se não há termos/regras, não bloqueia a assinatura por "visualização".
+    const temTermos = !!reserva?.conteudo_confirmacao?.trim();
+    if (!temTermos) setConfirmacaoVisualizada(true);
+  }, [reserva?.conteudo_confirmacao]);
 
   useEffect(() => {
     if (sucesso) { const t = setTimeout(() => window.close(), 5000); return () => clearTimeout(t); }
@@ -81,6 +89,7 @@ export default function AssinarReservaPage() {
       link.download = 'confirmacao_reserva.pdf';
       link.click();
       window.URL.revokeObjectURL(link.href);
+      setConfirmacaoVisualizada(true);
     } catch { alert('Erro ao baixar PDF.'); }
     finally { setBaixandoPdf(false); }
   };
@@ -133,6 +142,7 @@ export default function AssinarReservaPage() {
   if (!reserva) return null;
 
   const temTermos = !!reserva.conteudo_confirmacao?.trim();
+  const podeAssinar = confirmacaoVisualizada && (!temTermos || aceitouTermos);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -200,10 +210,24 @@ export default function AssinarReservaPage() {
                     <FileText size={14} /> Regras e Termos do Hotel — Leia antes de assinar
                   </h3>
                 </div>
-                <div className="p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed">
+                <div
+                  ref={termosRef}
+                  onScroll={(e) => {
+                    const el = e.currentTarget;
+                    const noFim = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+                    if (noFim) setConfirmacaoVisualizada(true);
+                  }}
+                  className="p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed"
+                >
                   {reserva.conteudo_confirmacao}
                 </div>
               </div>
+            )}
+
+            {temTermos && !confirmacaoVisualizada && (
+              <p className="text-xs text-amber-700 text-center">
+                Para habilitar a assinatura, role até o fim das regras acima ou baixe o PDF da confirmação.
+              </p>
             )}
 
             {/* Checkbox de aceite */}
@@ -213,6 +237,7 @@ export default function AssinarReservaPage() {
                   type="checkbox"
                   checked={aceitouTermos}
                   onChange={(e) => setAceitouTermos(e.target.checked)}
+                  disabled={!confirmacaoVisualizada}
                   className="mt-0.5 h-5 w-5 text-indigo-600 rounded border-gray-300"
                 />
                 <span className="text-sm text-gray-700">
@@ -231,13 +256,13 @@ export default function AssinarReservaPage() {
             {/* Botão assinar */}
             <button
               onClick={assinar}
-              disabled={assinando || (temTermos && !aceitouTermos)}
+              disabled={assinando || !podeAssinar}
               className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {assinando ? 'Assinando...' : '✍️ Assinar Digitalmente'}
             </button>
 
-            {temTermos && !aceitouTermos && (
+            {temTermos && confirmacaoVisualizada && !aceitouTermos && (
               <p className="text-xs text-amber-600 text-center">
                 Você precisa aceitar os termos acima para assinar.
               </p>

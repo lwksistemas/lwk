@@ -149,12 +149,18 @@ class ReservaViewSet(BaseModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 4. Aviso se fora da data (não bloqueia, mas informa)
+        # 4. Bloqueia check-in retroativo (data de check-in já passou)
         hoje = date_type.today()
-        fora_data = reserva.data_checkin and reserva.data_checkin != hoje
+        if reserva.data_checkin and reserva.data_checkin < hoje:
+            return Response(
+                {'detail': f'Não é possível fazer check-in retroativo. Data prevista: {reserva.data_checkin.strftime("%d/%m/%Y")}. Edite a reserva para corrigir a data.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 5. Aviso se check-in antecipado (antes da data prevista)
         aviso = None
-        if fora_data:
-            aviso = f'Check-in realizado fora da data prevista ({reserva.data_checkin.strftime("%d/%m/%Y")}). Data atual: {hoje.strftime("%d/%m/%Y")}.'
+        if reserva.data_checkin and reserva.data_checkin > hoje:
+            aviso = f'Check-in realizado antes da data prevista ({reserva.data_checkin.strftime("%d/%m/%Y")}). Data atual: {hoje.strftime("%d/%m/%Y")}.'
 
         reserva.status = Reserva.STATUS_CHECKIN
         reserva.save(update_fields=['status', 'updated_at'])

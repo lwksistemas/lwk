@@ -62,7 +62,13 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
         partes_loja = []
         if loja.cpf_cnpj:
             partes_loja.append(f'CNPJ: {loja.cpf_cnpj}')
-        endereco_parts = [loja.logradouro, loja.numero, loja.bairro, loja.cidade, loja.uf]
+        # Monta endereço completo: logradouro, nº, complemento, bairro, cidade/UF, CEP
+        rua = ', '.join(p for p in [loja.logradouro, loja.numero] if p and str(p).strip())
+        if getattr(loja, 'complemento', '') and str(loja.complemento).strip():
+            rua = f'{rua}, {loja.complemento.strip()}' if rua else loja.complemento.strip()
+        cidade_uf = ' - '.join(p for p in [loja.cidade, loja.uf] if p and str(p).strip())
+        cep_str = f'CEP {loja.cep}' if getattr(loja, 'cep', '') and str(loja.cep).strip() else ''
+        endereco_parts = [rua, loja.bairro, cidade_uf, cep_str]
         endereco = ', '.join(p for p in endereco_parts if p and str(p).strip())
         if endereco:
             partes_loja.append(endereco)
@@ -115,11 +121,24 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
     # =====================================================================
     # REGRAS E TERMOS DO HOTEL
     # =====================================================================
-    if reserva.conteudo_confirmacao and reserva.conteudo_confirmacao.strip():
+    # Usa conteudo_confirmacao da reserva; se vazio, tenta o template padrão
+    conteudo_termos = reserva.conteudo_confirmacao or ''
+    if not conteudo_termos.strip():
+        try:
+            from .models import ReservaTemplate
+            tpl = ReservaTemplate.objects.filter(
+                loja_id=reserva.loja_id, is_padrao=True, ativo=True
+            ).first()
+            if tpl:
+                conteudo_termos = tpl.conteudo or ''
+        except Exception:
+            pass
+
+    if conteudo_termos.strip():
         elements.append(Spacer(1, 0.5 * cm))
         elements.append(Paragraph('Regras e Termos do Hotel', section_style))
 
-        for line in reserva.conteudo_confirmacao.split('\n'):
+        for line in conteudo_termos.split('\n'):
             stripped = line.strip()
             if not stripped:
                 elements.append(Spacer(1, 0.15 * cm))

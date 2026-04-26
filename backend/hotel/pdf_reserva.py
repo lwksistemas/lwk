@@ -12,6 +12,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 import pytz
 import logging
 import requests as http_requests
+from PIL import Image as PILImage
 
 logger = logging.getLogger(__name__)
 
@@ -56,44 +57,93 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
     from superadmin.models import Loja
     loja = Loja.objects.using('default').filter(id=reserva.loja_id).first()
 
-    # 1. Logo da loja (login_logo)
-    if loja and getattr(loja, 'login_logo', '') and str(loja.login_logo).strip():
-        try:
-            resp = http_requests.get(loja.login_logo, timeout=5)
-            if resp.status_code == 200:
-                img_buf = BytesIO(resp.content)
-                logo_img = Image(img_buf, width=4 * cm, height=2 * cm)
-                logo_img.hAlign = 'CENTER'
-                elements.append(logo_img)
-                elements.append(Spacer(1, 0.2 * cm))
-        except Exception:
-            pass
-
-    # 2. Nome do hotel
     nome_hotel = loja.nome if loja else 'Hotel'
-    elements.append(Paragraph(nome_hotel, ParagraphStyle('LN', parent=styles['Normal'],
-                                                         fontSize=16, alignment=TA_CENTER,
-                                                         textColor=AZUL, spaceAfter=2)))
+    logo_url = (getattr(loja, 'logo', '') or '') if loja else ''
 
-    # 3. Endereço / CNPJ abaixo do nome
-    if loja:
-        partes_loja = []
-        if loja.cpf_cnpj:
-            partes_loja.append(f'CNPJ: {loja.cpf_cnpj}')
-        rua = ', '.join(p for p in [loja.logradouro, loja.numero] if p and str(p).strip())
-        if getattr(loja, 'complemento', '') and str(loja.complemento).strip():
-            rua = f'{rua}, {loja.complemento.strip()}' if rua else loja.complemento.strip()
-        cidade_uf = ' - '.join(p for p in [loja.cidade, loja.uf] if p and str(p).strip())
-        cep_str = f'CEP {loja.cep}' if getattr(loja, 'cep', '') and str(loja.cep).strip() else ''
-        endereco_parts = [rua, loja.bairro, cidade_uf, cep_str]
-        endereco = ', '.join(p for p in endereco_parts if p and str(p).strip())
-        if endereco:
-            partes_loja.append(endereco)
-        if partes_loja:
-            elements.append(Paragraph(' | '.join(partes_loja), subtitle_style))
+    # Monta cabeçalho igual ao CRM: logo à esquerda + título à direita
+    titulo_style = ParagraphStyle('HTitle', parent=styles['Heading1'], fontSize=18,
+                                  textColor=AZUL, alignment=TA_LEFT,
+                                  spaceBefore=0, spaceAfter=0, leading=22)
+    subtitulo_style = ParagraphStyle('HSub', parent=styles['Normal'], fontSize=10,
+                                     textColor=colors.grey, alignment=TA_LEFT)
 
-    # 4. Título do documento
-    elements.append(Spacer(1, 0.3 * cm))
+    if logo_url:
+        try:
+            resp = http_requests.get(logo_url, timeout=5)
+            if resp.status_code == 200:
+                max_w, max_h = 6 * cm, 3 * cm
+                img_buf = BytesIO(resp.content)
+                pil_img = PILImage.open(img_buf)
+                iw, ih = pil_img.size
+                aspect = ih / float(iw)
+                if iw > ih:
+                    w = min(max_w, iw)
+                    h = w * aspect
+                    if h > max_h:
+                        h = max_h
+                        w = h / aspect
+                else:
+                    h = min(max_h, ih)
+                    w = h / aspect
+                    if w > max_w:
+                        w = max_w
+                        h = w * aspect
+                img_buf.seek(0)
+                logo_img = Image(img_buf, width=w, height=h)
+
+                # Coluna direita: nome + endereço
+                partes_loja = [nome_hotel]
+                if loja and loja.cpf_cnpj:
+                    partes_loja.append(f'CNPJ: {loja.cpf_cnpj}')
+                rua = ', '.join(p for p in [loja.logradouro, loja.numero] if p and str(p).strip())
+                if getattr(loja, 'complemento', '') and str(loja.complemento).strip():
+                    rua = f'{rua}, {loja.complemento.strip()}' if rua else loja.complemento.strip()
+                cidade_uf = ' - '.join(p for p in [loja.cidade, loja.uf] if p and str(p).strip())
+                cep_str = f'CEP {loja.cep}' if getattr(loja, 'cep', '') and str(loja.cep).strip() else ''
+                endereco_parts = [rua, loja.bairro, cidade_uf, cep_str]
+                endereco = ', '.join(p for p in endereco_parts if p and str(p).strip())
+
+                info_col = [Paragraph(nome_hotel, titulo_style)]
+                if endereco:
+                    info_col.append(Paragraph(endereco, subtitulo_style))
+
+                from reportlab.platypus import KeepInFrame
+                info_table = Table([[info_col]], colWidths=[None])
+                info_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
+
+                cab = Table([[logo_img, info_col]], colWidths=[w + 0.5 * cm, None])
+                cab.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                    ('TOPPADDING', (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ]))
+                elements.append(cab)
+        except Exception:
+            logo_url = ''  # fallback abaixo
+
+    if not logo_url:
+        # Sem logo: nome centralizado + endereço
+        elements.append(Paragraph(nome_hotel, ParagraphStyle('LN', parent=styles['Normal'],
+                                                             fontSize=16, alignment=TA_CENTER,
+                                                             textColor=AZUL, spaceAfter=2)))
+        if loja:
+            partes_loja = []
+            if loja.cpf_cnpj:
+                partes_loja.append(f'CNPJ: {loja.cpf_cnpj}')
+            rua = ', '.join(p for p in [loja.logradouro, loja.numero] if p and str(p).strip())
+            if getattr(loja, 'complemento', '') and str(loja.complemento).strip():
+                rua = f'{rua}, {loja.complemento.strip()}' if rua else loja.complemento.strip()
+            cidade_uf = ' - '.join(p for p in [loja.cidade, loja.uf] if p and str(p).strip())
+            cep_str = f'CEP {loja.cep}' if getattr(loja, 'cep', '') and str(loja.cep).strip() else ''
+            endereco_parts = [rua, loja.bairro, cidade_uf, cep_str]
+            endereco = ', '.join(p for p in endereco_parts if p and str(p).strip())
+            if endereco:
+                elements.append(Paragraph(endereco, subtitle_style))
+
+    # Título do documento
+    elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph('CONFIRMAÇÃO DE RESERVA', title_style))
     elements.append(Spacer(1, 0.3 * cm))
 

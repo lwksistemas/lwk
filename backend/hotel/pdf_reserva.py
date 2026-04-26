@@ -8,9 +8,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 import pytz
 import logging
+import requests as http_requests
 
 logger = logging.getLogger(__name__)
 
@@ -55,13 +56,26 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
     from superadmin.models import Loja
     loja = Loja.objects.using('default').filter(id=reserva.loja_id).first()
 
-    # 1. Nome do hotel
+    # 1. Logo da loja (login_logo)
+    if loja and getattr(loja, 'login_logo', '') and str(loja.login_logo).strip():
+        try:
+            resp = http_requests.get(loja.login_logo, timeout=5)
+            if resp.status_code == 200:
+                img_buf = BytesIO(resp.content)
+                logo_img = Image(img_buf, width=4 * cm, height=2 * cm)
+                logo_img.hAlign = 'CENTER'
+                elements.append(logo_img)
+                elements.append(Spacer(1, 0.2 * cm))
+        except Exception:
+            pass
+
+    # 2. Nome do hotel
     nome_hotel = loja.nome if loja else 'Hotel'
     elements.append(Paragraph(nome_hotel, ParagraphStyle('LN', parent=styles['Normal'],
                                                          fontSize=16, alignment=TA_CENTER,
                                                          textColor=AZUL, spaceAfter=2)))
 
-    # 2. Endereço / CNPJ abaixo do nome
+    # 3. Endereço / CNPJ abaixo do nome
     if loja:
         partes_loja = []
         if loja.cpf_cnpj:
@@ -78,7 +92,7 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
         if partes_loja:
             elements.append(Paragraph(' | '.join(partes_loja), subtitle_style))
 
-    # 3. Título do documento
+    # 4. Título do documento
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(Paragraph('CONFIRMAÇÃO DE RESERVA', title_style))
     elements.append(Spacer(1, 0.3 * cm))
@@ -124,6 +138,31 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
     ]))
     elements.append(t)
+
+    # =====================================================================
+    # REGRAS E TERMOS DO HOTEL
+    # =====================================================================
+    conteudo_termos = reserva.conteudo_confirmacao or ''
+    if not conteudo_termos.strip():
+        try:
+            from .models import ReservaTemplate
+            tpl = ReservaTemplate.objects.filter(
+                loja_id=reserva.loja_id, is_padrao=True, ativo=True
+            ).first()
+            if tpl:
+                conteudo_termos = tpl.conteudo or ''
+        except Exception:
+            pass
+
+    if conteudo_termos.strip():
+        elements.append(Spacer(1, 0.5 * cm))
+        elements.append(Paragraph('Regras e Termos do Hotel', section_style))
+        for line in conteudo_termos.split('\n'):
+            stripped = line.strip()
+            if not stripped:
+                elements.append(Spacer(1, 0.15 * cm))
+            else:
+                elements.append(Paragraph(stripped, body_style))
 
     # =====================================================================
     # OBSERVAÇÕES

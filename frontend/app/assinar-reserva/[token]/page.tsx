@@ -142,7 +142,7 @@ export default function AssinarReservaPage() {
   if (!reserva) return null;
 
   const temTermos = !!reserva.conteudo_confirmacao?.trim();
-  const podeAssinar = confirmacaoVisualizada && (!temTermos || aceitouTermos);
+  const podeAssinar = true;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -202,50 +202,6 @@ export default function AssinarReservaPage() {
               {baixandoPdf ? 'Baixando...' : 'Baixar PDF da Confirmação'}
             </button>
 
-            {/* Termos e Condições */}
-            {temTermos && (
-              <div className="border border-amber-200 bg-amber-50 rounded-lg overflow-hidden">
-                <div className="px-4 py-2 bg-amber-100 border-b border-amber-200">
-                  <h3 className="text-sm font-semibold text-amber-800 flex items-center gap-1">
-                    <FileText size={14} /> Regras e Termos do Hotel — Leia antes de assinar
-                  </h3>
-                </div>
-                <div
-                  ref={termosRef}
-                  onScroll={(e) => {
-                    const el = e.currentTarget;
-                    const noFim = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-                    if (noFim) setConfirmacaoVisualizada(true);
-                  }}
-                  className="p-4 text-sm text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto leading-relaxed"
-                >
-                  {reserva.conteudo_confirmacao}
-                </div>
-              </div>
-            )}
-
-            {temTermos && !confirmacaoVisualizada && (
-              <p className="text-xs text-amber-700 text-center">
-                Para habilitar a assinatura, role até o fim das regras acima ou baixe o PDF da confirmação.
-              </p>
-            )}
-
-            {/* Checkbox de aceite */}
-            {temTermos && (
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={aceitouTermos}
-                  onChange={(e) => setAceitouTermos(e.target.checked)}
-                  disabled={!confirmacaoVisualizada}
-                  className="mt-0.5 h-5 w-5 text-indigo-600 rounded border-gray-300"
-                />
-                <span className="text-sm text-gray-700">
-                  Li e aceito os termos, regras e condições do hotel descritos acima.
-                </span>
-              </label>
-            )}
-
             {erro && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
                 <AlertCircle size={16} className="text-red-500 shrink-0" />
@@ -261,12 +217,6 @@ export default function AssinarReservaPage() {
             >
               {assinando ? 'Assinando...' : '✍️ Assinar Digitalmente'}
             </button>
-
-            {temTermos && confirmacaoVisualizada && !aceitouTermos && (
-              <p className="text-xs text-amber-600 text-center">
-                Você precisa aceitar os termos acima para assinar.
-              </p>
-            )}
 
             <p className="text-xs text-gray-500 text-center">
               Ao assinar, sua assinatura será registrada com data, hora e IP.

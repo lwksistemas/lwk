@@ -58,7 +58,10 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
     loja = Loja.objects.using('default').filter(id=reserva.loja_id).first()
 
     nome_hotel = loja.nome if loja else 'Hotel'
-    logo_url = (getattr(loja, 'logo', '') or '') if loja else ''
+    # Usa login_logo (configurações de login) com fallback para logo geral
+    logo_url = ''
+    if loja:
+        logo_url = (getattr(loja, 'login_logo', '') or '') or (getattr(loja, 'logo', '') or '')
 
     # Monta cabeçalho igual ao CRM: logo à esquerda + título à direita
     titulo_style = ParagraphStyle('HTitle', parent=styles['Heading1'], fontSize=18,

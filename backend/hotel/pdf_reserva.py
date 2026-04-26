@@ -52,17 +52,20 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
     # =====================================================================
     # CABEÇALHO
     # =====================================================================
-    elements.append(Paragraph('CONFIRMAÇÃO DE RESERVA', title_style))
-
     from superadmin.models import Loja
     loja = Loja.objects.using('default').filter(id=reserva.loja_id).first()
+
+    # 1. Nome do hotel
+    nome_hotel = loja.nome if loja else 'Hotel'
+    elements.append(Paragraph(nome_hotel, ParagraphStyle('LN', parent=styles['Normal'],
+                                                         fontSize=16, alignment=TA_CENTER,
+                                                         textColor=AZUL, spaceAfter=2)))
+
+    # 2. Endereço / CNPJ abaixo do nome
     if loja:
-        elements.append(Paragraph(loja.nome, ParagraphStyle('LN', parent=styles['Normal'],
-                                                             fontSize=14, alignment=TA_CENTER)))
         partes_loja = []
         if loja.cpf_cnpj:
             partes_loja.append(f'CNPJ: {loja.cpf_cnpj}')
-        # Monta endereço completo: logradouro, nº, complemento, bairro, cidade/UF, CEP
         rua = ', '.join(p for p in [loja.logradouro, loja.numero] if p and str(p).strip())
         if getattr(loja, 'complemento', '') and str(loja.complemento).strip():
             rua = f'{rua}, {loja.complemento.strip()}' if rua else loja.complemento.strip()
@@ -74,7 +77,11 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
             partes_loja.append(endereco)
         if partes_loja:
             elements.append(Paragraph(' | '.join(partes_loja), subtitle_style))
-    elements.append(Spacer(1, 0.5 * cm))
+
+    # 3. Título do documento
+    elements.append(Spacer(1, 0.3 * cm))
+    elements.append(Paragraph('CONFIRMAÇÃO DE RESERVA', title_style))
+    elements.append(Spacer(1, 0.3 * cm))
 
     # =====================================================================
     # DADOS DA RESERVA
@@ -119,33 +126,6 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
     elements.append(t)
 
     # =====================================================================
-    # REGRAS E TERMOS DO HOTEL
-    # =====================================================================
-    # Usa conteudo_confirmacao da reserva; se vazio, tenta o template padrão
-    conteudo_termos = reserva.conteudo_confirmacao or ''
-    if not conteudo_termos.strip():
-        try:
-            from .models import ReservaTemplate
-            tpl = ReservaTemplate.objects.filter(
-                loja_id=reserva.loja_id, is_padrao=True, ativo=True
-            ).first()
-            if tpl:
-                conteudo_termos = tpl.conteudo or ''
-        except Exception:
-            pass
-
-    if conteudo_termos.strip():
-        elements.append(Spacer(1, 0.5 * cm))
-        elements.append(Paragraph('Regras e Termos do Hotel', section_style))
-
-        for line in conteudo_termos.split('\n'):
-            stripped = line.strip()
-            if not stripped:
-                elements.append(Spacer(1, 0.15 * cm))
-            else:
-                elements.append(Paragraph(stripped, body_style))
-
-    # =====================================================================
     # OBSERVAÇÕES
     # =====================================================================
     if reserva.observacoes and reserva.observacoes.strip():
@@ -161,8 +141,7 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
                                   textColor=colors.HexColor('#555555'), leading=13)
     elements.append(Paragraph(
         'Ao assinar digitalmente este documento, o hóspede declara ter lido e aceito '
-        'todas as regras, termos e condições do hotel descritos acima, bem como os '
-        'dados da reserva informados.',
+        'todas as regras, termos e condições do hotel, bem como os dados da reserva informados.',
         aceite_style,
     ))
 

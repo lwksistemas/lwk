@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { CheckCircle, AlertCircle, Hotel, User, Calendar, DollarSign, FileText, Download } from 'lucide-react';
+import { CheckCircle, AlertCircle, Hotel, User, Calendar, DollarSign, Download } from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 
 interface ReservaData {
@@ -32,10 +32,8 @@ export default function AssinarReservaPage() {
   const [assinando, setAssinando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [proximoStatus, setProximoStatus] = useState('');
-  const [aceitouTermos, setAceitouTermos] = useState(false);
   const [baixandoPdf, setBaixandoPdf] = useState(false);
-  const [confirmacaoVisualizada, setConfirmacaoVisualizada] = useState(false);
-  const termosRef = useRef<HTMLDivElement | null>(null);
+  const [pdfVisualizado, setPdfVisualizado] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -49,12 +47,6 @@ export default function AssinarReservaPage() {
       finally { setLoading(false); }
     })();
   }, [tokenApi]);
-
-  useEffect(() => {
-    // Se não há termos/regras, não bloqueia a assinatura por "visualização".
-    const temTermos = !!reserva?.conteudo_confirmacao?.trim();
-    if (!temTermos) setConfirmacaoVisualizada(true);
-  }, [reserva?.conteudo_confirmacao]);
 
   useEffect(() => {
     if (sucesso) { const t = setTimeout(() => window.close(), 5000); return () => clearTimeout(t); }
@@ -89,7 +81,7 @@ export default function AssinarReservaPage() {
       link.download = 'confirmacao_reserva.pdf';
       link.click();
       window.URL.revokeObjectURL(link.href);
-      setConfirmacaoVisualizada(true);
+      setPdfVisualizado(true);
     } catch { alert('Erro ao baixar PDF.'); }
     finally { setBaixandoPdf(false); }
   };
@@ -142,7 +134,7 @@ export default function AssinarReservaPage() {
   if (!reserva) return null;
 
   const temTermos = !!reserva.conteudo_confirmacao?.trim();
-  const podeAssinar = confirmacaoVisualizada;
+  const podeAssinar = pdfVisualizado;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -202,7 +194,7 @@ export default function AssinarReservaPage() {
               {baixandoPdf ? 'Baixando...' : 'Baixar PDF da Confirmação'}
             </button>
 
-            {!confirmacaoVisualizada && (
+            {!pdfVisualizado && (
               <p className="text-xs text-amber-700 text-center bg-amber-50 border border-amber-200 rounded-lg p-2">
                 📄 Baixe o PDF acima para habilitar a assinatura.
               </p>

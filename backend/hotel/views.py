@@ -113,6 +113,31 @@ class ReservaViewSet(BaseModelViewSet):
             qs = qs.filter(hospede_id=params.get('hospede_id'))
         return qs
 
+    def perform_update(self, serializer):
+        """Se campos críticos mudaram e havia assinatura, reseta e reenvia."""
+        instance = serializer.instance
+        campos_criticos = {'data_checkin', 'data_checkout', 'quarto', 'valor_diaria', 'valor_total', 'hospede'}
+        dados_novos = serializer.validated_data
+
+        mudou = any(
+            str(dados_novos.get(campo, getattr(instance, f'{campo}_id' if campo in ('quarto', 'hospede', 'tarifa') else campo)))
+            != str(getattr(instance, f'{campo}_id' if campo in ('quarto', 'hospede', 'tarifa') else campo))
+            for campo in campos_criticos
+            if campo in dados_novos
+        )
+
+        assinatura_existente = instance.status_assinatura in ('concluido', 'manual', 'aguardando_hospede', 'aguardando_funcionario')
+
+        reserva = serializer.save()
+
+        if mudou and assinatura_existente:
+            # Invalida assinaturas anteriores
+            from .models import ReservaAssinatura
+            ReservaAssinatura.objects.filter(reserva=reserva).update(assinado=False)
+            reserva.status_assinatura = 'rascunho'
+            reserva.conteudo_confirmacao = ''
+            reserva.save(update_fields=['status_assinatura', 'conteudo_confirmacao', 'updated_at'])
+
     def perform_destroy(self, instance):
         """Só permite excluir reservas pendentes."""
         if instance.status != Reserva.STATUS_PENDENTE:

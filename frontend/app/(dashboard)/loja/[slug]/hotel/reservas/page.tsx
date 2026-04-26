@@ -86,7 +86,25 @@ export default function HotelReservasPage() {
       valor_total: Number(String(form.valor_total || '').replace(',', '.')) || 0,
       observacoes: (form.observacoes || '').trim(),
     }, editing?.id);
-    if (ok) { setModalOpen(false); setEditing(null); resetForm(); }
+    if (ok) {
+      setModalOpen(false);
+      setEditing(null);
+      resetForm();
+      // Recarrega para pegar status_assinatura atualizado
+      await load();
+      // Se havia assinatura e era edição, verifica se foi resetada
+      if (editing && editing.status_assinatura && editing.status_assinatura !== 'rascunho') {
+        const atualizada = items.find(i => i.id === editing.id);
+        if (atualizada?.status_assinatura === 'rascunho' && atualizada?.hospede_email) {
+          const reenviar = confirm(
+            '⚠️ A reserva foi alterada e a assinatura anterior foi invalidada.\n\nDeseja enviar um novo link de assinatura para o hóspede agora?'
+          );
+          if (reenviar) await enviarParaAssinatura(editing.id);
+        } else if (atualizada?.status_assinatura === 'rascunho') {
+          alert('⚠️ A reserva foi alterada e a assinatura anterior foi invalidada.\n\nUse "Assinar Manualmente" ou "Enviar para Assinatura Digital" antes de fazer o check-in.');
+        }
+      }
+    }
   };
 
   const calcNoites = (checkin: string, checkout: string): number => {

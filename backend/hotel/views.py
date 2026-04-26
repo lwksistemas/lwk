@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from core.views import BaseModelViewSet
-from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura
+from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura, ConfiguracaoHotel
 from .serializers import (
     HospedeSerializer,
     QuartoSerializer,
@@ -19,6 +19,7 @@ from .serializers import (
     GovernancaTarefaSerializer,
     FuncionarioSerializer,
     ReservaTemplateSerializer,
+    ConfiguracaoHotelSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -474,6 +475,32 @@ class ReservaTemplateViewSet(BaseModelViewSet):
         instance = serializer.save()
         if instance.is_padrao:
             ReservaTemplate.objects.filter(loja_id=instance.loja_id, is_padrao=True).exclude(pk=instance.pk).update(is_padrao=False)
+
+
+class ConfiguracaoHotelViewSet(BaseModelViewSet):
+    """Configurações gerais do hotel (check-in/check-out, políticas)."""
+    serializer_class = ConfiguracaoHotelSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        from tenants.middleware import get_current_loja_id
+        return ConfiguracaoHotel.objects.filter(loja_id=get_current_loja_id())
+
+    @action(detail=False, methods=['get', 'put', 'patch'], url_path='atual')
+    def atual(self, request):
+        """Retorna ou atualiza a configuração única do hotel."""
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id()
+        config, _ = ConfiguracaoHotel.objects.get_or_create(
+            loja_id=loja_id,
+            defaults={'horario_checkin': '14:00', 'horario_checkout': '12:00'},
+        )
+        if request.method == 'GET':
+            return Response(ConfiguracaoHotelSerializer(config).data)
+        serializer = ConfiguracaoHotelSerializer(config, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 # ---------------------------------------------------------------------------

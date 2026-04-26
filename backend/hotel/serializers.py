@@ -1,7 +1,7 @@
 from django.db.models import Q
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
-from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura
+from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura, ConfiguracaoHotel
 
 
 class HospedeSerializer(BaseLojaSerializer):
@@ -135,3 +135,14 @@ class ReservaAssinaturaSerializer(BaseLojaSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'loja_id', 'ip_address', 'assinado', 'assinado_em']
+
+
+class ConfiguracaoHotelSerializer(BaseLojaSerializer):
+    class Meta:
+        model = ConfiguracaoHotel
+        fields = [
+            'id', 'horario_checkin', 'horario_checkout',
+            'politica_cancelamento', 'informacoes_adicionais',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']

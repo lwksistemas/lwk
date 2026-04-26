@@ -12,6 +12,7 @@ from .views import (
     ReservaTemplateViewSet,
     ReservaAssinaturaPublicaView,
     ReservaAssinaturaPdfView,
+    ConfiguracaoHotelViewSet,
 )
 
 router = DefaultRouter()
@@ -23,6 +24,7 @@ router.register(r'governanca-tarefas', GovernancaTarefaViewSet, basename='hotel-
 router.register(r'dashboard', HotelDashboardViewSet, basename='hotel-dashboard')
 router.register(r'funcionarios', FuncionarioViewSet, basename='hotel-funcionarios')
 router.register(r'reserva-templates', ReservaTemplateViewSet, basename='hotel-reserva-templates')
+router.register(r'configuracao', ConfiguracaoHotelViewSet, basename='hotel-configuracao')
 
 urlpatterns = [
     path('', include(router.urls)),

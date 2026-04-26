@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { CreditCard, LogIn, Users, ChevronRight, Database, Download, History, Settings, ArrowLeft } from 'lucide-react';
+import { CreditCard, LogIn, Users, ChevronRight, Database, Settings, ArrowLeft, Clock } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import apiClient from '@/lib/api-client';
 
@@ -29,6 +29,15 @@ export default function HotelConfiguracoesPage() {
   }, []);
 
   const opcoes = [
+    {
+      titulo: 'Configurações Gerais',
+      descricao: 'Horários de check-in, check-out e políticas do hotel',
+      href: `${base}/geral`,
+      icon: Clock,
+      color: 'from-sky-500 to-cyan-600',
+      iconBg: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+      itens: ['Horário de check-in', 'Horário de check-out', 'Política de cancelamento'],
+    },
     {
       titulo: 'Pagar Assinatura',
       descricao: 'Baixar boleto e ver histórico de pagamentos',

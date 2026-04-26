@@ -267,6 +267,26 @@ class ReservaTemplate(LojaIsolationMixin, models.Model):
         super().save(*args, **kwargs)
 
 
+class ConfiguracaoHotel(LojaIsolationMixin, models.Model):
+    """Configurações gerais do hotel/pousada."""
+
+    horario_checkin = models.TimeField(default='14:00', help_text='Horário padrão de check-in')
+    horario_checkout = models.TimeField(default='12:00', help_text='Horário padrão de check-out')
+    politica_cancelamento = models.TextField(blank=True, default='')
+    informacoes_adicionais = models.TextField(blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = 'hotel_configuracao'
+
+    def __str__(self):
+        return f'Configuração Hotel (loja {self.loja_id})'
+
+
 class ReservaAssinatura(LojaIsolationMixin, models.Model):
     """Registro de assinatura digital para Reservas de hotel."""
 

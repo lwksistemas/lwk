@@ -53,7 +53,7 @@ export interface Reserva {
   criancas: number;
   canal: string;
   status: 'pendente' | 'confirmada' | 'checkin' | 'checkout' | 'cancelada' | 'no_show';
-  status_assinatura?: 'rascunho' | 'aguardando_hospede' | 'aguardando_funcionario' | 'concluido';
+  status_assinatura?: 'rascunho' | 'aguardando_hospede' | 'aguardando_funcionario' | 'concluido' | 'manual';
   conteudo_confirmacao?: string;
   nome_hospede_assinatura?: string;
   nome_funcionario_assinatura?: string;
@@ -131,6 +131,7 @@ export const ASSINATURA_STATUS_LABEL: Record<string, string> = {
   aguardando_hospede: 'Aguardando Hóspede',
   aguardando_funcionario: 'Aguardando Funcionário',
   concluido: 'Assinada',
+  manual: 'Assinada Manualmente',
 };
 
 export const ASSINATURA_STATUS_BADGE: Record<string, string> = {
@@ -138,6 +139,7 @@ export const ASSINATURA_STATUS_BADGE: Record<string, string> = {
   aguardando_hospede: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
   aguardando_funcionario: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   concluido: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  manual: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
 };
 
 /** Classes CSS para badge de status de quarto */

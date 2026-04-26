@@ -124,18 +124,58 @@ class ReservaViewSet(BaseModelViewSet):
 
     @action(detail=True, methods=['post'])
     def checkin(self, request, pk=None):
+        from datetime import date as date_type
         reserva = self.get_object()
+
+        # 1. Bloquear canceladas/no-show
         if reserva.status in (Reserva.STATUS_CANCELADA, Reserva.STATUS_NO_SHOW):
             return Response(
                 {'detail': 'Reserva cancelada/no-show não permite check-in.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # 2. Só permite check-in se status = confirmada
+        if reserva.status != Reserva.STATUS_CONFIRMADA:
+            return Response(
+                {'detail': f'Check-in só é permitido para reservas Confirmadas. Status atual: {reserva.get_status_display()}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 3. Exige assinatura concluída (digital ou manual)
+        assinatura_ok = reserva.status_assinatura in ('concluido', 'manual')
+        if not assinatura_ok:
+            return Response(
+                {'detail': 'Check-in requer assinatura do hóspede (digital ou manual). Use "Assinar Manualmente" se necessário.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 4. Aviso se fora da data (não bloqueia, mas informa)
+        hoje = date_type.today()
+        fora_data = reserva.data_checkin and reserva.data_checkin != hoje
+        aviso = None
+        if fora_data:
+            aviso = f'Check-in realizado fora da data prevista ({reserva.data_checkin.strftime("%d/%m/%Y")}). Data atual: {hoje.strftime("%d/%m/%Y")}.'
+
         reserva.status = Reserva.STATUS_CHECKIN
         reserva.save(update_fields=['status', 'updated_at'])
         quarto = reserva.quarto
         quarto.status = Quarto.STATUS_OCUPADO
         quarto.save(update_fields=['status', 'updated_at'])
-        return Response(self.get_serializer(reserva).data)
+
+        data = self.get_serializer(reserva).data
+        if aviso:
+            data['aviso'] = aviso
+        return Response(data)
+
+    @action(detail=True, methods=['post'])
+    def assinar_manual(self, request, pk=None):
+        """Marca a reserva como assinada manualmente (hóspede sem email ou problema no envio)."""
+        reserva = self.get_object()
+        if reserva.status_assinatura == 'concluido':
+            return Response({'detail': 'Reserva já possui assinatura digital concluída.'}, status=status.HTTP_400_BAD_REQUEST)
+        reserva.status_assinatura = 'manual'
+        reserva.save(update_fields=['status_assinatura', 'updated_at'])
+        return Response({'detail': 'Assinatura manual registrada com sucesso.', 'status_assinatura': 'manual'})
 
     @action(detail=True, methods=['post'])
     def checkout(self, request, pk=None):

@@ -138,6 +138,7 @@ class Reserva(LojaIsolationMixin, models.Model):
         ('aguardando_hospede', 'Aguardando Hóspede'),
         ('aguardando_funcionario', 'Aguardando Funcionário'),
         ('concluido', 'Concluído'),
+        ('manual', 'Assinado Manualmente'),
     ]
     status_assinatura = models.CharField(max_length=25, choices=STATUS_ASSINATURA_CHOICES, default='rascunho')
     conteudo_confirmacao = models.TextField(blank=True, default='', help_text='Texto da confirmação enviada ao hóspede')

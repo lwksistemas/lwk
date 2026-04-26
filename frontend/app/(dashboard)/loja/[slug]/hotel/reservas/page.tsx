@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Reserva, Hospede, Quarto, Tarifa } from '@/lib/hotel-types';
 import { RESERVA_STATUS_LABEL, RESERVA_STATUS_BADGE, ASSINATURA_STATUS_LABEL, ASSINATURA_STATUS_BADGE, formatDateBR } from '@/lib/hotel-types';
-import { CalendarDays, Plus, Edit2, LogIn, LogOut, Trash2, ArrowLeft, FileSignature, FileText, MoreVertical, Send, RefreshCw, AlertCircle, Ban } from 'lucide-react';
+import { CalendarDays, Plus, Edit2, LogIn, LogOut, Trash2, ArrowLeft, FileSignature, FileText, MoreVertical, Send, RefreshCw, AlertCircle, Ban, PenLine } from 'lucide-react';
 
 type HospedeOption = Pick<Hospede, 'id' | 'nome'>;
 type QuartoOption = Pick<Quarto, 'id' | 'numero' | 'nome'>;
@@ -168,6 +168,29 @@ export default function HotelReservasPage() {
       load();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao cancelar reserva.');
+    }
+  };
+
+  const assinarManual = async (reservaId: number) => {
+    if (!confirm('Registrar assinatura manual? Use apenas quando o hóspede não puder assinar digitalmente.')) return;
+    setMenuAberto(null);
+    try {
+      await apiClient.post(`/hotel/reservas/${reservaId}/assinar_manual/`);
+      alert('Assinatura manual registrada. Agora é possível fazer o check-in.');
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao registrar assinatura manual.');
+    }
+  };
+
+  const fazerCheckin = async (reservaId: number) => {
+    setMenuAberto(null);
+    try {
+      const res = await apiClient.post(`/hotel/reservas/${reservaId}/checkin/`);
+      if (res.data?.aviso) alert(`✅ Check-in realizado!\n\n⚠️ ${res.data.aviso}`);
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao fazer check-in.');
     }
   };
 
@@ -357,25 +380,38 @@ export default function HotelReservasPage() {
                     <Send size={18} className="text-indigo-500" /> Enviar para Assinatura Digital
                   </button>
                 )}
-                {r.status_assinatura === 'rascunho' && !r.hospede_email && (
-                  <p className="px-4 py-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                    <AlertCircle size={14} /> Hóspede sem email cadastrado
-                  </p>
-                )}
                 {(r.status_assinatura === 'aguardando_hospede' || r.status_assinatura === 'aguardando_funcionario') && (
                   <button onClick={() => reenviarAssinatura(r.id)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                     <RefreshCw size={18} className="text-amber-500" /> Reenviar Link de Assinatura
+                  </button>
+                )}
+                {r.status_assinatura !== 'concluido' && r.status_assinatura !== 'manual' && (
+                  <button onClick={() => assinarManual(r.id)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20">
+                    <PenLine size={18} className="text-teal-500" />
+                    <span>Assinar Manualmente{!r.hospede_email ? <span className="ml-1 text-xs text-amber-600">(sem email)</span> : ''}</span>
                   </button>
                 )}
                 <button onClick={() => downloadPdf(r.id)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                   <FileText size={18} className="text-red-500" /> Baixar PDF
                 </button>
                 <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (
-                  <button onClick={() => { setMenuAberto(null); postAction(r.id, 'checkin'); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <LogIn size={18} className="text-green-500" /> Fazer Check-in
-                  </button>
-                )}
+                {r.status !== 'checkin' && r.status !== 'checkout' && r.status !== 'cancelada' && (() => {
+                  const assinadaOk = r.status_assinatura === 'concluido' || r.status_assinatura === 'manual';
+                  const confirmada = r.status === 'confirmada';
+                  const podeCheckin = confirmada && assinadaOk;
+                  const motivo = !confirmada
+                    ? `Status deve ser Confirmada (atual: ${RESERVA_STATUS_LABEL[r.status]})`
+                    : !assinadaOk ? 'Requer assinatura (digital ou manual)' : '';
+                  return (
+                    <div>
+                      <button onClick={() => podeCheckin && fazerCheckin(r.id)} disabled={!podeCheckin}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-sm ${podeCheckin ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'}`}>
+                        <LogIn size={18} className={podeCheckin ? 'text-green-500' : 'text-gray-400'} /> Fazer Check-in
+                      </button>
+                      {!podeCheckin && <p className="px-4 pb-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertCircle size={12} /> {motivo}</p>}
+                    </div>
+                  );
+                })()}
                 {r.status === 'checkin' && (
                   <button onClick={() => { setMenuAberto(null); postAction(r.id, 'checkout'); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
                     <LogOut size={18} className="text-blue-500" /> Fazer Check-out

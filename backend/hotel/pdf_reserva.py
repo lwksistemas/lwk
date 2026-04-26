@@ -218,6 +218,57 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
                 elements.append(Paragraph(stripped, body_style))
 
     # =====================================================================
+    # HORÁRIOS E POLÍTICAS
+    # =====================================================================
+    try:
+        from .models import ConfiguracaoHotel
+        cfg = ConfiguracaoHotel.objects.filter(loja_id=reserva.loja_id).first()
+        if cfg:
+            elements.append(Spacer(1, 0.5 * cm))
+            elements.append(Paragraph('Horários e Políticas', section_style))
+
+            # Horários check-in / check-out
+            fmt = lambda t: t.strftime('%H:%M') if t else '—'
+            hor_data = [
+                ['Check-in a partir de', fmt(cfg.horario_checkin)],
+                ['Check-out até', fmt(cfg.horario_checkout)],
+            ]
+            th = Table(hor_data, colWidths=[col1, col2])
+            th.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8f9fa')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ]))
+            elements.append(th)
+
+            if cfg.politica_cancelamento and cfg.politica_cancelamento.strip():
+                elements.append(Spacer(1, 0.3 * cm))
+                elements.append(Paragraph('Política de Cancelamento', ParagraphStyle(
+                    'SubSec', parent=styles['Heading3'], fontSize=11, textColor=AZUL, spaceBefore=4, spaceAfter=4
+                )))
+                for line in cfg.politica_cancelamento.split('\n'):
+                    stripped = line.strip()
+                    if stripped:
+                        elements.append(Paragraph(stripped, body_style))
+
+            if cfg.informacoes_adicionais and cfg.informacoes_adicionais.strip():
+                elements.append(Spacer(1, 0.3 * cm))
+                elements.append(Paragraph('Informações Adicionais', ParagraphStyle(
+                    'SubSec2', parent=styles['Heading3'], fontSize=11, textColor=AZUL, spaceBefore=4, spaceAfter=4
+                )))
+                for line in cfg.informacoes_adicionais.split('\n'):
+                    stripped = line.strip()
+                    if stripped:
+                        elements.append(Paragraph(stripped, body_style))
+    except Exception:
+        pass
+
+    # =====================================================================
     # OBSERVAÇÕES
     # =====================================================================
     if reserva.observacoes and reserva.observacoes.strip():

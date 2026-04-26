@@ -150,6 +150,18 @@ class ReservaViewSet(BaseModelViewSet):
         quarto = reserva.quarto
         quarto.status = Quarto.STATUS_LIMPEZA
         quarto.save(update_fields=['status', 'updated_at'])
+
+        # Cria tarefa de limpeza na governança automaticamente
+        from tenants.middleware import get_current_loja_id
+        GovernancaTarefa.objects.create(
+            loja_id=get_current_loja_id(),
+            quarto=quarto,
+            tipo=GovernancaTarefa.TIPO_LIMPEZA,
+            status=GovernancaTarefa.STATUS_ABERTA,
+            descricao=f'Limpeza pós check-out — Hóspede: {reserva.hospede.nome if reserva.hospede else ""}',
+            prioridade=1,
+        )
+
         return Response(self.get_serializer(reserva).data)
 
     @action(detail=True, methods=['post'])

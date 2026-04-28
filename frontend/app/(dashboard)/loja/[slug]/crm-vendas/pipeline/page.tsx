@@ -10,6 +10,7 @@ import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, Printer, X, Mail, MessageCircle, Building2, Search } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
+import ProdutoSeletorCategoria from '@/components/crm-vendas/ProdutoSeletorCategoria';
 
 interface LeadOption {
   id: number;
@@ -92,6 +93,8 @@ export default function CrmVendasPipelinePage() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [imprimindo, setImprimindo] = useState(false);
+  const [seletorCriarAberto, setSeletorCriarAberto] = useState(false);
+  const [seletorEditarAberto, setSeletorEditarAberto] = useState(false);
 
   // Sincronizar vendedor_id com backend ao montar componente
   useEffect(() => {
@@ -898,80 +901,63 @@ export default function CrmVendasPipelinePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Produtos e Serviços
                   </label>
-                  <Link
-                    href={`/loja/${slug}/crm-vendas/produtos-servicos`}
-                    className="text-xs text-[#0176d3] hover:underline"
-                  >
+                  <Link href={`/loja/${slug}/crm-vendas/produtos-servicos`} className="text-xs text-[#0176d3] hover:underline">
                     Cadastrar
                   </Link>
                 </div>
-                {formCriar.itens.map((item, idx) => (
-                  <div key={idx} className="flex gap-2 mb-2 items-center">
-                    <select
-                      value={item.produto_servico_id}
-                      onChange={(e) => updateItemCriar(idx, 'produto_servico_id', e.target.value)}
-                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                    >
-                      {produtosServicos.length === 0 && (
-                        <option value="">Nenhum produto cadastrado</option>
-                      )}
-                      {produtosServicos.length > 0 && (() => {
-                        // Agrupar produtos por categoria
-                        const grouped = produtosServicos.reduce((acc: any, ps: any) => {
-                          const categoria = ps.categoria_nome || 'Sem Categoria';
-                          if (!acc[categoria]) acc[categoria] = [];
-                          acc[categoria].push(ps);
-                          return acc;
-                        }, {});
-                        
-                        // Ordenar categorias alfabeticamente
-                        const categorias = Object.keys(grouped).sort();
-                        
-                        return categorias.map(categoria => (
-                          <optgroup key={categoria} label={categoria}>
-                            {grouped[categoria].map((ps: any) => (
-                              <option key={ps.id} value={ps.id}>
-                                {ps.codigo ? `[${ps.codigo}] ` : ''}{ps.nome} - {parseFloat(ps.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ));
-                      })()}
-                    </select>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={item.preco_unitario}
-                      onChange={(e) => updateItemCriar(idx, 'preco_unitario', e.target.value)}
-                      className="w-20 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                      placeholder="Preço"
+                {/* Itens já adicionados */}
+                {formCriar.itens.map((item, idx) => {
+                  const ps = produtosServicos.find(p => p.id === item.produto_servico_id);
+                  return (
+                    <div key={idx} className="flex gap-2 mb-2 items-center bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2 py-1.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
+                          {ps?.codigo ? <span className="text-gray-400">[{ps.codigo}] </span> : null}
+                          {ps?.nome || 'Produto'}
+                        </p>
+                        {ps?.categoria_nome && (
+                          <p className="text-[10px] text-gray-500">{ps.categoria_nome}</p>
+                        )}
+                      </div>
+                      <input
+                        type="number" min="0.01" step="0.01"
+                        value={item.preco_unitario}
+                        onChange={(e) => updateItemCriar(idx, 'preco_unitario', e.target.value)}
+                        className="w-20 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+                        placeholder="Preço"
+                      />
+                      <input
+                        type="number" min="0.01" step="0.01"
+                        value={item.quantidade}
+                        onChange={(e) => updateItemCriar(idx, 'quantidade', e.target.value)}
+                        className="w-14 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+                        placeholder="Qtd"
+                      />
+                      <button type="button" onClick={() => removeItemCriar(idx)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
+                {/* Seletor por categoria */}
+                {seletorCriarAberto && produtosServicos.length > 0 && (
+                  <div className="mb-2">
+                    <ProdutoSeletorCategoria
+                      produtos={produtosServicos}
+                      onSelecionar={(ps) => {
+                        setFormCriar((f) => {
+                          const newItens = [...f.itens, { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco }];
+                          const total = newItens.reduce((s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.preco_unitario) || 0), 0);
+                          return { ...f, itens: newItens, valor: String(total.toFixed(2)) };
+                        });
+                        setSeletorCriarAberto(false);
+                      }}
+                      onFechar={() => setSeletorCriarAberto(false)}
                     />
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={item.quantidade}
-                      onChange={(e) => updateItemCriar(idx, 'quantidade', e.target.value)}
-                      className="w-16 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                      placeholder="Qtd"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeItemCriar(idx)}
-                      className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600"
-                      aria-label="Remover"
-                    >
-                      <X size={14} />
-                    </button>
                   </div>
-                ))}
-                {produtosServicos.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={addItemCriar}
-                    className="text-sm text-[#0176d3] hover:underline"
-                  >
+                )}
+                {produtosServicos.length > 0 && !seletorCriarAberto && (
+                  <button type="button" onClick={() => setSeletorCriarAberto(true)} className="text-sm text-[#0176d3] hover:underline">
                     + Adicionar item
                   </button>
                 )}
@@ -1088,80 +1074,57 @@ export default function CrmVendasPipelinePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Produtos e Serviços
                   </label>
-                  <Link
-                    href={`/loja/${slug}/crm-vendas/produtos-servicos`}
-                    className="text-xs text-[#0176d3] hover:underline"
-                  >
+                  <Link href={`/loja/${slug}/crm-vendas/produtos-servicos`} className="text-xs text-[#0176d3] hover:underline">
                     Cadastrar
                   </Link>
                 </div>
-                {itensEditar.map((item, idx) => (
-                  <div key={idx} className="flex gap-2 mb-2 items-center">
-                    <select
-                      value={item.produto_servico_id}
-                      onChange={(e) => updateItemEditar(idx, 'produto_servico_id', e.target.value)}
-                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                    >
-                      {produtosServicos.length === 0 && (
-                        <option value="">Nenhum produto cadastrado</option>
-                      )}
-                      {produtosServicos.length > 0 && (() => {
-                        // Agrupar produtos por categoria
-                        const grouped = produtosServicos.reduce((acc: any, ps: any) => {
-                          const categoria = ps.categoria_nome || 'Sem Categoria';
-                          if (!acc[categoria]) acc[categoria] = [];
-                          acc[categoria].push(ps);
-                          return acc;
-                        }, {});
-                        
-                        // Ordenar categorias alfabeticamente
-                        const categorias = Object.keys(grouped).sort();
-                        
-                        return categorias.map(categoria => (
-                          <optgroup key={categoria} label={categoria}>
-                            {grouped[categoria].map((ps: any) => (
-                              <option key={ps.id} value={ps.id}>
-                                {ps.codigo ? `[${ps.codigo}] ` : ''}{ps.nome} - {parseFloat(ps.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ));
-                      })()}
-                    </select>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={item.preco_unitario}
-                      onChange={(e) => updateItemEditar(idx, 'preco_unitario', e.target.value)}
-                      className="w-20 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                      placeholder="Preço"
+                {itensEditar.map((item, idx) => {
+                  const ps = produtosServicos.find(p => p.id === item.produto_servico_id);
+                  return (
+                    <div key={idx} className="flex gap-2 mb-2 items-center bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2 py-1.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
+                          {ps?.codigo ? <span className="text-gray-400">[{ps.codigo}] </span> : null}
+                          {ps?.nome || 'Produto'}
+                        </p>
+                        {ps?.categoria_nome && (
+                          <p className="text-[10px] text-gray-500">{ps.categoria_nome}</p>
+                        )}
+                      </div>
+                      <input
+                        type="number" min="0.01" step="0.01"
+                        value={item.preco_unitario}
+                        onChange={(e) => updateItemEditar(idx, 'preco_unitario', e.target.value)}
+                        className="w-20 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+                        placeholder="Preço"
+                      />
+                      <input
+                        type="number" min="0.01" step="0.01"
+                        value={item.quantidade}
+                        onChange={(e) => updateItemEditar(idx, 'quantidade', e.target.value)}
+                        className="w-14 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+                        placeholder="Qtd"
+                      />
+                      <button type="button" onClick={() => removeItemEditar(idx)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500">
+                        <X size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
+                {seletorEditarAberto && produtosServicos.length > 0 && (
+                  <div className="mb-2">
+                    <ProdutoSeletorCategoria
+                      produtos={produtosServicos}
+                      onSelecionar={(ps) => {
+                        setItensEditar(itens => [...itens, { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco }]);
+                        setSeletorEditarAberto(false);
+                      }}
+                      onFechar={() => setSeletorEditarAberto(false)}
                     />
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={item.quantidade}
-                      onChange={(e) => updateItemEditar(idx, 'quantidade', e.target.value)}
-                      className="w-16 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                      placeholder="Qtd"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeItemEditar(idx)}
-                      className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600"
-                      aria-label="Remover"
-                    >
-                      <X size={14} />
-                    </button>
                   </div>
-                ))}
-                {produtosServicos.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={addItemEditar}
-                    className="text-sm text-[#0176d3] hover:underline"
-                  >
+                )}
+                {produtosServicos.length > 0 && !seletorEditarAberto && (
+                  <button type="button" onClick={() => setSeletorEditarAberto(true)} className="text-sm text-[#0176d3] hover:underline">
                     + Adicionar item
                   </button>
                 )}

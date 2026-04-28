@@ -17,9 +17,10 @@ interface Props {
   produtos: Produto[];
   onSelecionar: (produto: Produto) => void;
   onFechar: () => void;
+  itensSelecionados?: number[]; // ids já adicionados
 }
 
-export default function ProdutoSeletorCategoria({ produtos, onSelecionar, onFechar }: Props) {
+export default function ProdutoSeletorCategoria({ produtos, onSelecionar, onFechar, itensSelecionados = [] }: Props) {
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string | null>(null);
 
   // Agrupar por categoria
@@ -87,29 +88,51 @@ export default function ProdutoSeletorCategoria({ produtos, onSelecionar, onFech
             ))}
           </div>
         ) : (
-          // Lista de produtos da categoria
+          // Lista de produtos da categoria — clique adiciona sem fechar
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
-            {produtosDaCategoria.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => { onSelecionar(p); onFechar(); }}
-                className="w-full flex items-center justify-between px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left transition"
-              >
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
-                    {p.codigo ? <span className="text-gray-400 mr-1">[{p.codigo}]</span> : null}
-                    {p.nome}
-                  </p>
-                  <p className="text-[10px] text-gray-500 capitalize">{p.tipo}</p>
-                </div>
-                <span className="text-xs font-semibold text-green-600 dark:text-green-400 shrink-0 ml-2">
-                  {parseFloat(p.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </span>
-              </button>
-            ))}
+            {produtosDaCategoria.map((p) => {
+              const qtdAdicionada = itensSelecionados.filter(id => id === p.id).length;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onSelecionar(p)}
+                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left transition"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
+                      {p.codigo ? <span className="text-gray-400 mr-1">[{p.codigo}]</span> : null}
+                      {p.nome}
+                    </p>
+                    <p className="text-[10px] text-gray-500 capitalize">{p.tipo}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {qtdAdicionada > 0 && (
+                      <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full px-1.5 py-0.5">
+                        ×{qtdAdicionada}
+                      </span>
+                    )}
+                    <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                      {parseFloat(p.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </span>
+                    <Plus size={13} className="text-blue-500" />
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
+      </div>
+
+      {/* Rodapé com botão concluir */}
+      <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+        <button
+          type="button"
+          onClick={onFechar}
+          className="w-full py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+        >
+          Concluir seleção {itensSelecionados.length > 0 ? `(${itensSelecionados.length} item${itensSelecionados.length !== 1 ? 's' : ''})` : ''}
+        </button>
       </div>
     </div>
   );

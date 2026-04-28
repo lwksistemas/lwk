@@ -944,6 +944,7 @@ export default function CrmVendasPipelinePage() {
                   <div className="mb-2">
                     <ProdutoSeletorCategoria
                       produtos={produtosServicos}
+                      itensSelecionados={formCriar.itens.map(i => i.produto_servico_id)}
                       onSelecionar={(ps) => {
                         setFormCriar((f) => {
                           const newItens = [...f.itens, { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco }];
@@ -1115,9 +1116,9 @@ export default function CrmVendasPipelinePage() {
                   <div className="mb-2">
                     <ProdutoSeletorCategoria
                       produtos={produtosServicos}
+                      itensSelecionados={itensEditar.map(i => i.produto_servico_id)}
                       onSelecionar={(ps) => {
                         setItensEditar(itens => [...itens, { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco }]);
-                        setSeletorEditarAberto(false);
                       }}
                       onFechar={() => setSeletorEditarAberto(false)}
                     />

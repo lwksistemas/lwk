@@ -18,6 +18,7 @@ import { Plus, Eye, Edit2, Trash2, ClipboardList, ArrowRight, Mail, MessageCircl
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
+import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
@@ -49,7 +50,7 @@ interface Proposta {
   created_at: string;
 }
 
-type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
+type ModalType = 'create' | 'edit' | 'view' | 'delete' | 'cancelar' | null;
 
 export default function CrmVendasPropostasPage() {
   const params = useParams();
@@ -219,16 +220,15 @@ export default function CrmVendasPropostasPage() {
     }
   };
 
-  const handleCancelarProposta = async (propostaId: number) => {
-    if (!confirm('Cancelar esta proposta?\n\nA proposta será marcada como cancelada e ficará no histórico de negociações.')) {
-      return;
-    }
+  const handleCancelarProposta = async (motivo: string) => {
+    if (!selected) return;
     try {
-      setAlterandoStatus(propostaId);
-      await apiClient.post(`/crm-vendas/propostas/${propostaId}/cancelar/`);
+      setAlterandoStatus(selected.id);
+      await apiClient.post(`/crm-vendas/propostas/${selected.id}/cancelar/`, { motivo });
       await loadPropostas(true);
+      closeModal();
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao cancelar proposta.'));
+      throw new Error(getCrmApiErrorDetail(err, 'Erro ao cancelar proposta.'));
     } finally {
       setAlterandoStatus(null);
     }
@@ -529,7 +529,7 @@ export default function CrmVendasPropostasPage() {
                                 {p.status !== 'cancelada' && (
                                   <button
                                     type="button"
-                                    onClick={() => { handleCancelarProposta(p.id); setMenuAberto(null); }}
+                                    onClick={() => { openModal('cancelar', p); setMenuAberto(null); }}
                                     disabled={alterandoStatus !== null}
                                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
                                   >
@@ -610,6 +610,15 @@ export default function CrmVendasPropostasPage() {
           enviando={submitting}
           onClose={closeModal}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {modalType === 'cancelar' && selected && (
+        <CrmCancelarModal
+          titulo={selected.titulo}
+          tipo="proposta"
+          onConfirm={handleCancelarProposta}
+          onClose={closeModal}
         />
       )}
     </div>

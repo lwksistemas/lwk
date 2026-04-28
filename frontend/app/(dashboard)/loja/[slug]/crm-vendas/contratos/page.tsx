@@ -18,6 +18,7 @@ import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Mail, MessageCircl
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
+import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
 import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
@@ -53,7 +54,7 @@ interface OportunidadeOption {
   etapa: string;
 }
 
-type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
+type ModalType = 'create' | 'edit' | 'view' | 'delete' | 'cancelar' | null;
 
 export default function CrmVendasContratosPage() {
   const params = useParams();
@@ -147,18 +148,15 @@ export default function CrmVendasContratosPage() {
     }
   };
 
-  const handleCancelarContrato = async (contratoId: number) => {
-    if (!confirm('Cancelar este contrato?\n\nO contrato será marcado como cancelado e ficará no histórico de negociações.')) {
-      return;
-    }
+  const handleCancelarContrato = async (motivo: string) => {
+    if (!selected) return;
     try {
-      setAlterandoStatus(contratoId);
-      await apiClient.patch(`/crm-vendas/contratos/${contratoId}/`, {
-        status: 'cancelado',
-      });
+      setAlterandoStatus(selected.id);
+      await apiClient.post(`/crm-vendas/contratos/${selected.id}/cancelar/`, { motivo });
       await loadContratos();
+      closeModal();
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao cancelar contrato.'));
+      throw new Error(getCrmApiErrorDetail(err, 'Erro ao cancelar contrato.'));
     } finally {
       setAlterandoStatus(null);
     }
@@ -463,7 +461,7 @@ export default function CrmVendasContratosPage() {
                         {c.status !== 'cancelado' && (
                           <button
                             type="button"
-                            onClick={() => handleCancelarContrato(c.id)}
+                            onClick={() => { openModal('cancelar', c); }}
                             disabled={alterandoStatus !== null}
                             className="p-1.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50"
                             title="Cancelar contrato (manter no histórico)"
@@ -530,6 +528,15 @@ export default function CrmVendasContratosPage() {
           enviando={submitting}
           onClose={closeModal}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {modalType === 'cancelar' && selected && (
+        <CrmCancelarModal
+          titulo={selected.titulo || selected.numero || 'este contrato'}
+          tipo="contrato"
+          onConfirm={handleCancelarContrato}
+          onClose={closeModal}
         />
       )}
     </div>

@@ -526,6 +526,7 @@ class Proposta(LojaIsolationMixin, models.Model):
         help_text='Valor do desconto (percentual ou fixo, conforme desconto_tipo)',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='rascunho')
+    motivo_cancelamento = models.TextField(blank=True, default='', help_text='Motivo do cancelamento da proposta')
     data_envio = models.DateTimeField(null=True, blank=True)
     data_resposta = models.DateTimeField(null=True, blank=True)
     observacoes = models.TextField(blank=True)
@@ -641,6 +642,7 @@ class Contrato(LojaIsolationMixin, models.Model):
         help_text='Valor do desconto (percentual ou fixo, conforme desconto_tipo)',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='rascunho')
+    motivo_cancelamento = models.TextField(blank=True, default='', help_text='Motivo do cancelamento do contrato')
     data_envio = models.DateTimeField(null=True, blank=True)
     data_assinatura = models.DateTimeField(null=True, blank=True)
     observacoes = models.TextField(blank=True)

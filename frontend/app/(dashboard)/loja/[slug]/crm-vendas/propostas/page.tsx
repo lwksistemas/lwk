@@ -225,9 +225,7 @@ export default function CrmVendasPropostasPage() {
     }
     try {
       setAlterandoStatus(propostaId);
-      await apiClient.patch(`/crm-vendas/propostas/${propostaId}/`, {
-        status: 'cancelada',
-      });
+      await apiClient.post(`/crm-vendas/propostas/${propostaId}/cancelar/`);
       await loadPropostas(true);
     } catch (err: unknown) {
       alert(getCrmApiErrorDetail(err, 'Erro ao cancelar proposta.'));

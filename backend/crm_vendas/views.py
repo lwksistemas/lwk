@@ -1122,6 +1122,16 @@ class PropostaViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuery
     assinatura_cache_key = 'propostas'
     enviar_cliente_label = 'Proposta'
 
+    @action(detail=True, methods=['post'])
+    def cancelar(self, request, pk=None):
+        """Cancela a proposta diretamente, sem passar pela validação completa do serializer."""
+        proposta = self.get_object()
+        if proposta.status == 'cancelada':
+            return Response({'detail': 'Proposta já está cancelada.'}, status=status.HTTP_400_BAD_REQUEST)
+        proposta.status = 'cancelada'
+        proposta.save(update_fields=['status', 'updated_at'])
+        return Response({'detail': 'Proposta cancelada com sucesso.', 'status': 'cancelada'})
+
     @action(detail=True, methods=['get'])
     def download_pdf(self, request, pk=None):
         """Baixa o PDF da proposta."""

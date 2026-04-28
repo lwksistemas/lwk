@@ -20,7 +20,10 @@ export default function CrmDocumentoStatusBadge({
   labelsAssinatura,
   variante,
 }: CrmDocumentoStatusBadgeProps) {
-  if (statusAssinatura && statusAssinatura !== 'rascunho') {
+  // Cancelado sempre tem prioridade — não mostrar status de assinatura
+  const isCancelado = status === 'cancelada' || status === 'cancelado';
+
+  if (!isCancelado && statusAssinatura && statusAssinatura !== 'rascunho') {
     const sa = statusAssinatura;
     let cls =
       'inline-block px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-600';

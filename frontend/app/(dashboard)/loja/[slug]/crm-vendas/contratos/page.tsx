@@ -40,6 +40,7 @@ interface Contrato {
   valor_com_desconto: string | null;
   status: string;
   status_assinatura?: string;
+  motivo_cancelamento?: string;
   data_envio: string | null;
   data_assinatura: string | null;
   created_at: string;
@@ -405,71 +406,106 @@ export default function CrmVendasContratosPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap items-center">
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setMenuAberto(menuAberto === c.id ? null : c.id)}
-                            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
-                            title="Mais ações"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-                          {menuAberto === c.id && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
-                              <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
-                                <button
-                                  type="button"
-                                  onClick={() => { handleDownloadPdf(c.id, c.titulo); setMenuAberto(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  <FileText size={15} className="text-red-500" /> Baixar PDF
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { handleDownloadDocx(c.id, c.titulo); setMenuAberto(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  <FileText size={15} className="text-blue-600" /> Baixar Word
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        <BotaoAssinaturaDigital
-                          tipoDocumento="contrato"
-                          documentoId={c.id}
-                          statusAssinatura={c.status_assinatura}
-                          leadEmail={c.lead_email}
-                          onSucesso={loadContratos}
-                        />
-                        {c.status_assinatura !== 'concluido' && (
-                          <button
-                            type="button"
-                            onClick={() => handleMarcarComoAssinado(c.id)}
-                            disabled={alterandoStatus !== null}
-                            className="p-1.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 disabled:opacity-50"
-                            title="Marcar como assinado manualmente (gov.br, manual, etc)"
-                          >
-                            <FileSignature size={16} />
-                          </button>
+                        {c.status === 'cancelado' ? (
+                          // Contrato cancelado: só PDF e motivo
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setMenuAberto(menuAberto === c.id ? null : c.id)}
+                              className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
+                              title="Mais ações"
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+                            {menuAberto === c.id && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
+                                <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => { handleDownloadPdf(c.id, c.titulo); setMenuAberto(null); }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  >
+                                    <FileText size={15} className="text-red-500" /> Baixar PDF
+                                  </button>
+                                  {c.motivo_cancelamento && (
+                                    <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700">
+                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Motivo do cancelamento:</p>
+                                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{c.motivo_cancelamento}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          // Contrato ativo: menu completo
+                          <>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setMenuAberto(menuAberto === c.id ? null : c.id)}
+                                className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
+                                title="Mais ações"
+                              >
+                                <MoreVertical size={16} />
+                              </button>
+                              {menuAberto === c.id && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
+                                  <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleDownloadPdf(c.id, c.titulo); setMenuAberto(null); }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <FileText size={15} className="text-red-500" /> Baixar PDF
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleDownloadDocx(c.id, c.titulo); setMenuAberto(null); }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <FileText size={15} className="text-blue-600" /> Baixar Word
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <BotaoAssinaturaDigital
+                              tipoDocumento="contrato"
+                              documentoId={c.id}
+                              statusAssinatura={c.status_assinatura}
+                              leadEmail={c.lead_email}
+                              onSucesso={loadContratos}
+                            />
+                            {c.status_assinatura !== 'concluido' && (
+                              <button
+                                type="button"
+                                onClick={() => handleMarcarComoAssinado(c.id)}
+                                disabled={alterandoStatus !== null}
+                                className="p-1.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50 disabled:opacity-50"
+                                title="Marcar como assinado manualmente"
+                              >
+                                <FileSignature size={16} />
+                              </button>
+                            )}
+                            <button type="button" onClick={() => handleEnviarCliente(c.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
+                            <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
+                            <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
+                            <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
+                            <button
+                              type="button"
+                              onClick={() => { openModal('cancelar', c); }}
+                              disabled={alterandoStatus !== null}
+                              className="p-1.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50"
+                              title="Cancelar contrato"
+                            >
+                              <Ban size={16} />
+                            </button>
+                            <button type="button" onClick={() => openModal('delete', c)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600" title="Excluir"><Trash2 size={16} /></button>
+                          </>
                         )}
-                        <button type="button" onClick={() => handleEnviarCliente(c.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
-                        <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
-                        <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
-                        <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
-                        {c.status !== 'cancelado' && (
-                          <button
-                            type="button"
-                            onClick={() => { openModal('cancelar', c); }}
-                            disabled={alterandoStatus !== null}
-                            className="p-1.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50"
-                            title="Cancelar contrato (manter no histórico)"
-                          >
-                            <Ban size={16} />
-                          </button>
-                        )}
-                        <button type="button" onClick={() => openModal('delete', c)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600" title="Excluir"><Trash2 size={16} /></button>
                       </div>
                     </td>
                   </tr>

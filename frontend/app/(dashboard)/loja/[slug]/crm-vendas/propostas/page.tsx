@@ -45,6 +45,7 @@ interface Proposta {
   valor_com_desconto: string | null;
   status: string;
   status_assinatura?: string;
+  motivo_cancelamento?: string;
   data_envio: string | null;
   data_resposta: string | null;
   created_at: string;
@@ -460,7 +461,9 @@ export default function CrmVendasPropostasPage() {
                     <td className="py-3 px-4">
                       <div className="flex justify-end items-center gap-1">
                         <button type="button" onClick={() => openModal('view', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Visualizar"><Eye size={16} /></button>
-                        <button type="button" onClick={() => openModal('edit', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
+                        {p.status !== 'cancelada' && (
+                          <button type="button" onClick={() => openModal('edit', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
+                        )}
                         <div className="relative">
                           <button
                             type="button"
@@ -474,76 +477,96 @@ export default function CrmVendasPropostasPage() {
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
                               <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
-                                <button
-                                  type="button"
-                                  onClick={() => { handleDownloadPdf(p.id, p.titulo); setMenuAberto(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  <FileText size={15} className="text-red-500" /> Baixar PDF
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { handleDownloadDocx(p.id, p.titulo); setMenuAberto(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  <FileText size={15} className="text-blue-600" /> Baixar Word
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { handleEnviarCliente(p.id, 'email'); setMenuAberto(null); }}
-                                  disabled={enviandoId !== null}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                >
-                                  <Mail size={15} className="text-blue-500" /> Enviar por E-mail
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { handleEnviarCliente(p.id, 'whatsapp'); setMenuAberto(null); }}
-                                  disabled={enviandoId !== null}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                >
-                                  <MessageCircle size={15} className="text-green-500" /> Enviar por WhatsApp
-                                </button>
-                                <BotaoAssinaturaDigital
-                                  variant="menuItem"
-                                  tipoDocumento="proposta"
-                                  documentoId={p.id}
-                                  statusAssinatura={p.status_assinatura}
-                                  leadEmail={p.lead_email}
-                                  onSucesso={() => {
-                                    loadPropostas(true);
-                                    setMenuAberto(null);
-                                  }}
-                                />
-                                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                                {p.status_assinatura !== 'concluido' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { handleMarcarComoAssinado(p.id); setMenuAberto(null); }}
-                                    disabled={alterandoStatus !== null}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                  >
-                                    <FileSignature size={15} className="text-purple-500" /> Marcar como assinado
-                                  </button>
+                                {p.status === 'cancelada' ? (
+                                  // Menu reduzido para propostas canceladas
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleDownloadPdf(p.id, p.titulo); setMenuAberto(null); }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <FileText size={15} className="text-red-500" /> Baixar PDF
+                                    </button>
+                                    {p.motivo_cancelamento && (
+                                      <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700">
+                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Motivo do cancelamento:</p>
+                                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{p.motivo_cancelamento}</p>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  // Menu completo para propostas ativas
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleDownloadPdf(p.id, p.titulo); setMenuAberto(null); }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <FileText size={15} className="text-red-500" /> Baixar PDF
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleDownloadDocx(p.id, p.titulo); setMenuAberto(null); }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <FileText size={15} className="text-blue-600" /> Baixar Word
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleEnviarCliente(p.id, 'email'); setMenuAberto(null); }}
+                                      disabled={enviandoId !== null}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                    >
+                                      <Mail size={15} className="text-blue-500" /> Enviar por E-mail
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleEnviarCliente(p.id, 'whatsapp'); setMenuAberto(null); }}
+                                      disabled={enviandoId !== null}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                    >
+                                      <MessageCircle size={15} className="text-green-500" /> Enviar por WhatsApp
+                                    </button>
+                                    <BotaoAssinaturaDigital
+                                      variant="menuItem"
+                                      tipoDocumento="proposta"
+                                      documentoId={p.id}
+                                      statusAssinatura={p.status_assinatura}
+                                      leadEmail={p.lead_email}
+                                      onSucesso={() => {
+                                        loadPropostas(true);
+                                        setMenuAberto(null);
+                                      }}
+                                    />
+                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                    {p.status_assinatura !== 'concluido' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleMarcarComoAssinado(p.id); setMenuAberto(null); }}
+                                        disabled={alterandoStatus !== null}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                      >
+                                        <FileSignature size={15} className="text-purple-500" /> Marcar como assinado
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => { openModal('cancelar', p); setMenuAberto(null); }}
+                                      disabled={alterandoStatus !== null}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                    >
+                                      <Ban size={15} className="text-orange-500" /> Cancelar proposta
+                                    </button>
+                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                    <button
+                                      type="button"
+                                      onClick={() => { openModal('delete', p); setMenuAberto(null); }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    >
+                                      <Trash2 size={15} /> Excluir proposta
+                                    </button>
+                                  </>
                                 )}
-                                {p.status !== 'cancelada' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { openModal('cancelar', p); setMenuAberto(null); }}
-                                    disabled={alterandoStatus !== null}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                  >
-                                    <Ban size={15} className="text-orange-500" /> Cancelar proposta
-                                  </button>
-                                )}
-                                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                                <button
-                                  type="button"
-                                  onClick={() => { openModal('delete', p); setMenuAberto(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                >
-                                  <Trash2 size={15} /> Excluir proposta
-                                </button>
                               </div>
                             </>
                           )}

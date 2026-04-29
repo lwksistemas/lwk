@@ -54,9 +54,9 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
     loja = config.loja if config else None
     if not phone:
         logger.warning("WhatsApp documento: telefone inválido: %s", telefone)
-        WhatsAppLog.objects.create(
+        WhatsAppLog.objects.using('default').create(
             loja=loja,
-            user=user,
+            user_id=user.id if user else None,
             telefone=telefone or '',
             mensagem=f"[documento] {filename}",
             status='falhou',
@@ -75,9 +75,9 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
         token = token or getattr(settings, 'WHATSAPP_TOKEN', None)
 
     if not phone_id or not token:
-        WhatsAppLog.objects.create(
+        WhatsAppLog.objects.using('default').create(
             loja=loja,
-            user=user,
+            user_id=user.id if user else None,
             telefone=phone,
             mensagem=f"[documento] {filename}",
             status='falhou',
@@ -105,9 +105,9 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
         data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
     except Exception as e:
         logger.exception("WhatsApp documento: erro de requisição")
-        WhatsAppLog.objects.create(
+        WhatsAppLog.objects.using('default').create(
             loja=loja,
-            user=user,
+            user_id=user.id if user else None,
             telefone=phone,
             mensagem=f"[documento] {filename}",
             status='falhou',
@@ -116,9 +116,9 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
         return False, f"Erro de conexão: {str(e)}"
 
     ok = response.ok and bool(data.get('messages'))
-    WhatsAppLog.objects.create(
+    WhatsAppLog.objects.using('default').create(
         loja=loja,
-        user=user,
+        user_id=user.id if user else None,
         telefone=phone,
         mensagem=f"[documento] {filename}",
         status='enviado' if ok else 'falhou',
@@ -143,9 +143,9 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
     loja = config.loja if config else None
     if not phone:
         logger.warning("WhatsApp: telefone inválido ou vazio: %s", telefone)
-        WhatsAppLog.objects.create(
+        WhatsAppLog.objects.using('default').create(
             loja=loja,
-            user=user,
+            user_id=user.id if user else None,
             telefone=telefone or '',
             mensagem=mensagem[:500],
             status='falhou',
@@ -168,9 +168,9 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
             "WhatsApp: phone_id/token não configurados (loja nem WHATSAPP_PHONE_ID/WHATSAPP_TOKEN). "
             "Configure a API do WhatsApp Business (Meta) para enviar mensagens."
         )
-        WhatsAppLog.objects.create(
+        WhatsAppLog.objects.using('default').create(
             loja=loja,
-            user=user,
+            user_id=user.id if user else None,
             telefone=phone,
             mensagem=mensagem[:500],
             status='falhou',
@@ -195,9 +195,9 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
         data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
     except Exception as e:
         logger.exception("WhatsApp: erro de requisição")
-        WhatsAppLog.objects.create(
+        WhatsAppLog.objects.using('default').create(
             loja=loja,
-            user=user,
+            user_id=user.id if user else None,
             telefone=phone,
             mensagem=mensagem[:500],
             status='falhou',
@@ -209,9 +209,9 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
     ok = response.ok and bool(data.get('messages'))
     if response.ok and not ok:
         logger.warning("WhatsApp: Meta respondeu %s mas sem 'messages' na resposta: %s", response.status_code, data)
-    WhatsAppLog.objects.create(
+    WhatsAppLog.objects.using('default').create(
         loja=loja,
-        user=user,
+        user_id=user.id if user else None,
         telefone=phone,
         mensagem=mensagem[:500],
         status='enviado' if ok else 'falhou',

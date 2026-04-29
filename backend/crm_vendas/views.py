@@ -1123,6 +1123,19 @@ class PropostaViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuery
     enviar_cliente_label = 'Proposta'
 
     @action(detail=True, methods=['post'])
+    def confirmar_pedido(self, request, pk=None):
+        """Confirma a proposta como Pedido (após aceita)."""
+        proposta = self.get_object()
+        if proposta.status != 'aceita':
+            return Response(
+                {'detail': f'Apenas propostas Aceitas podem ser confirmadas como Pedido. Status atual: {proposta.get_status_display()}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        proposta.status = 'pedido'
+        proposta.save(update_fields=['status', 'updated_at'])
+        return Response({'detail': 'Proposta confirmada como Pedido.', 'status': 'pedido'})
+
+    @action(detail=True, methods=['post'])
     def cancelar(self, request, pk=None):
         """Cancela a proposta com motivo obrigatório."""
         proposta = self.get_object()

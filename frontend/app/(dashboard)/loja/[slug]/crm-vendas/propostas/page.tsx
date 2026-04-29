@@ -14,7 +14,7 @@ import {
   CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, ClipboardList, ArrowRight, Mail, MessageCircle, FileText, FileSignature, Ban, MoreVertical } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, ClipboardList, ArrowRight, Mail, MessageCircle, FileText, FileSignature, Ban, MoreVertical, ShoppingCart } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
@@ -216,6 +216,21 @@ export default function CrmVendasPropostasPage() {
       alert('Proposta marcada como assinada com sucesso!');
     } catch (err: unknown) {
       alert(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
+    } finally {
+      setAlterandoStatus(null);
+    }
+  };
+
+  const handleConfirmarPedido = async (propostaId: number) => {
+    if (!confirm('Confirmar esta proposta como Pedido?\n\nIsso indica que o cliente confirmou o pedido formal e está pronto para gerar o contrato.')) {
+      return;
+    }
+    try {
+      setAlterandoStatus(propostaId);
+      await apiClient.post(`/crm-vendas/propostas/${propostaId}/confirmar_pedido/`);
+      await loadPropostas(true);
+    } catch (err: unknown) {
+      alert(getCrmApiErrorDetail(err, 'Erro ao confirmar pedido.'));
     } finally {
       setAlterandoStatus(null);
     }
@@ -547,6 +562,16 @@ export default function CrmVendasPropostasPage() {
                                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
                                       >
                                         <FileSignature size={15} className="text-purple-500" /> Marcar como assinado
+                                      </button>
+                                    )}
+                                    {p.status === 'aceita' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleConfirmarPedido(p.id); setMenuAberto(null); }}
+                                        disabled={alterandoStatus !== null}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50 font-medium"
+                                      >
+                                        <ShoppingCart size={15} className="text-emerald-600" /> Confirmar como Pedido
                                       </button>
                                     )}
                                     <button

@@ -47,6 +47,7 @@ export default function CrmDocumentoStatusBadge({
     'inline-block px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-600';
   if (variante === 'proposta') {
     if (status === 'aceita') cls = 'inline-block px-2 py-0.5 rounded text-xs bg-green-100 dark:bg-green-900/30 text-green-700';
+    else if (status === 'pedido') cls = 'inline-block px-2 py-0.5 rounded text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 font-semibold';
     else if (status === 'rejeitada') cls = 'inline-block px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/30 text-red-700';
     else if (status === 'cancelada') cls = 'inline-block px-2 py-0.5 rounded text-xs bg-red-100 dark:bg-red-900/30 text-red-700';
     else if (status === 'enviada') cls = 'inline-block px-2 py-0.5 rounded text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700';

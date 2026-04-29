@@ -487,6 +487,7 @@ class Proposta(LojaIsolationMixin, models.Model):
         ('rascunho', 'Rascunho'),
         ('enviada', 'Enviada'),
         ('aceita', 'Aceita'),
+        ('pedido', 'Pedido'),
         ('rejeitada', 'Rejeitada'),
         ('cancelada', 'Cancelada'),
     ]

@@ -214,7 +214,12 @@ def registrar_assinatura(assinatura, ip_address, user_agent=''):
     else:
         # Vendedor assinou: documento concluído
         documento.status_assinatura = 'concluido'
-        documento.save(update_fields=['status_assinatura', 'updated_at'])
+        # Proposta: muda status para Aceita automaticamente
+        if documento.__class__.__name__ == 'Proposta' and documento.status in ('rascunho', 'enviada'):
+            documento.status = 'aceita'
+            documento.save(update_fields=['status_assinatura', 'status', 'updated_at'])
+        else:
+            documento.save(update_fields=['status_assinatura', 'updated_at'])
         
         return 'concluido'
 

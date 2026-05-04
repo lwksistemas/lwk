@@ -10,9 +10,9 @@ import apiClient from '@/lib/api-client';
 import ModalChamado from '@/components/suporte/ModalChamado';
 
 interface BuscaResult {
-  leads: { id: number; nome: string; empresa: string; status: string }[];
+  leads: { id: number; nome: string; empresa: string; status: string; cpf_cnpj?: string }[];
   oportunidades: { id: number; titulo: string; valor: string; etapa: string; lead_nome: string; lead_empresa: string }[];
-  contas: { id: number; nome: string; segmento: string }[];
+  contas: { id: number; nome: string; segmento: string; cnpj?: string }[];
 }
 
 interface HeaderCrmProps {
@@ -171,7 +171,7 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
                 (e.target as HTMLInputElement).blur();
               }
             }}
-            placeholder="Buscar leads, oportunidades, contas..."
+            placeholder="Buscar por nome, CPF, CNPJ, email..."
             className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-[#0d1f3c] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0176d3] focus:border-transparent text-sm transition-all"
             aria-label="Buscar no CRM"
           />
@@ -203,6 +203,9 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
                           <span className="truncate">{l.nome}</span>
                           {l.empresa && (
                             <span className="text-gray-500 dark:text-gray-400 truncate">• {l.empresa}</span>
+                          )}
+                          {l.cpf_cnpj && (
+                            <span className="text-gray-400 dark:text-gray-500 text-xs shrink-0">{l.cpf_cnpj}</span>
                           )}
                         </Link>
                       ))}
@@ -243,7 +246,10 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
                         >
                           <Building2 size={14} className="text-[#0176d3] shrink-0" />
                           <span className="truncate">{c.nome}</span>
-                          {c.segmento && (
+                          {c.cnpj && (
+                            <span className="text-gray-400 dark:text-gray-500 text-xs shrink-0">{c.cnpj}</span>
+                          )}
+                          {!c.cnpj && c.segmento && (
                             <span className="text-gray-500 dark:text-gray-400 truncate">• {c.segmento}</span>
                           )}
                         </Link>

@@ -8,6 +8,8 @@ interface EmpresaPrestadora { id: number; nome: string; cnpj?: string; }
 interface Props {
   tipoRelatorio: string;
   periodo: string;
+  dataInicio: string;
+  dataFim: string;
   vendedorSelecionado: string;
   vendedores: Vendedor[];
   empresasPrestadoras: EmpresaPrestadora[];
@@ -17,6 +19,8 @@ interface Props {
   loading: boolean;
   onTipoChange: (tipo: string) => void;
   onPeriodoChange: (periodo: string) => void;
+  onDataInicioChange: (data: string) => void;
+  onDataFimChange: (data: string) => void;
   onVendedorChange: (id: string) => void;
   onEmpresaPrestadoraChange: (id: string) => void;
   onGerar: (acao: 'pdf' | 'email') => void;
@@ -40,7 +44,7 @@ const PERIODOS = [
   { value: 'personalizado', label: 'Período Personalizado' },
 ];
 
-export function RelatorioForm({ tipoRelatorio, periodo, vendedorSelecionado, vendedores, empresasPrestadoras, empresaPrestadoraSelecionada, isVendedor, gerando, loading, onTipoChange, onPeriodoChange, onVendedorChange, onEmpresaPrestadoraChange, onGerar }: Props) {
+export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, vendedorSelecionado, vendedores, empresasPrestadoras, empresaPrestadoraSelecionada, isVendedor, gerando, loading, onTipoChange, onPeriodoChange, onDataInicioChange, onDataFimChange, onVendedorChange, onEmpresaPrestadoraChange, onGerar }: Props) {
   return (
     <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Gerar Relatório</h2>
@@ -73,6 +77,28 @@ export function RelatorioForm({ tipoRelatorio, periodo, vendedorSelecionado, ven
           <select value={periodo} onChange={(e) => onPeriodoChange(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
             {PERIODOS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
+          {periodo === 'personalizado' && (
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Data início</label>
+                <input
+                  type="date"
+                  value={dataInicio}
+                  onChange={(e) => onDataInicioChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Data fim</label>
+                <input
+                  type="date"
+                  value={dataFim}
+                  onChange={(e) => onDataFimChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Vendedor */}

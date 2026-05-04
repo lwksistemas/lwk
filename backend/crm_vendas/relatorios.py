@@ -166,6 +166,9 @@ def calcular_periodo(periodo_tipo: str):
     elif periodo_tipo == 'ano_atual':
         inicio = hoje.replace(month=1, day=1)
         return inicio, hoje
+    # Fallback: mês atual
+    inicio = hoje.replace(day=1)
+    return inicio, hoje
     else:
         # Padrão: mês atual
         inicio = hoje.replace(day=1)
@@ -339,7 +342,7 @@ def _adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportuni
     elements.append(Spacer(1, 1 * cm))
 
 
-def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_id: int = None) -> BytesIO:
+def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_id: int = None, data_inicio_custom=None, data_fim_custom=None) -> BytesIO:
     """
     Gera relatório PDF com total de vendas de todos os vendedores.
     """
@@ -349,6 +352,13 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
     styles = getSampleStyleSheet()
     
     data_inicio, data_fim = calcular_periodo(periodo)
+    if data_inicio_custom and data_fim_custom:
+        from datetime import date as date_type
+        try:
+            data_inicio = date_type.fromisoformat(str(data_inicio_custom))
+            data_fim = date_type.fromisoformat(str(data_fim_custom))
+        except Exception:
+            pass
     
     # ✅ NOVO: Adicionar logo no cabeçalho
     logo_url = _obter_logo_loja(loja_id)
@@ -468,7 +478,7 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
     return buffer
 
 
-def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int = None, empresa_prestadora_id: int = None) -> BytesIO:
+def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int = None, empresa_prestadora_id: int = None, data_inicio_custom=None, data_fim_custom=None) -> BytesIO:
     """
     Gera relatório PDF com vendas por vendedor específico ou todos.
     Para o vendedor destino da mesclagem (admin / e-mail do dono / primeiro ativo), inclui também
@@ -480,6 +490,13 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
     styles = getSampleStyleSheet()
 
     data_inicio, data_fim = calcular_periodo(periodo)
+    if data_inicio_custom and data_fim_custom:
+        from datetime import date as date_type
+        try:
+            data_inicio = date_type.fromisoformat(str(data_inicio_custom))
+            data_fim = date_type.fromisoformat(str(data_fim_custom))
+        except Exception:
+            pass
     merge_destino = get_vendedor_destino_merge_loja(loja_id)
 
     base = (

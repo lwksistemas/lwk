@@ -17,6 +17,8 @@ interface DashboardData {
 
 export default function RelatoriosPage() {
   const [periodo, setPeriodo] = useState('mes_atual');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
   const [tipoRelatorio, setTipoRelatorio] = useState('vendas_total');
   const [vendedorSelecionado, setVendedorSelecionado] = useState('todos');
   const [empresaPrestadoraSelecionada, setEmpresaPrestadoraSelecionada] = useState('todas');
@@ -60,7 +62,12 @@ export default function RelatoriosPage() {
     try {
       const vendedorIdPayload = isVendedor ? meuVendedorId : (vendedorSelecionado !== 'todos' ? vendedorSelecionado : null);
       const empresaPrestadoraPayload = empresaPrestadoraSelecionada !== 'todas' ? parseInt(empresaPrestadoraSelecionada, 10) : null;
-      const payload = { tipo: tipoRelatorio, periodo, vendedor_id: vendedorIdPayload, empresa_prestadora_id: empresaPrestadoraPayload, acao };
+      const payload: Record<string, unknown> = { tipo: tipoRelatorio, periodo, vendedor_id: vendedorIdPayload, empresa_prestadora_id: empresaPrestadoraPayload, acao };
+      if (periodo === 'personalizado') {
+        if (!dataInicio || !dataFim) { alert('Informe a data de início e fim para o período personalizado.'); setGerando(false); return; }
+        payload.data_inicio = dataInicio;
+        payload.data_fim = dataFim;
+      }
 
       if (acao === 'pdf') {
         const res = await apiClient.post('/crm-vendas/relatorios/gerar/', payload, { responseType: 'blob' });
@@ -108,6 +115,8 @@ export default function RelatoriosPage() {
       <RelatorioForm
         tipoRelatorio={tipoRelatorio}
         periodo={periodo}
+        dataInicio={dataInicio}
+        dataFim={dataFim}
         vendedorSelecionado={vendedorSelecionado}
         vendedores={vendedores}
         empresasPrestadoras={empresasPrestadoras}
@@ -117,6 +126,8 @@ export default function RelatoriosPage() {
         loading={loading}
         onTipoChange={setTipoRelatorio}
         onPeriodoChange={setPeriodo}
+        onDataInicioChange={setDataInicio}
+        onDataFimChange={setDataFim}
         onVendedorChange={setVendedorSelecionado}
         onEmpresaPrestadoraChange={setEmpresaPrestadoraSelecionada}
         onGerar={handleGerar}

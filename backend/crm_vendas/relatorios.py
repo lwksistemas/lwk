@@ -169,10 +169,6 @@ def calcular_periodo(periodo_tipo: str):
     # Fallback: mês atual
     inicio = hoje.replace(day=1)
     return inicio, hoje
-    else:
-        # Padrão: mês atual
-        inicio = hoje.replace(day=1)
-        return inicio, hoje
 
 
 def _filtro_datas_fechamento_ganho(data_inicio, data_fim):

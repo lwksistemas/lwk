@@ -123,7 +123,6 @@ export default function PipelineBoard({
         <table className="min-w-full text-sm">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-600 text-left">
-              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Etapa</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Título</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Lead</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 text-right">Valor</th>
@@ -133,7 +132,7 @@ export default function PipelineBoard({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                   Nenhuma oportunidade neste filtro.
                 </td>
               </tr>
@@ -152,9 +151,6 @@ export default function PipelineBoard({
                   role="button"
                   tabIndex={0}
                 >
-                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                    {labelEtapa(etapasVisiveis, o.etapa)}
-                  </td>
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{o.titulo}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.lead_nome}</td>
                   <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400 whitespace-nowrap">

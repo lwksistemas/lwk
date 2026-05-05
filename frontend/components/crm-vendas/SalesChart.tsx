@@ -55,35 +55,31 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
     }
   }, [isVendedor]);
 
-  // Aplicar filtros
+  // Usar dados da prop diretamente (já filtrados pelo dashboard pai)
   useEffect(() => {
-    if (!data) {
-      setFilteredData(undefined);
-      return;
-    }
+    setFilteredData(data);
+  }, [data]);
 
-    // Se não há filtros ativos, usar dados originais
+  // Quando filtros internos mudam, buscar dados filtrados
+  useEffect(() => {
     if (periodo === 'mes_atual' && vendedorId === 'todos' && status === 'todas') {
       setFilteredData(data);
       return;
     }
-
-    // Aplicar filtros
     applyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periodo, vendedorId, status, dataInicio, dataFim, data]);
+  }, [periodo, vendedorId, status, dataInicio, dataFim]);
 
   const applyFilters = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.append('periodo', periodo);
       
-      // Filtro de período
+      // Filtro de período personalizado
       if (periodo === 'personalizado' && dataInicio && dataFim) {
         params.append('data_inicio', dataInicio);
         params.append('data_fim', dataFim);
-      } else if (periodo !== 'mes_atual') {
-        params.append('periodo', periodo);
       }
       
       // Filtro de vendedor
@@ -195,9 +191,9 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 <option value="mes_atual">Este mês</option>
-                <option value="ultimos_30_dias">Últimos 30 dias</option>
-                <option value="ultimos_90_dias">Últimos 90 dias</option>
-                <option value="este_ano">Este ano</option>
+                <option value="mes_passado">Mês passado</option>
+                <option value="trimestre_atual">Este trimestre</option>
+                <option value="ano_atual">Este ano</option>
                 <option value="personalizado">Personalizado</option>
               </select>
             </div>

@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import StatCard from '@/components/crm-vendas/StatCard';
 import SkeletonDashboard from '@/components/crm-vendas/SkeletonDashboard';
+import FunilVendas from '@/components/crm-vendas/FunilVendas';
 
 const SalesChart = dynamic(() => import('@/components/crm-vendas/SalesChart'), {
   ssr: false,
@@ -335,8 +336,11 @@ export default function CrmVendasDashboardPage() {
         </div>
       </div>
 
-      {/* Gráfico Pipeline por etapa */}
-      <SalesChart data={chartData.length > 0 ? chartData : undefined} title="Pipeline por etapa" />
+      {/* Gráfico Pipeline por etapa + Funil de Vendas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <SalesChart data={chartData.length > 0 ? chartData : undefined} title="Pipeline por etapa" />
+        <FunilVendas dados={data?.pipeline_por_etapa || []} etapasConfig={etapasAtivas()} />
+      </div>
 
       {/* Atividades de hoje + Top Vendedores – duas colunas - Estilo Salesforce */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

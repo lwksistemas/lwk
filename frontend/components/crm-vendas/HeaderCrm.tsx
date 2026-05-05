@@ -31,6 +31,9 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNovoMenu, setShowNovoMenu] = useState(false);
   const [showSuporteMenu, setShowSuporteMenu] = useState(false);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [notifs, setNotifs] = useState<{ id: number; titulo: string; mensagem: string; status: string; created_at: string }[]>([]);
+  const [notifsNaoLidas, setNotifsNaoLidas] = useState(0);
   const [modalSuporteAberto, setModalSuporteAberto] = useState(false);
   const [lojaNome, setLojaNome] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,6 +44,22 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
   const suporteRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchNotifs = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ id: number; titulo: string; mensagem: string; status: string; created_at: string }[]>('/notificacoes/');
+      const list = Array.isArray(res.data) ? res.data : [];
+      setNotifs(list);
+      setNotifsNaoLidas(list.filter(n => n.status !== 'lido').length);
+    } catch { /* silencioso */ }
+  }, []);
+
+  // Buscar notificações ao montar e a cada 60s
+  useEffect(() => {
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 60000);
+    return () => clearInterval(interval);
+  }, [fetchNotifs]);
 
   const fetchBusca = useCallback(async (q: string) => {
     if (!q || q.length < MIN_QUERY_LEN) {
@@ -348,16 +367,56 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
         </div>
 
         {/* Notifications */}
-        <button
-          type="button"
-          className="relative p-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] transition-colors text-gray-600 dark:text-gray-300"
-          aria-label="Notificações"
-          title="Notificações"
-        >
-          <Bell size={20} />
-          {/* Badge de notificação */}
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setShowNotifs(!showNotifs);
+              if (!showNotifs) fetchNotifs();
+            }}
+            className="relative p-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] transition-colors text-gray-600 dark:text-gray-300"
+            aria-label="Notificações"
+            title="Notificações"
+          >
+            <Bell size={20} />
+            {notifsNaoLidas > 0 && (
+              <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                {notifsNaoLidas > 9 ? '9+' : notifsNaoLidas}
+              </span>
+            )}
+          </button>
+          {showNotifs && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowNotifs(false)} />
+              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-80 overflow-y-auto">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c]">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Notificações</p>
+                </div>
+                {notifs.length === 0 ? (
+                  <p className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">Nenhuma notificação</p>
+                ) : (
+                  notifs.slice(0, 10).map((n) => (
+                    <div
+                      key={n.id}
+                      className={`px-4 py-3 border-b border-gray-100 dark:border-[#0d1f3c] ${n.status !== 'lido' ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                      onClick={() => {
+                        if (n.status !== 'lido') {
+                          apiClient.post(`/notificacoes/${n.id}/read/`).catch(() => {});
+                          setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, status: 'lido' } : x));
+                          setNotifsNaoLidas(prev => Math.max(0, prev - 1));
+                        }
+                      }}
+                    >
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{n.titulo}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{n.mensagem}</p>
+                      <p className="text-[10px] text-gray-400 mt-1">{new Date(n.created_at).toLocaleString('pt-BR')}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
         {/* Help */}
         <button

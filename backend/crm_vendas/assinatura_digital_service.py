@@ -221,7 +221,36 @@ def registrar_assinatura(assinatura, ip_address, user_agent=''):
         else:
             documento.save(update_fields=['status_assinatura', 'updated_at'])
         
+        # Notificar o dono da loja que a assinatura foi concluída
+        _notificar_assinatura_concluida(documento, assinatura)
+        
         return 'concluido'
+
+
+def _notificar_assinatura_concluida(documento, assinatura):
+    """Cria notificação in-app quando assinatura digital é concluída."""
+    try:
+        from notificacoes.models import Notification
+        from superadmin.models import Loja
+        loja_id = getattr(documento, 'loja_id', None)
+        if not loja_id:
+            return
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if not loja or not loja.owner_id:
+            return
+        tipo_doc = documento.__class__.__name__
+        titulo_doc = getattr(documento, 'titulo', '') or f'{tipo_doc} #{documento.id}'
+        Notification.objects.using('default').create(
+            user_id=loja.owner_id,
+            titulo=f'✅ {tipo_doc} assinada digitalmente',
+            mensagem=f'{titulo_doc} foi assinada por ambas as partes.',
+            tipo='sistema',
+            canal='in_app',
+            status='pendente',
+            metadata={'tipo_documento': tipo_doc.lower(), 'documento_id': documento.id, 'loja_id': loja_id},
+        )
+    except Exception as e:
+        logger.warning(f'Erro ao criar notificação de assinatura: {e}')
 
 
 def enviar_email_assinatura_cliente(documento, assinatura, request):

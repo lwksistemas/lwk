@@ -252,8 +252,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         'Section',
         parent=styles['Heading2'],
         fontSize=12,
-        spaceBefore=12,
-        spaceAfter=6,
+        spaceBefore=4,
+        spaceAfter=2,
         alignment=0,  # 0 = LEFT (alinhado à esquerda)
     )
 
@@ -434,7 +434,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
     ]))
     elements.append(assinatura_table)
-    elements.append(Spacer(1, 0.5*cm))
+    elements.append(Spacer(1, 0.2*cm))
 
     # Mensagem de validade jurídica
     validade_style = ParagraphStyle(
@@ -477,8 +477,8 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         'Section',
         parent=styles['Heading2'],
         fontSize=12,
-        spaceBefore=12,
-        spaceAfter=6,
+        spaceBefore=4,
+        spaceAfter=2,
     )
 
     # ✅ NOVO: Criar cabeçalho com logo à esquerda e título à direita
@@ -655,7 +655,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
     ]))
     elements.append(assinatura_table)
-    elements.append(Spacer(1, 0.5*cm))
+    elements.append(Spacer(1, 0.2*cm))
 
     # Mensagem de validade jurídica
     validade_style = ParagraphStyle(

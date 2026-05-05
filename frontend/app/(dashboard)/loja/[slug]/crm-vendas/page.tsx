@@ -88,6 +88,7 @@ export default function CrmVendasDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFiltro, setShowFiltro] = useState(false);
+  const [periodoFiltro, setPeriodoFiltro] = useState('mes_atual');
   const filtroRef = useRef<HTMLDivElement>(null);
 
   const pipelineMap = useMemo(() => 
@@ -133,7 +134,8 @@ export default function CrmVendasDashboardPage() {
     setShowFiltro((v) => !v);
   }, []);
 
-  const closeFiltro = useCallback(() => {
+  const selecionarPeriodo = useCallback((periodo: string) => {
+    setPeriodoFiltro(periodo);
     setShowFiltro(false);
   }, []);
 
@@ -143,14 +145,15 @@ export default function CrmVendasDashboardPage() {
   }, [handleClickOutside]);
 
   useEffect(() => {
+    setLoading(true);
     apiClient
-      .get<DashboardData>('/crm-vendas/dashboard/')
+      .get<DashboardData>(`/crm-vendas/dashboard/?periodo=${periodoFiltro}`)
       .then((res) => setData(res.data))
       .catch((err) => {
         setError(err.response?.data?.detail || 'Erro ao carregar dashboard.');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [periodoFiltro]);
 
   if (loading) {
     return <SkeletonDashboard />;
@@ -195,20 +198,21 @@ export default function CrmVendasDashboardPage() {
                 <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-[#0d1f3c]">
                   Período
                 </div>
-                <button
-                  type="button"
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
-                  onClick={closeFiltro}
-                >
-                  Este mês (padrão)
-                </button>
-                <button
-                  type="button"
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
-                  onClick={closeFiltro}
-                >
-                  Últimos 30 dias
-                </button>
+                {[
+                  { key: 'mes_atual', label: 'Este mês' },
+                  { key: 'mes_passado', label: 'Mês passado' },
+                  { key: 'trimestre_atual', label: 'Este trimestre' },
+                  { key: 'ano_atual', label: 'Este ano' },
+                ].map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-[#0d1f3c] ${periodoFiltro === p.key ? 'text-[#0176d3] font-semibold' : 'text-gray-700 dark:text-gray-200'}`}
+                    onClick={() => selecionarPeriodo(p.key)}
+                  >
+                    {p.label} {periodoFiltro === p.key ? '✓' : ''}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -338,7 +342,7 @@ export default function CrmVendasDashboardPage() {
 
       {/* Gráfico Pipeline por etapa + Funil de Vendas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <SalesChart data={chartData.length > 0 ? chartData : undefined} title="Pipeline por etapa — Mês Atual" />
+        <SalesChart data={chartData.length > 0 ? chartData : undefined} title={`Pipeline por etapa — ${periodoFiltro === 'mes_atual' ? 'Mês Atual' : periodoFiltro === 'mes_passado' ? 'Mês Passado' : periodoFiltro === 'trimestre_atual' ? 'Trimestre' : 'Ano'}`} />
         <FunilVendas dados={data?.pipeline_por_etapa || []} etapasConfig={etapasAtivas()} />
       </div>
 

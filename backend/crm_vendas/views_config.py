@@ -674,7 +674,20 @@ def crm_config_issnet_test(request):
     cleanup_cert = False
     upload = request.FILES.get('issnet_certificado') if hasattr(request, 'FILES') else None
     if upload:
-        suf = os.path.splitext(getattr(upload, 'name', '') or '')[1] or '.pfx'
+        # Validação de tamanho (máx 5MB) e extensão
+        max_size = 5 * 1024 * 1024  # 5MB
+        if upload.size > max_size:
+            return Response(
+                {'success': False, 'detail': 'Certificado muito grande. Tamanho máximo: 5MB.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ext = os.path.splitext(getattr(upload, 'name', '') or '')[1].lower()
+        if ext not in ('.pfx', '.p12'):
+            return Response(
+                {'success': False, 'detail': 'Formato inválido. Envie um arquivo .pfx ou .p12.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        suf = ext or '.pfx'
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suf)
         try:
             for chunk in upload.chunks():

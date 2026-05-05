@@ -82,6 +82,7 @@ export default function CrmVendasContratosPage() {
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState('');
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
@@ -362,6 +363,20 @@ export default function CrmVendasContratosPage() {
       )}
 
       <div className="bg-white dark:bg-[#16325c] rounded-lg shadow border border-gray-200 dark:border-[#0d1f3c] overflow-hidden">
+        {/* Filtro de status */}
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center gap-3 flex-wrap">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Filtrar:</span>
+          {['', 'rascunho', 'enviado', 'assinado', 'cancelado'].map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setFiltroStatus(s)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${filtroStatus === s ? 'bg-[#0176d3] text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+            >
+              {s === '' ? `Todos (${contratos.length})` : `${STATUS_LABEL[s] || s} (${contratos.filter(c => c.status === s).length})`}
+            </button>
+          ))}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[500px]">
             <thead>
@@ -390,7 +405,7 @@ export default function CrmVendasContratosPage() {
                   </td>
                 </tr>
               ) : (
-                contratos.map((c) => (
+                contratos.filter(c => !filtroStatus || c.status === filtroStatus).map((c) => (
                   <tr key={c.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
                     <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{c.numero || '---'}</td>
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{c.titulo || `Contrato #${c.id}`}</td>

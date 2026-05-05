@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { Plus, Eye, Edit2, Trash2, Building2 } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, Building2, Download } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import { ContaFormModal, type ContaFormData } from './components/ContaFormModal';
 import { ContaViewModal } from './components/ContaViewModal';
@@ -154,9 +154,31 @@ export default function CrmVendasCustomersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Contas</h1>
-        <button type="button" onClick={() => openModal('create')} className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium shadow-sm">
-          <Plus size={18} /> <span>Nova Conta</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {contas.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const headers = ['Nome', 'CNPJ', 'Razão Social', 'Segmento', 'Email', 'Telefone'];
+                const rows = contas.map((c: any) => [c.nome, c.cnpj || '', c.razao_social || '', c.segmento || '', c.email || '', c.telefone || '']);
+                const csv = [headers.join(';'), ...rows.map((r: string[]) => r.map(v => `"${(v || '').replace(/"/g, '""')}"`).join(';'))].join('\n');
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `contas_${new Date().toISOString().slice(0, 10)}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600"
+            >
+              <Download size={16} /> Exportar CSV
+            </button>
+          )}
+          <button type="button" onClick={() => openModal('create')} className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium shadow-sm">
+            <Plus size={18} /> <span>Nova Conta</span>
+          </button>
+        </div>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">{error}</div>}

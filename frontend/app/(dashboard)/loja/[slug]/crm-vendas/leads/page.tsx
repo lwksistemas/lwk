@@ -8,7 +8,7 @@ import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import LeadsTable, { type Lead } from '@/components/crm-vendas/LeadsTable';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
@@ -226,13 +226,36 @@ export default function CrmVendasLeadsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Leads</h1>
-        <a
-          href={`/loja/${slug}/crm-vendas/leads/novo`}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition text-sm inline-flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Novo Lead
-        </a>
+        <div className="flex items-center gap-2">
+          {leads.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const headers = ['Nome', 'Empresa', 'Email', 'Telefone', 'CPF/CNPJ', 'Status'];
+                const rows = leads.map(l => [l.nome, l.empresa || '', l.email || '', l.telefone || '', (l as any).cpf_cnpj || '', l.status]);
+                const csv = [headers.join(';'), ...rows.map(r => r.map(c => `"${(c || '').replace(/"/g, '""')}"`).join(';'))].join('\n');
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 font-medium transition text-sm inline-flex items-center gap-2"
+            >
+              <Download size={16} />
+              Exportar CSV
+            </button>
+          )}
+          <a
+            href={`/loja/${slug}/crm-vendas/leads/novo`}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition text-sm inline-flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Novo Lead
+          </a>
+        </div>
       </div>
 
       <LeadsTable

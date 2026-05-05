@@ -4,15 +4,35 @@ Extraído de views.py para melhor organização.
 """
 import json
 import logging
+from functools import wraps
 
 from django.views import View
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.core.cache import cache
 
 from tenants.middleware import set_current_loja_id, set_current_tenant_db, get_current_loja_id
 
 logger = logging.getLogger(__name__)
+
+
+def _rate_limit(key_prefix, max_requests=10, window=60):
+    """Rate limiting simples por IP. Bloqueia após max_requests em window segundos."""
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(self, request, *args, **kwargs):
+            ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
+            if ',' in ip:
+                ip = ip.split(',')[0].strip()
+            cache_key = f'rate_limit:{key_prefix}:{ip}'
+            count = cache.get(cache_key, 0)
+            if count >= max_requests:
+                return JsonResponse({'error': 'Muitas tentativas. Aguarde um momento.'}, status=429)
+            cache.set(cache_key, count + 1, window)
+            return view_func(self, request, *args, **kwargs)
+        return wrapper
+    return decorator
 
 def _configurar_tenant_para_assinatura_publica(loja_id):
     """
@@ -48,6 +68,7 @@ class AssinaturaPublicaView(View):
     POST /api/crm-vendas/assinar/{token}/ - Registra assinatura
     """
     
+    @_rate_limit('assinatura_get', max_requests=30, window=60)
     def get(self, request, token):
         """Retorna dados do documento para assinatura"""
         from .assinatura_digital_service import verificar_token_assinatura, normalizar_token_assinatura_url
@@ -108,6 +129,7 @@ class AssinaturaPublicaView(View):
             'vendedor_email': getattr(vendedor, 'email', '') or '',
         })
     
+    @_rate_limit('assinatura_post', max_requests=5, window=60)
     def post(self, request, token):
         """Registra a assinatura"""
         from .assinatura_digital_service import (
@@ -201,6 +223,7 @@ class AssinaturaPdfView(View):
     GET /api/crm-vendas/assinar/{token}/pdf/ - Retorna PDF do documento
     """
     
+    @_rate_limit('assinatura_pdf', max_requests=20, window=60)
     def get(self, request, token):
         """Retorna PDF do documento para visualização"""
         from .assinatura_digital_service import verificar_token_assinatura, normalizar_token_assinatura_url

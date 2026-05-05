@@ -46,11 +46,32 @@ def calcular_intervalo_datas(periodo, data_inicio_param=None, data_fim_param=Non
             )
         except (ValueError, TypeError):
             pass
+    if periodo == 'hoje':
+        return hoje, hoje
+    if periodo == 'ontem':
+        ontem = hoje - timedelta(days=1)
+        return ontem, ontem
+    if periodo == 'semana_atual':
+        inicio = hoje - timedelta(days=hoje.weekday())
+        return inicio, hoje
+    if periodo == 'semana_passada':
+        fim = hoje - timedelta(days=hoje.weekday() + 1)
+        inicio = fim - timedelta(days=6)
+        return inicio, fim
+    if periodo == 'mes_passado':
+        primeiro_dia_mes_atual = hoje.replace(day=1)
+        ultimo_dia_mes_passado = primeiro_dia_mes_atual - timedelta(days=1)
+        primeiro_dia_mes_passado = ultimo_dia_mes_passado.replace(day=1)
+        return primeiro_dia_mes_passado, ultimo_dia_mes_passado
+    if periodo == 'trimestre_atual':
+        mes_inicio_trimestre = ((hoje.month - 1) // 3) * 3 + 1
+        inicio = hoje.replace(month=mes_inicio_trimestre, day=1)
+        return inicio, hoje
     if periodo == 'ultimos_30_dias':
         return hoje - timedelta(days=30), hoje
     if periodo == 'ultimos_90_dias':
         return hoje - timedelta(days=90), hoje
-    if periodo == 'este_ano':
+    if periodo in ('este_ano', 'ano_atual'):
         return hoje.replace(month=1, day=1), hoje
     # mes_atual (padrão)
     return hoje.replace(day=1), hoje

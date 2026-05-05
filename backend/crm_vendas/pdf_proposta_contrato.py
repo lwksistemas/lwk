@@ -12,8 +12,11 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.enums import TA_CENTER
 import re
 import pytz
+import logging
 import requests
 from PIL import Image as PILImage
+
+logger = logging.getLogger(__name__)
 
 
 def _formatar_timestamp_local(assinado_em):
@@ -115,7 +118,7 @@ def _criar_cabecalho_com_logo(logo_url, titulo, max_width=6*cm, max_height=3*cm)
         
     except Exception as e:
         # Se falhar ao carregar logo, retorna apenas título centralizado
-        print(f"⚠️ Erro ao adicionar logo no PDF: {e}")
+        logger.warning(f"Erro ao adicionar logo no PDF: {e}")
         title_style.alignment = TA_CENTER
         return Paragraph(titulo, title_style)
 

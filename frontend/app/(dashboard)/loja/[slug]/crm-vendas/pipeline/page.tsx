@@ -652,12 +652,15 @@ export default function CrmVendasPipelinePage() {
                 onChange={(e) => setFiltroEtapaPipeline(e.target.value)}
                 className="min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               >
-                <option value="">Todos</option>
-                {etapasAtivas().map((et) => (
-                  <option key={et.key} value={et.key}>
-                    {et.label}
-                  </option>
-                ))}
+                <option value="">Todos ({oportunidades.length})</option>
+                {etapasAtivas().map((et) => {
+                  const count = oportunidades.filter(o => o.etapa === et.key).length;
+                  return (
+                    <option key={et.key} value={et.key}>
+                      {et.label} ({count})
+                    </option>
+                  );
+                })}
               </select>
               {vendedores.length > 0 && (
                 <>

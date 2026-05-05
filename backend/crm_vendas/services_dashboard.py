@@ -147,14 +147,17 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         for e in ETAPAS_PIPELINE
     ]
 
-    # Atividades próximas
+    # Atividades próximas (apenas não concluídas)
     hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     proximos_7_dias = hoje_inicio + timedelta(days=7)
     atividades_pendentes = atividades_qs.filter(
         data__gte=hoje_inicio, data__lt=proximos_7_dias, concluido=False
     ).order_by('data').values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:10]
     if not atividades_pendentes:
-        atividades_pendentes = atividades_qs.order_by('-data').values(
+        # Fallback: próximas atividades não concluídas (qualquer data futura)
+        atividades_pendentes = atividades_qs.filter(
+            concluido=False
+        ).order_by('data').values(
             'id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes'
         )[:5]
     atividades_data = list(atividades_pendentes)

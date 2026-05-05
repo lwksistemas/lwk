@@ -106,11 +106,13 @@ export default function CrmVendasDashboardPage() {
   , [etapasAtivas, pipelineMap]);
 
   const chartData = useMemo(() => 
-    etapasComValor.map((p) => ({
-      name: p.label,
-      valor: p.valor,
-      quantidade: p.quantidade,
-    }))
+    etapasComValor
+      .filter((p) => p.valor > 0 || p.quantidade > 0)
+      .map((p) => ({
+        name: p.label,
+        valor: p.valor,
+        quantidade: p.quantidade,
+      }))
   , [etapasComValor]);
 
   const atividades = useMemo(() => 

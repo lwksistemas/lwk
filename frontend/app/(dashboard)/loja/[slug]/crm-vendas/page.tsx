@@ -338,7 +338,7 @@ export default function CrmVendasDashboardPage() {
 
       {/* Gráfico Pipeline por etapa + Funil de Vendas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <SalesChart data={chartData.length > 0 ? chartData : undefined} title="Pipeline por etapa" />
+        <SalesChart data={chartData.length > 0 ? chartData : undefined} title="Pipeline por etapa — Mês Atual" />
         <FunilVendas dados={data?.pipeline_por_etapa || []} etapasConfig={etapasAtivas()} />
       </div>
 

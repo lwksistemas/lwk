@@ -144,10 +144,19 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         .values('etapa')
         .annotate(valor=Sum('valor'), qtd=Count('id'))
     }
+    # Fechadas: filtra por data_fechamento_ganho, data_fechamento_perdido ou data_fechamento
+    _filtro_fechado_periodo = (
+        Q(data_fechamento_ganho__gte=data_inicio, data_fechamento_ganho__lte=data_fim)
+        | Q(data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim)
+        | (
+            Q(data_fechamento_ganho__isnull=True, data_fechamento_perdido__isnull=True)
+            & Q(data_fechamento__gte=data_inicio, data_fechamento__lte=data_fim)
+        )
+    )
     pipeline_fechado_map = {
         row['etapa']: {'valor': float(row['valor'] or 0), 'quantidade': row['qtd'] or 0}
         for row in opp_qs.filter(etapa__in=['closed_won', 'closed_lost'])
-        .filter(_filtro_fechamento_no_periodo(data_inicio, data_fim))
+        .filter(_filtro_fechado_periodo)
         .values('etapa')
         .annotate(valor=Sum('valor'), qtd=Count('id'))
     }

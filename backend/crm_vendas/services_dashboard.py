@@ -136,12 +136,22 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
     taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
 
     # Pipeline por etapa (1 query)
-    pipeline_map = {
+    # Etapas abertas: mostra todas (são o pipeline ativo)
+    # Etapas fechadas (ganho/perdido): filtra pelo período selecionado
+    pipeline_aberto_map = {
         row['etapa']: {'valor': float(row['valor'] or 0), 'quantidade': row['qtd'] or 0}
-        for row in opp_qs.filter(etapa__in=ETAPAS_PIPELINE)
+        for row in opp_qs.filter(etapa__in=ETAPAS_EM_ANDAMENTO)
         .values('etapa')
         .annotate(valor=Sum('valor'), qtd=Count('id'))
     }
+    pipeline_fechado_map = {
+        row['etapa']: {'valor': float(row['valor'] or 0), 'quantidade': row['qtd'] or 0}
+        for row in opp_qs.filter(etapa__in=['closed_won', 'closed_lost'])
+        .filter(_filtro_fechamento_no_periodo(data_inicio, data_fim))
+        .values('etapa')
+        .annotate(valor=Sum('valor'), qtd=Count('id'))
+    }
+    pipeline_map = {**pipeline_aberto_map, **pipeline_fechado_map}
     pipeline_por_etapa = [
         {'etapa': e, **(pipeline_map.get(e, {'valor': 0, 'quantidade': 0}))}
         for e in ETAPAS_PIPELINE

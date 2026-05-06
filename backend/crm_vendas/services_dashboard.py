@@ -141,6 +141,8 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         opp_qs = opp_qs.filter(etapa__in=['closed_won', 'closed_lost'])
 
     filtro_opp_mes = _filtro_fechamento_no_periodo(data_inicio, data_fim)
+    # Filtro para oportunidades criadas no período (para pipeline aberto)
+    filtro_criado_periodo = Q(created_at__date__gte=data_inicio, created_at__date__lte=data_fim)
 
     # Agregações principais (1 query)
     agg = opp_qs.aggregate(
@@ -148,9 +150,9 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         receita=Sum('valor', filter=Q(etapa='closed_won') & filtro_opp_mes),
         pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
         oportunidades_em_andamento=Count('id', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
-        total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost'])),
-        total_ganhos=Count('id', filter=Q(etapa='closed_won')),
-        valor_perdido=Sum('valor', filter=Q(etapa='closed_lost')),
+        total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost']) & (filtro_opp_mes | Q(etapa='closed_lost', data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim))),
+        total_ganhos=Count('id', filter=Q(etapa='closed_won') & filtro_opp_mes),
+        valor_perdido=Sum('valor', filter=Q(etapa='closed_lost') & Q(data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim)),
     )
     total_fechados = agg['total_fechados'] or 0
     total_ganhos = agg['total_ganhos'] or 0

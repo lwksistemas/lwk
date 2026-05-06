@@ -207,10 +207,8 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         if a.get('data'):
             a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
 
-    # Performance vendedores (período do mês atual para comissão)
-    hoje = timezone.now().date()
-    mes_inicio, mes_fim = hoje.replace(day=1), hoje
-    filtro_perf = _filtro_fechamento_no_periodo(mes_inicio, mes_fim, prefix='oportunidades')
+    # Performance vendedores (usa período selecionado pelo filtro)
+    filtro_perf = _filtro_fechamento_no_periodo(data_inicio, data_fim, prefix='oportunidades')
     perf_qs = vendedores_qs.annotate(
         receita_mes=Sum('oportunidades__valor', filter=Q(oportunidades__etapa='closed_won') & filtro_perf),
         comissao_mes=Sum('oportunidades__valor_comissao', filter=Q(oportunidades__etapa='closed_won') & filtro_perf),
@@ -220,7 +218,7 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         for v in perf_qs
     ]
 
-    filtro_opp_mes_direto = _filtro_fechamento_no_periodo(mes_inicio, mes_fim)
+    filtro_opp_mes_direto = _filtro_fechamento_no_periodo(data_inicio, data_fim)
     comissao_total_mes = opp_qs.filter(etapa='closed_won').filter(filtro_opp_mes_direto).aggregate(
         total=Sum('valor_comissao')
     )['total'] or 0
@@ -249,7 +247,7 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
     performance_vendedores.sort(key=lambda x: -x['receita_mes'])
 
     return {
-        'leads': leads_qs.count(),
+        'leads': leads_qs.filter(created_at__date__gte=data_inicio, created_at__date__lte=data_fim).count(),
         'oportunidades': agg['total_oportunidades'] or 0,
         'receita': float(agg['receita'] or 0),
         'pipeline_aberto': float(agg['pipeline_aberto'] or 0),

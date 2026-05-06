@@ -59,7 +59,12 @@ class AssinaturaDigitalMixin:
 
         assinatura = criar_token_assinatura(doc, 'cliente', loja_id)
         doc.status_assinatura = 'aguardando_cliente'
-        doc.save(update_fields=['status_assinatura', 'updated_at'])
+        # Mudar status comercial para 'enviada' se ainda estiver em rascunho
+        update_fields = ['status_assinatura', 'updated_at']
+        if hasattr(doc, 'status') and doc.status == 'rascunho':
+            doc.status = 'enviada'
+            update_fields.append('status')
+        doc.save(update_fields=update_fields)
 
         ok, err = enviar_email_assinatura_cliente(doc, assinatura, request)
         if ok:

@@ -237,6 +237,21 @@ export default function CrmVendasPropostasPage() {
     }
   };
 
+  const handleRejeitarProposta = async (propostaId: number) => {
+    if (!confirm('Rejeitar esta proposta?\n\nIsso indica que o cliente não aceitou a proposta.')) {
+      return;
+    }
+    try {
+      setAlterandoStatus(propostaId);
+      await apiClient.patch(`/crm-vendas/propostas/${propostaId}/`, { status: 'rejeitada', status_assinatura: 'cancelado' });
+      await loadPropostas(true);
+    } catch (err: unknown) {
+      alert(getCrmApiErrorDetail(err, 'Erro ao rejeitar proposta.'));
+    } finally {
+      setAlterandoStatus(null);
+    }
+  };
+
   const handleCancelarProposta = async (motivo: string) => {
     if (!selected) return;
     try {
@@ -587,6 +602,16 @@ export default function CrmVendasPropostasPage() {
                                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50 font-medium"
                                       >
                                         <ShoppingCart size={15} className="text-emerald-600" /> Confirmar como Pedido
+                                      </button>
+                                    )}
+                                    {(p.status === 'enviada' || p.status_assinatura === 'aguardando_cliente' || p.status_assinatura === 'aguardando_vendedor') && p.status !== 'rejeitada' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleRejeitarProposta(p.id); setMenuAberto(null); }}
+                                        disabled={alterandoStatus !== null}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                                      >
+                                        <Trash2 size={15} className="text-red-500" /> Rejeitar proposta
                                       </button>
                                     )}
                                     <button

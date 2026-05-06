@@ -11,6 +11,7 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.core.cache import cache
+from django.conf import settings
 
 from tenants.middleware import set_current_loja_id, set_current_tenant_db, get_current_loja_id
 

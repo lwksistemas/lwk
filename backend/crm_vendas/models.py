@@ -407,6 +407,16 @@ class ProdutoServico(LojaIsolationMixin, models.Model):
         help_text='Categoria/Grupo do produto ou serviço'
     )
     preco = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    RECORRENCIA_CHOICES = [
+        ('unico', 'Único (adesão/implantação)'),
+        ('mensal', 'Mensal'),
+        ('trimestral', 'Trimestral'),
+        ('anual', 'Anual'),
+    ]
+    recorrencia = models.CharField(
+        max_length=20, choices=RECORRENCIA_CHOICES, default='unico',
+        help_text='Tipo de cobrança: único (adesão) ou recorrente (mensal, trimestral, anual)'
+    )
     ativo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

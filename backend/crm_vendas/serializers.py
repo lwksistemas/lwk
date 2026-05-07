@@ -496,7 +496,7 @@ class ProdutoServicoSerializer(TextNormalizationMixin, serializers.ModelSerializ
         model = ProdutoServico
         fields = [
             'id', 'tipo', 'codigo', 'nome', 'descricao', 'categoria', 
-            'categoria_nome', 'categoria_cor', 'preco', 'ativo',
+            'categoria_nome', 'categoria_cor', 'preco', 'recorrencia', 'ativo',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -505,12 +505,14 @@ class ProdutoServicoSerializer(TextNormalizationMixin, serializers.ModelSerializ
 class OportunidadeItemSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     produto_servico_nome = serializers.CharField(source='produto_servico.nome', read_only=True)
     produto_servico_tipo = serializers.CharField(source='produto_servico.tipo', read_only=True)
+    produto_servico_recorrencia = serializers.CharField(source='produto_servico.recorrencia', read_only=True)
     subtotal = serializers.SerializerMethodField()
 
     class Meta:
         model = OportunidadeItem
         fields = [
             'id', 'oportunidade', 'produto_servico', 'produto_servico_nome', 'produto_servico_tipo',
+            'produto_servico_recorrencia',
             'quantidade', 'preco_unitario', 'subtotal', 'observacao', 'created_at',
         ]
         read_only_fields = ['created_at']

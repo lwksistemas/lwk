@@ -55,6 +55,7 @@ export default function CrmVendasProdutosServicosPage() {
     descricao: '',
     categoria: null,
     preco: '0',
+    recorrencia: 'unico',
     ativo: true,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -121,6 +122,7 @@ export default function CrmVendasProdutosServicosPage() {
         descricao: item.descricao || '',
         categoria: item.categoria || null,
         preco: item.preco || '0',
+        recorrencia: (item as any).recorrencia || 'unico',
         ativo: item.ativo ?? true,
       });
     } else if (type === 'create') {
@@ -136,6 +138,7 @@ export default function CrmVendasProdutosServicosPage() {
         descricao: '',
         categoria: cid,
         preco: '0',
+        recorrencia: 'unico',
         ativo: true,
       });
     }

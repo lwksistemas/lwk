@@ -312,19 +312,28 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     # Produtos e Serviços da Oportunidade (Valor total ao final)
     itens = []
     if proposta.oportunidade:
-        itens = list(proposta.oportunidade.itens.all())
+        itens = list(proposta.oportunidade.itens.select_related('produto_servico').all())
     elements.append(Paragraph('<b>Produtos e Serviços da Oportunidade</b>', section_style))
     if itens:
-        table_data = [['Item', 'Qtd', 'Preço Unit.', 'Subtotal']]
+        table_data = [['Item', 'Recorrência', 'Qtd', 'Preço Unit.', 'Subtotal']]
+        valor_unico = 0
+        valor_mensal = 0
         for item in itens:
             ps = item.produto_servico
             tipo_ps = ps.get_tipo_display() if hasattr(ps, 'get_tipo_display') else getattr(ps, 'tipo', '')
             nome = f"{tipo_ps}: {ps.nome}" if tipo_ps else ps.nome
+            recorrencia = getattr(ps, 'recorrencia', 'unico') or 'unico'
+            recorrencia_label = {'unico': 'Único', 'mensal': 'Mensal', 'trimestral': 'Trimestral', 'anual': 'Anual'}.get(recorrencia, recorrencia)
             qtd = str(item.quantidade) if item.quantidade is not None else '1'
             preco = _formatar_valor(item.preco_unitario)
-            subtotal = _formatar_valor(getattr(item, 'subtotal', None) or (item.quantidade * item.preco_unitario if item.quantidade and item.preco_unitario else None))
-            table_data.append([nome, qtd, preco, subtotal])
-        t = Table(table_data, colWidths=[None, 40, 70, 70])
+            sub = item.quantidade * item.preco_unitario if item.quantidade and item.preco_unitario else 0
+            subtotal = _formatar_valor(sub)
+            table_data.append([nome, recorrencia_label, qtd, preco, subtotal])
+            if recorrencia == 'unico':
+                valor_unico += float(sub)
+            else:
+                valor_mensal += float(sub)
+        t = Table(table_data, colWidths=[None, 60, 35, 65, 65])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e3f3ff')),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -334,8 +343,14 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
-        t.hAlign = 'LEFT'  # Alinhar tabela à esquerda
+        t.hAlign = 'LEFT'
         elements.append(t)
+        # Resumo: valor único + valor mensal
+        if valor_unico > 0 and valor_mensal > 0:
+            elements.append(Paragraph(f'<b>Adesão/Implantação:</b> {_formatar_valor(valor_unico)}', styles['Normal']))
+            elements.append(Paragraph(f'<b>Valor Mensal:</b> {_formatar_valor(valor_mensal)}/mês', styles['Normal']))
+        elif valor_mensal > 0:
+            elements.append(Paragraph(f'<b>Valor Mensal:</b> {_formatar_valor(valor_mensal)}/mês', styles['Normal']))
     else:
         elements.append(Paragraph('Nenhum item cadastrado.', styles['Normal']))
     # Valor total ao final dos Produtos e Serviços

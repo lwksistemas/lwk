@@ -116,6 +116,25 @@ export function ProdutoServicoForm({
         />
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Recorrência
+        </label>
+        <select
+          value={formData.recorrencia || 'unico'}
+          onChange={(e) => onChange({ recorrencia: e.target.value as 'unico' | 'mensal' | 'trimestral' | 'anual' })}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+        >
+          <option value="unico">Único (adesão/implantação)</option>
+          <option value="mensal">Mensal</option>
+          <option value="trimestral">Trimestral</option>
+          <option value="anual">Anual</option>
+        </select>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Define se a cobrança é única ou recorrente
+        </p>
+      </div>
+
       {isEdit && (
         <div className="flex items-center gap-2">
           <input

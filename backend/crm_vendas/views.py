@@ -1087,9 +1087,9 @@ class OportunidadeItemViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseM
             total=Sum(F('quantidade') * F('preco_unitario'))
         )['total'] or 0
         Oportunidade.objects.filter(id=oportunidade_id).update(valor=total)
-        # Sincronizar propostas e contratos em rascunho
-        Proposta.objects.filter(oportunidade_id=oportunidade_id, status='rascunho').update(valor_total=total)
-        Contrato.objects.filter(oportunidade_id=oportunidade_id, status='rascunho').update(valor_total=total)
+        # Sincronizar propostas e contratos (todas que não estão canceladas/rejeitadas)
+        Proposta.objects.filter(oportunidade_id=oportunidade_id).exclude(status__in=['cancelada', 'rejeitada']).update(valor_total=total)
+        Contrato.objects.filter(oportunidade_id=oportunidade_id).exclude(status='cancelado').update(valor_total=total)
 
     def perform_create(self, serializer):
         serializer.save()

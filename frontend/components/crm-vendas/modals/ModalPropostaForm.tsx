@@ -52,6 +52,7 @@ export interface OportunidadeItem {
   produto_servico: number;
   produto_servico_nome: string;
   produto_servico_tipo: string;
+  produto_servico_recorrencia?: string;
   quantidade: string;
   preco_unitario: string;
   subtotal: number;

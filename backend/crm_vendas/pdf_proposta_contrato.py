@@ -46,12 +46,12 @@ def _criar_cabecalho_com_logo(logo_url, titulo, max_width=6*cm, max_height=3*cm)
     title_style = ParagraphStyle(
         'HeaderTitle',
         parent=styles['Heading1'],
-        fontSize=18,
+        fontSize=16,
         textColor=colors.HexColor('#0176d3'),
         alignment=TA_LEFT,
         spaceBefore=0,  # Sem espaço antes
         spaceAfter=0,   # Sem espaço depois
-        leading=22,     # Altura da linha
+        leading=18,     # Altura da linha
     )
     
     # Se não houver logo, retorna apenas o título centralizado
@@ -278,7 +278,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         BytesIO: buffer com o PDF gerado
     """
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.3*cm, bottomMargin=0.8*cm, leftMargin=2*cm, rightMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.2*cm, bottomMargin=0.5*cm, leftMargin=2*cm, rightMargin=2*cm)
     elements = []
     styles = getSampleStyleSheet()
 
@@ -286,17 +286,17 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     compact_style = ParagraphStyle(
         'Compact',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=9,
         spaceBefore=0,
         spaceAfter=1,
-        leading=12,
+        leading=11,
     )
 
     section_style = ParagraphStyle(
         'Section',
         parent=styles['Heading2'],
-        fontSize=11,
-        spaceBefore=3,
+        fontSize=10,
+        spaceBefore=2,
         spaceAfter=1,
         alignment=0,  # 0 = LEFT (alinhado à esquerda)
     )
@@ -376,11 +376,13 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         t.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e3f3ff')),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
             ('ALIGN', (0, 0), (0, -1), 'LEFT'),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ]))
         t.hAlign = 'LEFT'
         elements.append(t)

@@ -92,15 +92,18 @@ def crm_me(request):
     
     try:
         from superadmin.models import Loja
-        from .models import Vendedor
         loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
         
         # Verificar se é proprietário da loja
         is_owner = loja and loja.owner_id == request.user.id
         
         if vendedor_id is not None:
-            vendedor = Vendedor.objects.filter(id=vendedor_id, loja_id=loja_id).first()
-            user_display_name = vendedor.nome if vendedor else request.user.get_full_name() or request.user.username
+            try:
+                from .models import Vendedor as VendedorModel
+                vendedor = VendedorModel.objects.filter(id=vendedor_id, loja_id=loja_id).first()
+                user_display_name = vendedor.nome if vendedor else request.user.get_full_name() or request.user.username
+            except Exception:
+                user_display_name = request.user.get_full_name() or request.user.username
             # Owner NUNCA é marcado como vendedor, mesmo se vinculado
             if not is_owner:
                 user_role = 'vendedor'

@@ -10,7 +10,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CreditCard, Download, RefreshCw, CheckCircle, Clock, AlertTriangle, ArrowLeft } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
-import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
 import { PaymentTabs } from './components/PaymentTabs';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 
@@ -37,7 +36,14 @@ const STATUS_COLOR: Record<string, 'default' | 'secondary' | 'destructive'> = {
 export default function AssinaturaLojaPage() {
   const params = useParams();
   const slug = params.slug as string;
-  useClinicaBelezaDark();
+
+  // Aplicar dark mode baseado na preferência salva (mesma chave do CRM)
+  useEffect(() => {
+    const theme = localStorage.getItem('theme');
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
 
   const [data, setData] = useState<AssinaturaData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +106,7 @@ export default function AssinaturaLojaPage() {
 
   const copiarPix = (text?: string) => { if (text) { navigator.clipboard.writeText(text); alert('Código PIX copiado!'); } };
 
-  const pw = 'min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100';
+  const pw = 'min-h-screen bg-white dark:bg-[#0d1117] text-gray-800 dark:text-gray-100';
 
   if (loading) return <div className={`${pw} flex items-center justify-center p-6`}><RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
   if (error || !data) return (

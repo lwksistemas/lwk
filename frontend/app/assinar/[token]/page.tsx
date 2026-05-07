@@ -9,6 +9,8 @@ interface DocumentoData {
   tipo_documento: string;
   titulo: string;
   valor_total: string;
+  valor_adesao?: string;
+  valor_mensal?: string;
   nome_assinante: string;
   tipo_assinante: string;
   tipo_assinante_display: string;
@@ -358,8 +360,44 @@ export default function AssinaturaPage() {
             <div className="flex items-start space-x-3 border-t pt-4">
               <DollarSign className="w-5 h-5 text-gray-400 mt-1" />
               <div className="flex-1">
-                <p className="text-sm text-gray-500">Valor Total</p>
-                <p className="text-2xl font-bold text-green-600">{valorFormatado}</p>
+                {parseFloat(documento?.valor_adesao || '0') > 0 && parseFloat(documento?.valor_mensal || '0') > 0 ? (
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-sm text-gray-500">Adesão/Implantação</p>
+                      <p className="text-lg font-bold text-gray-800">
+                        {parseFloat(documento.valor_adesao || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Valor Mensal</p>
+                      <p className="text-lg font-bold text-blue-600">
+                        {parseFloat(documento.valor_mensal || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                      </p>
+                    </div>
+                    <div className="pt-1 border-t">
+                      <p className="text-sm text-gray-500">Valor Total</p>
+                      <p className="text-2xl font-bold text-green-600">{valorFormatado}</p>
+                    </div>
+                  </div>
+                ) : parseFloat(documento?.valor_mensal || '0') > 0 ? (
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-sm text-gray-500">Valor Mensal</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {parseFloat(documento.valor_mensal || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Valor Total</p>
+                      <p className="text-lg font-bold text-green-600">{valorFormatado}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-gray-500">Valor Total</p>
+                    <p className="text-2xl font-bold text-green-600">{valorFormatado}</p>
+                  </div>
+                )}
               </div>
             </div>
             

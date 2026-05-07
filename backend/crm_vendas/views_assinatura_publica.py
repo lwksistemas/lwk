@@ -68,6 +68,21 @@ class AssinaturaPublicaView(View):
     GET /api/crm-vendas/assinar/{token}/ - Retorna dados do documento
     POST /api/crm-vendas/assinar/{token}/ - Registra assinatura
     """
+
+    def _calcular_valor_por_recorrencia(self, oportunidade, recorrencia_tipo):
+        """Calcula soma dos itens por tipo de recorrência."""
+        if not oportunidade:
+            return 0
+        try:
+            itens = oportunidade.itens.select_related('produto_servico').all()
+            total = sum(
+                float(item.quantidade * item.preco_unitario)
+                for item in itens
+                if getattr(item.produto_servico, 'recorrencia', 'unico') == recorrencia_tipo
+            )
+            return round(total, 2)
+        except Exception:
+            return 0
     
     @_rate_limit('assinatura_get', max_requests=30, window=60)
     def get(self, request, token):
@@ -121,6 +136,8 @@ class AssinaturaPublicaView(View):
             'tipo_documento': tipo_documento,
             'titulo': documento.titulo,
             'valor_total': str(documento.valor_total or '0.00'),
+            'valor_adesao': str(self._calcular_valor_por_recorrencia(oportunidade, 'unico')),
+            'valor_mensal': str(self._calcular_valor_por_recorrencia(oportunidade, 'mensal')),
             'nome_assinante': assinatura.nome_assinante,
             'tipo_assinante': assinatura.tipo,
             'tipo_assinante_display': assinatura.get_tipo_display(),

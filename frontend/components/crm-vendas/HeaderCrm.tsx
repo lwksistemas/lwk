@@ -388,9 +388,12 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
           {showNotifs && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowNotifs(false)} />
-              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-80 overflow-y-auto">
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c]">
+              <div className="fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-14 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-[70vh] sm:max-h-80 overflow-y-auto">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center justify-between">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">Notificações</p>
+                  <button type="button" onClick={() => setShowNotifs(false)} className="sm:hidden p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+                    ✕
+                  </button>
                 </div>
                 {notifs.length === 0 ? (
                   <p className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">Nenhuma notificação</p>

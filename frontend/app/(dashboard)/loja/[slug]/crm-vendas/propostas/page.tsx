@@ -525,7 +525,7 @@ export default function CrmVendasPropostasPage() {
                           {menuAberto === p.id && (
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
-                              <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
+                              <div className="absolute right-0 bottom-full mb-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 max-h-80 overflow-y-auto">
                                 {p.status === 'cancelada' ? (
                                   // Menu reduzido para propostas canceladas
                                   <>

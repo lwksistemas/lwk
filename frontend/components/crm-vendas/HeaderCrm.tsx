@@ -391,9 +391,25 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
               <div className="fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-14 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-[70vh] sm:max-h-80 overflow-y-auto">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center justify-between">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">Notificações</p>
-                  <button type="button" onClick={() => setShowNotifs(false)} className="sm:hidden p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
-                    ✕
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {notifs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          apiClient.post('/notificacoes/clear/').then(() => {
+                            setNotifs([]);
+                            setNotifsNaoLidas(0);
+                          }).catch(() => {});
+                        }}
+                        className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setShowNotifs(false)} className="sm:hidden p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+                      ✕
+                    </button>
+                  </div>
                 </div>
                 {notifs.length === 0 ? (
                   <p className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">Nenhuma notificação</p>

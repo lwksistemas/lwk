@@ -43,3 +43,11 @@ def mark_as_read(request, pk):
     notif.read_at = now()
     notif.save()
     return Response({'ok': True})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def clear_all(request):
+    """Remove todas as notificações do usuário autenticado."""
+    count, _ = Notification.objects.filter(user=request.user).delete()
+    return Response({'ok': True, 'deleted': count})

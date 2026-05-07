@@ -34,7 +34,7 @@ export default async function HomePage() {
 
   return (
     <PwaRedirect>
-      <main className="w-screen min-w-screen max-w-none overflow-x-hidden bg-gradient-to-b from-slate-50 to-white">
+      <main className="w-screen min-w-screen max-w-none overflow-x-hidden bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-950">
         <Header />
         <Hero hero={hero} heroImagens={heroImagens} />
         <Features funcionalidades={funcionalidades} />

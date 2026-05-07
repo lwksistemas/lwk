@@ -1,12 +1,12 @@
 export default function DashboardPreview() {
   return (
-    <section className="w-full py-12 sm:py-16 md:py-20 bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50">
+    <section className="w-full py-12 sm:py-16 md:py-20 bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-850 dark:to-gray-900">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-gray-900">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-gray-900 dark:text-white">
           Dashboard Moderno
         </h2>
-        <div className="rounded-xl overflow-hidden shadow-2xl border border-blue-200 bg-white">
-          <div className="aspect-video bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+        <div className="rounded-xl overflow-hidden shadow-2xl border border-blue-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="aspect-video bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-800 dark:via-gray-750 dark:to-gray-800 flex items-center justify-center p-4 sm:p-6 md:p-8">
             <div className="w-full max-w-4xl mx-auto">
               {/* Header com logo e menu */}
               <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6">

@@ -11,7 +11,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white shadow w-full sticky top-0 z-50">
+      <header className="bg-white dark:bg-gray-900 shadow dark:shadow-gray-800 w-full sticky top-0 z-50">
         <div className="w-full max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4">
           <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600">
             LWK SISTEMAS
@@ -60,7 +60,7 @@ export default function Header() {
 
         {/* Mobile Navigation */}
         {menuOpen && (
-          <nav className="md:hidden bg-white border-t border-gray-200">
+          <nav className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
             <div className="flex flex-col px-4 py-2">
               <a
                 href="#funcionalidades"

@@ -50,30 +50,30 @@ export default function WhyUs() {
 
   if (loading) {
     return (
-      <section id="beneficios" className="w-full py-12 sm:py-16 md:py-20 bg-gray-50">
+      <section id="beneficios" className="w-full py-12 sm:py-16 md:py-20 bg-gray-50 dark:bg-gray-900">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-gray-500">Carregando...</div>
+          <div className="text-center text-gray-500 dark:text-gray-400">Carregando...</div>
         </div>
       </section>
     );
   }
 
   return (
-    <section id="beneficios" className="w-full py-12 sm:py-16 md:py-20 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+    <section id="beneficios" className="w-full py-12 sm:py-16 md:py-20 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-gray-850 dark:to-gray-900">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-gray-900">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-gray-900 dark:text-white">
           Por que usar o LWK Sistemas?
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {benefits.map((item) => (
             <div
               key={item.id}
-              className="flex items-center gap-3 bg-white p-4 rounded-xl border border-green-100 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
+              className="flex items-center gap-3 bg-white dark:bg-gray-800 p-4 rounded-xl border border-green-100 dark:border-gray-700 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
             >
               <span className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm shadow-md">
                 {item.icone || '✓'}
               </span>
-              <span className="text-sm sm:text-base font-medium text-gray-900">{item.titulo}</span>
+              <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-gray-100">{item.titulo}</span>
             </div>
           ))}
         </div>

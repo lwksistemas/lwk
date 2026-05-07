@@ -289,6 +289,10 @@ export default function CrmVendasPropostasPage() {
       } else {
         setLeadInfo(null);
       }
+      // Atualizar valor_total com o valor atual da oportunidade
+      if (opp?.valor && modalType === 'edit') {
+        setFormData((f) => ({ ...f, valor_total: String(opp.valor) }));
+      }
     } else if (!formData.oportunidade_id) {
       setItensOportunidade([]);
       setLeadInfo(null);

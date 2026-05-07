@@ -210,6 +210,9 @@ def registrar_assinatura(assinatura, ip_address, user_agent=''):
         documento.status_assinatura = 'aguardando_vendedor'
         documento.save(update_fields=['status_assinatura', 'updated_at'])
         
+        # Notificar que o cliente assinou e o vendedor precisa assinar
+        _notificar_cliente_assinou(documento, assinatura)
+        
         return 'aguardando_vendedor'
     else:
         # Vendedor assinou: documento concluído
@@ -251,6 +254,33 @@ def _notificar_assinatura_concluida(documento, assinatura):
         )
     except Exception as e:
         logger.warning(f'Erro ao criar notificação de assinatura: {e}')
+
+
+def _notificar_cliente_assinou(documento, assinatura):
+    """Cria notificação in-app quando o cliente assina e o vendedor precisa assinar."""
+    try:
+        from notificacoes.models import Notification
+        from superadmin.models import Loja
+        loja_id = getattr(documento, 'loja_id', None)
+        if not loja_id:
+            return
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if not loja or not loja.owner_id:
+            return
+        tipo_doc = documento.__class__.__name__
+        titulo_doc = getattr(documento, 'titulo', '') or f'{tipo_doc} #{documento.id}'
+        cliente_nome = assinatura.nome_assinante or 'Cliente'
+        Notification.objects.using('default').create(
+            user_id=loja.owner_id,
+            titulo=f'📝 {tipo_doc} aguardando sua assinatura',
+            mensagem=f'{titulo_doc} foi assinada por {cliente_nome}. Verifique seu e-mail para assinar.',
+            tipo='sistema',
+            canal='in_app',
+            status='pendente',
+            metadata={'tipo_documento': tipo_doc.lower(), 'documento_id': documento.id, 'loja_id': loja_id},
+        )
+    except Exception as e:
+        logger.warning(f'Erro ao criar notificação de assinatura cliente: {e}')
 
 
 def enviar_email_assinatura_cliente(documento, assinatura, request):

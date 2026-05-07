@@ -92,6 +92,7 @@ def crm_me(request):
     
     try:
         from superadmin.models import Loja
+        from .models import Vendedor
         loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
         
         # Verificar se é proprietário da loja

@@ -162,6 +162,37 @@ def _strip_html(html):
     return text
 
 
+def _html_to_paragraphs(html):
+    """
+    Converte HTML/texto do conteúdo em lista de parágrafos para o PDF.
+    Preserva quebras de linha, parágrafos e listas.
+    """
+    if not html:
+        return ['Conteúdo não informado.']
+    
+    text = str(html)
+    # Converter <br>, <br/>, <br /> em \n
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+    # Converter </p>, </div>, </li> em \n
+    text = re.sub(r'</(?:p|div|li|h[1-6])>', '\n', text, flags=re.IGNORECASE)
+    # Converter <li> em bullet
+    text = re.sub(r'<li[^>]*>', '• ', text, flags=re.IGNORECASE)
+    # Remover todas as outras tags
+    text = re.sub(r'<[^>]+>', '', text)
+    # Decodificar entidades HTML comuns
+    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
+    # Dividir em linhas e limpar
+    lines = text.split('\n')
+    paragraphs = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped:
+            paragraphs.append(stripped)
+        elif paragraphs:  # Linha vazia = separador de parágrafo
+            paragraphs.append('')
+    return paragraphs if paragraphs else ['Conteúdo não informado.']
+
+
 def _formatar_valor(valor):
     """Formata valor monetário para exibição."""
     if valor is None:
@@ -371,9 +402,13 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     elements.append(Spacer(1, 0.05*cm))  # ✅ SUPER REDUZIDO
 
     # Conteúdo
-    conteudo = _strip_html(proposta.conteudo) if proposta.conteudo else 'Conteúdo não informado.'
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
-    elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
+    conteudo_paragrafos = _html_to_paragraphs(proposta.conteudo)
+    for p in conteudo_paragrafos[:100]:  # Limitar a 100 parágrafos
+        if p == '':
+            elements.append(Spacer(1, 0.2 * cm))
+        else:
+            elements.append(Paragraph(p[:500], styles['Normal']))
     # Sem Spacer - colar direto
 
     # Assinaturas (campos tradicionais + digitais integrados)
@@ -592,9 +627,13 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         elements.append(Spacer(1, 0.05*cm))  # ✅ SUPER REDUZIDO
 
     # Conteúdo
-    conteudo = _strip_html(contrato.conteudo) if contrato.conteudo else 'Conteúdo não informado.'
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
-    elements.append(Paragraph(conteudo[:3000] + ('...' if len(conteudo) > 3000 else ''), styles['Normal']))
+    conteudo_paragrafos = _html_to_paragraphs(contrato.conteudo)
+    for p in conteudo_paragrafos[:100]:
+        if p == '':
+            elements.append(Spacer(1, 0.2 * cm))
+        else:
+            elements.append(Paragraph(p[:500], styles['Normal']))
     # Sem Spacer - colar direto
 
     # Assinaturas (campos tradicionais + digitais integrados)

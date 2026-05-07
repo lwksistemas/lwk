@@ -365,13 +365,13 @@ export default function AssinaturaPage() {
                     <div>
                       <p className="text-sm text-gray-500">Adesão/Implantação</p>
                       <p className="text-lg font-bold text-gray-800">
-                        {parseFloat(documento.valor_adesao || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        {parseFloat(documento!.valor_adesao || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Valor Mensal</p>
                       <p className="text-lg font-bold text-blue-600">
-                        {parseFloat(documento.valor_mensal || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                        {parseFloat(documento!.valor_mensal || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
                       </p>
                     </div>
                     <div className="pt-1 border-t">
@@ -384,7 +384,7 @@ export default function AssinaturaPage() {
                     <div>
                       <p className="text-sm text-gray-500">Valor Mensal</p>
                       <p className="text-2xl font-bold text-blue-600">
-                        {parseFloat(documento.valor_mensal || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                        {parseFloat(documento!.valor_mensal || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
                       </p>
                     </div>
                     <div>

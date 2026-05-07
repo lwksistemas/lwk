@@ -278,20 +278,30 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         BytesIO: buffer com o PDF gerado
     """
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*cm, bottomMargin=1*cm, leftMargin=2*cm, rightMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.3*cm, bottomMargin=0.8*cm, leftMargin=2*cm, rightMargin=2*cm)
     elements = []
     styles = getSampleStyleSheet()
+
+    # Estilo compacto para texto (reduz spaceAfter de 6 para 2)
+    compact_style = ParagraphStyle(
+        'Compact',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceBefore=0,
+        spaceAfter=1,
+        leading=12,
+    )
 
     section_style = ParagraphStyle(
         'Section',
         parent=styles['Heading2'],
-        fontSize=12,
-        spaceBefore=4,
-        spaceAfter=2,
+        fontSize=11,
+        spaceBefore=3,
+        spaceAfter=1,
         alignment=0,  # 0 = LEFT (alinhado à esquerda)
     )
 
-    # ✅ NOVO: Criar cabeçalho com logo à esquerda e título à direita
+    # Criar cabeçalho com logo à esquerda e título à direita
     loja_id = getattr(proposta, 'loja_id', None)
     logo_url = None
     if loja_id:
@@ -301,9 +311,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     
     cabecalho = _criar_cabecalho_com_logo(logo_url, 'PROPOSTA COMERCIAL')
     elements.append(cabecalho)
-    elements.append(Spacer(1, 0.01*cm))  # ✅ MÍNIMO (subir Título)
     
-    elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', styles['Normal']))
+    elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact_style))
     # Sem Spacer - colar direto
 
     # Dados da Empresa
@@ -321,23 +330,22 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
             if loja_data.get('admin_email'):
                 linhas.append(f"<b>Email do administrador:</b> {loja_data['admin_email']}")
             for ln in linhas:
-                elements.append(Paragraph(ln, styles['Normal']))
-            # Sem Spacer - colar direto
+                elements.append(Paragraph(ln, compact_style))
 
     # Dados do Cliente
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
     if lead:
         elements.append(Paragraph('<b>Dados do Cliente</b>', section_style))
-        elements.append(Paragraph(f"<b>Nome:</b> {lead.nome}", styles['Normal']))
+        elements.append(Paragraph(f"<b>Nome:</b> {lead.nome}", compact_style))
         if getattr(lead, 'empresa', ''):
-            elements.append(Paragraph(f"<b>Empresa:</b> {lead.empresa}", styles['Normal']))
+            elements.append(Paragraph(f"<b>Empresa:</b> {lead.empresa}", compact_style))
         if getattr(lead, 'cpf_cnpj', ''):
-            elements.append(Paragraph(f"<b>CPF/CNPJ:</b> {lead.cpf_cnpj}", styles['Normal']))
+            elements.append(Paragraph(f"<b>CPF/CNPJ:</b> {lead.cpf_cnpj}", compact_style))
         if getattr(lead, 'email', ''):
-            elements.append(Paragraph(f"<b>Email:</b> {lead.email}", styles['Normal']))
+            elements.append(Paragraph(f"<b>Email:</b> {lead.email}", compact_style))
         if getattr(lead, 'telefone', ''):
-            elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", styles['Normal']))
-        elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", styles['Normal']))
+            elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", compact_style))
+        elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", compact_style))
         # Sem Spacer - colar direto
 
     # Produtos e Serviços da Oportunidade (Valor total ao final)
@@ -378,30 +386,28 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         elements.append(t)
         # Resumo: valor único + valor mensal
         if valor_unico > 0 and valor_mensal > 0:
-            elements.append(Paragraph(f'<b>Adesão/Implantação:</b> {_formatar_valor(valor_unico)}', styles['Normal']))
-            elements.append(Paragraph(f'<b>Valor Mensal:</b> {_formatar_valor(valor_mensal)}/mês', styles['Normal']))
+            elements.append(Paragraph(f'<b>Adesão/Implantação:</b> {_formatar_valor(valor_unico)}', compact_style))
+            elements.append(Paragraph(f'<b>Valor Mensal:</b> {_formatar_valor(valor_mensal)}/mês', compact_style))
         elif valor_mensal > 0:
-            elements.append(Paragraph(f'<b>Valor Mensal:</b> {_formatar_valor(valor_mensal)}/mês', styles['Normal']))
+            elements.append(Paragraph(f'<b>Valor Mensal:</b> {_formatar_valor(valor_mensal)}/mês', compact_style))
     else:
-        elements.append(Paragraph('Nenhum item cadastrado.', styles['Normal']))
+        elements.append(Paragraph('Nenhum item cadastrado.', compact_style))
     # Valor total ao final dos Produtos e Serviços
     valor_str = _formatar_valor(proposta.valor_total)
-    elements.append(Paragraph(f'<b>Valor total:</b> {valor_str}', styles['Normal']))
+    elements.append(Paragraph(f'<b>Valor total:</b> {valor_str}', compact_style))
     
     # Desconto (se houver)
     desconto_valor = getattr(proposta, 'desconto_valor', None) or 0
     if desconto_valor and float(desconto_valor) > 0:
         desconto_tipo = getattr(proposta, 'desconto_tipo', 'percentual')
         if desconto_tipo == 'percentual':
-            elements.append(Paragraph(f'<b>Desconto:</b> {desconto_valor}%', styles['Normal']))
+            elements.append(Paragraph(f'<b>Desconto:</b> {desconto_valor}%', compact_style))
         else:
-            elements.append(Paragraph(f'<b>Desconto:</b> {_formatar_valor(desconto_valor)}', styles['Normal']))
+            elements.append(Paragraph(f'<b>Desconto:</b> {_formatar_valor(desconto_valor)}', compact_style))
         valor_final = getattr(proposta, 'valor_com_desconto', proposta.valor_total)
-        elements.append(Paragraph(f'<b>Valor com desconto:</b> {_formatar_valor(valor_final)}', styles['Normal']))
-    
-    elements.append(Spacer(1, 0.05*cm))  # ✅ SUPER REDUZIDO
+        elements.append(Paragraph(f'<b>Valor com desconto:</b> {_formatar_valor(valor_final)}', compact_style))
 
-    # Conteúdo
+    # Conteúdo (preserva formatação original do template)
     elements.append(Paragraph('<b>Conteúdo</b>', section_style))
     conteudo_paragrafos = _html_to_paragraphs(proposta.conteudo)
     for p in conteudo_paragrafos[:100]:  # Limitar a 100 parágrafos
@@ -471,8 +477,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     # Adicionar linhas dinamicamente baseado no que tem info
     max_rows = max(len(vendedor_info), len(cliente_info))
     for i in range(max_rows):
-        vendedor_text = Paragraph(vendedor_info[i], styles['Normal']) if i < len(vendedor_info) else ''
-        cliente_text = Paragraph(cliente_info[i], styles['Normal']) if i < len(cliente_info) else ''
+        vendedor_text = Paragraph(vendedor_info[i], compact_style) if i < len(vendedor_info) else ''
+        cliente_text = Paragraph(cliente_info[i], compact_style) if i < len(cliente_info) else ''
         assinatura_data.append([vendedor_text, cliente_text])
     
     assinatura_table = Table(assinatura_data, colWidths=[8*cm, 8*cm])
@@ -480,14 +486,14 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, 0), 3),  # Reduzido de 5 para 3
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 2),  # Reduzido de 3 para 2
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
     ]))
     elements.append(assinatura_table)
-    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Spacer(1, 0.1*cm))
 
     # Mensagem de validade jurídica
     validade_style = ParagraphStyle(
@@ -496,7 +502,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         fontSize=7,
         textColor=colors.HexColor('#666666'),
         alignment=TA_CENTER,
-        spaceBefore=6,
+        spaceBefore=2,
         spaceAfter=0,
     )
     elements.append(Paragraph(

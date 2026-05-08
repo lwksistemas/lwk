@@ -345,10 +345,7 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, o
         <div className="flex items-center justify-end gap-1 flex-wrap">
           {nf.status === 'emitida' && (
             <>
-              <button type="button" title="Baixar PDF" onClick={(e) => onDownloadPdf(e, nf)} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
-                <Download size={14} /> PDF
-              </button>
-              <button type="button" title="Baixar XML" onClick={(e) => {
+              <button type="button" title="Baixar XML da NFS-e" onClick={(e) => {
                 e.preventDefault(); e.stopPropagation();
                 apiClient.get(`/nfse/${nf.id}/download_xml/`, { responseType: 'blob' }).then(res => {
                   const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);

@@ -397,16 +397,6 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             loja_id = get_current_loja_id()
             loja = Loja.objects.get(id=loja_id)
             
-            # Gerar PDF
-            from .pdf_nfse import gerar_pdf_nfse
-            pdf_buffer = gerar_pdf_nfse(nfse, loja)
-            pdf_buffer.seek(0)
-            pdf_bytes = pdf_buffer.read()
-            
-            # Preparar XML
-            xml_content = nfse.xml_nfse or nfse.xml_rps or ''
-            
-            
             # Enviar email com anexos
             from django.core.mail import EmailMessage
             from django.conf import settings
@@ -414,7 +404,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             assunto = f'Nota Fiscal de Serviço Nº {nfse.numero_nf} - {loja.nome}'
             corpo = (
                 f'Olá {nfse.tomador_nome}!\n\n'
-                f'Segue em anexo a Nota Fiscal de Serviço Eletrônica.\n\n'
+                f'Segue as informações da Nota Fiscal de Serviço Eletrônica.\n\n'
                 f'📋 DADOS DA NOTA FISCAL:\n'
                 f'• Número: {nfse.numero_nf}\n'
                 f'• Prestador: {loja.nome}\n'
@@ -422,9 +412,10 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 f'• Valor: R$ {float(nfse.valor):.2f}\n'
                 f'• Código de Verificação: {nfse.codigo_verificacao or "—"}\n'
                 f'• Descrição: {nfse.servico_descricao}\n\n'
-                f'📄 Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
-                f'📩 Você também receberá um e-mail automático do sistema da Prefeitura (ISS.NET) '
-                f'com o link para visualizar e imprimir a nota fiscal oficial.\n\n'
+                f'📄 O arquivo XML da nota fiscal está em anexo.\n\n'
+                f'📩 O e-mail oficial do sistema da Prefeitura (ISS.NET) com o link para '
+                f'visualizar e imprimir a nota fiscal foi enviado automaticamente no momento da emissão. '
+                f'Verifique sua caixa de entrada e spam.\n\n'
                 f'---\n'
                 f'Atenciosamente,\n'
                 f'{loja.nome}'
@@ -437,14 +428,8 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 to=[nfse.tomador_email],
             )
             
-            # Anexar PDF
-            email.attach(
-                f'nfse_{nfse.numero_nf}.pdf',
-                pdf_bytes,
-                'application/pdf'
-            )
-            
             # Anexar XML se disponível
+            xml_content = nfse.xml_nfse or nfse.xml_rps or ''
             if xml_content:
                 email.attach(
                     f'nfse_{nfse.numero_nf}.xml',

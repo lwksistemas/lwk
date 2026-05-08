@@ -629,11 +629,27 @@ class NFSeService:
         descricao: str,
     ):
         """
-        Envia email para o tomador com a NFS-e (PDF + XML anexados).
+        Envia email para o tomador com a NFS-e (PDF + XML anexados + link verificação).
         """
         try:
             from django.core.mail import EmailMessage
             from django.conf import settings
+            
+            # Link de verificação de autenticidade (ISSNet Ribeirão Preto)
+            link_verificacao = 'https://www.issnetonline.com.br/ribeiraopreto/online/NotaDigital/VerificaAutenticidade.aspx'
+            
+            # Buscar código de verificação da NFS-e
+            codigo_verificacao = ''
+            try:
+                from .models import NFSe
+                nfse_obj = NFSe.objects.filter(
+                    loja_id=self.loja.id,
+                    numero_nf=numero_nf
+                ).order_by('-data_emissao').first()
+                if nfse_obj:
+                    codigo_verificacao = nfse_obj.codigo_verificacao or ''
+            except Exception:
+                pass
             
             assunto = f'Nota Fiscal de Serviço Nº {numero_nf} - {self.loja.nome}'
             
@@ -645,9 +661,19 @@ class NFSeService:
                 f'• Prestador: {self.loja.nome}\n'
                 f'• CNPJ: {self.loja.cpf_cnpj}\n'
                 f'• Valor: R$ {valor:.2f}\n'
+            )
+            if codigo_verificacao:
+                mensagem += f'• Código de Verificação: {codigo_verificacao}\n'
+            mensagem += (
                 f'• Descrição: {descricao}\n\n'
-                f'Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
-                f'---\n'
+                f'📄 Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
+                f'🔗 VERIFICAR AUTENTICIDADE DA NOTA:\n'
+                f'{link_verificacao}\n'
+            )
+            if codigo_verificacao:
+                mensagem += f'(Use o código de verificação: {codigo_verificacao})\n'
+            mensagem += (
+                f'\n---\n'
                 f'Atenciosamente,\n'
                 f'{self.loja.nome}'
             )

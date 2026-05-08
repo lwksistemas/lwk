@@ -406,6 +406,9 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             # Preparar XML
             xml_content = nfse.xml_nfse or nfse.xml_rps or ''
             
+            # Link de verificação de autenticidade (ISSNet Ribeirão Preto)
+            link_verificacao = 'https://www.issnetonline.com.br/ribeiraopreto/online/NotaDigital/VerificaAutenticidade.aspx'
+            
             # Enviar email com anexos
             from django.core.mail import EmailMessage
             from django.conf import settings
@@ -421,7 +424,10 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 f'• Valor: R$ {float(nfse.valor):.2f}\n'
                 f'• Código de Verificação: {nfse.codigo_verificacao or "—"}\n'
                 f'• Descrição: {nfse.servico_descricao}\n\n'
-                f'Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
+                f'📄 Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
+                f'🔗 VERIFICAR AUTENTICIDADE DA NOTA:\n'
+                f'{link_verificacao}\n'
+                f'(Use o código de verificação: {nfse.codigo_verificacao})\n\n'
                 f'---\n'
                 f'Atenciosamente,\n'
                 f'{loja.nome}'

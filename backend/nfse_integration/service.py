@@ -471,7 +471,7 @@ class NFSeService:
                 prestador_razao_social=self.loja.nome,
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
-                tomador_endereco=tomador_endereco,
+                tomador_endereco={**tomador_endereco, 'email': tomador_email, 'telefone': tomador_endereco.get('telefone', '')},
                 servico_codigo=self.config.codigo_servico_municipal,
                 servico_descricao=servico_descricao or self.config.descricao_servico_padrao,
                 valor_servicos=valor_servicos,

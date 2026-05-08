@@ -665,6 +665,16 @@ class ISSNetClient:
             cep = '00000000'
         etree.SubElement(end, '{%s}Cep' % ns).text = cep
 
+        # Contato do tomador (email e telefone)
+        tomador_email = (tomador_endereco.get('email') or '').strip()
+        tomador_telefone = _somente_digitos(tomador_endereco.get('telefone', ''))[:11]
+        if tomador_email or tomador_telefone:
+            contato = etree.SubElement(tomador, '{%s}Contato' % ns)
+            if tomador_telefone:
+                etree.SubElement(contato, '{%s}Telefone' % ns).text = tomador_telefone
+            if tomador_email:
+                etree.SubElement(contato, '{%s}Email' % ns).text = tomador_email[:80]
+
         # --- Flags ---
         regime = getattr(self, '_regime_especial', '0') or ''
         if regime and regime != '0':

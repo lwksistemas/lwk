@@ -126,6 +126,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                         'cidade': conta.cidade or '',
                         'uf': conta.uf or '',
                         'cep': conta.cep or '',
+                        'telefone': getattr(conta, 'telefone', '') or '',
                     }
                 except Conta.DoesNotExist:
                     return Response(

@@ -663,7 +663,7 @@ class NFSeService:
                 mensagem += f'• Código de Verificação: {codigo_verificacao}\n'
             mensagem += (
                 f'• Descrição: {descricao}\n\n'
-                f'📄 Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
+                f'📄 O arquivo XML da nota fiscal está em anexo.\n\n'
                 f'📩 Você também receberá um e-mail automático do sistema da Prefeitura (ISS.NET) '
                 f'com o link para visualizar e imprimir a nota fiscal oficial.\n\n'
             )
@@ -687,7 +687,7 @@ class NFSeService:
                 to=[tomador_email],
             )
             
-            # Tentar anexar PDF e XML da NFS-e recém emitida
+            # Anexar XML da NFS-e recém emitida
             try:
                 from .models import NFSe
                 nfse = NFSe.objects.filter(
@@ -696,21 +696,14 @@ class NFSeService:
                 ).order_by('-data_emissao').first()
                 
                 if nfse:
-                    # Gerar PDF
-                    from .pdf_nfse import gerar_pdf_nfse
-                    pdf_buffer = gerar_pdf_nfse(nfse, self.loja)
-                    pdf_buffer.seek(0)
-                    email.attach(f'nfse_{numero_nf}.pdf', pdf_buffer.read(), 'application/pdf')
-                    
-                    # Anexar XML
                     xml_content = nfse.xml_nfse or nfse.xml_rps or ''
                     if xml_content:
                         email.attach(f'nfse_{numero_nf}.xml', xml_content.encode('utf-8'), 'application/xml')
-            except Exception as pdf_err:
-                logger.warning(f'Não foi possível anexar PDF/XML ao email: {pdf_err}')
+            except Exception as xml_err:
+                logger.warning(f'Não foi possível anexar XML ao email: {xml_err}')
             
             email.send(fail_silently=False)
-            logger.info(f"Email de NFS-e enviado para {tomador_email} com anexos")
+            logger.info(f"Email de NFS-e enviado para {tomador_email} com XML")
             
         except Exception as e:
             logger.error(f"Erro ao enviar email de NFS-e: {e}")

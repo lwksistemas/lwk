@@ -330,7 +330,12 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             nfse = self.get_object()
             
-            # Gerar PDF da NFS-e
+            # Se tem pdf_url (Asaas), redirecionar
+            if nfse.pdf_url:
+                from django.shortcuts import redirect
+                return redirect(nfse.pdf_url)
+            
+            # Gerar PDF da NFS-e com dados reais
             from .pdf_nfse import gerar_pdf_nfse
             loja_id = get_current_loja_id()
             loja = Loja.objects.get(id=loja_id)
@@ -350,9 +355,35 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=['get'], url_path='download_xml')
+    def download_xml(self, request, pk=None):
+        """Retorna o XML da NFS-e."""
+        from django.http import HttpResponse
+        try:
+            nfse = self.get_object()
+            
+            xml_content = nfse.xml_nfse or nfse.xml_rps or ''
+            if not xml_content:
+                return Response(
+                    {'error': 'XML não disponível para esta NFS-e'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            filename = f'nfse_{nfse.numero_nf or nfse.id}.xml'
+            response = HttpResponse(xml_content, content_type='application/xml')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        except Exception as e:
+            logger.exception(f"Erro ao baixar XML da NFS-e: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     @action(detail=True, methods=['post'])
     def reenviar_email(self, request, pk=None):
-        """Reenvia email da NFS-e para o tomador."""
+        """Reenvia email da NFS-e para o tomador com PDF e XML anexados."""
         try:
             nfse = self.get_object()
             
@@ -366,20 +397,66 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             loja_id = get_current_loja_id()
             loja = Loja.objects.get(id=loja_id)
             
-            # Criar serviço e reenviar email
-            service = NFSeService(loja)
-            service._enviar_email_nfse(
-                tomador_email=nfse.tomador_email,
-                tomador_nome=nfse.tomador_nome,
-                numero_nf=nfse.numero_nf,
-                valor=nfse.valor,
-                descricao=nfse.servico_descricao,
+            # Gerar PDF
+            from .pdf_nfse import gerar_pdf_nfse
+            pdf_buffer = gerar_pdf_nfse(nfse, loja)
+            pdf_buffer.seek(0)
+            pdf_bytes = pdf_buffer.read()
+            
+            # Preparar XML
+            xml_content = nfse.xml_nfse or nfse.xml_rps or ''
+            
+            # Enviar email com anexos
+            from django.core.mail import EmailMessage
+            from django.conf import settings
+            
+            assunto = f'Nota Fiscal de Serviço Nº {nfse.numero_nf} - {loja.nome}'
+            corpo = (
+                f'Olá {nfse.tomador_nome}!\n\n'
+                f'Segue em anexo a Nota Fiscal de Serviço Eletrônica.\n\n'
+                f'📋 DADOS DA NOTA FISCAL:\n'
+                f'• Número: {nfse.numero_nf}\n'
+                f'• Prestador: {loja.nome}\n'
+                f'• CNPJ: {loja.cpf_cnpj}\n'
+                f'• Valor: R$ {float(nfse.valor):.2f}\n'
+                f'• Código de Verificação: {nfse.codigo_verificacao or "—"}\n'
+                f'• Descrição: {nfse.servico_descricao}\n\n'
+                f'Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
+                f'---\n'
+                f'Atenciosamente,\n'
+                f'{loja.nome}'
             )
+            
+            email = EmailMessage(
+                subject=assunto,
+                body=corpo,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[nfse.tomador_email],
+            )
+            
+            # Anexar PDF
+            email.attach(
+                f'nfse_{nfse.numero_nf}.pdf',
+                pdf_bytes,
+                'application/pdf'
+            )
+            
+            # Anexar XML se disponível
+            if xml_content:
+                email.attach(
+                    f'nfse_{nfse.numero_nf}.xml',
+                    xml_content.encode('utf-8'),
+                    'application/xml'
+                )
+            
+            email.send(fail_silently=False)
+            
+            logger.info(f'Email NFS-e reenviado para {nfse.tomador_email} com PDF e XML')
             
             return Response(
                 {
                     'success': True,
-                    'message': f'Email reenviado para {nfse.tomador_email}'
+                    'message': f'Email reenviado para {nfse.tomador_email} com PDF e XML'
                 }
             )
             

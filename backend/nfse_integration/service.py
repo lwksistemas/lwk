@@ -629,43 +629,60 @@ class NFSeService:
         descricao: str,
     ):
         """
-        Envia email para o tomador com a NFS-e.
+        Envia email para o tomador com a NFS-e (PDF + XML anexados).
         """
         try:
-            from django.core.mail import send_mail
+            from django.core.mail import EmailMessage
             from django.conf import settings
             
-            assunto = f'Nota Fiscal de Serviço - {self.loja.nome}'
+            assunto = f'Nota Fiscal de Serviço Nº {numero_nf} - {self.loja.nome}'
             
-            mensagem = f"""
-Olá {tomador_nome}!
-
-A nota fiscal de serviço foi emitida com sucesso.
-
-📋 DADOS DA NOTA FISCAL:
-• Número: {numero_nf}
-• Prestador: {self.loja.nome}
-• CNPJ: {self.loja.cpf_cnpj}
-• Valor: R$ {valor:.2f}
-• Descrição: {descricao}
-
-Para consultar a nota fiscal, acesse o portal da Prefeitura de Ribeirão Preto.
-
----
-
-Atenciosamente,
-{self.loja.nome}
-"""
-            
-            send_mail(
-                assunto,
-                mensagem,
-                settings.DEFAULT_FROM_EMAIL,
-                [tomador_email],
-                fail_silently=False,
+            mensagem = (
+                f'Olá {tomador_nome}!\n\n'
+                f'A nota fiscal de serviço foi emitida com sucesso.\n\n'
+                f'📋 DADOS DA NOTA FISCAL:\n'
+                f'• Número: {numero_nf}\n'
+                f'• Prestador: {self.loja.nome}\n'
+                f'• CNPJ: {self.loja.cpf_cnpj}\n'
+                f'• Valor: R$ {valor:.2f}\n'
+                f'• Descrição: {descricao}\n\n'
+                f'Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
+                f'---\n'
+                f'Atenciosamente,\n'
+                f'{self.loja.nome}'
             )
             
-            logger.info(f"Email de NFS-e enviado para {tomador_email}")
+            email = EmailMessage(
+                subject=assunto,
+                body=mensagem,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[tomador_email],
+            )
+            
+            # Tentar anexar PDF e XML da NFS-e recém emitida
+            try:
+                from .models import NFSe
+                nfse = NFSe.objects.filter(
+                    loja_id=self.loja.id,
+                    numero_nf=numero_nf
+                ).order_by('-data_emissao').first()
+                
+                if nfse:
+                    # Gerar PDF
+                    from .pdf_nfse import gerar_pdf_nfse
+                    pdf_buffer = gerar_pdf_nfse(nfse, self.loja)
+                    pdf_buffer.seek(0)
+                    email.attach(f'nfse_{numero_nf}.pdf', pdf_buffer.read(), 'application/pdf')
+                    
+                    # Anexar XML
+                    xml_content = nfse.xml_nfse or nfse.xml_rps or ''
+                    if xml_content:
+                        email.attach(f'nfse_{numero_nf}.xml', xml_content.encode('utf-8'), 'application/xml')
+            except Exception as pdf_err:
+                logger.warning(f'Não foi possível anexar PDF/XML ao email: {pdf_err}')
+            
+            email.send(fail_silently=False)
+            logger.info(f"Email de NFS-e enviado para {tomador_email} com anexos")
             
         except Exception as e:
             logger.error(f"Erro ao enviar email de NFS-e: {e}")

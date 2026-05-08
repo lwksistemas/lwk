@@ -348,6 +348,17 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, o
               <button type="button" title="Baixar PDF" onClick={(e) => onDownloadPdf(e, nf)} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
                 <Download size={14} /> PDF
               </button>
+              <button type="button" title="Baixar XML" onClick={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                apiClient.get(`/nfse/${nf.id}/download_xml/`, { responseType: 'blob' }).then(res => {
+                  const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a'); a.href = url; a.download = `nfse_${nf.numero_nf || nf.id}.xml`;
+                  document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);
+                }).catch(() => alert('XML não disponível'));
+              }} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
+                <Download size={14} /> XML
+              </button>
               <button type="button" title="Reenviar por email" onClick={(e) => onReenviarEmail(e, nf)} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md">
                 <Mail size={14} /> Email
               </button>

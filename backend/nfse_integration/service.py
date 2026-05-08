@@ -788,7 +788,12 @@ class NFSeService:
                         senha_certificado=self.config.issnet_senha_certificado,
                         ambiente=self._issnet_ambiente_str(),
                     )
-                    resultado = client.cancelar_nfse(numero_nf, motivo)
+                    resultado = client.cancelar_nfse(
+                        numero_nf,
+                        motivo,
+                        prestador_cnpj=self.loja.cpf_cnpj or '',
+                        inscricao_municipal=self._get_inscricao_municipal(),
+                    )
                     if resultado.get('success'):
                         from .models import NFSe
                         NFSe.objects.filter(

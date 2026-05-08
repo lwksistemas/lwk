@@ -1260,17 +1260,20 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     # Cancelar NFS-e
     # ------------------------------------------------------------------
-    def cancelar_nfse(self, numero_nf: str, motivo: str) -> Dict[str, Any]:
-        """Cancela NFS-e emitida."""
+    def cancelar_nfse(self, numero_nf: str, motivo: str, prestador_cnpj: str = '', inscricao_municipal: str = '') -> Dict[str, Any]:
+        """Cancela NFS-e emitida via ISSNet."""
         try:
+            cnpj_digits = re.sub(r'\D', '', prestador_cnpj or self.usuario or '')
+            im = (inscricao_municipal or '').strip()
+            
             xml_cancelar = (
                 f'<CancelarNfseEnvio xmlns="{NS_NFSE}">'
                 f'<Pedido>'
                 f'<InfPedidoCancelamento Id="cancel{numero_nf}">'
                 f'<IdentificacaoNfse>'
                 f'<Numero>{numero_nf}</Numero>'
-                f'<CpfCnpj><Cnpj>{self.usuario}</Cnpj></CpfCnpj>'
-                f'<InscricaoMunicipal></InscricaoMunicipal>'
+                f'<CpfCnpj><Cnpj>{cnpj_digits}</Cnpj></CpfCnpj>'
+                f'<InscricaoMunicipal>{im}</InscricaoMunicipal>'
                 f'<CodigoMunicipio>{COD_MUNICIPIO_RP}</CodigoMunicipio>'
                 f'</IdentificacaoNfse>'
                 f'<CodigoCancelamento>1</CodigoCancelamento>'
@@ -1279,15 +1282,25 @@ class ISSNetClient:
                 f'</CancelarNfseEnvio>'
             )
             xml_assinado = self._assinar_xml(xml_cancelar)
-            client = self._get_soap_client()
-            response = client.service.CancelarNfse(
+            
+            # Usar método direto (requests) igual à emissão — zeep dá Fault genérico
+            parsed, xml_body = self._post_soap_operacao(
+                nome_operacao='CancelarNfse',
                 nfseCabecMsg=CABEC_MSG,
                 nfseDadosMsg=xml_assinado,
             )
-            resp_str = str(response)
+            if parsed and parsed.get('success') is False:
+                return parsed
+            
+            resp_str = xml_body or str(parsed)
             if 'MensagemRetorno' in resp_str:
                 erros = self._extrair_erros(resp_str)
                 return {'success': False, 'error': erros}
+            
+            # Verificar se cancelou com sucesso
+            if 'Cancelamento' in resp_str or 'DataHora' in resp_str:
+                return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
+            
             return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
         except Exception as e:
             logger.exception('Erro ao cancelar NFS-e: %s', e)

@@ -408,6 +408,8 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             
             # Link de verificação de autenticidade (ISSNet Ribeirão Preto)
             link_verificacao = 'https://www.issnetonline.com.br/ribeiraopreto/online/NotaDigital/VerificaAutenticidade.aspx'
+            # Link direto para impressão (usa inscrição municipal + número da nota)
+            link_impressao = f'https://www.issnetonline.com.br/ribeiraopreto/online/NotaDigital/ImprimirNotaDigital.aspx?InscricaoMunicipal=20130440&NumeroNota={nfse.numero_nf}'
             
             # Enviar email com anexos
             from django.core.mail import EmailMessage
@@ -425,9 +427,11 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 f'• Código de Verificação: {nfse.codigo_verificacao or "—"}\n'
                 f'• Descrição: {nfse.servico_descricao}\n\n'
                 f'📄 Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
-                f'🔗 VERIFICAR AUTENTICIDADE DA NOTA:\n'
+                f'🔗 VISUALIZAR/IMPRIMIR A NOTA FISCAL:\n'
+                f'{link_impressao}\n\n'
+                f'🔗 VERIFICAR AUTENTICIDADE:\n'
                 f'{link_verificacao}\n'
-                f'(Use o código de verificação: {nfse.codigo_verificacao})\n\n'
+                f'(Código de verificação: {nfse.codigo_verificacao})\n\n'
                 f'---\n'
                 f'Atenciosamente,\n'
                 f'{loja.nome}'

@@ -1286,8 +1286,8 @@ class ISSNetClient:
             # Usar método direto (requests) igual à emissão — zeep dá Fault genérico
             parsed, xml_body = self._post_soap_operacao(
                 nome_operacao='CancelarNfse',
-                nfseCabecMsg=CABEC_MSG,
-                nfseDadosMsg=xml_assinado,
+                soap_action_uri='http://nfse.abrasf.org.br/CancelarNfse',
+                dados_xml=xml_assinado,
             )
             if parsed and parsed.get('success') is False:
                 return parsed

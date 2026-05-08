@@ -54,8 +54,35 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
   const carregarContas = async () => {
     try {
       setLoadingContas(true);
-      const res = await apiClient.get('/crm-vendas/contas/');
-      setContas(unwrapDrfList(res.data));
+      const [resContas, resLeads] = await Promise.all([
+        apiClient.get('/crm-vendas/contas/'),
+        apiClient.get('/crm-vendas/leads/'),
+      ]);
+      const contasList = unwrapDrfList(resContas.data).map((c: any) => ({
+        ...c,
+        _tipo: 'conta',
+        _display: c.nome + (c.cnpj ? ` - ${c.cnpj}` : ''),
+      }));
+      const leadsList = unwrapDrfList(resLeads.data)
+        .filter((l: any) => l.cpf_cnpj)
+        .map((l: any) => ({
+          id: `lead_${l.id}`,
+          _tipo: 'lead',
+          _lead_id: l.id,
+          nome: l.nome,
+          cnpj: l.cpf_cnpj || '',
+          razao_social: l.nome,
+          email: l.email || '',
+          logradouro: l.logradouro || '',
+          numero: l.numero || '',
+          complemento: l.complemento || '',
+          bairro: l.bairro || '',
+          cidade: l.cidade || '',
+          uf: l.uf || '',
+          cep: l.cep || '',
+          _display: l.nome + (l.cpf_cnpj ? ` - ${l.cpf_cnpj}` : ''),
+        }));
+      setContas([...contasList, ...leadsList]);
     } catch (err) {
       console.error('Erro ao carregar contas:', err);
     } finally {
@@ -63,12 +90,12 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
     }
   };
 
-  const handleContaChange = (contaId: number) => {
-    const conta = contas.find((c: any) => c.id === contaId);
+  const handleContaChange = (contaId: number | string) => {
+    const conta = contas.find((c: any) => String(c.id) === String(contaId));
     if (conta) {
       setFormData({
         ...formData,
-        conta_id: contaId,
+        conta_id: conta._tipo === 'conta' ? Number(conta.id) : null,
         tomador_cpf_cnpj: conta.cnpj || '',
         tomador_nome: conta.razao_social || conta.nome,
         tomador_email: conta.email || '',
@@ -93,7 +120,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
     setLoading(true);
     try {
       const payload =
-        step === 'conta'
+        step === 'conta' && formData.conta_id
           ? {
               conta_id: formData.conta_id,
               servico_descricao: formData.servico_descricao,
@@ -195,8 +222,8 @@ function StepEscolha({ onSelectConta, onSelectManual, onClose }: { onSelectConta
         <div className="flex items-start gap-4">
           <div className="p-3 bg-[#0176d3]/10 rounded-lg"><FileText size={24} className="text-[#0176d3]" /></div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Selecionar Empresa Cadastrada</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Escolha uma empresa já cadastrada no CRM.</p>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Selecionar Cliente Cadastrado</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Escolha uma empresa ou pessoa física já cadastrada no CRM.</p>
           </div>
         </div>
       </button>
@@ -216,16 +243,25 @@ function StepEscolha({ onSelectConta, onSelectManual, onClose }: { onSelectConta
   );
 }
 
-function ContaSelector({ contas, loading, value, onChange }: { contas: any[]; loading: boolean; value: number | null; onChange: (id: number) => void }) {
+function ContaSelector({ contas, loading, value, onChange }: { contas: any[]; loading: boolean; value: number | null; onChange: (id: number | string) => void }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Empresa / Cliente *</label>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Empresa / Pessoa Física *</label>
       {loading ? (
         <div className="text-center py-4"><div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#0176d3]" /></div>
       ) : (
-        <select value={value || ''} onChange={(e) => onChange(Number(e.target.value))} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white">
-          <option value="">Selecione uma empresa...</option>
-          {contas.map((c: any) => <option key={c.id} value={c.id}>{c.nome} {c.cnpj ? `- ${c.cnpj}` : ''}</option>)}
+        <select value={value || ''} onChange={(e) => onChange(e.target.value)} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white">
+          <option value="">Selecione...</option>
+          {contas.filter((c: any) => c._tipo === 'conta').length > 0 && (
+            <optgroup label="Empresas (Contas)">
+              {contas.filter((c: any) => c._tipo === 'conta').map((c: any) => <option key={c.id} value={c.id}>{c._display || c.nome}</option>)}
+            </optgroup>
+          )}
+          {contas.filter((c: any) => c._tipo === 'lead').length > 0 && (
+            <optgroup label="Pessoa Física (Leads com CPF/CNPJ)">
+              {contas.filter((c: any) => c._tipo === 'lead').map((c: any) => <option key={c.id} value={c.id}>{c._display || c.nome}</option>)}
+            </optgroup>
+          )}
         </select>
       )}
     </div>

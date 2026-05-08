@@ -323,6 +323,33 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             logger.exception('Erro ao sincronizar NFS-e com Asaas: %s', e)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=['get'], url_path='download_pdf')
+    def download_pdf(self, request, pk=None):
+        """Gera e retorna PDF da NFS-e."""
+        from django.http import HttpResponse
+        try:
+            nfse = self.get_object()
+            
+            # Gerar PDF da NFS-e
+            from .pdf_nfse import gerar_pdf_nfse
+            loja_id = get_current_loja_id()
+            loja = Loja.objects.get(id=loja_id)
+            
+            pdf_buffer = gerar_pdf_nfse(nfse, loja)
+            pdf_buffer.seek(0)
+            
+            filename = f'nfse_{nfse.numero_nf or nfse.id}.pdf'
+            response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        except Exception as e:
+            logger.exception(f"Erro ao gerar PDF da NFS-e: {e}")
+            return Response(
+                {'error': f'Erro ao gerar PDF: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     @action(detail=True, methods=['post'])
     def reenviar_email(self, request, pk=None):
         """Reenvia email da NFS-e para o tomador."""

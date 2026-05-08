@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Search, X, Check, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { FileText, Plus, Search, X, Check, AlertCircle, RefreshCw, Trash2, Download, Mail } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ModalEmitirNFSe } from './components/ModalEmitirNFSe';
 
@@ -16,6 +16,7 @@ interface NFSe {
   valor_liquido: number;
   tomador_nome: string;
   tomador_cpf_cnpj: string;
+  tomador_email?: string;
   servico_descricao: string;
   status: string;
   status_display: string;
@@ -111,6 +112,51 @@ export default function NFSePage() {
     }
   };
 
+  const baixarPdfNFSe = async (e: React.MouseEvent, nf: NFSe) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
+      const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nfse_${nf.numero_nf || nf.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: any } };
+      let msg = 'Erro ao baixar PDF';
+      if (ax.response?.data) {
+        try {
+          const text = ax.response.data instanceof Blob ? await ax.response.data.text() : JSON.stringify(ax.response.data);
+          const parsed = JSON.parse(text);
+          msg = parsed.error || msg;
+        } catch {}
+      }
+      alert(msg);
+    }
+  };
+
+  const reenviarEmailNFSe = async (e: React.MouseEvent, nf: NFSe) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!nf.tomador_email) {
+      alert('Esta NFS-e não possui email do tomador cadastrado.');
+      return;
+    }
+    if (!confirm(`Reenviar nota fiscal por email para ${nf.tomador_email}?`)) return;
+    try {
+      await apiClient.post(`/nfse/${nf.id}/reenviar_email/`);
+      setSyncMsg({ type: 'ok', text: `Email reenviado para ${nf.tomador_email}` });
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { error?: string } } };
+      setSyncMsg({ type: 'err', text: ax.response?.data?.error || 'Erro ao reenviar email.' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <NfseHeader onEmitir={() => setShowModal(true)} />
@@ -130,6 +176,8 @@ export default function NFSePage() {
           deletingId={deletingId}
           onSync={sincronizarComAsaas}
           onDelete={excluirNFSe}
+          onDownloadPdf={baixarPdfNFSe}
+          onReenviarEmail={reenviarEmailNFSe}
         />
       )}
 
@@ -220,12 +268,14 @@ function EmptyState({ hasFiltros, onEmitir }: { hasFiltros: boolean; onEmitir: (
   );
 }
 
-function NfseTable({ nfses, syncingId, deletingId, onSync, onDelete }: {
+function NfseTable({ nfses, syncingId, deletingId, onSync, onDelete, onDownloadPdf, onReenviarEmail }: {
   nfses: NFSe[];
   syncingId: number | null;
   deletingId: number | null;
   onSync: (e: React.MouseEvent, nf: NFSe) => void;
   onDelete: (e: React.MouseEvent, nf: NFSe) => void;
+  onDownloadPdf: (e: React.MouseEvent, nf: NFSe) => void;
+  onReenviarEmail: (e: React.MouseEvent, nf: NFSe) => void;
 }) {
   return (
     <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] overflow-hidden">
@@ -243,7 +293,7 @@ function NfseTable({ nfses, syncingId, deletingId, onSync, onDelete }: {
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {nfses.map((nf) => (
-              <NfseRow key={nf.id} nf={nf} syncingId={syncingId} deletingId={deletingId} onSync={onSync} onDelete={onDelete} />
+              <NfseRow key={nf.id} nf={nf} syncingId={syncingId} deletingId={deletingId} onSync={onSync} onDelete={onDelete} onDownloadPdf={onDownloadPdf} onReenviarEmail={onReenviarEmail} />
             ))}
           </tbody>
         </table>
@@ -252,10 +302,12 @@ function NfseTable({ nfses, syncingId, deletingId, onSync, onDelete }: {
   );
 }
 
-function NfseRow({ nf, syncingId, deletingId, onSync, onDelete }: {
+function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, onReenviarEmail }: {
   nf: NFSe; syncingId: number | null; deletingId: number | null;
   onSync: (e: React.MouseEvent, nf: NFSe) => void;
   onDelete: (e: React.MouseEvent, nf: NFSe) => void;
+  onDownloadPdf: (e: React.MouseEvent, nf: NFSe) => void;
+  onReenviarEmail: (e: React.MouseEvent, nf: NFSe) => void;
 }) {
   const statusColor = STATUS_COLORS[nf.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
   return (
@@ -290,14 +342,24 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete }: {
         </div>
       </td>
       <td className="px-4 py-3 text-right">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1 flex-wrap">
+          {nf.status === 'emitida' && (
+            <>
+              <button type="button" title="Baixar PDF" onClick={(e) => onDownloadPdf(e, nf)} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md">
+                <Download size={14} /> PDF
+              </button>
+              <button type="button" title="Reenviar por email" onClick={(e) => onReenviarEmail(e, nf)} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md">
+                <Mail size={14} /> Email
+              </button>
+            </>
+          )}
           {nf.provedor === 'asaas' && (
             <button type="button" title="Sincronizar com Asaas" onClick={(e) => onSync(e, nf)} disabled={syncingId === nf.id} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0176d3] hover:bg-[#0176d3]/10 rounded-md disabled:opacity-50">
-              <RefreshCw size={14} className={syncingId === nf.id ? 'animate-spin' : ''} /> Sincronizar
+              <RefreshCw size={14} className={syncingId === nf.id ? 'animate-spin' : ''} /> Sync
             </button>
           )}
           <button type="button" title="Excluir NFS-e" onClick={(e) => onDelete(e, nf)} disabled={deletingId === nf.id} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-50">
-            <Trash2 size={14} /> Excluir
+            <Trash2 size={14} />
           </button>
         </div>
       </td>

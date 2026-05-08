@@ -635,13 +635,8 @@ class NFSeService:
             from django.core.mail import EmailMessage
             from django.conf import settings
             
-            # Link de verificação de autenticidade (ISSNet Ribeirão Preto)
-            link_verificacao = 'https://www.issnetonline.com.br/ribeiraopreto/online/NotaDigital/VerificaAutenticidade.aspx'
-            
-            # Buscar código de verificação e inscrição municipal da NFS-e
+            # Buscar código de verificação da NFS-e
             codigo_verificacao = ''
-            inscricao_municipal = (getattr(self.config, 'inscricao_municipal', '') or '').strip()
-            link_impressao = ''
             try:
                 from .models import NFSe
                 nfse_obj = NFSe.objects.filter(
@@ -650,8 +645,6 @@ class NFSeService:
                 ).order_by('-data_emissao').first()
                 if nfse_obj:
                     codigo_verificacao = nfse_obj.codigo_verificacao or ''
-                    if inscricao_municipal and numero_nf:
-                        link_impressao = f'https://www.issnetonline.com.br/ribeiraopreto/online/NotaDigital/ImprimirNotaDigital.aspx?InscricaoMunicipal={inscricao_municipal}&NumeroNota={numero_nf}'
             except Exception:
                 pass
             
@@ -671,15 +664,13 @@ class NFSeService:
             mensagem += (
                 f'• Descrição: {descricao}\n\n'
                 f'📄 Os arquivos PDF e XML da nota fiscal estão em anexo.\n\n'
+                f'📩 Você também receberá um e-mail automático do sistema da Prefeitura (ISS.NET) '
+                f'com o link para visualizar e imprimir a nota fiscal oficial.\n\n'
             )
-            if link_impressao:
-                mensagem += (
-                    f'🔗 VISUALIZAR/IMPRIMIR A NOTA FISCAL:\n'
-                    f'{link_impressao}\n\n'
-                )
             mensagem += (
-                f'🔗 VERIFICAR AUTENTICIDADE:\n'
-                f'{link_verificacao}\n'
+                f'---\n'
+                f'Atenciosamente,\n'
+                f'{self.loja.nome}'
             )
             if codigo_verificacao:
                 mensagem += f'(Use o código de verificação: {codigo_verificacao})\n'

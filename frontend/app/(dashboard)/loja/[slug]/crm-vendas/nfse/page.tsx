@@ -369,6 +369,21 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, o
               <RefreshCw size={14} className={syncingId === nf.id ? 'animate-spin' : ''} /> Sync
             </button>
           )}
+          {nf.status === 'emitida' && (
+            <button type="button" title="Cancelar NFS-e" onClick={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              const motivo = prompt('Motivo do cancelamento da NFS-e:');
+              if (!motivo) return;
+              apiClient.post(`/nfse/${nf.id}/cancelar/`, { motivo }).then(() => {
+                alert('NFS-e cancelada com sucesso!');
+                window.location.reload();
+              }).catch((err: any) => {
+                alert(err.response?.data?.error || 'Erro ao cancelar NFS-e');
+              });
+            }} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-md">
+              <X size={14} /> Cancelar
+            </button>
+          )}
           <button type="button" title="Excluir NFS-e" onClick={(e) => onDelete(e, nf)} disabled={deletingId === nf.id} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-50">
             <Trash2 size={14} />
           </button>

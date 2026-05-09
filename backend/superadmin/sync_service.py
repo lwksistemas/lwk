@@ -404,6 +404,38 @@ class AsaasSyncService:
                 pagamento.status = 'pago'
                 pagamento.data_pagamento = timezone.now()
                 pagamento.save()
+            else:
+                # Criar PagamentoLoja se não existe (ex: cadastro público, cobrança criada direto no Asaas)
+                try:
+                    valor_pag = payment_data.get('value', 0) if isinstance(payment_data, dict) else 0
+                    descricao_pag = payment_data.get('description', '') if isinstance(payment_data, dict) else ''
+                    billing_type = payment_data.get('billingType', 'PIX') if isinstance(payment_data, dict) else 'PIX'
+                    due_date_str = payment_data.get('dueDate', '') if isinstance(payment_data, dict) else ''
+                    
+                    from datetime import date as date_type
+                    if due_date_str:
+                        try:
+                            due_date = date_type.fromisoformat(due_date_str)
+                        except (ValueError, TypeError):
+                            due_date = timezone.now().date()
+                    else:
+                        due_date = timezone.now().date()
+                    
+                    pagamento = PagamentoLoja.objects.create(
+                        loja=loja,
+                        financeiro=financeiro,
+                        asaas_payment_id=payment_id,
+                        valor=valor_pag,
+                        status='pago',
+                        data_pagamento=timezone.now(),
+                        data_vencimento=due_date,
+                        referencia_mes=timezone.now().date().replace(day=1),
+                        forma_pagamento=billing_type,
+                        observacoes=descricao_pag[:255] if descricao_pag else '',
+                    )
+                    logger.info(f"PagamentoLoja criado para {payment_id} (loja {loja.slug}, R${valor_pag})")
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao criar PagamentoLoja: {e}")
             
             # Verificar se é primeiro pagamento
             total_pagamentos = PagamentoLoja.objects.filter(

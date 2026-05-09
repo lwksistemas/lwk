@@ -656,7 +656,11 @@ class ISSNetClient:
             etree.SubElement(end, '{%s}Complemento' % ns).text = compl
         bairro = (tomador_endereco.get('bairro') or '').strip() or 'Nao informado'
         etree.SubElement(end, '{%s}Bairro' % ns).text = bairro[:60]
-        etree.SubElement(end, '{%s}CodigoMunicipio' % ns).text = COD_MUNICIPIO_RP
+        # Código IBGE do município do tomador (se fornecido no endereço, senão usa RP)
+        cod_mun_tomador = (tomador_endereco.get('codigo_municipio') or '').strip()
+        if not cod_mun_tomador:
+            cod_mun_tomador = COD_MUNICIPIO_RP
+        etree.SubElement(end, '{%s}CodigoMunicipio' % ns).text = cod_mun_tomador
         etree.SubElement(end, '{%s}Uf' % ns).text = (
             (tomador_endereco.get('uf') or 'SP').strip()[:2] or 'SP'
         )

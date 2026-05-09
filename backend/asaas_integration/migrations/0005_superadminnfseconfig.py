@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('asaas_integration', '0002_lojaassinatura_asaaspayment'),
+        ('asaas_integration', '0004_asaasconfig'),
     ]
 
     operations = [

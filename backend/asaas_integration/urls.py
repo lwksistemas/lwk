@@ -12,6 +12,7 @@ router = DefaultRouter()
 
 # Importar views diretamente (sem try/except para permitir que o erro apareça)
 from . import views
+from . import views_nfse_config as nfse_config_views
 
 # Registrar ViewSets
 router.register(r'subscriptions', views.AsaasSubscriptionViewSet, basename='asaas-subscriptions')
@@ -38,4 +39,8 @@ urlpatterns = [
     # URLs de exclusão/limpeza
     path('cleanup/orphans/', views.asaas_cleanup_orphans, name='asaas-cleanup-orphans'),
     path('delete/loja/', views.asaas_delete_loja, name='asaas-delete-loja'),
+    
+    # NFS-e Config do Superadmin
+    path('nfse-config/', nfse_config_views.nfse_config_view, name='nfse-config'),
+    path('nfse-config/test-issnet/', nfse_config_views.nfse_config_test_issnet, name='nfse-config-test-issnet'),
 ]

@@ -171,6 +171,8 @@ def _emitir_via_issnet(
                 tomador_nome,
                 valor,
             )
+            # Salvar registro no banco
+            _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
             # Enviar email para o tomador
             _enviar_email_nfse_assinatura(config, tomador_email, tomador_nome, resultado, valor, descricao)
 
@@ -185,6 +187,41 @@ def _emitir_via_issnet(
                 os.unlink(cert_path)
             except OSError:
                 pass
+
+
+def _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor):
+    """Salva registro da NFS-e emitida no banco."""
+    try:
+        from superadmin.models import NFSeEmitida
+        from decimal import Decimal
+
+        valor_dec = Decimal(str(valor))
+        aliquota = Decimal(str(config.aliquota_iss))
+        valor_iss = (valor_dec * aliquota / 100).quantize(Decimal('0.01'))
+
+        NFSeEmitida.objects.create(
+            loja=pagamento.loja,
+            pagamento=pagamento,
+            numero_nf=resultado.get('numero_nf', ''),
+            codigo_verificacao=resultado.get('codigo_verificacao', ''),
+            numero_rps=resultado.get('numero_rps', 0),
+            serie_rps=config.serie_rps or '',
+            provedor='issnet',
+            status='emitida',
+            valor=valor_dec,
+            aliquota_iss=aliquota,
+            valor_iss=valor_iss,
+            tomador_nome=tomador_nome,
+            tomador_cpf_cnpj=tomador_cpf_cnpj,
+            tomador_email=tomador_email,
+            descricao_servico=descricao[:500],
+            xml_nfse=resultado.get('xml_nfse', ''),
+            asaas_payment_id=pagamento.asaas_payment_id or '',
+            data_emissao=resultado.get('data_emissao'),
+        )
+        logger.info('NFSeEmitida salva: NF %s, loja %s', resultado.get('numero_nf'), pagamento.loja.slug)
+    except Exception as e:
+        logger.warning('Erro ao salvar NFSeEmitida: %s', e)
 
 
 def _enviar_email_nfse_assinatura(config, tomador_email, tomador_nome, resultado, valor, descricao):

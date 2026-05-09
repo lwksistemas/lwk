@@ -84,6 +84,13 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'teal',
   },
   {
+    title: 'NFS-e Emitidas',
+    description: 'Histórico de notas fiscais emitidas para as lojas',
+    icon: '📑',
+    href: '/superadmin/nfse',
+    color: 'emerald',
+  },
+  {
     title: 'Busca de Logs',
     description: 'Busca avançada e análise detalhada de logs',
     icon: '🔍',

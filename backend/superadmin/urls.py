@@ -25,6 +25,7 @@ from .financeiro_views import (
     nf_xml_por_payment,
 )
 from .auth_views_secure import SecureLoginView, SecureLogoutView
+from . import views_nfse as nfse_views
 
 router = DefaultRouter()
 router.register(r'tipos-loja', TipoLojaViewSet, basename='tipo-loja')
@@ -74,6 +75,12 @@ urlpatterns = [
     path('nf/<str:payment_id>/reenviar/', nf_reenviar_por_payment, name='nf-reenviar-por-payment'),
     path('nf/<str:payment_id>/cancelar/', nf_cancelar_por_payment, name='nf-cancelar-por-payment'),
     path('nf/<str:payment_id>/xml/', nf_xml_por_payment, name='nf-xml-por-payment'),
+    
+    # NFS-e emitidas (listagem superadmin)
+    path('nfse-emitidas/', nfse_views.listar_nfse_emitidas, name='nfse-emitidas'),
+    path('nfse-emitidas/<int:nfse_id>/xml/', nfse_views.nfse_xml, name='nfse-xml'),
+    path('nfse-emitidas/<int:nfse_id>/cancelar/', nfse_views.nfse_cancelar, name='nfse-cancelar'),
+    path('nfse-emitidas/<int:nfse_id>/reenviar/', nfse_views.nfse_reenviar, name='nfse-reenviar'),
     path('mercadopago-config/', mercadopago_config, name='mercadopago-config'),
     path('mercadopago-config/test/', mercadopago_test, name='mercadopago-config-test'),
     path('mercadopago-webhook/', mercadopago_webhook, name='mercadopago-webhook'),

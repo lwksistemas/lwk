@@ -30,6 +30,8 @@ interface NFSeConfig {
   prestador_cnpj: string
   prestador_razao_social: string
   prestador_inscricao_municipal: string
+  prestador_email: string
+  regime_especial_tributacao: string
   issnet_usuario: string
   issnet_senha_set: boolean
   issnet_certificado_nome: string
@@ -51,6 +53,8 @@ export default function NFSeConfigPage() {
     prestador_cnpj: '',
     prestador_razao_social: '',
     prestador_inscricao_municipal: '',
+    prestador_email: '',
+    regime_especial_tributacao: '',
     issnet_usuario: '',
     issnet_senha_set: false,
     issnet_certificado_nome: '',
@@ -107,6 +111,8 @@ export default function NFSeConfigPage() {
         formData.append('prestador_cnpj', config.prestador_cnpj)
         formData.append('prestador_razao_social', config.prestador_razao_social)
         formData.append('prestador_inscricao_municipal', config.prestador_inscricao_municipal)
+        formData.append('prestador_email', config.prestador_email)
+        formData.append('regime_especial_tributacao', config.regime_especial_tributacao)
         formData.append('issnet_usuario', config.issnet_usuario)
         formData.append('codigo_servico_municipal', config.codigo_servico_municipal)
         formData.append('descricao_servico_padrao', config.descricao_servico_padrao)
@@ -132,6 +138,8 @@ export default function NFSeConfigPage() {
           prestador_cnpj: config.prestador_cnpj,
           prestador_razao_social: config.prestador_razao_social,
           prestador_inscricao_municipal: config.prestador_inscricao_municipal,
+          prestador_email: config.prestador_email,
+          regime_especial_tributacao: config.regime_especial_tributacao,
           issnet_usuario: config.issnet_usuario,
           codigo_servico_municipal: config.codigo_servico_municipal,
           descricao_servico_padrao: config.descricao_servico_padrao,
@@ -356,6 +364,37 @@ export default function NFSeConfigPage() {
                     onChange={(e) => setConfig(prev => ({ ...prev, prestador_inscricao_municipal: e.target.value }))}
                     placeholder="123456"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="prestador_email">E-mail do Prestador</Label>
+                  <Input
+                    id="prestador_email"
+                    type="email"
+                    value={config.prestador_email}
+                    onChange={(e) => setConfig(prev => ({ ...prev, prestador_email: e.target.value }))}
+                    placeholder="fiscal@lwksistemas.com.br"
+                  />
+                  <p className="text-xs text-muted-foreground">E-mail para notificações de NFS-e emitidas</p>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="regime_especial">Regime Especial de Tributação</Label>
+                  <select
+                    id="regime_especial"
+                    value={config.regime_especial_tributacao}
+                    onChange={(e) => setConfig(prev => ({ ...prev, regime_especial_tributacao: e.target.value }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">- (Nenhum)</option>
+                    <option value="1">Microempresa Municipal</option>
+                    <option value="2">Estimativa</option>
+                    <option value="3">Sociedade de Profissionais</option>
+                    <option value="4">Cooperativa</option>
+                    <option value="5">Microempresário Individual (MEI)</option>
+                    <option value="6">Microempresário e Empresa de Pequeno Porte (ME EPP)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Identifica o regime de tributação da empresa. Empresas do Simples Nacional geralmente optam por &quot;Microempresa Municipal&quot;.
+                  </p>
                 </div>
               </div>
             </CardContent>

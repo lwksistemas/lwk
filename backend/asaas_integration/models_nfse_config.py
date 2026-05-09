@@ -50,6 +50,28 @@ class SuperadminNFSeConfig(models.Model):
         max_length=20, blank=True,
         verbose_name='Inscrição Municipal',
     )
+    prestador_email = models.EmailField(
+        blank=True,
+        verbose_name='E-mail do Prestador',
+        help_text='E-mail para receber notificações de NFS-e emitidas'
+    )
+
+    # Regime Especial de Tributação
+    REGIME_ESPECIAL_CHOICES = [
+        ('', '-'),
+        ('1', 'Microempresa Municipal'),
+        ('2', 'Estimativa'),
+        ('3', 'Sociedade de Profissionais'),
+        ('4', 'Cooperativa'),
+        ('5', 'Microempresário Individual (MEI)'),
+        ('6', 'Microempresário e Empresa de Pequeno Porte (ME EPP)'),
+    ]
+    regime_especial_tributacao = models.CharField(
+        max_length=2, blank=True, default='',
+        choices=REGIME_ESPECIAL_CHOICES,
+        verbose_name='Regime Especial de Tributação',
+        help_text='Identifica o regime de tributação da empresa. Simples Nacional geralmente usa Microempresa Municipal.'
+    )
 
     # === Configurações ISSNet (quando provedor = issnet) ===
     issnet_usuario = models.CharField(

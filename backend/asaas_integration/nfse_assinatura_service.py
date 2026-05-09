@@ -118,7 +118,7 @@ def _emitir_via_issnet(
             senha_certificado=config.issnet_senha_certificado,
             ambiente='producao',
         )
-        client._regime_especial = '0'
+        client._regime_especial = config.regime_especial_tributacao or '0'
         client._optante_simples = config.optante_simples_nacional
         client._incentivador_cultural = False
 

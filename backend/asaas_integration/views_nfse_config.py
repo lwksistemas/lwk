@@ -30,6 +30,8 @@ def nfse_config_view(request):
             'prestador_cnpj': config.prestador_cnpj,
             'prestador_razao_social': config.prestador_razao_social,
             'prestador_inscricao_municipal': config.prestador_inscricao_municipal,
+            'prestador_email': config.prestador_email,
+            'regime_especial_tributacao': config.regime_especial_tributacao,
             'issnet_usuario': config.issnet_usuario,
             'issnet_senha_set': bool(config.issnet_senha),
             'issnet_certificado_nome': config.issnet_certificado_nome,
@@ -52,6 +54,7 @@ def nfse_config_view(request):
     simple_fields = [
         'provedor_nfse', 'emitir_automaticamente', 'prestador_cnpj',
         'prestador_razao_social', 'prestador_inscricao_municipal',
+        'prestador_email', 'regime_especial_tributacao',
         'issnet_usuario', 'codigo_servico_municipal', 'descricao_servico_padrao',
         'codigo_cnae', 'optante_simples_nacional', 'serie_rps', 'ultimo_rps',
     ]

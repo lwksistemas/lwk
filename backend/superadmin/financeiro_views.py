@@ -983,6 +983,41 @@ def nf_baixar_por_payment(request, payment_id):
         return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def nf_xml_por_payment(request, payment_id):
+    """Retorna XML da nota fiscal (ISSNet direto ou Asaas)."""
+    if not request.user.is_superuser:
+        return Response({'detail': 'Apenas superadmin.'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        # Primeiro tentar buscar XML local (emissão ISSNet direto)
+        from superadmin.models import PagamentoLoja
+        pagamento = PagamentoLoja.objects.filter(asaas_payment_id=payment_id).first()
+        if pagamento and hasattr(pagamento, 'nfse_xml') and pagamento.nfse_xml:
+            return Response({'success': True, 'xml': pagamento.nfse_xml})
+
+        # Fallback: buscar via Asaas API
+        client = _get_asaas_client()
+        if not client:
+            return Response({'success': False, 'error': 'Asaas não configurado e XML local não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        invoice, _ = _find_invoice_for_payment(client, payment_id)
+        if not invoice:
+            return Response({'success': False, 'error': 'Nenhuma nota fiscal encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+        xml_url = invoice.get('xmlUrl') or invoice.get('invoiceXmlUrl')
+        if xml_url:
+            import requests as req
+            resp = req.get(xml_url, timeout=15)
+            if resp.status_code == 200:
+                return Response({'success': True, 'xml': resp.text})
+
+        return Response({'success': False, 'error': 'XML não disponível para esta nota'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.exception("nf_xml_por_payment: %s", e)
+        return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def nf_reenviar_por_payment(request, payment_id):

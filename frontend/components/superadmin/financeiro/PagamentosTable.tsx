@@ -11,6 +11,10 @@ interface PagamentosTableProps {
   onCopyPix: (pixCode: string) => void;
   onUpdateStatusAsaas?: (paymentId: number) => void;
   onExcluirAsaas?: (payment: Pagamento) => void;
+  onNfBaixar?: (payment: Pagamento) => void;
+  onNfReenviar?: (payment: Pagamento) => void;
+  onNfCancelar?: (payment: Pagamento) => void;
+  onNfBaixarXml?: (payment: Pagamento) => void;
 }
 
 function getStatusColor(status: string) {
@@ -29,7 +33,11 @@ export function PagamentosTable({
   onDownloadBoleto,
   onCopyPix,
   onUpdateStatusAsaas,
-  onExcluirAsaas
+  onExcluirAsaas,
+  onNfBaixar,
+  onNfReenviar,
+  onNfCancelar,
+  onNfBaixarXml,
 }: PagamentosTableProps) {
   if (pagamentos.length === 0) {
     return (
@@ -123,6 +131,43 @@ export function PagamentosTable({
                       title={pagamento.is_paid ? 'Não é possível excluir cobrança paga' : 'Excluir cobrança'}
                     >
                       🗑️ Excluir
+                    </button>
+                  )}
+                  {/* Ações NFS-e — visíveis para pagamentos confirmados */}
+                  {pagamento.is_paid && onNfBaixar && (
+                    <button
+                      onClick={() => onNfBaixar(pagamento)}
+                      className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                      title="Baixar PDF da Nota Fiscal"
+                    >
+                      🧾 NF
+                    </button>
+                  )}
+                  {pagamento.is_paid && onNfBaixarXml && (
+                    <button
+                      onClick={() => onNfBaixarXml(pagamento)}
+                      className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                      title="Baixar XML da Nota Fiscal"
+                    >
+                      📋 XML
+                    </button>
+                  )}
+                  {pagamento.is_paid && onNfReenviar && (
+                    <button
+                      onClick={() => onNfReenviar(pagamento)}
+                      className="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 transition-colors"
+                      title="Reenviar Nota Fiscal por email"
+                    >
+                      📧 Reenviar
+                    </button>
+                  )}
+                  {pagamento.is_paid && onNfCancelar && (
+                    <button
+                      onClick={() => onNfCancelar(pagamento)}
+                      className="text-orange-600 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300 transition-colors"
+                      title="Cancelar Nota Fiscal"
+                    >
+                      ❌ Cancelar NF
                     </button>
                   )}
                 </td>

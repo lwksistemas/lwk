@@ -22,6 +22,7 @@ from .financeiro_views import (
     nf_baixar_por_payment,
     nf_reenviar_por_payment,
     nf_cancelar_por_payment,
+    nf_xml_por_payment,
 )
 from .auth_views_secure import SecureLoginView, SecureLogoutView
 
@@ -72,6 +73,7 @@ urlpatterns = [
     path('nf/<str:payment_id>/baixar/', nf_baixar_por_payment, name='nf-baixar-por-payment'),
     path('nf/<str:payment_id>/reenviar/', nf_reenviar_por_payment, name='nf-reenviar-por-payment'),
     path('nf/<str:payment_id>/cancelar/', nf_cancelar_por_payment, name='nf-cancelar-por-payment'),
+    path('nf/<str:payment_id>/xml/', nf_xml_por_payment, name='nf-xml-por-payment'),
     path('mercadopago-config/', mercadopago_config, name='mercadopago-config'),
     path('mercadopago-config/test/', mercadopago_test, name='mercadopago-config-test'),
     path('mercadopago-webhook/', mercadopago_webhook, name='mercadopago-webhook'),

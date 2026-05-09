@@ -120,7 +120,7 @@ def _emitir_via_issnet(
         )
         client._regime_especial = config.regime_especial_tributacao or '0'
         client._optante_simples = config.optante_simples_nacional
-        client._incentivador_cultural = False
+        client._incentivador_cultural = config.incentivador_cultural
 
         serie_rps = (config.serie_rps or 'E').strip()
 

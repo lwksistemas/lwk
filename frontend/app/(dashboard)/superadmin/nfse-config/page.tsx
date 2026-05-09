@@ -42,6 +42,7 @@ interface NFSeConfig {
   aliquota_iss: string
   codigo_cnae: string
   optante_simples_nacional: boolean
+  incentivador_cultural: boolean
   serie_rps: string
   ultimo_rps: number
 }
@@ -65,6 +66,7 @@ export default function NFSeConfigPage() {
     aliquota_iss: '2.00',
     codigo_cnae: '',
     optante_simples_nacional: true,
+    incentivador_cultural: false,
     serie_rps: 'E',
     ultimo_rps: 0,
   })
@@ -119,6 +121,7 @@ export default function NFSeConfigPage() {
         formData.append('aliquota_iss', config.aliquota_iss)
         formData.append('codigo_cnae', config.codigo_cnae)
         formData.append('optante_simples_nacional', String(config.optante_simples_nacional))
+        formData.append('incentivador_cultural', String(config.incentivador_cultural))
         formData.append('serie_rps', config.serie_rps)
         formData.append('ultimo_rps', String(config.ultimo_rps))
         // Senhas (só se preenchidas)
@@ -146,6 +149,7 @@ export default function NFSeConfigPage() {
           aliquota_iss: config.aliquota_iss,
           codigo_cnae: config.codigo_cnae,
           optante_simples_nacional: config.optante_simples_nacional,
+          incentivador_cultural: config.incentivador_cultural,
           serie_rps: config.serie_rps,
           ultimo_rps: config.ultimo_rps,
         }
@@ -376,7 +380,7 @@ export default function NFSeConfigPage() {
                   />
                   <p className="text-xs text-muted-foreground">E-mail para notificações de NFS-e emitidas</p>
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
                   <Label htmlFor="regime_especial">Regime Especial de Tributação</Label>
                   <select
                     id="regime_especial"
@@ -395,6 +399,30 @@ export default function NFSeConfigPage() {
                   <p className="text-xs text-muted-foreground">
                     Identifica o regime de tributação da empresa. Empresas do Simples Nacional geralmente optam por &quot;Microempresa Municipal&quot;.
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="optante_simples">Optante pelo Simples Nacional</Label>
+                  <select
+                    id="optante_simples"
+                    value={config.optante_simples_nacional ? 'sim' : 'nao'}
+                    onChange={(e) => setConfig(prev => ({ ...prev, optante_simples_nacional: e.target.value === 'sim' }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="incentivador_cultural">Incentivador Cultural</Label>
+                  <select
+                    id="incentivador_cultural"
+                    value={config.incentivador_cultural ? 'sim' : 'nao'}
+                    onChange={(e) => setConfig(prev => ({ ...prev, incentivador_cultural: e.target.value === 'sim' }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="nao">Não</option>
+                    <option value="sim">Sim</option>
+                  </select>
                 </div>
               </div>
             </CardContent>
@@ -631,17 +659,6 @@ export default function NFSeConfigPage() {
                   onChange={(e) => setConfig(prev => ({ ...prev, descricao_servico_padrao: e.target.value }))}
                   placeholder="Licenciamento de uso de software SaaS"
                 />
-              </div>
-
-              <div className="flex items-center space-x-2 pt-4">
-                <input
-                  type="checkbox"
-                  id="simples_nacional"
-                  checked={config.optante_simples_nacional}
-                  onChange={(e) => setConfig(prev => ({ ...prev, optante_simples_nacional: e.target.checked }))}
-                  className="rounded"
-                />
-                <Label htmlFor="simples_nacional">Optante pelo Simples Nacional</Label>
               </div>
             </CardContent>
           </Card>

@@ -117,6 +117,11 @@ class SuperadminNFSeConfig(models.Model):
         default=True,
         verbose_name='Optante Simples Nacional',
     )
+    incentivador_cultural = models.BooleanField(
+        default=False,
+        verbose_name='Incentivador Cultural',
+        help_text='Se a empresa é incentivadora cultural'
+    )
 
     # === Controle de RPS ===
     serie_rps = models.CharField(

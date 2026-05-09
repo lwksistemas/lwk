@@ -42,6 +42,7 @@ def nfse_config_view(request):
             'aliquota_iss': str(config.aliquota_iss),
             'codigo_cnae': config.codigo_cnae,
             'optante_simples_nacional': config.optante_simples_nacional,
+            'incentivador_cultural': config.incentivador_cultural,
             'serie_rps': config.serie_rps,
             'ultimo_rps': config.ultimo_rps,
         })
@@ -56,12 +57,13 @@ def nfse_config_view(request):
         'prestador_razao_social', 'prestador_inscricao_municipal',
         'prestador_email', 'regime_especial_tributacao',
         'issnet_usuario', 'codigo_servico_municipal', 'descricao_servico_padrao',
-        'codigo_cnae', 'optante_simples_nacional', 'serie_rps', 'ultimo_rps',
+        'codigo_cnae', 'optante_simples_nacional', 'incentivador_cultural',
+        'serie_rps', 'ultimo_rps',
     ]
     for field in simple_fields:
         if field in data:
             val = data[field]
-            if field == 'emitir_automaticamente' or field == 'optante_simples_nacional':
+            if field == 'emitir_automaticamente' or field == 'optante_simples_nacional' or field == 'incentivador_cultural':
                 val = bool(val)
             elif field == 'ultimo_rps':
                 val = int(val) if val else 0

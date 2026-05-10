@@ -1,6 +1,6 @@
 """
 Converte GoogleCalendarConnection.loja_id de IntegerField para ForeignKey(CASCADE).
-A coluna no banco já existe (loja_id) — apenas adiciona a constraint FK.
+Usa RunSQL para adicionar a FK constraint sem alterar a coluna existente.
 Também limpa registros órfãos antes de adicionar a FK.
 """
 from django.db import migrations, models
@@ -24,46 +24,45 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # 1. Limpar órfãos antes de adicionar FK constraint
+        # 1. Limpar órfãos
         migrations.RunPython(limpar_orfaos, migrations.RunPython.noop),
 
-        # 2. Remover constraints antigas (usam loja_id como field name)
-        migrations.RemoveConstraint(
-            model_name='googlecalendarconnection',
-            name='gcal_loja_owner_uniq',
+        # 2. Remover constraints antigas
+        migrations.RunSQL(
+            sql="ALTER TABLE superadmin_google_calendar_connection DROP CONSTRAINT IF EXISTS gcal_loja_owner_uniq;",
+            reverse_sql="SELECT 1;",
         ),
-        migrations.RemoveConstraint(
-            model_name='googlecalendarconnection',
-            name='gcal_loja_vendedor_uniq',
-        ),
-
-        # 3. Alterar campo de IntegerField para ForeignKey
-        migrations.AlterField(
-            model_name='googlecalendarconnection',
-            name='loja',
-            field=models.ForeignKey(
-                db_column='loja_id',
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name='google_calendar_connections',
-                to='superadmin.loja',
-            ),
+        migrations.RunSQL(
+            sql="ALTER TABLE superadmin_google_calendar_connection DROP CONSTRAINT IF EXISTS gcal_loja_vendedor_uniq;",
+            reverse_sql="SELECT 1;",
         ),
 
-        # 4. Recriar constraints com o novo field name
-        migrations.AddConstraint(
-            model_name='googlecalendarconnection',
-            constraint=models.UniqueConstraint(
-                condition=models.Q(vendedor_id__isnull=True),
-                fields=['loja'],
-                name='gcal_loja_owner_uniq',
-            ),
+        # 3. Adicionar FK constraint no PostgreSQL (coluna loja_id já existe)
+        migrations.RunSQL(
+            sql="""
+                ALTER TABLE superadmin_google_calendar_connection
+                ADD CONSTRAINT gcal_loja_fk
+                FOREIGN KEY (loja_id) REFERENCES superadmin_loja(id)
+                ON DELETE CASCADE;
+            """,
+            reverse_sql="ALTER TABLE superadmin_google_calendar_connection DROP CONSTRAINT IF EXISTS gcal_loja_fk;",
         ),
-        migrations.AddConstraint(
-            model_name='googlecalendarconnection',
-            constraint=models.UniqueConstraint(
-                condition=models.Q(vendedor_id__isnull=False),
-                fields=['loja', 'vendedor_id'],
-                name='gcal_loja_vendedor_uniq',
-            ),
+
+        # 4. Recriar unique constraints
+        migrations.RunSQL(
+            sql="""
+                CREATE UNIQUE INDEX IF NOT EXISTS gcal_loja_owner_uniq
+                ON superadmin_google_calendar_connection (loja_id)
+                WHERE vendedor_id IS NULL;
+            """,
+            reverse_sql="DROP INDEX IF EXISTS gcal_loja_owner_uniq;",
+        ),
+        migrations.RunSQL(
+            sql="""
+                CREATE UNIQUE INDEX IF NOT EXISTS gcal_loja_vendedor_uniq
+                ON superadmin_google_calendar_connection (loja_id, vendedor_id)
+                WHERE vendedor_id IS NOT NULL;
+            """,
+            reverse_sql="DROP INDEX IF EXISTS gcal_loja_vendedor_uniq;",
         ),
     ]

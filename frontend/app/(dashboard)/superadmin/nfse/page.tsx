@@ -103,6 +103,17 @@ export default function NFSeEmitidasPage() {
     }
   }
 
+  const handleBaixarPdf = (nf: NFSeEmitida) => {
+    if (nf.pdf_url) {
+      window.open(nf.pdf_url, '_blank')
+    } else if (nf.numero_nf && nf.codigo_verificacao) {
+      // URL pública de consulta ISSNet Ribeirão Preto
+      window.open('https://www.issnetonline.com.br/ribeiraopreto/online', '_blank')
+    } else {
+      setMessage({ type: 'error', text: 'PDF não disponível. Consulte no portal ISSNet.' })
+    }
+  }
+
   const handleReenviar = async (nf: NFSeEmitida) => {
     if (!confirm(`Reenviar NFS-e ${nf.numero_nf} por email para ${nf.tomador_email}?`)) return
     try {
@@ -231,6 +242,11 @@ export default function NFSeEmitidasPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 space-x-1">
+                        {nf.status === 'emitida' && (
+                          <Button size="sm" variant="ghost" onClick={() => handleBaixarPdf(nf)} title="Baixar/Consultar PDF">
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
                         {nf.tem_xml && (
                           <Button size="sm" variant="ghost" onClick={() => handleBaixarXml(nf)} title="Baixar XML">
                             <Download className="w-4 h-4" />

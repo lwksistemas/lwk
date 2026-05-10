@@ -15,10 +15,6 @@ interface PagamentosTabProps {
   onCopyPix: (pixCode: string) => void;
   onUpdateStatusAsaas?: (paymentId: number) => void;
   onExcluirAsaas?: (payment: Pagamento) => void;
-  onNfBaixar?: (payment: Pagamento) => void;
-  onNfReenviar?: (payment: Pagamento) => void;
-  onNfCancelar?: (payment: Pagamento) => void;
-  onNfBaixarXml?: (payment: Pagamento) => void;
 }
 
 export function PagamentosTab({
@@ -30,10 +26,6 @@ export function PagamentosTab({
   onCopyPix,
   onUpdateStatusAsaas,
   onExcluirAsaas,
-  onNfBaixar,
-  onNfReenviar,
-  onNfCancelar,
-  onNfBaixarXml,
 }: PagamentosTabProps) {
   if (loading) {
     return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>;
@@ -52,10 +44,6 @@ export function PagamentosTab({
         onCopyPix={onCopyPix}
         onUpdateStatusAsaas={onUpdateStatusAsaas}
         onExcluirAsaas={onExcluirAsaas}
-        onNfBaixar={onNfBaixar}
-        onNfReenviar={onNfReenviar}
-        onNfCancelar={onNfCancelar}
-        onNfBaixarXml={onNfBaixarXml}
       />
     </div>
   );

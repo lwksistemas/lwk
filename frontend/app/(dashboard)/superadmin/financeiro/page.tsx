@@ -140,71 +140,6 @@ export default function FinanceiroPage() {
     }
   };
 
-  // Handlers NFS-e
-  const handleNfBaixar = async (payment: Pagamento) => {
-    try {
-      const { data } = await (await import('@/lib/api-client')).default.get(`/superadmin/nf/${payment.asaas_id}/baixar/`);
-      if (data.success && data.pdf_url) {
-        window.open(data.pdf_url, '_blank');
-      } else {
-        alert(data.error || 'PDF não disponível');
-      }
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } };
-      alert(err.response?.data?.error || 'Erro ao baixar NF');
-    }
-  };
-
-  const handleNfBaixarXml = async (payment: Pagamento) => {
-    try {
-      const { data } = await (await import('@/lib/api-client')).default.get(`/superadmin/nf/${payment.asaas_id}/xml/`);
-      if (data.success && data.xml) {
-        const blob = new Blob([data.xml], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `nfse_${payment.asaas_id}.xml`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        alert(data.error || 'XML não disponível');
-      }
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } };
-      alert(err.response?.data?.error || 'Erro ao baixar XML');
-    }
-  };
-
-  const handleNfReenviar = async (payment: Pagamento) => {
-    if (!confirm('Reenviar nota fiscal por email para o cliente?')) return;
-    try {
-      const { data } = await (await import('@/lib/api-client')).default.post(`/superadmin/nf/${payment.asaas_id}/reenviar/`);
-      if (data.success) {
-        alert(data.message || 'Nota fiscal reenviada com sucesso!');
-      } else {
-        alert(data.error || 'Erro ao reenviar');
-      }
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } };
-      alert(err.response?.data?.error || 'Erro ao reenviar NF');
-    }
-  };
-
-  const handleNfCancelar = async (payment: Pagamento) => {
-    if (!confirm('Tem certeza que deseja CANCELAR a nota fiscal? Esta ação não pode ser desfeita.')) return;
-    try {
-      const { data } = await (await import('@/lib/api-client')).default.post(`/superadmin/nf/${payment.asaas_id}/cancelar/`);
-      if (data.success) {
-        alert(data.message || 'Nota fiscal cancelada com sucesso!');
-      } else {
-        alert(data.error || 'Erro ao cancelar');
-      }
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } };
-      alert(err.response?.data?.error || 'Erro ao cancelar NF');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -288,10 +223,6 @@ export default function FinanceiroPage() {
                 }}
                 onUpdateStatusAsaas={handleUpdateStatusAsaas}
                 onExcluirAsaas={handleExcluirPagamento}
-                onNfBaixar={handleNfBaixar}
-                onNfReenviar={handleNfReenviar}
-                onNfCancelar={handleNfCancelar}
-                onNfBaixarXml={handleNfBaixarXml}
               />
             )}
           </div>

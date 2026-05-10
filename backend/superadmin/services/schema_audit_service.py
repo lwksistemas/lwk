@@ -150,7 +150,34 @@ def auditar_loja(loja) -> dict[str, Any]:
         return base
 
     tudo_ok = True
+    # Apps de infraestrutura Django que não criam tabelas com prefixo próprio nos schemas tenant
+    APPS_INFRA_SKIP_TABELA = {'contenttypes', 'auth'}
+
     for app in apps_esperados:
+        # Pular verificação de tabela para apps de infra (só verificar migration)
+        if app in APPS_INFRA_SKIP_TABELA:
+            with conn.cursor() as cur:
+                cur.execute('SET search_path TO %s, public', [schema_name])
+                cur.execute(
+                    'SELECT COUNT(*) FROM django_migrations WHERE app = %s',
+                    [app],
+                )
+                n_mig = cur.fetchone()[0]
+            ok_app = n_mig > 0
+            if not ok_app:
+                tudo_ok = False
+            base['apps_detalhe'].append(
+                {
+                    'app': app,
+                    'prefixos_tabela': [],
+                    'tabelas_prefixo': 0,
+                    'migrations_registradas': n_mig,
+                    'ok': ok_app,
+                    'infra': True,
+                }
+            )
+            continue
+
         pfx_list = prefixos_tabela_para_app(app)
         n_tab = contar_tabelas_app_no_schema(conn, schema_name, app)
         with conn.cursor() as cur:

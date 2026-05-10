@@ -105,7 +105,8 @@ APPS_CRITICOS_MIGRACAO_CRM_VENDAS = frozenset({'crm_vendas', 'nfse_integration'}
 def get_apps_esperados_para_loja(loja) -> list[str]:
     """
     Apps cujo schema deve existir para esta loja (alinhado a aplicar_migrations).
-    Sempre inclui contenttypes (necessário para Django internals), stores e products.
+    contenttypes e auth são migrados para evitar erros do Django, mas não precisam
+    ser auditados (não criam tabelas com prefixo próprio em todos os schemas).
     """
     tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
     base = ['contenttypes', 'auth', 'stores', 'products']

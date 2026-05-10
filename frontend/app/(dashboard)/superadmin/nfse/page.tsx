@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, RefreshCw, FileText, Download, Mail, XCircle } from 'lucide-react'
+import { AlertCircle, RefreshCw, FileText, Download, Mail, XCircle, PlusCircle } from 'lucide-react'
 import apiClient from '@/lib/api-client'
+import { ModalEmitirNFSeManual } from './components/ModalEmitirNFSeManual'
 
 interface NFSeEmitida {
   id: number
@@ -64,6 +65,7 @@ export default function NFSeEmitidasPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [filtroStatus, setFiltroStatus] = useState('')
+  const [showModalEmitir, setShowModalEmitir] = useState(false)
 
   useEffect(() => {
     loadNotas()
@@ -152,10 +154,16 @@ export default function NFSeEmitidasPage() {
             Notas fiscais emitidas pela LWK para as lojas ({total} notas)
           </p>
         </div>
-        <Button variant="outline" onClick={loadNotas} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowModalEmitir(true)}>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Emitir NFS-e
+          </Button>
+          <Button variant="outline" onClick={loadNotas} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {message && (
@@ -271,6 +279,17 @@ export default function NFSeEmitidasPage() {
           )}
         </CardContent>
       </Card>
+      {/* Modal Emitir NFS-e Manual */}
+      {showModalEmitir && (
+        <ModalEmitirNFSeManual
+          onClose={() => setShowModalEmitir(false)}
+          onSuccess={() => {
+            setShowModalEmitir(false)
+            setMessage({ type: 'success', text: 'NFS-e emitida com sucesso!' })
+            loadNotas()
+          }}
+        />
+      )}
     </div>
   )
 }

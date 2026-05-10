@@ -75,11 +75,11 @@ class SuperadminNFSeConfig(models.Model):
 
     # === Configurações ISSNet (quando provedor = issnet) ===
     issnet_usuario = models.CharField(
-        max_length=100, blank=True,
+        max_length=500, blank=True,
         verbose_name='Usuário ISSNet',
     )
     issnet_senha = models.CharField(
-        max_length=100, blank=True,
+        max_length=500, blank=True,
         verbose_name='Senha ISSNet',
     )
     issnet_certificado = models.BinaryField(
@@ -91,7 +91,7 @@ class SuperadminNFSeConfig(models.Model):
         verbose_name='Nome do arquivo .pfx',
     )
     issnet_senha_certificado = models.CharField(
-        max_length=100, blank=True,
+        max_length=500, blank=True,
         verbose_name='Senha do Certificado',
     )
 

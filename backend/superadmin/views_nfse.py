@@ -12,6 +12,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from core.audit import audit_log, registrar_audit_manual
+from core.rate_limit import rate_limit
 from .models import NFSeEmitida, Loja
 
 logger = logging.getLogger(__name__)
@@ -93,8 +95,9 @@ def nfse_xml(request, nfse_id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@rate_limit(max_requests=5, window_seconds=60)
+@audit_log('nfse_cancelar', 'Cancelamento de NFS-e via superadmin')
 def nfse_cancelar(request, nfse_id):
-    """Cancela uma NFS-e emitida via ISSNet."""
     if not request.user.is_superuser:
         return Response({'detail': 'Apenas superadmin.'}, status=403)
 
@@ -155,8 +158,8 @@ def nfse_cancelar(request, nfse_id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@audit_log('nfse_reenviar', 'Reenvio de NFS-e por email via superadmin')
 def nfse_reenviar(request, nfse_id):
-    """Reenvia email da NFS-e para o tomador."""
     if not request.user.is_superuser:
         return Response({'detail': 'Apenas superadmin.'}, status=403)
 
@@ -226,6 +229,8 @@ def listar_lojas_para_nfse(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@rate_limit(max_requests=10, window_seconds=60)
+@audit_log('nfse_emitir_manual', 'Emissão manual de NFS-e via superadmin')
 def emitir_nfse_manual(request):
     """
     Emite NFS-e manualmente via ISSNet direto.
@@ -300,6 +305,12 @@ def emitir_nfse_manual(request):
     if not config.prestador_cnpj:
         return Response({'success': False, 'error': 'CNPJ do prestador não configurado'}, status=400)
 
+    # Descriptografar credenciais
+    from core.encryption import decrypt_value
+    issnet_usuario = decrypt_value(config.issnet_usuario)
+    issnet_senha = decrypt_value(config.issnet_senha)
+    issnet_senha_cert = decrypt_value(config.issnet_senha_certificado)
+
     # Certificado temporário
     cert_path = None
     try:
@@ -313,10 +324,10 @@ def emitir_nfse_manual(request):
 
         # Cliente ISSNet
         client = ISSNetClient(
-            usuario=config.issnet_usuario,
-            senha=config.issnet_senha,
+            usuario=issnet_usuario,
+            senha=issnet_senha,
             certificado_path=cert_path,
-            senha_certificado=config.issnet_senha_certificado,
+            senha_certificado=issnet_senha_cert,
             ambiente='producao',
         )
         client._regime_especial = config.regime_especial_tributacao or '0'

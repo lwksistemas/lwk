@@ -160,3 +160,22 @@ class SuperadminNFSeConfig(models.Model):
         self.ultimo_rps += 1
         self.save(update_fields=['ultimo_rps', 'updated_at'])
         return self.ultimo_rps
+
+    # === Propriedades para descriptografia transparente ===
+    @property
+    def issnet_usuario_decrypted(self) -> str:
+        """Retorna usuário ISSNet descriptografado."""
+        from core.encryption import decrypt_value
+        return decrypt_value(self.issnet_usuario)
+
+    @property
+    def issnet_senha_decrypted(self) -> str:
+        """Retorna senha ISSNet descriptografada."""
+        from core.encryption import decrypt_value
+        return decrypt_value(self.issnet_senha)
+
+    @property
+    def issnet_senha_certificado_decrypted(self) -> str:
+        """Retorna senha do certificado descriptografada."""
+        from core.encryption import decrypt_value
+        return decrypt_value(self.issnet_senha_certificado)

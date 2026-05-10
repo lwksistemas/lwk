@@ -43,91 +43,6 @@ function getStatusColor(status: string) {
   return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
 }
 
-/** Botões de ação de NF para cada linha do histórico */
-function HistoricoNFActions({ asaasId, isPaid }: { asaasId: string; isPaid: boolean }) {
-  const [loading, setLoading] = useState<string | null>(null);
-
-  const handleBaixarNF = async () => {
-    try {
-      setLoading('baixar');
-      const { data } = await apiClient.get(`/superadmin/nf/${asaasId}/baixar/`);
-      if (data.success && data.pdf_url) {
-        window.open(data.pdf_url, '_blank');
-      } else {
-        alert(data.error || 'Nota fiscal não encontrada');
-      }
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Erro ao baixar nota fiscal');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleReenviarNF = async () => {
-    try {
-      setLoading('reenviar');
-      const { data } = await apiClient.post(`/superadmin/nf/${asaasId}/reenviar/`);
-      if (data.success) {
-        alert(data.message || 'Nota fiscal reenviada!');
-      } else {
-        alert(data.error || 'Erro ao reenviar');
-      }
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Erro ao reenviar nota fiscal');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleCancelarNF = async () => {
-    if (!confirm('Tem certeza que deseja cancelar esta nota fiscal?')) return;
-    try {
-      setLoading('cancelar');
-      const { data } = await apiClient.post(`/superadmin/nf/${asaasId}/cancelar/`);
-      if (data.success) {
-        alert(data.message || 'Nota fiscal cancelada!');
-      } else {
-        alert(data.error || 'Erro ao cancelar');
-      }
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Erro ao cancelar nota fiscal');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  if (!isPaid) return null;
-
-  return (
-    <div className="flex gap-1 flex-wrap">
-      <button
-        onClick={handleBaixarNF}
-        disabled={loading !== null}
-        className="px-1.5 py-0.5 bg-indigo-600 text-white text-[10px] rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-        title="Baixar PDF da nota fiscal"
-      >
-        {loading === 'baixar' ? '⏳' : '🧾'} NF
-      </button>
-      <button
-        onClick={handleReenviarNF}
-        disabled={loading !== null}
-        className="px-1.5 py-0.5 bg-teal-600 text-white text-[10px] rounded hover:bg-teal-700 disabled:opacity-50 transition-colors"
-        title="Reenviar NF por email"
-      >
-        {loading === 'reenviar' ? '⏳' : '📧'} Reenviar
-      </button>
-      <button
-        onClick={handleCancelarNF}
-        disabled={loading !== null}
-        className="px-1.5 py-0.5 bg-rose-600 text-white text-[10px] rounded hover:bg-rose-700 disabled:opacity-50 transition-colors"
-        title="Cancelar nota fiscal"
-      >
-        {loading === 'cancelar' ? '⏳' : '❌'} Cancelar
-      </button>
-    </div>
-  );
-}
-
 export function AssinaturaCard({
   assinatura,
   onDownloadBoletoAsaas,
@@ -289,8 +204,10 @@ export function AssinaturaCard({
                               📄 Boleto
                             </a>
                           )}
-                          {pag.asaas_id && (
-                            <HistoricoNFActions asaasId={pag.asaas_id} isPaid={pag.is_paid} />
+                          {pag.asaas_id && pag.is_paid && (
+                            <span className="px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400">
+                              Ver NF em /superadmin/nfse
+                            </span>
                           )}
                         </div>
                       </td>

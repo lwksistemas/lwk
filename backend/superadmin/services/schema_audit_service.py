@@ -26,9 +26,13 @@ def prefixos_tabela_para_app(app_label: str) -> list[str]:
     Prefixos de table_name em information_schema para contar tabelas do app.
 
     clinica_estetica usa Meta db_table com prefixo clinica_* (legado), não clinica_estetica_*.
+    contenttypes usa django_content_type (não contenttypes_*).
+    auth usa auth_* (auth_permission, auth_group, etc).
     """
     if app_label == 'clinica_estetica':
         return ['clinica_']
+    if app_label == 'contenttypes':
+        return ['django_content_type']
     return [f'{app_label}_']
 
 

@@ -210,18 +210,16 @@ def listar_lojas_para_nfse(request):
     if not request.user.is_superuser:
         return Response({'detail': 'Apenas superadmin.'}, status=403)
 
-    lojas = Loja.objects.filter(is_active=True).order_by('nome').values(
-        'id', 'nome', 'slug', 'cpf_cnpj', 'email', 'razao_social',
-    )
+    lojas = Loja.objects.filter(is_active=True).select_related('owner').order_by('nome')[:200]
     data = []
-    for loja in lojas[:200]:
+    for loja in lojas:
         data.append({
-            'id': loja['id'],
-            'nome': loja['nome'],
-            'slug': loja['slug'],
-            'cpf_cnpj': loja['cpf_cnpj'] or '',
-            'email': loja['email'] or '',
-            'razao_social': loja['razao_social'] or loja['nome'],
+            'id': loja.id,
+            'nome': loja.nome,
+            'slug': loja.slug,
+            'cpf_cnpj': loja.cpf_cnpj or '',
+            'email': loja.owner.email if loja.owner else '',
+            'razao_social': loja.nome,
         })
     return Response({'lojas': data})
 

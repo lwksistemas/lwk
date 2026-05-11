@@ -285,9 +285,11 @@ export default function NFSeEmitidasPage() {
                             <XCircle className="w-4 h-4" />
                           </Button>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => handleExcluir(nf)} title="Excluir registro" className="text-red-500 hover:text-red-700">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {(nf.status === 'erro' || nf.status === 'pendente') && (
+                          <Button size="sm" variant="ghost" onClick={() => handleExcluir(nf)} title="Excluir registro" className="text-red-500 hover:text-red-700">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -209,12 +209,16 @@ def nfse_reenviar(request, nfse_id):
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def nfse_excluir(request, nfse_id):
-    """Exclui registro de NFS-e do banco (não cancela na prefeitura)."""
+    """Exclui registro de NFS-e do banco (apenas notas com erro ou pendentes — emitidas só podem ser canceladas)."""
     if not request.user.is_superuser:
         return Response({'detail': 'Apenas superadmin.'}, status=403)
 
     try:
         nf = NFSeEmitida.objects.get(id=nfse_id)
+        if nf.status == 'emitida':
+            return Response({'success': False, 'error': 'Nota fiscal emitida não pode ser excluída. Use a opção Cancelar.'}, status=400)
+        if nf.status == 'cancelada':
+            return Response({'success': False, 'error': 'Nota fiscal cancelada não pode ser excluída (manter para histórico).'}, status=400)
         numero = nf.numero_nf or f'ID {nf.id}'
         nf.delete()
         logger.info('NFS-e %s excluída pelo superadmin', numero)

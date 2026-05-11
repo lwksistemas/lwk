@@ -96,6 +96,20 @@ class EmitirNFSeSerializer(serializers.Serializer):
         help_text='Se True, envia email para o tomador com a NF'
     )
     
+    # Atividade/CNAE (opcional — sobrescreve configuração da loja)
+    codigo_cnae = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        help_text='Código CNAE para esta emissão (sobrescreve config da loja)'
+    )
+    codigo_servico = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        help_text='Código de serviço municipal para esta emissão (sobrescreve config da loja)'
+    )
+    
     def validate(self, data):
         """Valida que ou conta_id ou dados manuais foram fornecidos."""
         conta_id = data.get('conta_id')

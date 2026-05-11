@@ -122,6 +122,8 @@ class NFSeService:
         valor_servicos: Decimal,
         numero_rps: Optional[int] = None,
         enviar_email: bool = True,
+        codigo_cnae: Optional[str] = None,
+        codigo_servico: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Emite NFS-e baseado na configuração da loja.
@@ -174,6 +176,8 @@ class NFSeService:
                     valor_servicos=valor_servicos,
                     numero_rps=numero_rps,
                     enviar_email=enviar_email,
+                    codigo_cnae_override=codigo_cnae,
+                    codigo_servico_override=codigo_servico,
                 )
             
             elif provedor == 'nacional':
@@ -397,6 +401,8 @@ class NFSeService:
         valor_servicos: Decimal,
         numero_rps: Optional[int],
         enviar_email: bool,
+        codigo_cnae_override: Optional[str] = None,
+        codigo_servico_override: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Emite NFS-e via ISSNet (direto na prefeitura).
@@ -506,13 +512,13 @@ class NFSeService:
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
                 tomador_endereco=endereco_final,
-                servico_codigo=self.config.codigo_servico_municipal,
+                servico_codigo=codigo_servico_override or self.config.codigo_servico_municipal,
                 servico_descricao=servico_descricao or self.config.descricao_servico_padrao,
                 valor_servicos=valor_servicos,
                 aliquota_iss=self.config.aliquota_iss,
                 numero_rps=numero_rps,
                 serie_rps=serie_rps,
-                codigo_cnae=(getattr(self.config, 'codigo_cnae', None) or '').strip() or None,
+                codigo_cnae=codigo_cnae_override or (getattr(self.config, 'codigo_cnae', None) or '').strip() or None,
             )
 
             # Se sucesso, salvar no banco e enviar email

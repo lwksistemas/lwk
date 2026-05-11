@@ -151,6 +151,10 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             # Criar serviço e emitir NFS-e
             service = NFSeService(loja)
             
+            # CNAE e código de serviço opcionais (sobrescrevem config da loja)
+            codigo_cnae_override = (serializer.validated_data.get('codigo_cnae') or '').strip() or None
+            codigo_servico_override = (serializer.validated_data.get('codigo_servico') or '').strip() or None
+            
             resultado = service.emitir_nfse(
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
@@ -159,6 +163,8 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 servico_descricao=serializer.validated_data['servico_descricao'],
                 valor_servicos=Decimal(str(serializer.validated_data['valor_servicos'])),
                 enviar_email=serializer.validated_data.get('enviar_email', True),
+                codigo_cnae=codigo_cnae_override,
+                codigo_servico=codigo_servico_override,
             )
             
             if resultado['success']:

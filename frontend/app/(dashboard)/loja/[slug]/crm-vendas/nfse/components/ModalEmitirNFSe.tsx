@@ -35,6 +35,8 @@ const INITIAL_FORM = {
   servico_descricao: '',
   valor_servicos: '',
   enviar_email: true,
+  codigo_cnae: '',
+  codigo_servico: '',
 };
 
 export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmitirNFSeProps) {
@@ -128,6 +130,8 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
               servico_descricao: formData.servico_descricao,
               valor_servicos: formData.valor_servicos,
               enviar_email: formData.enviar_email,
+              codigo_cnae: formData.codigo_cnae || undefined,
+              codigo_servico: formData.codigo_servico || undefined,
             }
           : {
               tomador_cpf_cnpj: formData.tomador_cpf_cnpj,
@@ -143,6 +147,8 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
               servico_descricao: formData.servico_descricao,
               valor_servicos: formData.valor_servicos,
               enviar_email: formData.enviar_email,
+              codigo_cnae: formData.codigo_cnae || undefined,
+              codigo_servico: formData.codigo_servico || undefined,
             };
       await apiClient.post('/nfse/emitir/', payload);
       onSuccess();
@@ -187,6 +193,8 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
                 servico_descricao={formData.servico_descricao}
                 valor_servicos={formData.valor_servicos}
                 enviar_email={formData.enviar_email}
+                codigo_cnae={formData.codigo_cnae}
+                codigo_servico={formData.codigo_servico}
                 onChange={handleFieldChange}
               />
               <ModalFormButtons loading={loading} onBack={() => setStep('escolha')} onClose={onClose} />
@@ -202,6 +210,8 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
                 servico_descricao={formData.servico_descricao}
                 valor_servicos={formData.valor_servicos}
                 enviar_email={formData.enviar_email}
+                codigo_cnae={formData.codigo_cnae}
+                codigo_servico={formData.codigo_servico}
                 onChange={handleFieldChange}
               />
               <ModalFormButtons loading={loading} onBack={() => setStep('escolha')} onClose={onClose} />

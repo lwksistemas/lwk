@@ -117,24 +117,12 @@ export default function NFSePage() {
     e.stopPropagation();
     // Abrir PDF original da prefeitura (ISSNet Ribeirão Preto)
     if (nf.numero_nf && nf.codigo_verificacao) {
-      const url = `https://nfse.issnetonline.com.br/ribeiraopreto/report/nfse_pdf?numero=${nf.numero_nf}&verificacao=${nf.codigo_verificacao}`;
+      // URL de verificação de autenticidade do ISSNet Ribeirão Preto
+      const url = `https://www.issnetonline.com.br/ribeiraopreto/online/ImpressaoNFSe/ImpressaoNFSe.aspx?numero_nfse=${nf.numero_nf}&codigo_verificacao=${nf.codigo_verificacao}`;
       window.open(url, '_blank');
     } else {
-      // Fallback: gerar PDF pelo sistema
-      try {
-        const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
-        const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `nfse_${nf.numero_nf || nf.id}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } catch {
-        alert('PDF não disponível. Consulte no portal ISSNet.');
-      }
+      // Fallback: abrir portal de consulta
+      window.open('https://www.issnetonline.com.br/ribeiraopreto/online', '_blank');
     }
   };
 

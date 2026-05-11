@@ -275,6 +275,16 @@ def emitir_nfse_manual(request):
             tomador_cpf_cnpj = loja.cpf_cnpj or ''
             tomador_nome = loja.nome
             tomador_email = loja.owner.email if loja.owner else ''
+            # Endereço da loja para o tomador
+            tomador_endereco_loja = {
+                'logradouro': getattr(loja, 'logradouro', '') or '',
+                'numero': getattr(loja, 'numero', '') or 'S/N',
+                'complemento': getattr(loja, 'complemento', '') or '',
+                'bairro': getattr(loja, 'bairro', '') or '',
+                'cidade': getattr(loja, 'cidade', '') or 'Ribeirão Preto',
+                'uf': getattr(loja, 'uf', '') or 'SP',
+                'cep': getattr(loja, 'cep', '') or '',
+            }
         except Loja.DoesNotExist:
             return Response({'success': False, 'error': 'Loja não encontrada'}, status=404)
     else:
@@ -302,15 +312,37 @@ def emitir_nfse_manual(request):
         return Response({'success': False, 'error': 'Descrição do serviço é obrigatória'}, status=400)
 
     # Endereço do tomador
-    tomador_endereco = {
-        'logradouro': data.get('tomador_logradouro', ''),
-        'numero': data.get('tomador_numero', ''),
-        'complemento': data.get('tomador_complemento', ''),
-        'bairro': data.get('tomador_bairro', ''),
-        'cidade': data.get('tomador_cidade', '') or 'Ribeirão Preto',
-        'uf': data.get('tomador_uf', '') or 'SP',
-        'cep': data.get('tomador_cep', ''),
-    }
+    if loja_id:
+        tomador_endereco = tomador_endereco_loja
+    else:
+        tomador_endereco = {
+            'logradouro': data.get('tomador_logradouro', ''),
+            'numero': data.get('tomador_numero', ''),
+            'complemento': data.get('tomador_complemento', ''),
+            'bairro': data.get('tomador_bairro', ''),
+            'cidade': data.get('tomador_cidade', '') or 'Ribeirão Preto',
+            'uf': data.get('tomador_uf', '') or 'SP',
+            'cep': data.get('tomador_cep', ''),
+        }
+
+    # Buscar código IBGE do município pelo CEP
+    import re, requests as req_http
+    cep_digits = re.sub(r'\D', '', tomador_endereco.get('cep') or '')
+    if len(cep_digits) == 8:
+        try:
+            resp = req_http.get(f'https://viacep.com.br/ws/{cep_digits}/json/', timeout=5)
+            if resp.status_code == 200:
+                viacep = resp.json()
+                ibge = viacep.get('ibge', '')
+                if ibge:
+                    tomador_endereco['codigo_municipio'] = str(ibge)
+                # Preencher cidade/UF se vieram vazios
+                if not tomador_endereco.get('cidade') or tomador_endereco['cidade'] == 'Ribeirão Preto':
+                    tomador_endereco['cidade'] = viacep.get('localidade') or tomador_endereco['cidade']
+                if not tomador_endereco.get('uf') or tomador_endereco['uf'] == 'SP':
+                    tomador_endereco['uf'] = viacep.get('uf') or tomador_endereco['uf']
+        except Exception as e:
+            logger.warning('Erro ao buscar IBGE pelo CEP %s: %s', cep_digits, e)
 
     # Configuração do superadmin
     config = SuperadminNFSeConfig.get_config()

@@ -251,10 +251,10 @@ def emitir_nfse_manual(request):
     # Dados do tomador
     if loja_id:
         try:
-            loja = Loja.objects.get(id=loja_id, is_active=True)
+            loja = Loja.objects.select_related('owner').get(id=loja_id, is_active=True)
             tomador_cpf_cnpj = loja.cpf_cnpj or ''
-            tomador_nome = loja.razao_social or loja.nome
-            tomador_email = loja.email or ''
+            tomador_nome = loja.nome
+            tomador_email = loja.owner.email if loja.owner else ''
         except Loja.DoesNotExist:
             return Response({'success': False, 'error': 'Loja não encontrada'}, status=404)
     else:

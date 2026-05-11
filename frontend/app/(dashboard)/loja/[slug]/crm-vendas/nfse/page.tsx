@@ -115,28 +115,26 @@ export default function NFSePage() {
   const baixarPdfNFSe = async (e: React.MouseEvent, nf: NFSe) => {
     e.preventDefault();
     e.stopPropagation();
-    try {
-      const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
-      const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `nfse_${nf.numero_nf || nf.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: any } };
-      let msg = 'Erro ao baixar PDF';
-      if (ax.response?.data) {
-        try {
-          const text = ax.response.data instanceof Blob ? await ax.response.data.text() : JSON.stringify(ax.response.data);
-          const parsed = JSON.parse(text);
-          msg = parsed.error || msg;
-        } catch {}
+    // Abrir PDF original da prefeitura (ISSNet Ribeirão Preto)
+    if (nf.numero_nf && nf.codigo_verificacao) {
+      const url = `https://nfse.issnetonline.com.br/ribeiraopreto/report/nfse_pdf?numero=${nf.numero_nf}&verificacao=${nf.codigo_verificacao}`;
+      window.open(url, '_blank');
+    } else {
+      // Fallback: gerar PDF pelo sistema
+      try {
+        const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
+        const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nfse_${nf.numero_nf || nf.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch {
+        alert('PDF não disponível. Consulte no portal ISSNet.');
       }
-      alert(msg);
     }
   };
 

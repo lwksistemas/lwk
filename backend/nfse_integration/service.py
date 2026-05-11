@@ -20,6 +20,25 @@ def _normalize_cep_digits(cep: Optional[str]) -> str:
     return digits if len(digits) == 8 else ''
 
 
+def _buscar_codigo_ibge(cep: str) -> str:
+    """
+    Busca código IBGE do município pelo CEP (via API ViaCEP).
+    Retorna string vazia se não encontrar (fallback fica no issnet_client).
+    """
+    cep_digits = re.sub(r'\D', '', cep or '')
+    if len(cep_digits) == 8:
+        try:
+            resp = requests.get(f'https://viacep.com.br/ws/{cep_digits}/json/', timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                ibge = data.get('ibge', '')
+                if ibge:
+                    return str(ibge)
+        except Exception as e:
+            logger.warning('Erro ao buscar IBGE pelo CEP %s: %s', cep_digits, e)
+    return ''
+
+
 def _tomador_endereco_para_asaas(endereco: Optional[Dict[str, str]]) -> Dict[str, Any]:
     """
     Mapeia o dict de endereço do tomador para campos da API Asaas (customers).
@@ -465,13 +484,28 @@ class NFSeService:
             )
 
             # Emitir NFS-e
+            # Resolver código IBGE do município do tomador pelo CEP
+            cep_tomador = (tomador_endereco.get('cep') or '').strip()
+            codigo_municipio_tomador = (tomador_endereco.get('codigo_municipio') or '').strip()
+            if not codigo_municipio_tomador and cep_tomador:
+                codigo_municipio_tomador = _buscar_codigo_ibge(cep_tomador)
+                if codigo_municipio_tomador:
+                    logger.info('Código IBGE resolvido pelo CEP %s: %s', cep_tomador, codigo_municipio_tomador)
+
+            endereco_final = {
+                **tomador_endereco,
+                'email': tomador_email,
+                'telefone': tomador_endereco.get('telefone', ''),
+                'codigo_municipio': codigo_municipio_tomador,
+            }
+
             resultado = client.emitir_nfse(
                 prestador_cnpj=self.loja.cpf_cnpj,
                 prestador_inscricao_municipal=im_prest,
                 prestador_razao_social=self.loja.nome,
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
-                tomador_endereco={**tomador_endereco, 'email': tomador_email, 'telefone': tomador_endereco.get('telefone', '')},
+                tomador_endereco=endereco_final,
                 servico_codigo=self.config.codigo_servico_municipal,
                 servico_descricao=servico_descricao or self.config.descricao_servico_padrao,
                 valor_servicos=valor_servicos,

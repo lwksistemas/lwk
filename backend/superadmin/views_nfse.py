@@ -206,6 +206,26 @@ def nfse_reenviar(request, nfse_id):
         return Response({'success': False, 'error': str(e)}, status=500)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def nfse_excluir(request, nfse_id):
+    """Exclui registro de NFS-e do banco (não cancela na prefeitura)."""
+    if not request.user.is_superuser:
+        return Response({'detail': 'Apenas superadmin.'}, status=403)
+
+    try:
+        nf = NFSeEmitida.objects.get(id=nfse_id)
+        numero = nf.numero_nf or f'ID {nf.id}'
+        nf.delete()
+        logger.info('NFS-e %s excluída pelo superadmin', numero)
+        return Response({'success': True, 'message': f'NFS-e {numero} excluída com sucesso'})
+    except NFSeEmitida.DoesNotExist:
+        return Response({'success': False, 'error': 'NFS-e não encontrada'}, status=404)
+    except Exception as e:
+        logger.exception('Erro ao excluir NFS-e: %s', e)
+        return Response({'success': False, 'error': str(e)}, status=500)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def listar_lojas_para_nfse(request):

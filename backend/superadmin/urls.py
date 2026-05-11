@@ -83,6 +83,7 @@ urlpatterns = [
     path('nfse-emitidas/<int:nfse_id>/xml/', nfse_views.nfse_xml, name='nfse-xml'),
     path('nfse-emitidas/<int:nfse_id>/cancelar/', nfse_views.nfse_cancelar, name='nfse-cancelar'),
     path('nfse-emitidas/<int:nfse_id>/reenviar/', nfse_views.nfse_reenviar, name='nfse-reenviar'),
+    path('nfse-emitidas/<int:nfse_id>/excluir/', nfse_views.nfse_excluir, name='nfse-excluir'),
     path('mercadopago-config/', mercadopago_config, name='mercadopago-config'),
     path('mercadopago-config/test/', mercadopago_test, name='mercadopago-config-test'),
     path('mercadopago-webhook/', mercadopago_webhook, name='mercadopago-webhook'),

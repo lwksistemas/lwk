@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, RefreshCw, FileText, Download, Mail, XCircle, PlusCircle } from 'lucide-react'
+import { AlertCircle, RefreshCw, FileText, Download, Mail, XCircle, PlusCircle, Trash2 } from 'lucide-react'
 import apiClient from '@/lib/api-client'
 import { ModalEmitirNFSeManual } from './components/ModalEmitirNFSeManual'
 
@@ -145,6 +145,21 @@ export default function NFSeEmitidasPage() {
     }
   }
 
+  const handleExcluir = async (nf: NFSeEmitida) => {
+    if (!confirm(`EXCLUIR registro da NFS-e ${nf.numero_nf || `RPS ${nf.numero_rps}`}? O registro será removido do sistema.`)) return
+    try {
+      const { data } = await apiClient.delete(`/superadmin/nfse-emitidas/${nf.id}/excluir/`)
+      if (data.success) {
+        setMessage({ type: 'success', text: data.message })
+        loadNotas()
+      } else {
+        setMessage({ type: 'error', text: data.error })
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Erro ao excluir' })
+    }
+  }
+
   return (
     <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -270,6 +285,9 @@ export default function NFSeEmitidasPage() {
                             <XCircle className="w-4 h-4" />
                           </Button>
                         )}
+                        <Button size="sm" variant="ghost" onClick={() => handleExcluir(nf)} title="Excluir registro" className="text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </td>
                     </tr>
                   ))}

@@ -137,9 +137,20 @@ def nfse_cancelar(request, nfse_id):
                     nf.status = 'cancelada'
                     nf.data_cancelamento = timezone.now()
                     nf.save()
-                    return Response({'success': True, 'message': f'NFS-e {nf.numero_nf} cancelada com sucesso'})
+                    return Response({'success': True, 'message': f'NFS-e {nf.numero_nf} cancelada com sucesso (via API e no sistema)'})
                 else:
-                    return Response({'success': False, 'error': resultado.get('error', 'Erro ao cancelar')}, status=400)
+                    erro = resultado.get('error', 'Erro ao cancelar')
+                    # Se Fault genérico, oferecer cancelamento apenas no sistema
+                    if 'genérico' in erro.lower() or 'Error' in erro:
+                        nf.status = 'cancelada'
+                        nf.data_cancelamento = timezone.now()
+                        nf.save()
+                        return Response({
+                            'success': True,
+                            'message': f'NFS-e {nf.numero_nf} marcada como cancelada no sistema. '
+                                       f'ATENÇÃO: Cancele também no portal da prefeitura (ISSNet) manualmente.'
+                        })
+                    return Response({'success': False, 'error': erro}, status=400)
             finally:
                 os.unlink(cert_tmp.name)
         else:

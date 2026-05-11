@@ -313,10 +313,18 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
             )
         
     except Exception as e:
-        logger.error(f"❌ Erro ao criar funcionário para loja {instance.nome}: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        # Não interrompe a criação da loja, apenas loga o erro
+        # Ignorar erro de tabela inexistente (schema ainda não criado — vendedor será criado após migrations)
+        err_str = str(e)
+        if 'does not exist' in err_str or 'UndefinedTable' in err_str:
+            logger.debug(
+                f"ℹ️ Tabela ainda não existe para loja {instance.nome} — "
+                f"vendedor/funcionário será criado após migrations do schema."
+            )
+        else:
+            logger.error(f"❌ Erro ao criar funcionário para loja {instance.nome}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+        # Não interrompe a criação da loja
 
 
 

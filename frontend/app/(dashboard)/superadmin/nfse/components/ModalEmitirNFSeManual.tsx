@@ -124,7 +124,9 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
       }
     } catch (err: any) {
       console.error('Erro ao emitir NFS-e:', err)
-      setError(err.response?.data?.error || 'Erro ao emitir NFS-e')
+      const errData = err.response?.data
+      const errMsg = errData?.error || errData?.detail || (typeof errData === 'string' ? errData : JSON.stringify(errData)) || 'Erro ao emitir NFS-e'
+      setError(errMsg)
     } finally {
       setLoading(false)
     }

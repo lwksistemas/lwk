@@ -97,9 +97,13 @@ export default function ConfiguracaoNotaFiscalPage() {
       const data = new FormData();
       
       // Adicionar campos de texto
+      // Campos que podem ser limpos (string vazia deve ser enviada para limpar no backend)
+      const clearableFields = ['codigo_cnae', 'codigo_nbs', 'item_lista_servico', 'inscricao_municipal'];
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'asaas_sandbox') return;
-        if (value === '' || value === null || value === undefined) return;
+        if (value === null || value === undefined) return;
+        // Campos limpaveis: enviar string vazia para o backend poder limpar
+        if (value === '' && !clearableFields.includes(key)) return;
         if (typeof value === 'boolean') {
           data.append(key, value ? 'true' : 'false');
           return;

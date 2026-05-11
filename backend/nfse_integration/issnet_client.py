@@ -805,8 +805,8 @@ class ISSNetClient:
         protocolo: str,
         prestador_cnpj: str,
         prestador_inscricao_municipal: str,
-        tentativas: int = 10,
-        intervalo_s: float = 1.5,
+        tentativas: int = 20,
+        intervalo_s: float = 3.0,
     ) -> Dict[str, Any]:
         """ConsultarLoteRps ate obter CompNfse ou esgotar tentativas."""
         cnpj = _somente_digitos(prestador_cnpj)
@@ -829,16 +829,23 @@ class ISSNetClient:
             if out.get('success'):
                 return out
             err = out.get('error') or ''
-            if 'NFS-e nao encontrada na resposta' in err and tent < tentativas - 1:
+            # E178 = lote aguardando processamento — continuar tentando
+            pode_retry = (
+                'NFS-e nao encontrada na resposta' in err
+                or 'E178' in err
+                or 'aguardando processamento' in err.lower()
+            )
+            if pode_retry and tent < tentativas - 1:
                 logger.info(
-                    'ISSNet consulta lote protocolo %s tentativa %s/%s sem NF ainda',
+                    'ISSNet consulta lote protocolo %s tentativa %s/%s — %s',
                     protocolo,
                     tent + 1,
                     tentativas,
+                    'aguardando processamento' if 'E178' in err else 'sem NF ainda',
                 )
                 continue
             return out
-        return {'success': False, 'error': 'Tempo esgotado aguardando NFS-e apos envio do lote.'}
+        return {'success': False, 'error': 'Tempo esgotado aguardando NFS-e apos envio do lote (60s).'}
 
     def _post_soap_operacao(
         self,

@@ -321,6 +321,14 @@ class Atividade(LojaIsolationMixin, models.Model):
         null=True,
         blank=True,
     )
+    conta = models.ForeignKey(
+        Conta,
+        on_delete=models.CASCADE,
+        related_name='atividades',
+        null=True,
+        blank=True,
+        help_text='Conta (empresa) vinculada a esta atividade',
+    )
     data = models.DateTimeField()
     duracao_minutos = models.PositiveIntegerField(
         default=60,
@@ -350,6 +358,7 @@ class Atividade(LojaIsolationMixin, models.Model):
             models.Index(fields=['loja_id', 'concluido'], name='crm_ativ_loja_concl_idx'),
             models.Index(fields=['loja_id', 'oportunidade'], name='crm_ativ_loja_opor_idx'),
             models.Index(fields=['loja_id', 'lead'], name='crm_ativ_loja_lead_idx'),
+            models.Index(fields=['loja_id', 'conta'], name='crm_ativ_loja_conta_idx'),
             models.Index(fields=['loja_id', 'data', 'concluido'], name='crm_ativ_loja_data_concl_idx'),
         ]
 

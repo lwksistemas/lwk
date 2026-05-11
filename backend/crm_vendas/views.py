@@ -561,6 +561,15 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
             serializer.save()
         self._invalidate_caches()
 
+    @action(detail=True, methods=['get'])
+    def atividades(self, request, pk=None):
+        """Lista atividades (histórico de interações) vinculadas a esta conta."""
+        conta = self.get_object()
+        atividades = Atividade.objects.filter(conta=conta).order_by('-data')[:50]
+        from .serializers import AtividadeListSerializer
+        serializer = AtividadeListSerializer(atividades, many=True)
+        return Response(serializer.data)
+
 
 class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     queryset = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()

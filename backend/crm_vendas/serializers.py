@@ -448,11 +448,13 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
 
 class AtividadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     uppercase_fields = ['titulo']
+    conta_nome = serializers.CharField(source='conta.nome', read_only=True)
     
     class Meta:
         model = Atividade
         fields = [
-            'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'data', 'duracao_minutos',
+            'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'conta', 'conta_nome',
+            'data', 'duracao_minutos',
             'concluido', 'observacoes', 'google_event_id', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -461,13 +463,21 @@ class AtividadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 class AtividadeListSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     """Serializer para listagem sem google_event_id (compatível com schemas antigos)."""
     uppercase_fields = ['titulo']
+    conta_nome = serializers.SerializerMethodField()
     
     class Meta:
         model = Atividade
         fields = [
-            'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'data', 'duracao_minutos',
+            'id', 'titulo', 'tipo', 'oportunidade', 'lead', 'conta', 'conta_nome',
+            'data', 'duracao_minutos',
             'concluido', 'observacoes', 'created_at', 'updated_at',
         ]
+
+    def get_conta_nome(self, obj):
+        try:
+            return obj.conta.nome if obj.conta else None
+        except Exception:
+            return None
 
 
 class CategoriaProdutoServicoSerializer(TextNormalizationMixin, serializers.ModelSerializer):

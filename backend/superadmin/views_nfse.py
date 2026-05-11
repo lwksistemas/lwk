@@ -348,6 +348,10 @@ def emitir_nfse_manual(request):
         except Exception as e:
             logger.warning('Erro ao buscar IBGE pelo CEP %s: %s', cep_digits, e)
 
+    # Adicionar email e telefone ao endereço do tomador (usado no XML do ISSNet)
+    tomador_endereco['email'] = tomador_email
+    tomador_endereco['telefone'] = data.get('tomador_telefone', '') or ''
+
     # Configuração do superadmin
     config = SuperadminNFSeConfig.get_config()
 

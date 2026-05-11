@@ -668,7 +668,7 @@ class NFSeEmitida(models.Model):
     Registro de NFS-e emitidas pela LWK para as lojas (assinaturas).
     Armazena notas emitidas via ISSNet direto ou via Asaas.
     """
-    loja = models.ForeignKey(Loja, on_delete=models.CASCADE, related_name='nfse_emitidas', null=True, blank=True)
+    loja = models.ForeignKey(Loja, on_delete=models.SET_NULL, related_name='nfse_emitidas', null=True, blank=True)
     pagamento = models.ForeignKey(PagamentoLoja, on_delete=models.SET_NULL, null=True, blank=True, related_name='nfse')
 
     # Dados da NFS-e

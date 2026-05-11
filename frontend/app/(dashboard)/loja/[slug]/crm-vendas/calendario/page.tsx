@@ -33,6 +33,7 @@ export interface Atividade {
   tipo: 'call' | 'meeting' | 'email' | 'task';
   oportunidade: number | null;
   lead: number | null;
+  conta: number | null;
   data: string;
   duracao_minutos?: number;
   concluido: boolean;
@@ -97,9 +98,10 @@ export default function CalendarioCrmPage() {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAtividade, setModalAtividade] = useState<Atividade | null>(null);
-  const [form, setForm] = useState({ titulo: '', tipo: 'task' as Atividade['tipo'], data: '', duracao_minutos: 60, observacoes: '' });
+  const [form, setForm] = useState({ titulo: '', tipo: 'task' as Atividade['tipo'], data: '', duracao_minutos: 60, observacoes: '', conta: null as number | null });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contas, setContas] = useState<{ id: number; nome: string }[]>([]);
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email: string | null }>({ connected: false, email: null });
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleSyncResult, setGoogleSyncResult] = useState<{ pushed: number; pulled: number } | null>(null);
@@ -151,6 +153,14 @@ export default function CalendarioCrmPage() {
   useEffect(() => {
     loadGoogleStatus();
   }, [loadGoogleStatus]);
+
+  useEffect(() => {
+    // Carregar contas para o seletor de empresa na atividade
+    apiClient.get(`${API_CRM}/contas/`).then((res) => {
+      const list = normalizeListResponse(res.data);
+      setContas(list.map((c: any) => ({ id: c.id, nome: c.nome })));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
@@ -284,6 +294,7 @@ export default function CalendarioCrmPage() {
       data: localDateTime,
       duracao_minutos: 60,
       observacoes: '',
+      conta: null,
     });
     setModalOpen(true);
     setError(null);
@@ -314,6 +325,7 @@ export default function CalendarioCrmPage() {
       data: localDateTime,
       duracao_minutos: 60,
       observacoes: '',
+      conta: null,
     });
     setModalOpen(true);
     setError(null);
@@ -329,6 +341,7 @@ export default function CalendarioCrmPage() {
       data: localDate.toISOString().slice(0, 16),
       duracao_minutos: 60,
       observacoes: '',
+      conta: null,
     });
     setModalOpen(true);
     setError(null);
@@ -356,6 +369,7 @@ export default function CalendarioCrmPage() {
       data: localDateTime,
       duracao_minutos: a.duracao_minutos ?? 60,
       observacoes: a.observacoes || '',
+      conta: (a as any).conta ?? null,
     });
     setModalOpen(true);
     setError(null);
@@ -381,6 +395,7 @@ export default function CalendarioCrmPage() {
         data: new Date(form.data).toISOString(),
         duracao_minutos: form.duracao_minutos,
         observacoes: form.observacoes.trim(),
+        conta: form.conta || null,
       };
       
       if (modalAtividade) {
@@ -730,6 +745,7 @@ export default function CalendarioCrmPage() {
           form={form}
           saving={saving}
           error={error}
+          contas={contas}
           onChange={setForm}
           onSave={handleSave}
           onClose={handleCloseModal}

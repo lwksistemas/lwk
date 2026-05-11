@@ -6,12 +6,18 @@ const TIPO_LABEL: Record<string, string> = {
   call: 'Ligação', meeting: 'Reunião', email: 'Email', task: 'Tarefa',
 };
 
+interface ContaOption {
+  id: number;
+  nome: string;
+}
+
 interface FormData {
   titulo: string;
   tipo: Atividade['tipo'];
   data: string;
   duracao_minutos: number;
   observacoes: string;
+  conta: number | null;
 }
 
 interface Props {
@@ -19,6 +25,7 @@ interface Props {
   form: FormData;
   saving: boolean;
   error: string | null;
+  contas: ContaOption[];
   onChange: (form: FormData) => void;
   onSave: () => void;
   onClose: () => void;
@@ -28,8 +35,8 @@ interface Props {
 
 const inputClass = 'w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation';
 
-export function AtividadeModal({ atividade, form, saving, error, onChange, onSave, onClose, onToggleConcluido, onDelete }: Props) {
-  const set = (field: keyof FormData, value: string | number) => onChange({ ...form, [field]: value });
+export function AtividadeModal({ atividade, form, saving, error, contas, onChange, onSave, onClose, onToggleConcluido, onDelete }: Props) {
+  const set = (field: keyof FormData, value: string | number | null) => onChange({ ...form, [field]: value });
 
   return (
     <>
@@ -51,6 +58,13 @@ export function AtividadeModal({ atividade, form, saving, error, onChange, onSav
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
               <select value={form.tipo} onChange={(e) => set('tipo', e.target.value)} className={inputClass}>
                 {Object.entries(TIPO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa (Conta)</label>
+              <select value={form.conta ?? ''} onChange={(e) => set('conta', e.target.value ? Number(e.target.value) : null)} className={inputClass}>
+                <option value="">Nenhuma (atividade avulsa)</option>
+                {contas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </div>
             <div>

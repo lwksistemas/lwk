@@ -33,6 +33,8 @@ const INITIAL_FORM = {
   servico_descricao: '',
   valor_servicos: '',
   enviar_email: true,
+  codigo_cnae: '',
+  codigo_servico: '',
 }
 
 const inputClass = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
@@ -93,6 +95,8 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
             servico_descricao: formData.servico_descricao,
             valor_servicos: formData.valor_servicos,
             enviar_email: formData.enviar_email,
+            codigo_cnae: formData.codigo_cnae || undefined,
+            codigo_servico: formData.codigo_servico || undefined,
           }
         : {
             tomador_cpf_cnpj: formData.tomador_cpf_cnpj,
@@ -108,6 +112,8 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
             servico_descricao: formData.servico_descricao,
             valor_servicos: formData.valor_servicos,
             enviar_email: formData.enviar_email,
+            codigo_cnae: formData.codigo_cnae || undefined,
+            codigo_servico: formData.codigo_servico || undefined,
           }
 
       const { data } = await apiClient.post('/superadmin/nfse-emitidas/emitir-manual/', payload)
@@ -362,11 +368,51 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
 
 /* ── Sub-components ── */
 
+// Atividades comuns para seleção rápida (LWK Sistemas)
+const ATIVIDADES_COMUNS = [
+  { label: 'Usar configuração padrão', cnae: '', servico: '' },
+  { label: '14.01 - Licenciamento/Manutenção de Software (CNAE 6201501)', cnae: '6201501', servico: '1401' },
+  { label: '17.06 - Promoção de Vendas e Negócios (CNAE 7319002)', cnae: '7319002', servico: '170602' },
+  { label: '14.01 - Manutenção de Computadores (CNAE 9511800)', cnae: '9511800', servico: '140118' },
+];
+
 function ServicoFields({ formData, onChange }: { formData: typeof INITIAL_FORM; onChange: (f: string, v: string | boolean) => void }) {
+  const handleAtividadeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const idx = parseInt(e.target.value);
+    if (idx >= 0 && idx < ATIVIDADES_COMUNS.length) {
+      const atividade = ATIVIDADES_COMUNS[idx];
+      onChange('codigo_cnae', atividade.cnae);
+      onChange('codigo_servico', atividade.servico);
+    }
+  };
+
+  const selectedIdx = ATIVIDADES_COMUNS.findIndex(
+    (a) => a.cnae === ((formData as any).codigo_cnae || '') && a.servico === ((formData as any).codigo_servico || '')
+  );
+
   return (
     <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
       <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Dados do Serviço</h3>
       <div className="space-y-4">
+        {/* Seletor de Atividade/CNAE */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Atividade / CNAE
+          </label>
+          <select
+            value={selectedIdx >= 0 ? selectedIdx : 0}
+            onChange={handleAtividadeChange}
+            className={inputClass}
+          >
+            {ATIVIDADES_COMUNS.map((a, i) => (
+              <option key={i} value={i}>{a.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Selecione a atividade compatível com o serviço prestado
+          </p>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Descrição do Serviço *

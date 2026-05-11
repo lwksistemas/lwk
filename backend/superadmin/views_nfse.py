@@ -336,7 +336,10 @@ def emitir_nfse_manual(request):
 
         serie_rps = (config.serie_rps or 'E').strip()
 
-        # Emitir
+        # Emitir — usar override de CNAE/serviço se informado no request
+        codigo_cnae_req = (data.get('codigo_cnae') or '').strip()
+        codigo_servico_req = (data.get('codigo_servico') or '').strip()
+
         resultado = client.emitir_nfse(
             prestador_cnpj=config.prestador_cnpj,
             prestador_inscricao_municipal=config.prestador_inscricao_municipal,
@@ -344,13 +347,13 @@ def emitir_nfse_manual(request):
             tomador_cpf_cnpj=tomador_cpf_cnpj,
             tomador_nome=tomador_nome,
             tomador_endereco=tomador_endereco,
-            servico_codigo=config.codigo_servico_municipal or '1401',
+            servico_codigo=codigo_servico_req or config.codigo_servico_municipal or '1401',
             servico_descricao=descricao,
             valor_servicos=valor,
             aliquota_iss=config.aliquota_iss,
             numero_rps=numero_rps,
             serie_rps=serie_rps,
-            codigo_cnae=(config.codigo_cnae or '').strip() or None,
+            codigo_cnae=codigo_cnae_req or (config.codigo_cnae or '').strip() or None,
         )
 
         # Salvar registro

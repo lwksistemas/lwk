@@ -58,6 +58,15 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
         logger.info('NFS-e assinatura: emissão automática desativada')
         return {'success': False, 'error': 'Emissão automática desativada'}
 
+    # Proteção contra emissão duplicada: verificar se já existe NFS-e para este pagamento
+    from superadmin.models import NFSeEmitida
+    if NFSeEmitida.objects.filter(pagamento=pagamento, status='emitida').exists():
+        logger.info(
+            'NFS-e assinatura: já existe nota emitida para pagamento %s — ignorando duplicata',
+            pagamento.id,
+        )
+        return {'success': True, 'message': 'NFS-e já emitida anteriormente para este pagamento'}
+
     loja = pagamento.loja
     valor = Decimal(str(pagamento.valor))
 
@@ -89,7 +98,7 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
         descricao = f'{descricao} - {loja.nome}'
 
     if config.provedor_nfse == 'issnet':
-        return _emitir_via_issnet(config, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor)
+        return _emitir_via_issnet(pagamento, config, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor)
     elif config.provedor_nfse == 'asaas':
         # Asaas emite automaticamente via webhook — não precisa fazer nada aqui
         logger.info('NFS-e assinatura: provedor Asaas (emissão automática pelo Asaas)')
@@ -99,6 +108,7 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
 
 
 def _emitir_via_issnet(
+    pagamento,
     config,
     tomador_cpf_cnpj: str,
     tomador_nome: str,

@@ -97,7 +97,7 @@ def configurar_schema_crm_loja(loja) -> bool:
 
 def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
     """
-    Garante colunas das migrations 0045 e 0046 no schema do tenant.
+    Garante colunas das migrations 0045, 0046, 0047, 0049, 0056 no schema do tenant.
     Usa ADD COLUMN IF NOT EXISTS (seguro no PostgreSQL).
     """
     from django.db import connections
@@ -166,6 +166,7 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             '0046_add_portal_emissor_fields',
             '0047_certificado_binary',
             '0049_crmconfig_issnet_ambiente_homologacao',
+            '0056_atividade_conta',
         ]:
             cursor.execute(
                 "INSERT INTO django_migrations (app, name, applied) "
@@ -175,3 +176,12 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
                 ");",
                 ['crm_vendas', mig_name, timezone.now(), 'crm_vendas', mig_name],
             )
+        # Migration 0056: campo conta_id na tabela atividade
+        cursor.execute(
+            "ALTER TABLE crm_vendas_atividade "
+            "ADD COLUMN IF NOT EXISTS conta_id BIGINT NULL;"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS crm_ativ_loja_conta_idx "
+            "ON crm_vendas_atividade (loja_id, conta_id);"
+        )

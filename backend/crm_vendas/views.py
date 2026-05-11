@@ -738,6 +738,22 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
     # Configuração do CacheInvalidationMixin
     cache_keys = ['oportunidades', 'dashboard']
 
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # Auto-patch: garantir coluna conta_id na tabela atividade (migration 0056)
+        db_name = get_current_tenant_db()
+        if db_name and db_name != 'default':
+            try:
+                from django.db import connections
+                conn = connections[db_name]
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "ALTER TABLE crm_vendas_atividade "
+                        "ADD COLUMN IF NOT EXISTS conta_id BIGINT NULL;"
+                    )
+            except Exception:
+                pass
+
     def _sanitize_vendedor_for_create(self, data):
         """
         Remove vendedor do payload se for inválido (não existe no tenant).

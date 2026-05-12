@@ -854,8 +854,6 @@ def delete_old_cloudinary_images(sender, instance, **kwargs):
     
     try:
         from superadmin.models import LoginConfigSistema
-        import cloudinary.uploader
-        import re
         
         # Buscar instância antiga do banco
         try:
@@ -863,48 +861,17 @@ def delete_old_cloudinary_images(sender, instance, **kwargs):
         except LoginConfigSistema.DoesNotExist:
             return
         
-        def extract_public_id(url):
-            """Extrai o public_id de uma URL do Cloudinary"""
-            if not url:
-                return None
-            
-            # Padrão: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/{public_id}.{format}
-            # Exemplo: https://res.cloudinary.com/dzrdbw74w/image/upload/v1234567890/lwksistemas/logo.png
-            match = re.search(r'/upload/(?:v\d+/)?(.+)\.\w+$', url)
-            if match:
-                return match.group(1)
-            return None
-        
-        def delete_cloudinary_image(url, field_name):
-            """Exclui imagem do Cloudinary"""
-            if not url:
-                return
-            
-            public_id = extract_public_id(url)
-            if not public_id:
-                logger.warning(f"   ⚠️ Não foi possível extrair public_id de {url}")
-                return
-            
-            try:
-                result = cloudinary.uploader.destroy(public_id)
-                if result.get('result') == 'ok':
-                    logger.info(f"   ✅ Imagem antiga excluída do Cloudinary: {public_id} ({field_name})")
-                elif result.get('result') == 'not found':
-                    logger.info(f"   ℹ️  Imagem não encontrada no Cloudinary: {public_id} ({field_name})")
-                else:
-                    logger.warning(f"   ⚠️ Resultado inesperado ao excluir imagem: {result}")
-            except Exception as e:
-                logger.error(f"   ❌ Erro ao excluir imagem do Cloudinary ({public_id}): {e}")
+        from superadmin.cloudinary_utils import delete_cloudinary_image as _delete_img
         
         # Verificar se logo foi alterado
         if old_instance.logo and old_instance.logo != instance.logo:
             logger.info(f"🗑️  Logo alterado para {instance.get_tipo_display()}, excluindo imagem antiga...")
-            delete_cloudinary_image(old_instance.logo, 'logo')
+            _delete_img(old_instance.logo)
         
         # Verificar se login_background foi alterado
         if old_instance.login_background and old_instance.login_background != instance.login_background:
             logger.info(f"🗑️  Background alterado para {instance.get_tipo_display()}, excluindo imagem antiga...")
-            delete_cloudinary_image(old_instance.login_background, 'login_background')
+            _delete_img(old_instance.login_background)
     
     except Exception as e:
         logger.error(f"❌ Erro ao processar exclusão de imagens antigas: {e}")

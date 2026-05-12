@@ -40,7 +40,7 @@ export async function handle401SessionResponse(response: Response): Promise<bool
   return false;
 }
 
-/** Base da API (com /api). Respeita o servidor selecionado (Heroku/Render) no cliente. */
+/** Base da API (com /api), a partir de NEXT_PUBLIC_API_URL / getCurrentApiBaseUrl. */
 export function getApiBaseUrl(): string {
   if (typeof window !== "undefined") return getCurrentApiBaseUrl();
   const base = process.env.NEXT_PUBLIC_API_URL || "";

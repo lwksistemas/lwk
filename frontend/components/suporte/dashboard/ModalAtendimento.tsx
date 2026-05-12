@@ -223,7 +223,7 @@ export function ModalAtendimento({
                     {/* Backend: cor vermelha */}
                     <div className="rounded-lg border-2 border-red-200 bg-red-50/70 overflow-hidden">
                       <h4 className="text-xs font-semibold uppercase px-3 py-2 bg-red-100 text-red-800 border-b border-red-200">
-                        🔴 Erros no backend (Heroku / API)
+                        🔴 Erros no backend (API)
                       </h4>
                       <div className="p-3">
                         {detalhes.erros_backend.length === 0 ? (
@@ -249,7 +249,7 @@ export function ModalAtendimento({
                     {/* Frontend: cor azul/laranja para diferenciar */}
                     <div className="rounded-lg border-2 border-amber-300 bg-amber-50/70 overflow-hidden">
                       <h4 className="text-xs font-semibold uppercase px-3 py-2 bg-amber-100 text-amber-900 border-b border-amber-200">
-                        🟠 Erros no navegador / frontend (Vercel)
+                        🟠 Erros no navegador / frontend
                       </h4>
                       <div className="p-3">
                         {detalhes.erros_frontend.length === 0 ? (

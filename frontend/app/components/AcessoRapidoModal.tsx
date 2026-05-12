@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { getPrimaryApiRoot } from '@/lib/api-base';
 
 interface AcessoRapidoModalProps {
   isOpen: boolean;
@@ -64,7 +65,7 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
           return;
         }
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com';
+        const apiUrl = getPrimaryApiRoot();
         const url = `${apiUrl}/api/superadmin/lojas/por-atalho/?atalho=${atalho.trim()}`;
         
         console.log('[AcessoRapidoModal] Buscando por atalho:', atalho.trim());
@@ -105,7 +106,7 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
         }
 
         // Buscar loja pelo CPF/CNPJ
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com';
+        const apiUrl = getPrimaryApiRoot();
         const url = `${apiUrl}/api/superadmin/lojas/buscar-por-documento/?documento=${documentoLimpo}`;
         
         console.log('[AcessoRapidoModal] Buscando por documento:', documentoLimpo);

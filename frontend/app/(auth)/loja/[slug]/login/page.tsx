@@ -55,8 +55,7 @@ export default function LojaLoginDinamicoPage() {
     }
   }, [slug]);
 
-  // Limpar sessões antigas e salvar slug para PWA reabrir na loja certa.
-  // Respeitar servidor selecionado (Heroku ou Render); Render usa o mesmo banco.
+  // Limpar sessões antigas e salvar slug para o PWA reabrir na loja certa.
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (slug) {

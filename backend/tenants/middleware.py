@@ -2,6 +2,7 @@
 Middleware para detectar o tenant (loja) e configurar o banco correto.
 Aplica limite de tamanho (512 MB) no banco isolado por loja quando o arquivo existe.
 """
+import os
 from pathlib import Path
 from threading import local
 from django.conf import settings
@@ -394,16 +395,24 @@ class TenantMiddleware:
                     return None
             return tenant_slug
         
-        # 5. Tentar pegar do subdomain (não usar para hosts de API backend)
+        # 5. Tentar pegar do subdomain (hosts de API: configurar TENANT_IGNORE_* se o label não for slug de loja)
         host = request.get_host().split(':')[0].lower()
-        if host.endswith('.herokuapp.com') or '.onrender.com' in host:
-            # Heroku/Render: o "subdomínio" é o nome do app, não slug de loja
-            return None
+        for suf in (
+            s.strip().lower()
+            for s in os.environ.get('TENANT_IGNORE_SUBDOMAIN_SUFFIXES', '').split(',')
+            if s.strip()
+        ):
+            if host.endswith(suf):
+                return None
         parts = host.split('.')
         if len(parts) > 2:  # ex: loja1.localhost
             tenant_slug = parts[0]
-            # Nunca tratar nomes de serviço backend como slug de loja (evita query e erro de coluna)
-            if tenant_slug in ('lwksistemas-backup', 'lwksistemas-38ad47519238'):
+            ignore_prefixes = {
+                p.strip().lower()
+                for p in os.environ.get('TENANT_IGNORE_SUBDOMAIN_PREFIXES', '').split(',')
+                if p.strip()
+            }
+            if tenant_slug in ignore_prefixes:
                 return None
             if hasattr(request, 'user') and request.user.is_authenticated:
                 if not self._validate_user_owns_loja_by_slug(request, tenant_slug):

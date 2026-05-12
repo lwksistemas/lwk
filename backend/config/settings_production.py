@@ -1,6 +1,5 @@
 """
-Configurações de Produção para LWK Sistemas
-Otimizado para Heroku com PostgreSQL
+Configurações de produção para LWK Sistemas (PostgreSQL).
 """
 import logging
 import os
@@ -21,39 +20,9 @@ DEBUG = False
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 if not ALLOWED_HOSTS:
     raise ValueError("ALLOWED_HOSTS deve estar configurada nas variáveis de ambiente!")
-# Plataforma Render: RENDER=true e/ou RENDER_SERVICE_ID (documentação Render).
-_on_render = os.environ.get('RENDER', '').lower() in ('true', '1', 'yes') or bool(
-    (os.environ.get('RENDER_SERVICE_ID') or '').strip()
-)
-# ".onrender.com" casa com qualquer *.onrender.com (Django).
-# RENDER_EXTERNAL_HOSTNAME / URL: hostname público exato (evita 400 DisallowedHost).
-if _on_render:
-    if '.onrender.com' not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append('.onrender.com')
-_render_ext_host = (os.environ.get('RENDER_EXTERNAL_HOSTNAME') or '').strip()
-if _render_ext_host and _render_ext_host not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(_render_ext_host)
-_render_ext_url = (os.environ.get('RENDER_EXTERNAL_URL') or '').strip()
-if _render_ext_url:
-    try:
-        _pu = urlparse(_render_ext_url).hostname
-        if _pu and _pu not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(_pu)
-    except Exception:
-        pass
-for _h in (os.environ.get('RENDER_ALLOWED_HOSTS_EXTRA') or '').split(','):
-    _h = _h.strip()
-    if _h and _h not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(_h)
-for _h in (os.environ.get('RENDER_EXTRA_ALLOWED_HOSTS') or '').split(','):
-    _h = _h.strip()
-    if _h and _h not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(_h)
-# Atrás de proxy TLS (Render, Heroku): scheme correto; evita comportamentos estranhos no SecurityMiddleware.
-if _on_render or (os.environ.get('DYNO') or '').strip():
+# Atrás de reverse proxy TLS: USE_FORWARDED_SSL=true para confiar em X-Forwarded-Proto
+if os.environ.get('USE_FORWARDED_SSL', '').lower() in ('true', '1', 'yes'):
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-if _on_render:
-    logger.info('Render: ALLOWED_HOSTS efetivo (sem segredos): %s', ALLOWED_HOSTS)
 
 # APPS
 INSTALLED_APPS = [
@@ -133,7 +102,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 def _normalize_database_url(raw: str) -> str:
     """
-    Heroku/Render: URI completa postgres://... ou postgresql://...
+    URI completa postgres://... ou postgresql://...
     Se faltar o esquema (só user:pass@host...), urlparse usa o user como "scheme" e dj_database_url falha
     (ex.: No support for 'ufqqlop2dk1g7n').
     """
@@ -149,8 +118,8 @@ def _normalize_database_url(raw: str) -> str:
     return s
 
 
-# DATABASE - PostgreSQL (produção). Sem DATABASE_URL válida: SQLite em /tmp (collectstatic no Render, etc.).
-# No Render, DATABASE_URL pode existir como chave mas com valor vazio/inválido — dj_database_url rebenta com ValueError.
+# DATABASE - PostgreSQL (produção). Sem DATABASE_URL válida: SQLite em /tmp (ex.: collectstatic em CI).
+# DATABASE_URL pode existir como chave mas com valor vazio/inválido — dj_database_url levanta ValueError.
 _database_url = _normalize_database_url(os.environ.get('DATABASE_URL') or '')
 _use_postgres = False
 if _database_url:
@@ -159,7 +128,7 @@ if _database_url:
         _use_postgres = True
     except ValueError as exc:
         logger.warning(
-            'DATABASE_URL ignorada (inválida). No Render use a URI completa: postgres://usuario:password@host:5432/nomebd '
+            'DATABASE_URL ignorada (inválida). Use a URI completa: postgres://usuario:password@host:5432/nomebd '
             '(tem de começar por postgres:// ou postgresql://). Erro: %s',
             exc,
         )
@@ -191,7 +160,7 @@ if _use_postgres:
     }
 else:
     logger.warning(
-        'A usar SQLite em /tmp (sem Postgres válido). Para produção, defina DATABASE_URL com a URI do Heroku.'
+        'A usar SQLite em /tmp (sem Postgres válido). Para produção, defina DATABASE_URL com a URI PostgreSQL.'
     )
     DATABASES = {
         'default': {
@@ -207,7 +176,7 @@ else:
     }
     DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
 
-# CACHE - Redis se REDIS_URL existir (Heroku Redis), senão LocMem (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
+# CACHE - Redis se REDIS_URL existir, senão LocMem (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
 # ✅ OTIMIZAÇÃO: Adicionado KEY_PREFIX, TIMEOUT, connection pool, socket timeouts e retry
 _redis_url = os.environ.get('REDIS_URL')
 if _redis_url:
@@ -258,7 +227,7 @@ USE_TZ = True
 # STATIC FILES
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# No Render, manifest pode faltar (build efêmero); usar storage sem manifest evita 500 em respostas HTML da API
+# Se o manifest de staticfiles não existir no deploy, storage sem manifest evita 500 em respostas HTML da API
 if os.environ.get('DISABLE_STATICFILES_MANIFEST', '').lower() in ('true', '1', 'yes'):
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 else:
@@ -271,20 +240,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # DEFAULT PRIMARY KEY
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS (strip espaços; fallback para backup Render/Heroku)
+# CORS: domínio principal + lista em CORS_ORIGINS (separada por vírgula)
 _DEFAULT_CORS_ORIGINS = [
     'https://lwksistemas.com.br',
     'https://www.lwksistemas.com.br',
-    'https://lwksistemas.vercel.app',
 ]
 _raw = os.environ.get('CORS_ORIGINS', '').strip()
 _extra_cors = [o.strip() for o in _raw.split(',') if o.strip()] if _raw else []
-# União com defaults: CORS_ORIGINS só no Heroku não pode remover lwksistemas.com.br no Render após sync.
 CORS_ALLOWED_ORIGINS = list(dict.fromkeys(_DEFAULT_CORS_ORIGINS + _extra_cors))
-# Previews Vercel mudam a cada deploy (ex.: frontend-l21ck1pm9-lwks-projects-48afd555.vercel.app).
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r'^https://[a-z0-9-]+-lwks-projects-48afd555\.vercel\.app$',
-]
+CORS_ALLOWED_ORIGIN_REGEXES = []
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Manter segurança
 
@@ -307,8 +271,8 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 
 # REST FRAMEWORK
-# No Render (e onde DISABLE_STATICFILES_MANIFEST=true): desabilitar BrowsableAPIRenderer
-# para evitar 500 "Missing staticfiles manifest" em respostas HTML (templates usam {% static %}).
+# Com DISABLE_STATICFILES_MANIFEST=true: desabilitar BrowsableAPIRenderer para evitar 500
+# "Missing staticfiles manifest" em respostas HTML (templates usam {% static %}).
 _drf_renderers = (
     'rest_framework.renderers.JSONRenderer',
 )
@@ -411,7 +375,7 @@ SECURITY_NOTIFICATION_EMAILS = os.environ.get(
     'SECURITY_NOTIFICATION_EMAILS',
     ''
 ).split(',') if os.environ.get('SECURITY_NOTIFICATION_EMAILS') else []
-SITE_URL = os.environ.get('SITE_URL', 'https://lwksistemas-38ad47519238.herokuapp.com')
+SITE_URL = os.environ.get('SITE_URL', '').rstrip('/')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://lwksistemas.com.br')
 
 # Google Calendar (OAuth2 + API) - CRM Vendas

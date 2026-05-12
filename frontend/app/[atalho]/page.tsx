@@ -14,6 +14,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getPrimaryApiRoot } from '@/lib/api-base';
 
 interface AtalhoPageProps {
   params: Promise<{
@@ -35,7 +36,7 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
 
         console.log(`[AtalhoPage] Buscando loja com atalho: ${atalho}`);
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://lwksistemas-38ad47519238.herokuapp.com';
+        const apiUrl = getPrimaryApiRoot();
         const url = `${apiUrl}/api/superadmin/lojas/por-atalho/?atalho=${atalho}`;
 
         console.log(`[AtalhoPage] URL: ${url}`);

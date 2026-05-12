@@ -1,6 +1,6 @@
 """
 Verifica isolamento e tabelas da loja Clínica da Beleza (ex: teste-5889)
-e orienta sobre comunicação frontend (Vercel) ↔ API (Heroku).
+e orienta sobre comunicação frontend ↔ API.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
@@ -67,8 +67,8 @@ class Command(BaseCommand):
             """, [schema_name])
             if not cursor.fetchone():
                 self.stdout.write(self.style.ERROR(f'❌ Schema "{schema_name}" NÃO existe no PostgreSQL'))
-                self.stdout.write('   O schema é criado ao cadastrar a loja. Se a loja já existe, execute no Heroku:')
-                self.stdout.write('   heroku run "python backend/manage.py migrate_all_lojas" --app lwksistemas')
+                self.stdout.write('   O schema é criado ao cadastrar a loja. Se a loja já existe, no servidor de produção execute:')
+                self.stdout.write('   python manage.py migrate_all_lojas')
                 self.stdout.write('   (isso também cria as tabelas clinica_beleza no schema da loja)')
                 return
 
@@ -87,8 +87,8 @@ class Command(BaseCommand):
             faltando = [t for t in TABELAS_CLINICA_BELEZA if t not in tabelas_presentes]
             if faltando:
                 self.stdout.write(self.style.WARNING(f'⚠️  Tabelas clinica_beleza faltando no schema: {", ".join(faltando)}'))
-                self.stdout.write('   Para criar, no Heroku execute:')
-                self.stdout.write('   heroku run "python backend/manage.py migrate_all_lojas" --app lwksistemas')
+                self.stdout.write('   Para criar, no servidor de produção execute:')
+                self.stdout.write('   python manage.py migrate_all_lojas')
             else:
                 self.stdout.write(self.style.SUCCESS(f'✅ Todas as tabelas clinica_beleza presentes no schema ({len(TABELAS_CLINICA_BELEZA)} tabelas)'))
 
@@ -103,14 +103,17 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.ERROR(f'   - {t}: AUSENTE'))
 
-        # 4. Frontend (Vercel) ↔ API
+        # 4. Frontend ↔ API
         self.stdout.write('')
         self.stdout.write('-'*70)
-        self.stdout.write('📡 COMUNICAÇÃO FRONTEND (Vercel) ↔ API (Heroku)')
+        self.stdout.write('📡 COMUNICAÇÃO FRONTEND ↔ API')
         self.stdout.write('-'*70)
-        api_url = getattr(settings, 'API_URL', None) or 'NEXT_PUBLIC_API_URL (Vercel)'
-        self.stdout.write('   No frontend (Vercel), a variável NEXT_PUBLIC_API_URL deve apontar para a API:')
-        self.stdout.write('   Valor esperado: https://lwksistemas-38ad47519238.herokuapp.com')
+        site = (getattr(settings, 'SITE_URL', None) or '').rstrip('/')
+        self.stdout.write('   No frontend, NEXT_PUBLIC_API_URL deve apontar para a URL pública da API:')
+        if site:
+            self.stdout.write(f'   Exemplo (SITE_URL deste ambiente): {site}')
+        else:
+            self.stdout.write('   Defina SITE_URL no backend e NEXT_PUBLIC_API_URL no frontend (mesma base).')
         self.stdout.write('   (O código adiciona /api nas rotas; não inclua /api no final da URL.)')
         self.stdout.write('')
         self.stdout.write('   Dashboard da loja envia:')
@@ -119,8 +122,9 @@ class Command(BaseCommand):
         self.stdout.write('   - Authorization: Bearer <token>')
         self.stdout.write('')
         self.stdout.write('   Para testar a API manualmente:')
+        curl_base = site or 'https://SUA-API'
         self.stdout.write('   curl -H "X-Tenant-Slug: ' + slug + '" -H "Authorization: Bearer <TOKEN>" \\')
-        self.stdout.write('        https://lwksistemas-38ad47519238.herokuapp.com/api/clinica-beleza/dashboard/')
+        self.stdout.write('        ' + curl_base + '/api/clinica-beleza/dashboard/')
         self.stdout.write('')
         self.stdout.write('='*70)
         self.stdout.write('✅ Verificação concluída')

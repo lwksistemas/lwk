@@ -3765,7 +3765,7 @@ def listar_storage_lojas(request):
 
 
 # ===== HEALTH CHECK ENDPOINT (v750) =====
-# Usa JsonResponse para nunca passar pelo renderer HTML do DRF (evita 500 por staticfiles no Render).
+# Usa JsonResponse para nunca passar pelo renderer HTML do DRF (evita 500 por staticfiles em produção).
 
 @require_http_methods(['GET'])
 def health_check(request):

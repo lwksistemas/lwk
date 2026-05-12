@@ -93,6 +93,25 @@ def _zip_csv_basename_table_name(zip_inner_path: str) -> str:
     return base.strip()
 
 
+def _ensure_crm_vendas_config_pg_int_defaults(cursor, qual: str) -> None:
+    """
+    Garante DEFAULT 0 no PostgreSQL para inteiros ISSNet.
+    INSERT que omitir a coluna (código/CSV antigo) deixa de gerar NULL em NOT NULL.
+    """
+    try:
+        cursor.execute(
+            f"ALTER TABLE {qual} ALTER COLUMN issnet_numero_lote SET DEFAULT 0"
+        )
+    except Exception as e:
+        logger.warning("ALTER issnet_numero_lote SET DEFAULT 0: %s", e)
+    try:
+        cursor.execute(
+            f"ALTER TABLE {qual} ALTER COLUMN issnet_ultimo_rps_conhecido SET DEFAULT 0"
+        )
+    except Exception as e:
+        logger.warning("ALTER issnet_ultimo_rps_conhecido SET DEFAULT 0: %s", e)
+
+
 def _backup_finalize_crm_config_row_values(
     cols_for_insert: List[str], values: List[Any]
 ) -> List[Any]:
@@ -339,6 +358,8 @@ def _import_crm_vendas_config_via_model(
 
     is_sqlite = conn.settings_dict.get("ENGINE", "").endswith("sqlite3")
     with conn.cursor() as cur:
+        if not is_sqlite and _connection_is_postgresql(conn):
+            _ensure_crm_vendas_config_pg_int_defaults(cur, qual)
         cur.execute(f"DELETE FROM {qual}")
         static_colrows: List[Tuple[Any, Any, Any]] = []
         if not is_sqlite and _connection_is_postgresql(conn):
@@ -1473,6 +1494,12 @@ class BackupService:
                             # Limpar tabela antes de importar (qualificado para PostgreSQL)
                             qual = db_helper.qualified_table_name(table_name)
                             with db_helper.get_connection().cursor() as cursor:
+                                if (
+                                    table_name == "crm_vendas_config"
+                                    and not db_helper._is_sqlite()
+                                    and _connection_is_postgresql(db_helper.get_connection())
+                                ):
+                                    _ensure_crm_vendas_config_pg_int_defaults(cursor, qual)
                                 cursor.execute(f"DELETE FROM {qual}")
                                 
                                 # INSERT com placeholders (%s funciona em Django para SQLite e PostgreSQL)

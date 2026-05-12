@@ -1332,6 +1332,15 @@ class BackupService:
                         )
                 
                 with transaction.atomic(using=loja.database_name):
+                    if (
+                        not db_helper._is_sqlite()
+                        and is_safe_pg_schema_token(db_helper._pg_schema)
+                    ):
+                        with db_helper.get_connection().cursor() as _spc:
+                            sch = db_helper._pg_schema.replace('"', "")
+                            _spc.execute(
+                                f'SET LOCAL search_path TO "{sch}", public'
+                            )
                     for table_name, csv_filename in processar:
                         # Verificar se tabela existe e nome é seguro
                         if not DatabaseHelper.is_safe_table_name(table_name):

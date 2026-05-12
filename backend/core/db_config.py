@@ -13,6 +13,14 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+# Nome do schema PostgreSQL derivado de loja.database_name (hífen → underscore).
+# Deve coincidir com a validação usada no backup (CNPJ numérico, etc.).
+_LOJA_PG_SCHEMA_RE = re.compile(r"^[a-zA-Z0-9_]{1,63}$")
+
+
+def _is_valid_loja_pg_schema(schema_name: str) -> bool:
+    return bool(schema_name and _LOJA_PG_SCHEMA_RE.match(schema_name))
+
 
 def get_loja_database_config(
     database_name: str,
@@ -45,21 +53,23 @@ def get_loja_database_config(
         return None
 
     schema_name = database_name.replace('-', '_')
-    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', schema_name):
-        logger.warning(f"get_loja_database_config: nome de schema inválido: {schema_name}")
+    if not _is_valid_loja_pg_schema(schema_name):
+        logger.warning(f"get_loja_database_config: nome de schema inválido: {schema_name!r}")
         return None
+
+    # Aspas no schema: obrigatório se o nome começa com dígito (CNPJ etc.); inofensivo nos demais.
+    search_path_opt = f'-c search_path="{schema_name}",public'
 
     try:
         # Adicionar search_path na URL (funciona melhor que backend customizado)
         from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
-        
+
         url_com_schema = database_url
         try:
             parsed = urlparse(database_url)
             if parsed.scheme and 'postgres' in parsed.scheme.lower():
                 query = parse_qs(parsed.query)
-                options_val = f'-c search_path={schema_name},public'
-                query['options'] = [options_val]
+                query['options'] = [search_path_opt]
                 new_query = urlencode(query, doseq=True)
                 url_com_schema = urlunparse((
                     parsed.scheme, parsed.netloc, parsed.path,
@@ -67,19 +77,20 @@ def get_loja_database_config(
                 ))
         except Exception as url_err:
             logger.warning(f"URL com options falhou: {url_err}")
-        
+
         default_db = dj_database_url.config(default=url_com_schema, conn_max_age=0)
         opts = dict(default_db.get('OPTIONS', {}) or {})
         _h = (default_db.get('HOST') or '').lower()
         if _h.endswith('.rlwy.net'):
             opts.setdefault('sslmode', 'require')
-        
-        # Garantir search_path em OPTIONS (fallback se URL não funcionou)
+
+        # Garantir search_path em OPTIONS (fallback se URL não aplicou options)
         base_opt = opts.get('options', '') or ''
         if 'search_path' not in base_opt:
-            opts['options'] = (base_opt + f' -c search_path={schema_name},public').strip()
-        if '-c statement_timeout=' not in base_opt:
-            opts['options'] = (opts['options'] + ' -c statement_timeout=25000').strip()
+            opts['options'] = (base_opt + ' ' + search_path_opt).strip()
+        merged_opts = opts.get('options', '') or ''
+        if '-c statement_timeout=' not in merged_opts:
+            opts['options'] = (merged_opts + ' -c statement_timeout=25000').strip()
 
         return {
             **default_db,

@@ -122,16 +122,22 @@ def _backup_finalize_crm_config_row_values(
 
 
 def _import_crm_vendas_config_via_model(
-    loja, rows: List[Dict[str, Any]], qual: str, using: str
+    loja,
+    rows: List[Dict[str, Any]],
+    qual: str,
+    using: str,
+    pg_schema: str,
 ) -> None:
     """
     Importa crm_vendas_config com INSERT explícito no schema da loja (qual).
 
-    Evita CRMConfig.objects.create() + LojaIsolationMixin.save() (tenant/contexto)
-    e garante inteiros NOT NULL (issnet_numero_lote, issnet_ultimo_rps_conhecido).
+    Usa a ordem e o conjunto de colunas da tabela real no PostgreSQL
+    (information_schema), para não omitir colunas NOT NULL que existam na BD
+    mas não no kwargs do modelo.
     """
     from django.db import connections
     from django.db import models as dm
+    from django.utils import timezone
     from django.utils.dateparse import parse_datetime
     from crm_vendas.models_config import CRMConfig
 
@@ -274,25 +280,103 @@ def _import_crm_vendas_config_via_model(
             )
             kwargs["loja_id"] = loja.id
 
-            ordered_cols = [
-                f.attname
-                for f in CRMConfig._meta.local_concrete_fields
-                if f.attname in kwargs and BACKUP_SAFE_IDENTIFIER_RE.match(f.attname)
-            ]
-            values_out: List[Any] = []
-            for c in ordered_cols:
-                v = kwargs[c]
-                finfo = CRMConfig._meta.get_field(c)
-                if isinstance(finfo, dm.JSONField) and v is not None and not isinstance(
-                    v, (str, bytes, int, float, bool)
-                ):
-                    values_out.append(json.dumps(v, default=str))
-                else:
+            def _value_for_physical_column(
+                col_name: str, nullable: bool, pg_dtype: str
+            ) -> Any:
+                dt = (pg_dtype or "").lower()
+                raw_kw = kwargs.get(col_name)
+                if col_name == "id" and raw_kw is None:
+                    return None
+                if col_name in ("issnet_numero_lote", "issnet_ultimo_rps_conhecido"):
+                    return as_int(raw_kw if raw_kw is not None else row.get(col_name), 0)
+                if raw_kw is not None:
+                    v = raw_kw
+                    try:
+                        finfo = CRMConfig._meta.get_field(col_name)
+                    except Exception:
+                        finfo = None
+                    if (
+                        finfo is not None
+                        and isinstance(finfo, dm.JSONField)
+                        and not isinstance(v, (str, bytes, int, float, bool))
+                    ):
+                        return json.dumps(v, default=str)
+                    return v
+                if nullable:
+                    return None
+                if "char" in dt or dt == "text":
+                    return ""
+                if dt in ("integer", "bigint", "smallint"):
+                    return 0
+                if dt == "boolean":
+                    return False
+                if dt.startswith("numeric") or dt == "decimal":
+                    return Decimal("0")
+                if "timestamp" in dt or dt == "date":
+                    return timezone.now()
+                if dt == "bytea":
+                    return None
+                return None
+
+            if (
+                pg_schema
+                and BACKUP_SAFE_IDENTIFIER_RE.match(pg_schema)
+                and conn.vendor == "postgresql"
+            ):
+                cur.execute(
+                    """
+                    SELECT column_name, is_nullable, data_type
+                    FROM information_schema.columns
+                    WHERE table_schema = %s AND table_name = %s
+                    ORDER BY ordinal_position
+                    """,
+                    [pg_schema, "crm_vendas_config"],
+                )
+                colrows = cur.fetchall()
+            else:
+                colrows = []
+
+            if colrows:
+                ordered_cols = []
+                values_out = []
+                for col_name, is_nullable, pg_dtype in colrows:
+                    nullable = is_nullable == "YES"
+                    v = _value_for_physical_column(col_name, nullable, pg_dtype)
+                    if col_name == "id" and v is None:
+                        continue
+                    ordered_cols.append(col_name)
                     values_out.append(v)
+            else:
+                ordered_cols = [
+                    f.attname
+                    for f in CRMConfig._meta.local_concrete_fields
+                    if f.attname in kwargs
+                    and BACKUP_SAFE_IDENTIFIER_RE.match(f.attname)
+                ]
+                values_out = []
+                for c in ordered_cols:
+                    v = kwargs[c]
+                    try:
+                        finfo = CRMConfig._meta.get_field(c)
+                    except Exception:
+                        finfo = None
+                    if (
+                        finfo is not None
+                        and isinstance(finfo, dm.JSONField)
+                        and v is not None
+                        and not isinstance(v, (str, bytes, int, float, bool))
+                    ):
+                        values_out.append(json.dumps(v, default=str))
+                    else:
+                        values_out.append(v)
 
             qcols = ", ".join(f'"{c}"' for c in ordered_cols)
             ph = ", ".join(["%s"] * len(ordered_cols))
             sql = f"INSERT INTO {qual} ({qcols}) VALUES ({ph})"
+            if not ordered_cols:
+                raise BackupImportError(
+                    "crm_vendas_config: nenhuma coluna para INSERT (schema inesperado)"
+                )
             cur.execute(sql, values_out)
 
 
@@ -1120,6 +1204,7 @@ class BackupService:
                                     rows,
                                     qual,
                                     loja.database_name,
+                                    db_helper._pg_schema,
                                 )
                                 ncfg = len(rows)
                                 total_registros += ncfg

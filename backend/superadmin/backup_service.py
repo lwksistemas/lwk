@@ -344,6 +344,70 @@ class DatabaseHelper:
             )
             return [row[0] for row in cursor.fetchall()]
 
+    def get_table_columns_from_pg_catalog(self, table_name: str) -> List[str]:
+        """Ordem física das colunas (pg_attribute); mais fiável que information_schema em schemas de loja."""
+        if (
+            self._is_sqlite()
+            or not self._pg_schema
+            or not self.is_safe_table_name(table_name)
+            or not BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema)
+        ):
+            return []
+        try:
+            with self.get_connection().cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT a.attname
+                    FROM pg_catalog.pg_attribute a
+                    INNER JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+                    INNER JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+                    WHERE n.nspname = %s AND c.relname = %s
+                      AND a.attnum > 0 AND NOT a.attisdropped
+                    ORDER BY a.attnum
+                    """,
+                    [self._pg_schema, table_name],
+                )
+                return [row[0] for row in cursor.fetchall()]
+        except Exception as e:
+            logger.warning("pg_catalog: colunas de %s: %s", table_name, e)
+            return []
+
+    def get_columns_nullable_and_type_from_pg_catalog(
+        self, table_name: str
+    ) -> Dict[str, Tuple[bool, str]]:
+        """attnotnull + format_type por coluna (alinhado à tabela real no schema)."""
+        if (
+            self._is_sqlite()
+            or not self._pg_schema
+            or not self.is_safe_table_name(table_name)
+            or not BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema)
+        ):
+            return {}
+        try:
+            with self.get_connection().cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT a.attname,
+                           a.attnotnull,
+                           pg_catalog.format_type(a.atttypid, a.atttypmod)
+                    FROM pg_catalog.pg_attribute a
+                    INNER JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+                    INNER JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+                    WHERE n.nspname = %s AND c.relname = %s
+                      AND a.attnum > 0 AND NOT a.attisdropped
+                    ORDER BY a.attnum
+                    """,
+                    [self._pg_schema, table_name],
+                )
+                # attnotnull True = NOT NULL no PostgreSQL → (nullable=True) significa "aceita NULL"
+                return {
+                    row[0]: (not row[1], row[2] or "")
+                    for row in cursor.fetchall()
+                }
+        except Exception as e:
+            logger.warning("pg_catalog: tipos/nullable de %s: %s", table_name, e)
+            return {}
+
     def get_columns_nullable_and_type(self, table_name: str) -> Dict[str, Tuple[bool, str]]:
         """Retorna dict col -> (is_nullable, data_type) para colunas da tabela."""
         if not self.is_safe_table_name(table_name):
@@ -832,10 +896,28 @@ class BackupService:
                             
                             # Colunas da tabela no banco (ordem e nomes)
                             db_columns = db_helper.get_table_columns(table_name)
-                            if not db_columns:
-                                logger.warning(f"⚠️ Não foi possível obter colunas da tabela {table_name}")
-                                continue
                             col_info = db_helper.get_columns_nullable_and_type(table_name)
+                            if (
+                                table_name == "crm_vendas_config"
+                                and not db_helper._is_sqlite()
+                                and db_helper._pg_schema
+                                and BACKUP_SAFE_IDENTIFIER_RE.match(db_helper._pg_schema)
+                            ):
+                                pg_cols = db_helper.get_table_columns_from_pg_catalog(
+                                    table_name
+                                )
+                                pg_info = db_helper.get_columns_nullable_and_type_from_pg_catalog(
+                                    table_name
+                                )
+                                if pg_cols:
+                                    db_columns = pg_cols
+                                if pg_info:
+                                    col_info = pg_info
+                            if not db_columns:
+                                logger.warning(
+                                    f"⚠️ Não foi possível obter colunas da tabela {table_name}"
+                                )
+                                continue
                             
                             # Usar apenas colunas que existem no CSV e na tabela (ordem da tabela)
                             # Filtrar também por nome seguro (defesa em profundidade)
@@ -874,7 +956,8 @@ class BackupService:
                                         if col == 'loja_id':
                                             val = loja.id
                                         else:
-                                            val = row.get(col, "")
+                                            raw = row.get(col)
+                                            val = "" if raw is None else raw
                                         if isinstance(val, str):
                                             stripped = val.strip()
                                             if stripped == "" or stripped.lower() in (
@@ -888,7 +971,7 @@ class BackupService:
                                         # Colunas NOT NULL: CSV vazio vira None; BD exige valor (texto, int, bool, etc.)
                                         if val is None and col != "id":
                                             nullable, dtype = col_info.get(col, (True, ''))
-                                            dt = (dtype or "").lower()
+                                            dt = (dtype or "").lower().split("(")[0].strip()
                                             if not nullable:
                                                 if dt in (
                                                     "text",
@@ -896,7 +979,7 @@ class BackupService:
                                                     "varchar",
                                                     "char",
                                                     "character",
-                                                ):
+                                                ) or "varchar" in (dtype or "").lower():
                                                     val = ""
                                                 elif dt in (
                                                     "integer",

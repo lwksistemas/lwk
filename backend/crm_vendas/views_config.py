@@ -14,7 +14,7 @@ from django.conf import settings
 from django.core.cache import cache
 
 from tenants.middleware import get_current_loja_id, get_current_tenant_db, ensure_loja_context
-from .utils import get_current_vendedor_id
+from .utils import get_current_vendedor_id, get_loja_from_context
 from .mixins import CRMPermissionMixin
 from .cache import CRMCacheManager
 from .decorators import require_admin_access

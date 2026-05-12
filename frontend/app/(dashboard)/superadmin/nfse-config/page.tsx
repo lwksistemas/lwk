@@ -23,6 +23,7 @@ import {
   Hash,
 } from 'lucide-react'
 import apiClient from '@/lib/api-client'
+import { IssnetRibeiraoDiretoInfo } from '@/components/nfse/IssnetRibeiraoDiretoInfo'
 
 interface NFSeConfig {
   provedor_nfse: 'asaas' | 'issnet' | 'desabilitado'
@@ -451,6 +452,12 @@ export default function NFSeConfigPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {config.provedor_nfse === 'issnet' && (
+                <IssnetRibeiraoDiretoInfo
+                  className="mb-2"
+                  prestadorLabel="prestador configurado em «Dados do Prestador» (aba Configuração)"
+                />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="issnet_usuario">Usuário ISSNet</Label>
@@ -597,6 +604,12 @@ export default function NFSeConfigPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {config.provedor_nfse === 'issnet' && (
+                <IssnetRibeiraoDiretoInfo
+                  className="mb-4"
+                  prestadorLabel="prestador configurado em «Dados do Prestador» (aba Configuração)"
+                />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cod_servico">Código do Serviço Municipal</Label>

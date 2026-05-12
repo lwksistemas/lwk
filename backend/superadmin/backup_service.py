@@ -69,6 +69,10 @@ BACKUP_TIPO_APP_EXCLUDED_PREFIXES = {
 }
 # Regex para validar nome de tabela/coluna (segurança SQL: apenas alfanumérico e underscore)
 BACKUP_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+# Backups antigos podem omitir estas colunas no CSV; no PG podem ser NOT NULL sem DEFAULT no servidor.
+BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS = frozenset(
+    {"issnet_numero_lote", "issnet_ultimo_rps_conhecido"}
+)
 
 
 class BackupExportError(Exception):
@@ -836,10 +840,18 @@ class BackupService:
                             # Usar apenas colunas que existem no CSV e na tabela (ordem da tabela)
                             # Filtrar também por nome seguro (defesa em profundidade)
                             csv_headers = list(rows[0].keys()) if rows else []
-                            cols_for_insert = [
-                                c for c in db_columns
-                                if c in csv_headers and DatabaseHelper.is_safe_table_name(c)
-                            ]
+                            csv_header_set = set(csv_headers)
+                            cols_for_insert = []
+                            for c in db_columns:
+                                if not DatabaseHelper.is_safe_table_name(c):
+                                    continue
+                                if c in csv_header_set:
+                                    cols_for_insert.append(c)
+                                elif (
+                                    table_name == "crm_vendas_config"
+                                    and c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS
+                                ):
+                                    cols_for_insert.append(c)
                             if not cols_for_insert:
                                 logger.warning(f"⚠️ Nenhuma coluna comum entre CSV e tabela {table_name}")
                                 tabelas_stats[table_name] = 0
@@ -863,7 +875,15 @@ class BackupService:
                                             val = loja.id
                                         else:
                                             val = row.get(col, "")
-                                        if val == "" and col != "id":
+                                        if isinstance(val, str):
+                                            stripped = val.strip()
+                                            if stripped == "" or stripped.lower() in (
+                                                "null",
+                                                "none",
+                                                "nan",
+                                            ):
+                                                val = None
+                                        elif val == "" and col != "id":
                                             val = None
                                         # Colunas NOT NULL: CSV vazio vira None; BD exige valor (texto, int, bool, etc.)
                                         if val is None and col != "id":
@@ -893,6 +913,14 @@ class BackupService:
                                                     val = Decimal("0")
                                                 elif dt in ("real", "double precision"):
                                                     val = 0.0
+                                        # col_info pode falhar (schema); int obrigatórios do CRM
+                                        if (
+                                            val is None
+                                            and col != "id"
+                                            and table_name == "crm_vendas_config"
+                                            and col in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS
+                                        ):
+                                            val = 0
                                         values.append(val)
                                     cursor.execute(insert_sql, values)
                             

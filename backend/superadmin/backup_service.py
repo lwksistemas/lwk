@@ -112,13 +112,33 @@ def _ensure_crm_vendas_config_pg_int_defaults(cursor, qual: str) -> None:
         logger.warning("ALTER issnet_ultimo_rps_conhecido SET DEFAULT 0: %s", e)
 
 
+def _normalize_backup_csv_row_keys(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove BOM e espaços nos nomes de colunas do CSV (DictReader)."""
+    if not row:
+        return row
+    out: Dict[str, Any] = {}
+    for k, v in row.items():
+        if k is None:
+            continue
+        nk = str(k).replace("\ufeff", "").strip()
+        if nk:
+            out[nk] = v
+    return out
+
+
+def _is_crm_issnet_int_col(name: str) -> bool:
+    n = (name or "").strip().lower()
+    return n in ("issnet_numero_lote", "issnet_ultimo_rps_conhecido")
+
+
 def _backup_finalize_crm_config_row_values(
     cols_for_insert: List[str], values: List[Any]
 ) -> List[Any]:
     """Garante inteiros NOT NULL do CRM mesmo com CSV/col_info inconsistentes."""
     out: List[Any] = []
     for col, val in zip(cols_for_insert, values):
-        if col == "issnet_numero_lote":
+        col_n = (col or "").strip().lower()
+        if col_n == "issnet_numero_lote":
             if val is None or val == "":
                 out.append(0)
             elif isinstance(val, str):
@@ -135,7 +155,7 @@ def _backup_finalize_crm_config_row_values(
                     out.append(int(val))
                 except (TypeError, ValueError):
                     out.append(0)
-        elif col == "issnet_ultimo_rps_conhecido":
+        elif col_n == "issnet_ultimo_rps_conhecido":
             if val is None or val == "":
                 out.append(0)
             elif isinstance(val, str):
@@ -373,6 +393,7 @@ def _import_crm_vendas_config_via_model(
                 )
 
         for row in rows:
+            row = _normalize_backup_csv_row_keys(row)
             kwargs: Dict[str, Any] = {"loja_id": loja.id}
             for field in CRMConfig._meta.local_concrete_fields:
                 att = field.attname
@@ -458,7 +479,7 @@ def _import_crm_vendas_config_via_model(
                 raw_kw = kwargs.get(col_name)
                 if col_name == "id" and raw_kw is None:
                     return None
-                if col_name in ("issnet_numero_lote", "issnet_ultimo_rps_conhecido"):
+                if _is_crm_issnet_int_col(col_name):
                     return as_int(raw_kw if raw_kw is not None else row.get(col_name), 0)
                 if raw_kw is not None:
                     v = raw_kw
@@ -529,7 +550,7 @@ def _import_crm_vendas_config_via_model(
             # Metadados podem omitir colunas (schema errado, view antiga, etc.): o INSERT sem a coluna
             # NOT NULL gera NULL no servidor — reforçar as duas colunas críticas do CRM/NFS-e.
             for extra_col in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
-                if extra_col not in ordered_cols:
+                if not any((c or "").strip().lower() == extra_col for c in ordered_cols):
                     ordered_cols.append(extra_col)
                     values_out.append(as_int(row.get(extra_col), 0))
                     logger.warning(
@@ -546,14 +567,14 @@ def _import_crm_vendas_config_via_model(
                 )
 
             for must in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
-                if must not in ordered_cols:
+                if not any((c or "").strip().lower() == must for c in ordered_cols):
                     raise BackupImportError(
                         f"crm_vendas_config: coluna obrigatória {must!r} ausente após merge; "
                         f"qual={qual!r} colunas={ordered_cols[:25]}..."
                     )
 
             for i, c in enumerate(ordered_cols):
-                if c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+                if _is_crm_issnet_int_col(c):
                     values_out[i] = as_int(values_out[i], 0)
 
             if is_sqlite:
@@ -564,7 +585,7 @@ def _import_crm_vendas_config_via_model(
                 exec_params = []
                 for i, c in enumerate(ordered_cols):
                     v = values_out[i]
-                    if c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+                    if _is_crm_issnet_int_col(c):
                         ival = as_int(v, 0)
                         # Inteiro literal no SQL: evita NULL via adaptador/psycopg em colunas NOT NULL.
                         ph_parts.append(str(ival))
@@ -1417,6 +1438,7 @@ class BackupService:
                             csv_content = zip_file.read(csv_filename).decode('utf-8')
                             csv_reader = csv.DictReader(io.StringIO(csv_content))
                             rows = list(csv_reader)
+                            rows = [_normalize_backup_csv_row_keys(r) for r in rows]
                             if not rows:
                                 tabelas_stats[table_name] = 0
                                 continue
@@ -1442,6 +1464,7 @@ class BackupService:
                             
                             # Colunas da tabela no banco (ordem e nomes)
                             db_columns = db_helper.get_table_columns(table_name)
+                            db_columns = [str(c).strip() for c in db_columns if c is not None and str(c).strip()]
                             col_info = db_helper.get_columns_nullable_and_type(table_name)
                             if table_name == "crm_vendas_config" and not db_helper._is_sqlite():
                                 pg_cols, pg_info = db_helper.get_pg_table_meta_for_backup(
@@ -1469,15 +1492,22 @@ class BackupService:
                                     cols_for_insert.append(c)
                                 elif (
                                     table_name == "crm_vendas_config"
-                                    and c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS
+                                    and _is_crm_issnet_int_col(c)
                                 ):
                                     cols_for_insert.append(c)
                             if table_name == "crm_vendas_config":
-                                missing_issnet = [
-                                    c
-                                    for c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS
-                                    if c in db_columns and c not in cols_for_insert
-                                ]
+                                missing_issnet: List[str] = []
+                                for logical in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+                                    actual = next(
+                                        (
+                                            dbc
+                                            for dbc in db_columns
+                                            if (dbc or "").strip().lower() == logical
+                                        ),
+                                        None,
+                                    )
+                                    if actual and actual not in cols_for_insert:
+                                        missing_issnet.append(actual)
                                 if missing_issnet:
                                     merged = set(cols_for_insert) | set(missing_issnet)
                                     cols_for_insert = [
@@ -1528,7 +1558,13 @@ class BackupService:
                                             val = None
                                         # Colunas NOT NULL: CSV vazio vira None; BD exige valor (texto, int, bool, etc.)
                                         if val is None and col != "id":
-                                            nullable, dtype = col_info.get(col, (True, ''))
+                                            nullable, dtype = col_info.get(
+                                                col,
+                                                col_info.get(
+                                                    (col or "").strip(),
+                                                    (True, ""),
+                                                ),
+                                            )
                                             dt = (dtype or "").lower().split("(")[0].strip()
                                             if not nullable:
                                                 if dt in (
@@ -1559,7 +1595,7 @@ class BackupService:
                                             val is None
                                             and col != "id"
                                             and table_name == "crm_vendas_config"
-                                            and col in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS
+                                            and _is_crm_issnet_int_col(col)
                                         ):
                                             val = 0
                                         values.append(val)

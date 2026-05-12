@@ -411,7 +411,10 @@ function ServicoFields({ formData, onChange }: { formData: typeof INITIAL_FORM; 
             ))}
           </select>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Selecione a atividade compatível com o serviço prestado
+            <strong>Usar configuração padrão</strong> envia vazio ao servidor: a nota usa o Código do Serviço Municipal e o
+            CNAE definidos em <strong>Superadmin → NFS-e (configuração)</strong>, como na cobrança automática da
+            assinatura. Escolha outra linha só quando <strong>esta nota</strong> for de outra atividade (não é
+            duplicar a configuração: é exceção por emissão).
           </p>
         </div>
 

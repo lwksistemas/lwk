@@ -138,6 +138,14 @@ def _backup_finalize_crm_config_row_values(
     return out
 
 
+def _sanitize_pg_table_key(name: str) -> str:
+    """Remove BOM e caracteres invisíveis comuns em nomes vindos do ZIP."""
+    s = (name or "").strip().lstrip("\ufeff")
+    for z in ("\u200b", "\u200c", "\u200d", "\u2060"):
+        s = s.replace(z, "")
+    return s.strip()
+
+
 def _parse_pg_qualified_table(qual: str) -> Tuple[Optional[str], str]:
     """
     Extrai (schema, tabela) de "schema"."tabela".
@@ -466,6 +474,7 @@ def _import_crm_vendas_config_via_model(
                 ordered_cols = []
                 values_out = []
                 for col_name, is_nullable, pg_dtype in colrows:
+                    col_name = (col_name or "").strip()
                     nullable = is_nullable == "YES"
                     v = _value_for_physical_column(col_name, nullable, pg_dtype)
                     if col_name == "id" and v is None:
@@ -514,6 +523,13 @@ def _import_crm_vendas_config_via_model(
                 raise BackupImportError(
                     "crm_vendas_config: nenhuma coluna para INSERT (schema inesperado)"
                 )
+
+            for must in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+                if must not in ordered_cols:
+                    raise BackupImportError(
+                        f"crm_vendas_config: coluna obrigatória {must!r} ausente após merge; "
+                        f"qual={qual!r} colunas={ordered_cols[:25]}..."
+                    )
 
             for i, c in enumerate(ordered_cols):
                 if c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
@@ -1362,11 +1378,15 @@ class BackupService:
                                 f'SET LOCAL search_path TO "{sch}", public'
                             )
                     for table_name, csv_filename in processar:
-                        # Verificar se tabela existe e nome é seguro
+                        table_name = _sanitize_pg_table_key(table_name)
+                        csv_base = _zip_csv_basename_table_name(csv_filename)
+                        if (
+                            table_name.lower() == "crm_vendas_config"
+                            or csv_base.lower() == "crm_vendas_config"
+                        ):
+                            table_name = "crm_vendas_config"
                         if not DatabaseHelper.is_safe_table_name(table_name):
                             continue
-                        if table_name.lower() == "crm_vendas_config":
-                            table_name = "crm_vendas_config"
                         if not db_helper.table_exists(table_name):
                             logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
                             continue

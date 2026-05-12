@@ -38,6 +38,8 @@ def get_loja_database_config(
     if not database_url:
         logger.warning("get_loja_database_config: DATABASE_URL não configurada")
         return None
+    if '.rlwy.net' in database_url.lower() and 'sslmode=' not in database_url.lower():
+        database_url += ('&' if '?' in database_url else '?') + 'sslmode=require'
 
     if 'postgres' not in database_url.lower():
         return None
@@ -68,6 +70,9 @@ def get_loja_database_config(
         
         default_db = dj_database_url.config(default=url_com_schema, conn_max_age=0)
         opts = dict(default_db.get('OPTIONS', {}) or {})
+        _h = (default_db.get('HOST') or '').lower()
+        if _h.endswith('.rlwy.net'):
+            opts.setdefault('sslmode', 'require')
         
         # Garantir search_path em OPTIONS (fallback se URL não funcionou)
         base_opt = opts.get('options', '') or ''

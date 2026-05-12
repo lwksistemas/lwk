@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny  # ✅ NOVO v73
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.conf import settings
-from django.db import transaction, connection
+from django.db import transaction, connection, DatabaseError
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
@@ -3908,18 +3908,31 @@ def login_config_sistema_publico(request, tipo):
     
     if cached_data:
         return Response(cached_data)
-    
-    # Buscar ou criar configuração
-    config, created = LoginConfigSistema.objects.get_or_create(
-        tipo=tipo,
-        defaults={
+
+    def _defaults_payload():
+        return {
+            'logo': '',
+            'login_background': '',
             'cor_primaria': '#10B981' if tipo == 'superadmin' else '#3B82F6',
             'cor_secundaria': '#059669' if tipo == 'superadmin' else '#2563EB',
             'titulo': 'Superadmin' if tipo == 'superadmin' else 'Suporte',
             'subtitulo': 'Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte',
         }
-    )
-    
+
+    try:
+        config, created = LoginConfigSistema.objects.get_or_create(
+            tipo=tipo,
+            defaults={
+                'cor_primaria': '#10B981' if tipo == 'superadmin' else '#3B82F6',
+                'cor_secundaria': '#059669' if tipo == 'superadmin' else '#2563EB',
+                'titulo': 'Superadmin' if tipo == 'superadmin' else 'Suporte',
+                'subtitulo': 'Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte',
+            },
+        )
+    except DatabaseError as e:
+        logger.warning('login_config_sistema_publico: BD indisponível (tipo=%s): %s', tipo, e)
+        return Response(_defaults_payload())
+
     data = {
         'logo': config.logo or '',
         'login_background': config.login_background or '',
@@ -3928,14 +3941,12 @@ def login_config_sistema_publico(request, tipo):
         'titulo': config.titulo or ('Superadmin' if tipo == 'superadmin' else 'Suporte'),
         'subtitulo': config.subtitulo or ('Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte'),
     }
-    
-    # Cachear por 1 hora (com fallback se Redis não disponível)
+
     try:
         cache.set(cache_key, data, 3600)
     except Exception as e:
-        # Redis não disponível, continuar sem cache
         logger.warning(f'Cache não disponível para salvar: {e}')
-    
+
     return Response(data)
 
 
@@ -3986,7 +3997,9 @@ def atalho_redirect(request, atalho):
     
     if loja.tipo_loja:
         tipo_codigo = loja.tipo_loja.codigo or ''
-        if tipo_codigo in ['CLIEST', 'CLIBEL']:
+        if tipo_codigo == 'CLIEST':
+            app_url = 'clinica-estetica'
+        elif tipo_codigo == 'CLIBEL':
             app_url = 'clinica-beleza'
         elif tipo_codigo == 'CABEL':
             app_url = 'cabeleireiro'

@@ -153,11 +153,19 @@ DATABASES = {
 # Sobrescrever 'default' e 'suporte' se DATABASE_URL estiver presente
 if 'DATABASE_URL' in os.environ:
     DATABASE_URL = os.environ['DATABASE_URL']
-    
+    # Postgres interno Railway (*.railway.internal) não usa TLS como o Heroku; ssl exigido quebra a conexão.
+    _ssl_env = os.environ.get('DATABASE_SSL_REQUIRE', '').strip().lower()
+    if _ssl_env in ('true', '1', 'yes'):
+        _ssl_require = True
+    elif _ssl_env in ('false', '0', 'no'):
+        _ssl_require = False
+    else:
+        _ssl_require = 'railway.internal' not in DATABASE_URL.lower()
+
     default_db_config = dj_database_url.config(
         default=DATABASE_URL,
         conn_max_age=60,  # Reduzir de 600 para 60 segundos
-        ssl_require=True,
+        ssl_require=_ssl_require,
         conn_health_checks=True,
     )
     

@@ -70,6 +70,8 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/lojas/buscar-por-documento',
                 '/api/superadmin/mercadopago-webhook/',
                 '/api/superadmin/public/',
+                '/api/superadmin/health/',
+                '/api/superadmin/health',
             ]
             
             if any(path.startswith(endpoint) for endpoint in public_endpoints):
@@ -160,6 +162,8 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/lojas/buscar-por-documento',  # Sem barra final
                 '/api/superadmin/mercadopago-webhook/',  # Webhook MP (notificações de pagamento)
                 '/api/superadmin/public/',  # ✅ NOVO: Rotas públicas para cadastro de lojas
+                '/api/superadmin/health/',
+                '/api/superadmin/health',
             ]
             
             if any(path.startswith(endpoint) for endpoint in public_endpoints):

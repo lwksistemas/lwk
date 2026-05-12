@@ -116,7 +116,33 @@ class Command(BaseCommand):
                 'tem_agendamento': True,
                 'tem_delivery': False,
                 'tem_estoque': True
-            }
+            },
+            {
+                'nome': 'Clínica da Beleza',
+                'slug': 'clinica-beleza',
+                'descricao': 'Agenda, pacientes, procedimentos, profissionais e financeiro para clínicas de beleza',
+                'dashboard_template': 'clinica-beleza',
+                'cor_primaria': '#EC4899',
+                'cor_secundaria': '#DB2777',
+                'tem_produtos': False,
+                'tem_servicos': True,
+                'tem_agendamento': True,
+                'tem_delivery': False,
+                'tem_estoque': False
+            },
+            {
+                'nome': 'Cabeleireiro / Salão',
+                'slug': 'cabeleireiro',
+                'descricao': 'Agenda, profissionais e serviços para salões de beleza e barbearias',
+                'dashboard_template': 'cabeleireiro',
+                'cor_primaria': '#A855F7',
+                'cor_secundaria': '#7C3AED',
+                'tem_produtos': True,
+                'tem_servicos': True,
+                'tem_agendamento': True,
+                'tem_delivery': False,
+                'tem_estoque': True
+            },
         ]
         
         created_count = 0
@@ -335,7 +361,85 @@ class Command(BaseCommand):
                 'tem_whatsapp_integration': True,
                 'is_active': True,
                 'ordem': 2
-            }
+            },
+            # Planos Clínica da Beleza
+            {
+                'nome': 'Básico Clínica Beleza',
+                'slug': 'basico-clinica-beleza',
+                'tipo_slug': 'clinica-beleza',
+                'descricao': 'Plano básico para clínicas de beleza',
+                'preco_mensal': Decimal('89.90'),
+                'preco_anual': Decimal('899.00'),
+                'max_usuarios': 5,
+                'max_produtos': 50,
+                'max_pedidos_mes': 1000,
+                'espaco_storage_gb': 5,
+                'tem_relatorios_avancados': False,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': False,
+                'tem_dominio_customizado': False,
+                'tem_whatsapp_integration': True,
+                'is_active': True,
+                'ordem': 1
+            },
+            {
+                'nome': 'Profissional Clínica Beleza',
+                'slug': 'profissional-clinica-beleza',
+                'tipo_slug': 'clinica-beleza',
+                'descricao': 'Plano completo para clínicas de beleza',
+                'preco_mensal': Decimal('179.90'),
+                'preco_anual': Decimal('1799.00'),
+                'max_usuarios': 20,
+                'max_produtos': 200,
+                'max_pedidos_mes': 4000,
+                'espaco_storage_gb': 25,
+                'tem_relatorios_avancados': True,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': True,
+                'tem_dominio_customizado': True,
+                'tem_whatsapp_integration': True,
+                'is_active': True,
+                'ordem': 2
+            },
+            # Planos Cabeleireiro
+            {
+                'nome': 'Básico Cabeleireiro',
+                'slug': 'basico-cabeleireiro',
+                'tipo_slug': 'cabeleireiro',
+                'descricao': 'Plano básico para salões e barbearias',
+                'preco_mensal': Decimal('79.90'),
+                'preco_anual': Decimal('799.00'),
+                'max_usuarios': 5,
+                'max_produtos': 80,
+                'max_pedidos_mes': 1500,
+                'espaco_storage_gb': 5,
+                'tem_relatorios_avancados': False,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': False,
+                'tem_dominio_customizado': False,
+                'tem_whatsapp_integration': True,
+                'is_active': True,
+                'ordem': 1
+            },
+            {
+                'nome': 'Profissional Cabeleireiro',
+                'slug': 'profissional-cabeleireiro',
+                'tipo_slug': 'cabeleireiro',
+                'descricao': 'Plano completo para salões com mais profissionais e relatórios',
+                'preco_mensal': Decimal('159.90'),
+                'preco_anual': Decimal('1599.00'),
+                'max_usuarios': 15,
+                'max_produtos': 300,
+                'max_pedidos_mes': 5000,
+                'espaco_storage_gb': 20,
+                'tem_relatorios_avancados': True,
+                'tem_api_acesso': False,
+                'tem_suporte_prioritario': True,
+                'tem_dominio_customizado': True,
+                'tem_whatsapp_integration': True,
+                'is_active': True,
+                'ordem': 2
+            },
         ]
         
         created_count = 0

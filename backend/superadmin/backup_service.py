@@ -865,11 +865,34 @@ class BackupService:
                                             val = row.get(col, "")
                                         if val == "" and col != "id":
                                             val = None
-                                        # Colunas NOT NULL text/char: converter None para '' (backup antigo pode ter null)
+                                        # Colunas NOT NULL: CSV vazio vira None; BD exige valor (texto, int, bool, etc.)
                                         if val is None and col != "id":
                                             nullable, dtype = col_info.get(col, (True, ''))
-                                            if not nullable and dtype in ('text', 'character varying', 'varchar', 'char'):
-                                                val = ''
+                                            dt = (dtype or "").lower()
+                                            if not nullable:
+                                                if dt in (
+                                                    "text",
+                                                    "character varying",
+                                                    "varchar",
+                                                    "char",
+                                                    "character",
+                                                ):
+                                                    val = ""
+                                                elif dt in (
+                                                    "integer",
+                                                    "bigint",
+                                                    "smallint",
+                                                    "serial",
+                                                    "bigserial",
+                                                    "smallserial",
+                                                ):
+                                                    val = 0
+                                                elif dt == "boolean":
+                                                    val = False
+                                                elif dt in ("numeric", "decimal"):
+                                                    val = Decimal("0")
+                                                elif dt in ("real", "double precision"):
+                                                    val = 0.0
                                         values.append(val)
                                     cursor.execute(insert_sql, values)
                             

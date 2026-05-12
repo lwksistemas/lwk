@@ -188,18 +188,22 @@ class TenantMiddleware:
                         loja_count = Loja.objects.count()
                     except Exception:
                         pass
-                status_code = 200 if db_ok else 503
+                # Railway / PaaS: healthcheck HTTP deve ser 2xx; 503 falha o deploy e mantém réplicas antigas.
                 payload = {
-                    'status': 'healthy' if db_ok else 'unhealthy',
+                    'status': 'healthy' if db_ok else 'degraded',
                     'database': 'connected' if db_ok else 'disconnected',
                     'lojas_count': loja_count,
                     'timestamp': timezone.now().isoformat(),
                     'version': 'v750',
                 }
-                response = JsonResponse(payload, status=status_code)
+                response = JsonResponse(payload, status=200)
                 set_current_loja_id(None)
                 set_current_tenant_db('default')
                 return response
+            # Login / refresh / logout: sem tenant (evita X-Tenant-Slug residual e host da API como slug).
+            path_norm = request.path.rstrip('/') or '/'
+            if path_norm.startswith('/api/auth'):
+                return self.get_response(request)
             # Detectar tenant por subdomain, header ou parâmetro
             tenant_slug = self._get_tenant_slug(request)
             
@@ -397,6 +401,14 @@ class TenantMiddleware:
         
         # 5. Tentar pegar do subdomain (hosts de API: configurar TENANT_IGNORE_* se o label não for slug de loja)
         host = request.get_host().split(':')[0].lower()
+        # Host público do serviço na Railway (evita tratar o hostname do deploy como slug de loja)
+        _railway_pub = (os.environ.get('RAILWAY_PUBLIC_DOMAIN') or '').strip().lower().split(':')[0]
+        if _railway_pub and host == _railway_pub:
+            return None
+        # Hostnames de PaaS onde o 1.º label é o nome do serviço (não slug de loja)
+        for suf in ('.up.railway.app', '.railway.app'):
+            if host.endswith(suf):
+                return None
         for suf in (
             s.strip().lower()
             for s in os.environ.get('TENANT_IGNORE_SUBDOMAIN_SUFFIXES', '').split(',')

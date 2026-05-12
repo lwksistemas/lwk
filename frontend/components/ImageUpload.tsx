@@ -21,6 +21,66 @@ declare global {
   }
 }
 
+const CLOUDINARY_WIDGET_SRC = 'https://upload-widget.cloudinary.com/global/all.js';
+
+/** Uma única carga do script para todos os ImageUpload (evita corrida e duplicados). */
+let cloudinaryScriptPromise: Promise<void> | null = null;
+
+function loadCloudinaryWidgetScript(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+  if (window.cloudinary?.createUploadWidget) {
+    return Promise.resolve();
+  }
+  if (cloudinaryScriptPromise) {
+    return cloudinaryScriptPromise;
+  }
+  const p = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-lwk-cloudinary-widget="1"]'
+    );
+    if (existing) {
+      if (window.cloudinary?.createUploadWidget) {
+        resolve();
+        return;
+      }
+      const t0 = Date.now();
+      const poll = () => {
+        if (window.cloudinary?.createUploadWidget) {
+          resolve();
+          return;
+        }
+        if (Date.now() - t0 > 30000) {
+          reject(new Error('Timeout ao aguardar Cloudinary'));
+          return;
+        }
+        setTimeout(poll, 50);
+      };
+      existing.addEventListener('error', () =>
+        reject(new Error('Script Cloudinary falhou'))
+      );
+      poll();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = CLOUDINARY_WIDGET_SRC;
+    script.async = true;
+    script.dataset.lwkCloudinaryWidget = '1';
+    script.onload = () => {
+      if (window.cloudinary?.createUploadWidget) resolve();
+      else reject(new Error('Cloudinary não disponível após carregar o script'));
+    };
+    script.onerror = () => reject(new Error('Não foi possível carregar o widget do Cloudinary'));
+    document.body.appendChild(script);
+  });
+  cloudinaryScriptPromise = p.catch((err) => {
+    cloudinaryScriptPromise = null;
+    throw err;
+  });
+  return cloudinaryScriptPromise;
+}
+
 export function ImageUpload({
   value,
   onChange,
@@ -33,31 +93,53 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [widgetReady, setWidgetReady] = useState(
+    () => typeof window !== 'undefined' && Boolean(window.cloudinary?.createUploadWidget)
+  );
 
   useEffect(() => {
-    // Carregar script do Cloudinary se ainda não estiver carregado
-    if (typeof window !== 'undefined' && !window.cloudinary) {
-      const script = document.createElement('script');
-      script.src = 'https://upload-widget.cloudinary.com/global/all.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
+    let cancelled = false;
+    loadCloudinaryWidgetScript()
+      .then(() => {
+        if (!cancelled) setWidgetReady(true);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          console.error(e);
+          setError('Não foi possível carregar o upload de imagens (Cloudinary).');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleUpload = () => {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dzrdbw74w';
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'lwk_padrao';
+
+  const handleUpload = async () => {
     if (disabled) return;
-    
+
     setError(null);
-    
-    if (!window.cloudinary) {
+
+    try {
+      await loadCloudinaryWidgetScript();
+    } catch (e) {
+      console.error(e);
+      setError('Cloudinary não está pronto. Recarregue a página ou tente em instantes.');
+      return;
+    }
+
+    if (!window.cloudinary?.createUploadWidget) {
       setError('Cloudinary não está carregado. Recarregue a página.');
       return;
     }
 
     const widget = window.cloudinary.createUploadWidget(
       {
-        cloudName: 'dzrdbw74w',
-        uploadPreset: 'lwk_padrao',
+        cloudName,
+        uploadPreset,
+        secure: true,
         sources: ['local', 'url', 'camera'],
         multiple: false,
         maxFileSize: maxSize * 1024 * 1024,
@@ -143,8 +225,10 @@ export function ImageUpload({
       },
       (error: any, result: any) => {
         if (error) {
-          console.error('Erro no upload:', error);
-          setError('Erro ao fazer upload da imagem');
+          console.error('Erro no upload Cloudinary:', error, result);
+          setError(
+            'Erro ao enviar a imagem. Se for importação por URL, confira o link. No Cloudinary, o preset sem assinatura deve permitir este domínio (lwksistemas.com.br).'
+          );
           setUploading(false);
           return;
         }
@@ -246,18 +330,29 @@ export function ImageUpload({
           <Button
             type="button"
             variant="outline"
-            onClick={handleUpload}
-            disabled={disabled || uploading}
+            onClick={() => void handleUpload()}
+            disabled={disabled || uploading || !widgetReady}
             className="w-full sm:w-auto"
           >
             <Upload className="w-4 h-4 mr-2" />
-            {uploading ? 'Enviando...' : value ? 'Alterar Imagem' : 'Escolher Imagem'}
+            {!widgetReady
+              ? 'A carregar…'
+              : uploading
+                ? 'Enviando...'
+                : value
+                  ? 'Alterar Imagem'
+                  : 'Escolher Imagem'}
           </Button>
 
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Formatos: JPG, PNG, GIF, WebP • Máximo: {maxSize}MB
             {aspectRatio && ` • Proporção: ${aspectRatio}`}
           </p>
+          {!widgetReady && !error && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              A preparar o serviço de imagens…
+            </p>
+          )}
 
           {error && (
             <p className="text-xs text-red-600 dark:text-red-400">

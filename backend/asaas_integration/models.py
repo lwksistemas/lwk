@@ -46,8 +46,15 @@ class AsaasConfig(models.Model):
     
     @classmethod
     def get_config(cls):
-        """Obter ou criar configuração única"""
-        config, created = cls.objects.get_or_create(
+        """Obter ou criar configuração única.
+
+        Cobranças leem sempre este registo. Em deploy novo a tabela pode existir
+        com chave vazia enquanto ASAAS_API_KEY já está nas variáveis de ambiente
+        (settings); nesse caso copiamos a chave e o flag enabled uma vez.
+        """
+        from django.conf import settings
+
+        config, _ = cls.objects.get_or_create(
             singleton_key='config',
             defaults={
                 'api_key': '',
@@ -55,6 +62,11 @@ class AsaasConfig(models.Model):
                 'enabled': False
             }
         )
+        env_key = (getattr(settings, 'ASAAS_API_KEY', None) or '').strip()
+        if env_key.startswith('$aact_') and not (config.api_key or '').strip():
+            config.api_key = env_key
+            config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
+            config.save()
         return config
     
     @property

@@ -22,6 +22,9 @@ db_*.sqlite3
 /staticfiles/
 /media/
 
+# Railway CLI (ligação local projeto/serviço — não versionar)
+.railway/
+
 # Environment
 .env
 .env.staging

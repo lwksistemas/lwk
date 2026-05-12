@@ -118,9 +118,19 @@ def _normalize_database_url(raw: str) -> str:
     return s
 
 
+def _railway_public_proxy_ssl(url: str) -> str:
+    """Proxy público Railway (*.rlwy.net): TLS obrigatório na conexão TCP."""
+    s = (url or '').strip()
+    if not s or '.rlwy.net' not in s.lower():
+        return s
+    if 'sslmode=' in s.lower():
+        return s
+    return s + ('&' if '?' in s else '?') + 'sslmode=require'
+
+
 # DATABASE - PostgreSQL (produção). Sem DATABASE_URL válida: SQLite em /tmp (ex.: collectstatic em CI).
 # DATABASE_URL pode existir como chave mas com valor vazio/inválido — dj_database_url levanta ValueError.
-_database_url = _normalize_database_url(os.environ.get('DATABASE_URL') or '')
+_database_url = _railway_public_proxy_ssl(_normalize_database_url(os.environ.get('DATABASE_URL') or ''))
 _use_postgres = False
 if _database_url:
     try:
@@ -149,6 +159,10 @@ if _use_postgres:
     if 'postgresql' in _engine:
         DATABASES['default']['OPTIONS']['connect_timeout'] = 10
         DATABASES['default']['OPTIONS']['options'] = '-c statement_timeout=25000'
+        # Proxy público Railway (*.rlwy.net) exige TLS; sem sslmode o Postgres encerra a conexão.
+        _pg_host = (DATABASES['default'].get('HOST') or '').lower()
+        if _pg_host.endswith('.rlwy.net'):
+            DATABASES['default']['OPTIONS'].setdefault('sslmode', 'require')
     DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
     _default_db = dict(DATABASES['default'])
     DATABASES['suporte'] = {
@@ -158,6 +172,10 @@ if _use_postgres:
             'options': '-c search_path=suporte,public -c statement_timeout=25000',
         },
     }
+    if 'postgresql' in _engine:
+        _pg_host = (DATABASES['default'].get('HOST') or '').lower()
+        if _pg_host.endswith('.rlwy.net'):
+            DATABASES['suporte']['OPTIONS'].setdefault('sslmode', 'require')
 else:
     logger.warning(
         'A usar SQLite em /tmp (sem Postgres válido). Para produção, defina DATABASE_URL com a URI PostgreSQL.'
@@ -176,10 +194,10 @@ else:
     }
     DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
 
-# CACHE - Redis se REDIS_URL existir, senão LocMem (recomendação ANALISE_SEGURANCA_DESEMPENHO_CAPACIDADE.md)
-# ✅ OTIMIZAÇÃO: Adicionado KEY_PREFIX, TIMEOUT, connection pool, socket timeouts e retry
+# CACHE - Redis só se USE_REDIS=true e REDIS_URL existir (evita django_redis com Redis parado).
+_use_redis_env = os.environ.get('USE_REDIS', 'false').lower() in ('true', '1', 'yes')
 _redis_url = os.environ.get('REDIS_URL')
-if _redis_url:
+if _use_redis_env and _redis_url:
     _redis_options = {'CLIENT_CLASS': 'django_redis.client.DefaultClient'}
     _pool_kwargs = {
         'max_connections': 50,
@@ -318,7 +336,12 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # SECURITY SETTINGS
-SECURE_SSL_REDIRECT = True
+# Railway (e similares): TLS termina no edge; o probe interno chama HTTP sem
+# X-Forwarded-Proto → redirect 301 quebra o healthcheck e deixa deploy em FAILED.
+if os.environ.get('RAILWAY_ENVIRONMENT'):
+    SECURE_SSL_REDIRECT = False
+else:
+    SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True

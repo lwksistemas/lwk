@@ -1,0 +1,13 @@
+# Deploy do backend Django na Railway (Heroku continua com o Procfile na raiz).
+# Dockerfile evita o Nixpacks a executar o release do Procfile durante o build da imagem.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.railway"
+
+[deploy]
+# Imagem Docker: código em /app (conteúdo de backend/), não usar "cd backend".
+startCommand = '''sh -c "exec gunicorn config.wsgi --bind 0.0.0.0:$PORT --workers 2 --threads 2 --worker-class gthread --worker-connections 500 --timeout 30 --log-file - --access-logfile - --error-logfile -"'''
+releaseCommand = '''sh -c "(python fix_suporte_migration.py 2>/dev/null || true) && python manage.py migrate --noinput && python manage.py collectstatic --noinput"'''
+healthcheckPath = "/api/superadmin/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"

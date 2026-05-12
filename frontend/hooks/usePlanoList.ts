@@ -14,7 +14,9 @@ export function usePlanoList(tipoId?: number | null) {
     setError(null);
     try {
       const response = await apiClient.get(`/superadmin/planos/por_tipo/?tipo_id=${tipoLojaId}`);
-      setPlanos(response.data);
+      const raw = response.data;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      setPlanos(list);
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erro ao carregar planos';
       setError(errorMsg);

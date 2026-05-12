@@ -6,7 +6,9 @@ import { authService } from '@/lib/auth';
 import { useTipoAppList } from '@/hooks/useTipoAppList';
 import { usePlanoList } from '@/hooks/usePlanoList';
 import { usePlanoActions, Plano } from '@/hooks/usePlanoActions';
-import { ModalNovoPlano, PlanoCard, TipoAppCard } from '@/components/superadmin/planos';
+import { ModalNovoPlano } from '@/components/superadmin/planos';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 export default function PlanosPage() {
   const router = useRouter();
@@ -15,8 +17,8 @@ export default function PlanosPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingPlano, setEditingPlano] = useState<Plano | null>(null);
 
-  const { tipos, loading: loadingTipos } = useTipoAppList();
-  const { planos, loading: loadingPlanos, loadPlanos } = usePlanoList(tipoSelecionado);
+  const { tipos, loading: loadingTipos, error: tiposError } = useTipoAppList();
+  const { planos, loading: loadingPlanos, loadPlanos, error: planosError } = usePlanoList(tipoSelecionado);
   const { excluirPlano } = usePlanoActions();
 
   useEffect(() => {
@@ -46,14 +48,14 @@ export default function PlanosPage() {
       return;
     }
 
-    try {
-      await excluirPlano(plano);
+    const res = await excluirPlano(plano);
+    if (res.ok) {
       alert('Plano excluído com sucesso!');
       if (tipoSelecionado) {
         loadPlanos(tipoSelecionado);
       }
-    } catch (error: any) {
-      alert(error.message);
+    } else {
+      alert(res.message);
     }
   };
 
@@ -97,7 +99,16 @@ export default function PlanosPage() {
 
       {/* Main Content */}
       <main className="w-full max-w-full py-6 px-4 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+        <div className="px-4 py-6 sm:px-0 space-y-4">
+          {(tiposError || planosError) && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {tiposError && <span className="block">Tipos de app: {tiposError}</span>}
+                {planosError && <span className="block">Planos: {planosError}</span>}
+              </AlertDescription>
+            </Alert>
+          )}
           {loading ? (
             <div className="text-center py-12">Carregando...</div>
           ) : viewMode === 'tipos' ? (

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import apiClient from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { usePlanoActions, type PlanoFormData } from '@/hooks/usePlanoActions';
 
 interface Plano {
   id: number;
@@ -33,7 +33,7 @@ interface ModalNovoPlanoProps {
 }
 
 export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = null }: ModalNovoPlanoProps) {
-  const [loading, setLoading] = useState(false);
+  const { criarPlano, atualizarPlano, loading } = usePlanoActions();
   const [formData, setFormData] = useState({
     nome: editingPlano?.nome || '',
     slug: editingPlano?.slug || '',
@@ -57,51 +57,54 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else if (type === 'number') {
-      setFormData(prev => ({ ...prev, [name]: parseInt(value) || 0 }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: checked }));
+      return;
     }
-    
-    // Auto-gerar slug a partir do nome
+    if (type === 'number') {
+      setFormData((prev) => ({ ...prev, [name]: parseInt(value, 10) || 0 }));
+      return;
+    }
     if (name === 'nome') {
-      const slug = value.toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      setFormData(prev => ({ ...prev, slug }));
+      if (!isEditing) {
+        const slug = value
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+        setFormData((prev) => ({ ...prev, nome: value, slug }));
+      } else {
+        setFormData((prev) => ({ ...prev, nome: value }));
+      }
+      return;
     }
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    const payload: PlanoFormData = { ...formData };
 
-    try {
-      if (isEditing && editingPlano) {
-        await apiClient.put(`/superadmin/planos/${editingPlano.id}/`, formData);
-        alert('Plano atualizado com sucesso!');
-      } else {
-        const payload = { ...formData } as Record<string, unknown>;
-        if (tipoLojaId != null) {
-          payload.tipos_loja = [tipoLojaId];
-        }
-        await apiClient.post('/superadmin/planos/', payload);
-        alert('Plano criado com sucesso!');
+    if (isEditing && editingPlano) {
+      const res = await atualizarPlano(editingPlano.id, payload);
+      if (!res.ok) {
+        alert(`Erro: ${res.message}`);
+        return;
       }
-      onSuccess();
-      onClose();
-    } catch (error: any) {
-      console.error('Erro ao salvar plano:', error);
-      alert(`Erro: ${error.response?.data?.error || JSON.stringify(error.response?.data) || 'Erro ao salvar plano'}`);
-    } finally {
-      setLoading(false);
+      alert('Plano atualizado com sucesso!');
+    } else {
+      const res = await criarPlano(payload, tipoLojaId);
+      if (!res.ok) {
+        alert(`Erro: ${res.message}`);
+        return;
+      }
+      alert('Plano criado com sucesso!');
     }
+    onSuccess();
+    onClose();
   };
 
   const planosPreDefinidos = [

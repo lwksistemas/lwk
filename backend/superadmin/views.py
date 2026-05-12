@@ -199,10 +199,10 @@ class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def por_tipo(self, request):
-        """Buscar planos por tipo de app"""
+        """Buscar planos por tipo de app (superadmin: ativos e inativos)."""
         tipo_id = request.query_params.get('tipo_id')
         if tipo_id:
-            planos = self.get_queryset().filter(tipos_loja__id=tipo_id, is_active=True)
+            planos = self.get_queryset().filter(tipos_loja__id=tipo_id).distinct()
             serializer = self.get_serializer(planos, many=True)
             return Response(serializer.data)
         return Response({'error': 'tipo_id é obrigatório'}, status=400)

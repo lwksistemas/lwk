@@ -486,6 +486,19 @@ def _import_crm_vendas_config_via_model(
                     else:
                         values_out.append(v)
 
+            # Metadados podem omitir colunas (schema errado, view antiga, etc.): o INSERT sem a coluna
+            # NOT NULL gera NULL no servidor — reforçar as duas colunas críticas do CRM/NFS-e.
+            for extra_col in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+                if extra_col not in ordered_cols:
+                    ordered_cols.append(extra_col)
+                    values_out.append(as_int(row.get(extra_col), 0))
+                    logger.warning(
+                        "crm_vendas_config: coluna %s ausente na listagem física; "
+                        "incluída no INSERT com 0 (qual=%r)",
+                        extra_col,
+                        qual,
+                    )
+
             qcols = ", ".join(f'"{c}"' for c in ordered_cols)
             if not ordered_cols:
                 raise BackupImportError(

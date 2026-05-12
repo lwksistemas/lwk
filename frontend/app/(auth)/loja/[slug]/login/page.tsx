@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
-import apiClient from '@/lib/api-client';
+import { getPublicApiJson } from '@/lib/public-api';
 import PasswordInput from '@/components/auth/PasswordInput';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
@@ -38,8 +38,10 @@ export default function LojaLoginDinamicoPage() {
   const loadLojaInfo = useCallback(async () => {
     try {
       setLoadingInfo(true);
-      const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      setLojaInfo(response.data);
+      const data = await getPublicApiJson<LojaInfo>(
+        `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`
+      );
+      setLojaInfo(data);
     } catch (err: unknown) {
       console.error('Erro ao carregar informações da loja:', err);
       const status = err && typeof err === 'object' && 'response' in err && typeof (err as { response?: { status?: number } }).response?.status === 'number'

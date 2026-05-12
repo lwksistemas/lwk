@@ -7,7 +7,7 @@ import { authService } from '@/lib/auth';
 import PasswordInput from '@/components/auth/PasswordInput';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
-import apiClient from '@/lib/api-client';
+import { getPublicApiJson } from '@/lib/public-api';
 
 interface LoginConfig {
   logo: string;
@@ -49,10 +49,12 @@ export default function SuporteLoginPage() {
       }, 5000); // Timeout de 5 segundos
 
       try {
-        const res = await apiClient.get('/superadmin/public/login-config-sistema/suporte/');
+        const data = await getPublicApiJson<LoginConfig>(
+          '/superadmin/public/login-config-sistema/suporte/'
+        );
         if (!timeoutFired) {
           clearTimeout(timeoutId);
-          setConfig(res.data);
+          setConfig(data);
           setConfigLoading(false);
         }
       } catch (err) {

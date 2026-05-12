@@ -90,7 +90,7 @@ export default function NFSeConfigPage() {
   const loadConfig = async () => {
     setLoading(true)
     try {
-      const { data } = await apiClient.get('/asaas/nfse-config/')
+      const { data } = await apiClient.get('/asaas/nfse-config/', { timeout: 20000 })
       setConfig(data)
     } catch (error) {
       console.error('Erro ao carregar configuração NFS-e:', error)
@@ -225,7 +225,9 @@ export default function NFSeConfigPage() {
         <div>
           <h1 className="text-3xl font-bold">Configuração NFS-e</h1>
           <p className="text-muted-foreground">
-            Configure a emissão de notas fiscais de serviço para assinaturas das lojas
+            Emissão de NFS-e quando uma <strong>loja paga a mensalidade</strong> à LWK (prestador = empresa administradora).
+            É independente da configuração em <strong>CRM → Nota fiscal</strong>, que é a NFS-e que cada loja emite para os
+            próprios clientes (outro CNPJ e outro certificado).
           </p>
         </div>
         <Badge variant={provedorBadgeVariant[config.provedor_nfse]}>
@@ -388,13 +390,13 @@ export default function NFSeConfigPage() {
                     onChange={(e) => setConfig(prev => ({ ...prev, regime_especial_tributacao: e.target.value }))}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <option value="">- (Nenhum)</option>
+                    <option value="">Nenhum</option>
                     <option value="1">Microempresa Municipal</option>
                     <option value="2">Estimativa</option>
                     <option value="3">Sociedade de Profissionais</option>
                     <option value="4">Cooperativa</option>
-                    <option value="5">Microempresário Individual (MEI)</option>
-                    <option value="6">Microempresário e Empresa de Pequeno Porte (ME EPP)</option>
+                    <option value="5">MEI — Simples Nacional</option>
+                    <option value="6">ME/EPP — Simples Nacional</option>
                   </select>
                   <p className="text-xs text-muted-foreground">
                     Identifica o regime de tributação da empresa. Empresas do Simples Nacional geralmente optam por &quot;Microempresa Municipal&quot;.
@@ -621,7 +623,7 @@ export default function NFSeConfigPage() {
                     type="number"
                     step="0.01"
                     min="0"
-                    max="10"
+                    max="100"
                     value={config.aliquota_iss}
                     onChange={(e) => setConfig(prev => ({ ...prev, aliquota_iss: e.target.value }))}
                     placeholder="2.00"

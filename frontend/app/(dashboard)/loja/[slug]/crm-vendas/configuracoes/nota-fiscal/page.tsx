@@ -287,6 +287,12 @@ export default function ConfiguracaoNotaFiscalPage() {
               <p className="mt-2 text-xs">
                 Cada loja tem seu próprio CNPJ e certificado digital. As configurações abaixo são exclusivas da sua loja.
               </p>
+              <p className="mt-2 text-xs text-blue-900/90 dark:text-blue-200/90">
+                A tela <strong>Superadmin → NFS-e (assinaturas)</strong> configura outro fluxo: nota quando a loja paga a
+                mensalidade LWK. Os campos ISSNet/Ribeirão coincidem na ideia (serviço municipal, alíquota, RPS, regime),
+                mas lá constam também CNPJ/razão social do <strong>prestador LWK</strong> e não há item de lista / lote
+                opcionais — o modelo de dados do Superadmin é mais enxuto.
+              </p>
             </div>
           </div>
         </div>

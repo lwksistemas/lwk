@@ -21,7 +21,7 @@ import io
 import os
 import re
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
 from decimal import Decimal
 
@@ -73,6 +73,51 @@ BACKUP_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS = frozenset(
     {"issnet_numero_lote", "issnet_ultimo_rps_conhecido"}
 )
+
+
+def _backup_finalize_crm_config_row_values(
+    cols_for_insert: List[str], values: List[Any]
+) -> List[Any]:
+    """Garante inteiros NOT NULL do CRM mesmo com CSV/col_info inconsistentes."""
+    out: List[Any] = []
+    for col, val in zip(cols_for_insert, values):
+        if col == "issnet_numero_lote":
+            if val is None or val == "":
+                out.append(0)
+            elif isinstance(val, str):
+                s = val.strip().lower()
+                if s in ("", "null", "none", "nan"):
+                    out.append(0)
+                else:
+                    try:
+                        out.append(int(float(val.strip())))
+                    except ValueError:
+                        out.append(0)
+            else:
+                try:
+                    out.append(int(val))
+                except (TypeError, ValueError):
+                    out.append(0)
+        elif col == "issnet_ultimo_rps_conhecido":
+            if val is None or val == "":
+                out.append(0)
+            elif isinstance(val, str):
+                s = val.strip().lower()
+                if s in ("", "null", "none", "nan"):
+                    out.append(0)
+                else:
+                    try:
+                        out.append(int(float(val.strip())))
+                    except ValueError:
+                        out.append(0)
+            else:
+                try:
+                    out.append(int(val))
+                except (TypeError, ValueError):
+                    out.append(0)
+        else:
+            out.append(val)
+    return out
 
 
 class BackupExportError(Exception):
@@ -344,45 +389,14 @@ class DatabaseHelper:
             )
             return [row[0] for row in cursor.fetchall()]
 
-    def get_table_columns_from_pg_catalog(self, table_name: str) -> List[str]:
-        """Ordem física das colunas (pg_attribute); mais fiável que information_schema em schemas de loja."""
-        if (
-            self._is_sqlite()
-            or not self._pg_schema
-            or not self.is_safe_table_name(table_name)
-            or not BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema)
+    def _fetch_pg_attribute_meta(
+        self, schema: str, table_name: str
+    ) -> Tuple[List[str], Dict[str, Tuple[bool, str]]]:
+        """Uma query: nomes de colunas (ordem física) + (aceita NULL?, format_type)."""
+        if not self.is_safe_table_name(table_name) or not BACKUP_SAFE_IDENTIFIER_RE.match(
+            schema
         ):
-            return []
-        try:
-            with self.get_connection().cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT a.attname
-                    FROM pg_catalog.pg_attribute a
-                    INNER JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
-                    INNER JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
-                    WHERE n.nspname = %s AND c.relname = %s
-                      AND a.attnum > 0 AND NOT a.attisdropped
-                    ORDER BY a.attnum
-                    """,
-                    [self._pg_schema, table_name],
-                )
-                return [row[0] for row in cursor.fetchall()]
-        except Exception as e:
-            logger.warning("pg_catalog: colunas de %s: %s", table_name, e)
-            return []
-
-    def get_columns_nullable_and_type_from_pg_catalog(
-        self, table_name: str
-    ) -> Dict[str, Tuple[bool, str]]:
-        """attnotnull + format_type por coluna (alinhado à tabela real no schema)."""
-        if (
-            self._is_sqlite()
-            or not self._pg_schema
-            or not self.is_safe_table_name(table_name)
-            or not BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema)
-        ):
-            return {}
+            return [], {}
         try:
             with self.get_connection().cursor() as cursor:
                 cursor.execute(
@@ -397,16 +411,35 @@ class DatabaseHelper:
                       AND a.attnum > 0 AND NOT a.attisdropped
                     ORDER BY a.attnum
                     """,
-                    [self._pg_schema, table_name],
+                    [schema, table_name],
                 )
-                # attnotnull True = NOT NULL no PostgreSQL → (nullable=True) significa "aceita NULL"
-                return {
-                    row[0]: (not row[1], row[2] or "")
-                    for row in cursor.fetchall()
-                }
+                rows = cursor.fetchall()
+                cols = [r[0] for r in rows]
+                # attnotnull True = NOT NULL → primeiro elemento False = não aceita NULL (como is_nullable NO)
+                meta = {r[0]: (not r[1], r[2] or "") for r in rows}
+                return cols, meta
         except Exception as e:
-            logger.warning("pg_catalog: tipos/nullable de %s: %s", table_name, e)
-            return {}
+            logger.warning("pg_catalog meta %s.%s: %s", schema, table_name, e)
+            return [], {}
+
+    def get_pg_table_meta_for_backup(
+        self, table_name: str
+    ) -> Tuple[List[str], Dict[str, Tuple[bool, str]]]:
+        """Colunas + tipos via pg_attribute; tenta schema da loja e depois public."""
+        if self._is_sqlite() or not self.is_safe_table_name(table_name):
+            return [], {}
+        schemas: List[str] = []
+        if self._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema):
+            schemas.append(self._pg_schema)
+        if "public" not in schemas:
+            schemas.append("public")
+        for sch in schemas:
+            if not BACKUP_SAFE_IDENTIFIER_RE.match(sch):
+                continue
+            cols, meta = self._fetch_pg_attribute_meta(sch, table_name)
+            if cols:
+                return cols, meta
+        return [], {}
 
     def get_columns_nullable_and_type(self, table_name: str) -> Dict[str, Tuple[bool, str]]:
         """Retorna dict col -> (is_nullable, data_type) para colunas da tabela."""
@@ -897,16 +930,8 @@ class BackupService:
                             # Colunas da tabela no banco (ordem e nomes)
                             db_columns = db_helper.get_table_columns(table_name)
                             col_info = db_helper.get_columns_nullable_and_type(table_name)
-                            if (
-                                table_name == "crm_vendas_config"
-                                and not db_helper._is_sqlite()
-                                and db_helper._pg_schema
-                                and BACKUP_SAFE_IDENTIFIER_RE.match(db_helper._pg_schema)
-                            ):
-                                pg_cols = db_helper.get_table_columns_from_pg_catalog(
-                                    table_name
-                                )
-                                pg_info = db_helper.get_columns_nullable_and_type_from_pg_catalog(
+                            if table_name == "crm_vendas_config" and not db_helper._is_sqlite():
+                                pg_cols, pg_info = db_helper.get_pg_table_meta_for_backup(
                                     table_name
                                 )
                                 if pg_cols:
@@ -934,6 +959,20 @@ class BackupService:
                                     and c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS
                                 ):
                                     cols_for_insert.append(c)
+                            if table_name == "crm_vendas_config":
+                                missing_issnet = [
+                                    c
+                                    for c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS
+                                    if c in db_columns and c not in cols_for_insert
+                                ]
+                                if missing_issnet:
+                                    merged = set(cols_for_insert) | set(missing_issnet)
+                                    cols_for_insert = [
+                                        c
+                                        for c in db_columns
+                                        if c in merged
+                                        and DatabaseHelper.is_safe_table_name(c)
+                                    ]
                             if not cols_for_insert:
                                 logger.warning(f"⚠️ Nenhuma coluna comum entre CSV e tabela {table_name}")
                                 tabelas_stats[table_name] = 0
@@ -1005,6 +1044,10 @@ class BackupService:
                                         ):
                                             val = 0
                                         values.append(val)
+                                    if table_name == "crm_vendas_config":
+                                        values = _backup_finalize_crm_config_row_values(
+                                            cols_for_insert, values
+                                        )
                                     cursor.execute(insert_sql, values)
                             
                             count = len(rows)

@@ -226,3 +226,7 @@ class LojaAssinatura(models.Model):
         return AsaasPayment.objects.filter(
             external_reference__contains=f"loja_{self.loja_slug}"
         ).order_by('-created_at')
+
+
+# Registo explícito: o modelo vive em models_nfse_config.py; sem isto o Django ignora-o e gera migration de "delete".
+from .models_nfse_config import SuperadminNFSeConfig  # noqa: E402, F401

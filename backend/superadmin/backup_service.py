@@ -77,10 +77,20 @@ BACKUP_SAFE_PG_SCHEMA_RE = re.compile(r'^[a-zA-Z0-9_]{1,63}$')
 
 def is_safe_pg_schema_token(name: Optional[str]) -> bool:
     return bool(name and BACKUP_SAFE_PG_SCHEMA_RE.match(name))
+
+
 # Backups antigos podem omitir estas colunas no CSV; no PG podem ser NOT NULL sem DEFAULT no servidor.
 BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS = frozenset(
     {"issnet_numero_lote", "issnet_ultimo_rps_conhecido"}
 )
+
+
+def _zip_csv_basename_table_name(zip_inner_path: str) -> str:
+    """Nome da tabela a partir do caminho do .csv dentro do ZIP (basename, sem extensão, sem BOM)."""
+    base = (zip_inner_path or "").strip().lstrip("\ufeff").replace("\\", "/").rsplit("/", 1)[-1]
+    if base.lower().endswith(".csv"):
+        base = base[:-4]
+    return base.strip()
 
 
 def _backup_finalize_crm_config_row_values(
@@ -518,8 +528,9 @@ def _import_crm_vendas_config_via_model(
                 for i, c in enumerate(ordered_cols):
                     v = values_out[i]
                     if c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
-                        ph_parts.append("COALESCE(%s::integer, 0)")
-                        exec_params.append(v)
+                        ival = as_int(v, 0)
+                        # Inteiro literal no SQL: evita NULL via adaptador/psycopg em colunas NOT NULL.
+                        ph_parts.append(str(ival))
                     else:
                         ph_parts.append("%s")
                         exec_params.append(v)
@@ -1304,12 +1315,21 @@ class BackupService:
                 vistos = set()
                 for t in tabelas:
                     fn = f"{t.nome}.csv"
-                    if fn in zip_file.namelist() and t.nome not in vistos:
-                        processar.append((t.nome, fn))
+                    match_fn = None
+                    if fn in zip_file.namelist():
+                        match_fn = fn
+                    else:
+                        for zn in zip_file.namelist():
+                            znorm = zn.replace("\\", "/")
+                            if znorm.endswith("/" + fn) or znorm == fn:
+                                match_fn = zn
+                                break
+                    if match_fn is not None and t.nome not in vistos:
+                        processar.append((t.nome, match_fn))
                         vistos.add(t.nome)
                 for nome in zip_file.namelist():
                     if nome.endswith(".csv") and nome != "_metadata.json":
-                        table_name = nome[:-4]
+                        table_name = _zip_csv_basename_table_name(nome)
                         if table_name not in vistos:
                             processar.append((table_name, nome))
                             vistos.add(table_name)
@@ -1345,6 +1365,8 @@ class BackupService:
                         # Verificar se tabela existe e nome é seguro
                         if not DatabaseHelper.is_safe_table_name(table_name):
                             continue
+                        if table_name.lower() == "crm_vendas_config":
+                            table_name = "crm_vendas_config"
                         if not db_helper.table_exists(table_name):
                             logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
                             continue

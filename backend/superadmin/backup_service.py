@@ -125,8 +125,10 @@ def _import_crm_vendas_config_via_model(
     loja, rows: List[Dict[str, Any]], qual: str, using: str
 ) -> None:
     """
-    Importa crm_vendas_config via ORM (evita INSERT dinâmico e NULL em inteiros NOT NULL).
-    Mapeia colunas legadas do CSV (ex.: issnet_certificado_binary → issnet_certificado).
+    Importa crm_vendas_config com INSERT explícito no schema da loja (qual).
+
+    Evita CRMConfig.objects.create() + LojaIsolationMixin.save() (tenant/contexto)
+    e garante inteiros NOT NULL (issnet_numero_lote, issnet_ultimo_rps_conhecido).
     """
     from django.db import connections
     from django.db import models as dm
@@ -134,8 +136,6 @@ def _import_crm_vendas_config_via_model(
     from crm_vendas.models_config import CRMConfig
 
     conn = connections[using]
-    with conn.cursor() as cur:
-        cur.execute(f"DELETE FROM {qual}")
 
     def as_int(raw: Any, default: int = 0) -> int:
         if raw is None:
@@ -192,85 +192,108 @@ def _import_crm_vendas_config_via_model(
         except ValueError:
             return None
 
-    for row in rows:
-        kwargs: Dict[str, Any] = {"loja_id": loja.id}
-        for field in CRMConfig._meta.local_concrete_fields:
-            att = field.attname
-            if att == "loja_id":
-                continue
-            if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
-                raw_dt = row.get(att)
-                if raw_dt:
-                    parsed = parse_datetime(str(raw_dt))
-                    if parsed is not None:
-                        kwargs[att] = parsed
-                continue
+    with conn.cursor() as cur:
+        cur.execute(f"DELETE FROM {qual}")
 
-            if isinstance(field, dm.AutoField):
-                raw_id = row.get(att)
-                if raw_id is not None and str(raw_id).strip() != "":
-                    kwargs[att] = as_int(raw_id, 0)
-                continue
-
-            raw = row.get(att)
-            if isinstance(field, dm.BinaryField):
-                if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-                    raw = row.get("issnet_certificado_binary")
-                kwargs[att] = as_bytes(raw)
-                continue
-
-            if isinstance(field, dm.JSONField):
-                kwargs[att] = as_json(raw, field.get_default())
-                continue
-
-            if isinstance(field, dm.BooleanField):
-                d = field.get_default() if field.has_default() else False
-                if not isinstance(d, bool):
-                    d = bool(d)
-                kwargs[att] = as_bool(raw, d)
-                continue
-
-            if isinstance(field, dm.DecimalField):
-                d0 = field.get_default() if field.has_default() else Decimal("0")
-                if not isinstance(d0, Decimal):
-                    d0 = Decimal(str(d0))
-                kwargs[att] = as_dec(raw, d0)
-                continue
-
-            if isinstance(field, dm.DateTimeField):
-                if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-                    if field.null:
-                        kwargs[att] = None
+        for row in rows:
+            kwargs: Dict[str, Any] = {"loja_id": loja.id}
+            for field in CRMConfig._meta.local_concrete_fields:
+                att = field.attname
+                if att == "loja_id":
                     continue
-                parsed = parse_datetime(str(raw))
-                kwargs[att] = parsed if parsed is not None else None
-                continue
+                if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
+                    raw_dt = row.get(att)
+                    if raw_dt:
+                        parsed = parse_datetime(str(raw_dt))
+                        if parsed is not None:
+                            kwargs[att] = parsed
+                    continue
 
-            if isinstance(
-                field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField)
-            ):
-                d = 0
-                if field.has_default():
-                    try:
-                        d = int(field.get_default())
-                    except (TypeError, ValueError):
-                        d = 0
-                kwargs[att] = as_int(raw, d)
-                continue
+                if isinstance(field, dm.AutoField):
+                    raw_id = row.get(att)
+                    if raw_id is not None and str(raw_id).strip() != "":
+                        kwargs[att] = as_int(raw_id, 0)
+                    continue
 
-            if raw is None:
-                kwargs[att] = (
-                    field.get_default() if field.has_default() else ""
-                )
-            else:
-                kwargs[att] = str(raw)
+                raw = row.get(att)
+                if isinstance(field, dm.BinaryField):
+                    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+                        raw = row.get("issnet_certificado_binary")
+                    kwargs[att] = as_bytes(raw)
+                    continue
 
-        kwargs["issnet_numero_lote"] = as_int(row.get("issnet_numero_lote"), 0)
-        kwargs["issnet_ultimo_rps_conhecido"] = as_int(
-            row.get("issnet_ultimo_rps_conhecido"), 0
-        )
-        kwargs["loja_id"] = loja.id
-        CRMConfig.objects.using(using).create(**kwargs)
+                if isinstance(field, dm.JSONField):
+                    kwargs[att] = as_json(raw, field.get_default())
+                    continue
+
+                if isinstance(field, dm.BooleanField):
+                    d = field.get_default() if field.has_default() else False
+                    if not isinstance(d, bool):
+                        d = bool(d)
+                    kwargs[att] = as_bool(raw, d)
+                    continue
+
+                if isinstance(field, dm.DecimalField):
+                    d0 = field.get_default() if field.has_default() else Decimal("0")
+                    if not isinstance(d0, Decimal):
+                        d0 = Decimal(str(d0))
+                    kwargs[att] = as_dec(raw, d0)
+                    continue
+
+                if isinstance(field, dm.DateTimeField):
+                    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+                        if field.null:
+                            kwargs[att] = None
+                        continue
+                    parsed = parse_datetime(str(raw))
+                    kwargs[att] = parsed if parsed is not None else None
+                    continue
+
+                if isinstance(
+                    field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField)
+                ):
+                    d = 0
+                    if field.has_default():
+                        try:
+                            d = int(field.get_default())
+                        except (TypeError, ValueError):
+                            d = 0
+                    kwargs[att] = as_int(raw, d)
+                    continue
+
+                if raw is None:
+                    kwargs[att] = (
+                        field.get_default() if field.has_default() else ""
+                    )
+                else:
+                    kwargs[att] = str(raw)
+
+            kwargs["issnet_numero_lote"] = as_int(row.get("issnet_numero_lote"), 0)
+            kwargs["issnet_ultimo_rps_conhecido"] = as_int(
+                row.get("issnet_ultimo_rps_conhecido"), 0
+            )
+            kwargs["loja_id"] = loja.id
+
+            ordered_cols = [
+                f.attname
+                for f in CRMConfig._meta.local_concrete_fields
+                if f.attname in kwargs and BACKUP_SAFE_IDENTIFIER_RE.match(f.attname)
+            ]
+            values_out: List[Any] = []
+            for c in ordered_cols:
+                v = kwargs[c]
+                finfo = CRMConfig._meta.get_field(c)
+                if isinstance(finfo, dm.JSONField) and v is not None and not isinstance(
+                    v, (str, bytes, int, float, bool)
+                ):
+                    values_out.append(json.dumps(v, default=str))
+                else:
+                    values_out.append(v)
+
+            qcols = ", ".join(f'"{c}"' for c in ordered_cols)
+            ph = ", ".join(["%s"] * len(ordered_cols))
+            sql = f"INSERT INTO {qual} ({qcols}) VALUES ({ph})"
+            cur.execute(sql, values_out)
 
 
 class BackupExportError(Exception):
@@ -1102,7 +1125,7 @@ class BackupService:
                                 total_registros += ncfg
                                 tabelas_stats[table_name] = ncfg
                                 logger.info(
-                                    "✅ Tabela %s: %s registros importados (ORM CRMConfig)",
+                                    "✅ Tabela %s: %s registros importados (INSERT explícito CRMConfig)",
                                     table_name,
                                     ncfg,
                                 )

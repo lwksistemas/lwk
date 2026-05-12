@@ -70,6 +70,13 @@ BACKUP_TIPO_APP_EXCLUDED_PREFIXES = {
 }
 # Regex para validar nome de tabela/coluna (segurança SQL: apenas alfanumérico e underscore)
 BACKUP_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+# Schema PostgreSQL derivado de loja.database_name (valor controlado pelo backend).
+# Permite nome que começa com dígito (ex.: CNPJ como schema), sempre entre aspas em SQL literal.
+BACKUP_SAFE_PG_SCHEMA_RE = re.compile(r'^[a-zA-Z0-9_]{1,63}$')
+
+
+def is_safe_pg_schema_token(name: Optional[str]) -> bool:
+    return bool(name and BACKUP_SAFE_PG_SCHEMA_RE.match(name))
 # Backups antigos podem omitir estas colunas no CSV; no PG podem ser NOT NULL sem DEFAULT no servidor.
 BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS = frozenset(
     {"issnet_numero_lote", "issnet_ultimo_rps_conhecido"}
@@ -119,6 +126,120 @@ def _backup_finalize_crm_config_row_values(
         else:
             out.append(val)
     return out
+
+
+def _parse_pg_qualified_table(qual: str) -> Tuple[Optional[str], str]:
+    """
+    Extrai (schema, tabela) de "schema"."tabela".
+    Se não estiver qualificado, retorna (None, nome_da_tabela).
+    """
+    q = (qual or "").strip()
+    m = re.match(r'^"([^"]+)"\."([^"]+)"$', q)
+    if m:
+        return m.group(1), m.group(2)
+    inner = q.strip('"')
+    if inner and BACKUP_SAFE_IDENTIFIER_RE.match(inner):
+        return None, inner
+    return None, "crm_vendas_config"
+
+
+def _connection_is_postgresql(conn) -> bool:
+    if getattr(conn, "vendor", None) == "postgresql":
+        return True
+    eng = (conn.settings_dict.get("ENGINE") or "").lower()
+    return "postgresql" in eng
+
+
+def _resolve_visible_pg_schema_for_table(cur, table_name: str) -> Optional[str]:
+    """
+    Primeiro schema no search_path onde existe uma relação visível com relname = table_name.
+    Alinha metadados com INSERT não qualificado em PostgreSQL.
+    """
+    if not DatabaseHelper.is_safe_table_name(table_name):
+        return None
+    try:
+        cur.execute(
+            """
+            SELECT n.nspname
+            FROM unnest(current_schemas(true)) WITH ORDINALITY AS sp(schema_name, ord)
+            INNER JOIN pg_catalog.pg_namespace n ON n.nspname = sp.schema_name
+            INNER JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid
+                AND c.relname = %s AND c.relkind IN ('r', 'p')
+            ORDER BY sp.ord ASC
+            LIMIT 1
+            """,
+            [table_name],
+        )
+        r = cur.fetchone()
+        if r and r[0] and is_safe_pg_schema_token(r[0]):
+            return r[0]
+    except Exception as ex:
+        logger.warning("resolve_visible_schema %s: %s", table_name, ex)
+    return None
+
+
+def _fetch_crm_vendas_config_pg_colrows(
+    cur, qual: str, pg_schema: str
+) -> List[Tuple[Any, Any, Any]]:
+    """
+    Colunas da tabela física em ordem: (nome, is_nullable YES/NO, tipo/format_type).
+    Prioriza o schema do qual(...) do INSERT (evita omitir NOT NULL quando pg_schema ≠ schema real).
+    """
+    q_schema, q_table = _parse_pg_qualified_table(qual)
+    if not BACKUP_SAFE_IDENTIFIER_RE.match(q_table):
+        q_table = "crm_vendas_config"
+    candidates: List[str] = []
+    # INSERT sem schema: mesma tabela que o PostgreSQL resolve via search_path
+    if q_schema is None:
+        vis = _resolve_visible_pg_schema_for_table(cur, q_table)
+        if vis and vis not in candidates:
+            candidates.append(vis)
+    for s in (q_schema, pg_schema):
+        if s and is_safe_pg_schema_token(s) and s not in candidates:
+            candidates.append(s)
+    try:
+        cur.execute("SELECT current_schema()")
+        cr = cur.fetchone()
+        if cr and cr[0] and is_safe_pg_schema_token(cr[0]) and cr[0] not in candidates:
+            candidates.append(cr[0])
+    except Exception:
+        pass
+    if q_schema is None and "public" not in candidates:
+        candidates.append("public")
+
+    for schema_try in candidates:
+        cur.execute(
+            """
+            SELECT a.attname,
+                   CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END,
+                   pg_catalog.format_type(a.atttypid, a.atttypmod)
+            FROM pg_catalog.pg_attribute a
+            INNER JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+            INNER JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+            WHERE n.nspname = %s AND c.relname = %s
+              AND a.attnum > 0 AND NOT a.attisdropped
+            ORDER BY a.attnum
+            """,
+            [schema_try, q_table],
+        )
+        found = cur.fetchall()
+        if found:
+            return list(found)
+
+    for schema_try in candidates:
+        cur.execute(
+            """
+            SELECT column_name, is_nullable, data_type
+            FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s
+            ORDER BY ordinal_position
+            """,
+            [schema_try, q_table],
+        )
+        found = cur.fetchall()
+        if found:
+            return list(found)
+    return []
 
 
 def _import_crm_vendas_config_via_model(
@@ -198,8 +319,19 @@ def _import_crm_vendas_config_via_model(
         except ValueError:
             return None
 
+    is_sqlite = conn.settings_dict.get("ENGINE", "").endswith("sqlite3")
     with conn.cursor() as cur:
         cur.execute(f"DELETE FROM {qual}")
+        static_colrows: List[Tuple[Any, Any, Any]] = []
+        if not is_sqlite and _connection_is_postgresql(conn):
+            static_colrows = _fetch_crm_vendas_config_pg_colrows(cur, qual, pg_schema)
+            if not static_colrows:
+                logger.warning(
+                    "crm_vendas_config: não foi possível listar colunas via pg_catalog/"
+                    "information_schema (qual=%r pg_schema=%r). Usando fallback pelo modelo.",
+                    qual,
+                    pg_schema,
+                )
 
         for row in rows:
             kwargs: Dict[str, Any] = {"loja_id": loja.id}
@@ -318,23 +450,7 @@ def _import_crm_vendas_config_via_model(
                     return None
                 return None
 
-            if (
-                pg_schema
-                and BACKUP_SAFE_IDENTIFIER_RE.match(pg_schema)
-                and conn.vendor == "postgresql"
-            ):
-                cur.execute(
-                    """
-                    SELECT column_name, is_nullable, data_type
-                    FROM information_schema.columns
-                    WHERE table_schema = %s AND table_name = %s
-                    ORDER BY ordinal_position
-                    """,
-                    [pg_schema, "crm_vendas_config"],
-                )
-                colrows = cur.fetchall()
-            else:
-                colrows = []
+            colrows = static_colrows
 
             if colrows:
                 ordered_cols = []
@@ -371,13 +487,32 @@ def _import_crm_vendas_config_via_model(
                         values_out.append(v)
 
             qcols = ", ".join(f'"{c}"' for c in ordered_cols)
-            ph = ", ".join(["%s"] * len(ordered_cols))
-            sql = f"INSERT INTO {qual} ({qcols}) VALUES ({ph})"
             if not ordered_cols:
                 raise BackupImportError(
                     "crm_vendas_config: nenhuma coluna para INSERT (schema inesperado)"
                 )
-            cur.execute(sql, values_out)
+
+            for i, c in enumerate(ordered_cols):
+                if c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+                    values_out[i] = as_int(values_out[i], 0)
+
+            if is_sqlite:
+                ph = ", ".join(["%s"] * len(ordered_cols))
+                exec_params: List[Any] = list(values_out)
+            else:
+                ph_parts: List[str] = []
+                exec_params = []
+                for i, c in enumerate(ordered_cols):
+                    v = values_out[i]
+                    if c in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+                        ph_parts.append("COALESCE(%s::integer, 0)")
+                        exec_params.append(v)
+                    else:
+                        ph_parts.append("%s")
+                        exec_params.append(v)
+                ph = ", ".join(ph_parts)
+            sql = f"INSERT INTO {qual} ({qcols}) VALUES ({ph})"
+            cur.execute(sql, exec_params)
 
 
 class BackupExportError(Exception):
@@ -504,7 +639,7 @@ class DatabaseHelper:
         """Retorna nome qualificado para PostgreSQL (schema.tabela) ou só tabela para SQLite."""
         if self._is_sqlite() or not self._pg_schema or not self.is_safe_table_name(table_name):
             return table_name
-        if not (self._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema)):
+        if not (self._pg_schema and is_safe_pg_schema_token(self._pg_schema)):
             return table_name
         return f'"{self._pg_schema}"."{table_name}"'
     
@@ -514,7 +649,7 @@ class DatabaseHelper:
     
     def ensure_pg_schema_exists(self) -> bool:
         """Cria o schema no PostgreSQL se não existir (usa a conexão da loja). Retorna True se OK."""
-        if self._is_sqlite() or not self._pg_schema or not BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema):
+        if self._is_sqlite() or not self._pg_schema or not is_safe_pg_schema_token(self._pg_schema):
             return True
         try:
             with self.get_connection().cursor() as cursor:
@@ -619,6 +754,8 @@ class DatabaseHelper:
                         [table_name]
                     )
                 else:
+                    if not is_safe_pg_schema_token(self._pg_schema):
+                        return False
                     cursor.execute(
                         "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s)",
                         [self._pg_schema, table_name]
@@ -639,6 +776,8 @@ class DatabaseHelper:
             if self._is_sqlite():
                 cursor.execute(f"PRAGMA table_info({table_name})")
                 return [row[1] for row in cursor.fetchall()]
+            if not is_safe_pg_schema_token(self._pg_schema):
+                return []
             cursor.execute(
                 """
                 SELECT column_name FROM information_schema.columns
@@ -653,9 +792,7 @@ class DatabaseHelper:
         self, schema: str, table_name: str
     ) -> Tuple[List[str], Dict[str, Tuple[bool, str]]]:
         """Uma query: nomes de colunas (ordem física) + (aceita NULL?, format_type)."""
-        if not self.is_safe_table_name(table_name) or not BACKUP_SAFE_IDENTIFIER_RE.match(
-            schema
-        ):
+        if not self.is_safe_table_name(table_name) or not is_safe_pg_schema_token(schema):
             return [], {}
         try:
             with self.get_connection().cursor() as cursor:
@@ -693,18 +830,18 @@ class DatabaseHelper:
             with self.get_connection().cursor() as cur:
                 cur.execute("SELECT current_schema()")
                 r = cur.fetchone()
-                if r and r[0] and BACKUP_SAFE_IDENTIFIER_RE.match(r[0]):
+                if r and r[0] and is_safe_pg_schema_token(r[0]):
                     schemas.append(r[0])
         except Exception as e:
             logger.warning("current_schema() falhou: %s", e)
         if (
             self._pg_schema
-            and BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema)
+            and is_safe_pg_schema_token(self._pg_schema)
             and self._pg_schema not in schemas
         ):
             schemas.append(self._pg_schema)
         for sch in schemas:
-            if not BACKUP_SAFE_IDENTIFIER_RE.match(sch):
+            if not is_safe_pg_schema_token(sch):
                 continue
             cols, meta = self._fetch_pg_attribute_meta(sch, table_name)
             if cols:
@@ -719,6 +856,8 @@ class DatabaseHelper:
             if self._is_sqlite():
                 cursor.execute(f"PRAGMA table_info({table_name})")
                 return {row[1]: (row[3] == 0, row[2] or '') for row in cursor.fetchall()}
+            if not is_safe_pg_schema_token(self._pg_schema):
+                return {}
             cursor.execute(
                 """
                 SELECT column_name, is_nullable, data_type
@@ -926,7 +1065,7 @@ class BackupService:
             tabelas_stats = {}
             
             # Forçar search_path na conexão (PostgreSQL) para garantir que usamos o schema da loja
-            if not db_helper._is_sqlite() and db_helper._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(db_helper._pg_schema):
+            if not db_helper._is_sqlite() and db_helper._pg_schema and is_safe_pg_schema_token(db_helper._pg_schema):
                 try:
                     with db_helper.get_connection().cursor() as cursor:
                         cursor.execute(f'SET search_path TO "{db_helper._pg_schema}", public')
@@ -1350,7 +1489,7 @@ class BackupService:
                             raise BackupImportError(f"Erro ao importar {table_name}: {str(e)}")
                 
                 # PostgreSQL: resetar sequences após INSERT com IDs explícitos (evita conflito em novos registros)
-                if not db_helper._is_sqlite() and db_helper._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(db_helper._pg_schema):
+                if not db_helper._is_sqlite() and db_helper._pg_schema and is_safe_pg_schema_token(db_helper._pg_schema):
                     with db_helper.get_connection().cursor() as cursor:
                         for table_name, _ in processar:
                             if not DatabaseHelper.is_safe_table_name(table_name) or not db_helper.table_exists(table_name):
@@ -1360,10 +1499,15 @@ class BackupService:
                                 continue
                             qual = db_helper.qualified_table_name(table_name)
                             try:
-                                # schema e table_name já validados (safe)
+                                seq_rel = (
+                                    f'"{db_helper._pg_schema}"."{table_name}"'
+                                    if is_safe_pg_schema_token(db_helper._pg_schema)
+                                    else qual
+                                )
                                 cursor.execute(
-                                    f"SELECT setval(pg_get_serial_sequence('{db_helper._pg_schema}.{table_name}', 'id'), "
-                                    f"(SELECT COALESCE(MAX(id), 1) FROM {qual}))"
+                                    f"SELECT setval(pg_get_serial_sequence(%s, 'id'), "
+                                    f"(SELECT COALESCE(MAX(id), 1) FROM {qual}))",
+                                    [seq_rel],
                                 )
                             except Exception as e:
                                 logger.warning(f"⚠️ Não foi possível resetar sequence de {table_name}: {e}")

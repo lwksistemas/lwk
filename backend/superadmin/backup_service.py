@@ -16,6 +16,7 @@ Boas práticas aplicadas:
 """
 
 import csv
+import json
 import zipfile
 import io
 import os
@@ -118,6 +119,158 @@ def _backup_finalize_crm_config_row_values(
         else:
             out.append(val)
     return out
+
+
+def _import_crm_vendas_config_via_model(
+    loja, rows: List[Dict[str, Any]], qual: str, using: str
+) -> None:
+    """
+    Importa crm_vendas_config via ORM (evita INSERT dinâmico e NULL em inteiros NOT NULL).
+    Mapeia colunas legadas do CSV (ex.: issnet_certificado_binary → issnet_certificado).
+    """
+    from django.db import connections
+    from django.db import models as dm
+    from django.utils.dateparse import parse_datetime
+    from crm_vendas.models_config import CRMConfig
+
+    conn = connections[using]
+    with conn.cursor() as cur:
+        cur.execute(f"DELETE FROM {qual}")
+
+    def as_int(raw: Any, default: int = 0) -> int:
+        if raw is None:
+            return default
+        if isinstance(raw, str):
+            s = raw.strip().lower()
+            if s in ("", "null", "none", "nan"):
+                return default
+            try:
+                return int(float(s))
+            except ValueError:
+                return default
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return default
+
+    def as_dec(raw: Any, default: Decimal) -> Decimal:
+        if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+            return default
+        try:
+            return Decimal(str(raw).strip())
+        except Exception:
+            return default
+
+    def as_bool(raw: Any, default: bool = False) -> bool:
+        if raw is None or raw == "":
+            return default
+        if isinstance(raw, bool):
+            return raw
+        return str(raw).strip().lower() in ("1", "t", "true", "yes")
+
+    def as_json(raw: Any, default: Any) -> Any:
+        if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+            return default
+        if isinstance(raw, (list, dict)):
+            return raw
+        return json.loads(raw)
+
+    def as_bytes(raw: Any) -> Optional[bytes]:
+        if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+            return None
+        s = str(raw).strip()
+        if s.startswith("\\x") or s.startswith("\\\\x"):
+            hx = s.replace("\\\\x", "\\x")
+            if hx.startswith("\\x"):
+                hx = hx[2:]
+            try:
+                return bytes.fromhex(hx)
+            except ValueError:
+                return None
+        try:
+            return bytes.fromhex(s)
+        except ValueError:
+            return None
+
+    for row in rows:
+        kwargs: Dict[str, Any] = {"loja_id": loja.id}
+        for field in CRMConfig._meta.local_concrete_fields:
+            att = field.attname
+            if att == "loja_id":
+                continue
+            if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
+                raw_dt = row.get(att)
+                if raw_dt:
+                    parsed = parse_datetime(str(raw_dt))
+                    if parsed is not None:
+                        kwargs[att] = parsed
+                continue
+
+            if isinstance(field, dm.AutoField):
+                raw_id = row.get(att)
+                if raw_id is not None and str(raw_id).strip() != "":
+                    kwargs[att] = as_int(raw_id, 0)
+                continue
+
+            raw = row.get(att)
+            if isinstance(field, dm.BinaryField):
+                if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+                    raw = row.get("issnet_certificado_binary")
+                kwargs[att] = as_bytes(raw)
+                continue
+
+            if isinstance(field, dm.JSONField):
+                kwargs[att] = as_json(raw, field.get_default())
+                continue
+
+            if isinstance(field, dm.BooleanField):
+                d = field.get_default() if field.has_default() else False
+                if not isinstance(d, bool):
+                    d = bool(d)
+                kwargs[att] = as_bool(raw, d)
+                continue
+
+            if isinstance(field, dm.DecimalField):
+                d0 = field.get_default() if field.has_default() else Decimal("0")
+                if not isinstance(d0, Decimal):
+                    d0 = Decimal(str(d0))
+                kwargs[att] = as_dec(raw, d0)
+                continue
+
+            if isinstance(field, dm.DateTimeField):
+                if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+                    if field.null:
+                        kwargs[att] = None
+                    continue
+                parsed = parse_datetime(str(raw))
+                kwargs[att] = parsed if parsed is not None else None
+                continue
+
+            if isinstance(
+                field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField)
+            ):
+                d = 0
+                if field.has_default():
+                    try:
+                        d = int(field.get_default())
+                    except (TypeError, ValueError):
+                        d = 0
+                kwargs[att] = as_int(raw, d)
+                continue
+
+            if raw is None:
+                kwargs[att] = (
+                    field.get_default() if field.has_default() else ""
+                )
+            else:
+                kwargs[att] = str(raw)
+
+        kwargs["issnet_numero_lote"] = as_int(row.get("issnet_numero_lote"), 0)
+        kwargs["issnet_ultimo_rps_conhecido"] = as_int(
+            row.get("issnet_ultimo_rps_conhecido"), 0
+        )
+        kwargs["loja_id"] = loja.id
+        CRMConfig.objects.using(using).create(**kwargs)
 
 
 class BackupExportError(Exception):
@@ -425,14 +578,24 @@ class DatabaseHelper:
     def get_pg_table_meta_for_backup(
         self, table_name: str
     ) -> Tuple[List[str], Dict[str, Tuple[bool, str]]]:
-        """Colunas + tipos via pg_attribute; tenta schema da loja e depois public."""
+        """Colunas + tipos via pg_attribute; usa current_schema() e o schema nominal da loja."""
         if self._is_sqlite() or not self.is_safe_table_name(table_name):
             return [], {}
         schemas: List[str] = []
-        if self._pg_schema and BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema):
+        try:
+            with self.get_connection().cursor() as cur:
+                cur.execute("SELECT current_schema()")
+                r = cur.fetchone()
+                if r and r[0] and BACKUP_SAFE_IDENTIFIER_RE.match(r[0]):
+                    schemas.append(r[0])
+        except Exception as e:
+            logger.warning("current_schema() falhou: %s", e)
+        if (
+            self._pg_schema
+            and BACKUP_SAFE_IDENTIFIER_RE.match(self._pg_schema)
+            and self._pg_schema not in schemas
+        ):
             schemas.append(self._pg_schema)
-        if "public" not in schemas:
-            schemas.append("public")
         for sch in schemas:
             if not BACKUP_SAFE_IDENTIFIER_RE.match(sch):
                 continue
@@ -925,6 +1088,24 @@ class BackupService:
                             rows = list(csv_reader)
                             if not rows:
                                 tabelas_stats[table_name] = 0
+                                continue
+
+                            if table_name == "crm_vendas_config":
+                                qual = db_helper.qualified_table_name(table_name)
+                                _import_crm_vendas_config_via_model(
+                                    loja,
+                                    rows,
+                                    qual,
+                                    loja.database_name,
+                                )
+                                ncfg = len(rows)
+                                total_registros += ncfg
+                                tabelas_stats[table_name] = ncfg
+                                logger.info(
+                                    "✅ Tabela %s: %s registros importados (ORM CRMConfig)",
+                                    table_name,
+                                    ncfg,
+                                )
                                 continue
                             
                             # Colunas da tabela no banco (ordem e nomes)

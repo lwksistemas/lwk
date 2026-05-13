@@ -201,14 +201,20 @@ class SecureLoginView(APIView):
         if real_user_type == 'loja':
             loja = Loja.objects.filter(owner=user, is_active=True).first()
             if not loja and loja_slug:
+                # Buscar por slug OU atalho
+                from django.db.models import Q
                 pu = ProfissionalUsuario.objects.filter(
-                    user=user, loja__slug=loja_slug, loja__is_active=True
+                    user=user, loja__is_active=True
+                ).filter(
+                    Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
                 ).select_related('loja').first()
                 if pu:
                     loja = pu.loja
                 if not loja:
                     vu = VendedorUsuario.objects.filter(
-                        user=user, loja__slug=loja_slug, loja__is_active=True
+                        user=user, loja__is_active=True
+                    ).filter(
+                        Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
                     ).select_related('loja').first()
                     if vu:
                         loja = vu.loja
@@ -217,7 +223,8 @@ class SecureLoginView(APIView):
                     'error': 'Usuário não possui loja ativa',
                     'code': 'NO_ACTIVE_STORE'
                 }, status=status.HTTP_403_FORBIDDEN)
-            if loja_slug and loja.slug != loja_slug:
+            # Validar slug OU atalho
+            if loja_slug and loja.slug != loja_slug and (getattr(loja, 'atalho', '') or '') != loja_slug:
                 logger.critical(f"🚨 VIOLAÇÃO: Usuário {username} tentou login na loja errada")
                 return Response({
                     'error': 'Você não pode fazer login nesta loja',

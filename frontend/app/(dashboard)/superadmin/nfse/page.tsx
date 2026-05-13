@@ -163,11 +163,16 @@ export default function NFSeEmitidasPage() {
   return (
     <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">NFS-e Emitidas</h1>
-          <p className="text-muted-foreground">
-            Notas fiscais emitidas pela LWK para as lojas ({total} notas)
-          </p>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
+            ← Voltar
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">NFS-e Emitidas</h1>
+            <p className="text-muted-foreground">
+              Notas fiscais emitidas pela LWK para as lojas ({total} notas)
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowModalEmitir(true)}>

@@ -33,32 +33,25 @@ export default function LojaLoginDinamicoPage() {
   const [loading, setLoading] = useState(false);
   const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
   const loadLojaInfo = useCallback(async () => {
     try {
       setLoadingInfo(true);
 
-      // Se o slug parece ser CPF/CNPJ (só dígitos), verificar se a loja tem atalho
-      const isNumericSlug = /^\d{11,14}$/.test(slug);
-      if (isNumericSlug) {
-        try {
-          const infoData = await getPublicApiJson<{ atalho?: string }>(
-            `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`
-          );
-          if (infoData && (infoData as any).atalho) {
-            // Redirecionar para URL amigável (esconde CPF/CNPJ)
-            router.replace(`/loja/${(infoData as any).atalho}/login`);
-            return;
-          }
-        } catch {
-          // Se falhar, continua com o slug numérico
-        }
-      }
-
-      const data = await getPublicApiJson<LojaInfo>(
+      const data = await getPublicApiJson<LojaInfo & { atalho?: string }>(
         `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`
       );
+
+      // Se o slug é CPF/CNPJ (só dígitos) e a loja tem atalho, redirecionar para URL amigável
+      const isNumericSlug = /^\d{11,14}$/.test(slug);
+      if (isNumericSlug && data && (data as any).atalho) {
+        setRedirecting(true);
+        router.replace(`/loja/${(data as any).atalho}/login`);
+        return;
+      }
+
       setLojaInfo(data);
     } catch (err: unknown) {
       console.error('Erro ao carregar informações da loja:', err);
@@ -195,7 +188,7 @@ export default function LojaLoginDinamicoPage() {
   }
 
   // Loja não encontrada
-  if (!lojaInfo) {
+  if (!lojaInfo && !redirecting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-900 to-red-700 p-4">
         <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl">

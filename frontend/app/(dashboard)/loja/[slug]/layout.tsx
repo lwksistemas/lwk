@@ -32,6 +32,31 @@ export default function LojaLayout({
     }
   }, [slug]);
 
+  // Atualizar título da página com nome da loja (para PWA mostrar nome correto na barra)
+  useEffect(() => {
+    if (!slug?.trim()) return;
+    const cached = sessionStorage.getItem(`loja_nome_${slug}`);
+    if (cached) {
+      document.title = cached;
+      return;
+    }
+    // Buscar nome da loja
+    import('@/lib/api-client').then(({ default: apiClient }) => {
+      apiClient.get(`/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`)
+        .then((res) => {
+          const nome = res.data?.nome;
+          if (nome) {
+            document.title = nome;
+            sessionStorage.setItem(`loja_nome_${slug}`, nome);
+          }
+        })
+        .catch(() => {});
+    });
+    return () => {
+      document.title = 'LWK Sistemas - Gestão de Lojas';
+    };
+  }, [slug]);
+
   // Usar manifest da loja nas páginas /loja/[slug] para que "Adicionar à tela de início" no iPhone/Android
   // instale um app que abre direto no login desta loja
   useEffect(() => {

@@ -29,6 +29,7 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
     is_active: loja.is_active,
     owner_email_edit: loja.owner_email || '',
     owner_username_edit: loja.owner_username || '',
+    owner_name_edit: (loja as any).owner_full_name || '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -48,6 +49,10 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
       // Só envia owner_username_edit se mudou
       if (formData.owner_username_edit.trim() && formData.owner_username_edit.trim() !== loja.owner_username) {
         payload.owner_username_edit = formData.owner_username_edit.trim();
+      }
+      // Só envia owner_name_edit se preenchido
+      if (formData.owner_name_edit.trim()) {
+        payload.owner_name_edit = formData.owner_name_edit.trim();
       }
       await apiClient.patch(`/superadmin/lojas/${loja.id}/`, payload);
       alert('✅ Loja atualizada com sucesso!');
@@ -108,6 +113,18 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
           <div>
             <h4 className="text-lg font-semibold mb-3 text-gray-700">Administrador da Loja</h4>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome Completo do Administrador
+                </label>
+                <input
+                  type="text"
+                  value={formData.owner_name_edit}
+                  onChange={(e) => setFormData({ ...formData, owner_name_edit: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500"
+                  placeholder="Nome completo"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Usuário (Login)

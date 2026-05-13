@@ -230,6 +230,7 @@ class LojaSerializer(serializers.ModelSerializer):
     owner_email = serializers.CharField(source='owner.email', read_only=True)
     owner_email_edit = serializers.EmailField(write_only=True, required=False, allow_blank=True)
     owner_username_edit = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=150)
+    owner_name_edit = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=200)
     financeiro = FinanceiroLojaSerializer(read_only=True)
     tipo_assinatura_display = serializers.CharField(source='get_tipo_assinatura_display', read_only=True)
     
@@ -241,6 +242,7 @@ class LojaSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         new_email = validated_data.pop('owner_email_edit', None)
         new_username = validated_data.pop('owner_username_edit', None)
+        new_name = validated_data.pop('owner_name_edit', None)
         instance = super().update(instance, validated_data)
         if instance.owner:
             update_fields = []
@@ -248,13 +250,17 @@ class LojaSerializer(serializers.ModelSerializer):
                 instance.owner.email = new_email.strip()
                 update_fields.append('email')
             if new_username and new_username.strip():
-                # Verificar se username já existe
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
                 if User.objects.filter(username=new_username.strip()).exclude(id=instance.owner.id).exists():
                     raise serializers.ValidationError({'owner_username_edit': 'Este nome de usuário já está em uso.'})
                 instance.owner.username = new_username.strip()
                 update_fields.append('username')
+            if new_name is not None and new_name.strip():
+                parts = new_name.strip().split(' ', 1)
+                instance.owner.first_name = parts[0]
+                instance.owner.last_name = parts[1] if len(parts) > 1 else ''
+                update_fields.extend(['first_name', 'last_name'])
             if update_fields:
                 instance.owner.save(update_fields=update_fields)
         return instance

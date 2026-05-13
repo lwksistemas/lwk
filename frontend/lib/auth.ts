@@ -158,6 +158,9 @@ class AuthService {
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
       sessionStorage.removeItem('current_loja_id');
       localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('loja_slug');
       
       // Limpar cookies também
       if (typeof document !== 'undefined') {
@@ -180,11 +183,11 @@ class AuthService {
    */
   getToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem(this.TOKEN_KEY);
+    return sessionStorage.getItem(this.TOKEN_KEY) || localStorage.getItem('token');
   }
 
   /**
-   * Define o token de acesso (sessionStorage + localStorage para abas novas)
+   * Define o token de acesso (sessionStorage + localStorage para PWA persistir sessão)
    */
   setToken(token: string): void {
     if (typeof window !== 'undefined') {
@@ -198,7 +201,7 @@ class AuthService {
    */
   getRefreshToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem(this.REFRESH_KEY);
+    return sessionStorage.getItem(this.REFRESH_KEY) || localStorage.getItem('refresh_token');
   }
 
   /**
@@ -207,6 +210,7 @@ class AuthService {
   setRefreshToken(token: string): void {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(this.REFRESH_KEY, token);
+      localStorage.setItem('refresh_token', token);
     }
   }
 
@@ -215,7 +219,7 @@ class AuthService {
    */
   getUserType(): UserType | null {
     if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem(this.USER_TYPE_KEY) as UserType | null;
+    return (sessionStorage.getItem(this.USER_TYPE_KEY) || localStorage.getItem('user_type')) as UserType | null;
   }
 
   /**
@@ -224,6 +228,7 @@ class AuthService {
   setUserType(userType: UserType): void {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(this.USER_TYPE_KEY, userType);
+      localStorage.setItem('user_type', userType);
     }
   }
 
@@ -319,7 +324,7 @@ class AuthService {
    */
   getLojaSlug(): string | null {
     if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem(this.LOJA_SLUG_KEY);
+    return sessionStorage.getItem(this.LOJA_SLUG_KEY) || localStorage.getItem('loja_slug');
   }
 
   /**
@@ -328,6 +333,7 @@ class AuthService {
   setLojaSlug(slug: string): void {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(this.LOJA_SLUG_KEY, slug);
+      localStorage.setItem('loja_slug', slug);
     }
   }
 

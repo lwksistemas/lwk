@@ -28,6 +28,7 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
     nome: loja.nome,
     is_active: loja.is_active,
     owner_email_edit: loja.owner_email || '',
+    owner_username_edit: loja.owner_username || '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -44,12 +45,20 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
       if (formData.owner_email_edit.trim() && formData.owner_email_edit.trim() !== loja.owner_email) {
         payload.owner_email_edit = formData.owner_email_edit.trim();
       }
+      // Só envia owner_username_edit se mudou
+      if (formData.owner_username_edit.trim() && formData.owner_username_edit.trim() !== loja.owner_username) {
+        payload.owner_username_edit = formData.owner_username_edit.trim();
+      }
       await apiClient.patch(`/superadmin/lojas/${loja.id}/`, payload);
       alert('✅ Loja atualizada com sucesso!');
       onSuccess();
     } catch (error: any) {
       console.error('Erro ao atualizar loja:', error);
-      alert(`❌ Erro ao atualizar loja: ${error.response?.data?.error || error.response?.data?.owner_email_edit?.[0] || 'Erro desconhecido'}`);
+      const errMsg = error.response?.data?.error 
+        || error.response?.data?.owner_email_edit?.[0] 
+        || error.response?.data?.owner_username_edit?.[0]
+        || 'Erro desconhecido';
+      alert(`❌ Erro ao atualizar loja: ${errMsg}`);
     } finally {
       setLoading(false);
     }
@@ -101,6 +110,19 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Usuário (Login)
+                </label>
+                <input
+                  type="text"
+                  value={formData.owner_username_edit}
+                  onChange={(e) => setFormData({ ...formData, owner_username_edit: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500"
+                  placeholder="nome.usuario"
+                />
+                <p className="text-xs text-gray-500 mt-1">Nome usado para fazer login no sistema</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email do Administrador
                 </label>
                 <input
@@ -110,7 +132,6 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500"
                   placeholder="email@exemplo.com"
                 />
-                <p className="text-xs text-gray-500 mt-1">Usuário: {loja.owner_username}</p>
               </div>
             </div>
           </div>

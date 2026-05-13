@@ -765,7 +765,19 @@ Equipe de Suporte
             
             # Deletar a loja (signal pre_delete limpa schema e tabelas)
             with transaction.atomic():
-                loja.delete()
+                try:
+                    loja.delete()
+                except Exception as del_err:
+                    err_str = str(del_err)
+                    # Se tabela não existe (ex: whatsapp não migrado), ignorar e forçar exclusão
+                    if 'does not exist' in err_str.lower() or 'UndefinedTable' in err_str:
+                        logger.warning(f"⚠️ Tabela inexistente durante CASCADE, forçando exclusão: {err_str}")
+                        # Forçar exclusão sem CASCADE nas tabelas problemáticas
+                        from django.db import connection
+                        with connection.cursor() as cur:
+                            cur.execute('DELETE FROM superadmin_loja WHERE id = %s', [loja.id])
+                    else:
+                        raise
                 logger.info(f"✅ Loja removida: {results['loja_nome']}")
             
             # Retornar resposta de sucesso

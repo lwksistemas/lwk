@@ -212,6 +212,15 @@ export default function LojaLoginDinamicoPage() {
     );
   }
 
+  // Redirecionando ou lojaInfo null — mostrar loading
+  if (!lojaInfo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600" />
+      </div>
+    );
+  }
+
   // Usar cores da loja
   const corPrimaria = lojaInfo.cor_primaria;
   const corSecundaria = lojaInfo.cor_secundaria;

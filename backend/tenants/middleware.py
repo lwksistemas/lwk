@@ -92,6 +92,11 @@ def resolve_loja_from_slug_or_cnpj(tenant_slug: str):
     if loja:
         return loja
 
+    # Tentar por atalho (URL amigável)
+    loja = Loja.objects.using('default').filter(atalho__iexact=s).first()
+    if loja:
+        return loja
+
     if not s.isdigit() or len(s) not in (11, 14):
         return None
 

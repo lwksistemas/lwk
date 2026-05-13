@@ -242,7 +242,7 @@ class SecureLoginView(APIView):
             loja = Loja.objects.filter(owner=user, is_active=True).first()
             if loja:
                 refresh['loja_id'] = loja.id
-                refresh['loja_slug'] = (getattr(loja, 'atalho', '') or '') or loja.slug
+                refresh['loja_slug'] = loja.slug
         
         access_token = refresh.access_token
         access_token['user_type'] = real_user_type
@@ -253,7 +253,7 @@ class SecureLoginView(APIView):
             loja = Loja.objects.filter(owner=user, is_active=True).first()
             if loja:
                 access_token['loja_id'] = loja.id
-                access_token['loja_slug'] = (getattr(loja, 'atalho', '') or '') or loja.slug
+                access_token['loja_slug'] = loja.slug
         
         access = str(access_token)
         

@@ -330,7 +330,12 @@ export function ImageUpload({
           <Button
             type="button"
             variant="outline"
-            onClick={() => void handleUpload()}
+            onClick={() => {
+              handleUpload().catch((e) => {
+                console.error('Erro ao abrir upload:', e);
+                setError(String(e?.message || 'Erro ao abrir upload'));
+              });
+            }}
             disabled={disabled || uploading}
             className="w-full sm:w-auto"
           >

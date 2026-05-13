@@ -216,6 +216,7 @@ function LoginConfigContent() {
                   onChange={(url) => setConfig({ ...config, logo: url })}
                   maxSize={2}
                   aspectRatio="16:9"
+                  folder="lwksistemas/sistema"
                 />
                 
                 <ImageUpload
@@ -225,6 +226,7 @@ function LoginConfigContent() {
                   onChange={(url) => setConfig({ ...config, login_background: url })}
                   maxSize={5}
                   aspectRatio="16:9"
+                  folder="lwksistemas/sistema"
                 />
               </CardContent>
             </Card>

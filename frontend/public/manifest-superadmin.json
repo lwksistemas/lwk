@@ -4,8 +4,8 @@
   "description": "Painel administrativo LWK Sistemas",
   "start_url": "/superadmin/login",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#10B981",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "orientation": "portrait-primary",
   "scope": "/superadmin/",
   "icons": [

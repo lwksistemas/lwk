@@ -283,6 +283,9 @@ class LojaViewSet(viewsets.ModelViewSet):
         for attempt in range(max_retries):
             try:
                 loja = Loja.objects.select_related('tipo_loja', 'owner').filter(slug__iexact=slug, is_active=True).first()
+                # Se não encontrou por slug, tentar por atalho
+                if not loja:
+                    loja = Loja.objects.select_related('tipo_loja', 'owner').filter(atalho__iexact=slug, is_active=True).first()
                 break  # Sucesso, sair do loop
                 
             except OperationalError as e:
@@ -332,6 +335,7 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'id': loja.id,
                 'nome': getattr(loja, 'nome', '') or '',
                 'slug': getattr(loja, 'slug', '') or slug,
+                'atalho': getattr(loja, 'atalho', '') or '',
                 'tipo_loja_nome': tipo_nome,
                 'cor_primaria': getattr(loja, 'cor_primaria', None) or '#10B981',
                 'cor_secundaria': getattr(loja, 'cor_secundaria', None) or '#059669',

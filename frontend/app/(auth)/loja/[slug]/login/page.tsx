@@ -38,6 +38,24 @@ export default function LojaLoginDinamicoPage() {
   const loadLojaInfo = useCallback(async () => {
     try {
       setLoadingInfo(true);
+
+      // Se o slug parece ser CPF/CNPJ (só dígitos), verificar se a loja tem atalho
+      const isNumericSlug = /^\d{11,14}$/.test(slug);
+      if (isNumericSlug) {
+        try {
+          const infoData = await getPublicApiJson<{ atalho?: string }>(
+            `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`
+          );
+          if (infoData && (infoData as any).atalho) {
+            // Redirecionar para URL amigável (esconde CPF/CNPJ)
+            router.replace(`/loja/${(infoData as any).atalho}/login`);
+            return;
+          }
+        } catch {
+          // Se falhar, continua com o slug numérico
+        }
+      }
+
       const data = await getPublicApiJson<LojaInfo>(
         `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`
       );
@@ -55,7 +73,7 @@ export default function LojaLoginDinamicoPage() {
     } finally {
       setLoadingInfo(false);
     }
-  }, [slug]);
+  }, [slug, router]);
 
   // Limpar sessões antigas e salvar slug para o PWA reabrir na loja certa.
   useEffect(() => {

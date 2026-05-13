@@ -72,13 +72,14 @@ export default function LojaLoginDinamicoPage() {
   // Se já tem sessão válida (PWA reaberto), redirecionar direto para o dashboard.
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Verificar se já tem sessão válida (PWA reaberto)
+      // Verificar se já tem sessão válida (PWA reaberto — só em modo standalone)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
       const existingToken = localStorage.getItem('token');
       const existingRefresh = localStorage.getItem('refresh_token');
       const existingUserType = localStorage.getItem('user_type');
       const existingSlug = localStorage.getItem('loja_slug');
       
-      if (existingToken && existingRefresh && existingUserType === 'loja' && existingSlug) {
+      if (isStandalone && existingToken && existingRefresh && existingUserType === 'loja' && existingSlug) {
         // Restaurar sessão no sessionStorage
         sessionStorage.setItem('access_token', existingToken);
         sessionStorage.setItem('refresh_token', existingRefresh);

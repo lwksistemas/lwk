@@ -72,12 +72,13 @@ export default function SuperAdminLoginPage() {
   // Se já tem sessão válida (PWA reaberto), redirecionar direto
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Verificar se já tem sessão válida (PWA reaberto)
+      // Verificar se já tem sessão válida (PWA reaberto — só em modo standalone)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
       const existingToken = localStorage.getItem('token');
       const existingRefresh = localStorage.getItem('refresh_token');
       const existingUserType = localStorage.getItem('user_type');
       
-      if (existingToken && existingRefresh && existingUserType === 'superadmin') {
+      if (isStandalone && existingToken && existingRefresh && existingUserType === 'superadmin') {
         sessionStorage.setItem('access_token', existingToken);
         sessionStorage.setItem('refresh_token', existingRefresh);
         sessionStorage.setItem('user_type', existingUserType);

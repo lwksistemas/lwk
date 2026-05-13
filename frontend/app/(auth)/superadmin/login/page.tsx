@@ -91,6 +91,11 @@ export default function SuperAdminLoginPage() {
         setCredentials((c) => ({ ...c, cpf_cnpj: saved }));
         setLembrarCpf(true);
       }
+      // Carregar username salvo
+      const savedUser = localStorage.getItem('login_lembrar_user_superadmin');
+      if (savedUser) {
+        setCredentials((c) => ({ ...c, username: savedUser }));
+      }
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');
@@ -119,6 +124,16 @@ export default function SuperAdminLoginPage() {
       }
       
       console.log('🚀 [SuperAdmin] Redirecionando para dashboard...');
+      
+      // Salvar dados de login se "Lembrar" está marcado
+      if (lembrarCpf) {
+        localStorage.setItem(STORAGE_KEY, credentials.cpf_cnpj);
+        localStorage.setItem('login_lembrar_user_superadmin', credentials.username);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem('login_lembrar_user_superadmin');
+      }
+      
       // Aguardar um pouco para garantir que os cookies foram setados
       await new Promise(resolve => setTimeout(resolve, 100));
       window.location.replace('/superadmin/dashboard');
@@ -287,7 +302,7 @@ export default function SuperAdminLoginPage() {
                   } as React.CSSProperties}
                   disabled={loading}
                 />
-                <span className="text-sm text-gray-600">Lembrar CPF neste dispositivo</span>
+                <span className="text-sm text-gray-600">Lembrar dados neste dispositivo</span>
               </label>
             </div>
 

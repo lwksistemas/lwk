@@ -76,6 +76,10 @@ export default function SuporteLoginPage() {
         setCredentials((c) => ({ ...c, cpf_cnpj: saved }));
         setLembrarCpf(true);
       }
+      const savedUser = localStorage.getItem('login_lembrar_user_suporte');
+      if (savedUser) {
+        setCredentials((c) => ({ ...c, username: savedUser }));
+      }
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');
@@ -108,8 +112,10 @@ export default function SuporteLoginPage() {
       if (typeof window !== 'undefined') {
         if (lembrarCpf && credentials.cpf_cnpj) {
           localStorage.setItem(STORAGE_KEY, credentials.cpf_cnpj);
+          localStorage.setItem('login_lembrar_user_suporte', credentials.username);
         } else {
           localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem('login_lembrar_user_suporte');
         }
       }
 
@@ -276,7 +282,7 @@ export default function SuporteLoginPage() {
                   } as React.CSSProperties}
                   disabled={loading}
                 />
-                <span className="text-sm text-gray-600">Lembrar CPF neste dispositivo</span>
+                <span className="text-sm text-gray-600">Lembrar dados neste dispositivo</span>
               </label>
             </div>
 

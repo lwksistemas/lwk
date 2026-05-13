@@ -242,7 +242,7 @@ class SecureLoginView(APIView):
             loja = Loja.objects.filter(owner=user, is_active=True).first()
             if loja:
                 refresh['loja_id'] = loja.id
-                refresh['loja_slug'] = loja.slug
+                refresh['loja_slug'] = (getattr(loja, 'atalho', '') or '') or loja.slug
         
         access_token = refresh.access_token
         access_token['user_type'] = real_user_type
@@ -253,7 +253,7 @@ class SecureLoginView(APIView):
             loja = Loja.objects.filter(owner=user, is_active=True).first()
             if loja:
                 access_token['loja_id'] = loja.id
-                access_token['loja_slug'] = loja.slug
+                access_token['loja_slug'] = (getattr(loja, 'atalho', '') or '') or loja.slug
         
         access = str(access_token)
         
@@ -313,10 +313,12 @@ class SecureLoginView(APIView):
                 response_data['loja'] = {
                     'id': loja.id,
                     'slug': loja.slug,
+                    'atalho': getattr(loja, 'atalho', '') or '',
                     'nome': loja.nome,
                     'tipo_loja': loja.tipo_loja.nome if loja.tipo_loja else None
                 }
-                response_data['loja_slug'] = loja.slug
+                # Usar atalho na URL se disponível (esconde CPF/CNPJ)
+                response_data['loja_slug'] = (getattr(loja, 'atalho', '') or '') or loja.slug
                 if 'precisa_trocar_senha' not in response_data:
                     precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
                     response_data['precisa_trocar_senha'] = precisa_trocar_senha

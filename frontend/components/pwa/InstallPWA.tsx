@@ -64,14 +64,19 @@ export function InstallPWA() {
     }
   }, [type]);
 
-  // Trocar manifest conforme o contexto
+  // Trocar manifest e registrar Service Worker conforme o contexto
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    let manifestUrl = '/manifest.json'; // default (homepage)
+    if (typeof window === 'undefined') return;
+
+    // Registrar Service Worker (necessário para PWA install prompt)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    let manifestUrl = '/manifest.json';
     if (type === 'superadmin') manifestUrl = '/manifest-superadmin.json';
     else if (type === 'suporte') manifestUrl = '/manifest-suporte.json';
-    // Loja usa manifest dinâmico (configurado no layout da loja)
-    else if (type === 'loja') return;
+    else if (type === 'loja') return; // Loja usa manifest dinâmico
 
     let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
     if (!link) {

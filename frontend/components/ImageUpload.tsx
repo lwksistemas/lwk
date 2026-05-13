@@ -331,7 +331,7 @@ export function ImageUpload({
             type="button"
             variant="outline"
             onClick={() => void handleUpload()}
-            disabled={disabled || uploading || !widgetReady}
+            disabled={disabled || uploading}
             className="w-full sm:w-auto"
           >
             <Upload className="w-4 h-4 mr-2" />

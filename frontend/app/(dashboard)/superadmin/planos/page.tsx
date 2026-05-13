@@ -9,6 +9,7 @@ import { usePlanoActions, Plano } from '@/hooks/usePlanoActions';
 import { ModalNovoPlano } from '@/components/superadmin/planos';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import apiClient from '@/lib/api-client';
 
 export default function PlanosPage() {
   const router = useRouter();
@@ -158,9 +159,22 @@ export default function PlanosPage() {
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{tipo.total_lojas}</span>
                             </td>
                             <td className="py-3 px-4 text-center">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${tipo.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!confirm(`${tipo.is_active ? 'Desativar' : 'Ativar'} o tipo "${tipo.nome}"?`)) return;
+                                  try {
+                                    await apiClient.patch(`/superadmin/tipos-loja/${tipo.id}/`, { is_active: !tipo.is_active });
+                                    window.location.reload();
+                                  } catch (err) {
+                                    alert('Erro ao atualizar status');
+                                  }
+                                }}
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 ${tipo.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}
+                                title={tipo.is_active ? 'Clique para desativar' : 'Clique para ativar'}
+                              >
                                 {tipo.is_active ? 'Ativo' : 'Inativo'}
-                              </span>
+                              </button>
                             </td>
                             <td className="py-3 px-4 text-right">
                               <button className="px-3 py-1 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded hover:bg-purple-200 dark:hover:bg-purple-900/50">Ver Planos →</button>

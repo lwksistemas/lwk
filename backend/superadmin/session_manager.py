@@ -39,8 +39,9 @@ class SessionManager:
     @staticmethod
     def create_session(user_id: int, token: str) -> str:
         """
-        Cria uma nova sessão para o usuário no banco de dados
-        Invalida qualquer sessão anterior automaticamente
+        Cria uma nova sessão para o usuário no banco de dados.
+        Sessão única: invalida sessão anterior (1 dispositivo por vez).
+        Para usar em outro dispositivo, fazer logout manual primeiro.
         """
         from superadmin.models import UserSession
         
@@ -53,7 +54,7 @@ class SessionManager:
         try:
             user = User.objects.get(id=user_id)
             
-            # Deletar sessão anterior se existir
+            # Deletar sessão anterior (sessão única por usuário)
             deleted_count = UserSession.objects.filter(user=user).delete()[0]
             if deleted_count > 0:
                 logger.info("session.create: removed_previous_sessions count=%s user_id=%s", deleted_count, user_id)

@@ -69,8 +69,28 @@ export default function LojaLoginDinamicoPage() {
   }, [slug, router]);
 
   // Limpar sessões antigas e salvar slug para o PWA reabrir na loja certa.
+  // Se já tem sessão válida (PWA reaberto), redirecionar direto para o dashboard.
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Verificar se já tem sessão válida (PWA reaberto)
+      const existingToken = localStorage.getItem('token');
+      const existingRefresh = localStorage.getItem('refresh_token');
+      const existingUserType = localStorage.getItem('user_type');
+      const existingSlug = localStorage.getItem('loja_slug');
+      
+      if (existingToken && existingRefresh && existingUserType === 'loja' && existingSlug) {
+        // Restaurar sessão no sessionStorage
+        sessionStorage.setItem('access_token', existingToken);
+        sessionStorage.setItem('refresh_token', existingRefresh);
+        sessionStorage.setItem('user_type', existingUserType);
+        sessionStorage.setItem('loja_slug', existingSlug);
+        // Redirecionar para dashboard
+        const destino = `/loja/${existingSlug}/crm-vendas`;
+        markInternalNavigation();
+        window.location.replace(destino);
+        return;
+      }
+
       if (slug) {
         localStorage.setItem('pwa_loja_slug', slug);
         // Carregar CPF/CNPJ salvo (lembrar)

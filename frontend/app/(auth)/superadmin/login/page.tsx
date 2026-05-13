@@ -69,8 +69,22 @@ export default function SuperAdminLoginPage() {
   }, []);
 
   // Limpar sessões antigas e carregar CPF salvo
+  // Se já tem sessão válida (PWA reaberto), redirecionar direto
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Verificar se já tem sessão válida (PWA reaberto)
+      const existingToken = localStorage.getItem('token');
+      const existingRefresh = localStorage.getItem('refresh_token');
+      const existingUserType = localStorage.getItem('user_type');
+      
+      if (existingToken && existingRefresh && existingUserType === 'superadmin') {
+        sessionStorage.setItem('access_token', existingToken);
+        sessionStorage.setItem('refresh_token', existingRefresh);
+        sessionStorage.setItem('user_type', existingUserType);
+        window.location.replace('/superadmin/dashboard');
+        return;
+      }
+
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         setCredentials((c) => ({ ...c, cpf_cnpj: saved }));

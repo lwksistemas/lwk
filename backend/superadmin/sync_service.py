@@ -448,8 +448,8 @@ class AsaasSyncService:
             if is_primeiro_pagamento:
                 logger.info(f"Primeiro pagamento confirmado para loja {loja.slug}")
                 
-                # Enviar email com senha de acesso
-                self._enviar_email_senha_acesso(loja)
+                # Email de senha provisória é enviado pelo signal on_payment_confirmed
+                # (evita duplicação — signal verifica senha_enviada antes de enviar)
                 
                 # Se escolheu cartão, enviar link para cadastrar
                 if loja.forma_pagamento_preferida == 'cartao_credito':

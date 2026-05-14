@@ -98,10 +98,11 @@ export default function CalendarioCrmPage() {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAtividade, setModalAtividade] = useState<Atividade | null>(null);
-  const [form, setForm] = useState({ titulo: '', tipo: 'task' as Atividade['tipo'], data: '', duracao_minutos: 60, observacoes: '', conta: null as number | null });
+  const [form, setForm] = useState({ titulo: '', tipo: 'task' as Atividade['tipo'], data: '', duracao_minutos: 60, observacoes: '', conta: null as number | null, lead: null as number | null });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contas, setContas] = useState<{ id: number; nome: string }[]>([]);
+  const [leads, setLeads] = useState<{ id: number; nome: string }[]>([]);
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email: string | null }>({ connected: false, email: null });
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleSyncResult, setGoogleSyncResult] = useState<{ pushed: number; pulled: number } | null>(null);
@@ -159,6 +160,11 @@ export default function CalendarioCrmPage() {
     apiClient.get(`${API_CRM}/contas/`).then((res) => {
       const list = normalizeListResponse(res.data);
       setContas(list.map((c: any) => ({ id: c.id, nome: c.nome })));
+    }).catch(() => {});
+    // Carregar leads para o seletor de lead na atividade
+    apiClient.get(`${API_CRM}/leads/`).then((res) => {
+      const list = normalizeListResponse(res.data);
+      setLeads(list.map((l: any) => ({ id: l.id, nome: l.nome })));
     }).catch(() => {});
   }, []);
 
@@ -295,6 +301,7 @@ export default function CalendarioCrmPage() {
       duracao_minutos: 60,
       observacoes: '',
       conta: null,
+      lead: null,
     });
     setModalOpen(true);
     setError(null);
@@ -326,6 +333,7 @@ export default function CalendarioCrmPage() {
       duracao_minutos: 60,
       observacoes: '',
       conta: null,
+      lead: null,
     });
     setModalOpen(true);
     setError(null);
@@ -342,6 +350,7 @@ export default function CalendarioCrmPage() {
       duracao_minutos: 60,
       observacoes: '',
       conta: null,
+      lead: null,
     });
     setModalOpen(true);
     setError(null);
@@ -370,6 +379,7 @@ export default function CalendarioCrmPage() {
       duracao_minutos: a.duracao_minutos ?? 60,
       observacoes: a.observacoes || '',
       conta: (a as any).conta ?? null,
+      lead: (a as any).lead ?? null,
     });
     setModalOpen(true);
     setError(null);
@@ -396,6 +406,7 @@ export default function CalendarioCrmPage() {
         duracao_minutos: form.duracao_minutos,
         observacoes: form.observacoes.trim(),
         conta: form.conta || null,
+        lead: form.lead || null,
       };
       
       if (modalAtividade) {
@@ -746,6 +757,7 @@ export default function CalendarioCrmPage() {
           saving={saving}
           error={error}
           contas={contas}
+          leads={leads}
           onChange={setForm}
           onSave={handleSave}
           onClose={handleCloseModal}

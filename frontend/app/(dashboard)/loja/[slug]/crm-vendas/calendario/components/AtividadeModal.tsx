@@ -11,6 +11,11 @@ interface ContaOption {
   nome: string;
 }
 
+interface LeadOption {
+  id: number;
+  nome: string;
+}
+
 interface FormData {
   titulo: string;
   tipo: Atividade['tipo'];
@@ -18,6 +23,7 @@ interface FormData {
   duracao_minutos: number;
   observacoes: string;
   conta: number | null;
+  lead: number | null;
 }
 
 interface Props {
@@ -26,6 +32,7 @@ interface Props {
   saving: boolean;
   error: string | null;
   contas: ContaOption[];
+  leads: LeadOption[];
   onChange: (form: FormData) => void;
   onSave: () => void;
   onClose: () => void;
@@ -35,7 +42,7 @@ interface Props {
 
 const inputClass = 'w-full px-3 py-2.5 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white touch-manipulation';
 
-export function AtividadeModal({ atividade, form, saving, error, contas, onChange, onSave, onClose, onToggleConcluido, onDelete }: Props) {
+export function AtividadeModal({ atividade, form, saving, error, contas, leads, onChange, onSave, onClose, onToggleConcluido, onDelete }: Props) {
   const set = (field: keyof FormData, value: string | number | null) => onChange({ ...form, [field]: value });
 
   return (
@@ -61,10 +68,10 @@ export function AtividadeModal({ atividade, form, saving, error, contas, onChang
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa (Conta)</label>
-              <select value={form.conta ?? ''} onChange={(e) => set('conta', e.target.value ? Number(e.target.value) : null)} className={inputClass}>
-                <option value="">Nenhuma (atividade avulsa)</option>
-                {contas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead</label>
+              <select value={form.lead ?? ''} onChange={(e) => set('lead', e.target.value ? Number(e.target.value) : null)} className={inputClass}>
+                <option value="">Nenhum (atividade avulsa)</option>
+                {leads.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
               </select>
             </div>
             <div>

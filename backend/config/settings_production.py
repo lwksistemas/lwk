@@ -308,11 +308,14 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_RENDERER_CLASSES': _drf_renderers,
-    # Throttle desabilitado - pode ser habilitado via variáveis de ambiente se necessário
-    'DEFAULT_THROTTLE_CLASSES': [],
+    # Rate limiting: protege contra brute force no login
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': os.environ.get('DRF_THROTTLE_ANON_RATE', '100000/hour'),
-        'user': os.environ.get('DRF_THROTTLE_USER_RATE', '100000/hour'),
+        'anon': '30/minute',
+        'user': '120/minute',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,

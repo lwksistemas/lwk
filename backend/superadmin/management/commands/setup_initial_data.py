@@ -25,14 +25,19 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('\n✅ Setup concluído com sucesso!'))
 
     def create_superuser(self):
-        """Cria superusuário padrão"""
+        """Cria superusuário padrão (usa variável de ambiente para senha)"""
+        import os
         if not User.objects.filter(username='admin').exists():
+            password = os.environ.get('SUPERADMIN_PASSWORD', '')
+            if not password:
+                self.stdout.write('ℹ️  Superusuário não criado (SUPERADMIN_PASSWORD não definida)')
+                return
             User.objects.create_superuser(
                 username='admin',
                 email='admin@lwksistemas.com.br',
-                password='admin123'
+                password=password
             )
-            self.stdout.write(self.style.SUCCESS('✅ Superusuário criado: admin/admin123'))
+            self.stdout.write(self.style.SUCCESS('✅ Superusuário criado'))
         else:
             self.stdout.write('ℹ️  Superusuário já existe')
 

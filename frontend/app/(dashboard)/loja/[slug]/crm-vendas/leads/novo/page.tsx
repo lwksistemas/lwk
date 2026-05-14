@@ -41,7 +41,12 @@ export default function NovoLeadPage() {
 
   const handleCpfCnpjChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 14);
-    setForm((f) => ({ ...f, cpf_cnpj: formatCpfCnpj(digits) }));
+    const updates: Partial<typeof form> = { cpf_cnpj: formatCpfCnpj(digits) };
+    // Limpar empresa quando for CPF (pessoa física)
+    if (digits.length === 11) {
+      updates.empresa = '';
+    }
+    setForm((f) => ({ ...f, ...updates }));
   };
 
   const handleBuscarCnpj = async () => {
@@ -207,16 +212,18 @@ export default function NovoLeadPage() {
                 </button>
               </div>
             </div>
-            <div>
-              <label className={labelClass}>Empresa</label>
-              <input
-                type="text"
-                value={form.empresa}
-                onChange={(e) => setForm((f) => ({ ...f, empresa: e.target.value }))}
-                className={inputClass}
-                placeholder="Nome da empresa"
-              />
-            </div>
+            {form.cpf_cnpj.replace(/\D/g, '').length !== 11 && (
+              <div>
+                <label className={labelClass}>Empresa</label>
+                <input
+                  type="text"
+                  value={form.empresa}
+                  onChange={(e) => setForm((f) => ({ ...f, empresa: e.target.value }))}
+                  className={inputClass}
+                  placeholder="Nome da empresa"
+                />
+              </div>
+            )}
             <div>
               <label className={labelClass}>Email</label>
               <input

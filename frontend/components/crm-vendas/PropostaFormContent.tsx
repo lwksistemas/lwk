@@ -116,7 +116,7 @@ export default function PropostaFormContent({
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className={labelClass}>Nome</span>
-              <p className="font-medium">{leadInfo.conta_info?.nome || leadInfo.empresa || leadInfo.nome}</p>
+              <p className="font-medium">{leadInfo.conta_info?.nome || (leadInfo.cpf_cnpj?.replace(/\D/g, '').length === 11 ? leadInfo.nome : (leadInfo.empresa || leadInfo.nome))}</p>
             </div>
             {leadInfo.conta_info?.razao_social && (
               <div>

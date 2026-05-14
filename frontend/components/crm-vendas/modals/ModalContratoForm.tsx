@@ -128,10 +128,12 @@ export default function ModalContratoForm({
                   <span className={labelClass}>Nome</span>
                   <p className="font-medium">{leadInfo.nome}</p>
                 </div>
-                <div>
-                  <span className={labelClass}>Empresa</span>
-                  <p>{leadInfo.empresa || '—'}</p>
-                </div>
+                {leadInfo.empresa && leadInfo.cpf_cnpj?.replace(/\D/g, '').length !== 11 && (
+                  <div>
+                    <span className={labelClass}>Empresa</span>
+                    <p>{leadInfo.empresa}</p>
+                  </div>
+                )}
                 {leadInfo.cpf_cnpj && (
                   <div>
                     <span className={labelClass}>CPF/CNPJ</span>

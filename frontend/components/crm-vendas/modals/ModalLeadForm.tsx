@@ -85,7 +85,12 @@ export default function ModalLeadForm({
 
   const handleCpfCnpjChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 14);
-    onFormChange((f) => ({ ...f, cpf_cnpj: formatCpfCnpj(digits) }));
+    // Limpar empresa quando for CPF (pessoa física)
+    if (digits.length === 11) {
+      onFormChange((f) => ({ ...f, cpf_cnpj: formatCpfCnpj(digits), empresa: '' }));
+    } else {
+      onFormChange((f) => ({ ...f, cpf_cnpj: formatCpfCnpj(digits) }));
+    }
   };
 
   const handleBuscarCep = async () => {
@@ -183,16 +188,18 @@ export default function ModalLeadForm({
                 </button>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa</label>
-              <input
-                type="text"
-                value={form.empresa}
-                onChange={(e) => onFormChange((f) => ({ ...f, empresa: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="Empresa"
-              />
-            </div>
+            {form.cpf_cnpj.replace(/\D/g, '').length !== 11 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Empresa</label>
+                <input
+                  type="text"
+                  value={form.empresa}
+                  onChange={(e) => onFormChange((f) => ({ ...f, empresa: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Empresa"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
               <input

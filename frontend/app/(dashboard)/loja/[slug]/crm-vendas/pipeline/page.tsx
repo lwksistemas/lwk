@@ -90,8 +90,15 @@ export default function CrmVendasPipelinePage() {
   const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
   const [vendedores, setVendedores] = useState<{ id: number; nome: string }[]>([]);
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim] = useState('');
+  const [dataInicio, setDataInicio] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [dataFim, setDataFim] = useState(() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  });
   const [imprimindo, setImprimindo] = useState(false);
   const [seletorCriarAberto, setSeletorCriarAberto] = useState(false);
   const [seletorEditarAberto, setSeletorEditarAberto] = useState(false);

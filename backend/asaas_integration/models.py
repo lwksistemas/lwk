@@ -29,15 +29,24 @@ class AsaasConfig(models.Model):
         db_table = 'asaas_config'
     
     def save(self, *args, **kwargs):
-        # Auto-detectar sandbox baseado na chave
-        if self.api_key:
-            self.sandbox = 'hmlg' in self.api_key
-        
-        # Validar formato da chave
-        if self.api_key and not self.api_key.startswith('$aact_'):
-            raise ValidationError('Chave API deve começar com $aact_')
+        from core.encryption import encrypt_value, is_encrypted
+        # Auto-detectar sandbox baseado na chave (antes de criptografar)
+        raw_key = self.api_key or ''
+        if raw_key and not is_encrypted(raw_key):
+            self.sandbox = 'hmlg' in raw_key
+            # Validar formato da chave
+            if not raw_key.startswith('$aact_'):
+                raise ValidationError('Chave API deve começar com $aact_')
+            # Criptografar antes de salvar
+            self.api_key = encrypt_value(raw_key)
         
         super().save(*args, **kwargs)
+
+    @property
+    def api_key_decrypted(self):
+        """Retorna a API key descriptografada para uso."""
+        from core.encryption import decrypt_value
+        return decrypt_value(self.api_key) if self.api_key else ''
     
     def __str__(self):
         env = "Sandbox" if self.sandbox else "Produção"
@@ -63,8 +72,8 @@ class AsaasConfig(models.Model):
             }
         )
         env_key = (getattr(settings, 'ASAAS_API_KEY', None) or '').strip()
-        if env_key.startswith('$aact_') and not (config.api_key or '').strip():
-            config.api_key = env_key
+        if env_key.startswith('$aact_') and not config.api_key_decrypted:
+            config.api_key = env_key  # save() vai criptografar
             config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
             config.save()
         return config
@@ -72,11 +81,12 @@ class AsaasConfig(models.Model):
     @property
     def api_key_masked(self):
         """Retorna chave mascarada para exibição"""
-        if not self.api_key:
+        key = self.api_key_decrypted
+        if not key:
             return ''
-        if len(self.api_key) <= 14:
-            return self.api_key
-        return f"{self.api_key[:10]}...{self.api_key[-4:]}"
+        if len(key) <= 14:
+            return key
+        return f"{key[:10]}...{key[-4:]}"
     
     @property
     def environment_name(self):

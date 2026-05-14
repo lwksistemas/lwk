@@ -332,11 +332,10 @@ class TenantMiddleware:
             logger.error(f"❌ [TenantMiddleware] Erro: {e}")
             raise
         finally:
-            # Limpar contexto no finally para garantir limpeza mesmo em caso de erro
-            # mas SOMENTE se a resposta já foi completamente processada
-            # NOTA: Comentado para evitar problema intermitente
-            # set_current_loja_id(None)
-            # set_current_tenant_db('default')
+            # ⚠️ NÃO limpar thread-local aqui!
+            # A serialização DRF acontece APÓS o middleware retornar a response.
+            # Se limpar aqui, o serializer perde o contexto e retorna dados vazios.
+            # A limpeza é feita no INÍCIO da próxima requisição (linha ~170: set_current_loja_id(None)).
             pass
     
     def _get_tenant_slug(self, request):

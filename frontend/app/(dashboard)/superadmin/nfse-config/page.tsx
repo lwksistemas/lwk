@@ -21,7 +21,9 @@ import {
   Shield,
   Building2,
   Hash,
+  ArrowLeft,
 } from 'lucide-react'
+import Link from 'next/link'
 import apiClient from '@/lib/api-client'
 import { IssnetRibeiraoDiretoInfo } from '@/components/nfse/IssnetRibeiraoDiretoInfo'
 
@@ -223,13 +225,21 @@ export default function NFSeConfigPage() {
     <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Configuração NFS-e</h1>
-          <p className="text-muted-foreground">
-            Emissão de NFS-e quando uma <strong>loja paga a mensalidade</strong> à LWK (prestador = empresa administradora).
-            É independente da configuração em <strong>CRM → Nota fiscal</strong>, que é a NFS-e que cada loja emite para os
-            próprios clientes (outro CNPJ e outro certificado).
-          </p>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/superadmin/dashboard"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Configuração NFS-e</h1>
+            <p className="text-muted-foreground">
+              Emissão de NFS-e quando uma <strong>loja paga a mensalidade</strong> à LWK (prestador = empresa administradora).
+              É independente da configuração em <strong>CRM → Nota fiscal</strong>, que é a NFS-e que cada loja emite para os
+              próprios clientes (outro CNPJ e outro certificado).
+            </p>
+          </div>
         </div>
         <Badge variant={provedorBadgeVariant[config.provedor_nfse]}>
           {config.provedor_nfse === 'desabilitado' ? (

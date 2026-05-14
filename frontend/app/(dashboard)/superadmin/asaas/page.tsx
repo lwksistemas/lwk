@@ -19,8 +19,10 @@ import {
   Users,
   CreditCard,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowLeft
 } from 'lucide-react'
+import Link from 'next/link'
 import { formatCurrency, formatDateTime } from '@/lib/financeiro-helpers'
 import apiClient from '@/lib/api-client'
 
@@ -160,11 +162,19 @@ export default function AsaasConfigPage() {
   return (
     <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Configuração Asaas</h1>
-          <p className="text-muted-foreground">
-            Configure e monitore a integração com a API do Asaas
-          </p>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/superadmin/dashboard"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Configuração Asaas</h1>
+            <p className="text-muted-foreground">
+              Configure e monitore a integração com a API do Asaas
+            </p>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">

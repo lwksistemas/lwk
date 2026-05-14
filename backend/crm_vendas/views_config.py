@@ -419,6 +419,8 @@ def crm_busca(request):
     term = q
     # Versão só com dígitos para buscar CPF/CNPJ sem formatação
     term_digits = ''.join(c for c in q if c.isdigit())
+    # Versão lowercase para busca case-insensitive em campos que podem ter case misto
+    term_lower = term.lower()
     vendedor_id = get_current_vendedor_id(request)
 
     from .models import Lead, Oportunidade, Conta
@@ -430,8 +432,19 @@ def crm_busca(request):
         Q(telefone__icontains=term) |
         Q(cpf_cnpj__icontains=term)
     )
+    # Buscar CPF/CNPJ tanto com quanto sem formatação
     if term_digits and len(term_digits) >= 3:
         q_filter |= Q(cpf_cnpj__icontains=term_digits)
+        # Também buscar com formatação parcial (ex: "925.483" encontra "925.483.182-49")
+        # e sem formatação (ex: "92548318249" encontra "925.483.182-49")
+        # Usar regex para ignorar pontos/traços/barras no campo
+        import re
+        # Montar padrão que ignora separadores entre os dígitos
+        digits_pattern = ''.join(f'{d}[.\\-/]?' for d in term_digits[:-1]) + term_digits[-1]
+        try:
+            q_filter |= Q(cpf_cnpj__regex=digits_pattern)
+        except Exception:
+            pass  # fallback: já tem icontains
     leads_qs = Lead.objects.filter(q_filter)
     if vendedor_id is not None:
         leads_qs = leads_qs.filter(
@@ -447,6 +460,9 @@ def crm_busca(request):
         Q(lead__conta__nome__icontains=term) |
         Q(lead__conta__cnpj__icontains=term)
     )
+    if term_digits and len(term_digits) >= 3:
+        opp_filter |= Q(lead__cpf_cnpj__icontains=term_digits)
+        opp_filter |= Q(lead__conta__cnpj__icontains=term_digits)
     opp_qs = Oportunidade.objects.filter(opp_filter)
     if vendedor_id is not None:
         opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
@@ -461,6 +477,11 @@ def crm_busca(request):
     )
     if term_digits and len(term_digits) >= 3:
         conta_filter |= Q(cnpj__icontains=term_digits)
+        try:
+            digits_pattern = ''.join(f'{d}[.\\-/]?' for d in term_digits[:-1]) + term_digits[-1]
+            conta_filter |= Q(cnpj__regex=digits_pattern)
+        except Exception:
+            pass
     contas_qs = Conta.objects.filter(conta_filter)
     if vendedor_id is not None:
         contas_qs = contas_qs.filter(vendedor_id=vendedor_id)

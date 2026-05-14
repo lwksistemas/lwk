@@ -337,7 +337,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     if lead:
         elements.append(Paragraph('<b>Dados do Cliente</b>', section_style))
         elements.append(Paragraph(f"<b>Nome:</b> {lead.nome}", compact_style))
-        if getattr(lead, 'empresa', ''):
+        cpf_cnpj_digits = ''.join(c for c in (getattr(lead, 'cpf_cnpj', '') or '') if c.isdigit())
+        if getattr(lead, 'empresa', '') and len(cpf_cnpj_digits) != 11:
             elements.append(Paragraph(f"<b>Empresa:</b> {lead.empresa}", compact_style))
         if getattr(lead, 'cpf_cnpj', ''):
             elements.append(Paragraph(f"<b>CPF/CNPJ:</b> {lead.cpf_cnpj}", compact_style))
@@ -595,7 +596,8 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     if lead:
         elements.append(Paragraph('<b>Dados do Cliente</b>', section_style))
         elements.append(Paragraph(f"<b>Nome:</b> {lead.nome}", styles['Normal']))
-        if getattr(lead, 'empresa', ''):
+        cpf_cnpj_digits = ''.join(c for c in (getattr(lead, 'cpf_cnpj', '') or '') if c.isdigit())
+        if getattr(lead, 'empresa', '') and len(cpf_cnpj_digits) != 11:
             elements.append(Paragraph(f"<b>Empresa:</b> {lead.empresa}", styles['Normal']))
         if getattr(lead, 'cpf_cnpj', ''):
             elements.append(Paragraph(f"<b>CPF/CNPJ:</b> {lead.cpf_cnpj}", styles['Normal']))

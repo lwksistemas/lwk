@@ -14,7 +14,7 @@ from django.conf import settings
 from django.core.cache import cache
 
 from tenants.middleware import get_current_loja_id, get_current_tenant_db, ensure_loja_context
-from .utils import get_current_vendedor_id, get_loja_from_context
+from .utils import get_current_vendedor_id, get_loja_from_context, is_owner
 from .mixins import CRMPermissionMixin
 from .cache import CRMCacheManager
 from .decorators import require_admin_access
@@ -434,7 +434,7 @@ def crm_busca(request):
     if term_digits and len(term_digits) >= 3:
         q_filter |= Q(cpf_cnpj__icontains=term_digits)
     leads_qs = Lead.objects.filter(q_filter)
-    if vendedor_id is not None:
+    if vendedor_id is not None and not is_owner(request):
         leads_qs = leads_qs.filter(
             Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
         ).distinct()
@@ -452,7 +452,7 @@ def crm_busca(request):
         opp_filter |= Q(lead__cpf_cnpj__icontains=term_digits)
         opp_filter |= Q(lead__conta__cnpj__icontains=term_digits)
     opp_qs = Oportunidade.objects.filter(opp_filter)
-    if vendedor_id is not None:
+    if vendedor_id is not None and not is_owner(request):
         opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
     opp_qs = list(opp_qs.values('id', 'titulo', 'valor', 'etapa', 'lead__nome', 'lead__empresa')[:limit])
 
@@ -466,7 +466,7 @@ def crm_busca(request):
     if term_digits and len(term_digits) >= 3:
         conta_filter |= Q(cnpj__icontains=term_digits)
     contas_qs = Conta.objects.filter(conta_filter)
-    if vendedor_id is not None:
+    if vendedor_id is not None and not is_owner(request):
         contas_qs = contas_qs.filter(vendedor_id=vendedor_id)
     contas_qs = list(contas_qs.values('id', 'nome', 'segmento', 'cnpj')[:limit])
 

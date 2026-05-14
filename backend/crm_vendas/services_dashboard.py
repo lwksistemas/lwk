@@ -196,9 +196,9 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         data__gte=hoje_inicio, data__lt=proximos_7_dias, concluido=False
     ).order_by('data').values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:10]
     if not atividades_pendentes:
-        # Fallback: próximas atividades não concluídas (a partir de hoje)
+        # Fallback: todas as atividades não concluídas (incluindo atrasadas)
         atividades_pendentes = atividades_qs.filter(
-            data__gte=hoje_inicio, concluido=False
+            concluido=False
         ).order_by('data').values(
             'id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes'
         )[:5]

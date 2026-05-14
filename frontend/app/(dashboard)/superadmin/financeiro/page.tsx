@@ -151,7 +151,7 @@ export default function FinanceiroPage() {
                 href="/superadmin/dashboard"
                 className="text-purple-200 hover:text-white transition-colors"
               >
-                ← Voltar
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
               </a>
               <h1 className="text-2xl font-bold">Financeiro (Asaas + Mercado Pago)</h1>
             </div>

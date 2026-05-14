@@ -542,14 +542,19 @@ export default function HomepageConfigPage() {
     <div className="min-h-screen bg-stone-50 dark:bg-zinc-950">
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Home className="w-7 h-7" />
-              Configurar Homepage v2.0
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Textos do banner, imagens de fundo (carrossel), funcionalidades e módulos da página inicial.
-            </p>
+          <div className="flex items-center gap-4">
+            <a href="/superadmin/dashboard" className="flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            </a>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Home className="w-7 h-7" />
+                Configurar Homepage v2.0
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                Textos do banner, imagens de fundo (carrossel), funcionalidades e módulos da página inicial.
+              </p>
+            </div>
           </div>
           <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -1040,12 +1045,6 @@ export default function HomepageConfigPage() {
             </div>
           </div>
         </Modal>
-
-        <div className="mt-6">
-          <Link href="/superadmin/dashboard">
-            <Button variant="outline">← Voltar ao Dashboard</Button>
-          </Link>
-        </div>
       </div>
     </div>
   );

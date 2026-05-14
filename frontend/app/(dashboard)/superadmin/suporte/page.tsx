@@ -149,16 +149,15 @@ export default function SuperadminSuportePage() {
       <nav className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div>
-              <h1 className="text-2xl font-bold">🎧 Suporte - Todos os Chamados</h1>
-              <p className="text-blue-100 text-sm">Gerenciar chamados de todas as lojas</p>
+            <div className="flex items-center gap-4">
+              <a href="/superadmin/dashboard" className="text-blue-200 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+              </a>
+              <div>
+                <h1 className="text-2xl font-bold">🎧 Suporte - Todos os Chamados</h1>
+                <p className="text-blue-100 text-sm">Gerenciar chamados de todas as lojas</p>
+              </div>
             </div>
-            <button
-              onClick={() => router.push('/superadmin/dashboard')}
-              className="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-md transition-colors"
-            >
-              Voltar ao Dashboard
-            </button>
           </div>
         </div>
       </nav>

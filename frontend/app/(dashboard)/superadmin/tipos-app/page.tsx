@@ -55,8 +55,8 @@ export default function TiposAppPage() {
         <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">
-              <a href="/superadmin/dashboard" className="text-purple-200 hover:text-white">
-                ← Voltar
+              <a href="/superadmin/dashboard" className="text-purple-200 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
               </a>
               <h1 className="text-2xl font-bold">Tipos de App</h1>
             </div>

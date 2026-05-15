@@ -343,14 +343,31 @@ class LojaViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def heartbeat(self, request):
-        """Mantém a sessão ativa (atualiza last_activity no SessionManager)."""
+        """
+        Mantém a sessão ativa. Se outro dispositivo fez login,
+        o session_id no banco será diferente → retorna 401.
+        """
         from ..session_manager import SessionManager
+        from ..models import UserSession
         
         if not request.user or not request.user.is_authenticated:
             return Response({
                 'error': 'Não autenticado',
                 'code': 'NOT_AUTHENTICATED'
             }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Verificar sessão única via session_id
+        client_sid = request.query_params.get('sid', '')
+        if client_sid:
+            try:
+                db_session = UserSession.objects.filter(user_id=request.user.id).first()
+                if db_session and db_session.session_id != client_sid:
+                    return Response({
+                        'error': 'Sessão encerrada — login realizado em outro dispositivo. Faça login novamente.',
+                        'code': 'SESSION_REPLACED'
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+            except Exception:
+                pass
         
         SessionManager.update_activity(request.user.id)
         session_info = SessionManager.get_session_info(request.user.id)

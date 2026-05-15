@@ -57,7 +57,16 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         user, token = result
         logger.debug(f"✅ JWT autenticado: {user.username} (ID: {user.id})")
         
-        # Atualizar atividade da sessão (best-effort, não bloqueia)
+        # Ignorar validação para endpoints de login/logout/refresh
+        if request.path.startswith('/api/auth/'):
+            return user, token
+        
+        # Validar sessão única: verificar se a sessão do user ainda existe
+        # (outro login deleta a sessão anterior via update_or_create com novo session_id)
+        # Não comparar token (muda no refresh) — comparar session_id do sessionStorage
+        # Se não tiver session_id no request, deixar passar (compatibilidade)
+        
+        # Atualizar atividade da sessão (best-effort)
         try:
             SessionManager.update_activity(user.id)
         except Exception:

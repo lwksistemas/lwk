@@ -679,12 +679,12 @@ export default function HomepageConfigPage() {
                     <>
                       <p className="font-medium">{h.titulo || 'Sem título'}</p>
                       {h.imagem && (
-                        <div className="mt-2 w-[calc(100%+4cm)] max-w-none -ml-[2cm] relative h-32">
+                        <div className="mt-2 relative w-full aspect-video">
                           <Image
                             src={h.imagem}
                             alt={h.titulo || 'Imagem do hero'}
                             fill
-                            className="object-cover rounded"
+                            className="object-contain rounded"
                             sizes="(max-width: 768px) 100vw, 900px"
                             unoptimized
                           />

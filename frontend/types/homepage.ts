@@ -23,8 +23,23 @@ export interface Modulo {
   imagem?: string;
 }
 
+export interface WhyUsBenefit {
+  id: number;
+  titulo: string;
+  descricao?: string;
+  icone?: string;
+}
+
+export interface HeroImagem {
+  id: number;
+  imagem: string;
+  titulo: string;
+}
+
 export interface HomepageData {
   hero: Hero | null;
+  hero_imagens: HeroImagem[];
   funcionalidades: Funcionalidade[];
   modulos: Modulo[];
+  whyus: WhyUsBenefit[];
 }

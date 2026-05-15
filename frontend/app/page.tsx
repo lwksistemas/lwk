@@ -14,8 +14,10 @@ const DEFAULTS: HomepageData = {
     subtitulo: "Gerencie clientes, vendas, financeiro e relatórios em um CRM moderno e fácil de usar.",
     botao_texto: "Testar Gratuitamente",
   },
+  hero_imagens: [],
   funcionalidades: [],
   modulos: [],
+  whyus: [],
 };
 
 export default async function HomePage() {
@@ -28,9 +30,10 @@ export default async function HomePage() {
   }
 
   const hero = data.hero ?? DEFAULTS.hero;
-  const heroImagens = (data as any).hero_imagens ?? [];
+  const heroImagens = data.hero_imagens ?? [];
   const funcionalidades = data.funcionalidades ?? [];
   const modulos = data.modulos ?? [];
+  const whyus = data.whyus ?? [];
 
   return (
     <PwaRedirect>
@@ -39,7 +42,7 @@ export default async function HomePage() {
         <Hero hero={hero} heroImagens={heroImagens} />
         <Features funcionalidades={funcionalidades} />
         <DashboardPreview />
-        <WhyUs />
+        <WhyUs whyus={whyus} />
         <Modules modulos={modulos} />
         <footer className="w-full bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

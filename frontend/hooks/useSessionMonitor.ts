@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import apiClient from '@/lib/api-client';
+import axios from 'axios';
+import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 
 /**
  * Monitor de sessão única: GET /superadmin/lojas/heartbeat/ a cada 60s quando a aba está visível.
- * Com a aba em segundo plano, o intervalo pausa (menos carga no Heroku).
+ * Usa axios direto (sem interceptor de refresh) para detectar SESSION_REPLACED.
  */
 const CHECK_INTERVAL_MS = 60000;
 
@@ -22,8 +23,24 @@ export function useSessionMonitor() {
       isCheckingRef.current = true;
       try {
         const sid = sessionStorage.getItem('session_id') || '';
-        await apiClient.get(`/superadmin/lojas/heartbeat/${sid ? `?sid=${sid}` : ''}`);
-      } catch {
+        const accessToken = sessionStorage.getItem('access_token') || '';
+        const base = getPrimaryApiBaseUrl();
+        await axios.get(`${base}/superadmin/lojas/heartbeat/${sid ? `?sid=${sid}` : ''}`, {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        });
+      } catch (err: any) {
+        const code = err?.response?.data?.code;
+        if (code === 'SESSION_REPLACED') {
+          sessionStorage.removeItem('access_token');
+          sessionStorage.removeItem('refresh_token');
+          sessionStorage.removeItem('session_id');
+          sessionStorage.removeItem('user_type');
+          sessionStorage.removeItem('loja_slug');
+          const path = window.location.pathname;
+          const lojaMatch = path.match(/^\/loja\/([^/]+)/);
+          window.location.href = lojaMatch ? `/loja/${lojaMatch[1]}/login` : '/superadmin/login';
+          return;
+        }
         // 401: interceptor trata DIFFERENT_SESSION → logout + redirect
       } finally {
         isCheckingRef.current = false;

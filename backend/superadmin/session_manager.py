@@ -41,7 +41,6 @@ class SessionManager:
         """
         Cria uma nova sessão para o usuário no banco de dados.
         Sessão única: invalida sessão anterior (1 dispositivo por vez).
-        Para usar em outro dispositivo, fazer logout manual primeiro.
         """
         from superadmin.models import UserSession
         
@@ -49,22 +48,17 @@ class SessionManager:
         session_id = SessionManager._generate_session_id(user_id, timestamp)
         token_hash = SessionManager._hash_token(token)
         
-        logger.info("session.create: user_id=%s", user_id)
-        
         try:
             user = User.objects.get(id=user_id)
             
-            # Deletar sessão anterior (sessão única por usuário)
-            deleted_count = UserSession.objects.filter(user=user).delete()[0]
-            if deleted_count > 0:
-                logger.info("session.create: removed_previous_sessions count=%s user_id=%s", deleted_count, user_id)
-            
-            # Criar nova sessão
-            session = UserSession.objects.create(
+            # Usar update_or_create para evitar race condition (duplicate key)
+            session, created = UserSession.objects.update_or_create(
                 user=user,
-                session_id=session_id,
-                token_hash=token_hash,
-                last_activity=timezone.now()
+                defaults={
+                    'session_id': session_id,
+                    'token_hash': token_hash,
+                    'last_activity': timezone.now(),
+                }
             )
             
             logger.info("session.create: ok user_id=%s session_prefix=%s", user_id, session_id[:16])
@@ -75,7 +69,8 @@ class SessionManager:
             raise
         except Exception as e:
             logger.error("session.create: error user_id=%s: %s", user_id, e)
-            raise
+            # Não propagar erro — sessão é best-effort
+            return ''
     
     @staticmethod
     def validate_session(user_id: int, token: str) -> dict:

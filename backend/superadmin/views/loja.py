@@ -344,9 +344,8 @@ class LojaViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def heartbeat(self, request):
         """
-        Mantém a sessão ativa (atualiza last_activity no SessionManager).
-        Compara session_id do header com o banco para detectar se outro
-        dispositivo fez login (session_id muda a cada login).
+        Mantém a sessão ativa. Detecta se outro dispositivo fez login
+        comparando session_id do query param com o banco.
         """
         from ..session_manager import SessionManager
         from ..models import UserSession
@@ -357,12 +356,16 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'code': 'NOT_AUTHENTICATED'
             }, status=status.HTTP_401_UNAUTHORIZED)
         
-        # Verificar session_id do dispositivo vs banco
-        client_session_id = request.META.get('HTTP_X_SESSION_ID', '') or request.query_params.get('sid', '')
-        if client_session_id:
+        # Verificar session_id (vem como query param ?sid=xxx ou header X-Session-ID)
+        client_sid = (
+            request.query_params.get('sid', '')
+            or request.META.get('HTTP_X_SESSION_ID', '')
+        )
+        
+        if client_sid:
             try:
                 db_session = UserSession.objects.filter(user_id=request.user.id).first()
-                if db_session and db_session.session_id != client_session_id:
+                if db_session and db_session.session_id != client_sid:
                     return Response({
                         'error': 'Sessão encerrada — login realizado em outro dispositivo',
                         'code': 'SESSION_REPLACED'

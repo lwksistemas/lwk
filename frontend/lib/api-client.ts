@@ -7,7 +7,7 @@ const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '120000', 10);
 
 const SESSION_CODES = [
   'DIFFERENT_SESSION', 'NO_SESSION', 'TIMEOUT',
-  'SESSION_CONFLICT', 'SESSION_TIMEOUT',
+  'SESSION_CONFLICT', 'SESSION_TIMEOUT', 'SESSION_REPLACED',
 ] as const;
 
 /** Limpa tokens/sessão e redireciona para login. Exportado para uso em fetch() (ex.: clinica-beleza). */

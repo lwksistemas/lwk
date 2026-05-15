@@ -21,9 +21,7 @@ export function useSessionMonitor() {
 
       isCheckingRef.current = true;
       try {
-        const sessionId = sessionStorage.getItem('session_id') || '';
-        const params = sessionId ? `?_t=${Date.now()}&sid=${sessionId}` : `?_t=${Date.now()}`;
-        await apiClient.get(`/superadmin/lojas/heartbeat/${params}`);
+        await apiClient.get('/superadmin/lojas/heartbeat/');
       } catch {
         // 401: interceptor trata DIFFERENT_SESSION → logout + redirect
       } finally {

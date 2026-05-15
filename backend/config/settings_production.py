@@ -314,8 +314,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '30/minute',
-        'user': '120/minute',
+        'anon': '60/minute',
+        'user': '200/minute',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
@@ -323,8 +323,8 @@ REST_FRAMEWORK = {
 
 # JWT - Token de acesso curto para maior segurança
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),  # Reduzido de 24h para 1h
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Access token curto (renovado pelo refresh)
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=2),    # Sessão expira após 2h de inatividade
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }

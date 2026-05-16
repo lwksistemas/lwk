@@ -1,6 +1,9 @@
 """
 Serviço unificado de emissão de NFS-e para lojas.
-Provedor: Nacional (ADN - Padrão Nacional NFS-e).
+Roteamento automático:
+  - provedor 'issnet' → WebService ISSNet (municipal)
+  - provedor 'nacional' → API ADN Nacional (SEFIN)
+  - provedor 'manual' → sem emissão automática
 """
 import logging
 import re
@@ -57,10 +60,10 @@ class NFSeService:
         codigo_servico: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Emite NFS-e via Nacional (ADN).
+        Emite NFS-e com roteamento automático por provedor.
         """
         try:
-            provedor = getattr(self.config, 'provedor_nf', 'nacional')
+            provedor = getattr(self.config, 'provedor_nf', 'issnet')
 
             if provedor == 'manual':
                 return {
@@ -71,7 +74,20 @@ class NFSeService:
             if provedor == 'desabilitado':
                 return {'success': False, 'error': 'Emissão de NFS-e desabilitada'}
 
-            # Nacional (único provedor ativo)
+            if provedor == 'issnet':
+                return self._emitir_via_issnet(
+                    tomador_cpf_cnpj=tomador_cpf_cnpj,
+                    tomador_nome=tomador_nome,
+                    tomador_email=tomador_email,
+                    tomador_endereco=tomador_endereco,
+                    servico_descricao=servico_descricao,
+                    valor_servicos=valor_servicos,
+                    enviar_email=enviar_email,
+                    codigo_cnae_override=codigo_cnae,
+                    codigo_servico_override=codigo_servico,
+                )
+
+            # Nacional (ADN) - para municípios que aderiram ao Emissor Nacional
             return self._emitir_via_nacional(
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
@@ -86,6 +102,96 @@ class NFSeService:
 
         except Exception as e:
             logger.exception('Erro ao emitir NFS-e: %s', e)
+            return {'success': False, 'error': str(e)}
+
+    def _emitir_via_issnet(
+        self,
+        tomador_cpf_cnpj: str,
+        tomador_nome: str,
+        tomador_email: str,
+        tomador_endereco: Dict[str, str],
+        servico_descricao: str,
+        valor_servicos: Decimal,
+        enviar_email: bool,
+        codigo_cnae_override: Optional[str] = None,
+        codigo_servico_override: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Emite NFS-e via WebService ISSNet (municipal)."""
+        try:
+            from .issnet_client import ISSNetClient
+
+            cert_data = getattr(self.config, 'issnet_certificado', None) or getattr(self.config, 'nacional_certificado', None)
+            senha_cert = getattr(self.config, 'issnet_senha_certificado', '') or getattr(self.config, 'nacional_senha_certificado', '')
+
+            if not cert_data:
+                return {'success': False, 'error': 'Certificado digital não configurado para ISSNet'}
+            if not senha_cert:
+                return {'success': False, 'error': 'Senha do certificado não configurada'}
+
+            cnpj_prestador = re.sub(r'\D', '', self.loja.cpf_cnpj or '')
+            im_prestador = getattr(self.config, 'inscricao_municipal', '') or getattr(self.loja, 'inscricao_municipal', '') or ''
+            codigo_servico_final = codigo_servico_override or getattr(self.config, 'codigo_servico_municipal', '1401') or '1401'
+            codigo_cnae_final = codigo_cnae_override or (getattr(self.config, 'codigo_cnae', '') or '').strip()
+            aliquota = float(getattr(self.config, 'aliquota_iss', 2.00))
+
+            usuario_issnet = getattr(self.config, 'issnet_usuario', '') or ''
+            senha_issnet = getattr(self.config, 'issnet_senha', '') or ''
+
+            client = ISSNetClient(
+                pfx_bytes=bytes(cert_data),
+                senha_pfx=senha_cert,
+                cnpj_prestador=cnpj_prestador,
+                inscricao_municipal=im_prestador,
+                usuario=usuario_issnet,
+                senha=senha_issnet,
+            )
+
+            numero_rps = self._gerar_numero_dps()
+
+            resultado = client.emitir_nfse(
+                numero_rps=numero_rps,
+                serie_rps=getattr(self.config, 'serie_rps', 'E') or 'E',
+                tomador_cpf_cnpj=tomador_cpf_cnpj,
+                tomador_nome=tomador_nome,
+                tomador_email=tomador_email,
+                tomador_endereco=tomador_endereco,
+                servico_descricao=servico_descricao,
+                valor_servicos=float(valor_servicos),
+                aliquota_iss=aliquota,
+                codigo_servico=codigo_servico_final,
+                codigo_cnae=codigo_cnae_final,
+                optante_simples=getattr(self.config, 'optante_simples_nacional', True),
+            )
+
+            if resultado.get('success'):
+                resultado_final = {
+                    'success': True,
+                    'numero_nf': resultado.get('numero_nf', ''),
+                    'codigo_verificacao': resultado.get('codigo_verificacao', ''),
+                    'numero_rps': numero_rps,
+                    'data_emissao': datetime.now(),
+                    'valor': float(valor_servicos),
+                    'xml_nfse': resultado.get('xml_nfse', ''),
+                    'pdf_url': resultado.get('link_pdf', ''),
+                    'tomador_nome': tomador_nome,
+                    'tomador_cpf_cnpj': tomador_cpf_cnpj,
+                    'servico_descricao': servico_descricao,
+                }
+                self._salvar_nfse(resultado_final, tomador_email, provedor='issnet')
+                if enviar_email and tomador_email:
+                    self._enviar_email_nfse(
+                        tomador_email=tomador_email,
+                        tomador_nome=tomador_nome,
+                        numero_nf=resultado_final['numero_nf'],
+                        valor=valor_servicos,
+                        descricao=servico_descricao,
+                    )
+                return resultado_final
+            else:
+                return {'success': False, 'error': resultado.get('error', 'Erro ISSNet'), 'numero_rps': numero_rps}
+
+        except Exception as e:
+            logger.exception('Erro ao emitir via ISSNet: %s', e)
             return {'success': False, 'error': str(e)}
 
     def _emitir_via_nacional(
@@ -255,7 +361,7 @@ class NFSeService:
             logger.error('Erro ao registrar falha de NFS-e: %s', e, exc_info=True)
             return None
 
-    def _salvar_nfse(self, resultado: Dict[str, Any], tomador_email: str):
+    def _salvar_nfse(self, resultado: Dict[str, Any], tomador_email: str, provedor: str = 'nacional'):
         """Salva NFS-e emitida no banco."""
         try:
             from .models import NFSe
@@ -273,10 +379,10 @@ class NFSeService:
                 servico_descricao=(resultado.get('servico_descricao') or '')[:500],
                 xml_nfse=resultado.get('xml_nfse', ''),
                 pdf_url=resultado.get('pdf_url', '')[:500],
-                provedor='nacional',
+                provedor=provedor,
                 status='emitida',
             )
-            logger.info('NFS-e %s salva no banco', resultado['numero_nf'])
+            logger.info('NFS-e %s salva no banco (provedor=%s)', resultado['numero_nf'], provedor)
         except Exception as e:
             logger.error('Erro ao salvar NFS-e no banco: %s', e)
 

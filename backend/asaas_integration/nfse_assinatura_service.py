@@ -97,6 +97,8 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
 
     if config.provedor_nfse == 'nacional':
         return _emitir_via_nacional(pagamento, config, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor)
+    elif config.provedor_nfse == 'issnet':
+        return _emitir_via_issnet(pagamento, config, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor)
     else:
         return {'success': False, 'error': f'Provedor desconhecido: {config.provedor_nfse}'}
 
@@ -193,6 +195,122 @@ def _emitir_via_nacional(
     except Exception as e:
         logger.exception('Erro ao emitir NFS-e assinatura via Nacional: %s', e)
         return {'success': False, 'error': str(e)}
+
+
+def _emitir_via_issnet(
+    pagamento,
+    config,
+    tomador_cpf_cnpj: str,
+    tomador_nome: str,
+    tomador_email: str,
+    tomador_endereco: Dict[str, str],
+    descricao: str,
+    valor: Decimal,
+) -> Dict[str, Any]:
+    """Emite NFS-e via WebService ISSNet (municipal)."""
+    try:
+        from nfse_integration.issnet_client import ISSNetClient
+        import re
+
+        cert_data = config.issnet_certificado or config.nacional_certificado
+        senha_cert = config.issnet_senha_certificado or config.nacional_senha_certificado
+        if not cert_data:
+            return {'success': False, 'error': 'Certificado digital não configurado'}
+        if not senha_cert:
+            return {'success': False, 'error': 'Senha do certificado não configurada'}
+        if not config.prestador_cnpj:
+            return {'success': False, 'error': 'CNPJ do prestador não configurado'}
+
+        cnpj_digits = re.sub(r'\D', '', config.prestador_cnpj)
+        im = config.prestador_inscricao_municipal or ''
+
+        # Número RPS
+        config.ultimo_rps += 1
+        config.save(update_fields=['ultimo_rps', 'updated_at'])
+        numero_rps = config.ultimo_rps
+
+        client = ISSNetClient(
+            pfx_bytes=bytes(cert_data),
+            senha_pfx=senha_cert,
+            cnpj_prestador=cnpj_digits,
+            inscricao_municipal=im,
+            usuario=config.issnet_usuario or '',
+            senha=config.issnet_senha or '',
+        )
+
+        resultado = client.emitir_nfse(
+            numero_rps=numero_rps,
+            serie_rps=config.serie_rps or 'E',
+            tomador_cpf_cnpj=tomador_cpf_cnpj,
+            tomador_nome=tomador_nome,
+            tomador_email=tomador_email,
+            tomador_endereco=tomador_endereco,
+            servico_descricao=descricao,
+            valor_servicos=float(valor),
+            aliquota_iss=float(config.aliquota_iss),
+            codigo_servico=config.codigo_servico_municipal or '1401',
+            codigo_cnae=(config.codigo_cnae or '').strip(),
+            optante_simples=config.optante_simples_nacional,
+        )
+
+        if resultado.get('success'):
+            logger.info(
+                'NFS-e ISSNet emitida: NF=%s, tomador=%s, valor=R$%s',
+                resultado.get('numero_nf'), tomador_nome, valor,
+            )
+            resultado_padrao = {
+                'success': True,
+                'numero_nf': resultado.get('numero_nf', ''),
+                'codigo_verificacao': resultado.get('codigo_verificacao', ''),
+                'numero_rps': numero_rps,
+                'xml_nfse': resultado.get('xml_nfse', ''),
+                'data_emissao': None,
+            }
+            _salvar_nfse_emitida_issnet(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
+            _enviar_email_nfse(config, tomador_email, tomador_nome, resultado_padrao, valor, descricao)
+            return resultado_padrao
+        else:
+            error_msg = resultado.get('error', 'Erro desconhecido ISSNet')
+            logger.warning('NFS-e ISSNet falhou: %s', error_msg)
+            return {'success': False, 'error': error_msg}
+
+    except Exception as e:
+        logger.exception('Erro ao emitir NFS-e assinatura via ISSNet: %s', e)
+        return {'success': False, 'error': str(e)}
+
+
+def _salvar_nfse_emitida_issnet(pagamento, config, resultado, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor):
+    """Salva registro da NFS-e emitida via ISSNet."""
+    try:
+        from superadmin.models import NFSeEmitida
+
+        valor_dec = Decimal(str(valor))
+        aliquota = Decimal(str(config.aliquota_iss))
+        valor_iss = (valor_dec * aliquota / 100).quantize(Decimal('0.01'))
+
+        NFSeEmitida.objects.create(
+            loja=pagamento.loja,
+            pagamento=pagamento,
+            numero_nf=resultado.get('numero_nf', ''),
+            codigo_verificacao=resultado.get('codigo_verificacao', ''),
+            numero_rps=resultado.get('numero_rps', 0),
+            serie_rps=config.serie_rps or 'E',
+            provedor='issnet',
+            status='emitida',
+            valor=valor_dec,
+            aliquota_iss=aliquota,
+            valor_iss=valor_iss,
+            tomador_nome=tomador_nome,
+            tomador_cpf_cnpj=tomador_cpf_cnpj,
+            tomador_email=tomador_email,
+            descricao_servico=descricao[:500],
+            xml_nfse=resultado.get('xml_nfse', ''),
+            asaas_payment_id=pagamento.asaas_payment_id or '',
+            data_emissao=resultado.get('data_emissao'),
+        )
+        logger.info('NFSeEmitida ISSNet salva: %s, loja %s', resultado.get('numero_nf'), pagamento.loja.slug)
+    except Exception as e:
+        logger.warning('Erro ao salvar NFSeEmitida ISSNet: %s', e)
 
 
 def _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor):

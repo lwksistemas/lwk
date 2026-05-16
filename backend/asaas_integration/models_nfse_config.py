@@ -17,15 +17,16 @@ class SuperadminNFSeConfig(models.Model):
 
     # Provedor de emissão
     PROVEDOR_CHOICES = [
+        ('issnet', 'ISSNet (WebService Municipal)'),
         ('nacional', 'Nacional (ADN - Padrão Nacional NFS-e)'),
         ('desabilitado', 'Desabilitado (não emite NFS-e)'),
     ]
     provedor_nfse = models.CharField(
         max_length=20,
         choices=PROVEDOR_CHOICES,
-        default='nacional',
+        default='issnet',
         verbose_name='Provedor de NFS-e',
-        help_text='Como emitir notas fiscais das assinaturas das lojas'
+        help_text='ISSNet para municípios sem Emissor Nacional; Nacional para municípios que aderiram ao ADN'
     )
 
     # Emissão automática após pagamento

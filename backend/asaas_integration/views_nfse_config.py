@@ -102,26 +102,39 @@ def nfse_config_view(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdminUser])
 def nfse_config_test_nacional(request):
-    """Testa conexão com ADN Nacional usando certificado configurado."""
+    """Testa conexão com o provedor configurado (ISSNet ou ADN Nacional)."""
     from .models_nfse_config import SuperadminNFSeConfig
 
     config = SuperadminNFSeConfig.get_config()
 
-    if not config.nacional_certificado:
-        return Response({'success': False, 'detail': 'Certificado Nacional não configurado'}, status=400)
-    if not config.nacional_senha_certificado:
-        return Response({'success': False, 'detail': 'Senha do certificado Nacional não configurada'}, status=400)
+    cert_data = config.issnet_certificado or config.nacional_certificado
+    senha_cert = config.issnet_senha_certificado or config.nacional_senha_certificado
+
+    if not cert_data:
+        return Response({'success': False, 'detail': 'Certificado não configurado'}, status=400)
+    if not senha_cert:
+        return Response({'success': False, 'detail': 'Senha do certificado não configurada'}, status=400)
 
     try:
-        from nfse_integration.nacional import NacionalClient
+        # Rotear teste conforme provedor
+        if config.provedor_nfse == 'issnet':
+            from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
 
-        client = NacionalClient(
-            pfx_bytes=bytes(config.nacional_certificado),
-            senha_pfx=config.nacional_senha_certificado,
-            ambiente=config.nacional_ambiente or 'homologacao',
-        )
+            client = ISSNetNacionalClient(
+                pfx_bytes=bytes(cert_data),
+                senha_pfx=senha_cert,
+                ambiente=config.nacional_ambiente or 'homologacao',
+            )
+            resultado = client.testar_conexao()
+        else:
+            from nfse_integration.nacional import NacionalClient
 
-        resultado = client.testar_conexao()
+            client = NacionalClient(
+                pfx_bytes=bytes(cert_data),
+                senha_pfx=senha_cert,
+                ambiente=config.nacional_ambiente or 'homologacao',
+            )
+            resultado = client.testar_conexao()
 
         if resultado.get('success'):
             cert_info = {}

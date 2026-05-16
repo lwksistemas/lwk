@@ -31,10 +31,9 @@ COD_MUNICIPIO_RP = '3543402'
 ISSNET_RP_NFSE_ASMX = (
     'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
 )
-# Ribeirao Preto ABRASF 2.04: nao ha URL publica alternativa de homologacao para este contrato
-# (URLs legadas tipo homologaabrasf/webservicenfse204 retornam 404). O homolog generico ISSNet
-# (servicos.asmx) e outro layout SOAP e nao serve a este cliente.
-# O flag ``homologacao`` no CRM usa o mesmo endpoint ate a prefeitura informar outro.
+ISSNET_RP_NFSE_HOMOLOG = (
+    'https://nfse.issnetonline.com.br/wsnfsenacional/homologacao/nfse.asmx'
+)
 SOAP_ACTION_RECEPCIONAR_LOTE_RPS = 'http://nfse.abrasf.org.br/RecepcionarLoteRps'
 SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO = (
     'http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono'
@@ -42,7 +41,7 @@ SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO = (
 SOAP_ACTION_CONSULTAR_LOTE_RPS = 'http://nfse.abrasf.org.br/ConsultarLoteRps'
 ISSNET_URLS = {
     'producao': ISSNET_RP_NFSE_ASMX,
-    'homologacao': ISSNET_RP_NFSE_ASMX,
+    'homologacao': ISSNET_RP_NFSE_HOMOLOG,
 }
 
 # XML do cabecalho ABRASF (vai como *texto* de nfseCabecMsg no ASMX, com entidades XML).

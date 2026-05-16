@@ -24,7 +24,7 @@ import Link from 'next/link'
 import apiClient from '@/lib/api-client'
 
 interface NFSeConfig {
-  provedor_nfse: 'nacional' | 'desabilitado'
+  provedor_nfse: 'issnet' | 'nacional' | 'desabilitado'
   emitir_automaticamente: boolean
   prestador_cnpj: string
   prestador_razao_social: string
@@ -49,7 +49,7 @@ interface NFSeConfig {
 
 export default function NFSeConfigPage() {
   const [config, setConfig] = useState<NFSeConfig>({
-    provedor_nfse: 'nacional',
+    provedor_nfse: 'issnet',
     emitir_automaticamente: true,
     prestador_cnpj: '',
     prestador_razao_social: '',
@@ -216,6 +216,8 @@ export default function NFSeConfigPage() {
         <Badge variant={config.provedor_nfse === 'desabilitado' ? 'secondary' : 'default'}>
           {config.provedor_nfse === 'desabilitado' ? (
             <><XCircle className="w-4 h-4 mr-1" />Desabilitado</>
+          ) : config.provedor_nfse === 'issnet' ? (
+            <><CheckCircle className="w-4 h-4 mr-1" />ISSNet (Municipal)</>
           ) : (
             <><CheckCircle className="w-4 h-4 mr-1" />Nacional (ADN)</>
           )}
@@ -244,6 +246,13 @@ export default function NFSeConfigPage() {
             <div className="flex gap-2">
               <Button
                 type="button"
+                variant={config.provedor_nfse === 'issnet' ? 'default' : 'outline'}
+                onClick={() => setConfig(prev => ({ ...prev, provedor_nfse: 'issnet' }))}
+              >
+                ISSNet (Municipal)
+              </Button>
+              <Button
+                type="button"
                 variant={config.provedor_nfse === 'nacional' ? 'default' : 'outline'}
                 onClick={() => setConfig(prev => ({ ...prev, provedor_nfse: 'nacional' }))}
               >
@@ -258,7 +267,8 @@ export default function NFSeConfigPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              {config.provedor_nfse === 'nacional' && 'Emite via ADN (Ambiente de Dados Nacional) — padrão nacional NFS-e com certificado digital ICP-Brasil.'}
+              {config.provedor_nfse === 'issnet' && 'Emite via WebService ISSNet da prefeitura — para municípios que não aderiram ao Emissor Nacional.'}
+              {config.provedor_nfse === 'nacional' && 'Emite via ADN (Ambiente de Dados Nacional) — apenas para municípios que aderiram ao Emissor Nacional.'}
               {config.provedor_nfse === 'desabilitado' && 'Nenhuma NFS-e será emitida automaticamente.'}
             </p>
           </div>

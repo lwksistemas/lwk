@@ -2,7 +2,7 @@
 Assinatura digital XML (XMLDSIG) para NFS-e Nacional.
 
 Padrão: XML Digital Signature (https://www.w3.org/TR/xmldsig-core/)
-Algoritmo: RSA-SHA256 (recomendado pelo padrão nacional)
+Algoritmo: RSA-SHA1 (conforme Portal Contribuinte nfse.gov.br)
 Certificado: ICP-Brasil A1 ou A3 (.pfx/.p12)
 """
 import logging
@@ -98,17 +98,18 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
 
     # Criar template de assinatura
     # Signature como último filho do root (DPS)
+    # Usar RSA-SHA1 conforme Portal Contribuinte (nfse.gov.br)
     sig_node = xmlsec.template.create(
         root,
         xmlsec.constants.TransformInclC14N,
-        xmlsec.constants.TransformRsaSha256,
+        xmlsec.constants.TransformRsaSha1,
     )
     root.append(sig_node)
 
     # Reference apontando para o infDPS via URI=#Id
     ref = xmlsec.template.add_reference(
         sig_node,
-        xmlsec.constants.TransformSha256,
+        xmlsec.constants.TransformSha1,
         uri=f'#{inf_id}',
     )
     xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
@@ -126,7 +127,7 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
     ctx.sign(sig_node)
 
     result = '<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(root, encoding='unicode', xml_declaration=False)
-    logger.info('XML DPS assinado com sucesso (RSA-SHA256, Reference=#%s)', inf_id)
+    logger.info('XML DPS assinado com sucesso (RSA-SHA1, Reference=#%s)', inf_id)
     return result
 
 

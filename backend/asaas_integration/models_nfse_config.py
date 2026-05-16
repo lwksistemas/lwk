@@ -131,9 +131,9 @@ class SuperadminNFSeConfig(models.Model):
         help_text='Código IBGE de 7 dígitos do município do prestador'
     )
     nacional_serie_dps = models.CharField(
-        max_length=5, default='900', blank=True,
+        max_length=5, default='1', blank=True,
         verbose_name='Série da DPS',
-        help_text='Série da DPS (padrão: 900 para emissão própria)'
+        help_text='Série da DPS (padrão: 1 = 00001, conforme Portal Contribuinte)'
     )
     nacional_ultimo_dps = models.IntegerField(
         default=0,

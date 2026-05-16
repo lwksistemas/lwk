@@ -42,5 +42,5 @@ urlpatterns = [
     
     # NFS-e Config do Superadmin
     path('nfse-config/', nfse_config_views.nfse_config_view, name='nfse-config'),
-    path('nfse-config/test-issnet/', nfse_config_views.nfse_config_test_issnet, name='nfse-config-test-issnet'),
+    path('nfse-config/test-nacional/', nfse_config_views.nfse_config_test_nacional, name='nfse-config-test-nacional'),
 ]

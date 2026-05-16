@@ -1322,7 +1322,6 @@ from .views_config import (  # noqa: F401, E402
     crm_busca,
     crm_config,
     crm_config_asaas_test,
-    crm_config_issnet_test,
 )
 from .views_relatorios import gerar_relatorio  # noqa: F401, E402
 from .views_assinatura_publica import AssinaturaPublicaView, AssinaturaPdfView  # noqa: F401, E402

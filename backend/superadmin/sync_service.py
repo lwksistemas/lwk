@@ -477,33 +477,19 @@ class AsaasSyncService:
                     logger.info(f"NFS-e desabilitada — não emitindo para {payment_id}")
                 elif not nfse_config.emitir_automaticamente:
                     logger.info(f"Emissão automática desativada — não emitindo para {payment_id}")
-                elif nfse_config.provedor_nfse == 'issnet':
-                    # Emitir via ISSNet direto (sem taxa)
+                elif nfse_config.provedor_nfse == 'nacional':
+                    # Emitir via Nacional (ADN)
                     if pagamento:
                         from asaas_integration.nfse_assinatura_service import emitir_nfse_assinatura
                         nf_result = emitir_nfse_assinatura(pagamento)
                         if nf_result.get('success'):
-                            logger.info(f"NFS-e ISSNet emitida para pagamento {payment_id}: NF {nf_result.get('numero_nf')}")
+                            logger.info(f"NFS-e Nacional emitida para pagamento {payment_id}: {nf_result.get('numero_nf')}")
                         else:
-                            logger.warning(f"Falha NFS-e ISSNet para {payment_id}: {nf_result.get('error')}")
+                            logger.warning(f"Falha NFS-e Nacional para {payment_id}: {nf_result.get('error')}")
                     else:
-                        logger.warning(f"PagamentoLoja não encontrado para emitir NFS-e ISSNet: {payment_id}")
+                        logger.warning(f"PagamentoLoja não encontrado para emitir NFS-e Nacional: {payment_id}")
                 else:
-                    # Emitir via Asaas (intermediário — padrão)
-                    from asaas_integration.invoice_service import emitir_nf_para_pagamento
-                    nf_value = float(payment_data.get('value', 0))
-                    nf_description = payment_data.get('description') or f"Assinatura - {loja.nome}"
-                    nf_result = emitir_nf_para_pagamento(
-                        asaas_payment_id=payment_id,
-                        loja=loja,
-                        value=nf_value,
-                        description=nf_description,
-                        send_email=True,
-                    )
-                    if nf_result.get('success'):
-                        logger.info(f"NF Asaas emitida para pagamento {payment_id}, email enviado: {nf_result.get('email_sent')}")
-                    else:
-                        logger.warning(f"Falha NF Asaas para {payment_id}: {nf_result.get('error')}")
+                    logger.info(f"Provedor NFS-e '{nfse_config.provedor_nfse}' — emissão não realizada para {payment_id}")
             except Exception as nf_err:
                 logger.exception(f"Erro ao emitir NF no webhook: {nf_err}")
             

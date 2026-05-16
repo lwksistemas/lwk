@@ -7,7 +7,6 @@ import apiClient from '@/lib/api-client';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react';
 import { AsaasConfigSection } from './components/AsaasConfigSection';
-import { IssnetRibeiraoDiretoInfo } from '@/components/nfse/IssnetRibeiraoDiretoInfo';
 
 export default function ConfiguracaoNotaFiscalPage() {
   const router = useRouter();
@@ -391,8 +390,6 @@ export default function ConfiguracaoNotaFiscalPage() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Credenciais ISSNet
             </h2>
-
-            <IssnetRibeiraoDiretoInfo className="mb-6" prestadorLabel="CNPJ da sua loja (prestador desta nota)" />
 
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-start gap-3">
               <Info size={20} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />

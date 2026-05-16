@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   CheckCircle,
@@ -16,8 +15,6 @@ import {
   Settings,
   FileText,
   Upload,
-  Eye,
-  EyeOff,
   Shield,
   Building2,
   Hash,
@@ -25,65 +22,61 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import apiClient from '@/lib/api-client'
-import { IssnetRibeiraoDiretoInfo } from '@/components/nfse/IssnetRibeiraoDiretoInfo'
 
 interface NFSeConfig {
-  provedor_nfse: 'asaas' | 'issnet' | 'desabilitado'
+  provedor_nfse: 'nacional' | 'desabilitado'
   emitir_automaticamente: boolean
   prestador_cnpj: string
   prestador_razao_social: string
   prestador_inscricao_municipal: string
   prestador_email: string
   regime_especial_tributacao: string
-  issnet_usuario: string
-  issnet_senha_set: boolean
-  issnet_certificado_nome: string
-  issnet_certificado_set: boolean
-  issnet_senha_certificado_set: boolean
   codigo_servico_municipal: string
   descricao_servico_padrao: string
   aliquota_iss: string
   codigo_cnae: string
   optante_simples_nacional: boolean
   incentivador_cultural: boolean
-  serie_rps: string
-  ultimo_rps: number
+  // Nacional
+  nacional_certificado_nome: string
+  nacional_certificado_set: boolean
+  nacional_senha_certificado_set: boolean
+  nacional_ambiente: string
+  nacional_codigo_municipio: string
+  nacional_serie_dps: string
+  nacional_ultimo_dps: number
 }
 
 export default function NFSeConfigPage() {
   const [config, setConfig] = useState<NFSeConfig>({
-    provedor_nfse: 'asaas',
+    provedor_nfse: 'nacional',
     emitir_automaticamente: true,
     prestador_cnpj: '',
     prestador_razao_social: '',
     prestador_inscricao_municipal: '',
     prestador_email: '',
     regime_especial_tributacao: '',
-    issnet_usuario: '',
-    issnet_senha_set: false,
-    issnet_certificado_nome: '',
-    issnet_certificado_set: false,
-    issnet_senha_certificado_set: false,
     codigo_servico_municipal: '1401',
     descricao_servico_padrao: 'Licenciamento de uso de software SaaS',
     aliquota_iss: '2.00',
     codigo_cnae: '',
     optante_simples_nacional: true,
     incentivador_cultural: false,
-    serie_rps: 'E',
-    ultimo_rps: 0,
+    nacional_certificado_nome: '',
+    nacional_certificado_set: false,
+    nacional_senha_certificado_set: false,
+    nacional_ambiente: 'homologacao',
+    nacional_codigo_municipio: '',
+    nacional_serie_dps: '900',
+    nacional_ultimo_dps: 0,
   })
 
-  // Campos de senha (não vêm do GET, só enviam no PATCH)
-  const [issnetSenha, setIssnetSenha] = useState('')
-  const [issnetSenhaCertificado, setIssnetSenhaCertificado] = useState('')
-  const [certificadoFile, setCertificadoFile] = useState<File | null>(null)
+  const [nacionalSenhaCertificado, setNacionalSenhaCertificado] = useState('')
+  const [nacionalCertificadoFile, setNacionalCertificadoFile] = useState<File | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [showSenha, setShowSenha] = useState(false)
-  const [showSenhaCert, setShowSenhaCert] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
@@ -107,10 +100,8 @@ export default function NFSeConfigPage() {
     setSaving(true)
     setMessage(null)
     try {
-      // Se tem certificado, usar FormData (multipart)
-      if (certificadoFile) {
+      if (nacionalCertificadoFile) {
         const formData = new FormData()
-        // Campos simples
         formData.append('provedor_nfse', config.provedor_nfse)
         formData.append('emitir_automaticamente', String(config.emitir_automaticamente))
         formData.append('prestador_cnpj', config.prestador_cnpj)
@@ -118,26 +109,23 @@ export default function NFSeConfigPage() {
         formData.append('prestador_inscricao_municipal', config.prestador_inscricao_municipal)
         formData.append('prestador_email', config.prestador_email)
         formData.append('regime_especial_tributacao', config.regime_especial_tributacao)
-        formData.append('issnet_usuario', config.issnet_usuario)
         formData.append('codigo_servico_municipal', config.codigo_servico_municipal)
         formData.append('descricao_servico_padrao', config.descricao_servico_padrao)
         formData.append('aliquota_iss', config.aliquota_iss)
         formData.append('codigo_cnae', config.codigo_cnae)
         formData.append('optante_simples_nacional', String(config.optante_simples_nacional))
         formData.append('incentivador_cultural', String(config.incentivador_cultural))
-        formData.append('serie_rps', config.serie_rps)
-        formData.append('ultimo_rps', String(config.ultimo_rps))
-        // Senhas (só se preenchidas)
-        if (issnetSenha) formData.append('issnet_senha', issnetSenha)
-        if (issnetSenhaCertificado) formData.append('issnet_senha_certificado', issnetSenhaCertificado)
-        // Certificado
-        formData.append('issnet_certificado', certificadoFile)
+        formData.append('nacional_ambiente', config.nacional_ambiente)
+        formData.append('nacional_codigo_municipio', config.nacional_codigo_municipio)
+        formData.append('nacional_serie_dps', config.nacional_serie_dps)
+        formData.append('nacional_ultimo_dps', String(config.nacional_ultimo_dps))
+        if (nacionalSenhaCertificado) formData.append('nacional_senha_certificado', nacionalSenhaCertificado)
+        formData.append('nacional_certificado', nacionalCertificadoFile)
 
         await apiClient.patch('/asaas/nfse-config/', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
       } else {
-        // JSON normal
         const payload: Record<string, unknown> = {
           provedor_nfse: config.provedor_nfse,
           emitir_automaticamente: config.emitir_automaticamente,
@@ -146,26 +134,25 @@ export default function NFSeConfigPage() {
           prestador_inscricao_municipal: config.prestador_inscricao_municipal,
           prestador_email: config.prestador_email,
           regime_especial_tributacao: config.regime_especial_tributacao,
-          issnet_usuario: config.issnet_usuario,
           codigo_servico_municipal: config.codigo_servico_municipal,
           descricao_servico_padrao: config.descricao_servico_padrao,
           aliquota_iss: config.aliquota_iss,
           codigo_cnae: config.codigo_cnae,
           optante_simples_nacional: config.optante_simples_nacional,
           incentivador_cultural: config.incentivador_cultural,
-          serie_rps: config.serie_rps,
-          ultimo_rps: config.ultimo_rps,
+          nacional_ambiente: config.nacional_ambiente,
+          nacional_codigo_municipio: config.nacional_codigo_municipio,
+          nacional_serie_dps: config.nacional_serie_dps,
+          nacional_ultimo_dps: config.nacional_ultimo_dps,
         }
-        if (issnetSenha) payload.issnet_senha = issnetSenha
-        if (issnetSenhaCertificado) payload.issnet_senha_certificado = issnetSenhaCertificado
+        if (nacionalSenhaCertificado) payload.nacional_senha_certificado = nacionalSenhaCertificado
 
         await apiClient.patch('/asaas/nfse-config/', payload)
       }
 
       setMessage({ type: 'success', text: 'Configuração NFS-e salva com sucesso!' })
-      setIssnetSenha('')
-      setIssnetSenhaCertificado('')
-      setCertificadoFile(null)
+      setNacionalSenhaCertificado('')
+      setNacionalCertificadoFile(null)
       loadConfig()
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string; detail?: string } } }
@@ -178,80 +165,59 @@ export default function NFSeConfigPage() {
     }
   }
 
-  const testISSNet = async () => {
+  const testNacional = async () => {
     setTesting(true)
     setMessage(null)
     try {
-      const { data } = await apiClient.post('/asaas/nfse-config/test-issnet/')
+      const { data } = await apiClient.post('/asaas/nfse-config/test-nacional/')
       setMessage({
         type: 'success',
-        text: data.message || 'Conexão ISSNet testada com sucesso!',
+        text: data.message || 'Conexão ADN Nacional testada com sucesso!',
       })
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } }
       setMessage({
         type: 'error',
-        text: err.response?.data?.detail || 'Erro ao testar conexão ISSNet',
+        text: err.response?.data?.detail || 'Erro ao testar conexão Nacional',
       })
     } finally {
       setTesting(false)
     }
   }
 
-  const provedorLabel = {
-    asaas: 'Asaas (Intermediário)',
-    issnet: 'ISSNet Ribeirão Preto (Direto)',
-    desabilitado: 'Desabilitado',
-  }
-
-  const provedorBadgeVariant = {
-    asaas: 'default' as const,
-    issnet: 'default' as const,
-    desabilitado: 'secondary' as const,
-  }
-
   if (loading) {
     return (
       <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">Carregando configuração...</span>
+          <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/superadmin/dashboard"
-            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center gap-3">
+          <Link href="/superadmin/dashboard">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Voltar
+            </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Configuração NFS-e</h1>
-            <p className="text-muted-foreground">
-              Emissão de NFS-e quando uma <strong>loja paga a mensalidade</strong> à LWK (prestador = empresa administradora).
-              É independente da configuração em <strong>CRM → Nota fiscal</strong>, que é a NFS-e que cada loja emite para os
-              próprios clientes (outro CNPJ e outro certificado).
+            <h1 className="text-2xl font-bold">Configuração NFS-e</h1>
+            <p className="text-sm text-muted-foreground">
+              Emissão de notas fiscais via padrão Nacional (ADN)
             </p>
           </div>
         </div>
-        <Badge variant={provedorBadgeVariant[config.provedor_nfse]}>
+        <Badge variant={config.provedor_nfse === 'desabilitado' ? 'secondary' : 'default'}>
           {config.provedor_nfse === 'desabilitado' ? (
-            <>
-              <XCircle className="w-4 h-4 mr-1" />
-              Desabilitado
-            </>
+            <><XCircle className="w-4 h-4 mr-1" />Desabilitado</>
           ) : (
-            <>
-              <CheckCircle className="w-4 h-4 mr-1" />
-              {provedorLabel[config.provedor_nfse]}
-            </>
+            <><CheckCircle className="w-4 h-4 mr-1" />Nacional (ADN)</>
           )}
         </Badge>
       </div>
@@ -259,443 +225,295 @@ export default function NFSeConfigPage() {
       {/* Mensagem */}
       {message && (
         <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-          <AlertCircle className="h-4 w-4" />
+          {message.type === 'error' ? <AlertCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
 
-      <Tabs defaultValue="config" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="config">
-            <Settings className="w-4 h-4 mr-2" />
-            Configuração
-          </TabsTrigger>
-          <TabsTrigger value="issnet">
-            <Shield className="w-4 h-4 mr-2" />
-            Certificado ISSNet
-          </TabsTrigger>
-          <TabsTrigger value="fiscal">
-            <FileText className="w-4 h-4 mr-2" />
+      {/* Provedor e Emissão Automática */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            Configuração Geral
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Provedor de Emissão</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={config.provedor_nfse === 'nacional' ? 'default' : 'outline'}
+                onClick={() => setConfig(prev => ({ ...prev, provedor_nfse: 'nacional' }))}
+              >
+                Nacional (ADN)
+              </Button>
+              <Button
+                type="button"
+                variant={config.provedor_nfse === 'desabilitado' ? 'destructive' : 'outline'}
+                onClick={() => setConfig(prev => ({ ...prev, provedor_nfse: 'desabilitado' }))}
+              >
+                Desabilitado
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {config.provedor_nfse === 'nacional' && 'Emite via ADN (Ambiente de Dados Nacional) — padrão nacional NFS-e com certificado digital ICP-Brasil.'}
+              {config.provedor_nfse === 'desabilitado' && 'Nenhuma NFS-e será emitida automaticamente.'}
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2 pt-2">
+            <input
+              type="checkbox"
+              id="emitir_auto"
+              checked={config.emitir_automaticamente}
+              onChange={(e) => setConfig(prev => ({ ...prev, emitir_automaticamente: e.target.checked }))}
+              className="rounded"
+            />
+            <Label htmlFor="emitir_auto">
+              Emitir NFS-e automaticamente quando pagamento é confirmado
+            </Label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dados do Prestador */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="w-5 h-5" />
+            Dados do Prestador
+          </CardTitle>
+          <CardDescription>Empresa que emite as notas fiscais</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>CNPJ</Label>
+              <Input
+                value={config.prestador_cnpj}
+                onChange={(e) => setConfig(prev => ({ ...prev, prestador_cnpj: e.target.value }))}
+                placeholder="00.000.000/0001-00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Razão Social</Label>
+              <Input
+                value={config.prestador_razao_social}
+                onChange={(e) => setConfig(prev => ({ ...prev, prestador_razao_social: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Inscrição Municipal</Label>
+              <Input
+                value={config.prestador_inscricao_municipal}
+                onChange={(e) => setConfig(prev => ({ ...prev, prestador_inscricao_municipal: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail</Label>
+              <Input
+                type="email"
+                value={config.prestador_email}
+                onChange={(e) => setConfig(prev => ({ ...prev, prestador_email: e.target.value }))}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Certificado Digital e Ambiente */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Certificado Digital e Ambiente
+          </CardTitle>
+          <CardDescription>Certificado ICP-Brasil A1 para assinatura e mTLS</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {config.nacional_certificado_set && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                Certificado configurado: <strong>{config.nacional_certificado_nome}</strong>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Arquivo do Certificado (.pfx / .p12)</Label>
+              <Input
+                type="file"
+                accept=".pfx,.p12"
+                onChange={(e) => setNacionalCertificadoFile(e.target.files?.[0] || null)}
+              />
+              <p className="text-xs text-muted-foreground">Certificado ICP-Brasil A1 com CNPJ. Máx 5MB.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>
+                Senha do Certificado
+                {config.nacional_senha_certificado_set && (
+                  <Badge variant="secondary" className="ml-2 text-xs">Configurada</Badge>
+                )}
+              </Label>
+              <Input
+                type="password"
+                value={nacionalSenhaCertificado}
+                onChange={(e) => setNacionalSenhaCertificado(e.target.value)}
+                placeholder={config.nacional_senha_certificado_set ? '••••••• (deixe vazio para manter)' : 'Senha do .pfx'}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Ambiente</Label>
+              <select
+                value={config.nacional_ambiente}
+                onChange={(e) => setConfig(prev => ({ ...prev, nacional_ambiente: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+              >
+                <option value="homologacao">Homologação (testes)</option>
+                <option value="producao">Produção</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Código IBGE Município</Label>
+              <Input
+                value={config.nacional_codigo_municipio}
+                onChange={(e) => setConfig(prev => ({ ...prev, nacional_codigo_municipio: e.target.value }))}
+                placeholder="Ex: 3543402"
+                maxLength={7}
+              />
+              <p className="text-xs text-muted-foreground">7 dígitos (IBGE)</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Série DPS</Label>
+              <Input
+                value={config.nacional_serie_dps}
+                onChange={(e) => setConfig(prev => ({ ...prev, nacional_serie_dps: e.target.value }))}
+                placeholder="900"
+                maxLength={5}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={testNacional}
+              disabled={testing || !config.nacional_certificado_set}
+            >
+              {testing ? (
+                <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Testando...</>
+              ) : (
+                'Testar Conexão'
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dados Fiscais */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Hash className="w-5 h-5" />
             Dados Fiscais
-          </TabsTrigger>
-        </TabsList>
-
-        {/* === ABA CONFIGURAÇÃO GERAL === */}
-        <TabsContent value="config" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                Provedor de NFS-e
-              </CardTitle>
-              <CardDescription>
-                Escolha como as notas fiscais serão emitidas quando uma loja pagar a assinatura
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Seleção de provedor */}
-              <div className="space-y-2">
-                <Label>Provedor de Emissão</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant={config.provedor_nfse === 'asaas' ? 'default' : 'outline'}
-                    onClick={() => setConfig(prev => ({ ...prev, provedor_nfse: 'asaas' }))}
-                  >
-                    Asaas (Intermediário)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={config.provedor_nfse === 'issnet' ? 'default' : 'outline'}
-                    onClick={() => setConfig(prev => ({ ...prev, provedor_nfse: 'issnet' }))}
-                  >
-                    ISSNet (Direto)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={config.provedor_nfse === 'desabilitado' ? 'destructive' : 'outline'}
-                    onClick={() => setConfig(prev => ({ ...prev, provedor_nfse: 'desabilitado' }))}
-                  >
-                    Desabilitado
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {config.provedor_nfse === 'asaas' && 'Emite via Asaas — cobra taxa por nota emitida.'}
-                  {config.provedor_nfse === 'issnet' && 'Emite direto na prefeitura de Ribeirão Preto — sem taxa, requer certificado digital.'}
-                  {config.provedor_nfse === 'desabilitado' && 'Nenhuma NFS-e será emitida automaticamente.'}
-                </p>
-              </div>
-
-              {/* Emissão automática */}
-              <div className="flex items-center space-x-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="emitir_auto"
-                  checked={config.emitir_automaticamente}
-                  onChange={(e) => setConfig(prev => ({ ...prev, emitir_automaticamente: e.target.checked }))}
-                  className="rounded"
-                />
-                <Label htmlFor="emitir_auto">
-                  Emitir NFS-e automaticamente quando pagamento é confirmado
-                </Label>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Dados do Prestador */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                Dados do Prestador
-              </CardTitle>
-              <CardDescription>
-                Empresa que emite as notas fiscais (ex: LWK Sistemas)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input
-                    id="cnpj"
-                    value={config.prestador_cnpj}
-                    onChange={(e) => setConfig(prev => ({ ...prev, prestador_cnpj: e.target.value }))}
-                    placeholder="00.000.000/0001-00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="razao_social">Razão Social</Label>
-                  <Input
-                    id="razao_social"
-                    value={config.prestador_razao_social}
-                    onChange={(e) => setConfig(prev => ({ ...prev, prestador_razao_social: e.target.value }))}
-                    placeholder="LWK Sistemas Ltda"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="inscricao_municipal">Inscrição Municipal</Label>
-                  <Input
-                    id="inscricao_municipal"
-                    value={config.prestador_inscricao_municipal}
-                    onChange={(e) => setConfig(prev => ({ ...prev, prestador_inscricao_municipal: e.target.value }))}
-                    placeholder="123456"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="prestador_email">E-mail do Prestador</Label>
-                  <Input
-                    id="prestador_email"
-                    type="email"
-                    value={config.prestador_email}
-                    onChange={(e) => setConfig(prev => ({ ...prev, prestador_email: e.target.value }))}
-                    placeholder="fiscal@lwksistemas.com.br"
-                  />
-                  <p className="text-xs text-muted-foreground">E-mail para notificações de NFS-e emitidas</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="regime_especial">Regime Especial de Tributação</Label>
-                  <select
-                    id="regime_especial"
-                    value={config.regime_especial_tributacao}
-                    onChange={(e) => setConfig(prev => ({ ...prev, regime_especial_tributacao: e.target.value }))}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value="">Nenhum</option>
-                    <option value="1">Microempresa Municipal</option>
-                    <option value="2">Estimativa</option>
-                    <option value="3">Sociedade de Profissionais</option>
-                    <option value="4">Cooperativa</option>
-                    <option value="5">MEI — Simples Nacional</option>
-                    <option value="6">ME/EPP — Simples Nacional</option>
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    Identifica o regime de tributação da empresa. Empresas do Simples Nacional geralmente optam por &quot;Microempresa Municipal&quot;.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="optante_simples">Optante pelo Simples Nacional</Label>
-                  <select
-                    id="optante_simples"
-                    value={config.optante_simples_nacional ? 'sim' : 'nao'}
-                    onChange={(e) => setConfig(prev => ({ ...prev, optante_simples_nacional: e.target.value === 'sim' }))}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value="sim">Sim</option>
-                    <option value="nao">Não</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="incentivador_cultural">Incentivador Cultural</Label>
-                  <select
-                    id="incentivador_cultural"
-                    value={config.incentivador_cultural ? 'sim' : 'nao'}
-                    onChange={(e) => setConfig(prev => ({ ...prev, incentivador_cultural: e.target.value === 'sim' }))}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value="nao">Não</option>
-                    <option value="sim">Sim</option>
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Botão Salvar */}
-          <div className="flex gap-2">
-            <Button onClick={saveConfig} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar Configuração'}
-            </Button>
+          </CardTitle>
+          <CardDescription>Informações fiscais usadas na emissão</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Código do Serviço (LC 116)</Label>
+              <Input
+                value={config.codigo_servico_municipal}
+                onChange={(e) => setConfig(prev => ({ ...prev, codigo_servico_municipal: e.target.value }))}
+                placeholder="14.01"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Código CNAE</Label>
+              <Input
+                value={config.codigo_cnae}
+                onChange={(e) => setConfig(prev => ({ ...prev, codigo_cnae: e.target.value }))}
+                placeholder="6201501"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Alíquota ISS (%)</Label>
+              <Input
+                value={config.aliquota_iss}
+                onChange={(e) => setConfig(prev => ({ ...prev, aliquota_iss: e.target.value }))}
+                placeholder="2.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Regime Especial</Label>
+              <select
+                value={config.regime_especial_tributacao}
+                onChange={(e) => setConfig(prev => ({ ...prev, regime_especial_tributacao: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+              >
+                <option value="">Nenhum</option>
+                <option value="1">Microempresa Municipal</option>
+                <option value="2">Estimativa</option>
+                <option value="3">Sociedade de Profissionais</option>
+                <option value="4">Cooperativa</option>
+                <option value="5">MEI</option>
+                <option value="6">ME/EPP</option>
+              </select>
+            </div>
           </div>
-        </TabsContent>
 
-        {/* === ABA CERTIFICADO ISSNET === */}
-        <TabsContent value="issnet" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Credenciais ISSNet
-              </CardTitle>
-              <CardDescription>
-                Configurações para emissão direta via ISSNet (Ribeirão Preto)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {config.provedor_nfse === 'issnet' && (
-                <IssnetRibeiraoDiretoInfo
-                  className="mb-2"
-                  prestadorLabel="prestador configurado em «Dados do Prestador» (aba Configuração)"
-                />
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="issnet_usuario">Usuário ISSNet</Label>
-                  <Input
-                    id="issnet_usuario"
-                    value={config.issnet_usuario}
-                    onChange={(e) => setConfig(prev => ({ ...prev, issnet_usuario: e.target.value }))}
-                    placeholder="usuario@issnet"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="issnet_senha">
-                    Senha ISSNet
-                    {config.issnet_senha_set && (
-                      <Badge variant="secondary" className="ml-2 text-xs">Configurada</Badge>
-                    )}
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="issnet_senha"
-                      type={showSenha ? 'text' : 'password'}
-                      value={issnetSenha}
-                      onChange={(e) => setIssnetSenha(e.target.value)}
-                      placeholder={config.issnet_senha_set ? '••••••• (deixe vazio para manter)' : 'Digite a senha'}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowSenha(!showSenha)}
-                    >
-                      {showSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Certificado Digital A1
-              </CardTitle>
-              <CardDescription>
-                Upload do certificado .pfx/.p12 para assinatura das notas
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Status do certificado atual */}
-              {config.issnet_certificado_set && (
-                <Alert>
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Certificado configurado: <strong>{config.issnet_certificado_nome}</strong>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="certificado">Arquivo do Certificado (.pfx / .p12)</Label>
-                  <Input
-                    id="certificado"
-                    type="file"
-                    accept=".pfx,.p12"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null
-                      setCertificadoFile(file)
-                    }}
-                  />
-                  <p className="text-xs text-muted-foreground">Máximo 5MB. Formatos: .pfx, .p12</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="senha_cert">
-                    Senha do Certificado
-                    {config.issnet_senha_certificado_set && (
-                      <Badge variant="secondary" className="ml-2 text-xs">Configurada</Badge>
-                    )}
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="senha_cert"
-                      type={showSenhaCert ? 'text' : 'password'}
-                      value={issnetSenhaCertificado}
-                      onChange={(e) => setIssnetSenhaCertificado(e.target.value)}
-                      placeholder={config.issnet_senha_certificado_set ? '••••••• (deixe vazio para manter)' : 'Senha do .pfx'}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowSenhaCert(!showSenhaCert)}
-                    >
-                      {showSenhaCert ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Botões */}
-              <div className="flex gap-2 pt-2">
-                <Button onClick={saveConfig} disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar Certificado'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={testISSNet}
-                  disabled={testing || config.provedor_nfse !== 'issnet'}
-                >
-                  {testing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Testando...
-                    </>
-                  ) : (
-                    'Testar Conexão ISSNet'
-                  )}
-                </Button>
-              </div>
-
-              {config.provedor_nfse !== 'issnet' && (
-                <p className="text-xs text-muted-foreground">
-                  ⚠️ O teste de conexão só funciona quando o provedor está configurado como &quot;ISSNet&quot;.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* === ABA DADOS FISCAIS === */}
-        <TabsContent value="fiscal" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Hash className="w-5 h-5" />
-                Dados Fiscais do Serviço
-              </CardTitle>
-              <CardDescription>
-                Informações fiscais usadas na emissão das notas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {config.provedor_nfse === 'issnet' && (
-                <IssnetRibeiraoDiretoInfo
-                  className="mb-4"
-                  prestadorLabel="prestador configurado em «Dados do Prestador» (aba Configuração)"
-                />
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cod_servico">Código do Serviço Municipal</Label>
-                  <Input
-                    id="cod_servico"
-                    value={config.codigo_servico_municipal}
-                    onChange={(e) => setConfig(prev => ({ ...prev, codigo_servico_municipal: e.target.value }))}
-                    placeholder="1401"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="codigo_cnae">Código CNAE</Label>
-                  <Input
-                    id="codigo_cnae"
-                    value={config.codigo_cnae}
-                    onChange={(e) => setConfig(prev => ({ ...prev, codigo_cnae: e.target.value }))}
-                    placeholder="6201-5/01"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="aliquota">Alíquota ISS (%)</Label>
-                  <Input
-                    id="aliquota"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    value={config.aliquota_iss}
-                    onChange={(e) => setConfig(prev => ({ ...prev, aliquota_iss: e.target.value }))}
-                    placeholder="2.00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="serie_rps">Série do RPS</Label>
-                  <Input
-                    id="serie_rps"
-                    value={config.serie_rps}
-                    onChange={(e) => setConfig(prev => ({ ...prev, serie_rps: e.target.value }))}
-                    placeholder="E"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ultimo_rps">Último RPS Emitido</Label>
-                  <Input
-                    id="ultimo_rps"
-                    type="number"
-                    min="0"
-                    value={config.ultimo_rps}
-                    onChange={(e) => setConfig(prev => ({ ...prev, ultimo_rps: parseInt(e.target.value) || 0 }))}
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-muted-foreground">Próxima emissão usará este número + 1</p>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-4">
-                <Label htmlFor="descricao_servico">Descrição Padrão do Serviço</Label>
-                <textarea
-                  id="descricao_servico"
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={config.descricao_servico_padrao}
-                  onChange={(e) => setConfig(prev => ({ ...prev, descricao_servico_padrao: e.target.value }))}
-                  placeholder="Licenciamento de uso de software SaaS"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Botão Salvar */}
-          <div className="flex gap-2">
-            <Button onClick={saveConfig} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar Dados Fiscais'}
-            </Button>
+          <div className="space-y-2">
+            <Label>Descrição Padrão do Serviço</Label>
+            <Input
+              value={config.descricao_servico_padrao}
+              onChange={(e) => setConfig(prev => ({ ...prev, descricao_servico_padrao: e.target.value }))}
+              placeholder="Licenciamento de uso de software SaaS"
+            />
           </div>
-        </TabsContent>
-      </Tabs>
+
+          <div className="flex gap-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="simples"
+                checked={config.optante_simples_nacional}
+                onChange={(e) => setConfig(prev => ({ ...prev, optante_simples_nacional: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="simples">Optante Simples Nacional</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="cultural"
+                checked={config.incentivador_cultural}
+                onChange={(e) => setConfig(prev => ({ ...prev, incentivador_cultural: e.target.checked }))}
+                className="rounded"
+              />
+              <Label htmlFor="cultural">Incentivador Cultural</Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Botão Salvar */}
+      <div className="flex justify-end">
+        <Button onClick={saveConfig} disabled={saving} size="lg">
+          {saving ? (
+            <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
+          ) : (
+            'Salvar Configuração'
+          )}
+        </Button>
+      </div>
     </div>
   )
 }

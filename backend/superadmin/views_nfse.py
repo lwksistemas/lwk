@@ -93,6 +93,32 @@ def nfse_xml(request, nfse_id):
         return Response({'success': False, 'error': 'NFS-e não encontrada'}, status=404)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def nfse_debug(request, nfse_id):
+    """
+    Retorna dados de debug de uma NFS-e: XML DPS assinado + resposta ADN.
+    Útil para validar manualmente o XML enviado ao ADN.
+    """
+    if not request.user.is_superuser:
+        return Response({'detail': 'Apenas superadmin.'}, status=403)
+
+    try:
+        nf = NFSeEmitida.objects.get(id=nfse_id)
+        return Response({
+            'success': True,
+            'nfse_id': nf.id,
+            'numero_rps': nf.numero_rps,
+            'status': nf.status,
+            'erro_mensagem': nf.erro_mensagem,
+            'xml_dps_assinado': nf.xml_dps_assinado or nf.xml_nfse or '',
+            'resposta_adn': nf.resposta_adn or '',
+            'created_at': nf.created_at.isoformat() if nf.created_at else '',
+        })
+    except NFSeEmitida.DoesNotExist:
+        return Response({'success': False, 'error': 'NFS-e não encontrada'}, status=404)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @rate_limit(max_requests=5, window_seconds=60)
@@ -109,50 +135,14 @@ def nfse_cancelar(request, nfse_id):
             return Response({'success': False, 'error': 'Nota já está cancelada'}, status=400)
 
         if nf.provedor == 'issnet' and nf.numero_nf:
-            # Cancelar via ISSNet
-            from asaas_integration.models_nfse_config import SuperadminNFSeConfig
-            from nfse_integration.issnet_client import ISSNetClient
-            import tempfile, os
-
-            config = SuperadminNFSeConfig.get_config()
-            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
-            cert_tmp.write(bytes(config.issnet_certificado))
-            cert_tmp.close()
-
-            try:
-                client = ISSNetClient(
-                    usuario=config.issnet_usuario,
-                    senha=config.issnet_senha,
-                    certificado_path=cert_tmp.name,
-                    senha_certificado=config.issnet_senha_certificado,
-                    ambiente='producao',
-                )
-                resultado = client.cancelar_nfse(
-                    numero_nf=nf.numero_nf,
-                    motivo='Cancelamento solicitado pelo administrador',
-                    prestador_cnpj=config.prestador_cnpj,
-                    inscricao_municipal=config.prestador_inscricao_municipal,
-                )
-                if resultado.get('success'):
-                    nf.status = 'cancelada'
-                    nf.data_cancelamento = timezone.now()
-                    nf.save()
-                    return Response({'success': True, 'message': f'NFS-e {nf.numero_nf} cancelada com sucesso (via API e no sistema)'})
-                else:
-                    erro = resultado.get('error', 'Erro ao cancelar')
-                    # Se Fault genérico, oferecer cancelamento apenas no sistema
-                    if 'genérico' in erro.lower() or 'Error' in erro:
-                        nf.status = 'cancelada'
-                        nf.data_cancelamento = timezone.now()
-                        nf.save()
-                        return Response({
-                            'success': True,
-                            'message': f'NFS-e {nf.numero_nf} marcada como cancelada no sistema. '
-                                       f'ATENÇÃO: Cancele também no portal da prefeitura (ISSNet) manualmente.'
-                        })
-                    return Response({'success': False, 'error': erro}, status=400)
-            finally:
-                os.unlink(cert_tmp.name)
+            # ISSNet removido — cancelar apenas no sistema
+            nf.status = 'cancelada'
+            nf.data_cancelamento = timezone.now()
+            nf.save()
+            return Response({
+                'success': True,
+                'message': f'NFS-e {nf.numero_nf} marcada como cancelada no sistema.'
+            })
         else:
             # Cancelamento manual (marcar como cancelada)
             nf.status = 'cancelada'
@@ -277,7 +267,6 @@ def emitir_nfse_manual(request):
         return Response({'detail': 'Apenas superadmin.'}, status=403)
 
     from asaas_integration.models_nfse_config import SuperadminNFSeConfig
-    from nfse_integration.issnet_client import ISSNetClient
 
     data = request.data
     loja_id = data.get('loja_id')
@@ -369,118 +358,118 @@ def emitir_nfse_manual(request):
     if config.provedor_nfse == 'desabilitado':
         return Response({'success': False, 'error': 'Emissão de NFS-e está desabilitada nas configurações'}, status=400)
 
-    if not config.issnet_usuario or not config.issnet_senha:
-        return Response({'success': False, 'error': 'Credenciais ISSNet não configuradas'}, status=400)
-    if not config.issnet_certificado:
+    if not config.nacional_certificado:
         return Response({'success': False, 'error': 'Certificado digital não configurado'}, status=400)
+    if not config.nacional_senha_certificado:
+        return Response({'success': False, 'error': 'Senha do certificado não configurada'}, status=400)
     if not config.prestador_cnpj:
         return Response({'success': False, 'error': 'CNPJ do prestador não configurado'}, status=400)
+    if not config.nacional_codigo_municipio:
+        return Response({'success': False, 'error': 'Código IBGE do município não configurado'}, status=400)
 
-    # Descriptografar credenciais
-    from core.encryption import decrypt_value
-    issnet_usuario = decrypt_value(config.issnet_usuario)
-    issnet_senha = decrypt_value(config.issnet_senha)
-    issnet_senha_cert = decrypt_value(config.issnet_senha_certificado)
-
-    # Certificado temporário
-    cert_path = None
     try:
-        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
-        cert_tmp.write(bytes(config.issnet_certificado))
-        cert_tmp.close()
-        cert_path = cert_tmp.name
+        from nfse_integration.nacional import NacionalClient
 
-        # Número RPS
-        numero_rps = config.proximo_rps()
+        numero_dps = config.proximo_dps()
 
-        # Cliente ISSNet
-        client = ISSNetClient(
-            usuario=issnet_usuario,
-            senha=issnet_senha,
-            certificado_path=cert_path,
-            senha_certificado=issnet_senha_cert,
-            ambiente='producao',
+        client = NacionalClient(
+            pfx_bytes=bytes(config.nacional_certificado),
+            senha_pfx=config.nacional_senha_certificado,
+            ambiente=config.nacional_ambiente or 'homologacao',
         )
-        client._regime_especial = config.regime_especial_tributacao or '0'
-        client._optante_simples = config.optante_simples_nacional
-        client._incentivador_cultural = config.incentivador_cultural
 
-        serie_rps = (config.serie_rps or 'E').strip()
-
-        # Emitir — usar override de CNAE/serviço se informado no request
         codigo_cnae_req = (data.get('codigo_cnae') or '').strip()
         codigo_servico_req = (data.get('codigo_servico') or '').strip()
 
         resultado = client.emitir_nfse(
+            numero_dps=numero_dps,
+            serie_dps=config.nacional_serie_dps or '900',
+            codigo_municipio_prestador=config.nacional_codigo_municipio,
             prestador_cnpj=config.prestador_cnpj,
-            prestador_inscricao_municipal=config.prestador_inscricao_municipal,
-            prestador_razao_social=config.prestador_razao_social,
+            prestador_inscricao_municipal=config.prestador_inscricao_municipal or '',
+            prestador_razao_social=config.prestador_razao_social or '',
+            prestador_email=config.prestador_email or '',
             tomador_cpf_cnpj=tomador_cpf_cnpj,
             tomador_nome=tomador_nome,
             tomador_endereco=tomador_endereco,
-            servico_codigo=codigo_servico_req or config.codigo_servico_municipal or '1401',
-            servico_descricao=descricao,
+            tomador_email=tomador_email,
+            codigo_servico=codigo_servico_req or config.codigo_servico_municipal or '14.01',
+            descricao_servico=descricao,
+            codigo_cnae=codigo_cnae_req or (config.codigo_cnae or '').strip() or '',
+            codigo_municipio_incidencia=config.nacional_codigo_municipio,
             valor_servicos=valor,
             aliquota_iss=config.aliquota_iss,
-            numero_rps=numero_rps,
-            serie_rps=serie_rps,
-            codigo_cnae=codigo_cnae_req or (config.codigo_cnae or '').strip() or None,
-        )
-
-        # Salvar registro
-        aliquota = Decimal(str(config.aliquota_iss))
-        valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
-
-        nfse_obj = NFSeEmitida.objects.create(
-            loja=loja,
-            pagamento=None,
-            numero_nf=resultado.get('numero_nf', ''),
-            codigo_verificacao=resultado.get('codigo_verificacao', ''),
-            numero_rps=resultado.get('numero_rps', numero_rps),
-            serie_rps=serie_rps,
-            provedor='issnet',
-            status='emitida' if resultado.get('success') else 'erro',
-            valor=valor,
-            aliquota_iss=aliquota,
-            valor_iss=valor_iss,
-            tomador_nome=tomador_nome,
-            tomador_cpf_cnpj=tomador_cpf_cnpj,
-            tomador_email=tomador_email,
-            descricao_servico=descricao[:500],
-            xml_nfse=resultado.get('xml_nfse', ''),
-            data_emissao=resultado.get('data_emissao'),
-            erro_mensagem=resultado.get('error', '') if not resultado.get('success') else '',
+            iss_retido=False,
+            optante_simples_nacional=config.optante_simples_nacional,
+            incentivador_cultural=config.incentivador_cultural,
         )
 
         if resultado.get('success'):
-            # Enviar email se solicitado
-            enviar_email = data.get('enviar_email', True)
-            if enviar_email and tomador_email:
-                _enviar_email_nfse_manual(config, tomador_email, tomador_nome, resultado, valor, descricao)
+            # Salvar registro
+            aliquota = Decimal(str(config.aliquota_iss))
+            valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
+
+            nfse_obj = NFSeEmitida.objects.create(
+                loja=loja,
+                pagamento=None,
+                numero_nf=resultado.get('chave_acesso', ''),
+                codigo_verificacao=resultado.get('nsu_recepcao', ''),
+                numero_rps=numero_dps,
+                serie_rps=config.nacional_serie_dps or '900',
+                provedor='nacional',
+                status='emitida',
+                valor=valor,
+                aliquota_iss=aliquota,
+                valor_iss=valor_iss,
+                tomador_nome=tomador_nome,
+                tomador_cpf_cnpj=tomador_cpf_cnpj,
+                tomador_email=tomador_email,
+                descricao_servico=descricao[:500],
+                xml_nfse=resultado.get('xml_dps', ''),
+                xml_dps_assinado=resultado.get('xml_dps', ''),
+                resposta_adn=resultado.get('resposta_adn_raw', ''),
+            )
 
             return Response({
                 'success': True,
-                'message': f'NFS-e {resultado.get("numero_nf", "")} emitida com sucesso!',
-                'numero_nf': resultado.get('numero_nf', ''),
-                'id': nfse_obj.id,
+                'message': f'NFS-e emitida com sucesso! Chave: {resultado.get("chave_acesso", "")}',
+                'numero_nf': resultado.get('chave_acesso', ''),
+                'nfse_id': nfse_obj.id,
             })
         else:
+            error_msg = resultado.get('error', 'Erro desconhecido')
+
+            # Salvar registro com erro para debug (XML assinado + resposta ADN)
+            nfse_obj = NFSeEmitida.objects.create(
+                loja=loja,
+                pagamento=None,
+                numero_nf='',
+                numero_rps=numero_dps,
+                serie_rps=config.nacional_serie_dps or '900',
+                provedor='nacional',
+                status='erro',
+                valor=valor,
+                aliquota_iss=Decimal(str(config.aliquota_iss)),
+                valor_iss=Decimal('0'),
+                tomador_nome=tomador_nome,
+                tomador_cpf_cnpj=tomador_cpf_cnpj,
+                tomador_email=tomador_email,
+                descricao_servico=descricao[:500],
+                xml_dps_assinado=resultado.get('xml_dps', '') or '',
+                resposta_adn=resultado.get('resposta_adn_raw', '') or '',
+                erro_mensagem=error_msg[:2000],
+            )
+
             return Response({
                 'success': False,
-                'error': resultado.get('error', 'Erro desconhecido ao emitir NFS-e'),
-                'id': nfse_obj.id,
+                'error': error_msg,
+                'nfse_id': nfse_obj.id,
+                'debug_info': 'XML assinado e resposta ADN salvos no registro para análise',
             }, status=400)
 
     except Exception as e:
-        logger.exception('Erro ao emitir NFS-e manual: %s', e)
+        logger.exception('Erro ao emitir NFS-e manual via Nacional: %s', e)
         return Response({'success': False, 'error': str(e)}, status=500)
-    finally:
-        if cert_path:
-            try:
-                os.unlink(cert_path)
-            except OSError:
-                pass
-
 
 def _enviar_email_nfse_manual(config, tomador_email, tomador_nome, resultado, valor, descricao):
     """Envia email com a NFS-e emitida manualmente."""

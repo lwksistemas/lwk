@@ -1,11 +1,10 @@
 """
 Views para configuração de NFS-e do Superadmin.
 GET/PATCH /api/superadmin/nfse-config/
-POST /api/superadmin/nfse-config/test-issnet/
+POST /api/superadmin/nfse-config/test-nacional/
 """
 import os
 import logging
-import tempfile
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -32,19 +31,20 @@ def nfse_config_view(request):
             'prestador_inscricao_municipal': config.prestador_inscricao_municipal,
             'prestador_email': config.prestador_email,
             'regime_especial_tributacao': config.regime_especial_tributacao,
-            'issnet_usuario': config.issnet_usuario,
-            'issnet_senha_set': bool(config.issnet_senha),
-            'issnet_certificado_nome': config.issnet_certificado_nome,
-            'issnet_certificado_set': bool(config.issnet_certificado),
-            'issnet_senha_certificado_set': bool(config.issnet_senha_certificado),
             'codigo_servico_municipal': config.codigo_servico_municipal,
             'descricao_servico_padrao': config.descricao_servico_padrao,
             'aliquota_iss': str(config.aliquota_iss),
             'codigo_cnae': config.codigo_cnae,
             'optante_simples_nacional': config.optante_simples_nacional,
             'incentivador_cultural': config.incentivador_cultural,
-            'serie_rps': config.serie_rps,
-            'ultimo_rps': config.ultimo_rps,
+            # Nacional
+            'nacional_certificado_nome': config.nacional_certificado_nome,
+            'nacional_certificado_set': bool(config.nacional_certificado),
+            'nacional_senha_certificado_set': bool(config.nacional_senha_certificado),
+            'nacional_ambiente': config.nacional_ambiente,
+            'nacional_codigo_municipio': config.nacional_codigo_municipio,
+            'nacional_serie_dps': config.nacional_serie_dps,
+            'nacional_ultimo_dps': config.nacional_ultimo_dps,
         })
 
     # PATCH
@@ -56,16 +56,17 @@ def nfse_config_view(request):
         'provedor_nfse', 'emitir_automaticamente', 'prestador_cnpj',
         'prestador_razao_social', 'prestador_inscricao_municipal',
         'prestador_email', 'regime_especial_tributacao',
-        'issnet_usuario', 'codigo_servico_municipal', 'descricao_servico_padrao',
+        'codigo_servico_municipal', 'descricao_servico_padrao',
         'codigo_cnae', 'optante_simples_nacional', 'incentivador_cultural',
-        'serie_rps', 'ultimo_rps',
+        'nacional_ambiente', 'nacional_codigo_municipio',
+        'nacional_serie_dps', 'nacional_ultimo_dps',
     ]
     for field in simple_fields:
         if field in data:
             val = data[field]
-            if field == 'emitir_automaticamente' or field == 'optante_simples_nacional' or field == 'incentivador_cultural':
+            if field in ('emitir_automaticamente', 'optante_simples_nacional', 'incentivador_cultural'):
                 val = bool(val)
-            elif field == 'ultimo_rps':
+            elif field == 'nacional_ultimo_dps':
                 val = int(val) if val else 0
             setattr(config, field, val)
             update_fields.append(field)
@@ -76,27 +77,22 @@ def nfse_config_view(request):
         config.aliquota_iss = Decimal(str(data['aliquota_iss']))
         update_fields.append('aliquota_iss')
 
-    # Senha ISSNet (só atualiza se enviada)
-    if data.get('issnet_senha'):
-        config.issnet_senha = data['issnet_senha']
-        update_fields.append('issnet_senha')
-
-    # Senha certificado
-    if data.get('issnet_senha_certificado'):
-        config.issnet_senha_certificado = data['issnet_senha_certificado']
-        update_fields.append('issnet_senha_certificado')
-
-    # Certificado (upload via multipart)
-    cert_file = request.FILES.get('issnet_certificado')
+    # Certificado Nacional (upload via multipart)
+    cert_file = request.FILES.get('nacional_certificado')
     if cert_file:
         ext = os.path.splitext(cert_file.name)[1].lower()
         if ext not in ('.pfx', '.p12'):
             return Response({'error': 'Formato inválido. Envie .pfx ou .p12'}, status=status.HTTP_400_BAD_REQUEST)
         if cert_file.size > 5 * 1024 * 1024:
             return Response({'error': 'Certificado muito grande (máx 5MB)'}, status=status.HTTP_400_BAD_REQUEST)
-        config.issnet_certificado = cert_file.read()
-        config.issnet_certificado_nome = cert_file.name[:255]
-        update_fields.extend(['issnet_certificado', 'issnet_certificado_nome'])
+        config.nacional_certificado = cert_file.read()
+        config.nacional_certificado_nome = cert_file.name[:255]
+        update_fields.extend(['nacional_certificado', 'nacional_certificado_nome'])
+
+    # Senha certificado Nacional
+    if data.get('nacional_senha_certificado'):
+        config.nacional_senha_certificado = data['nacional_senha_certificado']
+        update_fields.append('nacional_senha_certificado')
 
     config.save(update_fields=update_fields)
 
@@ -105,52 +101,50 @@ def nfse_config_view(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdminUser])
-def nfse_config_test_issnet(request):
-    """Testa conexão com ISSNet usando certificado configurado."""
+def nfse_config_test_nacional(request):
+    """Testa conexão com ADN Nacional usando certificado configurado."""
     from .models_nfse_config import SuperadminNFSeConfig
 
     config = SuperadminNFSeConfig.get_config()
 
-    if not config.issnet_usuario:
-        return Response({'success': False, 'detail': 'Usuário ISSNet não configurado'}, status=400)
-    if not config.issnet_senha:
-        return Response({'success': False, 'detail': 'Senha ISSNet não configurada'}, status=400)
-    if not config.issnet_certificado:
-        return Response({'success': False, 'detail': 'Certificado não configurado'}, status=400)
-    if not config.issnet_senha_certificado:
-        return Response({'success': False, 'detail': 'Senha do certificado não configurada'}, status=400)
+    if not config.nacional_certificado:
+        return Response({'success': False, 'detail': 'Certificado Nacional não configurado'}, status=400)
+    if not config.nacional_senha_certificado:
+        return Response({'success': False, 'detail': 'Senha do certificado Nacional não configurada'}, status=400)
 
-    cert_path = None
     try:
-        from nfse_integration.issnet_client import testar_conexao_issnet
+        from nfse_integration.nacional import NacionalClient
 
-        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
-        cert_tmp.write(bytes(config.issnet_certificado))
-        cert_tmp.close()
-        cert_path = cert_tmp.name
-
-        resultado = testar_conexao_issnet(
-            usuario=config.issnet_usuario,
-            senha=config.issnet_senha,
-            certificado_path=cert_path,
-            senha_certificado=config.issnet_senha_certificado,
-            ambiente='producao',
+        client = NacionalClient(
+            pfx_bytes=bytes(config.nacional_certificado),
+            senha_pfx=config.nacional_senha_certificado,
+            ambiente=config.nacional_ambiente or 'homologacao',
         )
 
+        resultado = client.testar_conexao()
+
         if resultado.get('success'):
+            cert_info = {}
+            try:
+                from nfse_integration.nacional.xml_signer import carregar_certificado_bytes
+                _, cert_obj, _ = carregar_certificado_bytes(
+                    bytes(config.nacional_certificado),
+                    config.nacional_senha_certificado,
+                )
+                cert_info['subject'] = cert_obj.subject.rfc4514_string()[:300]
+                cert_info['valid_to'] = cert_obj.not_valid_after_utc.isoformat()
+            except Exception:
+                pass
+
             return Response({
                 'success': True,
-                'message': resultado.get('message', 'Conexão ISSNet OK'),
-                'certificado_subject': resultado.get('certificado_subject'),
+                'message': resultado.get('message', 'Conexão ADN Nacional OK'),
+                'certificado_subject': cert_info.get('subject', ''),
+                'certificado_validade': cert_info.get('valid_to', ''),
+                'ambiente': config.nacional_ambiente,
             })
         return Response({'success': False, 'detail': resultado.get('detail', 'Falha no teste')}, status=400)
 
     except Exception as e:
-        logger.exception('Erro ao testar ISSNet superadmin: %s', e)
+        logger.exception('Erro ao testar Nacional superadmin: %s', e)
         return Response({'success': False, 'detail': str(e)}, status=400)
-    finally:
-        if cert_path:
-            try:
-                os.unlink(cert_path)
-            except OSError:
-                pass

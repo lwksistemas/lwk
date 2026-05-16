@@ -15,7 +15,7 @@ interface NFSeEmitida {
   codigo_verificacao: string
   numero_rps: number
   serie_rps: string
-  provedor: 'issnet' | 'asaas'
+  provedor: 'nacional' | 'issnet' | 'asaas'
   status: 'emitida' | 'cancelada' | 'erro' | 'pendente'
   valor: string
   aliquota_iss: string
@@ -109,10 +109,10 @@ export default function NFSeEmitidasPage() {
     if (nf.pdf_url) {
       window.open(nf.pdf_url, '_blank')
     } else if (nf.numero_nf && nf.codigo_verificacao) {
-      // URL pública de consulta ISSNet Ribeirão Preto
-      window.open('https://www.issnetonline.com.br/ribeiraopreto/online', '_blank')
+      // Consulta no portal nacional
+      window.open('https://www.nfse.gov.br/ConsultaPublica/', '_blank')
     } else {
-      setMessage({ type: 'error', text: 'PDF não disponível. Consulte no portal ISSNet.' })
+      setMessage({ type: 'error', text: 'PDF não disponível.' })
     }
   }
 
@@ -266,7 +266,7 @@ export default function NFSeEmitidasPage() {
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary" className="text-xs">
-                          {nf.provedor === 'issnet' ? '🏛️ ISSNet' : '🔵 Asaas'}
+                          {nf.provedor === 'nacional' ? '🇧🇷 Nacional' : nf.provedor === 'issnet' ? '🏛️ ISSNet' : '🔵 Asaas'}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 space-x-1">

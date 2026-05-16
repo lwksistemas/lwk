@@ -77,7 +77,7 @@ const MENU_CARDS: MenuCardProps[] = [
   },
   {
     title: 'Configuração NFS-e',
-    description: 'Certificado digital, ISSNet e emissão de notas fiscais',
+    description: 'Certificado digital e emissão de notas fiscais (Nacional)',
     icon: '🧾',
     href: '/superadmin/nfse-config',
     color: 'teal',

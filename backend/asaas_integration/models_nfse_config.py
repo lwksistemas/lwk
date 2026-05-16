@@ -1,6 +1,6 @@
 """
 Configuração de NFS-e do Superadmin (emissão de notas para assinaturas das lojas).
-Permite escolher entre emitir via Asaas (intermediário) ou ISSNet direto.
+Provedor: Nacional (ADN - Padrão Nacional NFS-e).
 """
 from django.db import models
 
@@ -17,14 +17,13 @@ class SuperadminNFSeConfig(models.Model):
 
     # Provedor de emissão
     PROVEDOR_CHOICES = [
-        ('asaas', 'Asaas (Intermediário - emite via Asaas)'),
-        ('issnet', 'ISSNet Ribeirão Preto (Direto - sem taxa)'),
+        ('nacional', 'Nacional (ADN - Padrão Nacional NFS-e)'),
         ('desabilitado', 'Desabilitado (não emite NFS-e)'),
     ]
     provedor_nfse = models.CharField(
         max_length=20,
         choices=PROVEDOR_CHOICES,
-        default='asaas',
+        default='nacional',
         verbose_name='Provedor de NFS-e',
         help_text='Como emitir notas fiscais das assinaturas das lojas'
     )
@@ -70,35 +69,20 @@ class SuperadminNFSeConfig(models.Model):
         max_length=2, blank=True, default='',
         choices=REGIME_ESPECIAL_CHOICES,
         verbose_name='Regime Especial de Tributação',
-        help_text='Identifica o regime de tributação da empresa. Simples Nacional geralmente usa Microempresa Municipal.'
+        help_text='Identifica o regime de tributação da empresa.'
     )
 
-    # === Configurações ISSNet (quando provedor = issnet) ===
-    issnet_usuario = models.CharField(
-        max_length=500, blank=True,
-        verbose_name='Usuário ISSNet',
-    )
-    issnet_senha = models.CharField(
-        max_length=500, blank=True,
-        verbose_name='Senha ISSNet',
-    )
-    issnet_certificado = models.BinaryField(
-        blank=True, null=True,
-        verbose_name='Certificado Digital A1 (.pfx)',
-    )
-    issnet_certificado_nome = models.CharField(
-        max_length=255, blank=True,
-        verbose_name='Nome do arquivo .pfx',
-    )
-    issnet_senha_certificado = models.CharField(
-        max_length=500, blank=True,
-        verbose_name='Senha do Certificado',
-    )
+    # === Campos ISSNet legados (mantidos no banco, não usados) ===
+    issnet_usuario = models.CharField(max_length=500, blank=True)
+    issnet_senha = models.CharField(max_length=500, blank=True)
+    issnet_certificado = models.BinaryField(blank=True, null=True)
+    issnet_certificado_nome = models.CharField(max_length=255, blank=True)
+    issnet_senha_certificado = models.CharField(max_length=500, blank=True)
 
     # === Dados fiscais ===
     codigo_servico_municipal = models.CharField(
         max_length=10, default='1401', blank=True,
-        verbose_name='Código do Serviço Municipal',
+        verbose_name='Código do Serviço (LC 116)',
     )
     descricao_servico_padrao = models.TextField(
         default='Licenciamento de uso de software SaaS',
@@ -120,19 +104,46 @@ class SuperadminNFSeConfig(models.Model):
     incentivador_cultural = models.BooleanField(
         default=False,
         verbose_name='Incentivador Cultural',
-        help_text='Se a empresa é incentivadora cultural'
     )
 
-    # === Controle de RPS ===
-    serie_rps = models.CharField(
-        max_length=10, default='E', blank=True,
-        verbose_name='Série do RPS',
+    # === Configurações Nacional (ADN) ===
+    nacional_certificado = models.BinaryField(
+        blank=True, null=True,
+        verbose_name='Certificado Digital A1 (.pfx)',
     )
-    ultimo_rps = models.IntegerField(
+    nacional_certificado_nome = models.CharField(
+        max_length=255, blank=True,
+        verbose_name='Nome do arquivo .pfx',
+    )
+    nacional_senha_certificado = models.CharField(
+        max_length=500, blank=True,
+        verbose_name='Senha do Certificado',
+    )
+    nacional_ambiente = models.CharField(
+        max_length=20, default='homologacao', blank=True,
+        choices=[('homologacao', 'Homologação'), ('producao', 'Produção')],
+        verbose_name='Ambiente',
+        help_text='Homologação para testes, Produção para emissão real'
+    )
+    nacional_codigo_municipio = models.CharField(
+        max_length=7, blank=True,
+        verbose_name='Código IBGE do Município',
+        help_text='Código IBGE de 7 dígitos do município do prestador'
+    )
+    nacional_serie_dps = models.CharField(
+        max_length=5, default='900', blank=True,
+        verbose_name='Série da DPS',
+        help_text='Série da DPS (padrão: 900 para emissão própria)'
+    )
+    nacional_ultimo_dps = models.IntegerField(
         default=0,
-        verbose_name='Último RPS emitido',
+        verbose_name='Último nº DPS emitido',
         help_text='Próxima emissão usará este + 1'
     )
+
+    # === Controle de RPS (legado) ===
+    serie_rps = models.CharField(max_length=10, default='E', blank=True)
+    ultimo_rps = models.IntegerField(default=0)
 
     # Metadados
     created_at = models.DateTimeField(auto_now_add=True)
@@ -151,31 +162,18 @@ class SuperadminNFSeConfig(models.Model):
         """Obtém ou cria configuração singleton."""
         obj, _ = cls.objects.using('default').get_or_create(
             singleton_key='config',
-            defaults={'provedor_nfse': 'asaas'}
+            defaults={'provedor_nfse': 'nacional'}
         )
         return obj
 
-    def proximo_rps(self) -> int:
-        """Retorna e incrementa o próximo número de RPS."""
-        self.ultimo_rps += 1
-        self.save(update_fields=['ultimo_rps', 'updated_at'])
-        return self.ultimo_rps
-
-    # === Propriedades para descriptografia transparente ===
-    @property
-    def issnet_usuario_decrypted(self) -> str:
-        """Retorna usuário ISSNet descriptografado."""
-        from core.encryption import decrypt_value
-        return decrypt_value(self.issnet_usuario)
+    def proximo_dps(self) -> int:
+        """Retorna e incrementa o próximo número de DPS."""
+        self.nacional_ultimo_dps += 1
+        self.save(update_fields=['nacional_ultimo_dps', 'updated_at'])
+        return self.nacional_ultimo_dps
 
     @property
-    def issnet_senha_decrypted(self) -> str:
-        """Retorna senha ISSNet descriptografada."""
+    def nacional_senha_certificado_decrypted(self) -> str:
+        """Retorna senha do certificado Nacional descriptografada."""
         from core.encryption import decrypt_value
-        return decrypt_value(self.issnet_senha)
-
-    @property
-    def issnet_senha_certificado_decrypted(self) -> str:
-        """Retorna senha do certificado descriptografada."""
-        from core.encryption import decrypt_value
-        return decrypt_value(self.issnet_senha_certificado)
+        return decrypt_value(self.nacional_senha_certificado)

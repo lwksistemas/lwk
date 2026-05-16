@@ -682,6 +682,7 @@ class NFSeEmitida(models.Model):
     PROVEDOR_CHOICES = [
         ('issnet', 'ISSNet (Direto)'),
         ('asaas', 'Asaas (Intermediário)'),
+        ('nacional', 'Nacional (ADN)'),
     ]
     provedor = models.CharField(max_length=20, choices=PROVEDOR_CHOICES, default='issnet')
 
@@ -709,6 +710,16 @@ class NFSeEmitida(models.Model):
 
     # XML e PDF
     xml_nfse = models.TextField(blank=True, verbose_name='XML da NFS-e')
+    xml_dps_assinado = models.TextField(
+        blank=True,
+        verbose_name='XML DPS Assinado (debug)',
+        help_text='XML completo assinado enviado ao ADN — para validação manual'
+    )
+    resposta_adn = models.TextField(
+        blank=True,
+        verbose_name='Resposta ADN (debug)',
+        help_text='Resposta JSON completa retornada pelo ADN — para diagnóstico'
+    )
     pdf_url = models.URLField(blank=True, verbose_name='URL do PDF')
 
     # Asaas (quando emitido via Asaas)

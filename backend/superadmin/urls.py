@@ -81,6 +81,7 @@ urlpatterns = [
     path('nfse-emitidas/emitir-manual/', nfse_views.emitir_nfse_manual, name='nfse-emitir-manual'),
     path('nfse-emitidas/lojas/', nfse_views.listar_lojas_para_nfse, name='nfse-lojas'),
     path('nfse-emitidas/<int:nfse_id>/xml/', nfse_views.nfse_xml, name='nfse-xml'),
+    path('nfse-emitidas/<int:nfse_id>/debug/', nfse_views.nfse_debug, name='nfse-debug'),
     path('nfse-emitidas/<int:nfse_id>/cancelar/', nfse_views.nfse_cancelar, name='nfse-cancelar'),
     path('nfse-emitidas/<int:nfse_id>/reenviar/', nfse_views.nfse_reenviar, name='nfse-reenviar'),
     path('nfse-emitidas/<int:nfse_id>/excluir/', nfse_views.nfse_excluir, name='nfse-excluir'),

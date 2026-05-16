@@ -358,118 +358,206 @@ def emitir_nfse_manual(request):
     if config.provedor_nfse == 'desabilitado':
         return Response({'success': False, 'error': 'Emissão de NFS-e está desabilitada nas configurações'}, status=400)
 
-    if not config.nacional_certificado:
+    # Validações comuns
+    if not (config.nacional_certificado or config.issnet_certificado):
         return Response({'success': False, 'error': 'Certificado digital não configurado'}, status=400)
-    if not config.nacional_senha_certificado:
-        return Response({'success': False, 'error': 'Senha do certificado não configurada'}, status=400)
     if not config.prestador_cnpj:
         return Response({'success': False, 'error': 'CNPJ do prestador não configurado'}, status=400)
-    if not config.nacional_codigo_municipio:
-        return Response({'success': False, 'error': 'Código IBGE do município não configurado'}, status=400)
 
     try:
-        from nfse_integration.nacional import NacionalClient
-
-        numero_dps = config.proximo_dps()
-
-        client = NacionalClient(
-            pfx_bytes=bytes(config.nacional_certificado),
-            senha_pfx=config.nacional_senha_certificado,
-            ambiente=config.nacional_ambiente or 'homologacao',
-        )
-
         codigo_cnae_req = (data.get('codigo_cnae') or '').strip()
         codigo_servico_req = (data.get('codigo_servico') or '').strip()
 
-        resultado = client.emitir_nfse(
-            numero_dps=numero_dps,
-            serie_dps=config.nacional_serie_dps or '900',
-            codigo_municipio_prestador=config.nacional_codigo_municipio,
-            prestador_cnpj=config.prestador_cnpj,
-            prestador_inscricao_municipal=config.prestador_inscricao_municipal or '',
-            prestador_razao_social=config.prestador_razao_social or '',
-            prestador_email=config.prestador_email or '',
-            tomador_cpf_cnpj=tomador_cpf_cnpj,
-            tomador_nome=tomador_nome,
-            tomador_endereco=tomador_endereco,
-            tomador_email=tomador_email,
-            codigo_servico=codigo_servico_req or config.codigo_servico_municipal or '14.01',
-            descricao_servico=descricao,
-            codigo_cnae=codigo_cnae_req or (config.codigo_cnae or '').strip() or '',
-            codigo_municipio_incidencia=config.nacional_codigo_municipio,
-            valor_servicos=valor,
-            aliquota_iss=config.aliquota_iss,
-            iss_retido=False,
-            optante_simples_nacional=config.optante_simples_nacional,
-            incentivador_cultural=config.incentivador_cultural,
-        )
-
-        if resultado.get('success'):
-            # Salvar registro
-            aliquota = Decimal(str(config.aliquota_iss))
-            valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
-
-            nfse_obj = NFSeEmitida.objects.create(
-                loja=loja,
-                pagamento=None,
-                numero_nf=resultado.get('chave_acesso', ''),
-                codigo_verificacao=resultado.get('nsu_recepcao', ''),
-                numero_rps=numero_dps,
-                serie_rps=config.nacional_serie_dps or '900',
-                provedor='nacional',
-                status='emitida',
-                valor=valor,
-                aliquota_iss=aliquota,
-                valor_iss=valor_iss,
-                tomador_nome=tomador_nome,
-                tomador_cpf_cnpj=tomador_cpf_cnpj,
-                tomador_email=tomador_email,
-                descricao_servico=descricao[:500],
-                xml_nfse=resultado.get('xml_dps', ''),
-                xml_dps_assinado=resultado.get('xml_dps', ''),
-                resposta_adn=resultado.get('resposta_adn_raw', ''),
-            )
-
-            return Response({
-                'success': True,
-                'message': f'NFS-e emitida com sucesso! Chave: {resultado.get("chave_acesso", "")}',
-                'numero_nf': resultado.get('chave_acesso', ''),
-                'nfse_id': nfse_obj.id,
-            })
+        # === ROTEAMENTO POR PROVEDOR ===
+        if config.provedor_nfse == 'issnet':
+            return _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor, codigo_cnae_req, codigo_servico_req)
         else:
-            error_msg = resultado.get('error', 'Erro desconhecido')
-
-            # Salvar registro com erro para debug (XML assinado + resposta ADN)
-            nfse_obj = NFSeEmitida.objects.create(
-                loja=loja,
-                pagamento=None,
-                numero_nf='',
-                numero_rps=numero_dps,
-                serie_rps=config.nacional_serie_dps or '900',
-                provedor='nacional',
-                status='erro',
-                valor=valor,
-                aliquota_iss=Decimal(str(config.aliquota_iss)),
-                valor_iss=Decimal('0'),
-                tomador_nome=tomador_nome,
-                tomador_cpf_cnpj=tomador_cpf_cnpj,
-                tomador_email=tomador_email,
-                descricao_servico=descricao[:500],
-                xml_dps_assinado=resultado.get('xml_dps', '') or '',
-                resposta_adn=resultado.get('resposta_adn_raw', '') or '',
-                erro_mensagem=error_msg[:2000],
-            )
-
-            return Response({
-                'success': False,
-                'error': error_msg,
-                'nfse_id': nfse_obj.id,
-                'debug_info': 'XML assinado e resposta ADN salvos no registro para análise',
-            }, status=400)
+            return _emitir_manual_nacional(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor, codigo_cnae_req, codigo_servico_req)
 
     except Exception as e:
-        logger.exception('Erro ao emitir NFS-e manual via Nacional: %s', e)
+        logger.exception('Erro ao emitir NFS-e manual: %s', e)
         return Response({'success': False, 'error': str(e)}, status=500)
+
+
+def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor, codigo_cnae_req, codigo_servico_req):
+    """Emite NFS-e manual via ISSNet."""
+    import re
+    from nfse_integration.issnet_client import ISSNetClient
+
+    cert_data = config.issnet_certificado or config.nacional_certificado
+    senha_cert = config.issnet_senha_certificado or config.nacional_senha_certificado
+    if not cert_data:
+        return Response({'success': False, 'error': 'Certificado digital não configurado'}, status=400)
+    if not senha_cert:
+        return Response({'success': False, 'error': 'Senha do certificado não configurada'}, status=400)
+
+    cnpj_digits = re.sub(r'\D', '', config.prestador_cnpj)
+    im = config.prestador_inscricao_municipal or ''
+
+    config.ultimo_rps += 1
+    config.save(update_fields=['ultimo_rps', 'updated_at'])
+    numero_rps = config.ultimo_rps
+
+    client = ISSNetClient(
+        pfx_bytes=bytes(cert_data),
+        senha_pfx=senha_cert,
+        cnpj_prestador=cnpj_digits,
+        inscricao_municipal=im,
+        usuario=config.issnet_usuario or '',
+        senha=config.issnet_senha or '',
+    )
+
+    resultado = client.emitir_nfse(
+        numero_rps=numero_rps,
+        serie_rps=config.serie_rps or 'E',
+        tomador_cpf_cnpj=tomador_cpf_cnpj,
+        tomador_nome=tomador_nome,
+        tomador_email=tomador_email,
+        tomador_endereco=tomador_endereco,
+        servico_descricao=descricao,
+        valor_servicos=float(valor),
+        aliquota_iss=float(config.aliquota_iss),
+        codigo_servico=codigo_servico_req or config.codigo_servico_municipal or '1401',
+        codigo_cnae=codigo_cnae_req or (config.codigo_cnae or '').strip(),
+        optante_simples=config.optante_simples_nacional,
+    )
+
+    if resultado.get('success'):
+        aliquota = Decimal(str(config.aliquota_iss))
+        valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
+
+        nfse_obj = NFSeEmitida.objects.create(
+            loja=loja,
+            pagamento=None,
+            numero_nf=resultado.get('numero_nf', ''),
+            codigo_verificacao=resultado.get('codigo_verificacao', ''),
+            numero_rps=numero_rps,
+            serie_rps=config.serie_rps or 'E',
+            provedor='issnet',
+            status='emitida',
+            valor=valor,
+            aliquota_iss=aliquota,
+            valor_iss=valor_iss,
+            tomador_nome=tomador_nome,
+            tomador_cpf_cnpj=tomador_cpf_cnpj,
+            tomador_email=tomador_email,
+            descricao_servico=descricao[:500],
+            xml_nfse=resultado.get('xml_nfse', ''),
+        )
+
+        return Response({
+            'success': True,
+            'message': f'NFS-e emitida com sucesso! Nº {resultado.get("numero_nf", "")}',
+            'numero_nf': resultado.get('numero_nf', ''),
+            'nfse_id': nfse_obj.id,
+        })
+    else:
+        error_msg = resultado.get('error', 'Erro desconhecido ISSNet')
+        return Response({'success': False, 'error': error_msg}, status=400)
+
+
+def _emitir_manual_nacional(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor, codigo_cnae_req, codigo_servico_req):
+    """Emite NFS-e manual via ADN Nacional."""
+    from nfse_integration.nacional import NacionalClient
+
+    if not config.nacional_certificado:
+        return Response({'success': False, 'error': 'Certificado digital Nacional não configurado'}, status=400)
+    if not config.nacional_senha_certificado:
+        return Response({'success': False, 'error': 'Senha do certificado Nacional não configurada'}, status=400)
+    if not config.nacional_codigo_municipio:
+        return Response({'success': False, 'error': 'Código IBGE do município não configurado'}, status=400)
+
+    numero_dps = config.proximo_dps()
+
+    client = NacionalClient(
+        pfx_bytes=bytes(config.nacional_certificado),
+        senha_pfx=config.nacional_senha_certificado,
+        ambiente=config.nacional_ambiente or 'homologacao',
+    )
+
+    resultado = client.emitir_nfse(
+        numero_dps=numero_dps,
+        serie_dps=config.nacional_serie_dps or '1',
+        codigo_municipio_prestador=config.nacional_codigo_municipio,
+        prestador_cnpj=config.prestador_cnpj,
+        prestador_inscricao_municipal=config.prestador_inscricao_municipal or '',
+        prestador_razao_social=config.prestador_razao_social or '',
+        prestador_email=config.prestador_email or '',
+        tomador_cpf_cnpj=tomador_cpf_cnpj,
+        tomador_nome=tomador_nome,
+        tomador_endereco=tomador_endereco,
+        tomador_email=tomador_email,
+        codigo_servico=codigo_servico_req or config.codigo_servico_municipal or '14.01',
+        descricao_servico=descricao,
+        codigo_cnae=codigo_cnae_req or (config.codigo_cnae or '').strip() or '',
+        codigo_municipio_incidencia=config.nacional_codigo_municipio,
+        valor_servicos=valor,
+        aliquota_iss=config.aliquota_iss,
+        iss_retido=False,
+        optante_simples_nacional=config.optante_simples_nacional,
+        incentivador_cultural=config.incentivador_cultural,
+    )
+
+    if resultado.get('success'):
+        aliquota = Decimal(str(config.aliquota_iss))
+        valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
+
+        nfse_obj = NFSeEmitida.objects.create(
+            loja=loja,
+            pagamento=None,
+            numero_nf=resultado.get('chave_acesso', ''),
+            codigo_verificacao=resultado.get('nsu_recepcao', ''),
+            numero_rps=numero_dps,
+            serie_rps=config.nacional_serie_dps or '1',
+            provedor='nacional',
+            status='emitida',
+            valor=valor,
+            aliquota_iss=aliquota,
+            valor_iss=valor_iss,
+            tomador_nome=tomador_nome,
+            tomador_cpf_cnpj=tomador_cpf_cnpj,
+            tomador_email=tomador_email,
+            descricao_servico=descricao[:500],
+            xml_nfse=resultado.get('xml_dps', ''),
+            xml_dps_assinado=resultado.get('xml_dps', ''),
+            resposta_adn=resultado.get('resposta_adn_raw', ''),
+        )
+
+        return Response({
+            'success': True,
+            'message': f'NFS-e emitida com sucesso! Chave: {resultado.get("chave_acesso", "")}',
+            'numero_nf': resultado.get('chave_acesso', ''),
+            'nfse_id': nfse_obj.id,
+        })
+    else:
+        error_msg = resultado.get('error', 'Erro desconhecido')
+
+        nfse_obj = NFSeEmitida.objects.create(
+            loja=loja,
+            pagamento=None,
+            numero_nf='',
+            numero_rps=numero_dps,
+            serie_rps=config.nacional_serie_dps or '1',
+            provedor='nacional',
+            status='erro',
+            valor=valor,
+            aliquota_iss=Decimal(str(config.aliquota_iss)),
+            valor_iss=Decimal('0'),
+            tomador_nome=tomador_nome,
+            tomador_cpf_cnpj=tomador_cpf_cnpj,
+            tomador_email=tomador_email,
+            descricao_servico=descricao[:500],
+            xml_dps_assinado=resultado.get('xml_dps', '') or '',
+            resposta_adn=resultado.get('resposta_adn_raw', '') or '',
+            erro_mensagem=error_msg[:2000],
+        )
+
+        return Response({
+            'success': False,
+            'error': error_msg,
+            'nfse_id': nfse_obj.id,
+            'debug_info': 'XML assinado e resposta ADN salvos no registro para análise',
+        }, status=400)
 
 def _enviar_email_nfse_manual(config, tomador_email, tomador_nome, resultado, valor, descricao):
     """Envia email com a NFS-e emitida manualmente."""

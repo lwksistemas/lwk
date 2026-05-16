@@ -380,9 +380,10 @@ def emitir_nfse_manual(request):
 
 
 def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor, codigo_cnae_req, codigo_servico_req):
-    """Emite NFS-e manual via ISSNet."""
-    import re
-    from nfse_integration.issnet_client import ISSNetClient
+    """Emite NFS-e manual via ISSNet Nacional (WebService padrão nacional)."""
+    from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
+    from nfse_integration.nacional.xml_builder import construir_xml_dps
+    from nfse_integration.nacional.xml_signer import assinar_xml_dps_bytes
 
     cert_data = config.issnet_certificado or config.nacional_certificado
     senha_cert = config.issnet_senha_certificado or config.nacional_senha_certificado
@@ -391,36 +392,49 @@ def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_
     if not senha_cert:
         return Response({'success': False, 'error': 'Senha do certificado não configurada'}, status=400)
 
-    cnpj_digits = re.sub(r'\D', '', config.prestador_cnpj)
-    im = config.prestador_inscricao_municipal or ''
+    import re
+    cnpj_digits = re.sub(r'\D', '', config.prestador_cnpj or '')
+    codigo_municipio = config.nacional_codigo_municipio or '3543402'
 
-    config.ultimo_rps += 1
-    config.save(update_fields=['ultimo_rps', 'updated_at'])
-    numero_rps = config.ultimo_rps
+    # Número DPS
+    numero_dps = config.proximo_dps()
 
-    client = ISSNetClient(
-        pfx_bytes=bytes(cert_data),
-        senha_pfx=senha_cert,
-        cnpj_prestador=cnpj_digits,
-        inscricao_municipal=im,
-        usuario=config.issnet_usuario or '',
-        senha=config.issnet_senha or '',
-    )
-
-    resultado = client.emitir_nfse(
-        numero_rps=numero_rps,
-        serie_rps=config.serie_rps or 'E',
+    # Construir XML DPS (mesmo formato nacional)
+    xml_dps = construir_xml_dps(
+        numero_dps=numero_dps,
+        serie_dps=config.nacional_serie_dps or '1',
+        codigo_municipio_prestador=codigo_municipio,
+        ambiente='producao',
+        prestador_cnpj=config.prestador_cnpj,
+        prestador_inscricao_municipal=config.prestador_inscricao_municipal or '',
+        prestador_razao_social=config.prestador_razao_social or '',
+        prestador_email=config.prestador_email or '',
         tomador_cpf_cnpj=tomador_cpf_cnpj,
         tomador_nome=tomador_nome,
-        tomador_email=tomador_email,
         tomador_endereco=tomador_endereco,
-        servico_descricao=descricao,
-        valor_servicos=float(valor),
-        aliquota_iss=float(config.aliquota_iss),
-        codigo_servico=codigo_servico_req or config.codigo_servico_municipal or '1401',
-        codigo_cnae=codigo_cnae_req or (config.codigo_cnae or '').strip(),
-        optante_simples=config.optante_simples_nacional,
+        tomador_email=tomador_email,
+        codigo_servico=codigo_servico_req or config.codigo_servico_municipal or '14.01',
+        descricao_servico=descricao,
+        codigo_cnae=codigo_cnae_req or (config.codigo_cnae or '').strip() or '',
+        codigo_municipio_incidencia=codigo_municipio,
+        valor_servicos=valor,
+        aliquota_iss=config.aliquota_iss,
+        iss_retido=False,
+        optante_simples_nacional=config.optante_simples_nacional,
+        incentivador_cultural=config.incentivador_cultural,
     )
+
+    # Assinar XML
+    xml_assinado = assinar_xml_dps_bytes(xml_dps, bytes(cert_data), senha_cert)
+
+    # Enviar via SOAP ao ISSNet
+    client = ISSNetNacionalClient(
+        pfx_bytes=bytes(cert_data),
+        senha_pfx=senha_cert,
+        ambiente=config.nacional_ambiente or 'homologacao',
+    )
+
+    resultado = client.emitir_nfse(xml_dps_assinado=xml_assinado)
 
     if resultado.get('success'):
         aliquota = Decimal(str(config.aliquota_iss))
@@ -431,8 +445,8 @@ def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_
             pagamento=None,
             numero_nf=resultado.get('numero_nf', ''),
             codigo_verificacao=resultado.get('codigo_verificacao', ''),
-            numero_rps=numero_rps,
-            serie_rps=config.serie_rps or 'E',
+            numero_rps=numero_dps,
+            serie_rps=config.nacional_serie_dps or '1',
             provedor='issnet',
             status='emitida',
             valor=valor,
@@ -443,6 +457,8 @@ def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_
             tomador_email=tomador_email,
             descricao_servico=descricao[:500],
             xml_nfse=resultado.get('xml_nfse', ''),
+            xml_dps_assinado=xml_assinado,
+            resposta_adn=resultado.get('raw_response', ''),
         )
 
         return Response({
@@ -453,7 +469,33 @@ def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_
         })
     else:
         error_msg = resultado.get('error', 'Erro desconhecido ISSNet')
-        return Response({'success': False, 'error': error_msg}, status=400)
+
+        nfse_obj = NFSeEmitida.objects.create(
+            loja=loja,
+            pagamento=None,
+            numero_nf='',
+            numero_rps=numero_dps,
+            serie_rps=config.nacional_serie_dps or '1',
+            provedor='issnet',
+            status='erro',
+            valor=valor,
+            aliquota_iss=Decimal(str(config.aliquota_iss)),
+            valor_iss=Decimal('0'),
+            tomador_nome=tomador_nome,
+            tomador_cpf_cnpj=tomador_cpf_cnpj,
+            tomador_email=tomador_email,
+            descricao_servico=descricao[:500],
+            xml_dps_assinado=xml_assinado,
+            resposta_adn=resultado.get('raw_response', ''),
+            erro_mensagem=error_msg[:2000],
+        )
+
+        return Response({
+            'success': False,
+            'error': error_msg,
+            'nfse_id': nfse_obj.id,
+            'debug_info': 'XML assinado e resposta ISSNet salvos no registro',
+        }, status=400)
 
 
 def _emitir_manual_nacional(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor, codigo_cnae_req, codigo_servico_req):

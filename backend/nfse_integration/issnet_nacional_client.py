@@ -35,10 +35,10 @@ ISSNET_NACIONAL_URLS = {
 NS_NFSE = 'http://www.sped.fazenda.gov.br/nfse'
 NS_SOAP = 'http://schemas.xmlsoap.org/soap/envelope/'
 
-# Cabeçalho padrão nacional
+# Cabeçalho padrão nacional - versão 1.01 conforme ISSNet Nacional
 CABEC_MSG = (
-    '<cabecalho versao="1.00" xmlns="http://www.sped.fazenda.gov.br/nfse">'
-    '<versaoDados>1.00</versaoDados>'
+    '<cabecalho versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse">'
+    '<versaoDados>1.01</versaoDados>'
     '</cabecalho>'
 )
 
@@ -224,8 +224,11 @@ class ISSNetNacionalClient:
             if dps_xml.startswith('<?xml'):
                 dps_xml = dps_xml[dps_xml.index('?>') + 2:].strip()
 
+            # Substituir versao="1.00" por "1.01" para ISSNet Nacional
+            dps_xml = dps_xml.replace('versao="1.00"', 'versao="1.01"')
+
             dados_msg = (
-                f'<GerarNfseEnvio xmlns="http://www.sped.fazenda.gov.br/nfse">'
+                f'<GerarNfseEnvio xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">'
                 f'{dps_xml}'
                 f'</GerarNfseEnvio>'
             )

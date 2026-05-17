@@ -149,7 +149,9 @@ class ISSNetNacionalClient:
         try:
             cert_path, key_path = _preparar_cert_mtls(self.pfx_bytes, self.senha_pfx)
 
-            cabec_msg = CABEC_MSG_TEMPLATE.format(cod_municipio='3543402')
+            # Homologação ISSNet usa IBGE 5002704 (Campo Grande-MS)
+            cod_mun_cabec = '5002704' if self.ambiente == 'homologacao' else '3543402'
+            cabec_msg = CABEC_MSG_TEMPLATE.format(cod_municipio=cod_mun_cabec)
             envelope = _montar_soap_envelope(operacao, cabec_msg, dados_xml)
             soap_action = f'{NS_NFSE}/{operacao}'
 
@@ -236,6 +238,48 @@ class ISSNetNacionalClient:
             # Ajustar tpAmb para homologação se necessário
             if self.ambiente == 'homologacao':
                 dps_xml = dps_xml.replace('<tpAmb>1</tpAmb>', '<tpAmb>2</tpAmb>')
+                # Homologação ISSNet usa IBGE 5002704 (Campo Grande-MS)
+                dps_xml = dps_xml.replace(
+                    '<cLocEmi>3543402</cLocEmi>',
+                    '<cLocEmi>5002704</cLocEmi>'
+                )
+
+            # Adicionar campos obrigatórios do schema 1.01 que faltam:
+            # tribFed (PIS/COFINS) e totTrib com pTotTribSN
+            # Inserir antes de </trib> (após tribMun)
+            trib_fed_xml = (
+                '<tribFed xmlns="http://www.sped.fazenda.gov.br/nfse">'
+                '<piscofins>'
+                '<CST>06</CST>'
+                '<vBCPisCofins>0.00</vBCPisCofins>'
+                '<pAliqPis>0.00</pAliqPis>'
+                '<pAliqCofins>0.00</pAliqCofins>'
+                '<vPis>0.00</vPis>'
+                '<vCofins>0.00</vCofins>'
+                '<tpRetPisCofins>0</tpRetPisCofins>'
+                '</piscofins>'
+                '</tribFed>'
+            )
+
+            # Substituir totTrib simples por versão com pTotTribSN
+            dps_xml = dps_xml.replace(
+                '<totTrib xmlns="http://www.sped.fazenda.gov.br/nfse"><indTotTrib>0</indTotTrib></totTrib>',
+                '<totTrib xmlns="http://www.sped.fazenda.gov.br/nfse"><pTotTribSN>15.50</pTotTribSN></totTrib>'
+            )
+            # Fallback sem namespace explícito
+            dps_xml = dps_xml.replace(
+                '<totTrib><indTotTrib>0</indTotTrib></totTrib>',
+                '<totTrib><pTotTribSN>15.50</pTotTribSN></totTrib>'
+            )
+
+            # Inserir tribFed antes de totTrib
+            if '<tribFed' not in dps_xml:
+                dps_xml = dps_xml.replace('<totTrib>', trib_fed_xml + '<totTrib>')
+                # Remover namespace redundante do tribFed inserido
+                dps_xml = dps_xml.replace(
+                    '<tribFed xmlns="http://www.sped.fazenda.gov.br/nfse">',
+                    '<tribFed>'
+                )
 
             # Envelopar em GerarNfseEnvio
             dados_msg = (

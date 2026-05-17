@@ -395,7 +395,15 @@ def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_
 
     import re
     cnpj_digits = re.sub(r'\D', '', config.prestador_cnpj or '')
-    codigo_municipio = config.nacional_codigo_municipio or '3543402'
+    ambiente = config.nacional_ambiente or 'homologacao'
+
+    # Em homologação ISSNet usa IBGE 5002704 (Campo Grande-MS) e série 70007
+    if ambiente == 'homologacao':
+        codigo_municipio = '5002704'
+        serie_dps = '70007'
+    else:
+        codigo_municipio = config.nacional_codigo_municipio or '3543402'
+        serie_dps = config.nacional_serie_dps or '1'
 
     # Número DPS
     numero_dps = config.proximo_dps()
@@ -403,7 +411,7 @@ def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_
     # Construir XML DPS (mesmo formato nacional)
     xml_dps = construir_xml_dps(
         numero_dps=numero_dps,
-        serie_dps=config.nacional_serie_dps or '1',
+        serie_dps=serie_dps,
         codigo_municipio_prestador=codigo_municipio,
         ambiente='producao',
         prestador_cnpj=config.prestador_cnpj,

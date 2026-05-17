@@ -433,7 +433,22 @@ def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_
         incentivador_cultural=config.incentivador_cultural,
     )
 
-    # Assinar XML
+    # Ajustar XML para schema 1.01 do ISSNet ANTES de assinar
+    xml_dps = xml_dps.replace('versao="1.00"', 'versao="1.01"')
+    if ambiente == 'homologacao':
+        xml_dps = xml_dps.replace('<tpAmb>1</tpAmb>', '<tpAmb>2</tpAmb>')
+
+    # Adicionar tribFed e pTotTribSN (obrigatórios schema 1.01)
+    xml_dps = xml_dps.replace(
+        '<totTrib><indTotTrib>0</indTotTrib></totTrib>',
+        '<tribFed><piscofins><CST>06</CST><vBCPisCofins>0.00</vBCPisCofins>'
+        '<pAliqPis>0.00</pAliqPis><pAliqCofins>0.00</pAliqCofins>'
+        '<vPis>0.00</vPis><vCofins>0.00</vCofins>'
+        '<tpRetPisCofins>0</tpRetPisCofins></piscofins></tribFed>'
+        '<totTrib><pTotTribSN>15.50</pTotTribSN></totTrib>'
+    )
+
+    # Assinar XML (DEPOIS dos ajustes)
     xml_assinado = assinar_xml_dps_bytes(xml_dps, bytes(cert_data), senha_cert)
 
     # Enviar via SOAP ao ISSNet

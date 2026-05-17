@@ -81,19 +81,23 @@ def _limpar_temp(cert_path, key_path):
 
 
 def _montar_soap_envelope(operacao: str, cabec_msg: str, dados_msg: str) -> str:
-    """Monta envelope SOAP 1.1 para o ISSNet Nacional."""
-    # ISSNet espera o XML como CDATA (não escapado) dentro de nfseCabecMsg/nfseDadosMsg
+    """Monta envelope SOAP 1.1 para o ISSNet Nacional.
+    Tenta formato com entidades XML (padrão xsd:string do ASMX).
+    """
+    cabec_escaped = xml_escape(cabec_msg)
+    dados_escaped = xml_escape(dados_msg)
+
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+        '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" '
         'xmlns:ws="http://www.sped.fazenda.gov.br/nfse">'
-        '<soap:Body>'
+        '<soapenv:Body>'
         f'<ws:{operacao}>'
-        f'<ws:nfseCabecMsg><![CDATA[{cabec_msg}]]></ws:nfseCabecMsg>'
-        f'<ws:nfseDadosMsg><![CDATA[{dados_msg}]]></ws:nfseDadosMsg>'
+        f'<ws:nfseCabecMsg>{cabec_escaped}</ws:nfseCabecMsg>'
+        f'<ws:nfseDadosMsg>{dados_escaped}</ws:nfseDadosMsg>'
         f'</ws:{operacao}>'
-        '</soap:Body>'
-        '</soap:Envelope>'
+        '</soapenv:Body>'
+        '</soapenv:Envelope>'
     )
 
 
@@ -218,20 +222,14 @@ class ISSNetNacionalClient:
         }
 
         try:
-            # Envelopar DPS em GerarNfseEnvio (formato esperado pelo WebService)
+            # Envelopar DPS para envio
             # Remover <?xml ...?> declaration se presente
             dps_xml = xml_dps_assinado
             if dps_xml.startswith('<?xml'):
                 dps_xml = dps_xml[dps_xml.index('?>') + 2:].strip()
 
-            # Substituir versao="1.00" por "1.01" para ISSNet Nacional
-            dps_xml = dps_xml.replace('versao="1.00"', 'versao="1.01"')
-
-            dados_msg = (
-                f'<GerarNfseEnvio xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">'
-                f'{dps_xml}'
-                f'</GerarNfseEnvio>'
-            )
+            # Enviar DPS diretamente como nfseDadosMsg (sem envelope GerarNfseEnvio)
+            dados_msg = dps_xml
 
             resposta = self._soap_request('GerarNfse', dados_msg)
             result['raw_response'] = resposta.get('raw_response', '')

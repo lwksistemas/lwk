@@ -39,6 +39,7 @@ NS_SOAP = 'http://schemas.xmlsoap.org/soap/envelope/'
 CABEC_MSG = (
     '<cabecalho xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">'
     '<versaoDados>1.00</versaoDados>'
+    '<codMunicipio>3543402</codMunicipio>'
     '</cabecalho>'
 )
 
@@ -100,14 +101,17 @@ def _montar_soap_envelope(operacao: str, cabec_msg: str, dados_msg: str) -> str:
 
 
 def _parse_soap_response(response_text: str) -> str:
-    """Extrai outputXML da resposta SOAP."""
+    """Extrai conteúdo da resposta SOAP (GerarNfseResposta ou outputXML)."""
     try:
         root = etree.fromstring(response_text.encode('utf-8'))
-        # Buscar outputXML em qualquer namespace
+        # Buscar GerarNfseResposta (resposta específica do ISSNet Nacional)
         for el in root.iter():
-            if etree.QName(el.tag).localname == 'outputXML':
+            local = etree.QName(el.tag).localname
+            if local in ('GerarNfseResposta', 'RecepcionarLoteDpsSincronoResposta'):
+                return etree.tostring(el, encoding='unicode')
+            if local == 'outputXML':
                 return el.text or ''
-        # Fallback: buscar no Body
+        # Fallback: retornar Body inteiro
         body = root.find(f'.//{{{NS_SOAP}}}Body')
         if body is not None and len(body) > 0:
             return etree.tostring(body[0], encoding='unicode')
@@ -217,7 +221,19 @@ class ISSNetNacionalClient:
         }
 
         try:
-            resposta = self._soap_request('GerarNfse', xml_dps_assinado)
+            # Envelopar DPS em GerarNfseEnvio (formato esperado pelo WebService)
+            # Remover <?xml ...?> declaration se presente
+            dps_xml = xml_dps_assinado
+            if dps_xml.startswith('<?xml'):
+                dps_xml = dps_xml[dps_xml.index('?>') + 2:].strip()
+
+            dados_msg = (
+                f'<GerarNfseEnvio xmlns="http://www.sped.fazenda.gov.br/nfse">'
+                f'{dps_xml}'
+                f'</GerarNfseEnvio>'
+            )
+
+            resposta = self._soap_request('GerarNfse', dados_msg)
             result['raw_response'] = resposta.get('raw_response', '')
 
             if not resposta.get('success'):
@@ -248,56 +264,55 @@ class ISSNetNacionalClient:
 
             root = etree.fromstring(xml_to_parse.encode('utf-8') if isinstance(xml_to_parse, str) else xml_to_parse)
 
-            # Buscar erros (ListaMensagemRetorno)
+            # Buscar erros (ListaMensagemRetorno / MensagemRetorno)
             erros = []
-            for msg in root.iter():
-                if etree.QName(msg.tag).localname == 'Mensagem':
+            for el in root.iter():
+                local = etree.QName(el.tag).localname
+                if local == 'MensagemRetorno':
                     codigo = ''
                     descricao = ''
-                    for child in msg:
-                        local = etree.QName(child.tag).localname
-                        if local == 'Codigo':
+                    correcao = ''
+                    for child in el:
+                        child_local = etree.QName(child.tag).localname
+                        if child_local == 'Codigo':
                             codigo = child.text or ''
-                        elif local in ('Descricao', 'Mensagem'):
+                        elif child_local == 'Mensagem':
                             descricao = child.text or ''
-                    if codigo or descricao:
-                        erros.append(f'[{codigo}] {descricao}')
+                        elif child_local == 'Correcao':
+                            correcao = child.text or ''
+                    msg = f'[{codigo}] {descricao}'
+                    if correcao:
+                        msg += f' ({correcao})'
+                    erros.append(msg)
 
-            # Buscar número da NFS-e
+            if erros:
+                result['error'] = '; '.join(erros)
+                return result
+
+            # Buscar número da NFS-e (sucesso)
             numero_nf = ''
             codigo_verificacao = ''
             for el in root.iter():
                 local = etree.QName(el.tag).localname
                 if local == 'nNFSe' and not numero_nf:
                     numero_nf = el.text or ''
-                elif local == 'nNFSe' and not numero_nf:
-                    numero_nf = el.text or ''
-                elif local == 'CodigoVerificacao' or local == 'cVerif':
+                elif local == 'cVerif' and not codigo_verificacao:
+                    codigo_verificacao = el.text or ''
+                elif local == 'CodigoVerificacao' and not codigo_verificacao:
                     codigo_verificacao = el.text or ''
                 elif local == 'nDFSe' and not numero_nf:
                     numero_nf = el.text or ''
-
-            if erros and not numero_nf:
-                result['error'] = '; '.join(erros)
-                return result
 
             if numero_nf:
                 result['success'] = True
                 result['numero_nf'] = numero_nf
                 result['codigo_verificacao'] = codigo_verificacao
                 result['xml_nfse'] = xml_to_parse
-
-            elif not erros:
-                # Sem número e sem erros — pode ser processamento assíncrono
-                result['success'] = True
-                result['xml_nfse'] = xml_to_parse
-                logger.info('ISSNet Nacional: resposta sem nNFSe mas sem erros')
             else:
-                result['error'] = '; '.join(erros) if erros else 'Resposta não reconhecida'
+                result['error'] = 'Resposta sem número de NFS-e e sem erros explícitos'
 
         except etree.XMLSyntaxError as e:
             logger.warning('ISSNet Nacional: resposta não é XML válido: %s', e)
-            # Pode ser texto simples de erro
             result['error'] = f'Resposta inválida: {output_xml[:500]}'
 
         return result

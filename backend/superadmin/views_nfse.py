@@ -8,6 +8,7 @@ import os
 import tempfile
 from decimal import Decimal, InvalidOperation
 
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -459,6 +460,7 @@ def _emitir_manual_issnet(config, loja, tomador_cpf_cnpj, tomador_nome, tomador_
             xml_nfse=resultado.get('xml_nfse', ''),
             xml_dps_assinado=xml_assinado,
             resposta_adn=resultado.get('raw_response', ''),
+            data_emissao=timezone.now(),
         )
 
         return Response({
@@ -563,6 +565,7 @@ def _emitir_manual_nacional(config, loja, tomador_cpf_cnpj, tomador_nome, tomado
             xml_nfse=resultado.get('xml_dps', ''),
             xml_dps_assinado=resultado.get('xml_dps', ''),
             resposta_adn=resultado.get('resposta_adn_raw', ''),
+            data_emissao=timezone.now(),
         )
 
         return Response({

@@ -37,9 +37,8 @@ NS_SOAP = 'http://schemas.xmlsoap.org/soap/envelope/'
 
 # Cabeçalho padrão nacional
 CABEC_MSG = (
-    '<cabecalho xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">'
+    '<cabecalho versao="1.00" xmlns="http://www.sped.fazenda.gov.br/nfse">'
     '<versaoDados>1.00</versaoDados>'
-    '<codMunicipio>3543402</codMunicipio>'
     '</cabecalho>'
 )
 
@@ -83,17 +82,15 @@ def _limpar_temp(cert_path, key_path):
 
 def _montar_soap_envelope(operacao: str, cabec_msg: str, dados_msg: str) -> str:
     """Monta envelope SOAP 1.1 para o ISSNet Nacional."""
-    cabec_escaped = xml_escape(cabec_msg)
-    dados_escaped = xml_escape(dados_msg)
-
+    # ISSNet espera o XML como CDATA (não escapado) dentro de nfseCabecMsg/nfseDadosMsg
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
         'xmlns:ws="http://www.sped.fazenda.gov.br/nfse">'
         '<soap:Body>'
         f'<ws:{operacao}>'
-        f'<ws:nfseCabecMsg>{cabec_escaped}</ws:nfseCabecMsg>'
-        f'<ws:nfseDadosMsg>{dados_escaped}</ws:nfseDadosMsg>'
+        f'<ws:nfseCabecMsg><![CDATA[{cabec_msg}]]></ws:nfseCabecMsg>'
+        f'<ws:nfseDadosMsg><![CDATA[{dados_msg}]]></ws:nfseDadosMsg>'
         f'</ws:{operacao}>'
         '</soap:Body>'
         '</soap:Envelope>'

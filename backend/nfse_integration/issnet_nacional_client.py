@@ -36,9 +36,10 @@ NS_NFSE = 'http://www.sped.fazenda.gov.br/nfse'
 NS_SOAP = 'http://schemas.xmlsoap.org/soap/envelope/'
 
 # Cabeçalho padrão nacional - versão 1.01 conforme ISSNet Nacional
-CABEC_MSG = (
+CABEC_MSG_TEMPLATE = (
     '<cabecalho versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse">'
     '<versaoDados>1.01</versaoDados>'
+    '<codMunicipio>{cod_municipio}</codMunicipio>'
     '</cabecalho>'
 )
 
@@ -148,7 +149,8 @@ class ISSNetNacionalClient:
         try:
             cert_path, key_path = _preparar_cert_mtls(self.pfx_bytes, self.senha_pfx)
 
-            envelope = _montar_soap_envelope(operacao, CABEC_MSG, dados_xml)
+            cabec_msg = CABEC_MSG_TEMPLATE.format(cod_municipio='3543402')
+            envelope = _montar_soap_envelope(operacao, cabec_msg, dados_xml)
             soap_action = f'{NS_NFSE}/{operacao}'
 
             headers = {
@@ -228,8 +230,19 @@ class ISSNetNacionalClient:
             if dps_xml.startswith('<?xml'):
                 dps_xml = dps_xml[dps_xml.index('?>') + 2:].strip()
 
-            # Enviar DPS diretamente como nfseDadosMsg (sem envelope GerarNfseEnvio)
-            dados_msg = dps_xml
+            # Ajustar versão para 1.01 (ISSNet Nacional exige)
+            dps_xml = dps_xml.replace('versao="1.00"', 'versao="1.01"')
+
+            # Ajustar tpAmb para homologação se necessário
+            if self.ambiente == 'homologacao':
+                dps_xml = dps_xml.replace('<tpAmb>1</tpAmb>', '<tpAmb>2</tpAmb>')
+
+            # Envelopar em GerarNfseEnvio
+            dados_msg = (
+                '<GerarNfseEnvio xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">'
+                f'{dps_xml}'
+                '</GerarNfseEnvio>'
+            )
 
             resposta = self._soap_request('GerarNfse', dados_msg)
             result['raw_response'] = resposta.get('raw_response', '')

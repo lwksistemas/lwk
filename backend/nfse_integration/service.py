@@ -156,18 +156,19 @@ class NFSeService:
                 numero_rps = self._gerar_numero_dps()
 
                 resultado = client.emitir_nfse(
-                    numero_rps=numero_rps,
-                    serie_rps=getattr(self.config, 'serie_rps', 'E') or 'E',
+                    prestador_cnpj=cnpj_prestador,
+                    prestador_inscricao_municipal=im_prestador,
+                    prestador_razao_social=self.loja.nome or '',
                     tomador_cpf_cnpj=tomador_cpf_cnpj,
                     tomador_nome=tomador_nome,
-                    tomador_email=tomador_email,
                     tomador_endereco=tomador_endereco,
-                    servico_descricao=servico_descricao,
-                    valor_servicos=float(valor_servicos),
-                    aliquota_iss=aliquota,
-                    codigo_servico=codigo_servico_final,
-                    codigo_cnae=codigo_cnae_final,
-                    optante_simples=getattr(self.config, 'optante_simples_nacional', True),
+                    servico_codigo=codigo_servico_final,
+                    servico_descricao=servico_descricao or 'Serviço prestado',
+                    valor_servicos=Decimal(str(valor_servicos)),
+                    aliquota_iss=Decimal(str(aliquota)),
+                    numero_rps=numero_rps,
+                    serie_rps=getattr(self.config, 'serie_rps', 'E') or getattr(self.config, 'issnet_serie_rps', 'E') or 'E',
+                    codigo_cnae=codigo_cnae_final or None,
                 )
             finally:
                 os.unlink(tmp_cert.name)

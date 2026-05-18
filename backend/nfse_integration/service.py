@@ -136,32 +136,41 @@ class NFSeService:
 
             usuario_issnet = getattr(self.config, 'issnet_usuario', '') or ''
             senha_issnet = getattr(self.config, 'issnet_senha', '') or ''
+            ambiente_issnet = 'homologacao' if getattr(self.config, 'issnet_ambiente_homologacao', False) else 'producao'
 
-            client = ISSNetClient(
-                pfx_bytes=bytes(cert_data),
-                senha_pfx=senha_cert,
-                cnpj_prestador=cnpj_prestador,
-                inscricao_municipal=im_prestador,
-                usuario=usuario_issnet,
-                senha=senha_issnet,
-            )
+            # Salvar certificado em arquivo temporário
+            import tempfile, os
+            tmp_cert = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+            tmp_cert.write(bytes(cert_data))
+            tmp_cert.close()
 
-            numero_rps = self._gerar_numero_dps()
+            try:
+                client = ISSNetClient(
+                    usuario=usuario_issnet,
+                    senha=senha_issnet,
+                    certificado_path=tmp_cert.name,
+                    senha_certificado=senha_cert,
+                    ambiente=ambiente_issnet,
+                )
 
-            resultado = client.emitir_nfse(
-                numero_rps=numero_rps,
-                serie_rps=getattr(self.config, 'serie_rps', 'E') or 'E',
-                tomador_cpf_cnpj=tomador_cpf_cnpj,
-                tomador_nome=tomador_nome,
-                tomador_email=tomador_email,
-                tomador_endereco=tomador_endereco,
-                servico_descricao=servico_descricao,
-                valor_servicos=float(valor_servicos),
-                aliquota_iss=aliquota,
-                codigo_servico=codigo_servico_final,
-                codigo_cnae=codigo_cnae_final,
-                optante_simples=getattr(self.config, 'optante_simples_nacional', True),
-            )
+                numero_rps = self._gerar_numero_dps()
+
+                resultado = client.emitir_nfse(
+                    numero_rps=numero_rps,
+                    serie_rps=getattr(self.config, 'serie_rps', 'E') or 'E',
+                    tomador_cpf_cnpj=tomador_cpf_cnpj,
+                    tomador_nome=tomador_nome,
+                    tomador_email=tomador_email,
+                    tomador_endereco=tomador_endereco,
+                    servico_descricao=servico_descricao,
+                    valor_servicos=float(valor_servicos),
+                    aliquota_iss=aliquota,
+                    codigo_servico=codigo_servico_final,
+                    codigo_cnae=codigo_cnae_final,
+                    optante_simples=getattr(self.config, 'optante_simples_nacional', True),
+                )
+            finally:
+                os.unlink(tmp_cert.name)
 
             if resultado.get('success'):
                 resultado_final = {

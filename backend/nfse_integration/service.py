@@ -167,7 +167,7 @@ class NFSeService:
                     valor_servicos=Decimal(str(valor_servicos)),
                     aliquota_iss=Decimal(str(aliquota)),
                     numero_rps=numero_rps,
-                    serie_rps=getattr(self.config, 'serie_rps', 'E') or getattr(self.config, 'issnet_serie_rps', 'E') or 'E',
+                    serie_rps=getattr(self.config, 'issnet_serie_rps', '1') or '1',
                     codigo_cnae=codigo_cnae_final or None,
                 )
             finally:

@@ -672,18 +672,27 @@ def crm_config_issnet_test(request):
 
     try:
         from nfse_integration.issnet_client import testar_conexao_issnet
+        import tempfile, os
 
         usuario = (request.data.get('issnet_usuario') or '').strip() or getattr(cfg, 'issnet_usuario', '') or ''
         senha_ws = (request.data.get('issnet_senha') or '').strip() or getattr(cfg, 'issnet_senha', '') or ''
         ambiente = 'homologacao' if getattr(cfg, 'issnet_ambiente_homologacao', False) else 'producao'
 
-        resultado = testar_conexao_issnet(
-            usuario=usuario,
-            senha=senha_ws,
-            pfx_bytes=cert_data,
-            senha_certificado=senha,
-            ambiente=ambiente,
-        )
+        # Salvar cert em arquivo temporário para a função
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+        tmp.write(cert_data)
+        tmp.close()
+
+        try:
+            resultado = testar_conexao_issnet(
+                usuario=usuario,
+                senha=senha_ws,
+                certificado_path=tmp.name,
+                senha_certificado=senha,
+                ambiente=ambiente,
+            )
+        finally:
+            os.unlink(tmp.name)
 
         if resultado.get('success'):
             return Response({

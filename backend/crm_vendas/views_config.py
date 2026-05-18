@@ -632,3 +632,71 @@ def crm_config_asaas_test(request):
         )
 
 
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def crm_config_issnet_test(request):
+    """
+    Testa conexão com o WebService ISSNet usando certificado da loja.
+    Valida PFX/senha e tenta acessar o WSDL.
+    """
+    from .models import CRMConfig
+
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return Response({'success': False, 'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        cfg = _get_crm_config_for_loja(loja_id)
+    except Exception as e:
+        return Response({'success': False, 'detail': str(e)}, status=500)
+
+    # Certificado: do upload ou do banco
+    cert_file = request.FILES.get('issnet_certificado')
+    if cert_file:
+        cert_data = cert_file.read()
+    else:
+        cert_data = getattr(cfg, 'issnet_certificado', None)
+        if cert_data:
+            cert_data = bytes(cert_data)
+
+    senha = (request.data.get('issnet_senha_certificado') or '').strip()
+    if not senha:
+        senha = getattr(cfg, 'issnet_senha_certificado', '') or ''
+
+    if not cert_data:
+        return Response({'success': False, 'detail': 'Certificado .pfx não configurado.'}, status=400)
+    if not senha:
+        return Response({'success': False, 'detail': 'Senha do certificado não informada.'}, status=400)
+
+    try:
+        from nfse_integration.issnet_client import testar_conexao_issnet
+
+        usuario = (request.data.get('issnet_usuario') or '').strip() or getattr(cfg, 'issnet_usuario', '') or ''
+        senha_ws = (request.data.get('issnet_senha') or '').strip() or getattr(cfg, 'issnet_senha', '') or ''
+        ambiente = 'homologacao' if getattr(cfg, 'issnet_ambiente_homologacao', False) else 'producao'
+
+        resultado = testar_conexao_issnet(
+            usuario=usuario,
+            senha=senha_ws,
+            pfx_bytes=cert_data,
+            senha_certificado=senha,
+            ambiente=ambiente,
+        )
+
+        if resultado.get('success'):
+            return Response({
+                'success': True,
+                'message': resultado.get('message', 'Conexão ISSNet OK.'),
+                'ambiente': ambiente,
+            })
+        else:
+            return Response({
+                'success': False,
+                'detail': resultado.get('detail', 'Falha ao conectar ao ISSNet.'),
+            }, status=400)
+
+    except Exception as e:
+        logger.warning('crm_config_issnet_test: %s', e)
+        return Response({'success': False, 'detail': str(e)}, status=400)

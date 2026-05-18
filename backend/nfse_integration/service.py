@@ -12,6 +12,8 @@ from decimal import Decimal
 from datetime import datetime
 from uuid import uuid4
 
+from django.utils import timezone
+
 logger = logging.getLogger(__name__)
 
 
@@ -179,7 +181,7 @@ class NFSeService:
                     'numero_nf': resultado.get('numero_nf', ''),
                     'codigo_verificacao': resultado.get('codigo_verificacao', ''),
                     'numero_rps': numero_rps,
-                    'data_emissao': datetime.now(),
+                    'data_emissao': timezone.now(),
                     'valor': float(valor_servicos),
                     'xml_nfse': resultado.get('xml_nfse', ''),
                     'pdf_url': resultado.get('link_pdf', ''),
@@ -291,7 +293,7 @@ class NFSeService:
                     'numero_nf': resultado.get('chave_acesso', ''),
                     'codigo_verificacao': resultado.get('nsu_recepcao', ''),
                     'numero_rps': numero_dps,
-                    'data_emissao': datetime.now(),
+                    'data_emissao': timezone.now(),
                     'valor': float(valor_servicos),
                     'xml_nfse': resultado.get('xml_dps', ''),
                     'pdf_url': '',
@@ -381,7 +383,7 @@ class NFSeService:
                 numero_nf=resultado['numero_nf'],
                 numero_rps=int(resultado.get('numero_rps') or 0),
                 codigo_verificacao=resultado.get('codigo_verificacao', ''),
-                data_emissao=resultado.get('data_emissao', datetime.now()),
+                data_emissao=resultado.get('data_emissao', timezone.now()),
                 valor=resultado.get('valor', 0),
                 tomador_email=tomador_email,
                 tomador_nome=resultado.get('tomador_nome', ''),

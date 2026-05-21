@@ -135,6 +135,14 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
         spaceAfter=1,
         leading=12,
     )
+    card_email_style = ParagraphStyle(
+        'RCCardEmail',
+        parent=styles['Normal'],
+        fontSize=7.5,
+        spaceBefore=0,
+        spaceAfter=1,
+        leading=11,
+    )
     card_title_style = ParagraphStyle(
         'RCCardTitle',
         parent=styles['Normal'],
@@ -153,7 +161,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     # Email do prestador (via owner da loja)
     prestador_email = getattr(loja, 'owner', None) and getattr(loja.owner, 'email', '')
     if prestador_email:
-        prestador_lines.append(Paragraph(f'<font color="#6b7280">E-mail:</font> {prestador_email}', card_style))
+        prestador_lines.append(Paragraph(f'{prestador_email}', card_email_style))
 
     # Empresa Contratante
     ep = relatorio.empresa_prestadora
@@ -162,7 +170,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     if ep.cnpj:
         contratante_lines.append(Paragraph(f'<font color="#6b7280">CNPJ:</font> {ep.cnpj}', card_style))
     if ep.email:
-        contratante_lines.append(Paragraph(f'<font color="#6b7280">E-mail:</font> {ep.email}', card_style))
+        contratante_lines.append(Paragraph(f'{ep.email}', card_email_style))
 
     # Vendedor
     vendedor_lines = []
@@ -171,7 +179,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
         vendedor_lines = [Paragraph('<b>Vendedor Responsável</b>', card_title_style)]
         vendedor_lines.append(Paragraph(f'{v.nome}', card_style))
         if v.email:
-            vendedor_lines.append(Paragraph(f'<font color="#6b7280">E-mail:</font> {v.email}', card_style))
+            vendedor_lines.append(Paragraph(f'{v.email}', card_email_style))
 
     # Montar tabela com 3 colunas (cards lado a lado)
     card_table_data = [[prestador_lines, contratante_lines, vendedor_lines]]

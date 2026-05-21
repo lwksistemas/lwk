@@ -180,6 +180,14 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
         vendedor_lines.append(Paragraph(f'{v.nome}', card_style))
         if v.email:
             vendedor_lines.append(Paragraph(f'{v.email}', card_email_style))
+    elif getattr(loja, 'owner', None):
+        # Fallback: usar o administrador da loja como vendedor
+        owner = loja.owner
+        owner_nome = owner.get_full_name() if hasattr(owner, 'get_full_name') and owner.get_full_name() else (owner.first_name or owner.username or '—')
+        vendedor_lines = [Paragraph('<b>Vendedor Responsável</b>', card_title_style)]
+        vendedor_lines.append(Paragraph(f'{owner_nome}', card_style))
+        if owner.email:
+            vendedor_lines.append(Paragraph(f'{owner.email}', card_email_style))
 
     # Montar tabela com 3 colunas (cards lado a lado)
     card_table_data = [[prestador_lines, contratante_lines, vendedor_lines]]
@@ -317,6 +325,15 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
         elements.append(Spacer(1, 0.3 * cm))
 
         linha_assin = '_' * 45
+        # Nome do vendedor para assinatura (fallback para owner da loja)
+        if v:
+            nome_vendedor_assin = v.nome
+        elif getattr(loja, 'owner', None):
+            owner = loja.owner
+            nome_vendedor_assin = owner.get_full_name() if hasattr(owner, 'get_full_name') and owner.get_full_name() else (owner.first_name or owner.username or 'Vendedor')
+        else:
+            nome_vendedor_assin = 'Vendedor'
+
         assin_table_data = [[
             Paragraph(
                 f'{linha_assin}<br/><br/>'
@@ -326,7 +343,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
             ),
             Paragraph(
                 f'{linha_assin}<br/><br/>'
-                f'<b>{v.nome if v else "Vendedor"}</b><br/>'
+                f'<b>{nome_vendedor_assin}</b><br/>'
                 f'<font size="8" color="grey">Vendedor Responsável</font>',
                 assin_nome_style,
             ),

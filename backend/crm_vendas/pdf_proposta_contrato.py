@@ -529,6 +529,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     doc.build(elements)
     buffer.seek(0)
     return buffer
+
+
+def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     """Gera PDF do contrato."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5 * cm, bottomMargin=1 * cm, leftMargin=2 * cm, rightMargin=2 * cm)

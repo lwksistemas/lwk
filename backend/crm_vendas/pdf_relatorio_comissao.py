@@ -9,8 +9,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Image
 )
+import requests
+from PIL import Image as PILImage
 import logging
 
 logger = logging.getLogger(__name__)
@@ -116,7 +118,43 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     )
 
     # ── Cabeçalho ────────────────────────────────────────────────────────────
-    elements.append(Paragraph('RELATÓRIO DE COMISSÃO', titulo_style))
+    # Logo da loja (igual ao PDF de propostas)
+    logo_url = getattr(loja, 'logo', '') or None
+    if logo_url:
+        try:
+            resp = requests.get(logo_url, timeout=5)
+            if resp.status_code == 200:
+                img_buffer = BytesIO(resp.content)
+                pil_img = PILImage.open(img_buffer)
+                iw, ih = pil_img.size
+                aspect = ih / float(iw)
+                max_w, max_h = 6 * cm, 3 * cm
+                width = min(max_w, iw)
+                height = width * aspect
+                if height > max_h:
+                    height = max_h
+                    width = height / aspect
+                img_buffer.seek(0)
+                img = Image(img_buffer, width=width, height=height)
+                header_table = Table(
+                    [[img, Paragraph('RELATÓRIO DE COMISSÃO', titulo_style)]],
+                    colWidths=[width + 0.5 * cm, None],
+                )
+                header_table.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                    ('TOPPADDING', (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ]))
+                elements.append(header_table)
+            else:
+                elements.append(Paragraph('RELATÓRIO DE COMISSÃO', titulo_style))
+        except Exception:
+            elements.append(Paragraph('RELATÓRIO DE COMISSÃO', titulo_style))
+    else:
+        elements.append(Paragraph('RELATÓRIO DE COMISSÃO', titulo_style))
+
     elements.append(Paragraph(relatorio.titulo or relatorio.numero, subtitulo_style))
     elements.append(Paragraph(
         f'Período: {_fmt_data(relatorio.periodo_inicio)} a {_fmt_data(relatorio.periodo_fim)}',

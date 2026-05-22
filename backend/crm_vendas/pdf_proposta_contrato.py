@@ -421,7 +421,9 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
 
 
 def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente):
-    """Cria callback para marca d'água com logo transparente atrás das assinaturas."""
+    """Prepara dados da marca d'água (logo transparente) para uso nas assinaturas.
+    Retorna bytes PNG da imagem com transparência, ou None.
+    """
     if not (assinatura_vendedor or assinatura_cliente) or not logo_url:
         return None
     try:
@@ -434,29 +436,9 @@ def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente)
         pil_img.putalpha(alpha)
         out_buf = BytesIO()
         pil_img.save(out_buf, format='PNG')
-        wm_data = out_buf.getvalue()
+        return out_buf.getvalue()
     except Exception:
         return None
-
-    def _draw(canvas, doc_ref):
-        try:
-            from reportlab.lib.utils import ImageReader
-            img = ImageReader(BytesIO(wm_data))
-            iw, ih = img.getSize()
-            wm_w = 7 * cm
-            wm_h = wm_w * (ih / float(iw))
-            if wm_h > 4 * cm:
-                wm_h = 4 * cm
-                wm_w = wm_h / (ih / float(iw))
-            y_pos = doc_ref.bottomMargin + 2.0 * cm
-            x_left = doc_ref.leftMargin + (8 * cm - wm_w) / 2
-            x_right = doc_ref.leftMargin + 8 * cm + (8 * cm - wm_w) / 2
-            canvas.drawImage(img, x_left, y_pos, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
-            canvas.drawImage(img, x_right, y_pos, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
-        except Exception:
-            pass
-
-    return _draw
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -502,16 +484,51 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, incluir_assinaturas, 'proposta')
 
     # Build com marca d'água
-    wm_cb = _build_watermark_callback(logo_url, ass_v, ass_c)
-    if wm_cb:
-        doc.build(elements, onFirstPage=wm_cb, onLaterPages=wm_cb)
-    else:
-        doc.build(elements)
+    wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
+    if wm_data:
+        # Inserir marca d'água como flowable antes da tabela de assinaturas
+        from reportlab.platypus import Flowable
+
+        class WatermarkFlowable(Flowable):
+            """Desenha marca d'água no canvas na posição atual do fluxo."""
+            def __init__(self, wm_bytes):
+                Flowable.__init__(self)
+                self.wm_bytes = wm_bytes
+                self.width = 16 * cm
+                self.height = 0  # não ocupa espaço vertical
+
+            def draw(self):
+                try:
+                    from reportlab.lib.utils import ImageReader
+                    img = ImageReader(BytesIO(self.wm_bytes))
+                    iw, ih = img.getSize()
+                    wm_w = 5.5 * cm
+                    wm_h = wm_w * (ih / float(iw))
+                    if wm_h > 3.5 * cm:
+                        wm_h = 3.5 * cm
+                        wm_w = wm_h / (ih / float(iw))
+                    # Desenhar abaixo da posição atual (a tabela vem depois deste flowable)
+                    # Offset para baixo para alinhar com a linha do email (2ª linha da tabela)
+                    y_offset = -(1.0 * cm + wm_h)
+                    x_left = (8 * cm - wm_w) / 2
+                    x_right = 8 * cm + (8 * cm - wm_w) / 2
+                    self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
+                    self.canv.drawImage(img, x_right, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
+                except Exception:
+                    pass
+
+        # Encontrar a tabela de assinaturas (última Table) e inserir watermark antes dela
+        insert_idx = None
+        for i in range(len(elements) - 1, -1, -1):
+            if isinstance(elements[i], Table):
+                insert_idx = i
+                break
+        if insert_idx is not None:
+            elements.insert(insert_idx, WatermarkFlowable(wm_data))
+
+    doc.build(elements)
     buffer.seek(0)
     return buffer
-
-
-def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     """Gera PDF do contrato."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5 * cm, bottomMargin=1 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
@@ -554,10 +571,43 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     ass_v, ass_c = _build_secao_assinaturas(elements, contrato, lead, vendedor, normal, incluir_assinaturas, 'contrato')
 
     # Build com marca d'água
-    wm_cb = _build_watermark_callback(logo_url, ass_v, ass_c)
-    if wm_cb:
-        doc.build(elements, onFirstPage=wm_cb, onLaterPages=wm_cb)
-    else:
-        doc.build(elements)
+    wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
+    if wm_data:
+        from reportlab.platypus import Flowable
+
+        class WatermarkFlowable(Flowable):
+            def __init__(self, wm_bytes):
+                Flowable.__init__(self)
+                self.wm_bytes = wm_bytes
+                self.width = 16 * cm
+                self.height = 0
+
+            def draw(self):
+                try:
+                    from reportlab.lib.utils import ImageReader
+                    img = ImageReader(BytesIO(self.wm_bytes))
+                    iw, ih = img.getSize()
+                    wm_w = 5.5 * cm
+                    wm_h = wm_w * (ih / float(iw))
+                    if wm_h > 3.5 * cm:
+                        wm_h = 3.5 * cm
+                        wm_w = wm_h / (ih / float(iw))
+                    y_offset = -(1.0 * cm + wm_h)
+                    x_left = (8 * cm - wm_w) / 2
+                    x_right = 8 * cm + (8 * cm - wm_w) / 2
+                    self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
+                    self.canv.drawImage(img, x_right, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
+                except Exception:
+                    pass
+
+        insert_idx = None
+        for i in range(len(elements) - 1, -1, -1):
+            if isinstance(elements[i], Table):
+                insert_idx = i
+                break
+        if insert_idx is not None:
+            elements.insert(insert_idx, WatermarkFlowable(wm_data))
+
+    doc.build(elements)
     buffer.seek(0)
     return buffer

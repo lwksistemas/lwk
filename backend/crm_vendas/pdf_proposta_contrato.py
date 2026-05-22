@@ -448,7 +448,7 @@ def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente)
             if wm_h > 4 * cm:
                 wm_h = 4 * cm
                 wm_w = wm_h / (ih / float(iw))
-            y_pos = doc_ref.bottomMargin + 3.0 * cm
+            y_pos = doc_ref.bottomMargin + 2.0 * cm
             x_left = doc_ref.leftMargin + (8 * cm - wm_w) / 2
             x_right = doc_ref.leftMargin + 8 * cm + (8 * cm - wm_w) / 2
             canvas.drawImage(img, x_left, y_pos, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)

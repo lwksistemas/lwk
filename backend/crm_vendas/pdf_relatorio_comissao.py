@@ -175,19 +175,23 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     # Vendedor
     vendedor_lines = []
     v = relatorio.vendedor or getattr(relatorio.empresa_prestadora, 'vendedor', None)
+    # Fallback: buscar Vendedor vinculado ao owner da loja
+    if not v and getattr(loja, 'owner', None):
+        try:
+            from superadmin.models import VendedorUsuario
+            from .models import Vendedor
+            vu = VendedorUsuario.objects.using('default').filter(
+                user=loja.owner, loja=loja
+            ).first()
+            if vu:
+                v = Vendedor.objects.filter(id=vu.vendedor_id, loja_id=loja.id).first()
+        except Exception:
+            pass
     if v:
         vendedor_lines = [Paragraph('<b>Vendedor Responsável</b>', card_title_style)]
         vendedor_lines.append(Paragraph(f'{v.nome}', card_style))
         if v.email:
             vendedor_lines.append(Paragraph(f'{v.email}', card_email_style))
-    elif getattr(loja, 'owner', None):
-        # Fallback: usar o administrador da loja como vendedor
-        owner = loja.owner
-        owner_nome = owner.get_full_name() if hasattr(owner, 'get_full_name') and owner.get_full_name() else (owner.first_name or owner.username or '—')
-        vendedor_lines = [Paragraph('<b>Vendedor Responsável</b>', card_title_style)]
-        vendedor_lines.append(Paragraph(f'{owner_nome}', card_style))
-        if owner.email:
-            vendedor_lines.append(Paragraph(f'{owner.email}', card_email_style))
 
     # Montar tabela com 3 colunas (cards lado a lado)
     card_table_data = [[prestador_lines, contratante_lines, vendedor_lines]]
@@ -325,14 +329,8 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
         elements.append(Spacer(1, 0.3 * cm))
 
         linha_assin = '_' * 45
-        # Nome do vendedor para assinatura (fallback para owner da loja)
-        if v:
-            nome_vendedor_assin = v.nome
-        elif getattr(loja, 'owner', None):
-            owner = loja.owner
-            nome_vendedor_assin = owner.get_full_name() if hasattr(owner, 'get_full_name') and owner.get_full_name() else (owner.first_name or owner.username or 'Vendedor')
-        else:
-            nome_vendedor_assin = 'Vendedor'
+        # Nome do vendedor para assinatura
+        nome_vendedor_assin = v.nome if v else 'Vendedor'
 
         assin_table_data = [[
             Paragraph(

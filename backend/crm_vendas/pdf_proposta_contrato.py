@@ -507,11 +507,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
                     if wm_h > 3.5 * cm:
                         wm_h = 3.5 * cm
                         wm_w = wm_h / (ih / float(iw))
-                    # Desenhar abaixo da posição atual (a tabela vem depois deste flowable)
-                    # O flowable está no topo da tabela de assinaturas
-                    # Row 0 = nome (~0.45cm), Row 1 = email
                     # Topo da marca d'água alinhado com a linha do email (row 1)
-                    y_offset = -(0.5 * cm + wm_h)
+                    y_offset = -(0.35 * cm + wm_h)
                     x_left = (8 * cm - wm_w) / 2
                     x_right = 8 * cm + (8 * cm - wm_w) / 2
                     self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
@@ -597,7 +594,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
                     if wm_h > 3.5 * cm:
                         wm_h = 3.5 * cm
                         wm_w = wm_h / (ih / float(iw))
-                    y_offset = -(0.5 * cm + wm_h)
+                    y_offset = -(0.35 * cm + wm_h)
                     x_left = (8 * cm - wm_w) / 2
                     x_right = 8 * cm + (8 * cm - wm_w) / 2
                     self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)

@@ -294,9 +294,15 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
 
         # Vendedor
         if relatorio.vendedor_assinado_em:
+            vendedor_assin_nome = relatorio.vendedor_assinado_nome
+            # Fallback: usar nome do vendedor resolvido (v) se o nome salvo for genérico ou igual ao nome da loja
+            if v and (not vendedor_assin_nome or vendedor_assin_nome == '—' or vendedor_assin_nome == loja.nome):
+                vendedor_assin_nome = v.nome
+            elif not vendedor_assin_nome:
+                vendedor_assin_nome = '—'
             assin_rows.append([
                 'Vendedor',
-                relatorio.vendedor_assinado_nome or (relatorio.vendedor.nome if relatorio.vendedor else '—'),
+                vendedor_assin_nome,
                 _fmt_data(relatorio.vendedor_assinado_em),
                 relatorio.vendedor_assinado_ip or '—',
                 'Assinado ✓',

@@ -236,7 +236,9 @@ backend/
 │   ├── emissao_issnet_loja.py / emissao_nacional_loja.py
 │   ├── cancelamento_loja.py / persistencia_nfse_loja.py
 │   ├── service.py             # orquestrador fino (loja)
-│   ├── emissao_manual_superadmin.py
+│   ├── emissao_manual_superadmin.py  # orquestrador (superadmin)
+│   ├── emissao_issnet_superadmin.py / emissao_nacional_superadmin.py
+│   ├── persistencia_nfse_superadmin.py / emissao_manual_types.py
 │   └── superadmin_nfse_api.py # listagem/serialização superadmin
 └── scripts/archive/ removido
     └── scripts one-off/debug não devem ser versionados quando contêm contexto de cliente

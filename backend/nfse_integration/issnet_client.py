@@ -467,17 +467,46 @@ class ISSNetClient:
         ns = NS_NFSE
         root_local = etree.QName(root.tag).localname if root.tag else ''
 
-        # Cancelamento ABRASF: um unico Signer no elemento Pedido (Id), como no sped-nfse-issnet
+        def _sign_cancelamento_por_pedido(root_el):
+            """Assina cancelamento referenciando o elemento Pedido (Id)."""
+            pedido = root_el.find('{%s}Pedido' % ns)
+            if pedido is None:
+                return None
+            pedido_id = (pedido.get('Id') or '').strip() or 'Pedido1'
+            pedido.set('Id', pedido_id)
+            sig_ped = _template_sig_enveloped_only(pedido, f'#{pedido_id}')
+            ctx_c = xmlsec.SignatureContext()
+            ctx_c.key = key
+            ctx_c.register_id(pedido, 'Id', None)
+            ctx_c.sign(sig_ped)
+            return pedido_id
+
+        def _sign_cancelamento_por_inf_pedido(root_el):
+            """
+            Assina cancelamento referenciando InfPedidoCancelamento (Id).
+            Algumas prefeituras/instâncias ISSNet rejeitam a assinatura no Pedido.
+            """
+            pedido = root_el.find('{%s}Pedido' % ns)
+            if pedido is None:
+                return None
+            inf = pedido.find('{%s}InfPedidoCancelamento' % ns)
+            if inf is None:
+                return None
+            inf_id = (inf.get('Id') or '').strip() or 's01'
+            inf.set('Id', inf_id)
+            sig_inf = _template_sig_enveloped_only(pedido, f'#{inf_id}')
+            ctx_c = xmlsec.SignatureContext()
+            ctx_c.key = key
+            ctx_c.register_id(inf, 'Id', None)
+            ctx_c.sign(sig_inf)
+            return inf_id
+
+        # Cancelamento ABRASF: padrão principal é assinar o elemento Pedido (Id).
         if root_local == 'CancelarNfseEnvio':
-            pedido = root.find('{%s}Pedido' % ns)
-            if pedido is not None:
-                pedido_id = (pedido.get('Id') or '').strip() or 'Pedido1'
-                pedido.set('Id', pedido_id)
-                sig_ped = _template_sig_enveloped_only(pedido, f'#{pedido_id}')
-                ctx_c = xmlsec.SignatureContext()
-                ctx_c.key = key
-                ctx_c.register_id(pedido, 'Id', None)
-                ctx_c.sign(sig_ped)
+            pedido_id = _sign_cancelamento_por_pedido(root)
+            if not pedido_id:
+                # Fallback: assinar InfPedidoCancelamento
+                _sign_cancelamento_por_inf_pedido(root)
             result = etree.tostring(root, encoding='unicode')
             logger.info('XML assinado com xmlsec (cancelamento Pedido)')
             logger.info('XML CANCELAMENTO ASSINADO COMPLETO: %s', result)
@@ -1387,6 +1416,40 @@ class ISSNetClient:
                 soap_action_uri='http://nfse.abrasf.org.br/CancelarNfse',
                 dados_xml=xml_assinado,
             )
+            if parsed and parsed.get('success') is False:
+                # Fallback adicional: algumas instâncias ISSNet só aceitam assinatura
+                # referenciando InfPedidoCancelamento, não o Pedido.
+                err_txt = str(parsed.get('error') or '')
+                if 'SOAP' in err_txt or 'Erro genérico do webservice ISSNet' in err_txt:
+                    try:
+                        # Remontar XML com Id específico no InfPedidoCancelamento para assinar esse nó.
+                        inf_id = f'cancel{re.sub(r\"\\D\", \"\", str(numero_nf)) or \"s01\"}'
+                        xml_cancelar_alt = (
+                            f'<CancelarNfseEnvio xmlns="{NS_NFSE}">'
+                            f'<Pedido>'
+                            f'<InfPedidoCancelamento Id="{inf_id}">'
+                            f'<IdentificacaoNfse>'
+                            f'<Numero>{numero_nf}</Numero>'
+                            f'<CpfCnpj><Cnpj>{cnpj_digits}</Cnpj></CpfCnpj>'
+                            f'<InscricaoMunicipal>{im}</InscricaoMunicipal>'
+                            f'<CodigoMunicipio>{COD_MUNICIPIO_RP}</CodigoMunicipio>'
+                            f'</IdentificacaoNfse>'
+                            f'<CodigoCancelamento>{codigo_cancelamento}</CodigoCancelamento>'
+                            f'</InfPedidoCancelamento>'
+                            f'</Pedido>'
+                            f'</CancelarNfseEnvio>'
+                        )
+                        xml_assinado_alt = self._assinar_xml(xml_cancelar_alt)
+                        parsed2, xml_body2 = self._post_soap_operacao(
+                            nome_operacao='CancelarNfse',
+                            soap_action_uri='http://nfse.abrasf.org.br/CancelarNfse',
+                            dados_xml=xml_assinado_alt,
+                        )
+                        if parsed2 and parsed2.get('success') is False:
+                            return parsed
+                        parsed, xml_body = parsed2, xml_body2
+                    except Exception:
+                        return parsed
             if parsed and parsed.get('success') is False:
                 return parsed
             

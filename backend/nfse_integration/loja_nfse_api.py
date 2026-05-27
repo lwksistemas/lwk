@@ -58,6 +58,93 @@ def xml_nfse_conteudo(nfse: Any) -> str:
     return nfse.xml_nfse or nfse.xml_rps or ''
 
 
+def sincronizar_nfse_asaas_loja(nfse: Any, loja_id: int) -> tuple[dict[str, Any], int]:
+    """Consulta invoice no Asaas e atualiza o registro local."""
+    from rest_framework import status as http_status
+
+    from crm_vendas.models import CRMConfig
+    from nfse_integration.asaas_webhook_sync import sincronizar_nfse_via_api_asaas
+    from nfse_integration.serializers import NFSeSerializer
+
+    if nfse.provedor != 'asaas':
+        return (
+            {'error': 'Sincronização disponível apenas para NFS-e emitidas via Asaas.'},
+            http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    cfg = CRMConfig.get_or_create_for_loja(loja_id)
+    api_key = (getattr(cfg, 'asaas_api_key', None) or '').strip()
+    if not api_key:
+        return (
+            {
+                'error': (
+                    'Configure a API Key do Asaas em Configurações → Nota Fiscal '
+                    '(CRM) para sincronizar.'
+                ),
+            },
+            http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    out = sincronizar_nfse_via_api_asaas(
+        nfse,
+        api_key=api_key,
+        sandbox=bool(getattr(cfg, 'asaas_sandbox', False)),
+    )
+    if out.get('error'):
+        return {'error': out['error']}, http_status.HTTP_400_BAD_REQUEST
+
+    nfse.refresh_from_db()
+    return (
+        {
+            'success': True,
+            'message': 'Status atualizado conforme o Asaas.',
+            'nfse': NFSeSerializer(nfse).data,
+        },
+        http_status.HTTP_200_OK,
+    )
+
+
+def processar_cancelamento_nfse_loja(
+    loja: Any,
+    nfse: Any,
+    motivo: str,
+    codigo_cancelamento: str | int | None = '1',
+) -> tuple[dict[str, Any], int]:
+    """Cancela NFS-e via NFSeService. Retorna (body, status HTTP)."""
+    from rest_framework import status as http_status
+
+    from nfse_integration.service import NFSeService
+
+    if not nfse.pode_cancelar():
+        return (
+            {'error': 'Esta NFS-e não pode ser cancelada'},
+            http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    service = NFSeService(loja)
+    resultado = service.cancelar_nfse(
+        numero_nf=nfse.numero_nf,
+        motivo=motivo,
+        codigo_cancelamento=codigo_cancelamento,
+    )
+    if resultado.get('success'):
+        nfse.refresh_from_db()
+        from nfse_integration.serializers import NFSeSerializer
+
+        return (
+            {
+                'success': True,
+                'message': resultado.get('message', 'NFS-e cancelada com sucesso'),
+                'nfse': NFSeSerializer(nfse).data,
+            },
+            http_status.HTTP_200_OK,
+        )
+    return (
+        {'success': False, 'error': resultado.get('error', 'Erro desconhecido')},
+        http_status.HTTP_400_BAD_REQUEST,
+    )
+
+
 def processar_emissao_nfse_loja(
     loja: Any,
     loja_id: int,

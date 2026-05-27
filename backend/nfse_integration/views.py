@@ -12,13 +12,14 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import NFSe
 from .serializers import NFSeSerializer, EmitirNFSeSerializer, CancelarNFSeSerializer
-from .service import NFSeService
 from .emissao import ContaTomadorNaoEncontrada
 from .loja_nfse_api import (
     ExclusaoNFSeLojaError,
     ReenvioNFSeLojaError,
+    processar_cancelamento_nfse_loja,
     processar_emissao_nfse_loja,
     reenviar_email_nfse_loja,
+    sincronizar_nfse_asaas_loja,
     validar_exclusao_nfse_loja,
     xml_nfse_conteudo,
 )
@@ -121,32 +122,14 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
 
         try:
             nfse = self.get_object()
-            if not nfse.pode_cancelar():
-                return Response(
-                    {'error': 'Esta NFS-e não pode ser cancelada'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            loja_id, loja = self._obter_loja_atual()
-            service = NFSeService(loja)
-            resultado = service.cancelar_nfse(
-                numero_nf=nfse.numero_nf,
-                motivo=serializer.validated_data['motivo'],
+            _, loja = self._obter_loja_atual()
+            body, http_status = processar_cancelamento_nfse_loja(
+                loja,
+                nfse,
+                serializer.validated_data['motivo'],
+                request.data.get('codigo_cancelamento', '1'),
             )
-
-            if resultado['success']:
-                nfse.refresh_from_db()
-                return Response({
-                    'success': True,
-                    'message': 'NFS-e cancelada com sucesso',
-                    'nfse': NFSeSerializer(nfse).data,
-                })
-
-            return Response(
-                {'success': False, 'error': resultado.get('error', 'Erro desconhecido')},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+            return Response(body, status=http_status)
         except Exception as e:
             logger.exception('Erro ao cancelar NFS-e: %s', e)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -155,43 +138,9 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
     def sincronizar_asaas(self, request, pk=None):
         try:
             nfse = self.get_object()
-            if nfse.provedor != 'asaas':
-                return Response(
-                    {'error': 'Sincronização disponível apenas para NFS-e emitidas via Asaas.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            loja_id, loja = self._obter_loja_atual()
-            from crm_vendas.models import CRMConfig
-            from .asaas_webhook_sync import sincronizar_nfse_via_api_asaas
-
-            cfg = CRMConfig.get_or_create_for_loja(loja_id)
-            api_key = (getattr(cfg, 'asaas_api_key', None) or '').strip()
-            if not api_key:
-                return Response(
-                    {
-                        'error': (
-                            'Configure a API Key do Asaas em Configurações → Nota Fiscal '
-                            '(CRM) para sincronizar.'
-                        ),
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            out = sincronizar_nfse_via_api_asaas(
-                nfse,
-                api_key=api_key,
-                sandbox=bool(getattr(cfg, 'asaas_sandbox', False)),
-            )
-            if out.get('error'):
-                return Response({'error': out['error']}, status=status.HTTP_400_BAD_REQUEST)
-
-            nfse.refresh_from_db()
-            return Response({
-                'success': True,
-                'message': 'Status atualizado conforme o Asaas.',
-                'nfse': NFSeSerializer(nfse).data,
-            })
+            loja_id, _loja = self._obter_loja_atual()
+            body, http_status = sincronizar_nfse_asaas_loja(nfse, loja_id)
+            return Response(body, status=http_status)
         except Exception as e:
             logger.exception('Erro ao sincronizar NFS-e com Asaas: %s', e)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

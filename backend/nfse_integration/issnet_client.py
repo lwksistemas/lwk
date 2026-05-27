@@ -1478,6 +1478,29 @@ class ISSNetClient:
             logger.warning('Erro ao consultar URL NFS-e ISSNet: %s', e)
             return {'success': False, 'error': str(e)}
 
+    def inferir_cancelada_por_url(self, *, url: str) -> Dict[str, Any]:
+        """
+        Busca a página do portal/visualização oficial retornada pelo ISSNet e tenta inferir se a nota
+        está cancelada (ex.: "CANCELADA", "SEM VALOR LEGAL").
+
+        Isso é um fallback de sincronização quando a consulta por RPS falha (E160/E183).
+        """
+        try:
+            import requests
+
+            u = (url or '').strip()
+            if not u.startswith('http'):
+                return {'success': False, 'error': 'URL inválida para verificação.'}
+
+            r = requests.get(u, timeout=(6, 18), headers={'User-Agent': 'LWK-Sistemas/CRM'})
+            txt = (r.text or '')[:200000]  # limitar
+            up = txt.upper()
+            cancelada = ('SEM VALOR LEGAL' in up) or ('CANCELAD' in up)
+            return {'success': True, 'cancelada': bool(cancelada)}
+        except Exception as e:
+            logger.warning('Erro ao verificar cancelamento via URL ISSNet: %s', e)
+            return {'success': False, 'error': str(e)}
+
     def consultar_nfse(self, numero_nf: str) -> Dict[str, Any]:
         """Consulta NFS-e emitida por RPS (compat: método legado)."""
         try:

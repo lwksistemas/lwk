@@ -213,6 +213,41 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
         return ({'error': str(exc)}, http_status.HTTP_400_BAD_REQUEST)
 
     if out.get('success') is False:
+        # Fallback: quando a prefeitura rejeita o ConsultarNfsePorRps por schema (E160/E183),
+        # mas a nota existe e o portal já indica "cancelada", tentar via URL oficial.
+        err = str(out.get('error') or '')
+        if (
+            ('E160' in err or 'E183' in err or 'XML Schema' in err)
+            and getattr(nfse, 'numero_nf', None)
+        ):
+            try:
+                with issnet_client_loja(cfg) as client2:
+                    url_out = client2.consultar_url_nfse(
+                        numero_nf=str(nfse.numero_nf),
+                        prestador_cnpj=str(cnpj_prestador),
+                        inscricao_municipal=str(im_prestador),
+                    )
+                    if url_out.get('success') and url_out.get('url'):
+                        ver = client2.inferir_cancelada_por_url(url=str(url_out['url']))
+                        if ver.get('success') and ver.get('cancelada'):
+                            from django.utils import timezone
+
+                            if nfse.status != 'cancelada':
+                                nfse.status = 'cancelada'
+                                nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
+                                nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+                            nfse.refresh_from_db()
+                            return (
+                                {
+                                    'success': True,
+                                    'message': 'NFS-e marcada como cancelada conforme o portal ISSNet.',
+                                    'nfse': NFSeSerializer(nfse).data,
+                                },
+                                http_status.HTTP_200_OK,
+                            )
+            except Exception:
+                pass
+
         return ({'error': out.get('error', 'Erro ao consultar ISSNet')}, http_status.HTTP_400_BAD_REQUEST)
 
     if out.get('cancelada'):

@@ -65,6 +65,33 @@ def cancelar_nfse_loja(
                 nfse.status = 'cancelada'
                 nfse.data_cancelamento = timezone.now()
                 nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+                # Enviar e-mail automático ao tomador, se existir.
+                if getattr(nfse, 'tomador_email', None):
+                    try:
+                        from nfse_integration.danfe import buscar_url_danfe_issnet
+                        from nfse_integration.email_nfse import (
+                            enviar_email_nfse_cancelada_tomador,
+                        )
+
+                        url_danfe = buscar_url_danfe_issnet(
+                            nfse,
+                            loja_id=getattr(loja, 'id', None),
+                            loja=loja,
+                            config=config,
+                        )
+                        enviar_email_nfse_cancelada_tomador(
+                            loja=loja,
+                            tomador_email=nfse.tomador_email,
+                            tomador_nome=getattr(nfse, 'tomador_nome', '') or 'Cliente',
+                            numero_nf=str(nfse.numero_nf or numero_nf),
+                            valor=getattr(nfse, 'valor', 0) or 0,
+                            descricao=getattr(nfse, 'servico_descricao', '') or '',
+                            url_danfe=url_danfe,
+                            xml_content=(getattr(nfse, 'xml_nfse', '') or getattr(nfse, 'xml_rps', '') or ''),
+                            fail_silently=True,
+                        )
+                    except Exception as exc:
+                        logger.warning('Falha ao enviar email de cancelamento: %s', exc)
                 return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
 
             # Cancelou no ISSNet mas o retorno veio ambíguo/erro de parser — confirmar por RPS.

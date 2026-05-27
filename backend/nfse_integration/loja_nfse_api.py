@@ -258,6 +258,26 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
             nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
             nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
             message = 'NFS-e marcada como cancelada conforme o ISSNet.'
+            # Se a nota foi cancelada fora do fluxo (ex.: no portal), avisar o tomador automaticamente.
+            if getattr(nfse, 'tomador_email', None):
+                try:
+                    from nfse_integration.danfe import buscar_url_danfe_issnet
+                    from nfse_integration.email_nfse import enviar_email_nfse_cancelada_tomador
+
+                    url_danfe = buscar_url_danfe_issnet(nfse, loja_id=loja_id, loja=loja, config=cfg)
+                    enviar_email_nfse_cancelada_tomador(
+                        loja=loja,
+                        tomador_email=nfse.tomador_email,
+                        tomador_nome=getattr(nfse, 'tomador_nome', '') or 'Cliente',
+                        numero_nf=str(nfse.numero_nf or ''),
+                        valor=getattr(nfse, 'valor', 0) or 0,
+                        descricao=getattr(nfse, 'servico_descricao', '') or '',
+                        url_danfe=url_danfe,
+                        xml_content=xml_nfse_conteudo(nfse),
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
         else:
             message = 'NFS-e já constava como cancelada no sistema.'
     else:

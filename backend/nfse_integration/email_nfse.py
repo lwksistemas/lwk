@@ -123,3 +123,35 @@ def enviar_email_nfse_tomador(
         mask_email(tomador_email),
         bool(url_danfe),
     )
+
+
+def enviar_email_nfse_cancelada_tomador(
+    *,
+    loja: Any,
+    tomador_email: str,
+    tomador_nome: str,
+    numero_nf: str,
+    valor: Decimal | float | str,
+    descricao: str,
+    url_danfe: str = '',
+    xml_content: str = '',
+    fail_silently: bool = True,
+    prestador_nome: str | None = None,
+    prestador_cnpj: str | None = None,
+) -> None:
+    """Envia e-mail informando o cancelamento da NFS-e ao tomador."""
+    enviar_email_nfse_tomador(
+        loja=loja,
+        tomador_email=tomador_email,
+        tomador_nome=tomador_nome,
+        numero_nf=numero_nf,
+        valor=valor,
+        descricao=descricao,
+        url_danfe=url_danfe,
+        xml_content=xml_content,
+        fail_silently=fail_silently,
+        intro='A nota fiscal de serviço foi cancelada.',
+        incluir_codigo_verificacao=False,
+        prestador_nome=prestador_nome,
+        prestador_cnpj=prestador_cnpj,
+    )

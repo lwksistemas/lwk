@@ -366,10 +366,26 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, o
               </button>
               <button type="button" title="Cancelar NFS-e" onClick={(e) => {
                 e.preventDefault(); e.stopPropagation();
-                const motivo = prompt('Motivo do cancelamento da NFS-e:');
-                if (!motivo) return;
-                apiClient.post(`/nfse/${nf.id}/cancelar/`, { motivo }).then(() => {
-                  alert('NFS-e cancelada com sucesso!');
+                const motivos: Record<string, string> = {
+                  '1': 'Erro na emissão',
+                  '2': 'Serviço não prestado',
+                  '4': 'Duplicidade da nota',
+                };
+                const opcao = prompt(
+                  `CANCELAR NFS-e ${nf.numero_nf || `RPS ${nf.numero_rps}`}?\n\nEscolha o motivo:\n1 - Erro na emissão\n2 - Serviço não prestado\n4 - Duplicidade da nota\n\nDigite o número (1, 2 ou 4):`
+                );
+                if (!opcao || !motivos[opcao]) return;
+
+                if ((nf.provedor || '').toLowerCase() === 'issnet' && opcao === '1') {
+                  const ok = confirm(
+                    'A prefeitura/ISSNet costuma recusar cancelamento por "Erro na emissão" (E206) e exigir substituição.\n\nRecomendado: usar "2 - Serviço não prestado" ou "4 - Duplicidade".\n\nDeseja continuar mesmo assim?'
+                  );
+                  if (!ok) return;
+                }
+
+                const motivoTexto = prompt('Descreva o motivo (opcional):') || motivos[opcao];
+                apiClient.post(`/nfse/${nf.id}/cancelar/`, { motivo: motivoTexto, codigo_cancelamento: opcao }).then(() => {
+                  alert('Cancelamento enviado. Se aprovado pela prefeitura, o status será atualizado.');
                   window.location.reload();
                 }).catch((err: any) => {
                   alert(err.response?.data?.error || 'Erro ao cancelar NFS-e');

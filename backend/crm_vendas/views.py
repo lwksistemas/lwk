@@ -3,10 +3,8 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.pagination import PageNumberPagination
 from django.db.models import Sum, Count, Q, Exists, OuterRef
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from django.http import HttpResponse, JsonResponse
 from django.core.mail import EmailMessage
 from django.conf import settings
@@ -25,8 +23,6 @@ from .serializers import (
     LeadSerializer,
     LeadListSerializer,
     ContatoSerializer,
-    OportunidadeSerializer,
-    AtividadeSerializer,
     AtividadeListSerializer,
     ProdutoServicoSerializer,
     CategoriaProdutoServicoSerializer,
@@ -36,16 +32,14 @@ from .serializers import (
     ContratoTemplateSerializer,
     ContratoSerializer,
 )
-from tenants.middleware import get_current_loja_id, get_current_tenant_db, ensure_loja_context
+from tenants.middleware import get_current_loja_id, ensure_loja_context
 from .utils import get_current_vendedor_id, get_loja_from_context
 from .mixins import CRMPermissionMixin, VendedorFilterMixin, CacheInvalidationMixin
 from .cache import CRMCacheManager
 from .decorators import cache_list_response, require_admin_access, invalidate_cache_on_change
-from .activities_google_sync import sync_atividade_create, sync_atividade_update, sync_atividade_delete
 from .mixins_assinatura import AssinaturaDigitalMixin
 from .mixins_documento import DocumentoQuerysetMixin, EnviarClienteMixin, TemplateViewSetMixin
 from .services import (
-    OportunidadeService,
     PropostaService,
     ContratoService,
     ProdutoServicoService,
@@ -59,14 +53,9 @@ from .vendedor_admin_service import (
     resposta_vendedor_me,
 )
 
+from .views_common import CRMPagination
+
 logger = logging.getLogger(__name__)
-
-
-# ✅ OTIMIZAÇÃO: Paginação para reduzir tempo de resposta
-class CRMPagination(PageNumberPagination):
-    page_size = 50
-    page_size_query_param = 'page_size'
-    max_page_size = 100
 
 
 class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
@@ -422,281 +411,6 @@ class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
         self._invalidate_caches()
 
 
-class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
-    queryset = Oportunidade.objects.select_related('lead', 'vendedor', 'lead__conta', 'empresa_prestadora').prefetch_related('atividades').all()
-    serializer_class = OportunidadeSerializer
-    pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
-    
-    # Configuração do VendedorFilterMixin
-    vendedor_filter_field = 'vendedor_id'
-    vendedor_filter_related = []
-    
-    # Configuração do CacheInvalidationMixin
-    cache_keys = ['oportunidades', 'dashboard']
-
-    def initial(self, request, *args, **kwargs):
-        super().initial(request, *args, **kwargs)
-        # Auto-patch: garantir coluna conta_id na tabela atividade (migration 0056)
-        db_name = get_current_tenant_db()
-        if db_name and db_name != 'default':
-            try:
-                from django.db import connections
-                conn = connections[db_name]
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "ALTER TABLE crm_vendas_atividade "
-                        "ADD COLUMN IF NOT EXISTS conta_id BIGINT NULL;"
-                    )
-            except Exception:
-                pass
-
-    def _sanitize_vendedor_for_create(self, data):
-        """
-        Remove vendedor do payload se for inválido (não existe no tenant).
-        Evita erro 400 quando frontend envia vendedor_id de outra loja ou inexistente.
-        """
-        vendedor_id = data.get('vendedor')
-        if vendedor_id is None:
-            return data
-        try:
-            vid = int(vendedor_id) if not isinstance(vendedor_id, int) else vendedor_id
-        except (TypeError, ValueError):
-            data = data.copy()
-            data.pop('vendedor', None)
-            return data
-        if not Vendedor.objects.filter(id=vid).exists():
-            logger.warning(
-                'Oportunidade create: vendedor_id=%s não existe no tenant, removendo do payload',
-                vid,
-            )
-            data = data.copy()
-            data.pop('vendedor', None)
-        return data
-
-    def create(self, request, *args, **kwargs):
-        """Override para sanitizar vendedor inválido antes da validação."""
-        raw = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-        data = self._sanitize_vendedor_for_create(raw)
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        # Adicionar headers para evitar cache do navegador
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        return response
-
-    def perform_create(self, serializer):
-        """
-        Cria oportunidade usando Service Layer.
-        Delega lógica de negócio para OportunidadeService.
-        Cache invalidado automaticamente pelo CacheInvalidationMixin.
-        """
-        service = OportunidadeService(self.request)
-        oportunidade = service.criar_oportunidade(serializer.validated_data)
-        # Atualizar serializer com a instância criada
-        serializer.instance = oportunidade
-        self._invalidate_caches()
-
-    def perform_update(self, serializer):
-        """
-        Atualiza oportunidade usando Service Layer.
-        Delega lógica de negócio para OportunidadeService.
-        Cache invalidado automaticamente pelo CacheInvalidationMixin.
-        """
-        service = OportunidadeService(self.request)
-        oportunidade = service.atualizar_oportunidade(serializer.instance, serializer.validated_data)
-        # Atualizar serializer com a instância atualizada
-        serializer.instance = oportunidade
-        self._invalidate_caches()
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        # ✅ OTIMIZAÇÃO v1490: Adicionar prefetch para itens e reduzir N+1 queries
-        qs = qs.select_related('lead', 'vendedor', 'lead__conta', 'empresa_prestadora').prefetch_related(
-            'atividades',
-            'itens',  # Prefetch itens da oportunidade
-            'itens__produto_servico'  # Prefetch produtos dos itens
-        )
-        # Filtros adicionais (além do filtro de vendedor do mixin)
-        # Se não for vendedor, permitir filtrar por vendedor_id via query param
-        if get_current_vendedor_id(self.request) is None:
-            vendedor_id = self.request.query_params.get('vendedor_id')
-            if vendedor_id:
-                qs = qs.filter(vendedor_id=vendedor_id)
-        etapa = self.request.query_params.get('etapa')
-        if etapa:
-            qs = qs.filter(etapa=etapa)
-        return qs
-
-
-class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
-    # ✅ OTIMIZAÇÃO v1490: Adicionar prefetch para vendedor e conta
-    queryset = (
-        Atividade.objects.select_related(
-            'oportunidade',
-            'lead',
-            'oportunidade__vendedor',  # Prefetch vendedor da oportunidade
-            'lead__conta'  # Prefetch conta do lead
-        )
-        .defer('google_event_id')  # Evita coluna que pode não existir em schemas antigos
-        .all()
-    )
-    serializer_class = AtividadeListSerializer
-    pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
-    
-    # Configuração do VendedorFilterMixin
-    vendedor_filter_field = 'oportunidade__vendedor_id'
-    vendedor_filter_related = ['lead__oportunidades__vendedor_id']
-    
-    # Configuração do CacheInvalidationMixin
-    cache_keys = ['atividades', 'dashboard']
-    
-    def filter_by_vendedor(self, queryset):
-        """
-        Override para permitir atividades sem oportunidade/lead.
-        Atividades órfãs: cada vendedor vê apenas as suas (criado_por_vendedor_id).
-        Proprietário vê todas.
-        """
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is None:
-            # Proprietário: vê tudo
-            return queryset
-        
-        # Vendedor vê:
-        # 1. Atividades vinculadas às suas oportunidades
-        # 2. Atividades vinculadas aos seus leads
-        # 3. Atividades órfãs criadas/importadas por ele (criado_por_vendedor_id=vendedor_id)
-        from django.db.models import Q
-        filters = (
-            Q(oportunidade__vendedor_id=vendedor_id) |
-            Q(lead__oportunidades__vendedor_id=vendedor_id) |
-            Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
-        )
-        return queryset.filter(filters).distinct()
-
-    def perform_create(self, serializer):
-        """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is not None:
-            serializer.save(criado_por_vendedor_id=vendedor_id)
-        else:
-            serializer.save()
-        atividade = serializer.instance
-        if atividade and getattr(atividade, 'loja_id', None):
-            try:
-                from superadmin.models import Loja
-                from notificacoes.services import notify
-                loja = Loja.objects.using('default').filter(id=atividade.loja_id).select_related('owner').first()
-                if loja and loja.owner_id:
-                    data_str = atividade.data.strftime('%d/%m/%Y %H:%M') if atividade.data else ''
-                    tipo_label = atividade.get_tipo_display() if hasattr(atividade, 'get_tipo_display') else atividade.tipo
-                    notify(
-                        user=loja.owner,
-                        titulo=f'Nova atividade: {atividade.titulo[:50]}{"..." if len(atividade.titulo) > 50 else ""}',
-                        mensagem=f'{tipo_label}: {atividade.titulo} — {data_str}',
-                        tipo='tarefa',
-                        canal='in_app',
-                        metadata={
-                            'url': f'/loja/{loja.slug}/crm-vendas/calendario',
-                            'atividade_id': atividade.id,
-                            'loja_id': loja.id,
-                        },
-                    )
-            except Exception:
-                pass  # Notificação é best-effort; não falha a criação
-
-            sync_atividade_create(self.request, atividade)
-        self._invalidate_caches()
-
-    def get_serializer_class(self):
-        if self.action in ('create', 'update', 'partial_update'):
-            return AtividadeSerializer
-        return AtividadeListSerializer
-
-    @cache_list_response(CRMCacheManager.ATIVIDADES, ttl=30, extra_keys=['data_inicio', 'data_fim'])  # ✅ Cache reduzido para 30s
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        # Adicionar headers para evitar cache do navegador
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        return response
-
-    def perform_update(self, serializer):
-        """Cache invalidado automaticamente pelo CacheInvalidationMixin."""
-        super().perform_update(serializer)
-        atividade = serializer.instance
-
-        if atividade and getattr(atividade, 'loja_id', None):
-            sync_atividade_update(self.request, atividade)
-
-    def perform_destroy(self, instance):
-        """
-        Deleta atividade e remove do Google Calendar se tiver google_event_id.
-        Também remove a notificação associada.
-        """
-        # Remover notificação associada à atividade
-        try:
-            from notificacoes.models import Notification
-            from superadmin.models import Loja
-            
-            loja_id = get_current_loja_id()
-            loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
-            
-            if loja and loja.owner_id:
-                # Deletar notificações relacionadas a esta atividade
-                Notification.objects.filter(
-                    user=loja.owner,
-                    metadata__atividade_id=instance.id
-                ).delete()
-                logger.info(f"✅ Notificações da atividade {instance.id} removidas")
-        except Exception as e:
-            logger.warning(f"⚠️ Erro ao remover notificações da atividade: {e}")
-        
-        if instance.google_event_id:
-            sync_atividade_delete(get_current_loja_id(), instance)
-
-        super().perform_destroy(instance)
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        qs = (
-            qs.select_related('oportunidade', 'lead')
-            .defer('google_event_id')
-        )
-        # Filtros adicionais (além do filtro de vendedor do mixin)
-        concluido = self.request.query_params.get('concluido')
-        if concluido is not None:
-            qs = qs.filter(concluido=concluido.lower() == 'true')
-        oportunidade_id = self.request.query_params.get('oportunidade_id')
-        if oportunidade_id:
-            qs = qs.filter(oportunidade_id=oportunidade_id)
-        lead_id = self.request.query_params.get('lead_id')
-        if lead_id:
-            qs = qs.filter(lead_id=lead_id)
-        data_inicio = self.request.query_params.get('data_inicio')
-        if data_inicio:
-            dt = parse_datetime(data_inicio)
-            if dt and timezone.is_naive(dt):
-                dt = timezone.make_aware(dt, timezone.utc)
-            if dt:
-                qs = qs.filter(data__gte=dt)
-        data_fim = self.request.query_params.get('data_fim')
-        if data_fim:
-            dt = parse_datetime(data_fim)
-            if dt and timezone.is_naive(dt):
-                dt = timezone.make_aware(dt, timezone.utc)
-            if dt:
-                qs = qs.filter(data__lte=dt)
-        return qs
-
-
 class CategoriaProdutoServicoViewSet(BaseModelViewSet):
     """CRUD de categorias para organizar produtos e serviços."""
     queryset = CategoriaProdutoServico.objects.select_related('loja').all()  # ✅ OTIMIZAÇÃO: select_related
@@ -1036,3 +750,4 @@ from .views_config import (  # noqa: F401, E402
 )
 from .views_relatorios import gerar_relatorio  # noqa: F401, E402
 from .views_assinatura_publica import AssinaturaPublicaView, AssinaturaPdfView  # noqa: F401, E402
+from .views_pipelines import AtividadeViewSet, OportunidadeViewSet  # noqa: F401, E402

@@ -503,9 +503,19 @@ class ISSNetClient:
 
         # Cancelamento ABRASF: padrão principal é assinar o elemento Pedido (Id).
         if root_local == 'CancelarNfseEnvio':
+            pedido = root.find('{%s}Pedido' % ns)
+            inf = pedido.find('{%s}InfPedidoCancelamento' % ns) if pedido is not None else None
+            inf_id = (inf.get('Id') or '').strip() if inf is not None else ''
+            # Se o chamador marcou um Id "cancel..." no InfPedidoCancelamento, preferimos assinar esse nó.
+            if inf_id.lower().startswith('cancel'):
+                _sign_cancelamento_por_inf_pedido(root)
+                result = etree.tostring(root, encoding='unicode')
+                logger.info('XML assinado com xmlsec (cancelamento InfPedidoCancelamento)')
+                logger.info('XML CANCELAMENTO ASSINADO COMPLETO: %s', result)
+                return result
+
             pedido_id = _sign_cancelamento_por_pedido(root)
             if not pedido_id:
-                # Fallback: assinar InfPedidoCancelamento
                 _sign_cancelamento_por_inf_pedido(root)
             result = etree.tostring(root, encoding='unicode')
             logger.info('XML assinado com xmlsec (cancelamento Pedido)')

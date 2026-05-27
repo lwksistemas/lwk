@@ -1423,7 +1423,8 @@ class ISSNetClient:
                 if 'SOAP' in err_txt or 'Erro genérico do webservice ISSNet' in err_txt:
                     try:
                         # Remontar XML com Id específico no InfPedidoCancelamento para assinar esse nó.
-                        inf_id = f'cancel{re.sub(r\"\\D\", \"\", str(numero_nf)) or \"s01\"}'
+                        nf_digits = re.sub(r'\D', '', str(numero_nf))
+                        inf_id = f'cancel{nf_digits}' if nf_digits else 'cancels01'
                         xml_cancelar_alt = (
                             f'<CancelarNfseEnvio xmlns="{NS_NFSE}">'
                             f'<Pedido>'

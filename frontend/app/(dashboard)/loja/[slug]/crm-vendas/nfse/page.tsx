@@ -347,6 +347,7 @@ function NfseRow({ nf, lojaProvedor, syncingId, deletingId, onSync, onDelete, on
 }) {
   const statusColor = STATUS_COLORS[nf.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
   const aliquota = Number(nf.aliquota_iss ?? 0).toFixed(2);
+  const podeBaixar = nf.status === 'emitida' || nf.status === 'cancelada';
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50">
       <td className="px-4 py-3 text-sm">
@@ -377,7 +378,7 @@ function NfseRow({ nf, lojaProvedor, syncingId, deletingId, onSync, onDelete, on
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-center gap-1">
-          {nf.status === 'emitida' && (
+          {podeBaixar && (
             <>
               <button type="button" title="Baixar PDF" onClick={(e) => onDownloadPdf(e, nf)} className="p-1.5 text-gray-600 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded">
                 <FileText size={16} />
@@ -396,6 +397,10 @@ function NfseRow({ nf, lojaProvedor, syncingId, deletingId, onSync, onDelete, on
               <button type="button" title="Reenviar por email" onClick={(e) => onReenviarEmail(e, nf)} className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded">
                 <Mail size={16} />
               </button>
+            </>
+          )}
+          {nf.status === 'emitida' && (
+            <>
               <button type="button" title="Cancelar NFS-e" onClick={(e) => {
                 e.preventDefault(); e.stopPropagation();
                 const motivos: Record<string, string> = {

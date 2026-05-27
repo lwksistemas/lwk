@@ -162,18 +162,13 @@ def buscar_url_danfe_issnet_superadmin(nfse: Any, config: Any | None = None, *, 
 
             config = SuperadminNFSeConfig.get_config()
 
-        cert_data = getattr(config, 'issnet_certificado', None) or getattr(config, 'nacional_certificado', None)
-        if not cert_data:
-            return ''
-
-        senha_cert = (
-            getattr(config, 'issnet_senha_certificado', '')
-            or getattr(config, 'nacional_senha_certificado', '')
-            or ''
+        from nfse_integration.issnet_superadmin import (
+            certificado_configurado,
+            issnet_client_superadmin,
         )
-        usuario = getattr(config, 'issnet_usuario', '') or ''
-        senha = getattr(config, 'issnet_senha', '') or ''
-        ambiente = getattr(config, 'nacional_ambiente', None) or 'producao'
+
+        if not certificado_configurado(config):
+            return ''
 
         cnpj_prestador = getattr(config, 'prestador_cnpj', '') or ''
         im_prestador = getattr(config, 'prestador_inscricao_municipal', '') or ''
@@ -182,30 +177,12 @@ def buscar_url_danfe_issnet_superadmin(nfse: Any, config: Any | None = None, *, 
         cnpj_prestador = xml_cnpj or cnpj_prestador
         im_prestador = xml_im or im_prestador
 
-        cert_tmp = tempfile.NamedTemporaryFile(suffix='.pfx', delete=False)
-        try:
-            cert_tmp.write(bytes(cert_data))
-            cert_tmp.close()
-
-            from .issnet_client import ISSNetClient
-
-            client = ISSNetClient(
-                usuario=usuario,
-                senha=senha,
-                certificado_path=cert_tmp.name,
-                senha_certificado=senha_cert,
-                ambiente=ambiente,
-            )
+        with issnet_client_superadmin(config, prefix='issnet_danfe_') as client:
             resultado = client.consultar_url_nfse(
                 numero_nf=numero_nf,
                 prestador_cnpj=cnpj_prestador,
                 inscricao_municipal=im_prestador,
             )
-        finally:
-            try:
-                os.unlink(cert_tmp.name)
-            except OSError:
-                pass
 
         url = resultado.get('url') if resultado.get('success') else ''
         if not url_danfe_valida(url):
@@ -216,7 +193,11 @@ def buscar_url_danfe_issnet_superadmin(nfse: Any, config: Any | None = None, *, 
                 nfse.pdf_url = url[:500]
                 nfse.save(update_fields=['pdf_url'])
             except Exception as exc:
-                logger.debug('Nao foi possivel salvar pdf_url superadmin id=%s: %s', getattr(nfse, 'id', None), exc)
+                logger.debug(
+                    'Nao foi possivel salvar pdf_url superadmin id=%s: %s',
+                    getattr(nfse, 'id', None),
+                    exc,
+                )
         return url
     except Exception as exc:
         logger.warning('Erro ao buscar URL DANFE ISSNet (superadmin): %s', exc)

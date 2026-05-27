@@ -223,6 +223,14 @@ backend/
 │   ├── fix/ (1 command)
 │   ├── create/ (1 command)
 │   └── cleanup/ (1 command)
+├── nfse_integration/          # NFS-e (loja CRM + superadmin)
+│   ├── emissao.py             # tomador a partir de conta CRM
+│   ├── danfe.py               # URL DANFE ISSNet
+│   ├── email_nfse.py          # e-mail ao tomador
+│   ├── pdf_download.py        # download PDF loja/superadmin
+│   ├── issnet_superadmin.py   # cliente ISSNet + cancelamento (superadmin)
+│   ├── emissao_manual_superadmin.py
+│   └── superadmin_nfse_api.py # listagem/serialização superadmin
 └── scripts/archive/ removido
     └── scripts one-off/debug não devem ser versionados quando contêm contexto de cliente
 ```

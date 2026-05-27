@@ -1,8 +1,6 @@
 """Helpers para obter a URL oficial da DANFE/NFS-e."""
 import logging
-import os
 import re
-import tempfile
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -78,56 +76,34 @@ def buscar_url_danfe_issnet(
                 return ''
             config = CRMConfig.get_or_create_for_loja(effective_loja_id)
 
-        cert_data = (
-            getattr(config, 'issnet_certificado', None)
-            or getattr(config, 'nacional_certificado', None)
+        from nfse_integration.issnet_loja import (
+            certificado_configurado_loja,
+            issnet_client_loja,
         )
-        if not cert_data:
-            return ''
 
-        senha_cert = (
-            getattr(config, 'issnet_senha_certificado', '')
-            or getattr(config, 'nacional_senha_certificado', '')
-            or ''
-        )
-        usuario = getattr(config, 'issnet_usuario', '') or ''
-        senha = getattr(config, 'issnet_senha', '') or ''
-        ambiente = 'homologacao' if getattr(config, 'issnet_ambiente_homologacao', False) else 'producao'
+        if not certificado_configurado_loja(config):
+            return ''
 
         cnpj_prestador = getattr(config, 'cnpj_prestador', '') or ''
         if not cnpj_prestador and loja is not None:
             cnpj_prestador = re.sub(r'\D', '', getattr(loja, 'cpf_cnpj', '') or '')
-        im_prestador = getattr(config, 'inscricao_municipal', '') or getattr(loja, 'inscricao_municipal', '') or ''
+        im_prestador = (
+            getattr(config, 'inscricao_municipal', '')
+            or getattr(loja, 'inscricao_municipal', '')
+            or ''
+        )
 
         xml_nfse = getattr(nfse, 'xml_nfse', '') if nfse else ''
         xml_cnpj, xml_im = _extrair_prestador_do_xml(xml_nfse)
         cnpj_prestador = xml_cnpj or cnpj_prestador
         im_prestador = xml_im or im_prestador
 
-        cert_tmp = tempfile.NamedTemporaryFile(suffix='.pfx', delete=False)
-        try:
-            cert_tmp.write(bytes(cert_data))
-            cert_tmp.close()
-
-            from .issnet_client import ISSNetClient
-
-            client = ISSNetClient(
-                usuario=usuario,
-                senha=senha,
-                certificado_path=cert_tmp.name,
-                senha_certificado=senha_cert,
-                ambiente=ambiente,
-            )
+        with issnet_client_loja(config, prefix='issnet_danfe_') as client:
             resultado = client.consultar_url_nfse(
                 numero_nf=numero_nf,
                 prestador_cnpj=cnpj_prestador,
                 inscricao_municipal=im_prestador,
             )
-        finally:
-            try:
-                os.unlink(cert_tmp.name)
-            except OSError:
-                pass
 
         url = resultado.get('url') if resultado.get('success') else ''
         if not url_danfe_valida(url):

@@ -120,14 +120,15 @@ class NFSeService:
     ) -> Dict[str, Any]:
         """Emite NFS-e via WebService ISSNet (municipal)."""
         try:
-            from .issnet_client import ISSNetClient
+            from nfse_integration.issnet_loja import (
+                certificado_configurado_loja,
+                issnet_client_loja,
+                senha_certificado_configurada_loja,
+            )
 
-            cert_data = getattr(self.config, 'issnet_certificado', None) or getattr(self.config, 'nacional_certificado', None)
-            senha_cert = getattr(self.config, 'issnet_senha_certificado', '') or getattr(self.config, 'nacional_senha_certificado', '')
-
-            if not cert_data:
+            if not certificado_configurado_loja(self.config):
                 return {'success': False, 'error': 'Certificado digital não configurado para ISSNet'}
-            if not senha_cert:
+            if not senha_certificado_configurada_loja(self.config):
                 return {'success': False, 'error': 'Senha do certificado não configurada'}
 
             cnpj_prestador = re.sub(r'\D', '', self.loja.cpf_cnpj or '')
@@ -136,25 +137,7 @@ class NFSeService:
             codigo_cnae_final = codigo_cnae_override or (getattr(self.config, 'codigo_cnae', '') or '').strip()
             aliquota = float(getattr(self.config, 'aliquota_iss', 2.00))
 
-            usuario_issnet = getattr(self.config, 'issnet_usuario', '') or ''
-            senha_issnet = getattr(self.config, 'issnet_senha', '') or ''
-            ambiente_issnet = 'homologacao' if getattr(self.config, 'issnet_ambiente_homologacao', False) else 'producao'
-
-            # Salvar certificado em arquivo temporário
-            import tempfile, os
-            tmp_cert = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
-            tmp_cert.write(bytes(cert_data))
-            tmp_cert.close()
-
-            try:
-                client = ISSNetClient(
-                    usuario=usuario_issnet,
-                    senha=senha_issnet,
-                    certificado_path=tmp_cert.name,
-                    senha_certificado=senha_cert,
-                    ambiente=ambiente_issnet,
-                )
-
+            with issnet_client_loja(self.config) as client:
                 numero_rps = self._gerar_numero_dps()
 
                 resultado = client.emitir_nfse(
@@ -172,8 +155,6 @@ class NFSeService:
                     serie_rps=getattr(self.config, 'issnet_serie_rps', '1') or '1',
                     codigo_cnae=codigo_cnae_final or None,
                 )
-            finally:
-                os.unlink(tmp_cert.name)
 
             if resultado.get('success'):
                 resultado_final = {

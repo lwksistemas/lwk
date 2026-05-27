@@ -228,7 +228,9 @@ backend/
 │   ├── danfe.py               # URL DANFE ISSNet
 │   ├── email_nfse.py          # e-mail ao tomador
 │   ├── pdf_download.py        # download PDF loja/superadmin
+│   ├── issnet_loja.py         # cliente ISSNet (CRMConfig)
 │   ├── issnet_superadmin.py   # cliente ISSNet + cancelamento (superadmin)
+│   ├── loja_nfse_api.py       # emissão/reenvio/exclusão (ViewSet loja)
 │   ├── emissao_manual_superadmin.py
 │   └── superadmin_nfse_api.py # listagem/serialização superadmin
 └── scripts/archive/ removido

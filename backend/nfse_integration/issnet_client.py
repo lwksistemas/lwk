@@ -1503,17 +1503,33 @@ class ISSNetClient:
                 soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfsePorRps',
                 dados_xml=xml_consulta,
             )
+
+            resp_str = (xml_body or str(parsed or '')).strip()
+            if not resp_str:
+                return {'success': False, 'error': 'Resposta vazia ao consultar NFS-e por RPS.'}
+
+            # Erro de negócio (ListaMensagemRetorno), não confundir com sucesso de consulta.
+            if re.search(r'<\s*ListaMensagemRetorno\b', resp_str, re.I):
+                return {'success': False, 'error': self._extrair_erros(resp_str), 'raw': resp_str[:500]}
+
+            cancelada = bool(
+                re.search(
+                    r'<\s*(Cancelamento|NfseCancelada|ConfirmacaoCancelamento)\b',
+                    resp_str,
+                    re.I,
+                )
+                or re.search(r'DataHoraCancelamento', resp_str, re.I)
+            )
+            if cancelada:
+                return {'success': True, 'cancelada': True, 'raw_xml': resp_str[:8000]}
+
+            if parsed and parsed.get('success'):
+                return {'success': True, 'cancelada': False, 'raw_xml': resp_str[:8000]}
+
             if parsed and parsed.get('success') is False:
                 return parsed
 
-            resp_str = xml_body or str(parsed)
-            # Se vier ListaMensagemRetorno em qualquer lugar, tratar como erro.
-            if 'MensagemRetorno' in resp_str:
-                return {'success': False, 'error': self._extrair_erros(resp_str), 'raw': resp_str[:500]}
-
-            # Heurística: se houver tag Cancelamento, está cancelada.
-            cancelada = bool(re.search(r'<\s*Cancelamento\b', resp_str, re.I))
-            return {'success': True, 'cancelada': cancelada, 'raw_xml': resp_str[:8000]}
+            return {'success': True, 'cancelada': False, 'raw_xml': resp_str[:8000]}
         except Exception as e:
             logger.exception('Erro ao consultar NFS-e por RPS: %s', e)
             return {'success': False, 'error': str(e)}

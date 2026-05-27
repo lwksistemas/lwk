@@ -80,14 +80,24 @@ export default function NFSePage() {
     );
   });
 
-  const sincronizarComAsaas = async (e: React.MouseEvent, nf: NFSe) => {
+  const sincronizarStatus = async (e: React.MouseEvent, nf: NFSe) => {
     e.preventDefault();
     e.stopPropagation();
+    const prov = (nf.provedor || '').toLowerCase();
+    const endpoint =
+      prov === 'issnet' ? 'sincronizar-issnet' : prov === 'asaas' ? 'sincronizar-asaas' : '';
+    if (!endpoint) {
+      setSyncMsg({ type: 'err', text: 'Sincronização não disponível para este provedor.' });
+      return;
+    }
     setSyncMsg(null);
     setSyncingId(nf.id);
     try {
-      await apiClient.post(`/nfse/${nf.id}/sincronizar-asaas/`);
-      setSyncMsg({ type: 'ok', text: 'Status atualizado conforme o Asaas.' });
+      const res = await apiClient.post(`/nfse/${nf.id}/${endpoint}/`);
+      const msg =
+        (res.data as { message?: string })?.message ||
+        (prov === 'issnet' ? 'Status atualizado conforme o ISSNet.' : 'Status atualizado conforme o Asaas.');
+      setSyncMsg({ type: 'ok', text: msg });
       await carregarNFSes();
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { error?: string } } };
@@ -172,7 +182,7 @@ export default function NFSePage() {
           nfses={nfsesFiltradas}
           syncingId={syncingId}
           deletingId={deletingId}
-          onSync={sincronizarComAsaas}
+          onSync={sincronizarStatus}
           onDelete={excluirNFSe}
           onDownloadPdf={baixarPdfNFSe}
           onReenviarEmail={reenviarEmailNFSe}
@@ -395,8 +405,19 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, o
               </button>
             </>
           )}
-          {nf.provedor === 'asaas' && (
-            <button type="button" title="Sincronizar com Asaas" onClick={(e) => onSync(e, nf)} disabled={syncingId === nf.id} className="p-1.5 text-gray-600 hover:text-[#0176d3] hover:bg-[#0176d3]/10 rounded disabled:opacity-50">
+          {((nf.provedor || '').toLowerCase() === 'asaas' ||
+            (nf.provedor || '').toLowerCase() === 'issnet') && (
+            <button
+              type="button"
+              title={
+                (nf.provedor || '').toLowerCase() === 'issnet'
+                  ? 'Sincronizar status com ISSNet (portal da prefeitura)'
+                  : 'Sincronizar com Asaas'
+              }
+              onClick={(e) => onSync(e, nf)}
+              disabled={syncingId === nf.id}
+              className="p-1.5 text-gray-600 hover:text-[#0176d3] hover:bg-[#0176d3]/10 rounded disabled:opacity-50"
+            >
               <RefreshCw size={16} className={syncingId === nf.id ? 'animate-spin' : ''} />
             </button>
           )}

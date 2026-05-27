@@ -214,18 +214,24 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
     if out.get('success') is False:
         return ({'error': out.get('error', 'Erro ao consultar ISSNet')}, http_status.HTTP_400_BAD_REQUEST)
 
-    if out.get('cancelada') and nfse.status != 'cancelada':
-        from django.utils import timezone
+    if out.get('cancelada'):
+        if nfse.status != 'cancelada':
+            from django.utils import timezone
 
-        nfse.status = 'cancelada'
-        nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
-        nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+            nfse.status = 'cancelada'
+            nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
+            nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+            message = 'NFS-e marcada como cancelada conforme o ISSNet.'
+        else:
+            message = 'NFS-e já constava como cancelada no sistema.'
+    else:
+        message = 'ISSNet indica nota ainda emitida; nenhuma alteração no CRM.'
 
     nfse.refresh_from_db()
     return (
         {
             'success': True,
-            'message': 'Status atualizado conforme o ISSNet.',
+            'message': message,
             'nfse': NFSeSerializer(nfse).data,
         },
         http_status.HTTP_200_OK,

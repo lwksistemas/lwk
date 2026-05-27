@@ -1368,7 +1368,7 @@ class ISSNetClient:
             return {'success': False, 'error': str(e)}
 
     def consultar_nfse(self, numero_nf: str) -> Dict[str, Any]:
-        """Consulta NFS-e emitida por numero."""
+        """Consulta NFS-e emitida por RPS (compat: método legado)."""
         try:
             xml_consulta = (
                 f'<ConsultarNfseRpsEnvio xmlns="{NS_NFSE}">'
@@ -1390,6 +1390,59 @@ class ISSNetClient:
             return {'success': True, 'data': str(response)}
         except Exception as e:
             logger.exception('Erro ao consultar NFS-e: %s', e)
+            return {'success': False, 'error': str(e)}
+
+    def consultar_nfse_por_rps(
+        self,
+        *,
+        numero_rps: int,
+        serie_rps: str,
+        tipo_rps: str = '1',
+        prestador_cnpj: str,
+        inscricao_municipal: str,
+    ) -> Dict[str, Any]:
+        """
+        Consulta NFS-e por RPS (ABRASF 2.04 / ISSNet).
+        Usado para sincronizar status (ex.: cancelada no portal).
+        """
+        try:
+            cnpj_digits = re.sub(r'\D', '', prestador_cnpj or self.usuario or '')
+            im = (inscricao_municipal or '').strip()
+            serie = (serie_rps or '').strip() or '1'
+            xml_consulta = (
+                f'<ConsultarNfseRpsEnvio xmlns="{NS_NFSE}">'
+                f'<Pedido>'
+                f'<IdentificacaoRps>'
+                f'<Numero>{int(numero_rps)}</Numero>'
+                f'<Serie>{serie}</Serie>'
+                f'<Tipo>{tipo_rps}</Tipo>'
+                f'</IdentificacaoRps>'
+                f'<Prestador>'
+                f'<CpfCnpj><Cnpj>{cnpj_digits}</Cnpj></CpfCnpj>'
+                f'<InscricaoMunicipal>{im}</InscricaoMunicipal>'
+                f'</Prestador>'
+                f'</Pedido>'
+                f'</ConsultarNfseRpsEnvio>'
+            )
+
+            parsed, xml_body = self._post_soap_operacao(
+                nome_operacao='ConsultarNfsePorRps',
+                soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfsePorRps',
+                dados_xml=xml_consulta,
+            )
+            if parsed and parsed.get('success') is False:
+                return parsed
+
+            resp_str = xml_body or str(parsed)
+            # Se vier ListaMensagemRetorno em qualquer lugar, tratar como erro.
+            if 'MensagemRetorno' in resp_str:
+                return {'success': False, 'error': self._extrair_erros(resp_str), 'raw': resp_str[:500]}
+
+            # Heurística: se houver tag Cancelamento, está cancelada.
+            cancelada = bool(re.search(r'<\s*Cancelamento\b', resp_str, re.I))
+            return {'success': True, 'cancelada': cancelada, 'raw_xml': resp_str[:8000]}
+        except Exception as e:
+            logger.exception('Erro ao consultar NFS-e por RPS: %s', e)
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------

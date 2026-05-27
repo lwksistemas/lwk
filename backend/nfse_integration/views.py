@@ -19,6 +19,7 @@ from .loja_nfse_api import (
     processar_cancelamento_nfse_loja,
     processar_emissao_nfse_loja,
     reenviar_email_nfse_loja,
+    sincronizar_nfse_issnet_loja,
     sincronizar_nfse_asaas_loja,
     validar_exclusao_nfse_loja,
     xml_nfse_conteudo,
@@ -143,6 +144,22 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(body, status=http_status)
         except Exception as e:
             logger.exception('Erro ao sincronizar NFS-e com Asaas: %s', e)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], url_path='sincronizar-issnet')
+    def sincronizar_issnet(self, request, pk=None):
+        try:
+            nfse = self.get_object()
+            loja_id, loja = self._obter_loja_atual()
+            if not loja_id:
+                return Response(
+                    {'error': 'Loja não identificada'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            body, http_status = sincronizar_nfse_issnet_loja(nfse, loja, loja_id)
+            return Response(body, status=http_status)
+        except Exception as e:
+            logger.exception('Erro ao sincronizar NFS-e com ISSNet: %s', e)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['get'], url_path='download_pdf')

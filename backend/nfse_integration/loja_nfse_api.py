@@ -171,6 +171,67 @@ def sincronizar_nfse_asaas_loja(nfse: Any, loja_id: int) -> tuple[dict[str, Any]
     )
 
 
+def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[dict[str, Any], int]:
+    """Consulta o ISSNet e atualiza status local (ex.: cancelada no portal)."""
+    from rest_framework import status as http_status
+
+    from crm_vendas.models import CRMConfig
+    from nfse_integration.issnet_loja import issnet_client_loja
+    from nfse_integration.serializers import NFSeSerializer
+
+    if (nfse.provedor or '').lower() != 'issnet':
+        return (
+            {'error': 'Sincronização disponível apenas para NFS-e emitidas via ISSNet.'},
+            http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not nfse.numero_rps:
+        return (
+            {'error': 'NFS-e não possui número de RPS para consulta no ISSNet.'},
+            http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    cfg = CRMConfig.get_or_create_for_loja(loja_id)
+    serie = getattr(cfg, 'issnet_serie_rps', '1') or '1'
+    cnpj_prestador = getattr(loja, 'cpf_cnpj', '') or ''
+    im_prestador = (
+        getattr(cfg, 'inscricao_municipal', '')
+        or getattr(loja, 'inscricao_municipal', '')
+        or ''
+    )
+
+    try:
+        with issnet_client_loja(cfg) as client:
+            out = client.consultar_nfse_por_rps(
+                numero_rps=int(nfse.numero_rps),
+                serie_rps=str(serie),
+                prestador_cnpj=str(cnpj_prestador),
+                inscricao_municipal=str(im_prestador),
+            )
+    except Exception as exc:
+        return ({'error': str(exc)}, http_status.HTTP_400_BAD_REQUEST)
+
+    if out.get('success') is False:
+        return ({'error': out.get('error', 'Erro ao consultar ISSNet')}, http_status.HTTP_400_BAD_REQUEST)
+
+    if out.get('cancelada') and nfse.status != 'cancelada':
+        from django.utils import timezone
+
+        nfse.status = 'cancelada'
+        nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
+        nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+
+    nfse.refresh_from_db()
+    return (
+        {
+            'success': True,
+            'message': 'Status atualizado conforme o ISSNet.',
+            'nfse': NFSeSerializer(nfse).data,
+        },
+        http_status.HTTP_200_OK,
+    )
+
+
 def processar_cancelamento_nfse_loja(
     loja: Any,
     nfse: Any,

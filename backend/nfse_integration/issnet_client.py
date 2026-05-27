@@ -1401,9 +1401,19 @@ class ISSNetClient:
             cnpj_digits = re.sub(r'\D', '', prestador_cnpj or self.usuario or '')
             im = (inscricao_municipal or '').strip()
             
-            # Formato conforme modelo do suporte Nota Control:
-            # Id="s01" no InfPedidoCancelamento, Signature Id="s01" dentro do Pedido
-            xml_cancelar = (
+            def _tentar_cancelamento(xml_payload: str, *, label: str):
+                xml_assinado = self._assinar_xml(xml_payload)
+                parsed, xml_body = self._post_soap_operacao(
+                    nome_operacao='CancelarNfse',
+                    soap_action_uri='http://nfse.abrasf.org.br/CancelarNfse',
+                    dados_xml=xml_assinado,
+                )
+                if parsed and parsed.get('success') is False:
+                    logger.warning('ISSNet cancelar_nfse falhou (%s): %s', label, parsed.get('error'))
+                return parsed, xml_body
+
+            # Tentativa 1 (padrão): assina Pedido (Id=Pedido1) com InfPedidoCancelamento Id=s01.
+            xml_cancelar_1 = (
                 f'<CancelarNfseEnvio xmlns="{NS_NFSE}">'
                 f'<Pedido>'
                 f'<InfPedidoCancelamento Id="s01">'
@@ -1418,49 +1428,29 @@ class ISSNetClient:
                 f'</Pedido>'
                 f'</CancelarNfseEnvio>'
             )
-            xml_assinado = self._assinar_xml(xml_cancelar)
-            
-            # Usar método direto (requests) igual à emissão — zeep dá Fault genérico
-            parsed, xml_body = self._post_soap_operacao(
-                nome_operacao='CancelarNfse',
-                soap_action_uri='http://nfse.abrasf.org.br/CancelarNfse',
-                dados_xml=xml_assinado,
-            )
+
+            parsed, xml_body = _tentar_cancelamento(xml_cancelar_1, label='pedido')
+
+            # Tentativa 2 (fallback): assina InfPedidoCancelamento (Id=cancelNNN).
             if parsed and parsed.get('success') is False:
-                # Fallback adicional: algumas instâncias ISSNet só aceitam assinatura
-                # referenciando InfPedidoCancelamento, não o Pedido.
-                err_txt = str(parsed.get('error') or '')
-                if 'SOAP' in err_txt or 'Erro genérico do webservice ISSNet' in err_txt:
-                    try:
-                        # Remontar XML com Id específico no InfPedidoCancelamento para assinar esse nó.
-                        nf_digits = re.sub(r'\D', '', str(numero_nf))
-                        inf_id = f'cancel{nf_digits}' if nf_digits else 'cancels01'
-                        xml_cancelar_alt = (
-                            f'<CancelarNfseEnvio xmlns="{NS_NFSE}">'
-                            f'<Pedido>'
-                            f'<InfPedidoCancelamento Id="{inf_id}">'
-                            f'<IdentificacaoNfse>'
-                            f'<Numero>{numero_nf}</Numero>'
-                            f'<CpfCnpj><Cnpj>{cnpj_digits}</Cnpj></CpfCnpj>'
-                            f'<InscricaoMunicipal>{im}</InscricaoMunicipal>'
-                            f'<CodigoMunicipio>{COD_MUNICIPIO_RP}</CodigoMunicipio>'
-                            f'</IdentificacaoNfse>'
-                            f'<CodigoCancelamento>{codigo_cancelamento}</CodigoCancelamento>'
-                            f'</InfPedidoCancelamento>'
-                            f'</Pedido>'
-                            f'</CancelarNfseEnvio>'
-                        )
-                        xml_assinado_alt = self._assinar_xml(xml_cancelar_alt)
-                        parsed2, xml_body2 = self._post_soap_operacao(
-                            nome_operacao='CancelarNfse',
-                            soap_action_uri='http://nfse.abrasf.org.br/CancelarNfse',
-                            dados_xml=xml_assinado_alt,
-                        )
-                        if parsed2 and parsed2.get('success') is False:
-                            return parsed
-                        parsed, xml_body = parsed2, xml_body2
-                    except Exception:
-                        return parsed
+                nf_digits = re.sub(r'\D', '', str(numero_nf))
+                inf_id = f'cancel{nf_digits}' if nf_digits else 'cancels01'
+                xml_cancelar_2 = (
+                    f'<CancelarNfseEnvio xmlns="{NS_NFSE}">'
+                    f'<Pedido>'
+                    f'<InfPedidoCancelamento Id="{inf_id}">'
+                    f'<IdentificacaoNfse>'
+                    f'<Numero>{numero_nf}</Numero>'
+                    f'<CpfCnpj><Cnpj>{cnpj_digits}</Cnpj></CpfCnpj>'
+                    f'<InscricaoMunicipal>{im}</InscricaoMunicipal>'
+                    f'<CodigoMunicipio>{COD_MUNICIPIO_RP}</CodigoMunicipio>'
+                    f'</IdentificacaoNfse>'
+                    f'<CodigoCancelamento>{codigo_cancelamento}</CodigoCancelamento>'
+                    f'</InfPedidoCancelamento>'
+                    f'</Pedido>'
+                    f'</CancelarNfseEnvio>'
+                )
+                parsed, xml_body = _tentar_cancelamento(xml_cancelar_2, label='inf_pedido')
             if parsed and parsed.get('success') is False:
                 return parsed
             

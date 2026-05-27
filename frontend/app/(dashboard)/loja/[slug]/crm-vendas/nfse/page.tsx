@@ -357,6 +357,7 @@ function NfseRow({ nf, lojaProvedor, syncingId, deletingId, onSync, onDelete, on
   const statusColor = STATUS_COLORS[nf.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
   const aliquota = Number(nf.aliquota_iss ?? 0).toFixed(2);
   const podeBaixar = nf.status === 'emitida' || nf.status === 'cancelada';
+  const podeSincronizar = nf.status === 'emitida' || nf.status === 'erro';
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50">
       <td className="px-4 py-3 text-sm">
@@ -441,7 +442,7 @@ function NfseRow({ nf, lojaProvedor, syncingId, deletingId, onSync, onDelete, on
               </button>
             </>
           )}
-          {syncEndpoint(nf, lojaProvedor) && (
+          {podeSincronizar && syncEndpoint(nf, lojaProvedor) && (
             <button
               type="button"
               title={

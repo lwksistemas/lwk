@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -64,7 +65,7 @@ export default function RelatoriosPage() {
       const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       setLojaInfo(lojaResponse.data);
     } catch (error: unknown) {
-      console.error('Erro ao carregar loja:', error);
+      logger.warn('Erro ao carregar loja:', error);
       const ax = error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response : undefined;
       if (ax?.status === 401) router.push(loginPath);
     } finally {

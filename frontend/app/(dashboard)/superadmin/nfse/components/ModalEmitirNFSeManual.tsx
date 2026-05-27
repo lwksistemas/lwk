@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FileText, Plus, X, AlertCircle, Store } from 'lucide-react'
 import apiClient from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 
 interface ModalEmitirNFSeManualProps {
   onClose: () => void
@@ -60,7 +61,7 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
       const { data } = await apiClient.get('/superadmin/nfse-emitidas/lojas/')
       setLojas(data.lojas || [])
     } catch (err) {
-      console.error('Erro ao carregar lojas:', err)
+      logger.warn('Erro ao carregar lojas para NFS-e:', err)
     } finally {
       setLoadingLojas(false)
     }
@@ -123,7 +124,7 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
         setError(data.error || 'Erro ao emitir NFS-e')
       }
     } catch (err: any) {
-      console.error('Erro ao emitir NFS-e:', err)
+      logger.warn('Erro ao emitir NFS-e:', err)
       const errData = err.response?.data
       const errMsg = errData?.error || errData?.detail || (typeof errData === 'string' ? errData : JSON.stringify(errData)) || 'Erro ao emitir NFS-e'
       setError(errMsg)

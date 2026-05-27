@@ -102,11 +102,18 @@ def gerar_pdf_nfse(nfse, loja) -> BytesIO:
         elements.append(Paragraph(f"<b>Email:</b> {nfse.tomador_email}", info_style))
     elements.append(Spacer(1, 0.2*cm))
 
-    # Serviço
+    # Serviço — suporta tanto 'servico_descricao' (NFSe da loja) quanto 'descricao_servico' (NFSeEmitida)
+    servico_descricao = (
+        getattr(nfse, 'servico_descricao', None)
+        or getattr(nfse, 'descricao_servico', None)
+        or '—'
+    )
+    servico_codigo = getattr(nfse, 'servico_codigo', None) or getattr(nfse, 'codigo_servico', None)
+
     elements.append(Paragraph('<b>Descrição do Serviço</b>', section_style))
-    elements.append(Paragraph(nfse.servico_descricao or '—', info_style))
-    if nfse.servico_codigo:
-        elements.append(Paragraph(f"<b>Código do Serviço:</b> {nfse.servico_codigo}", info_style))
+    elements.append(Paragraph(servico_descricao, info_style))
+    if servico_codigo:
+        elements.append(Paragraph(f"<b>Código do Serviço:</b> {servico_codigo}", info_style))
     elements.append(Spacer(1, 0.3*cm))
 
     # Valores

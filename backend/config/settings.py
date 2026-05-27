@@ -356,6 +356,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
     'x-loja-id',  # ✅ Header customizado com ID único da loja
     'x-tenant-slug',  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
+    'x-session-id',  # ✅ Header para validação de sessão única (bloqueio simultâneo)
     'cache-control',  # ✅ v1377: Permitir header de cache do service worker
     'pragma',  # ✅ v1377: Permitir header de cache do service worker
 ]

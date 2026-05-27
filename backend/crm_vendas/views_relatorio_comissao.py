@@ -17,6 +17,16 @@ from tenants.middleware import get_current_loja_id
 logger = logging.getLogger(__name__)
 
 
+def _fmt_cpf_cnpj(valor: str) -> str:
+    """Formata CPF (000.000.000-00) ou CNPJ (00.000.000/0001-00)."""
+    digits = ''.join(c for c in (valor or '') if c.isdigit())
+    if len(digits) == 11:
+        return f'{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}'
+    if len(digits) == 14:
+        return f'{digits[:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:]}'
+    return valor
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINTS AUTENTICADOS (admin da loja)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -133,12 +143,11 @@ def preview_relatorio_comissao_view(request):
         periodo_inicio, periodo_fim = calcular_periodo(periodo)
         periodo_descricao = periodo.replace('_', ' ').title()
 
-    # Inclui vendas sem empresa prestadora definida
-    filtro_ep = Q(empresa_prestadora_id=int(empresa_prestadora_id)) | Q(empresa_prestadora_id__isnull=True)
-
+    # Apenas vendas com empresa prestadora definida (nunca misturar entre empresas)
     qs = Oportunidade.objects.filter(
         loja_id=loja_id, etapa='closed_won',
-    ).filter(filtro_ep).filter(_filtro_datas_fechamento_ganho(periodo_inicio, periodo_fim)).select_related('lead', 'lead__conta', 'vendedor')
+        empresa_prestadora_id=int(empresa_prestadora_id),
+    ).filter(_filtro_datas_fechamento_ganho(periodo_inicio, periodo_fim)).select_related('lead', 'lead__conta', 'vendedor')
 
     if vendedor_id:
         # Incluir vendas de vendedores inativos mescladas neste vendedor (mesmo critério do dashboard)
@@ -162,11 +171,17 @@ def preview_relatorio_comissao_view(request):
     for op in qs.order_by('-data_fechamento_ganho', '-data_fechamento'):
         dt = op.data_fechamento_ganho or op.data_fechamento
         cliente = ''
+        cpf_cnpj = ''
         if op.lead:
-            cliente = op.lead.conta.nome if op.lead.conta_id else op.lead.nome
+            if op.lead.conta_id:
+                cliente = op.lead.conta.nome
+                cpf_cnpj = op.lead.conta.cnpj or ''
+            else:
+                cliente = op.lead.nome
+                cpf_cnpj = op.lead.cpf_cnpj or ''
         dados_ops.append({
             'data': dt.strftime('%d/%m/%Y') if dt else '—',
-            'cliente': cliente or op.titulo,
+            'cliente': f"{_fmt_cpf_cnpj(cpf_cnpj)} {cliente}".strip() if cpf_cnpj else (cliente or op.titulo),
             'valor': float(op.valor or 0),
             'comissao': float(op.valor_comissao or 0),
         })
@@ -188,8 +203,13 @@ def preview_relatorio_comissao_view(request):
     loja = Loja.objects.using('default').filter(id=loja_id).first()
     pdf_buffer = gerar_pdf_relatorio_comissao(fake_relatorio, loja)
 
+    # Nome do arquivo: empresa_prestadora + vendedor
+    nome_empresa = (ep.nome or 'empresa').replace(' ', '_')[:30]
+    nome_vend = (vendedor.nome if vendedor else 'vendedor').replace(' ', '_')[:30]
+    filename = f'comissao_{nome_empresa}_{nome_vend}.pdf'
+
     response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
-    response['Content-Disposition'] = 'inline; filename="preview_relatorio_comissao.pdf"'
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
     return response
 
 
@@ -293,8 +313,13 @@ def download_pdf_relatorio_comissao_view(request, relatorio_id):
     incluir_assin = r.status not in ('pendente_aprovacao', 'reprovado')
     pdf_buffer = gerar_pdf_relatorio_comissao(r, loja, incluir_assinaturas=incluir_assin)
 
+    # Nome do arquivo: empresa_prestadora + vendedor
+    nome_empresa = (r.empresa_prestadora.nome if r.empresa_prestadora else 'empresa').replace(' ', '_')[:30]
+    nome_vend = (r.vendedor.nome if r.vendedor else 'vendedor').replace(' ', '_')[:30]
+    filename = f'comissao_{nome_empresa}_{nome_vend}_{r.numero}.pdf'
+
     response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="relatorio_{r.numero}.pdf"'
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
     return response
 
 

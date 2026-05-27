@@ -6,6 +6,7 @@ from .models import (
     PagamentoLoja, UsuarioSistema, HistoricoAcessoGlobal,
     ViolacaoSeguranca, EmailRetry, ConfiguracaoBackup, HistoricoBackup
 )
+from core.logging_utils import mask_email
 import logging
 
 logger = logging.getLogger(__name__)
@@ -108,9 +109,9 @@ Equipe LWK Sistemas
                 recipient_list=[user.email],
                 fail_silently=True
             )
-            logger.info(f"✅ Email enviado para {user.email} com senha provisória")
+            logger.info("Email com senha provisória enviado: email=%s", mask_email(user.email))
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao enviar email: {e}")
+            logger.warning("Erro ao enviar email com senha provisória: %s", e)
         
         # Armazenar senha provisória no contexto para retornar na resposta
         perfil._senha_provisoria_gerada = senha_provisoria
@@ -228,6 +229,7 @@ class LojaSerializer(serializers.ModelSerializer):
     plano_nome = serializers.CharField(source='plano.nome', read_only=True)
     owner_username = serializers.CharField(source='owner.username', read_only=True)
     owner_email = serializers.CharField(source='owner.email', read_only=True)
+    owner_full_name = serializers.SerializerMethodField(read_only=True)
     owner_email_edit = serializers.EmailField(write_only=True, required=False, allow_blank=True)
     owner_username_edit = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=150)
     owner_name_edit = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=200)
@@ -264,6 +266,12 @@ class LojaSerializer(serializers.ModelSerializer):
             if update_fields:
                 instance.owner.save(update_fields=update_fields)
         return instance
+
+    def get_owner_full_name(self, obj):
+        if obj.owner:
+            full = f"{obj.owner.first_name or ''} {obj.owner.last_name or ''}".strip()
+            return full or obj.owner.username
+        return ''
 
 
 class LojaCreateSerializer(serializers.ModelSerializer):

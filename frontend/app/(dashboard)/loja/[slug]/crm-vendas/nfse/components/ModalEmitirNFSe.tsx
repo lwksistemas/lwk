@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, Plus, X, AlertCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import { ServicoFields } from './ServicoFields';
 import { ModalFormButtons } from './ModalFormButtons';
 
@@ -87,7 +88,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
         }));
       setContas([...contasList, ...leadsList]);
     } catch (err) {
-      console.error('Erro ao carregar contas:', err);
+      logger.warn('Erro ao carregar contas para NFS-e:', err);
     } finally {
       setLoadingContas(false);
     }
@@ -153,7 +154,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
       await apiClient.post('/nfse/emitir/', payload);
       onSuccess();
     } catch (err: any) {
-      console.error('Erro ao emitir NFS-e:', err);
+      logger.warn('Erro ao emitir NFS-e:', err);
       setError(err.response?.data?.error || 'Erro ao emitir NFS-e');
       onRefreshList?.();
     } finally {

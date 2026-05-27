@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, RefreshCw, FileText, Download, Mail, XCircle, PlusCircle, Trash2 } from 'lucide-react'
 import apiClient from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 import { ModalEmitirNFSeManual } from './components/ModalEmitirNFSeManual'
 
 interface NFSeEmitida {
@@ -80,7 +81,7 @@ export default function NFSeEmitidasPage() {
       setNotas(data.notas || [])
       setTotal(data.total || 0)
     } catch (error) {
-      console.error('Erro ao carregar NFS-e:', error)
+      logger.warn('Erro ao carregar NFS-e:', error)
     } finally {
       setLoading(false)
     }
@@ -105,14 +106,24 @@ export default function NFSeEmitidasPage() {
     }
   }
 
-  const handleBaixarPdf = (nf: NFSeEmitida) => {
-    if (nf.pdf_url) {
-      window.open(nf.pdf_url, '_blank')
-    } else if (nf.numero_nf && nf.codigo_verificacao) {
-      // Consulta no portal nacional
-      window.open('https://www.nfse.gov.br/ConsultaPublica/', '_blank')
-    } else {
-      setMessage({ type: 'error', text: 'PDF não disponível.' })
+  const handleBaixarPdf = async (nf: NFSeEmitida) => {
+    try {
+      // Asaas retorna JSON com {url}, ISSNet retorna blob direto
+      const res = await apiClient.get(`/superadmin/nfse-emitidas/${nf.id}/pdf/`, { responseType: 'blob' });
+      const contentType = res.headers?.['content-type'] || '';
+      if (contentType.includes('application/json')) {
+        // Asaas: ler JSON do blob e abrir URL
+        const text = await (res.data as Blob).text();
+        const json = JSON.parse(text);
+        if (json.url) { window.open(json.url, '_blank'); return; }
+      }
+      // PDF blob — abrir em nova aba
+      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+    } catch {
+      setMessage({ type: 'error', text: 'PDF não disponível.' });
     }
   }
 
@@ -131,9 +142,21 @@ export default function NFSeEmitidasPage() {
   }
 
   const handleCancelar = async (nf: NFSeEmitida) => {
-    if (!confirm(`CANCELAR NFS-e ${nf.numero_nf}? Esta ação não pode ser desfeita.`)) return
+    const motivos: Record<string, string> = {
+      '1': 'Erro na emissão',
+      '2': 'Serviço não prestado',
+      '4': 'Duplicidade da nota',
+    }
+    const opcao = prompt(
+      `CANCELAR NFS-e ${nf.numero_nf}?\n\nEscolha o motivo:\n1 - Erro na emissão\n2 - Serviço não prestado\n4 - Duplicidade da nota\n\nDigite o número (1, 2 ou 4):`
+    )
+    if (!opcao || !motivos[opcao]) return
+    const motivoTexto = prompt('Descreva o motivo (opcional):') || motivos[opcao]
     try {
-      const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nf.id}/cancelar/`)
+      const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nf.id}/cancelar/`, {
+        codigo_cancelamento: opcao,
+        motivo: motivoTexto,
+      })
       if (data.success) {
         setMessage({ type: 'success', text: data.message })
         loadNotas()

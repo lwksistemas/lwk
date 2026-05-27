@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface CacheItem<T> {
   data: T;
@@ -65,7 +66,7 @@ export function useClinicaCache<T>(
       
       return response.data;
     } catch (err) {
-      console.error(`Erro ao carregar ${endpoint}:`, err);
+      logger.warn(`Erro ao carregar ${endpoint}:`, err);
       if (isMounted.current) {
         setError('Erro ao carregar dados');
         setLoading(false);

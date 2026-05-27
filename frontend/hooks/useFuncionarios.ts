@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { extractArrayData, formatApiError } from '@/lib/api-helpers';
+import { logger } from '@/lib/logger';
 
 interface UseFuncionariosOptions {
   endpoint: string;
@@ -36,7 +37,7 @@ export function useFuncionarios({ endpoint, onError }: UseFuncionariosOptions) {
       setFuncionarios(data);
       return data;
     } catch (error) {
-      console.error('Erro ao carregar funcionários:', error);
+      logger.warn('Erro ao carregar funcionários:', error);
       if (onError) {
         onError(error);
       } else {
@@ -55,7 +56,7 @@ export function useFuncionarios({ endpoint, onError }: UseFuncionariosOptions) {
       await carregar();
       return true;
     } catch (error) {
-      console.error('Erro ao criar funcionário:', error);
+      logger.warn('Erro ao criar funcionário:', error);
       if (onError) {
         onError(error);
       } else {
@@ -71,7 +72,7 @@ export function useFuncionarios({ endpoint, onError }: UseFuncionariosOptions) {
       await carregar();
       return true;
     } catch (error) {
-      console.error('Erro ao atualizar funcionário:', error);
+      logger.warn('Erro ao atualizar funcionário:', error);
       if (onError) {
         onError(error);
       } else {
@@ -87,7 +88,7 @@ export function useFuncionarios({ endpoint, onError }: UseFuncionariosOptions) {
       await carregar();
       return true;
     } catch (error) {
-      console.error('Erro ao excluir funcionário:', error);
+      logger.warn('Erro ao excluir funcionário:', error);
       if (onError) {
         onError(error);
       } else {

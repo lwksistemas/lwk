@@ -139,7 +139,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
       {canView(userRole, 'agendamentos') && (
         <AppointmentsTable 
           appointments={filteredAppointments} 
-          onFilterChange={(filter) => console.log('Filter changed:', filter)}
+          onFilterChange={() => {}}
         />
       )}
 

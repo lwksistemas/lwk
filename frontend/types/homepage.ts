@@ -36,10 +36,21 @@ export interface HeroImagem {
   titulo: string;
 }
 
+export interface EmpresaConfig {
+  id?: number;
+  nome_empresa: string;
+  cnpj: string;
+  endereco: string;
+  telefone_whatsapp: string;
+  mensagem_whatsapp: string;
+  email_contato: string;
+}
+
 export interface HomepageData {
   hero: Hero | null;
   hero_imagens: HeroImagem[];
   funcionalidades: Funcionalidade[];
   modulos: Modulo[];
   whyus: WhyUsBenefit[];
+  empresa: EmpresaConfig | null;
 }

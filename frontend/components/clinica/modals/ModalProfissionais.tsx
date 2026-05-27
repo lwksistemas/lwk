@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/Toast';
 import { CrudModal } from '../shared/CrudModal';
 import { FormField } from '../shared/FormField';
 import { ModalHorariosTrabalho } from '../ModalHorariosTrabalho';
+import { logger } from '@/lib/logger';
 import type { LojaInfo } from '../shared/CrudModal';
 
 interface Profissional {
@@ -59,7 +60,7 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
       const response = await clinicaApiClient.get('/clinica/profissionais/');
       setProfissionais(ensureArray<Profissional>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar profissionais:', error);
+      logger.warn('Erro ao carregar profissionais:', error);
       setLoadError(true);
       toast.error('Erro ao carregar profissionais. Tente novamente.');
     } finally {
@@ -91,7 +92,7 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
       alert('✅ Profissional excluído com sucesso!');
       loadProfissionais();
     } catch (error) {
-      console.error('Erro ao excluir profissional:', error);
+      logger.warn('Erro ao excluir profissional:', error);
       alert('❌ Erro ao excluir profissional');
     }
   };
@@ -125,7 +126,7 @@ export function ModalProfissionais({ loja, onClose }: ModalProfissionaisProps) {
       loadProfissionais();
       resetForm();
     } catch (error) {
-      console.error('Erro ao salvar profissional:', error);
+      logger.warn('Erro ao salvar profissional:', error);
       alert('❌ Erro ao salvar profissional');
     } finally {
       setSubmitting(false);

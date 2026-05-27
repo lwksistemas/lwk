@@ -7,7 +7,7 @@ export const CRM_PROPOSTA_STATUS_LABEL: Record<string, string> = {
   rascunho: 'Rascunho',
   enviada: 'Enviada',
   aceita: 'Aceita',
-  pedido: 'Pedido',
+  pedido: 'Concluída',
   rejeitada: 'Rejeitada',
   cancelada: 'Cancelada',
 };

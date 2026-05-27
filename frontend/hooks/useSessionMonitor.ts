@@ -25,8 +25,11 @@ export function useSessionMonitor() {
         const sid = sessionStorage.getItem('session_id') || '';
         const accessToken = sessionStorage.getItem('access_token') || '';
         const base = getPrimaryApiBaseUrl();
+        const headers: Record<string, string> = {};
+        if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+        if (sid) headers['X-Session-ID'] = sid;
         await axios.get(`${base}/superadmin/lojas/heartbeat/${sid ? `?sid=${sid}` : ''}`, {
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+          headers,
         });
       } catch (err: any) {
         const code = err?.response?.data?.code;

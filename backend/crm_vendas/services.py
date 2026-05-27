@@ -63,6 +63,15 @@ class OportunidadeService:
         """
         from .models import Vendedor
         
+        # Garantir datas de fechamento ao criar com etapa fechada
+        etapa = validated_data.get('etapa', 'prospecting')
+        if etapa == 'closed_won' and not validated_data.get('data_fechamento_ganho'):
+            from django.utils import timezone
+            validated_data['data_fechamento_ganho'] = timezone.now().date()
+        elif etapa == 'closed_lost' and not validated_data.get('data_fechamento_perdido'):
+            from django.utils import timezone
+            validated_data['data_fechamento_perdido'] = timezone.now().date()
+        
         # Regra 1: Vendedor logado (VendedorUsuario) tem prioridade — validar que existe no tenant
         if self.vendedor_id and not _oportunidade_tem_vendedor(validated_data):
             if Vendedor.objects.filter(id=self.vendedor_id).exists():
@@ -154,6 +163,24 @@ class OportunidadeService:
                         padrao,
                     )
         
+        # Garantir data_fechamento_ganho ao fechar como ganho
+        nova_etapa = validated_data.get('etapa')
+        if nova_etapa == 'closed_won' and not validated_data.get('data_fechamento_ganho'):
+            # Se não veio data_fechamento_ganho no payload e a instância também não tem, setar hoje
+            if not instance.data_fechamento_ganho:
+                from django.utils import timezone
+                validated_data['data_fechamento_ganho'] = timezone.now().date()
+                logger.info(
+                    'data_fechamento_ganho definida automaticamente para oportunidade_id=%s',
+                    instance.id,
+                )
+        
+        # Garantir data_fechamento_perdido ao fechar como perdido
+        if nova_etapa == 'closed_lost' and not validated_data.get('data_fechamento_perdido'):
+            if not instance.data_fechamento_perdido:
+                from django.utils import timezone
+                validated_data['data_fechamento_perdido'] = timezone.now().date()
+
         # Atualizar campos
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

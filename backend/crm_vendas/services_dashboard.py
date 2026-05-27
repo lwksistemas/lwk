@@ -78,13 +78,21 @@ def calcular_intervalo_datas(periodo, data_inicio_param=None, data_fim_param=Non
 
 
 def _filtro_fechamento_no_periodo(data_inicio, data_fim, prefix=''):
-    """Filtro Q para oportunidades fechadas no período (com ou sem data_fechamento_ganho)."""
+    """Filtro Q para oportunidades fechadas no período (com ou sem data_fechamento_ganho).
+    
+    Prioridade: data_fechamento_ganho > data_fechamento > created_at.
+    """
     p = f'{prefix}__' if prefix else ''
     return (
         Q(**{f'{p}data_fechamento_ganho__gte': data_inicio, f'{p}data_fechamento_ganho__lte': data_fim})
         | (
             Q(**{f'{p}data_fechamento_ganho__isnull': True})
             & Q(**{f'{p}data_fechamento__gte': data_inicio, f'{p}data_fechamento__lte': data_fim})
+        )
+        | (
+            Q(**{f'{p}data_fechamento_ganho__isnull': True})
+            & Q(**{f'{p}data_fechamento__isnull': True})
+            & Q(**{f'{p}created_at__date__gte': data_inicio, f'{p}created_at__date__lte': data_fim})
         )
     )
 

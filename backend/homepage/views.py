@@ -5,8 +5,8 @@ Retorna os dados configurados para exibir na página inicial.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit
-from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer, WhyUsBenefitSerializer
+from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit, EmpresaConfig
+from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer, WhyUsBenefitSerializer, EmpresaConfigSerializer
 
 
 class HomePageAPIView(APIView):
@@ -21,6 +21,9 @@ class HomePageAPIView(APIView):
         modulos = ModuloSistema.objects.filter(ativo=True)
         whyus = WhyUsBenefit.objects.filter(ativo=True)
         hero_imagens = HeroImagem.objects.filter(ativo=True)
+
+        # Dados da empresa (singleton)
+        empresa = EmpresaConfig.objects.first()
 
         # Serializer inline para HeroImagem
         hero_imagens_data = [
@@ -39,4 +42,5 @@ class HomePageAPIView(APIView):
             'funcionalidades': FuncionalidadeSerializer(funcionalidades, many=True).data,
             'modulos': ModuloSerializer(modulos, many=True).data,
             'whyus': WhyUsBenefitSerializer(whyus, many=True).data,
+            'empresa': EmpresaConfigSerializer(empresa).data if empresa else None,
         })

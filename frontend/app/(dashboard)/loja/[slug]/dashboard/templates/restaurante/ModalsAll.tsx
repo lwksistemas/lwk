@@ -5,6 +5,7 @@ import { clinicaApiClient } from '@/lib/api-client';
 import { formatApiError } from '@/lib/api-errors';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/financeiro-helpers';
 import { useToast } from '@/components/ui/Toast';
+import { logger } from '@/lib/logger';
 import type {
   LojaInfo,
   Categoria,
@@ -48,7 +49,7 @@ export function ModalCardapio({ loja, onClose, onSuccess }: { loja: LojaInfo; on
       setCategorias(Array.isArray(catRes.data) ? catRes.data : (catRes.data as { results?: Categoria[] })?.results ?? []);
       setItens(Array.isArray(itensRes.data) ? itensRes.data : (itensRes.data as { results?: ItemCardapio[] })?.results ?? []);
     } catch (e) {
-      console.error(e);
+      logger.warn('Erro ao carregar cardápio:', e);
       toast.error('Erro ao carregar cardápio');
     } finally {
       setLoading(false);

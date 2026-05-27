@@ -366,11 +366,11 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
 
     # ── Área de Assinatura (quando ainda não assinado) ───────────────────────
     else:
-        elements.append(Spacer(1, 0.8 * cm))
+        elements.append(Spacer(1, 0.5 * cm))
         elements.append(HRFlowable(width='100%', thickness=0.5, color=_CINZA_ESCURO))
-        elements.append(Spacer(1, 0.4 * cm))
-        elements.append(Paragraph('<b>Assinaturas</b>', secao_style))
         elements.append(Spacer(1, 0.3 * cm))
+        elements.append(Paragraph('<b>Assinaturas</b>', secao_style))
+        elements.append(Spacer(1, 0.2 * cm))
 
         linha_assin = '_' * 45
         # Nome do vendedor para assinatura
@@ -398,7 +398,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
         elements.append(t_assin_vazia)
-        elements.append(Spacer(1, 0.5 * cm))
+        elements.append(Spacer(1, 0.3 * cm))
         elements.append(Paragraph(
             'Data: _____ / _____ / _________',
             ParagraphStyle('data', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER),
@@ -411,9 +411,9 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
         elements.append(Paragraph(relatorio.observacoes, info_style))
 
     # ── Rodapé ───────────────────────────────────────────────────────────────
-    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(Spacer(1, 0.3 * cm))
     elements.append(HRFlowable(width='100%', thickness=0.5, color=_CINZA_ESCURO))
-    elements.append(Spacer(1, 0.2 * cm))
+    elements.append(Spacer(1, 0.1 * cm))
     from django.utils import timezone
     elements.append(Paragraph(
         f'Documento gerado em {timezone.now().strftime("%d/%m/%Y às %H:%M")} | '

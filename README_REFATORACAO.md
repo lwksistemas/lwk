@@ -223,10 +223,8 @@ backend/
 │   ├── fix/ (1 command)
 │   ├── create/ (1 command)
 │   └── cleanup/ (1 command)
-└── scripts/archive/
-    ├── 2026-03-debug/ (4 scripts)
-    ├── 2026-03-client-fixes/ (13 scripts)
-    └── 2026-03-tests/ (6 scripts)
+└── scripts/archive/ removido
+    └── scripts one-off/debug não devem ser versionados quando contêm contexto de cliente
 ```
 
 ---

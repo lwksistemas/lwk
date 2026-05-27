@@ -14,7 +14,7 @@ const SESSION_CODES = [
 
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
-  return sessionStorage.getItem("access_token") || localStorage.getItem("token");
+  return sessionStorage.getItem("access_token");
 }
 
 /** Se a resposta for 401 com código de sessão única, faz logout e redireciona. Retorna true se fez redirect. */
@@ -58,6 +58,11 @@ export function getClinicaBelezaHeadersWithLoja(
   const token = getAuthToken();
   const h: Record<string, string> = { "Content-Type": "application/json" };
   if (token) h["Authorization"] = `Bearer ${token}`;
+  // Enviar session_id para validação de sessão única no backend
+  if (typeof window !== "undefined") {
+    const sessionId = sessionStorage.getItem("session_id");
+    if (sessionId) h["X-Session-ID"] = sessionId;
+  }
   let lojaId: string | null = loja?.id != null ? String(loja.id) : null;
   let lojaSlug: string | null = loja?.slug ?? null;
   if (typeof window !== "undefined") {

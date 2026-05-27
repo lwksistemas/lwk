@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
 import { getPublicApiJson } from '@/lib/public-api';
+import { logger } from '@/lib/logger';
 import PasswordInput from '@/components/auth/PasswordInput';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
@@ -54,7 +55,7 @@ export default function LojaLoginDinamicoPage() {
 
       setLojaInfo(data);
     } catch (err: unknown) {
-      console.error('Erro ao carregar informações da loja:', err);
+      logger.warn('Erro ao carregar informações da loja:', err);
       const status = err && typeof err === 'object' && 'response' in err && typeof (err as { response?: { status?: number } }).response?.status === 'number'
         ? (err as { response: { status: number } }).response.status
         : null;
@@ -68,46 +69,38 @@ export default function LojaLoginDinamicoPage() {
     }
   }, [slug, router]);
 
-  // Limpar sessões antigas e salvar slug para o PWA reabrir na loja certa.
-  // Se já tem sessão válida (PWA reaberto), redirecionar direto para o dashboard.
+  // Limpar sessões antigas e carregar credenciais salvas (se "Lembrar" ativo)
+  // SEGURANÇA: Nunca fazer login automático — sempre exigir login explícito
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Verificar se já tem sessão válida (PWA reaberto — só em modo standalone)
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-      const existingToken = localStorage.getItem('token');
-      const existingRefresh = localStorage.getItem('refresh_token');
-      const existingUserType = localStorage.getItem('user_type');
-      const existingSlug = localStorage.getItem('loja_slug');
-      
-      if (isStandalone && existingToken && existingRefresh && existingUserType === 'loja' && existingSlug) {
-        // Restaurar sessão no sessionStorage
-        sessionStorage.setItem('access_token', existingToken);
-        sessionStorage.setItem('refresh_token', existingRefresh);
-        sessionStorage.setItem('user_type', existingUserType);
-        sessionStorage.setItem('loja_slug', existingSlug);
-        // Redirecionar para dashboard
-        const destino = `/loja/${existingSlug}/crm-vendas`;
-        markInternalNavigation();
-        window.location.replace(destino);
-        return;
-      }
-
-      if (slug) {
-        localStorage.setItem('pwa_loja_slug', slug);
-        // Carregar CPF/CNPJ salvo (lembrar)
-        const saved = localStorage.getItem(`login_lembrar_cpf_${slug}`);
-        if (saved) {
-          setCredentials((c) => ({ ...c, cpf_cnpj: saved }));
-          setLembrarCpfCnpj(true);
-        }
-      }
+      // Limpar qualquer sessão/token residual (impede login automático)
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');
       sessionStorage.removeItem('loja_slug');
       sessionStorage.removeItem('session_id');
+      localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('loja_slug');
       document.cookie = 'user_type=; path=/; max-age=0';
       document.cookie = 'loja_slug=; path=/; max-age=0';
+
+      if (slug) {
+        localStorage.setItem('pwa_loja_slug', slug);
+        // Carregar identificadores salvos. Senha nunca deve ser persistida no navegador.
+        const savedCpf = localStorage.getItem(`login_lembrar_cpf_${slug}`);
+        const savedUser = localStorage.getItem(`login_lembrar_user_${slug}`);
+        localStorage.removeItem(`login_lembrar_pass_${slug}`);
+        if (savedCpf || savedUser) {
+          setLembrarCpfCnpj(true);
+          setCredentials((c) => ({
+            ...c,
+            ...(savedUser ? { username: savedUser } : {}),
+            ...(savedCpf ? { cpf_cnpj: savedCpf } : {}),
+          }));
+        }
+      }
     }
     loadLojaInfo();
   }, [slug, loadLojaInfo]);
@@ -148,28 +141,27 @@ export default function LojaLoginDinamicoPage() {
     setLoading(true);
 
     try {
-      console.log('🔐 Iniciando login...', { username: credentials.username, slug });
       const loginResponse = await authService.login(credentials, 'loja', slug);
-      
-      console.log('✅ Login response:', loginResponse);
       
       // Verificar se precisa trocar senha
       const precisaTrocar = loginResponse.precisa_trocar_senha === true;
       
       if (precisaTrocar) {
-        console.log('🔄 Redirecionando para trocar senha...');
         markInternalNavigation();
         window.location.replace(`/loja/${slug}/trocar-senha`);
         return;
       }
 
-      // Salvar ou remover CPF/CNPJ conforme checkbox "Lembrar"
+      // Salvar ou remover identificadores conforme checkbox "Lembrar". Nunca salvar senha.
       if (typeof window !== 'undefined' && slug) {
-        const key = `login_lembrar_cpf_${slug}`;
-        if (lembrarCpfCnpj && credentials.cpf_cnpj) {
-          localStorage.setItem(key, credentials.cpf_cnpj);
+        if (lembrarCpfCnpj) {
+          localStorage.setItem(`login_lembrar_cpf_${slug}`, credentials.cpf_cnpj);
+          localStorage.setItem(`login_lembrar_user_${slug}`, credentials.username);
+          localStorage.removeItem(`login_lembrar_pass_${slug}`);
         } else {
-          localStorage.removeItem(key);
+          localStorage.removeItem(`login_lembrar_cpf_${slug}`);
+          localStorage.removeItem(`login_lembrar_user_${slug}`);
+          localStorage.removeItem(`login_lembrar_pass_${slug}`);
         }
       }
 
@@ -181,12 +173,10 @@ export default function LojaLoginDinamicoPage() {
           ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
           : 'loja_usa_crm=; path=/; max-age=0';
       }
-      console.log('🚀 Redirecionando para', destino);
       markInternalNavigation();
       const timestamp = new Date().getTime();
       window.location.replace(`${destino}?_t=${timestamp}`);
     } catch (err: any) {
-      console.error('❌ Erro no login:', err);
       setError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoading(false);
@@ -372,7 +362,7 @@ export default function LojaLoginDinamicoPage() {
                   className="rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-2 focus:ring-offset-0"
                   disabled={loading}
                 />
-                <span className="text-sm text-gray-600 dark:text-gray-400">Lembrar CPF/CNPJ neste dispositivo</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Lembrar usuário e CPF/CNPJ neste dispositivo</span>
               </label>
             </div>
             

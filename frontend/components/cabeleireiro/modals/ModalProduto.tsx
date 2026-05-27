@@ -7,6 +7,7 @@ import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface Produto {
   id: number;
@@ -60,7 +61,7 @@ export function ModalProduto({ loja, onClose }: { loja: LojaInfo; onClose: () =>
       const response = await apiClient.get('/cabeleireiro/produtos/');
       setProdutos(ensureArray(response.data));
     } catch (error) {
-      console.error('Erro ao carregar produtos:', error);
+      logger.warn('Erro ao carregar produtos:', error);
       toast.error('Erro ao carregar produtos');
     } finally {
       setLoading(false);
@@ -88,7 +89,7 @@ export function ModalProduto({ loja, onClose }: { loja: LojaInfo; onClose: () =>
       resetForm();
       carregarProdutos();
     } catch (error) {
-      console.error('Erro ao salvar produto:', error);
+      logger.warn('Erro ao salvar produto:', error);
       toast.error('Erro ao salvar produto');
     }
   };
@@ -115,7 +116,7 @@ export function ModalProduto({ loja, onClose }: { loja: LojaInfo; onClose: () =>
       toast.success('Produto excluído!');
       carregarProdutos();
     } catch (error) {
-      console.error('Erro ao excluir produto:', error);
+      logger.warn('Erro ao excluir produto:', error);
       toast.error('Erro ao excluir produto');
     }
   };

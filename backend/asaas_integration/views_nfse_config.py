@@ -118,14 +118,33 @@ def nfse_config_test_nacional(request):
     try:
         # Rotear teste conforme provedor
         if config.provedor_nfse == 'issnet':
-            from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
+            from nfse_integration.issnet_client import testar_conexao_issnet
 
-            client = ISSNetNacionalClient(
-                pfx_bytes=bytes(cert_data),
-                senha_pfx=senha_cert,
-                ambiente=config.nacional_ambiente or 'homologacao',
+            resultado = testar_conexao_issnet(
+                usuario=config.issnet_usuario or '',
+                senha=config.issnet_senha or '',
+                certificado_path='',  # Não usado diretamente — vamos testar via bytes
+                senha_certificado=senha_cert,
+                ambiente=config.nacional_ambiente or 'producao',
             )
-            resultado = client.testar_conexao()
+            # Se não tem path de certificado, testar manualmente
+            if not resultado.get('success') and 'nao encontrado' in (resultado.get('detail') or '').lower():
+                # Salvar cert temporário e testar
+                import tempfile, os
+                cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_test_')
+                cert_tmp.write(bytes(cert_data))
+                cert_tmp.close()
+                try:
+                    resultado = testar_conexao_issnet(
+                        usuario=config.issnet_usuario or '',
+                        senha=config.issnet_senha or '',
+                        certificado_path=cert_tmp.name,
+                        senha_certificado=senha_cert,
+                        ambiente=config.nacional_ambiente or 'producao',
+                    )
+                finally:
+                    if os.path.isfile(cert_tmp.name):
+                        os.unlink(cert_tmp.name)
         else:
             from nfse_integration.nacional import NacionalClient
 

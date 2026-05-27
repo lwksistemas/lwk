@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { CrudModal } from '../shared/CrudModal';
 import { FormField } from '../shared/FormField';
+import { logger } from '@/lib/logger';
 import type { LojaInfo } from '../shared/CrudModal';
 
 interface Anamnese {
@@ -70,7 +71,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
       const response = await clinicaApiClient.get('/clinica/clientes/');
       setClientes(ensureArray<any>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
+      logger.warn('Erro ao carregar clientes:', error);
     }
   }, []);
 
@@ -79,7 +80,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
       const response = await clinicaApiClient.get('/clinica/anamneses/');
       setAnamneses(ensureArray<Anamnese>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar anamneses:', error);
+      logger.warn('Erro ao carregar anamneses:', error);
     }
   }, []);
 
@@ -88,7 +89,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
       const response = await clinicaApiClient.get('/clinica/anamneses-templates/');
       setTemplates(ensureArray<Template>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar templates:', error);
+      logger.warn('Erro ao carregar templates:', error);
     }
   }, []);
 
@@ -97,7 +98,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
       const response = await clinicaApiClient.get('/clinica/procedimentos/');
       setProcedimentos(ensureArray<Procedimento>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar procedimentos:', error);
+      logger.warn('Erro ao carregar procedimentos:', error);
     } finally {
       setLoading(false);
     }
@@ -130,7 +131,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
       alert('✅ Template excluído com sucesso!');
       loadTemplates();
     } catch (error) {
-      console.error('Erro ao excluir template:', error);
+      logger.warn('Erro ao excluir template:', error);
       alert('❌ Erro ao excluir template');
     }
   };
@@ -192,7 +193,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
       loadTemplates();
       resetForm();
     } catch (error) {
-      console.error('Erro ao salvar template:', error);
+      logger.warn('Erro ao salvar template:', error);
       alert('❌ Erro ao salvar template');
     } finally {
       setSubmitting(false);
@@ -226,7 +227,7 @@ export function ModalAnamnese({ loja, onClose }: ModalAnamneseProps) {
         setSelectedCliente('');
         setRespostas({});
       } catch (error) {
-        console.error('Erro ao salvar anamnese:', error);
+        logger.warn('Erro ao salvar anamnese:', error);
         alert('❌ Erro ao salvar anamnese');
       } finally {
         setSubmitting(false);

@@ -37,8 +37,15 @@ export default function Header() {
             >
               Módulos
             </a>
+
+            <Link
+              href="/cadastro"
+              className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md hover:shadow-lg"
+            >
+              Fazer Cadastro
+            </Link>
             
-            {/* Botão Acesso Rápido - Centralizado */}
+            {/* Botão Acesso Rápido */}
             <button
               onClick={() => setModalOpen(true)}
               className="bg-green-600 text-white px-5 py-2.5 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
@@ -84,13 +91,22 @@ export default function Header() {
                 Módulos
               </a>
               
+              {/* Botão Fazer Cadastro Mobile */}
+              <Link
+                href="/cadastro"
+                onClick={() => setMenuOpen(false)}
+                className="mt-3 text-center bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Fazer Cadastro
+              </Link>
+
               {/* Botão Acesso Rápido Mobile */}
               <button
                 onClick={() => {
                   setMenuOpen(false);
                   setModalOpen(true);
                 }}
-                className="mt-3 mb-2 text-center bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
+                className="mt-2 mb-2 text-center bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
               >
                 <LogIn className="w-5 h-5" />
                 Acesso Rápido (CPF/CNPJ)

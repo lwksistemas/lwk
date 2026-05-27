@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import {
   LineChart,
   Line,
@@ -126,7 +127,7 @@ export default function AuditoriaPage() {
       const taxa = d(taxaRes);
       setTaxaSucesso(taxa ? { total: taxa.total ?? 0, sucessos: taxa.sucessos ?? 0, erros: taxa.erros ?? taxa.falhas ?? 0, taxa_sucesso: taxa.taxa_sucesso ?? 0 } : null);
     } catch (err: any) {
-      console.error('Erro ao carregar dados de auditoria:', err);
+      logger.warn('Erro ao carregar dados de auditoria:', err);
       const msg = err?.response?.data?.detail || err?.response?.status === 403 ? 'Sem permissão para ver auditoria.' : err?.message || 'Falha ao carregar dados. Tente novamente.';
       setError(msg);
     } finally {

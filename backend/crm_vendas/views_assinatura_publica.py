@@ -91,8 +91,7 @@ class AssinaturaPublicaView(View):
         from django.core.signing import loads, BadSignature
 
         token = normalizar_token_assinatura_url(token)
-        preview = (token[:50] + '…') if len(token) > 50 else token
-        logger.info(f'🔍 Recebendo requisição de assinatura - Token (preview): {preview}')
+        logger.info('Recebendo requisição de assinatura: token_tamanho=%s', len(token))
 
         # PASSO 1: Decodificar token para extrair loja_id
         try:
@@ -250,7 +249,7 @@ class AssinaturaPdfView(View):
         from django.core.signing import loads, BadSignature
 
         token = normalizar_token_assinatura_url(token)
-        logger.info(f'📄 Requisição de PDF - Token (preview): {(token[:50] + "…") if len(token) > 50 else token}')
+        logger.info('Requisição de PDF de assinatura: token_tamanho=%s', len(token))
 
         # PASSO 1: Decodificar token para extrair loja_id
         try:

@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import PasswordInput from '@/components/auth/PasswordInput';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
 import { getPublicApiJson } from '@/lib/public-api';
+import { logger } from '@/lib/logger';
 
 interface LoginConfig {
   logo: string;
@@ -19,7 +19,6 @@ interface LoginConfig {
 }
 
 export default function SuperAdminLoginPage() {
-  const router = useRouter();
   const [credentials, setCredentials] = useState({ username: '', password: '', cpf_cnpj: '' });
   const [lembrarCpf, setLembrarCpf] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +42,7 @@ export default function SuperAdminLoginPage() {
       let timeoutFired = false;
       
       const timeoutId = setTimeout(() => {
-        console.warn('⚠️ Timeout ao carregar configurações, usando padrão');
+        logger.warn('⚠️ Timeout ao carregar configurações, usando padrão');
         timeoutFired = true;
         setConfigLoading(false);
       }, 5000); // Timeout de 5 segundos
@@ -60,7 +59,7 @@ export default function SuperAdminLoginPage() {
       } catch (err) {
         if (!timeoutFired) {
           clearTimeout(timeoutId);
-          console.error('Erro ao carregar configurações de login:', err);
+          logger.warn('Erro ao carregar configurações de login:', err);
           setConfigLoading(false);
         }
       }
@@ -68,41 +67,35 @@ export default function SuperAdminLoginPage() {
     loadConfig();
   }, []);
 
-  // Limpar sessões antigas e carregar CPF salvo
-  // Se já tem sessão válida (PWA reaberto), redirecionar direto
+  // Limpar sessões antigas e carregar credenciais salvas (se "Lembrar" ativo)
+  // SEGURANÇA: Nunca fazer login automático — sempre exigir login explícito
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Verificar se já tem sessão válida (PWA reaberto — só em modo standalone)
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-      const existingToken = localStorage.getItem('token');
-      const existingRefresh = localStorage.getItem('refresh_token');
-      const existingUserType = localStorage.getItem('user_type');
-      
-      if (isStandalone && existingToken && existingRefresh && existingUserType === 'superadmin') {
-        sessionStorage.setItem('access_token', existingToken);
-        sessionStorage.setItem('refresh_token', existingRefresh);
-        sessionStorage.setItem('user_type', existingUserType);
-        window.location.replace('/superadmin/dashboard');
-        return;
-      }
-
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setCredentials((c) => ({ ...c, cpf_cnpj: saved }));
-        setLembrarCpf(true);
-      }
-      // Carregar username salvo
-      const savedUser = localStorage.getItem('login_lembrar_user_superadmin');
-      if (savedUser) {
-        setCredentials((c) => ({ ...c, username: savedUser }));
-      }
+      // Limpar qualquer sessão/token residual (impede login automático)
       sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('refresh_token');
       sessionStorage.removeItem('user_type');
       sessionStorage.removeItem('loja_slug');
       sessionStorage.removeItem('session_id');
+      localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_type');
+      localStorage.removeItem('loja_slug');
       document.cookie = 'user_type=; path=/; max-age=0';
       document.cookie = 'loja_slug=; path=/; max-age=0';
+
+      // Carregar identificadores salvos. Senha nunca deve ser persistida no navegador.
+      const savedCpf = localStorage.getItem(STORAGE_KEY);
+      const savedUser = localStorage.getItem('login_lembrar_user_superadmin');
+      localStorage.removeItem('login_lembrar_pass_superadmin');
+      if (savedCpf || savedUser) {
+        setLembrarCpf(true);
+        setCredentials((c) => ({
+          ...c,
+          ...(savedUser ? { username: savedUser } : {}),
+          ...(savedCpf ? { cpf_cnpj: savedCpf } : {}),
+        }));
+      }
     }
   }, []);
 
@@ -112,33 +105,28 @@ export default function SuperAdminLoginPage() {
     setLoading(true);
 
     try {
-      console.log('🔐 [SuperAdmin] Iniciando login...', { username: credentials.username });
       const loginResponse = await authService.login(credentials, 'superadmin');
       
-      console.log('✅ [SuperAdmin] Login bem-sucedido:', loginResponse);
-      
       if (loginResponse.precisa_trocar_senha === true) {
-        console.log('🔄 [SuperAdmin] Redirecionando para trocar senha...');
         window.location.replace('/superadmin/trocar-senha');
         return;
       }
       
-      console.log('🚀 [SuperAdmin] Redirecionando para dashboard...');
-      
-      // Salvar dados de login se "Lembrar" está marcado
+      // Salvar apenas identificadores se "Lembrar" está marcado. Nunca salvar senha.
       if (lembrarCpf) {
         localStorage.setItem(STORAGE_KEY, credentials.cpf_cnpj);
         localStorage.setItem('login_lembrar_user_superadmin', credentials.username);
+        localStorage.removeItem('login_lembrar_pass_superadmin');
       } else {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem('login_lembrar_user_superadmin');
+        localStorage.removeItem('login_lembrar_pass_superadmin');
       }
       
       // Aguardar um pouco para garantir que os cookies foram setados
       await new Promise(resolve => setTimeout(resolve, 100));
       window.location.replace('/superadmin/dashboard');
     } catch (err: any) {
-      console.error('❌ [SuperAdmin] Erro no login:', err);
       setError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoading(false);

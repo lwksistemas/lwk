@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { LojaInfo } from '@/types/dashboard';
+import { logger } from '@/lib/logger';
 
 interface Agendamento {
   id: number;
@@ -88,7 +89,7 @@ export default function CalendarioCabeleireiro({ loja, onNovoAgendamento }: { lo
 
       setAgendamentos(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Erro ao carregar agendamentos:', error);
+      logger.warn('Erro ao carregar agendamentos:', error);
       setAgendamentos([]);
     } finally {
       setLoading(false);
@@ -143,7 +144,7 @@ export default function CalendarioCabeleireiro({ loja, onNovoAgendamento }: { lo
       });
       carregarAgendamentos();
     } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+      logger.warn('Erro ao atualizar status:', error);
     }
   };
 

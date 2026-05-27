@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
+import { logger } from '@/lib/logger';
 
 interface Product {
   id: number;
@@ -34,7 +35,7 @@ function LojaDashboardContent() {
       });
       setProducts(response.data.results || response.data);
     } catch (error) {
-      console.error('Erro ao carregar produtos:', error);
+      logger.warn('Erro ao carregar produtos:', error);
     } finally {
       setLoading(false);
     }

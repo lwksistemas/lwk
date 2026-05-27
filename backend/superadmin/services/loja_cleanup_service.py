@@ -140,6 +140,21 @@ class LojaCleanupService:
                 assinatura = LojaAssinatura.objects.filter(loja_slug=self.loja_slug).first()
                 
                 if not assinatura:
+                    # Fallback: tentar excluir customer via FinanceiroLoja.asaas_customer_id
+                    try:
+                        from superadmin.models import FinanceiroLoja, Loja
+                        loja = Loja.objects.filter(slug=self.loja_slug).first()
+                        if loja:
+                            financeiro = FinanceiroLoja.objects.filter(loja=loja).first()
+                            if financeiro and financeiro.asaas_customer_id:
+                                deletion_service = AsaasDeletionService()
+                                if deletion_service.available:
+                                    deletion_service._delete_customer_payments(financeiro.asaas_customer_id)
+                                    deletion_service._delete_customer_from_asaas(financeiro.asaas_customer_id)
+                                    logger.info(f"✅ Asaas: cliente {financeiro.asaas_customer_id} excluído via fallback (FinanceiroLoja)")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Fallback exclusão Asaas: {e}")
+                    
                     self.results['asaas'] = {
                         'api': {'pagamentos_cancelados': 0},
                         'local': {'payments_removidos': 0, 'customers_removidos': 0, 'subscriptions_removidas': 0}

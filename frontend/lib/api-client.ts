@@ -43,11 +43,6 @@ export function getLoginUrlForRedirect(): string {
 function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
   if (typeof window === 'undefined') return config;
 
-  if (config.method === 'get' && config.url && !config.url.includes('_t=')) {
-    const separator = config.url.includes('?') ? '&' : '?';
-    config.url = `${config.url}${separator}_t=${Date.now()}`;
-  }
-
   const accessToken = sessionStorage.getItem('access_token');
   const pathLojaMatch = window.location.pathname.match(/^\/loja\/([^/]+)/);
   let lojaSlug: string | null = null;
@@ -83,6 +78,9 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
     config.headers.set('X-Loja-ID', lojaId);
   }
   if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);
+  // Enviar session_id para validação de sessão única no backend
+  const sessionId = sessionStorage.getItem('session_id');
+  if (sessionId) config.headers.set('X-Session-ID', sessionId);
   if (process.env.NODE_ENV === 'development') {
     logger.log('API Request:', config.method?.toUpperCase(), config.url);
   }

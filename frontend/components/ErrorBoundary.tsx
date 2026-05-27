@@ -2,6 +2,7 @@
 
 import React, { Component, ReactNode } from 'react';
 import { errorLogger } from '@/lib/error-logger';
+import { logger } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -31,8 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
     // Enviar para o error logger
     errorLogger.logFrontendError(error, errorInfo.componentStack || undefined);
     
-    // Log no console para desenvolvimento
-    console.error('ErrorBoundary capturou erro:', error, errorInfo);
+    logger.warn('ErrorBoundary capturou erro:', error, errorInfo);
   }
 
   render() {

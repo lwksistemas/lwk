@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import PasswordInput from '@/components/auth/PasswordInput';
 
 interface TrocarSenhaFormProps {
@@ -94,7 +95,7 @@ export default function TrocarSenhaForm({
       alert('✅ Senha alterada com sucesso!');
       router.push(redirectTo);
     } catch (error: any) {
-      console.error('Erro ao alterar senha:', error);
+      logger.warn('Erro ao alterar senha:', error);
       setErro(error.response?.data?.error || error.response?.data?.detail || 'Erro ao alterar senha');
     } finally {
       setLoading(false);

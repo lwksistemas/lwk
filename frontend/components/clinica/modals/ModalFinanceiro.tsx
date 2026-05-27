@@ -7,6 +7,7 @@ import { extractArrayData, formatApiError } from '@/lib/api-helpers';
 import { ResumoCard } from '@/components/financeiro/ResumoCard';
 import { TransacaoItem } from '@/components/financeiro/TransacaoItem';
 import { formatCurrency, FORMAS_PAGAMENTO, STATUS_OPTIONS } from '@/lib/financeiro-helpers';
+import { logger } from '@/lib/logger';
 import type { Categoria, Transacao, ResumoFinanceiro, TransacaoFormData, TabFinanceiro } from '@/types/financeiro';
 
 interface LojaInfo {
@@ -71,7 +72,7 @@ export function ModalFinanceiro({ loja, onClose }: ModalFinanceiroProps) {
         setTransacoes(extractArrayData<Transacao>(transacoesResponse));
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      logger.warn('Erro ao carregar dados financeiros:', error);
       alert(formatApiError(error));
     } finally {
       setLoading(false);
@@ -100,7 +101,7 @@ export function ModalFinanceiro({ loja, onClose }: ModalFinanceiroProps) {
       await carregarDados();
       handleCloseForm();
     } catch (error) {
-      console.error('Erro ao salvar transação:', error);
+      logger.warn('Erro ao salvar transação:', error);
       alert(formatApiError(error));
     }
   };
@@ -121,7 +122,7 @@ export function ModalFinanceiro({ loja, onClose }: ModalFinanceiroProps) {
       });
       await carregarDados();
     } catch (error) {
-      console.error('Erro ao marcar como pago:', error);
+      logger.warn('Erro ao marcar como pago:', error);
       alert(formatApiError(error));
     }
   };
@@ -136,7 +137,7 @@ export function ModalFinanceiro({ loja, onClose }: ModalFinanceiroProps) {
       await apiClient.delete(`/clinica/transacoes/${id}/`);
       await carregarDados();
     } catch (error) {
-      console.error('Erro ao excluir transação:', error);
+      logger.warn('Erro ao excluir transação:', error);
       alert(formatApiError(error));
     }
   };

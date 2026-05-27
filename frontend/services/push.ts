@@ -4,12 +4,13 @@
  * Usa token do sessionStorage (apiClient) se não passar token.
  */
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 export async function registerPush(token?: string): Promise<boolean> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return false;
   const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (!vapidKey) {
-    console.warn('NEXT_PUBLIC_VAPID_PUBLIC_KEY não configurada');
+    logger.warn('NEXT_PUBLIC_VAPID_PUBLIC_KEY não configurada');
     return false;
   }
 
@@ -37,7 +38,7 @@ export async function registerPush(token?: string): Promise<boolean> {
     }, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
     return true;
   } catch (e) {
-    console.error('Erro ao registrar push:', e);
+    logger.warn('Erro ao registrar push:', e);
     return false;
   }
 }

@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Save, ArrowLeft } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
+import { logger } from '@/lib/logger';
 
 interface LoginConfig {
   id?: number;
@@ -53,7 +54,7 @@ function LoginConfigContent() {
       const res = await apiClient.get(`/superadmin/login-config-sistema/?tipo=${tipo}`);
       setConfig(res.data);
     } catch (err) {
-      console.error('Erro ao carregar configuração:', err);
+      logger.warn('Erro ao carregar configuração:', err);
     } finally {
       setLoading(false);
     }

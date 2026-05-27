@@ -9,6 +9,7 @@ import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import { ContatoFormModal } from './components/ContatoFormModal';
 import { ContatoViewModal } from './components/ContatoViewModal';
 import { ContatoDeleteModal } from './components/ContatoDeleteModal';
+import { logger } from '@/lib/logger';
 
 interface Conta { id: number; nome: string; }
 interface Contato {
@@ -55,7 +56,7 @@ export default function CrmVendasContatosPage() {
       const res = await apiClient.get<Conta[] | { results: Conta[] }>('/crm-vendas/contas/');
       setContas(normalizeListResponse(res.data));
     } catch (err) {
-      console.error('Erro ao carregar contas:', err);
+      logger.warn('Erro ao carregar contas:', err);
     }
   };
 

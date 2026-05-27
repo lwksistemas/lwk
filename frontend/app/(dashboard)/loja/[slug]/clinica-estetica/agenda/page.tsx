@@ -13,6 +13,7 @@ import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { isTipoClinicaEstetica } from '@/lib/loja-tipo';
 import CalendarioAgendamentos from '@/components/calendario/CalendarioAgendamentos';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -54,7 +55,7 @@ export default function AgendaClinicaEsteticaPage() {
         setLoja(data);
       }
     } catch (err) {
-      console.error('Erro ao carregar loja:', err);
+      logger.warn('Erro ao carregar loja:', err);
       const ax = err && typeof err === 'object' && 'response' in err ? (err as { response?: { status?: number } }).response : undefined;
       if (ax?.status === 401) router.push(loginPath);
     } finally {

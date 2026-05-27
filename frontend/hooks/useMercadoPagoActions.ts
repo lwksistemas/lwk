@@ -4,6 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import type { Pagamento } from './useAssinaturas';
 
 export function useMercadoPagoActions() {
@@ -85,7 +86,7 @@ export function useMercadoPagoActions() {
         alert(res.data?.message || 'Nenhuma alteração. O pagamento pode ainda estar pendente no Mercado Pago.');
       }
     } catch (error: unknown) {
-      console.error('Erro ao sincronizar Mercado Pago:', error);
+      logger.warn('Erro ao sincronizar Mercado Pago:', error);
       const msg = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
       alert(msg || 'Erro ao atualizar status. Tente novamente.');
     } finally {
@@ -121,7 +122,7 @@ export function useMercadoPagoActions() {
         return false;
       }
     } catch (error: any) {
-      console.error('Erro ao criar cobrança Mercado Pago:', error);
+      logger.warn('Erro ao criar cobrança Mercado Pago:', error);
       alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao criar cobrança'}`);
       return false;
     } finally {
@@ -143,7 +144,7 @@ export function useMercadoPagoActions() {
         return false;
       }
     } catch (error: any) {
-      console.error('Erro ao excluir cobrança Mercado Pago:', error);
+      logger.warn('Erro ao excluir cobrança Mercado Pago:', error);
       alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao excluir cobrança'}`);
       return false;
     } finally {

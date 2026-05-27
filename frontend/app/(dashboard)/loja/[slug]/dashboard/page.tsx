@@ -8,6 +8,7 @@ import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos, isTipoHotel } from '@/lib/loja-tipo';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import BackupButton from '@/components/loja/BackupButton';
+import { logger } from '@/lib/logger';
 
 const DashboardChunkSkeleton = () => (
   <div className="flex flex-col items-center justify-center min-h-[200px] gap-3 p-6">
@@ -67,7 +68,7 @@ export default function LojaDashboardDinamicoPage() {
       }
       setLojaInfo(data);
     } catch (error: unknown) {
-      console.error('Erro ao carregar loja:', error);
+      logger.warn('Erro ao carregar loja:', error);
       const ax = error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response : undefined;
       if (ax?.status === 401) router.push(`/loja/${slug}/login`);
     } finally {

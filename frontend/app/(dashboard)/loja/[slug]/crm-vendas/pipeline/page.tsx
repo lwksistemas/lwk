@@ -7,7 +7,7 @@ import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
-import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, Printer, X, Mail, MessageCircle, Building2, Search } from 'lucide-react';
+import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, Printer, X, Mail, MessageCircle } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import ProdutoSeletorCategoria from '@/components/crm-vendas/ProdutoSeletorCategoria';
@@ -74,12 +74,10 @@ export default function CrmVendasPipelinePage() {
   const [leads, setLeads] = useState<LeadOption[]>([]);
   const [produtosServicos, setProdutosServicos] = useState<ProdutoServicoOption[]>([]);
   const [contas, setContas] = useState<ContaOption[]>([]);
-  const [tituloSugestoes, setTituloSugestoes] = useState<ContaOption[]>([]);
-  const [showTituloSugestoes, setShowTituloSugestoes] = useState(false);
-  const [contaSelecionada, setContaSelecionada] = useState<ContaOption | null>(null);
   const [formCriar, setFormCriar] = useState({
     lead_id: '',
     titulo: '',
+    empresa_prestadora_id: '',
     valor: '0',
     etapa: 'prospecting',
     valor_comissao: '',
@@ -196,37 +194,8 @@ export default function CrmVendasPipelinePage() {
 
   const handleAbrirCriar = () => {
     setModalCriar(true);
-    setFormCriar({ lead_id: '', titulo: '', valor: '0', etapa: 'prospecting', valor_comissao: '', itens: [] });
+    setFormCriar({ lead_id: '', titulo: '', empresa_prestadora_id: '', valor: '0', etapa: 'prospecting', valor_comissao: '', itens: [] });
     setFormErro(null);
-    setContaSelecionada(null);
-    setTituloSugestoes([]);
-    setShowTituloSugestoes(false);
-  };
-
-  const handleTituloChange = (valor: string) => {
-    setFormCriar((f) => ({ ...f, titulo: valor }));
-    if (valor.trim().length >= 1 && contas.length > 0) {
-      const termo = valor.toLowerCase();
-      const filtradas = contas.filter(
-        (c) => c.nome.toLowerCase().includes(termo) || (c.cnpj && c.cnpj.includes(termo))
-      );
-      setTituloSugestoes(filtradas.slice(0, 8));
-      setShowTituloSugestoes(filtradas.length > 0);
-    } else {
-      setTituloSugestoes([]);
-      setShowTituloSugestoes(false);
-    }
-    // Se limpou o campo, desvincula a conta
-    if (!valor.trim()) {
-      setContaSelecionada(null);
-    }
-  };
-
-  const handleSelecionarConta = (conta: ContaOption) => {
-    setFormCriar((f) => ({ ...f, titulo: conta.nome }));
-    setContaSelecionada(conta);
-    setShowTituloSugestoes(false);
-    setTituloSugestoes([]);
   };
 
   const addItemCriar = () => {
@@ -272,7 +241,21 @@ export default function CrmVendasPipelinePage() {
       return;
     }
     if (!formCriar.titulo.trim()) {
-      setFormErro('Informe o título da oportunidade.');
+      // Título gerado automaticamente pelo nome da empresa prestadora
+      const conta = contas.find((c) => String(c.id) === formCriar.empresa_prestadora_id);
+      if (conta) {
+        setFormCriar((f) => ({ ...f, titulo: conta.nome }));
+      } else {
+        setFormErro('Selecione a empresa prestadora.');
+        return;
+      }
+    }
+    // Empresa prestadora é obrigatória
+    const empresaPrestadoraId = formCriar.empresa_prestadora_id
+      ? parseInt(formCriar.empresa_prestadora_id, 10)
+      : 0;
+    if (!empresaPrestadoraId) {
+      setFormErro('Selecione a empresa prestadora. Toda oportunidade precisa ter uma empresa prestadora vinculada.');
       return;
     }
     let valor = parseFloat(formCriar.valor) || 0;
@@ -287,14 +270,12 @@ export default function CrmVendasPipelinePage() {
     setEnviando(true);
     const payload: Record<string, unknown> = {
       lead: leadId,
-      titulo: formCriar.titulo.trim(),
+      titulo: formCriar.titulo.trim() || contas.find((c) => String(c.id) === formCriar.empresa_prestadora_id)?.nome || 'Oportunidade',
       valor,
       etapa: formCriar.etapa,
       valor_comissao,
+      empresa_prestadora: empresaPrestadoraId,
     };
-    if (contaSelecionada) {
-      payload.empresa_prestadora = contaSelecionada.id;
-    }
     const vendedorId = authService.getVendedorId();
     if (vendedorId) payload.vendedor = vendedorId;
     apiClient
@@ -478,10 +459,18 @@ export default function CrmVendasPipelinePage() {
       return false;
     }
     
-    // Filtro por período (data de criação da oportunidade)
+    // Filtro por período — usa data_fechamento_ganho para closed_won, data_fechamento_perdido para closed_lost, senão created_at
     if (dataInicio || dataFim) {
-      if (!op.created_at) return true;
-      const dataOp = new Date(op.created_at);
+      let dataRef = '';
+      if (op.etapa === 'closed_won') {
+        dataRef = (op as any).data_fechamento_ganho || (op as any).data_fechamento || op.created_at || '';
+      } else if (op.etapa === 'closed_lost') {
+        dataRef = (op as any).data_fechamento_perdido || (op as any).data_fechamento || op.created_at || '';
+      } else {
+        dataRef = op.created_at || '';
+      }
+      if (!dataRef) return true;
+      const dataOp = new Date(dataRef);
       if (Number.isNaN(dataOp.getTime())) return true;
       if (dataInicio && dataOp < new Date(dataInicio)) {
         return false;
@@ -816,75 +805,40 @@ export default function CrmVendasPipelinePage() {
                   </p>
                 )}
               </div>
-              <div className="relative">
+              {/* Empresa Prestadora — obrigatória, título gerado automaticamente */}
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Título * <span className="text-xs font-normal text-gray-500">(digite para buscar empresas prestadoras)</span>
+                  Empresa Prestadora *
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formCriar.titulo}
-                    onChange={(e) => handleTituloChange(e.target.value)}
-                    onFocus={() => {
-                      if (formCriar.titulo.trim().length >= 1 && tituloSugestoes.length > 0) {
-                        setShowTituloSugestoes(true);
-                      }
+                {contas.length > 0 ? (
+                  <select
+                    value={formCriar.empresa_prestadora_id}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const conta = contas.find((c) => String(c.id) === id);
+                      setFormCriar((f) => ({
+                        ...f,
+                        empresa_prestadora_id: id,
+                        titulo: conta ? conta.nome : f.titulo,
+                      }));
                     }}
-                    onBlur={() => setTimeout(() => setShowTituloSugestoes(false), 200)}
-                    className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${contaSelecionada ? 'border-green-400 dark:border-green-500' : 'border-gray-300 dark:border-gray-600'}`}
-                    placeholder="Ex: Nome da empresa ou descrição"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     required
-                    autoComplete="off"
-                  />
-                  {contaSelecionada && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <Building2 size={16} className="text-green-500" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setContaSelecionada(null);
-                          setFormCriar((f) => ({ ...f, titulo: '' }));
-                        }}
-                        className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400"
-                        aria-label="Remover empresa"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {contaSelecionada && (
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                    <Building2 size={12} />
-                    Empresa prestadora vinculada: {contaSelecionada.nome}{contaSelecionada.cnpj ? ` (${contaSelecionada.cnpj})` : ''}
-                  </p>
-                )}
-                {showTituloSugestoes && tituloSugestoes.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600 flex items-center gap-1">
-                      <Search size={12} />
-                      Empresas prestadoras encontradas
-                    </div>
-                    {tituloSugestoes.map((conta) => (
-                      <button
-                        key={conta.id}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => handleSelecionarConta(conta)}
-                        className="w-full text-left px-3 py-2 hover:bg-blue-50 dark:hover:bg-gray-600 text-sm text-gray-900 dark:text-white flex items-center gap-2"
-                      >
-                        <Building2 size={14} className="text-gray-400 shrink-0" />
-                        <span className="truncate">{conta.nome}</span>
-                        {conta.cnpj && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">{conta.cnpj}</span>
-                        )}
-                      </button>
+                  >
+                    <option value="">Selecione a empresa prestadora</option>
+                    {contas.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}{c.cnpj ? ` — ${c.cnpj}` : ''}
+                      </option>
                     ))}
-                  </div>
-                )}
-                {!contaSelecionada && contas.length > 0 && !formCriar.titulo && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {contas.length} empresa(s) prestadora(s) cadastrada(s). Digite para buscar ou insira um título livre.
+                  </select>
+                ) : (
+                  <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
+                    Nenhuma empresa prestadora cadastrada. Cadastre em{' '}
+                    <Link href={`/loja/${slug}/crm-vendas/contas`} className="underline font-medium">
+                      Contas
+                    </Link>{' '}
+                    com tipo &quot;Prestadora&quot; antes de criar oportunidades.
                   </p>
                 )}
               </div>

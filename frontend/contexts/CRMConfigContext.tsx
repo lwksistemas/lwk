@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface CRMConfig {
   id: number;
@@ -57,10 +58,9 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
   const carregarConfig = async () => {
     try {
       const res = await apiClient.get<CRMConfig>('/crm-vendas/config/');
-      console.log('✅ CRM Config carregado:', res.data);
       setConfig(res.data);
     } catch (e) {
-      console.error('❌ Erro ao carregar config CRM:', e);
+      logger.warn('❌ Erro ao carregar config CRM:', e);
       // Se falhar, usar valores padrão
       setConfig({
         id: 0,

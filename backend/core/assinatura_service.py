@@ -13,6 +13,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.core.signing import dumps, loads, BadSignature
 from django.utils import timezone
+from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +180,13 @@ def criar_assinatura(adapter: AssinaturaAdapter, documento, tipo: str, loja_id: 
     assinatura = adapter.criar_registro_assinatura(
         documento, tipo, nome, email, token, loja_id,
     )
-    logger.info(f'✅ Assinatura criada: tipo={tipo}, doc={doc_type}#{documento.id}, assinante={nome}')
+    logger.info(
+        'Assinatura criada: tipo=%s, doc=%s#%s, assinante_email=%s',
+        tipo,
+        doc_type,
+        documento.id,
+        mask_email(email),
+    )
     return assinatura
 
 

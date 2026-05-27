@@ -12,6 +12,7 @@ import { LojaInfo, EstatisticasClinica, Agendamento } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { clinicaApiClient } from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 /** Estatísticas iniciais e fallback da API (fonte única, evita duplicação) */
 const ESTATISTICAS_CLINICA_INICIAL: EstatisticasClinica = {
@@ -91,7 +92,7 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
       toast.success('Agendamento excluído com sucesso!');
       reload();
     } catch (error) {
-      console.error('Erro ao excluir agendamento:', error);
+      logger.warn('Erro ao excluir agendamento:', error);
       toast.error('Erro ao excluir agendamento');
     }
   };
@@ -103,7 +104,7 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
       toast.success('Status atualizado com sucesso!');
       reload();
     } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+      logger.warn('Erro ao atualizar status:', error);
       toast.error('Erro ao atualizar status');
     }
   };

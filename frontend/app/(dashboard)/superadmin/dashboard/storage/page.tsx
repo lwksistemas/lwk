@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface LojaStorage {
   id: number;
@@ -63,19 +64,15 @@ export default function MonitoramentoStoragePage() {
     try {
       if (!silent) setLoading(true);
       
-      console.log('🔍 Carregando storage das lojas...');
       const response = await apiClient.get('/superadmin/storage/');
-      console.log('✅ Resposta recebida:', response.data);
       
       if (response.data) {
         const lojasData = response.data.lojas || [];
-        console.log(`📊 Total de lojas: ${lojasData.length}`);
         setLojas(lojasData);
         setError('');
       }
     } catch (err: any) {
-      console.error('❌ Erro ao carregar storage:', err);
-      console.error('Detalhes:', err.response?.data);
+      logger.warn('❌ Erro ao carregar storage:', err);
       if (!silent) {
         setError(err.response?.data?.error || 'Erro ao carregar dados de storage');
       }
@@ -89,7 +86,7 @@ export default function MonitoramentoStoragePage() {
       await apiClient.post(`/superadmin/lojas/${lojaId}/verificar-storage/`);
       carregarLojas(true);
     } catch (err: any) {
-      console.error('Erro ao verificar storage:', err);
+      logger.warn('Erro ao verificar storage:', err);
       alert(err.response?.data?.error || 'Erro ao verificar storage');
     }
   };

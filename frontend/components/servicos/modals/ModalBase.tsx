@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 import { extractArrayData, formatApiError } from '@/lib/api-helpers';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -56,7 +57,7 @@ export function ModalBase({
       // Extrair array de forma segura
       setItems(extractArrayData(res));
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      logger.warn('Erro ao carregar dados:', error);
       toast.error(formatApiError(error));
       setItems([]); // Garantir array vazio em caso de erro
     } finally {
@@ -85,7 +86,7 @@ export function ModalBase({
       await loadItems();
       onSuccess?.();
     } catch (error: any) {
-      console.error('Erro ao excluir:', error);
+      logger.warn('Erro ao excluir:', error);
       toast.error(formatApiError(error));
     }
   };
@@ -116,7 +117,7 @@ export function ModalBase({
       await loadItems();
       onSuccess?.();
     } catch (error: any) {
-      console.error('Erro ao salvar:', error);
+      logger.warn('Erro ao salvar:', error);
       toast.error(formatApiError(error));
     } finally {
       setLoading(false);

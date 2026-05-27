@@ -27,7 +27,7 @@ export interface PropostaFormContentProps {
   /** Templates disponíveis para seleção */
   templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
   /** Callback quando seleciona um template */
-  onSelecionarTemplate?: (conteudo: string) => void;
+  onSelecionarTemplate?: (conteudo: string, nomeTemplate?: string) => void;
   /** Nome do vendedor logado para preencher automaticamente */
   vendedorNome?: string;
 }
@@ -358,7 +358,7 @@ export default function PropostaFormContent({
             onChange={(e) => {
               const template = templates.find(t => String(t.id) === e.target.value);
               if (template) {
-                onSelecionarTemplate(template.conteudo);
+                onSelecionarTemplate(template.conteudo, template.nome);
               }
               e.target.value = ''; // Reset select
             }}

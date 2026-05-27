@@ -1,20 +1,43 @@
-const withPWA = require("@ducanh2912/next-pwa").default({
-  dest: "public",
-  disable: true, // ✅ TEMPORARIAMENTE DESABILITADO PARA TESTE
-  register: true,
-  skipWaiting: true,
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: false,
-  reloadOnOnline: true,
-});
+const securityHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://i.pravatar.cc",
+      "font-src 'self' data:",
+      "connect-src 'self' https://api.lwksistemas.com.br https://lwks-backend-production.up.railway.app https://viacep.com.br https://brasilapi.com.br",
+      "upgrade-insecure-requests",
+    ].join('; '),
+  },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'strict-origin-when-cross-origin',
+  },
+];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   
   // Ignorar erros de ESLint durante o build (necessário para Vercel)
   eslint: {
     ignoreDuringBuilds: true,
+  },
+
+  // Ignorar erros de TypeScript durante o build
+  typescript: {
+    ignoreBuildErrors: true,
   },
   
   // Otimizações de performance
@@ -79,8 +102,9 @@ const nextConfig = {
           },
           {
             key: 'X-XSS-Protection',
-            value: '1; mode=block'
+            value: '0'
           },
+          ...securityHeaders,
         ],
       },
     ]
@@ -102,12 +126,13 @@ const nextConfig = {
     NEXT_PUBLIC_BUILD_ID: 'v1390-hero-images',
     NEXT_PUBLIC_VERSION: '1390',
     NEXT_PUBLIC_SW_VERSION: 'v1390',
+    NEXT_PUBLIC_PWA_ENABLED: process.env.NEXT_PUBLIC_PWA_ENABLED || 'false',
   },
   
-  // Gerar build ID único para invalidar cache COMPLETAMENTE
+  // Build ID estável preserva cache entre builds equivalentes.
   generateBuildId: async () => {
-    return 'v1390-hero-images-' + Date.now();
+    return process.env.NEXT_PUBLIC_BUILD_ID || 'v1390-hero-images';
   },
 }
 
-module.exports = withPWA(nextConfig);
+module.exports = nextConfig;

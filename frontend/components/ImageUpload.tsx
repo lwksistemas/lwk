@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface ImageUploadProps {
   value?: string;
@@ -105,7 +106,7 @@ export function ImageUpload({
       })
       .catch((e: unknown) => {
         if (!cancelled) {
-          console.error(e);
+          logger.warn('Erro ao carregar widget Cloudinary:', e);
           setError('Não foi possível carregar o upload de imagens (Cloudinary).');
         }
       });
@@ -125,7 +126,7 @@ export function ImageUpload({
     try {
       await loadCloudinaryWidgetScript();
     } catch (e) {
-      console.error(e);
+      logger.warn('Cloudinary não está pronto:', e);
       setError('Cloudinary não está pronto. Recarregue a página ou tente em instantes.');
       return;
     }
@@ -225,7 +226,7 @@ export function ImageUpload({
       },
       (error: any, result: any) => {
         if (error) {
-          console.error('Erro no upload Cloudinary:', error, result);
+          logger.warn('Erro no upload Cloudinary:', error, result);
           setError(
             'Erro ao enviar a imagem. Se for importação por URL, confira o link. No Cloudinary, o preset sem assinatura deve permitir este domínio (lwksistemas.com.br).'
           );
@@ -295,7 +296,7 @@ export function ImageUpload({
                 alt="Preview"
                 className={previewImgClass}
                 onError={(e) => {
-                  console.error('Erro ao carregar imagem:', value);
+                  logger.warn('Erro ao carregar preview da imagem');
                   // Se houver erro ao carregar, mostrar placeholder
                   e.currentTarget.style.display = 'none';
                 }}
@@ -332,7 +333,7 @@ export function ImageUpload({
             variant="outline"
             onClick={() => {
               handleUpload().catch((e) => {
-                console.error('Erro ao abrir upload:', e);
+                logger.warn('Erro ao abrir upload:', e);
                 setError(String(e?.message || 'Erro ao abrir upload'));
               });
             }}

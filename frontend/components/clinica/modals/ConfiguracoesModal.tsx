@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { CrudModal } from '../shared/CrudModal';
+import { logger } from '@/lib/logger';
 import type { LojaInfo } from '../shared/CrudModal';
 
 interface DadosFinanceiros {
@@ -66,7 +67,7 @@ export function ConfiguracoesModal({ loja, onClose }: ConfiguracoesModalProps) {
       setDadosFinanceiros(response.data);
       setError('');
     } catch (err: unknown) {
-      console.error('Erro ao carregar dados financeiros:', err);
+      logger.warn('Erro ao carregar dados financeiros:', err);
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosError = err as { response?: { status?: number } };
         if (axiosError.response?.status === 401) {

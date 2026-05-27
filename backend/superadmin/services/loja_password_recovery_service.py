@@ -87,7 +87,7 @@ class LojaPasswordRecoveryService:
         except Exception as e:
             logger.exception('Erro ao enviar email de recuperação de senha: %s', e)
             return (
-                {'detail': f'Erro ao enviar email: {str(e)}'},
+                {'detail': 'Erro ao enviar email de recuperação. Tente novamente mais tarde.'},
                 http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

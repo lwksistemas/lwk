@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit
+from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit, EmpresaConfig
 
 
 class HeroSerializer(serializers.ModelSerializer):
@@ -54,4 +54,18 @@ class WhyUsBenefitSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'descricao': {'required': False, 'allow_blank': True},
             'icone': {'required': False, 'allow_blank': True, 'default': '✓'},
+        }
+
+
+class EmpresaConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmpresaConfig
+        fields = ['id', 'nome_empresa', 'cnpj', 'endereco', 'telefone_whatsapp', 'mensagem_whatsapp', 'email_contato', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'cnpj': {'required': False, 'allow_blank': True},
+            'endereco': {'required': False, 'allow_blank': True},
+            'telefone_whatsapp': {'required': False, 'allow_blank': True},
+            'mensagem_whatsapp': {'required': False, 'allow_blank': True},
+            'email_contato': {'required': False, 'allow_blank': True},
         }

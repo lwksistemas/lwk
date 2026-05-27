@@ -97,20 +97,9 @@ class Command(BaseCommand):
 - [ ] `limpar_schemas_orfaos.py` → `cleanup/cleanup_schemas.py`
 
 ### Prioridade Baixa (Scripts Específicos de Cliente)
-- Scripts com nomes de clientes específicos devem ser movidos para `scripts/archive/`
-- Exemplos: `fix_clinica_daniel.py`, `corrigir_data_luiz_salao.py`
+- Scripts com nomes ou dados de clientes específicos não devem ser versionados.
+- Se ainda forem necessários, manter fora do repositório ou converter em management command genérico.
 
 ## Arquivamento
 
-Scripts obsoletos ou específicos de clientes devem ser movidos para:
-```
-backend/scripts/archive/YYYY-MM/
-```
-
-Exemplo:
-```
-backend/scripts/archive/2026-03/
-├── fix_clinica_daniel.py
-├── corrigir_data_luiz_salao.py
-└── README.md  # Explicando contexto dos scripts
-```
+Scripts obsoletos ou específicos de clientes foram removidos do repositório para reduzir risco de PII e evitar reexecução acidental.

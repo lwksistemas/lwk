@@ -4,6 +4,7 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import type { Log, FiltrosBusca } from './useLogsList';
 
 export interface BuscaSalva {
@@ -51,7 +52,7 @@ export function useLogActions() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Erro ao exportar CSV:', error);
+      logger.warn('Erro ao exportar CSV:', error);
     }
   }, []);
 
@@ -77,7 +78,7 @@ export function useLogActions() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Erro ao exportar JSON:', error);
+      logger.warn('Erro ao exportar JSON:', error);
     }
   }, []);
 
@@ -88,7 +89,7 @@ export function useLogActions() {
       );
       setContextoTemporal(response.data);
     } catch (error) {
-      console.error('Erro ao carregar contexto temporal:', error);
+      logger.warn('Erro ao carregar contexto temporal:', error);
       setContextoTemporal({ antes: [], depois: [] });
     }
   }, []);

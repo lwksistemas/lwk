@@ -2,6 +2,8 @@
  * Helper para garantir que um valor seja sempre um array
  * Previne erros "X.map is not a function"
  */
+import { logger } from './logger';
+
 export function ensureArray<T>(value: any): T[] {
   if (Array.isArray(value)) {
     return value;
@@ -18,7 +20,7 @@ export function ensureArray<T>(value: any): T[] {
   }
   
   // Caso contrário, retornar array vazio
-  console.warn('ensureArray: valor não é array, retornando []', value);
+  logger.warn('ensureArray: valor não é array, retornando []', value);
   return [];
 }
 

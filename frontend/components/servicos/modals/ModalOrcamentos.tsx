@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { ModalBase } from './ModalBase';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -33,7 +34,7 @@ export function ModalOrcamentos({ loja, onClose }: { loja: LojaInfo; onClose: ()
         setClientes(Array.isArray(cliRes.data) ? cliRes.data : cliRes.data?.results ?? []);
         setServicos(Array.isArray(servRes.data) ? servRes.data : servRes.data?.results ?? []);
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        logger.warn('Erro ao carregar dados:', error);
       }
     };
     loadDados();

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { CrudModal } from '../shared/CrudModal';
 import { FormField } from '../shared/FormField';
+import { logger } from '@/lib/logger';
 import type { LojaInfo } from '../shared/CrudModal';
 
 interface Protocolo {
@@ -60,7 +61,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
       const response = await clinicaApiClient.get('/clinica/protocolos/');
       setProtocolos(ensureArray<Protocolo>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar protocolos:', error);
+      logger.warn('Erro ao carregar protocolos:', error);
     }
   }, []);
 
@@ -69,7 +70,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
       const response = await clinicaApiClient.get('/clinica/procedimentos/');
       setProcedimentos(ensureArray<Procedimento>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar procedimentos:', error);
+      logger.warn('Erro ao carregar procedimentos:', error);
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
       alert('✅ Protocolo excluído com sucesso!');
       loadProtocolos();
     } catch (error) {
-      console.error('Erro ao excluir protocolo:', error);
+      logger.warn('Erro ao excluir protocolo:', error);
       alert('❌ Erro ao excluir protocolo');
     }
   };
@@ -139,7 +140,7 @@ export function ModalProtocolos({ loja, onClose }: ModalProtocolosProps) {
       loadProtocolos();
       resetForm();
     } catch (error) {
-      console.error('Erro ao salvar protocolo:', error);
+      logger.warn('Erro ao salvar protocolo:', error);
       alert('❌ Erro ao salvar protocolo');
     } finally {
       setSubmitting(false);

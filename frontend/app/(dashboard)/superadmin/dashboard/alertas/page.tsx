@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface Violacao {
   id: number;
@@ -74,7 +75,7 @@ export default function AlertasPage() {
       setViolacoes(violacoesRes.data.results || violacoesRes.data);
       setStats(statsRes.data);
     } catch (error) {
-      console.error('Erro ao carregar alertas:', error);
+      logger.warn('Erro ao carregar alertas:', error);
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ export default function AlertasPage() {
       loadData();
       setShowModal(false);
     } catch (error) {
-      console.error('Erro ao resolver violação:', error);
+      logger.warn('Erro ao resolver violação:', error);
       alert('Erro ao resolver violação');
     }
   };
@@ -99,7 +100,7 @@ export default function AlertasPage() {
       loadData();
       setShowModal(false);
     } catch (error) {
-      console.error('Erro ao marcar como falso positivo:', error);
+      logger.warn('Erro ao marcar como falso positivo:', error);
       alert('Erro ao marcar como falso positivo');
     }
   };

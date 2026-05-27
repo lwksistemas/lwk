@@ -480,6 +480,17 @@ class ISSNetClient:
                 ctx_c.sign(sig_ped)
             result = etree.tostring(root, encoding='unicode')
             logger.info('XML assinado com xmlsec (cancelamento Pedido)')
+            logger.info('XML CANCELAMENTO ASSINADO COMPLETO: %s', result)
+            return result
+
+        # ConsultarUrlNfse: assinatura enveloped na raiz (URI vazia)
+        if root_local == 'ConsultarUrlNfseEnvio':
+            sig_consulta = _template_sig_enveloped_only(root, '')
+            ctx_c = xmlsec.SignatureContext()
+            ctx_c.key = key
+            ctx_c.sign(sig_consulta)
+            result = etree.tostring(root, encoding='unicode')
+            logger.info('XML assinado com xmlsec (ConsultarUrlNfse)')
             return result
 
         lista = root.find('.//{%s}ListaRps' % ns)
@@ -896,6 +907,9 @@ class ISSNetClient:
                 'RecepcionarLoteRps',
                 'RecepcionarLoteRpsSincrono',
                 'ConsultarLoteRps',
+                'ConsultarUrlNfse',
+                'CancelarNfse',
+                'ConsultarNfseRpsEnvio',
             ):
                 try:
                     rz = self._zeep_chamar_com_mtls(
@@ -1252,6 +1266,68 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     # Consultar NFS-e por RPS
     # ------------------------------------------------------------------
+    def consultar_url_nfse(self, numero_nf: str, prestador_cnpj: str = '', inscricao_municipal: str = '') -> Dict[str, Any]:
+        """
+        Chama ConsultarUrlNfse para obter a URL do PDF/portal oficial da NFS-e no ISSNet.
+        Retorna {'success': True, 'url': '...'} ou {'success': False, 'error': '...'}.
+        """
+        try:
+            cnpj = _somente_digitos(prestador_cnpj or self.usuario or '')
+            im = (inscricao_municipal or '').strip()
+            # Formato conforme modelo do suporte Nota Control:
+            # Usar NumeroNfse como opção de busca + Pagina obrigatório
+            xml_consulta = (
+                f'<ConsultarUrlNfseEnvio xmlns="{NS_NFSE}">'
+                f'<Pedido>'
+                f'<Prestador>'
+                f'<CpfCnpj><Cnpj>{cnpj}</Cnpj></CpfCnpj>'
+                f'<InscricaoMunicipal>{_xml_escape(im)}</InscricaoMunicipal>'
+                f'</Prestador>'
+                f'<NumeroNfse>{_xml_escape(str(numero_nf))}</NumeroNfse>'
+                f'<Pagina>1</Pagina>'
+                f'</Pedido>'
+                f'</ConsultarUrlNfseEnvio>'
+            )
+            # Assinar o XML completo (Signature fica fora do Pedido, dentro do ConsultarUrlNfseEnvio)
+            try:
+                xml_consulta = self._assinar_xml(xml_consulta)
+            except Exception as e:
+                logger.warning('Erro ao assinar ConsultarUrlNfse (tentando sem assinatura): %s', e)
+            parsed, xml_body = self._post_soap_operacao(
+                nome_operacao='ConsultarUrlNfse',
+                soap_action_uri='http://nfse.abrasf.org.br/ConsultarUrlNfse',
+                dados_xml=xml_consulta,
+            )
+            # Logar resposta bruta completa para diagnóstico
+            logger.info('ConsultarUrlNfse resposta bruta completa: %s', xml_body)
+            logger.info('ConsultarUrlNfse parsed: %s', parsed)
+
+            resp_str = xml_body or ''
+
+            # Tentar extrair URL da resposta XML — vários formatos possíveis
+            for tag in ('Url', 'url', 'Link', 'link', 'UrlNfse', 'urlNfse'):
+                url_match = re.search(rf'<{tag}[^>]*>(.*?)</{tag}>', resp_str, re.IGNORECASE | re.DOTALL)
+                if url_match:
+                    url = url_match.group(1).strip()
+                    # Ignorar namespaces e URLs de schema
+                    if url and url.startswith('http') and not any(x in url for x in ['abrasf.org.br', 'xmlsoap.org', 'w3.org', 'schemas.']):
+                        logger.info('ConsultarUrlNfse URL encontrada: %s', url)
+                        return {'success': True, 'url': url}
+
+            # Procurar qualquer URL http que não seja o namespace
+            for http_match in re.finditer(r'(https?://[^\s<>"&]+)', resp_str):
+                url = http_match.group(1)
+                if 'abrasf.org.br' not in url and 'xmlsoap.org' not in url and 'w3.org' not in url and 'schemas.' not in url:
+                    logger.info('ConsultarUrlNfse URL via fallback: %s', url)
+                    return {'success': True, 'url': url}
+
+            if parsed.get('success') is False:
+                return {'success': False, 'error': parsed.get('error', ''), 'raw': resp_str[:500]}
+            return {'success': False, 'error': f'URL não encontrada na resposta', 'raw': resp_str[:500]}
+        except Exception as e:
+            logger.warning('Erro ao consultar URL NFS-e ISSNet: %s', e)
+            return {'success': False, 'error': str(e)}
+
     def consultar_nfse(self, numero_nf: str) -> Dict[str, Any]:
         """Consulta NFS-e emitida por numero."""
         try:
@@ -1280,23 +1356,25 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     # Cancelar NFS-e
     # ------------------------------------------------------------------
-    def cancelar_nfse(self, numero_nf: str, motivo: str, prestador_cnpj: str = '', inscricao_municipal: str = '') -> Dict[str, Any]:
+    def cancelar_nfse(self, numero_nf: str, motivo: str, prestador_cnpj: str = '', inscricao_municipal: str = '', codigo_cancelamento: str = '1') -> Dict[str, Any]:
         """Cancela NFS-e emitida via ISSNet."""
         try:
             cnpj_digits = re.sub(r'\D', '', prestador_cnpj or self.usuario or '')
             im = (inscricao_municipal or '').strip()
             
+            # Formato conforme modelo do suporte Nota Control:
+            # Id="s01" no InfPedidoCancelamento, Signature Id="s01" dentro do Pedido
             xml_cancelar = (
                 f'<CancelarNfseEnvio xmlns="{NS_NFSE}">'
                 f'<Pedido>'
-                f'<InfPedidoCancelamento Id="cancel{numero_nf}">'
+                f'<InfPedidoCancelamento Id="s01">'
                 f'<IdentificacaoNfse>'
                 f'<Numero>{numero_nf}</Numero>'
                 f'<CpfCnpj><Cnpj>{cnpj_digits}</Cnpj></CpfCnpj>'
                 f'<InscricaoMunicipal>{im}</InscricaoMunicipal>'
                 f'<CodigoMunicipio>{COD_MUNICIPIO_RP}</CodigoMunicipio>'
                 f'</IdentificacaoNfse>'
-                f'<CodigoCancelamento>1</CodigoCancelamento>'
+                f'<CodigoCancelamento>{codigo_cancelamento}</CodigoCancelamento>'
                 f'</InfPedidoCancelamento>'
                 f'</Pedido>'
                 f'</CancelarNfseEnvio>'

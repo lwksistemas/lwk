@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.db import transaction
 from .models import Loja, FinanceiroLoja, PagamentoLoja
 from .asaas_service import LojaAsaasService
+from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
 
@@ -477,19 +478,17 @@ class AsaasSyncService:
                     logger.info(f"NFS-e desabilitada — não emitindo para {payment_id}")
                 elif not nfse_config.emitir_automaticamente:
                     logger.info(f"Emissão automática desativada — não emitindo para {payment_id}")
-                elif nfse_config.provedor_nfse == 'nacional':
-                    # Emitir via Nacional (ADN)
+                else:
+                    # Emitir via provedor configurado (nacional, issnet, etc.)
                     if pagamento:
                         from asaas_integration.nfse_assinatura_service import emitir_nfse_assinatura
                         nf_result = emitir_nfse_assinatura(pagamento)
                         if nf_result.get('success'):
-                            logger.info(f"NFS-e Nacional emitida para pagamento {payment_id}: {nf_result.get('numero_nf')}")
+                            logger.info(f"NFS-e emitida ({nfse_config.provedor_nfse}) para pagamento {payment_id}: {nf_result.get('numero_nf')}")
                         else:
-                            logger.warning(f"Falha NFS-e Nacional para {payment_id}: {nf_result.get('error')}")
+                            logger.warning(f"Falha NFS-e ({nfse_config.provedor_nfse}) para {payment_id}: {nf_result.get('error')}")
                     else:
-                        logger.warning(f"PagamentoLoja não encontrado para emitir NFS-e Nacional: {payment_id}")
-                else:
-                    logger.info(f"Provedor NFS-e '{nfse_config.provedor_nfse}' — emissão não realizada para {payment_id}")
+                        logger.warning(f"PagamentoLoja não encontrado para emitir NFS-e: {payment_id}")
             except Exception as nf_err:
                 logger.exception(f"Erro ao emitir NF no webhook: {nf_err}")
             
@@ -594,7 +593,7 @@ https://lwksistemas.com.br
                 [loja.owner.email],
                 fail_silently=False,
             )
-            logger.info(f"Email de senha enviado para {loja.owner.email}")
+            logger.info("Email de senha enviado para owner_email=%s", mask_email(loja.owner.email))
         except Exception as e:
             logger.error(f"Erro ao enviar email de senha: {e}")
     
@@ -679,7 +678,7 @@ https://lwksistemas.com.br
                 fail_silently=False,
             )
             
-            logger.info(f"Email de link de cartão enviado para {loja.owner.email}")
+            logger.info("Email de link de cartão enviado para owner_email=%s", mask_email(loja.owner.email))
             
         except Exception as e:
             logger.error(f"Erro ao enviar link de cadastro de cartão: {e}")

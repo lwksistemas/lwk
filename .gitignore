@@ -43,6 +43,7 @@ yarn-error.log*
 out/
 next-env.d.ts
 .vercel
+*.tsbuildinfo
 
 # IDE
 .vscode/
@@ -60,6 +61,9 @@ htmlcov/
 # Backups e utilitários
 backup_dbs/
 utils/scripts_antigos/
+backend/utils/scripts_antigos/
+backend/scripts/archive/
+backend/scripts_arquivo_clinica_beleza/
 docs_backup/
 
 # Django collectstatic (gerado no deploy)
@@ -67,3 +71,9 @@ backend/staticfiles/
 .venv/
 .venv-nfse-test/
 .env*.local
+
+# Artefatos temporários locais
+xml_suporte_*.xml
+xml_cancelamento_assinado_para_suporte.xml
+LWK_Infraestrutura_Projecao_Custos.pdf
+gerar_relatorio_infraestrutura.py

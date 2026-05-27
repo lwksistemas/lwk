@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { CardEstatisticas, TabelaChamados, ModalAtendimento } from '@/components/suporte/dashboard';
 
 interface Resposta {
@@ -54,7 +55,7 @@ export default function SuporteDashboardPage() {
       const response = await apiClient.get('/suporte/chamados/');
       setChamados(response.data.results || response.data);
     } catch (error) {
-      console.error('Erro ao carregar chamados:', error);
+      logger.warn('Erro ao carregar chamados:', error);
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ export default function SuporteDashboardPage() {
         setModalAberto(true);
       })
       .catch(error => {
-        console.error('Erro ao carregar chamado:', error);
+        logger.warn('Erro ao carregar chamado:', error);
         // Fallback: usar dados da lista
         setChamadoSelecionado(chamado);
         setModalAberto(true);
@@ -88,7 +89,7 @@ export default function SuporteDashboardPage() {
       loadChamados();
       alert('Atendimento iniciado!');
     } catch (error) {
-      console.error('Erro ao iniciar atendimento:', error);
+      logger.warn('Erro ao iniciar atendimento:', error);
       alert('Erro ao iniciar atendimento');
     }
   };
@@ -102,7 +103,7 @@ export default function SuporteDashboardPage() {
       setModalAberto(false);
       alert('Chamado marcado como resolvido!');
     } catch (error) {
-      console.error('Erro ao resolver chamado:', error);
+      logger.warn('Erro ao resolver chamado:', error);
       alert('Erro ao resolver chamado');
     }
   };
@@ -122,7 +123,7 @@ export default function SuporteDashboardPage() {
       
       alert('Resposta enviada com sucesso!');
     } catch (error) {
-      console.error('Erro ao enviar resposta:', error);
+      logger.warn('Erro ao enviar resposta:', error);
       alert('Erro ao enviar resposta');
     }
   };

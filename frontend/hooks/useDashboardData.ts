@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
+import { logger } from '@/lib/logger';
 
 interface UseDashboardDataOptions<T, U> {
   endpoint: string;
@@ -83,7 +84,7 @@ export function useDashboardData<T, U>({
     } catch (err: any) {
       if (!isMountedRef.current) return;
       
-      console.error('Erro ao carregar dashboard:', err);
+      logger.warn('Erro ao carregar dashboard:', err);
       setError(true);
       
       // Mostrar toast apenas uma vez

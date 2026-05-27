@@ -24,6 +24,7 @@ interface HeaderCrmProps {
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LEN = 2;
+const NOTIFICATIONS_POLL_INTERVAL_MS = 120000;
 
 function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'administrador', slug = '' }: HeaderCrmProps) {
   const router = useRouter();
@@ -54,11 +55,41 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
     } catch { /* silencioso */ }
   }, []);
 
-  // Buscar notificações ao montar e a cada 60s
+  // Buscar notificações ao montar e pausar polling quando a aba estiver em background.
   useEffect(() => {
-    fetchNotifs();
-    const interval = setInterval(fetchNotifs, 60000);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const clear = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const start = () => {
+      clear();
+      interval = setInterval(fetchNotifs, NOTIFICATIONS_POLL_INTERVAL_MS);
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        clear();
+        return;
+      }
+      void fetchNotifs();
+      start();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    if (!document.hidden) {
+      void fetchNotifs();
+      start();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      clear();
+    };
   }, [fetchNotifs]);
 
   const fetchBusca = useCallback(async (q: string) => {

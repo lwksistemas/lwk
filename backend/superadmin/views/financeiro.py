@@ -5,6 +5,7 @@ from django.utils import timezone
 import logging
 
 logger = logging.getLogger(__name__)
+from core.logging_utils import mask_email
 from ..models import FinanceiroLoja, PagamentoLoja
 from ..serializers import FinanceiroLojaSerializer, PagamentoLojaSerializer
 from .permissions import IsSuperAdmin
@@ -84,19 +85,20 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                     'error': f'Pagamento ainda não confirmado. Status atual: {financeiro.get_status_pagamento_display()}'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            logger.info(f"Reenviando senha para loja {loja.slug} (owner: {owner.email})")
+            owner_email_log = mask_email(getattr(owner, 'email', ''))
+            logger.info("Reenviando senha provisória: loja=%s, owner_email=%s", loja.slug, owner_email_log)
             
             service = EmailService()
             success = service.enviar_senha_provisoria(loja, owner)
             
             if success:
-                logger.info(f"✅ Senha reenviada para {owner.email} (loja {loja.slug})")
+                logger.info("Senha provisória reenviada: loja=%s, owner_email=%s", loja.slug, owner_email_log)
                 return Response({
                     'success': True,
                     'message': f'Senha reenviada para {owner.email}'
                 }, status=status.HTTP_200_OK)
             else:
-                logger.warning(f"⚠️ Falha ao reenviar senha para {owner.email} (loja {loja.slug})")
+                logger.warning("Falha ao reenviar senha provisória: loja=%s, owner_email=%s", loja.slug, owner_email_log)
                 return Response({
                     'success': False,
                     'error': 'Falha ao enviar email. Email registrado para retry automático.'
@@ -221,7 +223,8 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
                     'error': 'Nenhum pagamento Asaas encontrado para esta loja'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            logger.info(f"Reenviando nota fiscal para loja {loja.slug} (email: {owner.email})")
+            owner_email_log = mask_email(getattr(owner, 'email', ''))
+            logger.info("Reenviando nota fiscal: loja=%s, owner_email=%s", loja.slug, owner_email_log)
             
             config = AsaasConfig.get_config()
             if not config or not config.api_key:
@@ -304,7 +307,7 @@ Equipe LWK Sistemas
                 )
                 msg.send(fail_silently=False)
                 
-                logger.info(f"✅ Nota fiscal reenviada para {owner.email} (loja {loja.slug})")
+                logger.info("Nota fiscal reenviada: loja=%s, owner_email=%s", loja.slug, owner_email_log)
                 
                 return Response({
                     'success': True,

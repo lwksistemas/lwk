@@ -67,18 +67,10 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
 
         const apiUrl = getPrimaryApiRoot();
         const url = `${apiUrl}/api/superadmin/lojas/por-atalho/?atalho=${atalho.trim()}`;
-        
-        console.log('[AcessoRapidoModal] Buscando por atalho:', atalho.trim());
-        console.log('[AcessoRapidoModal] URL:', url);
-        
+
         const response = await fetch(url);
-        
-        console.log('[AcessoRapidoModal] Status:', response.status);
-        
+
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[AcessoRapidoModal] Erro:', errorText);
-          
           if (response.status === 404) {
             setError('Nenhuma loja encontrada com este atalho');
           } else {
@@ -89,7 +81,6 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
         }
 
         const data = await response.json();
-        console.log('[AcessoRapidoModal] Dados recebidos:', data);
         
         // Redirecionar para página de login da loja
         router.push(`/loja/${data.slug}/login?from=${atalho.trim()}`);
@@ -108,18 +99,10 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
         // Buscar loja pelo CPF/CNPJ
         const apiUrl = getPrimaryApiRoot();
         const url = `${apiUrl}/api/superadmin/lojas/buscar-por-documento/?documento=${documentoLimpo}`;
-        
-        console.log('[AcessoRapidoModal] Buscando por documento:', documentoLimpo);
-        console.log('[AcessoRapidoModal] URL:', url);
-        
+
         const response = await fetch(url);
-        
-        console.log('[AcessoRapidoModal] Status:', response.status);
-        
+
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[AcessoRapidoModal] Erro:', errorText);
-          
           if (response.status === 404) {
             setError('Nenhuma loja encontrada com este CPF/CNPJ');
           } else {
@@ -130,14 +113,12 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
         }
 
         const data = await response.json();
-        console.log('[AcessoRapidoModal] Dados recebidos:', data);
         
         // Redirecionar para página de login da loja
         router.push(`/loja/${data.slug}/login`);
       }
       
     } catch (err) {
-      console.error('Erro ao buscar loja:', err);
       setError('Erro ao conectar com o servidor. Tente novamente.');
       setLoading(false);
     }

@@ -4,10 +4,11 @@ CRUD completo para Hero, Funcionalidades, Módulos e WhyUs.
 """
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from core.permissions import IsSuperAdmin
 
-from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit
-from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer, WhyUsBenefitSerializer
+from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit, EmpresaConfig
+from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer, WhyUsBenefitSerializer, EmpresaConfigSerializer
 
 
 class HeroViewSet(viewsets.ModelViewSet):
@@ -56,3 +57,28 @@ class HeroImagemViewSet(viewsets.ModelViewSet):
                 read_only_fields = ['id', 'created_at', 'updated_at']
         
         return HeroImagemSerializer
+
+
+class EmpresaConfigViewSet(viewsets.ModelViewSet):
+    """ViewSet para gerenciar dados da empresa (CNPJ, endereço, WhatsApp)."""
+    queryset = EmpresaConfig.objects.all()
+    serializer_class = EmpresaConfigSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def list(self, request, *args, **kwargs):
+        """Retorna a configuração da empresa (cria uma padrão se não existir)."""
+        config, _ = EmpresaConfig.objects.get_or_create(pk=1, defaults={
+            'nome_empresa': 'LWK Sistemas',
+        })
+        serializer = self.get_serializer(config)
+        return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        """Cria ou atualiza a configuração (singleton)."""
+        config, created = EmpresaConfig.objects.get_or_create(pk=1, defaults={
+            'nome_empresa': 'LWK Sistemas',
+        })
+        serializer = self.get_serializer(config, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

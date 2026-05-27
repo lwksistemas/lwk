@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
+import { logger } from '@/lib/logger';
 
 interface LoginConfigData {
   logo: string;
@@ -48,7 +49,7 @@ export default function ClinicaConfiguracoesLoginPage() {
       setCorPrimaria((data.cor_primaria ?? '#EC4899').toString());
       setCorSecundaria((data.cor_secundaria ?? '#DB2777').toString());
     } catch (err) {
-      console.error('Erro ao carregar config:', err);
+      logger.warn('Erro ao carregar config:', err);
       setLogo('');
       setLoginBackground('');
       setLoginLogo('');

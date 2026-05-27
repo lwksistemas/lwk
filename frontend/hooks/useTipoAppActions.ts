@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 export interface TipoApp {
   id: number;
@@ -52,7 +53,7 @@ export function useTipoAppActions() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || JSON.stringify(err.response?.data) || 'Erro ao criar tipo de app';
       setError(errorMsg);
-      console.error('Erro ao criar tipo de app:', err);
+      logger.warn('Erro ao criar tipo de app:', err);
       return false;
     } finally {
       setLoading(false);
@@ -69,7 +70,7 @@ export function useTipoAppActions() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || JSON.stringify(err.response?.data) || 'Erro ao atualizar tipo de app';
       setError(errorMsg);
-      console.error('Erro ao atualizar tipo de app:', err);
+      logger.warn('Erro ao atualizar tipo de app:', err);
       return false;
     } finally {
       setLoading(false);
@@ -96,7 +97,7 @@ export function useTipoAppActions() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erro ao excluir tipo de app';
       setError(errorMsg);
-      console.error('Erro ao excluir tipo de app:', err);
+      logger.warn('Erro ao excluir tipo de app:', err);
       return false;
     } finally {
       setLoading(false);

@@ -35,11 +35,17 @@ ISSNET_NACIONAL_URLS = {
 NS_NFSE = 'http://www.sped.fazenda.gov.br/nfse'
 NS_SOAP = 'http://schemas.xmlsoap.org/soap/envelope/'
 
-# Cabeçalho padrão nacional - versão 1.01 conforme ISSNet Nacional
-CABEC_MSG_TEMPLATE = (
-    '<cabecalho versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse">'
-    '<versaoDados>1.01</versaoDados>'
-    '<codMunicipio>{cod_municipio}</codMunicipio>'
+# Cabeçalho Nacional 1.00 — versão base suportada pelo ISSNet Integra Fácil
+CABEC_MSG_PRODUCAO = (
+    '<cabecalho versao="1.00" xmlns="http://www.sped.fazenda.gov.br/nfse">'
+    '<versaoDados>1.00</versaoDados>'
+    '<codMunicipio>3543402</codMunicipio>'
+    '</cabecalho>'
+)
+CABEC_MSG_HOMOLOGACAO = (
+    '<cabecalho versao="1.00" xmlns="http://www.sped.fazenda.gov.br/nfse">'
+    '<versaoDados>1.00</versaoDados>'
+    '<codMunicipio>5002704</codMunicipio>'
     '</cabecalho>'
 )
 
@@ -83,22 +89,23 @@ def _limpar_temp(cert_path, key_path):
 
 def _montar_soap_envelope(operacao: str, cabec_msg: str, dados_msg: str) -> str:
     """Monta envelope SOAP 1.1 para o ISSNet Nacional.
-    Tenta formato com entidades XML (padrão xsd:string do ASMX).
+    Usa namespace http://www.sped.fazenda.gov.br/nfse para operações.
+    nfseCabecMsg e nfseDadosMsg são enviados como XML inline (não escapado).
     """
-    cabec_escaped = xml_escape(cabec_msg)
-    dados_escaped = xml_escape(dados_msg)
-
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
-        '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" '
-        'xmlns:ws="http://www.sped.fazenda.gov.br/nfse">'
-        '<soapenv:Body>'
-        f'<ws:{operacao}>'
-        f'<ws:nfseCabecMsg>{cabec_escaped}</ws:nfseCabecMsg>'
-        f'<ws:nfseDadosMsg>{dados_escaped}</ws:nfseDadosMsg>'
-        f'</ws:{operacao}>'
-        '</soapenv:Body>'
-        '</soapenv:Envelope>'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+        'xmlns:nfse="http://www.sped.fazenda.gov.br/nfse">'
+        '<soap:Header/>'
+        '<soap:Body>'
+        f'<nfse:{operacao}>'
+        f'<nfse:nfseCabecMsg>{cabec_msg}</nfse:nfseCabecMsg>'
+        f'<nfse:nfseDadosMsg>{dados_msg}</nfse:nfseDadosMsg>'
+        f'</nfse:{operacao}>'
+        '</soap:Body>'
+        '</soap:Envelope>'
     )
 
 
@@ -149,11 +156,9 @@ class ISSNetNacionalClient:
         try:
             cert_path, key_path = _preparar_cert_mtls(self.pfx_bytes, self.senha_pfx)
 
-            # Homologação ISSNet usa IBGE 5002704 (Campo Grande-MS)
-            cod_mun_cabec = '5002704' if self.ambiente == 'homologacao' else '3543402'
-            cabec_msg = CABEC_MSG_TEMPLATE.format(cod_municipio=cod_mun_cabec)
+            cabec_msg = CABEC_MSG_HOMOLOGACAO if self.ambiente == 'homologacao' else CABEC_MSG_PRODUCAO
             envelope = _montar_soap_envelope(operacao, cabec_msg, dados_xml)
-            soap_action = f'{NS_NFSE}/{operacao}'
+            soap_action = f'http://www.sped.fazenda.gov.br/nfse/{operacao}'
 
             headers = {
                 'Content-Type': 'text/xml; charset=utf-8',
@@ -165,7 +170,7 @@ class ISSNetNacionalClient:
                 'ISSNet Nacional SOAP: operacao=%s, url=%s, soap_action=%s',
                 operacao, self.base_url, soap_action,
             )
-            logger.debug('ISSNet Nacional: envelope (primeiros 500): %s', envelope[:500])
+            logger.info('ISSNet Nacional: envelope enviado: %s', envelope[:3000])
 
             response = requests.post(
                 self.base_url,
@@ -187,10 +192,14 @@ class ISSNetNacionalClient:
                     'raw_response': response.text[:5000],
                 }
             else:
+                logger.error(
+                    'ISSNet Nacional: ERRO HTTP %d - Resposta: %s',
+                    response.status_code, response.text[:2000]
+                )
                 return {
                     'success': False,
                     'status_code': response.status_code,
-                    'error': f'HTTP {response.status_code}: {response.reason}',
+                    'error': f'HTTP {response.status_code}: {response.reason} - {response.text[:500]}',
                     'raw_response': response.text[:3000],
                 }
 
@@ -232,9 +241,9 @@ class ISSNetNacionalClient:
             if dps_xml.startswith('<?xml'):
                 dps_xml = dps_xml[dps_xml.index('?>') + 2:].strip()
 
-            # Envelopar em GerarNfseEnvio (XML já está com versão 1.01 e campos corretos)
+            # Envelopar em GerarNfseEnvio versão 1.00
             dados_msg = (
-                '<GerarNfseEnvio xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">'
+                '<GerarNfseEnvio xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">'
                 f'{dps_xml}'
                 '</GerarNfseEnvio>'
             )

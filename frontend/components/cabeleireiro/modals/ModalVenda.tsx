@@ -7,6 +7,7 @@ import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import { formatCurrency, formatDateTime } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface Venda {
   id: number;
@@ -59,7 +60,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
       setProdutos(ensureArray(produtosRes.data));
       setClientes(ensureArray(clientesRes.data));
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      logger.warn('Erro ao carregar dados de venda:', error);
       toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
@@ -89,7 +90,7 @@ export function ModalVenda({ loja, onClose }: { loja: LojaInfo; onClose: () => v
       resetForm();
       carregarDados();
     } catch (error) {
-      console.error('Erro ao registrar venda:', error);
+      logger.warn('Erro ao registrar venda:', error);
       toast.error('Erro ao registrar venda');
     }
   };

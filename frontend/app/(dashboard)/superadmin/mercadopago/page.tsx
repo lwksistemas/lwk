@@ -7,6 +7,7 @@ import Script from 'next/script'
 import apiClient from '@/lib/api-client'
 import { authService } from '@/lib/auth'
 import { getPrimaryApiBaseUrl } from '@/lib/api-base'
+import { logger } from '@/lib/logger'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -70,7 +71,7 @@ export default function MercadoPagoConfigPage() {
         }
       }
     } catch (err) {
-      console.error('Erro ao carregar configuração Mercado Pago:', err)
+      logger.warn('Erro ao carregar configuração Mercado Pago:', err)
       setMessage({ type: 'error', text: 'Erro ao carregar configuração. Verifique se está logado como superadmin.' })
     } finally {
       setLoading(false)

@@ -445,6 +445,17 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
                 pass
         return None
 
+    def validate(self, attrs):
+        """Empresa prestadora é obrigatória ao criar uma oportunidade."""
+        # Só valida na criação (POST), não em updates parciais (PATCH)
+        request = self.context.get('request')
+        is_create = request and request.method == 'POST'
+        if is_create and not attrs.get('empresa_prestadora'):
+            raise serializers.ValidationError({
+                'empresa_prestadora': 'Empresa prestadora é obrigatória. Selecione a empresa que irá prestar o serviço.'
+            })
+        return attrs
+
 
 class AtividadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     uppercase_fields = ['titulo']
@@ -549,6 +560,29 @@ class PropostaSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'numero']
+
+    def update(self, instance, validated_data):
+        """Ao marcar como assinado manualmente, fecha oportunidade como ganha."""
+        old_status_assinatura = instance.status_assinatura
+        new_status_assinatura = validated_data.get('status_assinatura', old_status_assinatura)
+        
+        instance = super().update(instance, validated_data)
+        
+        # Se status_assinatura mudou para 'concluido', fechar oportunidade como ganha
+        if old_status_assinatura != 'concluido' and new_status_assinatura == 'concluido':
+            oportunidade = instance.oportunidade
+            if oportunidade and oportunidade.etapa not in ('closed_won', 'closed_lost'):
+                from django.utils import timezone
+                oportunidade.etapa = 'closed_won'
+                if not oportunidade.data_fechamento_ganho:
+                    oportunidade.data_fechamento_ganho = timezone.now().date()
+                # Atualizar valor da oportunidade para valor com desconto (valor real pago)
+                valor_com_desconto = instance.valor_com_desconto
+                if valor_com_desconto and valor_com_desconto != oportunidade.valor:
+                    oportunidade.valor = valor_com_desconto
+                oportunidade.save(update_fields=['etapa', 'data_fechamento_ganho', 'valor', 'updated_at'])
+        
+        return instance
 
 
 class PropostaTemplateSerializer(serializers.ModelSerializer):

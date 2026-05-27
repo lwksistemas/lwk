@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface UseCrudFormOptions<T> {
   endpoint: string;
@@ -50,7 +51,7 @@ export function useCrudForm<T extends Record<string, unknown>>({
       setItems(response.data);
       setError(null);
     } catch (err) {
-      console.error(`Erro ao carregar ${endpoint}:`, err);
+      logger.warn(`Erro ao carregar ${endpoint}:`, err);
       setError('Erro ao carregar dados');
     } finally {
       setLoading(false);
@@ -79,7 +80,7 @@ export function useCrudForm<T extends Record<string, unknown>>({
       await loadItems();
       onSuccess?.();
     } catch (err) {
-      console.error('Erro ao excluir:', err);
+      logger.warn('Erro ao excluir:', err);
       alert('❌ Erro ao excluir');
     }
   }, [endpoint, loadItems, onSuccess]);
@@ -136,7 +137,7 @@ export function useCrudForm<T extends Record<string, unknown>>({
       onSuccess?.();
       resetForm();
     } catch (err: unknown) {
-      console.error('Erro ao salvar:', err);
+      logger.warn('Erro ao salvar:', err);
       
       let errorMessage = '❌ Erro ao salvar';
       if (err && typeof err === 'object' && 'response' in err) {

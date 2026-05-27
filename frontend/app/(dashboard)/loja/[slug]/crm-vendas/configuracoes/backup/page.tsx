@@ -6,6 +6,7 @@ import { ArrowLeft, Database, Download, Upload, AlertCircle } from 'lucide-react
 import Link from 'next/link';
 import BackupButton from '@/components/loja/BackupButton';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -34,10 +35,10 @@ export default function BackupPage() {
           });
           sessionStorage.setItem('current_loja_id', String(data.id));
         } else {
-          console.error('Loja não encontrada para slug:', slug);
+          logger.warn('Loja não encontrada para slug:', slug);
         }
       } catch (error) {
-        console.error('Erro ao carregar loja:', error);
+        logger.warn('Erro ao carregar loja:', error);
       } finally {
         setLoading(false);
       }

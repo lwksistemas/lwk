@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface Notificacao {
   id: number;
@@ -62,7 +63,7 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
       const res = await apiClient.get<Notificacao[]>('notificacoes/');
       setNotificacoes(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error('Erro ao carregar notificações:', err);
+      logger.warn('Erro ao carregar notificações:', err);
       setNotificacoes([]);
       setNotificacoesErro('Não foi possível carregar as notificações.');
     } finally {

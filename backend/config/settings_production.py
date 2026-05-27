@@ -20,8 +20,9 @@ DEBUG = False
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 if not ALLOWED_HOSTS:
     raise ValueError("ALLOWED_HOSTS deve estar configurada nas variáveis de ambiente!")
-# Atrás de reverse proxy TLS: USE_FORWARDED_SSL=true para confiar em X-Forwarded-Proto
-if os.environ.get('USE_FORWARDED_SSL', '').lower() in ('true', '1', 'yes'):
+# Atrás do edge TLS do Railway/Vercel-like proxy, confiar em X-Forwarded-Proto
+# para que request.is_secure() reflita HTTPS externo e habilite HSTS.
+if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('USE_FORWARDED_SSL', '').lower() in ('true', '1', 'yes'):
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # APPS
@@ -33,8 +34,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'django_q',
     'core',  # App base com modelos abstratos
     'stores',
     'products',
@@ -286,6 +290,7 @@ from corsheaders.defaults import default_headers
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'x-loja-id',  # ✅ Header customizado com ID único da loja
     'x-tenant-slug',  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
+    'x-session-id',  # ✅ Header para validação de sessão única (bloqueio simultâneo)
 ]
 
 # REST FRAMEWORK
@@ -319,6 +324,7 @@ REST_FRAMEWORK = {
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # JWT - Token de acesso curto para maior segurança
@@ -347,6 +353,7 @@ else:
     SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+SECURE_REFERRER_POLICY = 'same-origin'
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'

@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface Loja {
   id: number;
@@ -109,7 +110,7 @@ export function useLojaActions() {
       };
       
     } catch (err: any) {
-      console.error('Erro ao excluir loja:', err);
+      logger.warn('Erro ao excluir loja:', err);
       
       // 404 = loja já foi excluída
       if (err.response?.status === 404) {
@@ -156,7 +157,7 @@ export function useLojaActions() {
         message: `✅ ${response.data.message}`
       };
     } catch (err: any) {
-      console.error('Erro ao reenviar senha:', err);
+      logger.warn('Erro ao reenviar senha:', err);
       const mensagemErro = `❌ Erro ao reenviar senha: ${err.response?.data?.error || 'Erro desconhecido'}`;
       setError(mensagemErro);
       return {
@@ -180,7 +181,7 @@ export function useLojaActions() {
         data: response.data
       };
     } catch (err: any) {
-      console.error('Erro ao criar banco:', err);
+      logger.warn('Erro ao criar banco:', err);
       const mensagemErro = `❌ Erro: ${err.response?.data?.error || 'Erro ao criar banco'}`;
       setError(mensagemErro);
       return {

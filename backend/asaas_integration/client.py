@@ -15,7 +15,9 @@ class AsaasClient:
     """Cliente para API do Asaas"""
     
     def __init__(self, api_key: str = None, sandbox: bool = None):
-        self.api_key = api_key or getattr(settings, 'ASAAS_API_KEY', '')
+        raw_api_key = api_key or getattr(settings, 'ASAAS_API_KEY', '')
+        self.api_key = self._normalize_api_key(raw_api_key)
+        self.timeout = float(getattr(settings, 'ASAAS_API_TIMEOUT', 15))
         
         # Auto-detectar sandbox se não especificado
         if sandbox is None:
@@ -34,6 +36,18 @@ class AsaasClient:
             'Content-Type': 'application/json',
             'User-Agent': 'LWK Sistemas/1.0'
         }
+
+    @staticmethod
+    def _normalize_api_key(api_key: str) -> str:
+        """Aceita chaves em texto ou criptografadas pelo core.encryption."""
+        if not api_key:
+            return ''
+        try:
+            from core.encryption import decrypt_value
+            return decrypt_value(api_key)
+        except Exception:
+            logger.exception("Erro ao preparar chave Asaas para uso")
+            return api_key
     
     def _make_request(self, method: str, endpoint: str, data: Dict = None) -> Dict[str, Any]:
         """Faz requisição para API do Asaas"""
@@ -43,13 +57,13 @@ class AsaasClient:
             logger.info(f"Asaas API Request: {method} {url}")
             
             if method.upper() == 'GET':
-                response = requests.get(url, headers=self.headers, params=data)
+                response = requests.get(url, headers=self.headers, params=data, timeout=self.timeout)
             elif method.upper() == 'POST':
-                response = requests.post(url, headers=self.headers, json=data)
+                response = requests.post(url, headers=self.headers, json=data, timeout=self.timeout)
             elif method.upper() == 'PUT':
-                response = requests.put(url, headers=self.headers, json=data)
+                response = requests.put(url, headers=self.headers, json=data, timeout=self.timeout)
             elif method.upper() == 'DELETE':
-                response = requests.delete(url, headers=self.headers)
+                response = requests.delete(url, headers=self.headers, timeout=self.timeout)
             else:
                 raise ValueError(f"Método HTTP não suportado: {method}")
             

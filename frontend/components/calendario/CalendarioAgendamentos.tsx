@@ -6,6 +6,7 @@ import { clinicaApiClient } from '@/lib/api-client';
 import { ensureArray } from '@/lib/array-helpers';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { getStatusClinicaInfo, STATUS_AGENDAMENTO_CLINICA } from '@/constants/status';
+import { logger } from '@/lib/logger';
 
 interface Agendamento {
   id: number;
@@ -224,7 +225,7 @@ export default function CalendarioAgendamentos({ loja, headerInBar = false, onVi
       const response = await clinicaApiClient.get('/clinica/profissionais/');
       setProfissionais(ensureArray<Profissional>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar profissionais:', error);
+      logger.warn('Erro ao carregar profissionais:', error);
     }
   };
 
@@ -249,7 +250,7 @@ export default function CalendarioAgendamentos({ loja, headerInBar = false, onVi
       setAgendamentos(ensureArray<Agendamento>(agRes.data));
       setBloqueios(ensureArray<BloqueioAgenda>(blRes.data));
     } catch (error) {
-      console.error('Erro ao carregar agendamentos:', error);
+      logger.warn('Erro ao carregar agendamentos:', error);
     } finally {
       setLoading(false);
     }
@@ -484,7 +485,7 @@ export default function CalendarioAgendamentos({ loja, headerInBar = false, onVi
       alert('✅ Agendamento excluído com sucesso!');
       carregarAgendamentos();
     } catch (error: unknown) {
-      console.error('Erro ao excluir agendamento:', error);
+      logger.warn('Erro ao excluir agendamento:', error);
       const msg = (error as { response?: { data?: { error?: string; detail?: string } } })?.response?.data?.error
         || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       alert(msg ? `❌ ${msg}` : '❌ Erro ao excluir agendamento');
@@ -497,7 +498,7 @@ export default function CalendarioAgendamentos({ loja, headerInBar = false, onVi
       alert('✅ Status atualizado com sucesso!');
       carregarAgendamentos();
     } catch (error: unknown) {
-      console.error('Erro ao atualizar status:', error);
+      logger.warn('Erro ao atualizar status:', error);
       const msg = (error as { response?: { data?: { error?: string; detail?: string } } })?.response?.data?.error
         || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       alert(msg ? `❌ ${msg}` : '❌ Erro ao atualizar status');
@@ -514,7 +515,7 @@ export default function CalendarioAgendamentos({ loja, headerInBar = false, onVi
       alert('✅ Bloqueio excluído com sucesso!');
       carregarAgendamentos();
     } catch (error) {
-      console.error('Erro ao excluir bloqueio:', error);
+      logger.warn('Erro ao excluir bloqueio:', error);
       alert('❌ Erro ao excluir bloqueio');
     }
   };
@@ -1173,7 +1174,7 @@ function ModalAgendamento({
       setProfissionais(ensureArray<any>(profissionaisRes.data));
       setProcedimentos(ensureArray<any>(procedimentosRes.data));
     } catch (error) {
-      console.error('Erro ao carregar dados do formulário:', error);
+      logger.warn('Erro ao carregar dados do formulário:', error);
     } finally {
       setLoadingData(false);
     }
@@ -1220,7 +1221,7 @@ function ModalAgendamento({
       
       onSuccess();
     } catch (error: unknown) {
-      console.error('Erro ao salvar agendamento:', error);
+      logger.warn('Erro ao salvar agendamento:', error);
       const msg =
         (error as { response?: { data?: { error?: string; detail?: string } } })?.response?.data?.error ||
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
@@ -1480,7 +1481,7 @@ function ModalBloqueio({
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Erro ao criar bloqueio:', error);
+      logger.warn('Erro ao criar bloqueio:', error);
       
       // Mensagem de erro mais detalhada
       const errorMessage = error?.response?.data?.profissional?.[0] || 

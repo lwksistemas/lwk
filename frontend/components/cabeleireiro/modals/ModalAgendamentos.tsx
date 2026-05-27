@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import apiClient from '@/lib/api-client';
 import { extractArrayData, formatApiError } from '@/lib/api-helpers';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -84,7 +85,7 @@ export function ModalAgendamentos({
       setEditando(agendamento);
       setShowForm(true);
     } catch (error) {
-      console.error('Erro ao carregar agendamento:', error);
+      logger.warn('Erro ao carregar agendamento:', error);
       alert(formatApiError(error));
     }
   };
@@ -106,15 +107,13 @@ export function ModalAgendamentos({
       const clientesArray = extractArrayData(clientesRes);
       const profissionaisArray = extractArrayData(profissionaisRes);
       const servicosArray = extractArrayData(servicosRes);
-      console.log('✅ [ModalAgendamentos] Profissionais:', profissionaisArray.length);
-      console.log('✅ [ModalAgendamentos] Serviços:', servicosArray.length);
       
       setAgendamentos(agendamentosArray);
       setClientes(clientesArray);
       setProfissionais(profissionaisArray);
       setServicos(servicosArray);
     } catch (error) {
-      console.error('❌ [ModalAgendamentos] Erro ao carregar dados:', error);
+      logger.warn('❌ [ModalAgendamentos] Erro ao carregar dados:', error);
       alert(formatApiError(error));
       
       // Garantir arrays vazios em caso de erro
@@ -165,7 +164,7 @@ export function ModalAgendamentos({
       setEditando(null);
       setShowForm(false);
     } catch (error) {
-      console.error('Erro ao salvar agendamento:', error);
+      logger.warn('Erro ao salvar agendamento:', error);
       alert(formatApiError(error));
     }
   };
@@ -202,7 +201,7 @@ export function ModalAgendamentos({
       await apiClient.delete(`/cabeleireiro/agendamentos/${id}/`);
       await carregarDados();
     } catch (error) {
-      console.error('Erro ao excluir agendamento:', error);
+      logger.warn('Erro ao excluir agendamento:', error);
       alert(formatApiError(error));
     }
   };

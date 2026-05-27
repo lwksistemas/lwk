@@ -12,6 +12,10 @@ from django.db import models
 from .models import NFSe
 from .serializers import NFSeSerializer, EmitirNFSeSerializer, CancelarNFSeSerializer
 from .service import NFSeService
+from .emissao import ContaTomadorNaoEncontrada, montar_dados_tomador_nfse
+from .danfe import buscar_url_danfe_issnet
+from .email_nfse import enviar_email_nfse_tomador
+from .pdf_download import resolver_download_pdf_loja
 from tenants.middleware import get_current_loja_id, get_current_tenant_db
 from superadmin.models import Loja
 
@@ -107,46 +111,13 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             loja = Loja.objects.get(id=loja_id)
             
             # Obter dados do tomador
-            conta_id = serializer.validated_data.get('conta_id')
-            
-            if conta_id:
-                # Buscar dados da conta cadastrada
-                from crm_vendas.models import Conta
-                try:
-                    conta = Conta.objects.get(id=conta_id, loja_id=loja_id)
-                    
-                    tomador_cpf_cnpj = conta.cnpj or ''
-                    tomador_nome = conta.razao_social or conta.nome
-                    tomador_email = conta.email or ''
-                    tomador_endereco = {
-                        'logradouro': conta.logradouro or '',
-                        'numero': conta.numero or 'S/N',
-                        'complemento': conta.complemento or '',
-                        'bairro': conta.bairro or '',
-                        'cidade': conta.cidade or '',
-                        'uf': conta.uf or '',
-                        'cep': conta.cep or '',
-                        'telefone': getattr(conta, 'telefone', '') or '',
-                    }
-                except Conta.DoesNotExist:
-                    return Response(
-                        {'error': f'Conta {conta_id} não encontrada'},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-            else:
-                # Usar dados preenchidos manualmente
-                tomador_cpf_cnpj = serializer.validated_data.get('tomador_cpf_cnpj', '')
-                tomador_nome = serializer.validated_data.get('tomador_nome', '')
-                tomador_email = serializer.validated_data.get('tomador_email', '')
-                tomador_endereco = {
-                    'logradouro': serializer.validated_data.get('tomador_logradouro', ''),
-                    'numero': serializer.validated_data.get('tomador_numero', 'S/N'),
-                    'complemento': serializer.validated_data.get('tomador_complemento', ''),
-                    'bairro': serializer.validated_data.get('tomador_bairro', ''),
-                    'cidade': serializer.validated_data.get('tomador_cidade', ''),
-                    'uf': serializer.validated_data.get('tomador_uf', ''),
-                    'cep': serializer.validated_data.get('tomador_cep', ''),
-                }
+            try:
+                tomador = montar_dados_tomador_nfse(serializer.validated_data, loja_id)
+            except ContaTomadorNaoEncontrada as exc:
+                return Response(
+                    {'error': f'Conta {exc.conta_id} não encontrada'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
             
             # Criar serviço e emitir NFS-e
             service = NFSeService(loja)
@@ -156,10 +127,10 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             codigo_servico_override = (serializer.validated_data.get('codigo_servico') or '').strip() or None
             
             resultado = service.emitir_nfse(
-                tomador_cpf_cnpj=tomador_cpf_cnpj,
-                tomador_nome=tomador_nome,
-                tomador_email=tomador_email,
-                tomador_endereco=tomador_endereco,
+                tomador_cpf_cnpj=tomador.cpf_cnpj,
+                tomador_nome=tomador.nome,
+                tomador_email=tomador.email,
+                tomador_endereco=tomador.endereco,
                 servico_descricao=serializer.validated_data['servico_descricao'],
                 valor_servicos=Decimal(str(serializer.validated_data['valor_servicos'])),
                 enviar_email=serializer.validated_data.get('enviar_email', True),
@@ -197,9 +168,9 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 erro_msg = resultado.get('error', 'Erro desconhecido')
                 nfse_falha = service.registrar_falha_emissao(
                     erro_msg=erro_msg,
-                    tomador_cpf_cnpj=tomador_cpf_cnpj,
-                    tomador_nome=tomador_nome,
-                    tomador_email=tomador_email,
+                    tomador_cpf_cnpj=tomador.cpf_cnpj,
+                    tomador_nome=tomador.nome,
+                    tomador_email=tomador.email,
                     servico_descricao=serializer.validated_data['servico_descricao'],
                     valor_servicos=Decimal(str(serializer.validated_data['valor_servicos'])),
                     numero_rps=int(resultado.get('numero_rps') or 0),
@@ -332,27 +303,21 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='download_pdf')
     def download_pdf(self, request, pk=None):
-        """Gera e retorna PDF da NFS-e."""
+        """Gera e retorna PDF da NFS-e. Para ISSNet, busca URL real via ConsultarUrlNfse."""
         from django.http import HttpResponse
         try:
             nfse = self.get_object()
-            
-            # Se tem pdf_url (Asaas), redirecionar
-            if nfse.pdf_url:
-                from django.shortcuts import redirect
-                return redirect(nfse.pdf_url)
-            
-            # Gerar PDF da NFS-e com dados reais
-            from .pdf_nfse import gerar_pdf_nfse
             loja_id = get_current_loja_id()
             loja = Loja.objects.get(id=loja_id)
-            
-            pdf_buffer = gerar_pdf_nfse(nfse, loja)
-            pdf_buffer.seek(0)
-            
-            filename = f'nfse_{nfse.numero_nf or nfse.id}.pdf'
-            response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            resultado = resolver_download_pdf_loja(nfse, loja, loja_id)
+
+            if resultado.tipo == 'url':
+                return Response({'url': resultado.url})
+
+            response = HttpResponse(resultado.conteudo_pdf, content_type='application/pdf')
+            response['Content-Disposition'] = (
+                f'{resultado.content_disposition}; filename="{resultado.nome_arquivo}"'
+            )
             return response
             
         except Exception as e:
@@ -390,7 +355,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=['post'])
     def reenviar_email(self, request, pk=None):
-        """Reenvia email da NFS-e para o tomador com PDF e XML anexados."""
+        """Reenvia email da NFS-e para o tomador com link da DANFE real e XML anexado."""
         try:
             nfse = self.get_object()
             
@@ -403,55 +368,27 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             # Obter loja
             loja_id = get_current_loja_id()
             loja = Loja.objects.get(id=loja_id)
+
+            # Buscar URL real da DANFE via ConsultarUrlNfse (se ISSNet)
+            url_danfe = buscar_url_danfe_issnet(nfse, loja_id=loja_id, loja=loja)
             
-            # Enviar email com anexos
-            from django.core.mail import EmailMessage
-            from django.conf import settings
-            
-            assunto = f'Nota Fiscal de Serviço Nº {nfse.numero_nf} - {loja.nome}'
-            corpo = (
-                f'Olá {nfse.tomador_nome}!\n\n'
-                f'Segue as informações da Nota Fiscal de Serviço Eletrônica.\n\n'
-                f'📋 DADOS DA NOTA FISCAL:\n'
-                f'• Número: {nfse.numero_nf}\n'
-                f'• Prestador: {loja.nome}\n'
-                f'• CNPJ: {loja.cpf_cnpj}\n'
-                f'• Valor: R$ {float(nfse.valor):.2f}\n'
-                f'• Código de Verificação: {nfse.codigo_verificacao or "—"}\n'
-                f'• Descrição: {nfse.servico_descricao}\n\n'
-                f'📄 O arquivo XML da nota fiscal está em anexo.\n\n'
-                f'📩 O e-mail oficial do sistema da Prefeitura (ISS.NET) com o link para '
-                f'visualizar e imprimir a nota fiscal foi enviado automaticamente no momento da emissão. '
-                f'Verifique sua caixa de entrada e spam.\n\n'
-                f'---\n'
-                f'Atenciosamente,\n'
-                f'{loja.nome}'
+            enviar_email_nfse_tomador(
+                loja=loja,
+                tomador_email=nfse.tomador_email,
+                tomador_nome=nfse.tomador_nome,
+                numero_nf=nfse.numero_nf,
+                valor=nfse.valor,
+                descricao=nfse.servico_descricao,
+                url_danfe=url_danfe,
+                codigo_verificacao=nfse.codigo_verificacao,
+                xml_content=nfse.xml_nfse or nfse.xml_rps or '',
+                fail_silently=False,
             )
-            
-            email = EmailMessage(
-                subject=assunto,
-                body=corpo,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[nfse.tomador_email],
-            )
-            
-            # Anexar XML se disponível
-            xml_content = nfse.xml_nfse or nfse.xml_rps or ''
-            if xml_content:
-                email.attach(
-                    f'nfse_{nfse.numero_nf}.xml',
-                    xml_content.encode('utf-8'),
-                    'application/xml'
-                )
-            
-            email.send(fail_silently=False)
-            
-            logger.info(f'Email NFS-e reenviado para {nfse.tomador_email} com PDF e XML')
             
             return Response(
                 {
                     'success': True,
-                    'message': f'Email reenviado para {nfse.tomador_email} com PDF e XML'
+                    'message': f'Email reenviado para {nfse.tomador_email}'
                 }
             )
             
@@ -466,6 +403,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
         """
         Exclui uma NFS-e da loja atual.
         Apenas NFS-e pertencentes à loja do usuário podem ser excluídas.
+        Notas com status 'emitida' não podem ser excluídas — use Cancelar.
         """
         loja_id = get_current_loja_id()
         if not loja_id:
@@ -479,6 +417,16 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                 return Response(
                     {'error': 'NFS-e não encontrada ou não pertence a esta loja.'},
                     status=status.HTTP_404_NOT_FOUND,
+                )
+            if nfse.status == 'emitida':
+                return Response(
+                    {'error': 'Nota fiscal emitida não pode ser excluída. Use a opção Cancelar.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if nfse.status == 'cancelada':
+                return Response(
+                    {'error': 'Nota fiscal cancelada não pode ser excluída (manter para histórico).'},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             numero = nfse.numero_nf
             nfse.delete()

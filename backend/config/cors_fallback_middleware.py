@@ -14,6 +14,16 @@ class CorsFallbackMiddleware(MiddlewareMixin):
     Também responde OPTIONS (preflight) para /api/ quando Origin é permitido.
     """
 
+    SECURITY_HEADERS = {
+        'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+    }
+    NO_STORE_HEADERS = {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+    }
+
     def process_request(self, request):
         """Responde OPTIONS (preflight) com headers CORS para /api/"""
         if request.method != 'OPTIONS' or not request.path.startswith('/api/'):
@@ -34,14 +44,23 @@ class CorsFallbackMiddleware(MiddlewareMixin):
         response['Access-Control-Allow-Credentials'] = 'true'
         response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
         response['Access-Control-Allow-Headers'] = (
-            'Accept, Authorization, Content-Type, X-Loja-ID, X-Tenant-Slug'
+            'Accept, Authorization, Content-Type, X-Loja-ID, X-Tenant-Slug, X-Session-ID'
         )
         response['Access-Control-Max-Age'] = '86400'
+        for key, value in self.SECURITY_HEADERS.items():
+            response.setdefault(key, value)
+        for key, value in self.NO_STORE_HEADERS.items():
+            response.setdefault(key, value)
         return response
 
     def process_response(self, request, response):
         if not request.path.startswith('/api/'):
             return response
+
+        for key, value in self.SECURITY_HEADERS.items():
+            response.setdefault(key, value)
+        for key, value in self.NO_STORE_HEADERS.items():
+            response.setdefault(key, value)
 
         origin = request.META.get('HTTP_ORIGIN')
         if not origin:

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, Plus, Search, X, Check, AlertCircle, RefreshCw, Trash2, Download, Mail } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import { ModalEmitirNFSe } from './components/ModalEmitirNFSe';
 
 interface NFSe {
@@ -13,6 +14,7 @@ interface NFSe {
   data_emissao: string;
   valor: string;
   valor_iss: string;
+  aliquota_iss: string;
   valor_liquido: number;
   tomador_nome: string;
   tomador_cpf_cnpj: string;
@@ -62,7 +64,7 @@ export default function NFSePage() {
       const res = await apiClient.get(`/nfse/?${params.toString()}`);
       setNfses(unwrapDrfList<NFSe>(res.data));
     } catch (error) {
-      console.error('Erro ao carregar NFS-e:', error);
+      logger.warn('Erro ao carregar NFS-e:', error);
     } finally {
       setLoading(false);
     }
@@ -116,16 +118,21 @@ export default function NFSePage() {
     e.preventDefault();
     e.stopPropagation();
     try {
-      const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
-      const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);
+      // Primeiro: tentar sem blob para detectar JSON com URL
+      const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`);
+      
+      // Se retornou JSON com URL (DANFE real do ISSNet)
+      if (res.data && res.data.url) {
+        window.open(res.data.url, '_blank');
+        return;
+      }
+      
+      // Se não tem URL, baixar como blob (PDF interno)
+      const resBlob = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
+      const blob = resBlob.data instanceof Blob ? resBlob.data : new Blob([resBlob.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `nfse_${nf.numero_nf || nf.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      window.open(url, '_blank');
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     } catch {
       alert('PDF não disponível.');
     }
@@ -270,16 +277,22 @@ function NfseTable({ nfses, syncingId, deletingId, onSync, onDelete, onDownloadP
 }) {
   return (
     <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <FileText size={20} /> Notas Fiscais
+        </h2>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-[#0d1f3c]">
             <tr>
-              {['Número', 'Data', 'Cliente', 'Serviço'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{h}</th>
-              ))}
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">NF</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Data</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Tomador</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Valor</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ISS</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-[1%] whitespace-nowrap">Ações</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -301,45 +314,43 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, o
   onReenviarEmail: (e: React.MouseEvent, nf: NFSe) => void;
 }) {
   const statusColor = STATUS_COLORS[nf.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+  const aliquota = Number(nf.aliquota_iss ?? 0).toFixed(2);
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50">
       <td className="px-4 py-3 text-sm">
-        <div className="font-medium text-gray-900 dark:text-white">{nf.numero_nf}</div>
-        <div className="text-xs text-gray-500 dark:text-gray-400">RPS: {nf.numero_rps}</div>
+        <div className="font-bold text-gray-900 dark:text-white">{nf.numero_nf || '—'}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">RPS {nf.numero_rps}</div>
       </td>
-      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-        {nf.data_emissao ? new Date(nf.data_emissao).toLocaleDateString('pt-BR') : '—'}
+      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+        {nf.data_emissao ? new Date(nf.data_emissao).toLocaleDateString('pt-BR') + ', ' + new Date(nf.data_emissao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—'}
       </td>
       <td className="px-4 py-3 text-sm">
         <div className="font-medium text-gray-900 dark:text-white">{nf.tomador_nome}</div>
         <div className="text-xs text-gray-500 dark:text-gray-400">{nf.tomador_cpf_cnpj}</div>
       </td>
-      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">{nf.servico_descricao}</td>
+      <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-white">
+        R$ {Number(nf.valor ?? 0).toFixed(2)}
+      </td>
       <td className="px-4 py-3 text-sm text-right">
-        <div className="font-medium text-gray-900 dark:text-white">R$ {Number(nf.valor ?? 0).toFixed(2)}</div>
-        <div className="text-xs text-gray-500 dark:text-gray-400">ISS: R$ {Number(nf.valor_iss ?? 0).toFixed(2)}</div>
+        <div className="text-gray-700 dark:text-gray-300">R$ {Number(nf.valor_iss ?? 0).toFixed(2)}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">{aliquota}%</div>
       </td>
       <td className="px-4 py-3 text-center">
-        <div className="flex flex-col items-center gap-1 max-w-[min(100%,280px)] mx-auto">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
-            {nf.status === 'emitida' && <Check size={14} />}
-            {nf.status === 'cancelada' && <X size={14} />}
-            {nf.status === 'erro' && <AlertCircle size={14} />}
-            {nf.status_display ?? nf.status}
-          </span>
-          {nf.status === 'erro' && nf.erro && (
-            <p className="text-xs text-amber-800 dark:text-amber-200/90 text-left line-clamp-2 w-full" title={nf.erro}>{nf.erro}</p>
-          )}
-        </div>
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+          {nf.status_display ?? nf.status}
+        </span>
+        {nf.status === 'erro' && nf.erro && (
+          <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 max-w-[200px] truncate" title={nf.erro}>{nf.erro}</p>
+        )}
       </td>
-      <td className="px-4 py-3 text-right">
-        <div className="flex items-center justify-end gap-1 flex-wrap">
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-center gap-1">
           {nf.status === 'emitida' && (
             <>
-              <button type="button" title="Baixar PDF da NFS-e" onClick={(e) => onDownloadPdf(e, nf)} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-md">
-                <FileText size={14} /> PDF
+              <button type="button" title="Baixar PDF" onClick={(e) => onDownloadPdf(e, nf)} className="p-1.5 text-gray-600 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded">
+                <FileText size={16} />
               </button>
-              <button type="button" title="Baixar XML da NFS-e" onClick={(e) => {
+              <button type="button" title="Baixar XML" onClick={(e) => {
                 e.preventDefault(); e.stopPropagation();
                 apiClient.get(`/nfse/${nf.id}/download_xml/`, { responseType: 'blob' }).then(res => {
                   const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);
@@ -347,37 +358,37 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, o
                   const a = document.createElement('a'); a.href = url; a.download = `nfse_${nf.numero_nf || nf.id}.xml`;
                   document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); document.body.removeChild(a);
                 }).catch(() => alert('XML não disponível'));
-              }} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md">
-                <Download size={14} /> XML
+              }} className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded">
+                <Download size={16} />
               </button>
-              <button type="button" title="Reenviar por email" onClick={(e) => onReenviarEmail(e, nf)} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md">
-                <Mail size={14} /> Email
+              <button type="button" title="Reenviar por email" onClick={(e) => onReenviarEmail(e, nf)} className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded">
+                <Mail size={16} />
+              </button>
+              <button type="button" title="Cancelar NFS-e" onClick={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                const motivo = prompt('Motivo do cancelamento da NFS-e:');
+                if (!motivo) return;
+                apiClient.post(`/nfse/${nf.id}/cancelar/`, { motivo }).then(() => {
+                  alert('NFS-e cancelada com sucesso!');
+                  window.location.reload();
+                }).catch((err: any) => {
+                  alert(err.response?.data?.error || 'Erro ao cancelar NFS-e');
+                });
+              }} className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
+                <X size={16} />
               </button>
             </>
           )}
           {nf.provedor === 'asaas' && (
-            <button type="button" title="Sincronizar com Asaas" onClick={(e) => onSync(e, nf)} disabled={syncingId === nf.id} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0176d3] hover:bg-[#0176d3]/10 rounded-md disabled:opacity-50">
-              <RefreshCw size={14} className={syncingId === nf.id ? 'animate-spin' : ''} /> Sync
+            <button type="button" title="Sincronizar com Asaas" onClick={(e) => onSync(e, nf)} disabled={syncingId === nf.id} className="p-1.5 text-gray-600 hover:text-[#0176d3] hover:bg-[#0176d3]/10 rounded disabled:opacity-50">
+              <RefreshCw size={16} className={syncingId === nf.id ? 'animate-spin' : ''} />
             </button>
           )}
-          {nf.status === 'emitida' && (
-            <button type="button" title="Cancelar NFS-e" onClick={(e) => {
-              e.preventDefault(); e.stopPropagation();
-              const motivo = prompt('Motivo do cancelamento da NFS-e:');
-              if (!motivo) return;
-              apiClient.post(`/nfse/${nf.id}/cancelar/`, { motivo }).then(() => {
-                alert('NFS-e cancelada com sucesso!');
-                window.location.reload();
-              }).catch((err: any) => {
-                alert(err.response?.data?.error || 'Erro ao cancelar NFS-e');
-              });
-            }} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-md">
-              <X size={14} /> Cancelar
+          {nf.status !== 'emitida' && nf.status !== 'cancelada' && (
+            <button type="button" title="Excluir" onClick={(e) => onDelete(e, nf)} disabled={deletingId === nf.id} className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-50">
+              <Trash2 size={16} />
             </button>
           )}
-          <button type="button" title="Excluir NFS-e" onClick={(e) => onDelete(e, nf)} disabled={deletingId === nf.id} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-50">
-            <Trash2 size={14} />
-          </button>
         </div>
       </td>
     </tr>

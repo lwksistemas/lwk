@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { ModalBase } from './ModalBase';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -21,7 +22,7 @@ export function ModalServicos({ loja, onClose }: { loja: LojaInfo; onClose: () =
         const res = await clinicaApiClient.get('/servicos/categorias/');
         setCategorias(Array.isArray(res.data) ? res.data : res.data?.results ?? []);
       } catch (error) {
-        console.error('Erro ao carregar categorias:', error);
+        logger.warn('Erro ao carregar categorias:', error);
       }
     };
     loadCategorias();

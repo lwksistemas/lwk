@@ -12,6 +12,7 @@ import logging
 import os
 import shutil
 from pathlib import Path
+from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
 
@@ -763,7 +764,12 @@ def remove_owner_if_orphan(sender, instance, **kwargs):
                 logger.info(f"   ℹ️  Usuário {user.username} é superuser. Não será removido.")
                 return
             
-            logger.info(f"   🗑️  Removendo usuário órfão: {user.username} (ID: {owner_id}, email: {user.email})")
+            logger.info(
+                "Removendo usuário órfão: user_id=%s, username=%s, email=%s",
+                owner_id,
+                user.username,
+                mask_email(user.email),
+            )
             delete_user_raw(owner_id)
             logger.info(f"   ✅ Usuário órfão removido com sucesso: {user.username}")
             
@@ -818,11 +824,12 @@ def on_payment_confirmed(sender, instance, created, **kwargs):
             success = service.enviar_senha_provisoria(loja, owner)
             
             if success:
-                logger.info(f"✅ Senha provisória enviada para {owner.email} (loja {loja.slug})")
+                logger.info("Senha provisória enviada: loja=%s, owner_email=%s", loja.slug, mask_email(owner.email))
             else:
                 logger.warning(
-                    f"⚠️ Falha ao enviar senha para {owner.email} (loja {loja.slug}). "
-                    "Email registrado para retry automático."
+                    "Falha ao enviar senha provisória: loja=%s, owner_email=%s. Email registrado para retry automático.",
+                    loja.slug,
+                    mask_email(owner.email),
                 )
         
         except Exception as e:

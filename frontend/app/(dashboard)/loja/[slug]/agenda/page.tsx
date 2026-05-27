@@ -29,6 +29,7 @@ import {
   obterFilaSync,
 } from "@/lib/offline-db";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
+import { logger } from "@/lib/logger";
 
 /** Cores por status (uma cor diferente para cada; concluído e faltou bem distintas) */
 const CORES_STATUS: Record<string, { bg: string; border: string }> = {
@@ -75,8 +76,10 @@ interface AgendaEvent {
 
 interface Professional {
   id: number;
-  name: string;
-  specialty: string;
+  name?: string;
+  nome?: string;
+  specialty?: string;
+  especialidade?: string;
 }
 
 interface HorarioTrabalho {
@@ -91,16 +94,25 @@ interface HorarioTrabalho {
 
 interface Patient {
   id: number;
-  name: string;
-  phone: string;
+  name?: string;
+  nome?: string;
+  phone?: string;
+  telefone?: string;
 }
 
 interface Procedure {
   id: number;
-  name: string;
-  duration: number;
-  price: string;
+  name?: string;
+  nome?: string;
+  duration?: number;
+  duracao_minutos?: number;
+  price?: string;
+  preco?: string;
 }
+
+// Helpers para campos bilíngues
+function gName(o: { name?: string; nome?: string }): string { return o.name || o.nome || ''; }
+function gDuration(o: { duration?: number; duracao_minutos?: number }): number { return o.duration ?? o.duracao_minutos ?? 30; }
 
 interface BloqueioHorario {
   id: number;
@@ -168,7 +180,7 @@ export default function AgendaPage() {
   // Redirecionar para login se não houver token (evita 401 em bloqueios, agenda, etc.)
   useEffect(() => {
     if (typeof window === "undefined" || !slug) return;
-    const token = sessionStorage.getItem("access_token") || localStorage.getItem("token");
+    const token = sessionStorage.getItem("access_token");
     if (!token) {
       window.location.href = `/loja/${slug}/login`;
       return;
@@ -236,14 +248,14 @@ export default function AgendaPage() {
         const res = await clinicaBelezaFetch(`/professionals/${selectedProfessional}/horarios-trabalho/`);
         if (res.ok) {
           const data = await res.json();
-          console.log('📅 Horários de trabalho carregados (RAW):', JSON.stringify(data, null, 2));
+          logger.log('📅 Horários de trabalho carregados (RAW):', JSON.stringify(data, null, 2));
           setHorariosTrabalho(Array.isArray(data) ? data : []);
         } else {
-          console.error('❌ Erro ao carregar horários:', res.status);
+          logger.warn('Erro ao carregar horários:', res.status);
           setHorariosTrabalho([]);
         }
       } catch (err) {
-        console.error('❌ Erro ao carregar horários:', err);
+        logger.warn('Erro ao carregar horários:', err);
         setHorariosTrabalho([]);
       }
     };
@@ -261,7 +273,7 @@ export default function AgendaPage() {
   // Após sync da fila (registrado no layout da loja), recarregar dados para refletir agendamentos enviados
   useEffect(() => {
     const handler = () => {
-      console.log("🔄 [agenda] Sincronização concluída, recarregando dados...");
+      logger.log("🔄 [agenda] Sincronização concluída, recarregando dados...");
       setTimeout(() => carregarDados(), 1200);
     };
     window.addEventListener("offline-sync-done", handler);
@@ -310,7 +322,7 @@ export default function AgendaPage() {
       };
     }
 
-    console.log('🏢 Calculando businessHours com horários:', JSON.stringify(horariosTrabalho, null, 2));
+    logger.log('🏢 Calculando businessHours com horários:', JSON.stringify(horariosTrabalho, null, 2));
 
     // Converter horários de trabalho para formato do FullCalendar
     const businessHours = horariosTrabalho
@@ -323,7 +335,7 @@ export default function AgendaPage() {
         const startTime = typeof h.hora_entrada === 'string' ? h.hora_entrada.slice(0, 5) : '08:00';
         const endTime = typeof h.hora_saida === 'string' ? h.hora_saida.slice(0, 5) : '18:00';
         
-        console.log(`  Dia backend ${h.dia_semana} → FC day ${fcDay}: ${startTime} - ${endTime}`);
+        logger.log(`  Dia backend ${h.dia_semana} → FC day ${fcDay}: ${startTime} - ${endTime}`);
         
         return {
           daysOfWeek: [fcDay],
@@ -332,7 +344,7 @@ export default function AgendaPage() {
         };
       });
     
-    console.log('🏢 BusinessHours final:', JSON.stringify(businessHours, null, 2));
+    logger.log('🏢 BusinessHours final:', JSON.stringify(businessHours, null, 2));
     return businessHours;
   };
 
@@ -350,8 +362,8 @@ export default function AgendaPage() {
     const todosDias = [0, 1, 2, 3, 4, 5, 6];
     const diasOcultos = todosDias.filter((dia) => !diasAtivos.includes(dia));
     
-    console.log('🚫 Dias ativos (FC):', diasAtivos);
-    console.log('🚫 Dias ocultos (FC):', diasOcultos);
+    logger.log('🚫 Dias ativos (FC):', diasAtivos);
+    logger.log('🚫 Dias ocultos (FC):', diasOcultos);
     
     return diasOcultos;
   };
@@ -369,7 +381,7 @@ export default function AgendaPage() {
       return hora < min ? hora : min;
     }, "23:59");
     
-    console.log('⏰ Horário mínimo calculado:', menorHorario);
+    logger.log('⏰ Horário mínimo calculado:', menorHorario);
     return menorHorario + ":00";
   };
 
@@ -385,7 +397,7 @@ export default function AgendaPage() {
       return hora > max ? hora : max;
     }, "00:00");
     
-    console.log('⏰ Horário máximo calculado:', maiorHorario);
+    logger.log('⏰ Horário máximo calculado:', maiorHorario);
     return maiorHorario + ":00";
   };
 
@@ -474,8 +486,8 @@ export default function AgendaPage() {
         // Criar eventos de intervalo (almoço) baseados nos horários de trabalho
         const intervalosAsEvents: any[] = [];
         if (selectedProfessional && horariosTrabalho.length > 0) {
-          console.log('🍽️ Criando intervalos para profissional:', selectedProfessional);
-          console.log('📋 Horários disponíveis:', JSON.stringify(horariosTrabalho, null, 2));
+          logger.log('🍽️ Criando intervalos para profissional:', selectedProfessional);
+          logger.log('📋 Horários disponíveis:', JSON.stringify(horariosTrabalho, null, 2));
           
           const hoje = new Date();
           const diasParaMostrar = 30; // Mostrar intervalos para os próximos 30 dias
@@ -488,13 +500,13 @@ export default function AgendaPage() {
             // Converter dia da semana do JS para o formato do backend (0=segunda, 6=domingo)
             const diaBackend = diaSemana === 0 ? 6 : diaSemana - 1;
             
-            console.log(`📅 Data: ${data.toLocaleDateString('pt-BR')}, JS day: ${diaSemana}, Backend day: ${diaBackend}`);
+            logger.log(`📅 Data: ${data.toLocaleDateString('pt-BR')}, JS day: ${diaSemana}, Backend day: ${diaBackend}`);
             
             // Buscar horário de trabalho para este dia
             const horario = horariosTrabalho.find(h => h.ativo && h.dia_semana === diaBackend);
             
             if (horario) {
-              console.log(`✅ Horário encontrado para dia ${diaBackend}:`, JSON.stringify(horario, null, 2));
+              logger.log(`✅ Horário encontrado para dia ${diaBackend}:`, JSON.stringify(horario, null, 2));
               
               if (horario.intervalo_inicio && horario.intervalo_fim) {
                 const y = data.getFullYear();
@@ -509,7 +521,7 @@ export default function AgendaPage() {
                   ? horario.intervalo_fim.slice(0, 5) 
                   : '13:00';
                 
-                console.log(`⏰ Intervalo: ${intervaloInicio} - ${intervaloFim}`);
+                logger.log(`⏰ Intervalo: ${intervaloInicio} - ${intervaloFim}`);
                 
                 const intervalo = {
                   id: `intervalo-${selectedProfessional}-${y}${m}${d}`,
@@ -527,17 +539,17 @@ export default function AgendaPage() {
                   },
                 };
                 
-                console.log(`✅ Intervalo criado para ${y}-${m}-${d}:`, intervalo);
+                logger.log(`✅ Intervalo criado para ${y}-${m}-${d}:`, intervalo);
                 intervalosAsEvents.push(intervalo);
               } else {
-                console.log(`⚠️ Horário sem intervalo configurado para dia ${diaBackend}`);
+                logger.log(`⚠️ Horário sem intervalo configurado para dia ${diaBackend}`);
               }
             } else {
-              console.log(`❌ Nenhum horário encontrado para dia ${diaBackend}`);
+              logger.log(`❌ Nenhum horário encontrado para dia ${diaBackend}`);
             }
           }
           
-          console.log(`📊 Total de intervalos criados: ${intervalosAsEvents.length}`);
+          logger.log(`📊 Total de intervalos criados: ${intervalosAsEvents.length}`);
         }
 
         // Mesclar agendamentos ainda na fila de sync (criados offline) para não sumirem ao recarregar
@@ -552,7 +564,7 @@ export default function AgendaPage() {
           const duration = procedure?.duration ?? 30;
           const endDate = new Date(date);
           endDate.setMinutes(endDate.getMinutes() + duration);
-          const titulo = [patient?.name, procedure?.name].filter(Boolean).join(" • ") || "Agendamento (pendente sync)";
+          const titulo = [gName(patient || {}), gName(procedure || {})].filter(Boolean).join(" • ") || "Agendamento (pendente sync)";
           return {
             id: `offline-${item.id}`,
             title: titulo,
@@ -565,10 +577,10 @@ export default function AgendaPage() {
             extendedProps: {
               dbId: `offline-${item.id}`,
               status: p.status || "SCHEDULED",
-              patient_name: patient?.name ?? "",
+              patient_name: gName(patient || {}) ?? "",
               patient_phone: "",
               professional_name: professional?.name ?? "",
-              procedure_name: procedure?.name ?? "",
+              procedure_name: gName(procedure || {}) ?? "",
               procedure_duration: duration,
               procedure_price: procedure?.price ?? "",
               notes: p.notes ?? "",
@@ -578,11 +590,11 @@ export default function AgendaPage() {
         });
 
         const todosEventos = [...eventosFormatados, ...bloqueiosAsEvents, ...intervalosAsEvents, ...pendingEvents];
-        console.log(`📊 Total de eventos no calendário: ${todosEventos.length}`);
-        console.log(`  - Agendamentos: ${eventosFormatados.length}`);
-        console.log(`  - Bloqueios: ${bloqueiosAsEvents.length}`);
-        console.log(`  - Intervalos: ${intervalosAsEvents.length}`);
-        console.log(`  - Pendentes: ${pendingEvents.length}`);
+        logger.log(`📊 Total de eventos no calendário: ${todosEventos.length}`);
+        logger.log(`  - Agendamentos: ${eventosFormatados.length}`);
+        logger.log(`  - Bloqueios: ${bloqueiosAsEvents.length}`);
+        logger.log(`  - Intervalos: ${intervalosAsEvents.length}`);
+        logger.log(`  - Pendentes: ${pendingEvents.length}`);
         setEventos(todosEventos);
       } else {
         // --- OFFLINE: ler do IndexedDB
@@ -648,17 +660,17 @@ export default function AgendaPage() {
           }
           const eventosFormatados = list.map((e: any) => formatarEvento(e));
           const todosEventos = [...eventosFormatados, ...intervalosAsEvents];
-          console.log(`📊 [OFFLINE] Total de eventos: ${todosEventos.length} (${eventosFormatados.length} agendamentos + ${intervalosAsEvents.length} intervalos)`);
+          logger.log(`📊 [OFFLINE] Total de eventos: ${todosEventos.length} (${eventosFormatados.length} agendamentos + ${intervalosAsEvents.length} intervalos)`);
           setEventos(todosEventos);
         } else {
-          console.log(`📊 [OFFLINE] Total de eventos: ${intervalosAsEvents.length} (apenas intervalos)`);
+          logger.log(`📊 [OFFLINE] Total de eventos: ${intervalosAsEvents.length} (apenas intervalos)`);
           setEventos(intervalosAsEvents);
         }
       }
 
       setLoading(false);
     } catch (error) {
-      console.error("Erro ao carregar dados:", error);
+      logger.warn("Erro ao carregar dados:", error);
       setLoading(false);
     }
   };
@@ -701,7 +713,7 @@ export default function AgendaPage() {
 
       carregarDados();
     } catch (error) {
-      console.error("Erro ao mover evento:", error);
+      logger.warn("Erro ao mover evento:", error);
       alert("Erro ao mover evento. Tente novamente.");
       info.revert();
     }
@@ -786,7 +798,7 @@ export default function AgendaPage() {
       setSelectedEvent(null);
       carregarDados();
     } catch (error) {
-      console.error("Erro ao deletar evento:", error);
+      logger.warn("Erro ao deletar evento:", error);
       alert(error instanceof Error ? error.message : "Erro ao deletar agendamento.");
     }
   };
@@ -806,7 +818,7 @@ export default function AgendaPage() {
       setSelectedBloqueio(null);
       carregarDados();
     } catch (error) {
-      console.error("Erro ao excluir bloqueio:", error);
+      logger.warn("Erro ao excluir bloqueio:", error);
       alert(error instanceof Error ? error.message : "Erro ao excluir bloqueio.");
     } finally {
       setDeletingBloqueio(false);
@@ -850,7 +862,7 @@ export default function AgendaPage() {
       );
       carregarDados();
     } catch (error) {
-      console.error("Erro ao atualizar status:", error);
+      logger.warn("Erro ao atualizar status:", error);
       alert(error instanceof Error ? error.message : "Erro ao atualizar status.");
     } finally {
       setUpdatingStatus(false);
@@ -883,7 +895,7 @@ export default function AgendaPage() {
       }
     } catch (e) {
       if (e instanceof Error && e.message === "SESSION_ENDED") return;
-      console.error("Erro ao reenviar mensagem:", e);
+      logger.warn("Erro ao reenviar mensagem:", e);
       alert("Erro ao reenviar mensagem. Tente novamente.");
     } finally {
       setReenviandoMensagem(false);
@@ -912,7 +924,7 @@ export default function AgendaPage() {
       setShowModal(false);
       carregarDados();
     } catch (e) {
-      console.error("Erro ao resolver conflito:", e);
+      logger.warn("Erro ao resolver conflito:", e);
       alert(e instanceof Error ? e.message : "Erro ao aplicar sua versão.");
     } finally {
       setConflictResolving(false);
@@ -972,7 +984,7 @@ export default function AgendaPage() {
                 <option value="">Todos</option>
                 {professionals.map((prof) => (
                   <option key={prof.id} value={prof.id}>
-                    {prof.name}
+                    {gName(prof)}
                   </option>
                 ))}
               </select>
@@ -1246,7 +1258,7 @@ export default function AgendaPage() {
                     const patient = patients.find((p) => p.id === parseInt(createForm.patientId, 10));
                     const professional = professionals.find((p) => p.id === parseInt(createForm.professionalId, 10));
                     const procedure = procedures.find((p) => p.id === parseInt(createForm.procedureId, 10));
-                    const titulo = [patient?.name, procedure?.name].filter(Boolean).join(" • ") || "Agendamento (offline)";
+                    const titulo = [gName(patient || {}), gName(procedure || {})].filter(Boolean).join(" • ") || "Agendamento (offline)";
                     const tempId = `offline-${Date.now()}`;
                     const endDate = new Date(date);
                     endDate.setMinutes(endDate.getMinutes() + (procedure?.duration ?? 30));
@@ -1264,10 +1276,10 @@ export default function AgendaPage() {
                         extendedProps: {
                           dbId: tempId,
                           status: "SCHEDULED",
-                          patient_name: patient?.name ?? "",
+                          patient_name: gName(patient || {}) ?? "",
                           patient_phone: "",
                           professional_name: professional?.name ?? "",
-                          procedure_name: procedure?.name ?? "",
+                          procedure_name: gName(procedure || {}) ?? "",
                           procedure_duration: procedure?.duration ?? 30,
                           procedure_price: procedure?.price ?? "",
                           notes: createForm.notes.trim() || "",
@@ -1329,7 +1341,7 @@ export default function AgendaPage() {
                 >
                   <option value="">Selecione o paciente</option>
                   {patients.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id}>{gName(p)}</option>
                   ))}
                 </select>
               </div>
@@ -1343,7 +1355,7 @@ export default function AgendaPage() {
                 >
                   <option value="">Selecione o profissional</option>
                   {professionals.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id}>{gName(p)}</option>
                   ))}
                 </select>
               </div>
@@ -1357,7 +1369,7 @@ export default function AgendaPage() {
                 >
                   <option value="">Selecione o procedimento</option>
                   {procedures.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.duration} min)</option>
+                    <option key={p.id} value={p.id}>{gName(p)} ({gDuration(p)} min)</option>
                   ))}
                 </select>
               </div>

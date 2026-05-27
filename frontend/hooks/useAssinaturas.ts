@@ -4,6 +4,7 @@
  */
 import { useState, useCallback, useMemo } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 export interface Pagamento {
   id: number | null;
@@ -64,7 +65,7 @@ export function useAssinaturas() {
       const data = res.data;
       setAssinaturas(Array.isArray(data.assinaturas) ? data.assinaturas : []);
     } catch (error) {
-      console.error('Erro ao carregar assinaturas:', error);
+      logger.warn('Erro ao carregar assinaturas:', error);
       setAssinaturas([]);
     } finally {
       setLoading(false);

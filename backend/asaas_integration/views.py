@@ -30,6 +30,18 @@ from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
 
+
+def _asaas_webhook_log_context(payload):
+    """Retorna apenas identificadores do webhook, sem registrar dados pessoais/financeiros."""
+    payment = payload.get('payment') if isinstance(payload.get('payment'), dict) else {}
+    return {
+        'event': payload.get('event'),
+        'payment_id': payment.get('id'),
+        'payment_status': payment.get('status'),
+        'external_reference': payment.get('externalReference'),
+    }
+
+
 class IsSuperAdmin(permissions.BasePermission):
     """Permissão apenas para super admins"""
     def has_permission(self, request, view):
@@ -301,12 +313,12 @@ def asaas_webhook(request):
     """Webhook para receber notificações do Asaas"""
     
     try:
-        # Log da requisição para debug
-        logger.info(f"Webhook Asaas recebido: {request.data}")
+        payload = request.data if isinstance(request.data, dict) else {}
+        logger.info("Webhook Asaas recebido: %s", _asaas_webhook_log_context(payload))
         
         # Verificar se é uma notificação de pagamento
-        event_type = request.data.get('event')
-        payment_data = request.data.get('payment', {})
+        event_type = payload.get('event')
+        payment_data = payload.get('payment', {})
         
         if not event_type or not payment_data:
             return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
@@ -370,9 +382,9 @@ def asaas_webhook(request):
 
 @csrf_exempt
 @api_view(['POST'])
-@permission_classes([])  # Endpoint público para teste
+@permission_classes([IsSuperAdmin])
 def asaas_test_public(request):
-    """Testar conexão com a API do Asaas - endpoint público para debug"""
+    """Testar conexão com a API do Asaas informando uma chave temporária."""
     
     if not REQUESTS_AVAILABLE or not AsaasClient:
         return Response(

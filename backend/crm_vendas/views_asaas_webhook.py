@@ -92,6 +92,22 @@ def asaas_loja_webhook(request, loja_slug: str):
     except Exception as sync_err:
         logger.warning('Falha ao sincronizar NFSe com webhook Asaas: %s', sync_err, exc_info=True)
 
+    # Verificar se é pagamento de relatório de comissão
+    try:
+        if event in ('PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED') and payment.get('id'):
+            from crm_vendas.models_relatorio_comissao import RelatorioComissao
+            from crm_vendas.services_relatorio_comissao import processar_pagamento_comissao
+
+            rc = RelatorioComissao.objects.filter(
+                asaas_payment_id=payment['id'],
+                status='aguardando_pagamento',
+            ).first()
+            if rc:
+                logger.info('Pagamento confirmado para relatório comissão %s', rc.numero)
+                processar_pagamento_comissao(rc)
+    except Exception as rc_err:
+        logger.warning('Falha ao processar pagamento de comissão: %s', rc_err, exc_info=True)
+
     return Response(
         {
             'status': 'received',

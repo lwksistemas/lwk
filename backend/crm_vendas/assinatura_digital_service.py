@@ -80,9 +80,14 @@ def criar_token_assinatura(documento, tipo, loja_id):
     }
     # Gerar token - Django já usa base64 URL-safe
     token = dumps(payload)
-    
-    logger.info(f'🔑 Token gerado: {token}')
-    logger.info(f'   Tamanho: {len(token)}, Contém ":": {(":" in token)}')
+    logger.info(
+        'Token de assinatura gerado: tipo=%s, documento=%s#%s, loja_id=%s, tamanho=%s',
+        tipo,
+        documento.__class__.__name__,
+        documento.id,
+        loja_id,
+        len(token),
+    )
     
     # Criar registro de assinatura
     # Determinar se é proposta ou contrato
@@ -108,7 +113,6 @@ def criar_token_assinatura(documento, tipo, loja_id):
         f'tipo={tipo}, documento={documento.__class__.__name__}#{documento.id}, '
         f'assinante={nome}, loja_id={loja_id}, assinatura_id={assinatura.id}'
     )
-    logger.info(f'   Token salvo no banco: {assinatura.token}')
     
     return assinatura
 
@@ -131,7 +135,7 @@ def verificar_token_assinatura(token, loja_id=None):
     if not token:
         return None, 'Link de assinatura inválido.', loja_id
     
-    logger.info(f'🔍 Verificando token de assinatura - Tamanho: {len(token)}, Primeiros 50 chars: {token[:50]}...')
+    logger.info('Verificando token de assinatura: tamanho=%s, loja_id=%s', len(token), loja_id)
     
     # Se loja_id não foi fornecido, extrair do token
     if loja_id is None:
@@ -139,7 +143,12 @@ def verificar_token_assinatura(token, loja_id=None):
             # Decodificar token para extrair loja_id
             payload = loads(token)
             loja_id = payload.get('loja_id')
-            logger.info(f'📦 Payload decodificado do token: loja_id={loja_id}, doc_type={payload.get("doc_type")}, doc_id={payload.get("doc_id")}')
+            logger.info(
+                'Payload de assinatura decodificado: loja_id=%s, doc_type=%s, doc_id=%s',
+                loja_id,
+                payload.get('doc_type'),
+                payload.get('doc_id'),
+            )
         except (BadSignature, Exception) as e:
             logger.error(f'❌ Erro ao decodificar token: {e}')
             return None, 'Link de assinatura inválido.', None
@@ -153,7 +162,7 @@ def verificar_token_assinatura(token, loja_id=None):
         except AssinaturaDigital.DoesNotExist:
             # Se não encontrar, tentar com URL decode (para tokens antigos que foram salvos encoded)
             token_decoded = unquote(token)
-            logger.info(f'Token não encontrado direto. Tentando com decode... Decoded: {token_decoded[:50]}...')
+            logger.info('Token não encontrado direto. Tentando decode: tamanho=%s', len(token_decoded))
             if token_decoded != token:  # Só tenta se realmente decodificou algo
                 assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token_decoded)
                 logger.info(f'✅ Token encontrado após decode - ID: {assinatura.id}')
@@ -217,17 +226,49 @@ def registrar_assinatura(assinatura, ip_address, user_agent=''):
     else:
         # Vendedor assinou: documento concluído
         documento.status_assinatura = 'concluido'
-        # Proposta: muda status para Aceita automaticamente
-        if documento.__class__.__name__ == 'Proposta' and documento.status in ('rascunho', 'enviada'):
-            documento.status = 'aceita'
+        # Proposta: muda status automaticamente para pedido
+        if documento.__class__.__name__ == 'Proposta':
+            if documento.status in ('rascunho', 'enviada', 'aceita'):
+                documento.status = 'pedido'
             documento.save(update_fields=['status_assinatura', 'status', 'updated_at'])
+            # Fechar oportunidade como ganha automaticamente
+            _fechar_oportunidade_como_ganha(documento)
         else:
             documento.save(update_fields=['status_assinatura', 'updated_at'])
+            # Contrato assinado também fecha a oportunidade
+            _fechar_oportunidade_como_ganha(documento)
         
         # Notificar o dono da loja que a assinatura foi concluída
         _notificar_assinatura_concluida(documento, assinatura)
         
         return 'concluido'
+
+
+def _fechar_oportunidade_como_ganha(documento):
+    """Marca a oportunidade vinculada como closed_won quando assinatura é concluída."""
+    try:
+        from django.utils import timezone
+        oportunidade = getattr(documento, 'oportunidade', None)
+        if not oportunidade:
+            return
+        if oportunidade.etapa == 'closed_won':
+            return  # Já está fechada
+        oportunidade.etapa = 'closed_won'
+        if not oportunidade.data_fechamento_ganho:
+            oportunidade.data_fechamento_ganho = timezone.now().date()
+        # Atualizar valor da oportunidade para valor com desconto (valor real pago)
+        valor_com_desconto = getattr(documento, 'valor_com_desconto', None)
+        update_fields = ['etapa', 'data_fechamento_ganho', 'updated_at']
+        if valor_com_desconto and valor_com_desconto != oportunidade.valor:
+            oportunidade.valor = valor_com_desconto
+            update_fields.append('valor')
+        oportunidade.save(update_fields=update_fields)
+        logger.info(
+            'Oportunidade %s fechada como ganha automaticamente (assinatura concluída do documento %s)',
+            oportunidade.id, documento.id,
+        )
+    except Exception as e:
+        logger.warning('Erro ao fechar oportunidade como ganha: %s', e)
 
 
 def _notificar_assinatura_concluida(documento, assinatura):

@@ -4,6 +4,7 @@ Serializers para Clínica da Beleza
 from rest_framework import serializers
 from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional
 from core.serializer_mixins import TextNormalizationMixin
+from core.logging_utils import mask_email
 
 
 class ProfessionalCreateWithUserSerializer(serializers.Serializer):
@@ -90,7 +91,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                         perfil=perfil,
                         precisa_trocar_senha=True,
                     )
-                    logger.info('Usuário órfão reutilizado para acesso à loja: %s (email=%s)', loja_id, email)
+                    logger.info('Usuário órfão reutilizado para acesso à loja: %s (email=%s)', loja_id, mask_email(email))
                 else:
                     # Novo usuário
                     user = User.objects.db_manager(default_db).create_user(
@@ -188,8 +189,16 @@ class PatientSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         model = Patient
         exclude = ['loja_id']  # loja_id é preenchido automaticamente
         extra_kwargs = {
+            'nome': {'required': True},
+            'telefone': {'required': False, 'allow_blank': True, 'default': ''},
             'email': {'required': False, 'allow_blank': True, 'allow_null': True},
             'cpf': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'data_nascimento': {'required': False, 'allow_null': True},
+            'endereco': {'required': False, 'allow_blank': True, 'default': ''},
+            'cidade': {'required': False, 'allow_blank': True, 'default': ''},
+            'estado': {'required': False, 'allow_blank': True, 'default': ''},
+            'observacoes': {'required': False, 'allow_blank': True, 'default': ''},
+            'allow_whatsapp': {'required': False, 'default': True},
             'address': {'required': False, 'allow_blank': True, 'allow_null': True},
             'notes': {'required': False, 'allow_blank': True, 'allow_null': True},
         }
@@ -232,7 +241,10 @@ class ProcedureSerializer(serializers.ModelSerializer):
     """Serializer para Procedimentos"""
     class Meta:
         model = Procedure
-        exclude = ['loja_id']  # loja_id é preenchido automaticamente
+        exclude = ['loja_id']
+        extra_kwargs = {
+            'categoria': {'required': False, 'allow_blank': True, 'default': ''},
+        }
 
 
 class AppointmentListSerializer(serializers.ModelSerializer):

@@ -27,6 +27,19 @@ from .views import (
     AssinaturaPdfView,
 )
 from .views_enviar_cliente import DocumentoPdfPublicView
+from .views_relatorio_comissao import (
+    criar_relatorio_comissao_view,
+    listar_relatorios_comissao_view,
+    download_pdf_relatorio_comissao_view,
+    preview_relatorio_comissao_view,
+    enviar_relatorio_comissao_view,
+    excluir_relatorio_comissao_view,
+    confirmar_pagamento_manual_view,
+    reemitir_nfse_view,
+    empresa_aprovar_view,
+    empresa_reprovar_view,
+    vendedor_assinar_view,
+)
 from .views_google_calendar import (
     google_calendar_auth,
     google_calendar_callback,
@@ -70,6 +83,19 @@ urlpatterns = [
     path('whatsapp-config/', WhatsAppConfigView.as_view()),
     path('login-config/', LoginConfigView.as_view()),
     path('relatorios/gerar/', gerar_relatorio),
+    # Relatórios de Comissão (workflow completo)
+    path('relatorios-comissao/', listar_relatorios_comissao_view),
+    path('relatorios-comissao/criar/', criar_relatorio_comissao_view),
+    path('relatorios-comissao/preview/', preview_relatorio_comissao_view),
+    path('relatorios-comissao/<int:relatorio_id>/pdf/', download_pdf_relatorio_comissao_view),
+    path('relatorios-comissao/<int:relatorio_id>/enviar/', enviar_relatorio_comissao_view),
+    path('relatorios-comissao/<int:relatorio_id>/excluir/', excluir_relatorio_comissao_view),
+    path('relatorios-comissao/<int:relatorio_id>/confirmar-pagamento/', confirmar_pagamento_manual_view),
+    path('relatorios-comissao/<int:relatorio_id>/reemitir-nfse/', reemitir_nfse_view),
+    # Rotas públicas (empresa/vendedor via token)
+    path('relatorio-comissao/<int:loja_id>/<uuid:token>/aprovar/', empresa_aprovar_view),
+    path('relatorio-comissao/<int:loja_id>/<uuid:token>/reprovar/', empresa_reprovar_view),
+    path('relatorio-comissao/<int:loja_id>/<uuid:token>/assinar/', vendedor_assinar_view),
     path('google-calendar/auth/', google_calendar_auth),
     path('google-calendar/callback/', google_calendar_callback),
     path('google-calendar/status/', google_calendar_status),

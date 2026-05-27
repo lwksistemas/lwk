@@ -4,6 +4,7 @@
  */
 import { useState, useCallback, useMemo } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import type { Pagamento } from './useAssinaturas';
 
 export function usePagamentos() {
@@ -18,7 +19,7 @@ export function usePagamentos() {
       const data = res.data;
       setPagamentos(Array.isArray(data.pagamentos) ? data.pagamentos : []);
     } catch (error) {
-      console.error('Erro ao carregar pagamentos:', error);
+      logger.warn('Erro ao carregar pagamentos:', error);
       setPagamentos([]);
     } finally {
       setLoading(false);

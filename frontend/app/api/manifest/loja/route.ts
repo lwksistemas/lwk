@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { logger } from '@/lib/logger';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const API_BASE = API_URL.endsWith('/api') ? API_URL : `${API_URL}/api`;
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (e) {
-    console.error('Erro ao gerar manifest da loja:', e);
+    logger.warn('Erro ao gerar manifest da loja:', e);
     return new Response(
       JSON.stringify({ error: 'Erro ao gerar manifest' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

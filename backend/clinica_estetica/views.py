@@ -387,8 +387,8 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
             queryset = queryset.filter(Q(profissional_id=profissional_id) | Q(profissional__isnull=True))
             logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro profissional_id={profissional_id}")
         
-        # Log da query SQL para debug
-        logger.info(f"🔍 [BloqueioAgendaViewSet] SQL: {queryset.query}")
+        # Query completa apenas em debug para evitar ruído e detalhes internos em produção.
+        logger.debug("[BloqueioAgendaViewSet] SQL: %s", queryset.query)
         
         count = queryset.count()
         logger.info(f"✅ [BloqueioAgendaViewSet] Retornando {count} bloqueios para loja_id={loja_id}")
@@ -417,7 +417,7 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
             return super().create(request, *args, **kwargs)
         except Exception as e:
             logger.error(f"[BloqueioAgenda] Erro ao criar bloqueio: {str(e)}")
-            logger.error(f"[BloqueioAgenda] Dados recebidos: {request.data}")
+            logger.debug("[BloqueioAgenda] Campos recebidos: %s", sorted(request.data.keys()))
             raise
     
     def perform_create(self, serializer):
@@ -433,8 +433,8 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
         loja_id = get_current_loja_id()
         profissional_id = self.request.data.get('profissional')
         
-        # Log dos dados recebidos
-        logger.info(f"[BloqueioAgenda] Dados recebidos: {self.request.data}")
+        # Evitar registrar payload completo do request.
+        logger.debug("[BloqueioAgenda] Campos recebidos: %s", sorted(self.request.data.keys()))
         logger.info(f"[BloqueioAgenda] loja_id do contexto: {loja_id}")
         logger.info(f"[BloqueioAgenda] profissional_id recebido: {profissional_id}")
         

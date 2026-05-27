@@ -9,6 +9,7 @@
 import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
+import { logger } from '@/lib/logger';
 
 export interface ProdutoServico {
   id: number;
@@ -157,7 +158,7 @@ export function useCategorias() {
       const cats = normalizeListResponse(res.data);
       setCategorias(cats);
     } catch (err) {
-      console.error('Erro ao carregar categorias:', err);
+      logger.warn('Erro ao carregar categorias:', err);
       setError('Erro ao carregar categorias');
       setCategorias([]);
     } finally {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface Loja {
   id: number;
@@ -58,7 +59,7 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
       alert('✅ Loja atualizada com sucesso!');
       onSuccess();
     } catch (error: any) {
-      console.error('Erro ao atualizar loja:', error);
+      logger.warn('Erro ao atualizar loja:', error);
       const errMsg = error.response?.data?.error 
         || error.response?.data?.owner_email_edit?.[0] 
         || error.response?.data?.owner_username_edit?.[0]

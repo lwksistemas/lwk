@@ -4,6 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 export interface Log {
   id: number;
@@ -66,7 +67,7 @@ export function useLogsList() {
       
       setLogs(data);
     } catch (error) {
-      console.error('Erro ao buscar logs:', error);
+      logger.warn('Erro ao buscar logs:', error);
       setLogs([]);
     } finally {
       setLoading(false);

@@ -10,6 +10,7 @@ from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
+from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +31,10 @@ class EmailService:
         Returns:
             bool indicando sucesso ou falha
         """
+        email = getattr(owner, 'email', '')
+        email_log = mask_email(email)
         try:
             senha = loja.senha_provisoria
-            email = owner.email
             
             if not senha:
                 logger.error(f"Senha provisória não encontrada para loja {loja.slug}")
@@ -72,11 +74,11 @@ class EmailService:
             except Exception as e:
                 logger.warning(f"Erro ao atualizar FinanceiroLoja após envio de senha: {e}")
             
-            logger.info(f"✅ Senha provisória enviada para {email} (loja {loja.slug})")
+            logger.info("Senha provisória enviada: email=%s, loja=%s", email_log, loja.slug)
             return True
             
         except Exception as e:
-            logger.error(f"❌ Erro ao enviar senha para {email} (loja {loja.slug}): {e}")
+            logger.error("Erro ao enviar senha provisória: email=%s, loja=%s, erro=%s", email_log, loja.slug, e)
             
             # Registrar para retry
             self._registrar_retry(

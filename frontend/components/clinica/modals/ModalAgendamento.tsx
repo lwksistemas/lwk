@@ -5,6 +5,7 @@ import { clinicaApiClient } from '@/lib/api-client';
 import { CrudModal } from '../shared/CrudModal';
 import { FormField } from '../shared/FormField';
 import type { LojaInfo } from '../shared/CrudModal';
+import { logger } from '@/lib/logger';
 
 interface Cliente {
   id: number;
@@ -88,7 +89,7 @@ export function ModalAgendamento({ loja, onClose, onSuccess }: ModalAgendamentoP
       setProfissionais(ensureArray<Profissional>(profissionaisRes.data));
       setProcedimentos(ensureArray<Procedimento>(procedimentosRes.data));
     } catch (error) {
-      console.error('Erro ao carregar dados do formulário:', error);
+      logger.warn('Erro ao carregar dados do formulário:', error);
     } finally {
       setLoadingData(false);
     }
@@ -131,7 +132,7 @@ export function ModalAgendamento({ loja, onClose, onSuccess }: ModalAgendamentoP
       onSuccess();
       onClose();
     } catch (error: unknown) {
-      console.error('Erro ao criar agendamento:', error);
+      logger.warn('Erro ao criar agendamento:', error);
       const msg = (error as { response?: { data?: { error?: string; detail?: string } } })?.response?.data?.error
         || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       alert(msg ? `❌ ${msg}` : '❌ Erro ao criar agendamento');

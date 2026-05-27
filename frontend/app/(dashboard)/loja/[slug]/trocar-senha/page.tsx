@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
 import PasswordInput from '@/components/auth/PasswordInput';
+import { logger } from '@/lib/logger';
 
 export default function TrocarSenhaLojaComSlugPage() {
   const router = useRouter();
@@ -33,7 +34,7 @@ export default function TrocarSenhaLojaComSlugPage() {
       setLojaId(response.data.id);
       setTipoLojaNome(response.data.tipo_loja_nome || '');
     } catch (error) {
-      console.error('Erro ao carregar informações da loja:', error);
+      logger.warn('Erro ao carregar informações da loja:', error);
       setErro('Erro ao carregar informações. Faça login novamente.');
       setTimeout(() => router.push('/'), 2000);
     } finally {
@@ -79,7 +80,7 @@ export default function TrocarSenhaLojaComSlugPage() {
         : `/loja/${slug}/dashboard`;
       router.push(destino);
     } catch (error: any) {
-      console.error('Erro ao alterar senha:', error);
+      logger.warn('Erro ao alterar senha:', error);
       setErro(error.response?.data?.error || 'Erro ao alterar senha');
     } finally {
       setLoading(false);

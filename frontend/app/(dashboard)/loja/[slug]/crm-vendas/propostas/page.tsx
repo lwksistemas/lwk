@@ -237,21 +237,6 @@ export default function CrmVendasPropostasPage() {
     }
   };
 
-  const handleRejeitarProposta = async (propostaId: number) => {
-    if (!confirm('Rejeitar esta proposta?\n\nIsso indica que o cliente não aceitou a proposta.')) {
-      return;
-    }
-    try {
-      setAlterandoStatus(propostaId);
-      await apiClient.patch(`/crm-vendas/propostas/${propostaId}/`, { status: 'rejeitada', status_assinatura: 'cancelado' });
-      await loadPropostas(true);
-    } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao rejeitar proposta.'));
-    } finally {
-      setAlterandoStatus(null);
-    }
-  };
-
   const handleCancelarProposta = async (motivo: string) => {
     if (!selected) return;
     try {
@@ -454,14 +439,14 @@ export default function CrmVendasPropostasPage() {
         {/* Filtro de status */}
         <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center gap-3 flex-wrap">
           <span className="text-xs text-gray-500 dark:text-gray-400">Filtrar:</span>
-          {['', 'rascunho', 'enviada', 'aceita', 'pedido', 'rejeitada', 'cancelada'].map((s) => (
+          {['', 'rascunho', 'enviada', 'pedido', 'cancelada'].map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setFiltroStatus(s)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${filtroStatus === s ? 'bg-[#0176d3] text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
             >
-              {s === '' ? `Todos (${propostas.length})` : `${STATUS_LABEL[s] || s} (${propostas.filter(p => p.status === s).length})`}
+              {s === '' ? `Todos (${propostas.length})` : `${STATUS_LABEL[s] || s} (${propostas.filter(p => p.status === s || (s === 'pedido' && p.status === 'aceita')).length})`}
             </button>
           ))}
         </div>
@@ -493,7 +478,7 @@ export default function CrmVendasPropostasPage() {
                   </td>
                 </tr>
               ) : (
-                propostas.filter(p => !filtroStatus || p.status === filtroStatus).map((p) => (
+                propostas.filter(p => !filtroStatus || p.status === filtroStatus || (filtroStatus === 'pedido' && p.status === 'aceita')).map((p) => (
                   <tr key={p.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
                     <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{p.numero || '---'}</td>
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{p.titulo}</td>
@@ -517,6 +502,7 @@ export default function CrmVendasPropostasPage() {
                           <button
                             type="button"
                             onClick={() => setMenuAberto(menuAberto === p.id ? null : p.id)}
+                            data-menu-id={p.id}
                             className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
                             title="Mais ações"
                           >
@@ -525,7 +511,26 @@ export default function CrmVendasPropostasPage() {
                           {menuAberto === p.id && (
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
-                              <div className="absolute right-0 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 max-h-72 overflow-y-auto" style={{ top: '100%', marginTop: '4px' }}>
+                              <div className="fixed z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 max-h-64 overflow-y-auto"
+                                style={{
+                                  top: (() => {
+                                    const btn = document.querySelector(`[data-menu-id="${p.id}"]`);
+                                    if (!btn) return '0px';
+                                    const rect = btn.getBoundingClientRect();
+                                    const spaceBelow = window.innerHeight - rect.bottom;
+                                    if (spaceBelow < 280) return `${rect.top - 4}px`;
+                                    return `${rect.bottom + 4}px`;
+                                  })(),
+                                  right: '24px',
+                                  transform: (() => {
+                                    const btn = document.querySelector(`[data-menu-id="${p.id}"]`);
+                                    if (!btn) return 'none';
+                                    const rect = btn.getBoundingClientRect();
+                                    const spaceBelow = window.innerHeight - rect.bottom;
+                                    if (spaceBelow < 280) return 'translateY(-100%)';
+                                    return 'none';
+                                  })(),
+                                }}>
                                 {p.status === 'cancelada' ? (
                                   // Menu reduzido para propostas canceladas
                                   <>
@@ -598,7 +603,7 @@ export default function CrmVendasPropostasPage() {
                                         <FileSignature size={15} className="text-purple-500" /> Marcar como assinado
                                       </button>
                                     )}
-                                    {p.status === 'aceita' && (
+                                    {p.status === 'aceita' && p.status_assinatura !== 'concluido' && (
                                       <button
                                         type="button"
                                         onClick={() => { handleConfirmarPedido(p.id); setMenuAberto(null); }}
@@ -608,23 +613,13 @@ export default function CrmVendasPropostasPage() {
                                         <ShoppingCart size={15} className="text-emerald-600" /> Confirmar como Pedido
                                       </button>
                                     )}
-                                    {(p.status === 'enviada' || p.status_assinatura === 'aguardando_cliente' || p.status_assinatura === 'aguardando_vendedor') && p.status !== 'rejeitada' && (
-                                      <button
-                                        type="button"
-                                        onClick={() => { handleRejeitarProposta(p.id); setMenuAberto(null); }}
-                                        disabled={alterandoStatus !== null}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-                                      >
-                                        <Trash2 size={15} className="text-red-500" /> Rejeitar proposta
-                                      </button>
-                                    )}
                                     <button
                                       type="button"
                                       onClick={() => { openModal('cancelar', p); setMenuAberto(null); }}
                                       disabled={alterandoStatus !== null}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
                                     >
-                                      <Ban size={15} className="text-orange-500" /> Cancelar proposta
+                                      <Ban size={15} className="text-red-500" /> Cancelar proposta
                                     </button>
                                     <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
                                     <button

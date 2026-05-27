@@ -6,6 +6,8 @@ import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
 import { StatsCards } from './components/StatsCards';
 import { RelatorioForm } from './components/RelatorioForm';
+import { RelatoriosComissao } from './components/RelatoriosComissao';
+import { logger } from '@/lib/logger';
 
 interface Vendedor { id: number; nome: string; email: string; }
 interface EmpresaPrestadora { id: number; nome: string; cnpj?: string; }
@@ -48,7 +50,7 @@ export default function RelatoriosPage() {
         } catch { setEmpresasPrestadoras([]); }
         const resD = await apiClient.get<DashboardData>('/crm-vendas/dashboard/');
         setDashboardData(resD.data);
-      } catch (err) { console.error('Erro ao carregar dados:', err); }
+      } catch (err) { logger.warn('Erro ao carregar dados:', err); }
       finally { setLoading(false); }
     })();
   }, []);
@@ -131,6 +133,12 @@ export default function RelatoriosPage() {
         onVendedorChange={setVendedorSelecionado}
         onEmpresaPrestadoraChange={setEmpresaPrestadoraSelecionada}
         onGerar={handleGerar}
+      />
+
+      <RelatoriosComissao
+        empresasPrestadoras={empresasPrestadoras}
+        vendedores={vendedores}
+        isVendedor={isVendedor}
       />
 
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">

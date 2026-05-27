@@ -90,6 +90,26 @@ class WhyUsBenefit(models.Model):
 
 
 
+class EmpresaConfig(models.Model):
+    """Dados da empresa exibidos no rodapé e botão WhatsApp da homepage."""
+    nome_empresa = models.CharField(max_length=200, default='LWK Sistemas')
+    cnpj = models.CharField(max_length=20, blank=True, default='', help_text='CNPJ formatado (ex: 00.000.000/0001-00)')
+    endereco = models.CharField(max_length=300, blank=True, default='', help_text='Endereço completo')
+    telefone_whatsapp = models.CharField(max_length=20, blank=True, default='', help_text='Número WhatsApp com DDD (ex: 5511999999999)')
+    mensagem_whatsapp = models.CharField(max_length=300, blank=True, default='Olá! Gostaria de saber mais sobre o LWK Sistemas.', help_text='Mensagem padrão ao clicar no WhatsApp')
+    email_contato = models.EmailField(blank=True, default='', help_text='Email de contato da empresa')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'homepage_empresa_config'
+        verbose_name = 'Configuração da Empresa'
+        verbose_name_plural = 'Configurações da Empresa'
+
+    def __str__(self):
+        return self.nome_empresa
+
+
 class HeroImagem(models.Model):
     """Imagens do carrossel do Hero (múltiplas imagens que alternam automaticamente)."""
     imagem = models.URLField(max_length=500, help_text='URL da imagem de fundo do hero')

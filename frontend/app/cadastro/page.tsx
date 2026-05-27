@@ -7,6 +7,7 @@ import { useLojaForm } from '@/hooks/useLojaForm';
 import { CadastroFundo } from '@/components/cadastro/CadastroFundo';
 import { FormularioCadastroLoja } from '@/components/cadastro/FormularioCadastroLoja';
 import { SucessoCadastro } from '@/components/cadastro/SucessoCadastro';
+import { logger } from '@/lib/logger';
 
 export default function CadastroPublicoPage() {
   const [loading, setLoading] = useState(false);
@@ -31,7 +32,7 @@ export default function CadastroPublicoPage() {
       setCreatedLoja(loja);
       setShowSuccess(true);
     } catch (error: any) {
-      console.error('Erro ao criar loja:', error);
+      logger.warn('Erro ao criar loja:', error);
       
       let mensagemErro = '❌ Erro ao criar cadastro:\n\n';
       

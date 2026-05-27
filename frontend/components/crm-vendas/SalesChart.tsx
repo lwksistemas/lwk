@@ -14,6 +14,7 @@ import {
 import { Filter, X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 const ETAPAS_PADRAO = [
   { stage: 'Prospecção', value: 0 },
@@ -51,7 +52,7 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
     if (!isVendedor) {
       apiClient.get('/crm-vendas/vendedores/')
         .then(res => setVendedores(res.data.results || res.data || []))
-        .catch(err => console.error('Erro ao carregar vendedores:', err));
+        .catch(err => logger.warn('Erro ao carregar vendedores:', err));
     }
   }, [isVendedor]);
 
@@ -103,7 +104,7 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
       
       setFilteredData(newData.length > 0 ? newData : data);
     } catch (error) {
-      console.error('Erro ao aplicar filtros:', error);
+      logger.warn('Erro ao aplicar filtros:', error);
       setFilteredData(data);
     } finally {
       setLoading(false);

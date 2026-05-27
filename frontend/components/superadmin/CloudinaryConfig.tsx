@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Save, TestTube, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface CloudinaryConfigData {
   id?: number;
@@ -50,7 +51,7 @@ export default function CloudinaryConfig() {
       const res = await apiClient.get('/superadmin/cloudinary-config/');
       setConfig(res.data);
     } catch (err) {
-      console.error('Erro ao carregar configuração:', err);
+      logger.warn('Erro ao carregar configuração Cloudinary:', err);
     } finally {
       setLoading(false);
     }

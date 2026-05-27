@@ -68,10 +68,10 @@ class DashboardView(APIView):
         appointments_today = Appointment.objects.filter(date__date=today).count()
         
         # Total de pacientes ativos
-        patients_total = Patient.objects.filter(active=True).count()
+        patients_total = Patient.objects.filter(is_active=True).count()
         
         # Total de procedimentos ativos
-        procedures_total = Procedure.objects.filter(active=True).count()
+        procedures_total = Procedure.objects.filter(is_active=True).count()
         
         # Faturamento do mês
         first_day_month = today.replace(day=1)
@@ -201,21 +201,40 @@ class PatientListView(APIView):
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
-        queryset = Patient.objects.all().order_by('name')
+        queryset = Patient.objects.all().order_by('nome')
         if active_only:
-            queryset = queryset.filter(active=True)
+            queryset = queryset.filter(is_active=True)
         serializer = PatientSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        serializer = PatientSerializer(data=request.data)
+        # Mapear campos inglês → português
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        field_map = {
+            'name': 'nome',
+            'phone': 'telefone',
+            'birth_date': 'data_nascimento',
+            'address': 'endereco',
+            'notes': 'observacoes',
+            'active': 'is_active',
+        }
+        for en, pt in field_map.items():
+            if en in data and pt not in data:
+                data[pt] = data.pop(en)
+        # Converter None para '' em campos de texto que não aceitam null
+        for field in ('telefone', 'endereco', 'observacoes', 'cpf', 'cidade', 'estado'):
+            if field in data and data[field] is None:
+                data[field] = ''
+        serializer = PatientSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
-        # Log detalhado para debug
-        logger.error(f"❌ Erro ao criar paciente - Erros: {serializer.errors}")
-        logger.error(f"📝 Dados recebidos: {request.data}")
+        logger.warning(
+            "Erro ao criar paciente: erros=%s, campos=%s",
+            serializer.errors,
+            sorted(data.keys()),
+        )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -234,7 +253,24 @@ class PatientDetailView(APIView):
     def put(self, request, pk):
         try:
             obj = Patient.objects.get(pk=pk)
-            serializer = PatientSerializer(obj, data=request.data, partial=True)
+            # Mapear campos inglês → português
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            field_map = {
+                'name': 'nome',
+                'phone': 'telefone',
+                'birth_date': 'data_nascimento',
+                'address': 'endereco',
+                'notes': 'observacoes',
+                'active': 'is_active',
+            }
+            for en, pt in field_map.items():
+                if en in data and pt not in data:
+                    data[pt] = data.pop(en)
+            # Converter None para '' em campos que não aceitam null
+            for field in ('telefone', 'endereco', 'observacoes', 'cpf', 'cidade', 'estado'):
+                if field in data and data[field] is None:
+                    data[field] = ''
+            serializer = PatientSerializer(obj, data=data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data)
@@ -264,9 +300,9 @@ class ProfessionalListView(APIView):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
         with_schedule = request.query_params.get('with_schedule', 'false').lower() == 'true'
         
-        queryset = Professional.objects.all().order_by('name')
+        queryset = Professional.objects.all().order_by('nome')
         if active_only:
-            queryset = queryset.filter(active=True)
+            queryset = queryset.filter(is_active=True)
         
         # Filtrar apenas profissionais com horários de trabalho configurados
         if with_schedule:
@@ -369,11 +405,11 @@ class ProfessionalListView(APIView):
         if isinstance(active_val, str):
             active_val = active_val.strip().lower() in ('1', 'true', 'yes', 'on')
         payload = {
-            'name': name_val,
-            'specialty': specialty_val,
-            'phone': data.get('phone'),
+            'nome': name_val,
+            'especialidade': specialty_val,
+            'telefone': data.get('phone') or data.get('telefone') or '',
             'email': data.get('email'),
-            'active': bool(active_val),
+            'is_active': bool(active_val),
         }
         serializer = ProfessionalSerializer(data=payload)
         if serializer.is_valid():
@@ -504,17 +540,34 @@ class ProcedureListView(APIView):
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
-        queryset = Procedure.objects.all().order_by('name')
+        queryset = Procedure.objects.all().order_by('nome')
         if active_only:
-            queryset = queryset.filter(active=True)
+            queryset = queryset.filter(is_active=True)
         serializer = ProcedureSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        serializer = ProcedureSerializer(data=request.data)
+        # Mapear campos inglês → português se necessário
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        logger.warning('POST procedures raw data=%s', dict(data))
+        field_map = {
+            'name': 'nome',
+            'description': 'descricao',
+            'price': 'preco',
+            'duration': 'duracao_minutos',
+            'duration_minutes': 'duracao_minutos',
+            'active': 'is_active',
+            'category': 'categoria',
+        }
+        for en, pt in field_map.items():
+            if en in data and pt not in data:
+                data[pt] = data.pop(en)
+        logger.warning('POST procedures mapped data=%s', dict(data))
+        serializer = ProcedureSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        logger.error('POST procedures errors=%s', serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -532,7 +585,21 @@ class ProcedureDetailView(APIView):
     def put(self, request, pk):
         try:
             obj = Procedure.objects.get(pk=pk)
-            serializer = ProcedureSerializer(obj, data=request.data, partial=True)
+            # Mapear campos inglês → português
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            field_map = {
+                'name': 'nome',
+                'description': 'descricao',
+                'price': 'preco',
+                'duration': 'duracao_minutos',
+                'duration_minutes': 'duracao_minutos',
+                'active': 'is_active',
+                'category': 'categoria',
+            }
+            for en, pt in field_map.items():
+                if en in data and pt not in data:
+                    data[pt] = data.pop(en)
+            serializer = ProcedureSerializer(obj, data=data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data)

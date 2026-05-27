@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { logger } from '@/lib/logger';
 
 export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
@@ -88,7 +89,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
       const planosRes = await apiClient.get('/superadmin/planos/');
       setPlanos(planosRes.data.results || planosRes.data);
     } catch (error) {
-      console.error('Erro ao carregar tipos e planos:', error);
+      logger.warn('Erro ao carregar tipos e planos:', error);
     }
   };
 
@@ -103,7 +104,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
       const response = await apiClient.get(`/superadmin/planos/por_tipo/?tipo_id=${tipoId}`);
       setPlanos(response.data);
     } catch (error) {
-      console.error('Erro ao carregar planos por tipo:', error);
+      logger.warn('Erro ao carregar planos por tipo:', error);
       setPlanos([]);
     }
   };
@@ -282,8 +283,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
         onClose();
       }, 3200);
     } catch (error: any) {
-      console.error('Erro completo ao criar loja:', error);
-      console.error('Response data:', error.response?.data);
+      logger.warn('Erro ao criar loja:', error);
       
       let mensagemErro = '❌ Erro ao criar loja:\n\n';
       

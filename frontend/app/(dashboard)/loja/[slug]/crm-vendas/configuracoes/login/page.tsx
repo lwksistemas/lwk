@@ -7,6 +7,7 @@ import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { ImageUpload } from '@/components/ImageUpload';
+import { logger } from '@/lib/logger';
 
 interface LoginConfigData {
   logo: string;
@@ -43,10 +44,6 @@ export default function ConfiguracoesLoginPage() {
     setLoading(true);
     try {
       const { data } = await apiClient.get<LoginConfigData>('/crm-vendas/login-config/');
-      console.log('📥 Dados recebidos do backend:', data);
-      console.log('  - logo:', data.logo || '(vazio)');
-      console.log('  - login_background:', data.login_background || '(vazio)');
-      console.log('  - login_logo:', data.login_logo || '(vazio)');
       
       // Garantir que valores vazios sejam strings vazias, não null/undefined
       const logoValue = (data.logo ?? '').toString().trim();
@@ -58,13 +55,8 @@ export default function ConfiguracoesLoginPage() {
       setLoginLogo(loginLogoValue);
       setCorPrimaria((data.cor_primaria ?? '#10B981').toString());
       setCorSecundaria((data.cor_secundaria ?? '#059669').toString());
-      
-      console.log('✅ Estados atualizados:');
-      console.log('  - logo state:', logoValue || '(vazio)');
-      console.log('  - loginBackground state:', backgroundValue || '(vazio)');
-      console.log('  - loginLogo state:', loginLogoValue || '(vazio)');
     } catch (err) {
-      console.error('❌ Erro ao carregar config:', err);
+      logger.warn('Erro ao carregar config:', err);
       setLogo('');
       setLoginBackground('');
       setLoginLogo('');
@@ -93,12 +85,7 @@ export default function ConfiguracoesLoginPage() {
         cor_primaria: corPrimaria.startsWith('#') ? corPrimaria : `#${corPrimaria}`,
         cor_secundaria: corSecundaria.startsWith('#') ? corSecundaria : `#${corSecundaria}`,
       };
-      
-      console.log('📤 Enviando dados para o backend:', payload);
-      
-      const response = await apiClient.patch('/crm-vendas/login-config/', payload);
-      
-      console.log('✅ Resposta do backend:', response.data);
+      await apiClient.patch('/crm-vendas/login-config/', payload);
       
       // Recarregar configurações para garantir sincronização
       await loadConfig();
@@ -110,7 +97,7 @@ export default function ConfiguracoesLoginPage() {
         err?.response?.data?.error ||
         (typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
         'Erro ao salvar. Tente novamente.';
-      console.error('❌ Erro ao salvar:', err);
+      logger.warn('Erro ao salvar:', err);
       alert(msg);
     } finally {
       setSaving(false);

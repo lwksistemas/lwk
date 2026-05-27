@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { fetchNotifications, markNotificationAsRead } from '@/services/notifications';
 import type { Notification } from '@/types/notification';
 
-const POLL_INTERVAL_MS = 30000; // 30s
+const POLL_INTERVAL_MS = 60000; // 60s
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -12,7 +12,7 @@ export function useNotifications() {
 
   const load = useCallback(async () => {
     if (typeof window === 'undefined') return;
-    const token = sessionStorage.getItem('access_token') || localStorage.getItem('token');
+    const token = sessionStorage.getItem('access_token');
     if (!token) {
       setNotifications([]);
       setLoading(false);
@@ -45,9 +45,41 @@ export function useNotifications() {
   const unreadCount = notifications.filter((n) => n.status !== 'lido').length;
 
   useEffect(() => {
-    load();
-    const interval = setInterval(load, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const clear = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const start = () => {
+      clear();
+      interval = setInterval(load, POLL_INTERVAL_MS);
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        clear();
+        return;
+      }
+      void load();
+      start();
+    };
+
+    if (typeof document === 'undefined') return;
+
+    document.addEventListener('visibilitychange', onVisibility);
+    if (!document.hidden) {
+      void load();
+      start();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      clear();
+    };
   }, [load]);
 
   return { notifications, unreadCount, read, loading };

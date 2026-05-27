@@ -406,45 +406,45 @@ class NFSeService:
         valor: Decimal,
         descricao: str,
     ):
-        """Envia email para o tomador com a NFS-e."""
+        """Envia email para o tomador com a NFS-e — inclui link da DANFE real (ISSNet)."""
         try:
-            from django.core.mail import EmailMessage
-            from django.conf import settings
+            from .danfe import buscar_url_danfe_issnet
+            from .email_nfse import enviar_email_nfse_tomador
+            from .models import NFSe
 
-            assunto = f'Nota Fiscal de Serviço - {self.loja.nome}'
-            mensagem = (
-                f'Olá {tomador_nome}!\n\n'
-                f'A nota fiscal de serviço foi emitida.\n\n'
-                f'📋 DADOS DA NOTA FISCAL:\n'
-                f'• Chave de Acesso: {numero_nf}\n'
-                f'• Prestador: {self.loja.nome}\n'
-                f'• CNPJ: {self.loja.cpf_cnpj}\n'
-                f'• Valor: R$ {valor:.2f}\n'
-                f'• Descrição: {descricao}\n\n'
-                f'---\n'
-                f'Atenciosamente,\n'
-                f'{self.loja.nome}'
-            )
-
-            email = EmailMessage(
-                subject=assunto,
-                body=mensagem,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[tomador_email],
-            )
-
-            # Anexar XML
+            # Buscar NFS-e salva para obter xml e pdf_url
+            nfse_obj = None
             try:
-                from .models import NFSe
-                nfse = NFSe.objects.filter(
+                nfse_obj = NFSe.objects.filter(
                     loja_id=self.loja.id, numero_nf=numero_nf
                 ).order_by('-data_emissao').first()
-                if nfse and nfse.xml_nfse:
-                    email.attach(f'nfse_{numero_nf[:20]}.xml', nfse.xml_nfse.encode('utf-8'), 'application/xml')
             except Exception:
                 pass
 
-            email.send(fail_silently=True)
-            logger.info('Email NFS-e enviado para %s', tomador_email)
+            # Tentar buscar URL real da DANFE via ConsultarUrlNfse (ISSNet)
+            url_danfe = ''
+            if getattr(self.config, 'provedor_nfse', '') == 'issnet':
+                url_danfe = buscar_url_danfe_issnet(
+                    nfse_obj,
+                    numero_nf=numero_nf,
+                    loja_id=self.loja.id,
+                    loja=self.loja,
+                    config=self.config,
+                )
+
+            enviar_email_nfse_tomador(
+                loja=self.loja,
+                tomador_email=tomador_email,
+                tomador_nome=tomador_nome,
+                numero_nf=numero_nf,
+                valor=valor,
+                descricao=descricao,
+                url_danfe=url_danfe,
+                xml_content=nfse_obj.xml_nfse if nfse_obj and nfse_obj.xml_nfse else '',
+                fail_silently=True,
+                intro='A nota fiscal de serviço foi emitida.',
+                incluir_codigo_verificacao=False,
+                xml_filename=f'nfse_{numero_nf[:20]}.xml',
+            )
         except Exception as e:
             logger.error('Erro ao enviar email NFS-e: %s', e)

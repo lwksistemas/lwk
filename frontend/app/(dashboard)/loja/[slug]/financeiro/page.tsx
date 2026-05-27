@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers'
 import { getCurrentApiBaseUrl } from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 
 interface FinanceiroData {
   loja: {
@@ -83,7 +84,7 @@ export default function FinanceiroLojaPage() {
         setError('Erro ao carregar dados financeiros')
       }
     } catch (error) {
-      console.error('Erro:', error)
+      logger.warn('Erro ao carregar financeiro:', error)
       setError('Erro de conexão')
     } finally {
       setLoading(false)
@@ -152,7 +153,7 @@ export default function FinanceiroLojaPage() {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
     } catch (error) {
-      console.error('Erro ao baixar boleto:', error)
+      logger.warn('Erro ao baixar boleto:', error)
       alert('Erro ao abrir/baixar boleto')
     }
   }
@@ -176,7 +177,7 @@ export default function FinanceiroLojaPage() {
         alert('Erro ao atualizar status')
       }
     } catch (error) {
-      console.error('Erro:', error)
+      logger.warn('Erro ao atualizar status:', error)
       alert('Erro ao atualizar status')
     } finally {
       setAtualizandoStatus(false)

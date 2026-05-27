@@ -6,6 +6,7 @@ import { useSyncPending, notificarFilaAtualizada } from "@/hooks/useSyncPending"
 import { formatDateTime } from "@/lib/financeiro-helpers";
 import { limparFilaSync, obterFilaSync } from "@/lib/offline-db";
 import { sincronizarFila } from "@/lib/offline-sync";
+import { logger } from "@/lib/logger";
 import { Trash2, Info, RefreshCw } from "lucide-react";
 
 /**
@@ -29,9 +30,9 @@ export function OfflineIndicator() {
     try {
       await limparFilaSync();
       notificarFilaAtualizada();
-      console.log("✅ [offline] Fila limpa com sucesso");
+      logger.log("✅ [offline] Fila limpa com sucesso");
     } catch (error) {
-      console.error("❌ [offline] Erro ao limpar fila:", error);
+      logger.warn("❌ [offline] Erro ao limpar fila:", error);
       alert("Erro ao limpar fila. Tente novamente.");
     } finally {
       setClearing(false);
@@ -46,22 +47,22 @@ export function OfflineIndicator() {
 
     setSyncing(true);
     try {
-      console.log("🔄 [offline] Sincronização manual iniciada...");
+      logger.log("🔄 [offline] Sincronização manual iniciada...");
       const { enviados, erros } = await sincronizarFila();
-      console.log(`✅ [offline] Sincronização manual concluída: ${enviados} enviados, ${erros} erros`);
+      logger.log(`✅ [offline] Sincronização manual concluída: ${enviados} enviados, ${erros} erros`);
       
       if (enviados > 0) {
         notificarFilaAtualizada();
         window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
         alert(`✅ Sincronização concluída!\n\n${enviados} ${enviados === 1 ? 'item sincronizado' : 'itens sincronizados'} com sucesso.`);
       } else if (erros > 0) {
-        alert(`⚠️ Sincronização concluída com erros.\n\n${erros} ${erros === 1 ? 'item falhou' : 'itens falharam'}.\n\nVerifique o console (F12) para detalhes.`);
+        alert(`⚠️ Sincronização concluída com erros.\n\n${erros} ${erros === 1 ? 'item falhou' : 'itens falharam'}.\n\nTente novamente em instantes.`);
       } else {
         alert("ℹ️ Nenhum item para sincronizar.");
       }
     } catch (error) {
-      console.error("❌ [offline] Erro na sincronização manual:", error);
-      alert("Erro ao sincronizar. Verifique o console (F12) para detalhes.");
+      logger.warn("❌ [offline] Erro na sincronização manual:", error);
+      alert("Erro ao sincronizar. Verifique sua conexão e tente novamente.");
     } finally {
       setSyncing(false);
     }
@@ -72,10 +73,10 @@ export function OfflineIndicator() {
       const items = await obterFilaSync();
       setQueueItems(items);
       setShowQueue(true);
-      console.log("📋 [offline] Itens na fila:", items);
+      logger.log("📋 [offline] Itens na fila:", items);
     } catch (error) {
-      console.error("❌ [offline] Erro ao buscar fila:", error);
-      alert("Erro ao buscar fila. Abra o console (F12) para mais detalhes.");
+      logger.warn("❌ [offline] Erro ao buscar fila:", error);
+      alert("Erro ao buscar fila. Tente novamente.");
     }
   };
 

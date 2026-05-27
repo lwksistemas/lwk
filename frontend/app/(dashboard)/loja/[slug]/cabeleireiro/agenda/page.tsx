@@ -7,6 +7,7 @@ import apiClient from '@/lib/api-client';
 import CalendarioCabeleireiro from '@/components/cabeleireiro/CalendarioCabeleireiro';
 import { ModalAgendamentos } from '@/components/cabeleireiro/modals';
 import { ArrowLeft } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -38,7 +39,7 @@ export default function AgendaCabeleireiroPage() {
       }
       setLojaInfo(data);
     } catch (error: unknown) {
-      console.error('Erro ao carregar loja:', error);
+      logger.warn('Erro ao carregar loja:', error);
       const ax = error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response : undefined;
       if (ax?.status === 401) router.push(loginPath);
     } finally {

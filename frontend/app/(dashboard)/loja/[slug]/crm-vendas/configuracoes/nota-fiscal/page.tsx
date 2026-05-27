@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import apiClient from '@/lib/api-client';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
+import { logger } from '@/lib/logger';
 import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react';
 import { AsaasConfigSection } from './components/AsaasConfigSection';
 
@@ -135,7 +136,7 @@ export default function ConfiguracaoNotaFiscalPage() {
       }));
       setCertificadoFile(null);
     } catch (error: any) {
-      console.error('Erro ao salvar configurações:', error);
+      logger.warn('Erro ao salvar configurações fiscais:', error);
       setMessage({
         type: 'error',
         text: error.response?.data?.detail || 'Erro ao salvar configurações',

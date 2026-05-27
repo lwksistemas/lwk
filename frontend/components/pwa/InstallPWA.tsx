@@ -68,8 +68,8 @@ export function InstallPWA() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Registrar Service Worker (necessário para PWA install prompt)
-    if ('serviceWorker' in navigator) {
+    // Registrar Service Worker apenas quando a geração do PWA estiver habilitada.
+    if (process.env.NEXT_PUBLIC_PWA_ENABLED === 'true' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 

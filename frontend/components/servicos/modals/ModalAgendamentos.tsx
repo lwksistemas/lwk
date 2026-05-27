@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 import { ModalBase } from './ModalBase';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -37,7 +38,7 @@ export function ModalAgendamentos({ loja, onClose, onSuccess }: { loja: LojaInfo
         setServicos(Array.isArray(servRes.data) ? servRes.data : servRes.data?.results ?? []);
         setProfissionais(Array.isArray(profRes.data) ? profRes.data : profRes.data?.results ?? []);
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        logger.warn('Erro ao carregar dados:', error);
       }
     };
     loadDados();

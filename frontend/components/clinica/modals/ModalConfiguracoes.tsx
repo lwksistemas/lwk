@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import apiClient from '@/lib/api-client';
 import { extractArrayData, formatApiError } from '@/lib/api-helpers';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -76,7 +77,7 @@ export default function ModalConfiguracoes({ loja, onClose }: ModalConfiguracoes
       const response = await apiClient.get(`/clinica/historico-acessos/?${params.toString()}`);
       setHistorico(extractArrayData<HistoricoAcesso>(response));
     } catch (error) {
-      console.error('Erro ao carregar histórico:', error);
+      logger.warn('Erro ao carregar histórico:', error);
       alert(formatApiError(error));
       setHistorico([]);
     } finally {
@@ -93,7 +94,7 @@ export default function ModalConfiguracoes({ loja, onClose }: ModalConfiguracoes
       const response = await apiClient.get(`/clinica/historico-acessos/estatisticas/?${params.toString()}`);
       setEstatisticas(response.data);
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      logger.warn('Erro ao carregar estatísticas:', error);
       setEstatisticas(null);
     } finally {
       setLoadingStats(false);

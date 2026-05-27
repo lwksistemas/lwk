@@ -10,6 +10,7 @@ from django.utils import timezone
 import logging
 
 from drf_spectacular.utils import extend_schema_view, extend_schema
+from core.logging_utils import mask_email
 from ..api_docs import (
     TIPO_LOJA_LIST_SCHEMA,
     TIPO_LOJA_CREATE_SCHEMA,
@@ -104,6 +105,11 @@ class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         return PlanoAssinatura.objects.prefetch_related('tipos_loja', 'lojas').all()
+
+    def update(self, request, *args, **kwargs):
+        """Permite atualização parcial via PUT (além do PATCH)."""
+        kwargs['partial'] = True
+        return super().update(request, *args, **kwargs)
     
     @action(detail=False, methods=['get'])
     def por_tipo(self, request):
@@ -356,8 +362,8 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'code': 'NOT_AUTHENTICATED'
             }, status=status.HTTP_401_UNAUTHORIZED)
         
-        # Verificar sessão única via session_id
-        client_sid = request.query_params.get('sid', '')
+        # Verificar sessão única via session_id (query param OU header)
+        client_sid = request.query_params.get('sid', '') or request.headers.get('X-Session-ID', '')
         if client_sid:
             try:
                 db_session = UserSession.objects.filter(user_id=request.user.id).first()
@@ -411,7 +417,12 @@ class LojaViewSet(viewsets.ModelViewSet):
         try:
             loja = Loja.objects.get(owner=request.user)
             precisa_trocar = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
-            logger.info(f"🔍 Verificar senha provisória - Loja: {loja.slug}, senha_foi_alterada: {loja.senha_foi_alterada}, tem_senha_provisoria: {bool(loja.senha_provisoria)}, precisa_trocar: {precisa_trocar}")
+            logger.debug(
+                "Verificar senha provisória: loja=%s, senha_foi_alterada=%s, precisa_trocar=%s",
+                loja.slug,
+                loja.senha_foi_alterada,
+                precisa_trocar,
+            )
             
             return Response({
                 'precisa_trocar_senha': precisa_trocar,
@@ -599,9 +610,9 @@ Equipe de Suporte
                     fail_silently=True
                 )
                 email_enviado = True
-                logger.info(f"✅ Email enviado para {user.email}")
+                logger.info("Email de senha provisória enviado: email=%s, loja=%s", mask_email(user.email), loja.slug)
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao enviar email: {e}")
+            logger.warning("Erro ao enviar email de senha provisória: loja=%s, erro=%s", loja.slug, e)
         
         return Response({
             'message': 'Senha provisória resetada com sucesso!',

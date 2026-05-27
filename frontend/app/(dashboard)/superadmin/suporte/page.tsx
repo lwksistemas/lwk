@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
+import { logger } from '@/lib/logger';
 
 interface Resposta {
   id: number;
@@ -51,7 +52,7 @@ export default function SuperadminSuportePage() {
       const response = await apiClient.get('/suporte/meus-chamados/', { params });
       setChamados(response.data);
     } catch (error) {
-      console.error('Erro ao carregar chamados:', error);
+      logger.warn('Erro ao carregar chamados:', error);
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export default function SuperadminSuportePage() {
       setResposta('');
       alert('Resposta enviada com sucesso!');
     } catch (error) {
-      console.error('Erro ao enviar resposta:', error);
+      logger.warn('Erro ao enviar resposta:', error);
       alert('Erro ao enviar resposta. Tente novamente.');
     } finally {
       setEnviandoResposta(false);
@@ -97,7 +98,7 @@ export default function SuperadminSuportePage() {
       await loadChamados();
       alert('Status atualizado com sucesso!');
     } catch (error) {
-      console.error('Erro ao alterar status:', error);
+      logger.warn('Erro ao alterar status:', error);
       alert('Erro ao alterar status. Tente novamente.');
     }
   };

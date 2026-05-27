@@ -12,15 +12,30 @@ import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
+import { logger } from "@/lib/logger";
 
 interface Procedure {
   id: number;
-  name: string;
-  description: string | null;
-  price: string;
-  duration: number;
-  active: boolean;
+  name?: string;
+  nome?: string;
+  description?: string | null;
+  descricao?: string | null;
+  price?: string;
+  preco?: string;
+  duration?: number;
+  duracao_minutos?: number;
+  active?: boolean;
+  is_active?: boolean;
+  categoria?: string;
 }
+
+// Helpers para acessar campos independente do idioma
+function getName(p: Procedure): string { return p.name || p.nome || ''; }
+function getDescription(p: Procedure): string | null { return p.description ?? p.descricao ?? null; }
+function getPrice(p: Procedure): string { return p.price || p.preco || '0'; }
+function getDuration(p: Procedure): number { return p.duration ?? p.duracao_minutos ?? 30; }
+function isActive(p: Procedure): boolean { return p.active ?? p.is_active ?? true; }
+function getCategoria(p: Procedure): string { return p.categoria || ''; }
 
 export default function ProcedimentosPage() {
   const params = useParams();
@@ -35,6 +50,7 @@ export default function ProcedimentosPage() {
     description: "",
     price: "",
     duration: "30",
+    categoria: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -68,7 +84,6 @@ export default function ProcedimentosPage() {
 
   useEffect(() => {
     const onSyncDone = () => {
-      console.log("🔄 [procedimentos] Sincronização concluída, recarregando dados...");
       if (navigator.onLine) {
         // Aguardar um pouco para garantir que o backend processou
         setTimeout(() => load(), 500);
@@ -80,7 +95,7 @@ export default function ProcedimentosPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", description: "", price: "", duration: "30" });
+    setForm({ name: "", description: "", price: "", duration: "30", categoria: "" });
     setError("");
     setShowModal(true);
   };
@@ -88,10 +103,11 @@ export default function ProcedimentosPage() {
   const openEdit = (p: Procedure) => {
     setEditing(p);
     setForm({
-      name: p.name,
-      description: p.description || "",
-      price: String(p.price),
-      duration: String(p.duration),
+      name: getName(p),
+      description: getDescription(p) || "",
+      price: String(getPrice(p)),
+      duration: String(getDuration(p)),
+      categoria: getCategoria(p),
     });
     setError("");
     setShowModal(true);
@@ -120,6 +136,7 @@ export default function ProcedimentosPage() {
       price: price.toFixed(2),
       duration,
       active: true,
+      category: form.categoria.trim(),
     };
 
     const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
@@ -130,7 +147,7 @@ export default function ProcedimentosPage() {
         // Verificar se já existe na lista local (evitar duplicação)
         if (!editing || (editing && editing.id < 0)) {
           const jaExisteLocal = list.some(p => 
-            p.name.toLowerCase() === form.name.trim().toLowerCase()
+            getName(p).toLowerCase() === form.name.trim().toLowerCase()
           );
           
           if (jaExisteLocal) {
@@ -171,7 +188,7 @@ export default function ProcedimentosPage() {
         setShowModal(false);
         alert("Salvo offline. O procedimento será sincronizado quando você estiver online.");
       } catch (err) {
-        console.error("Erro ao salvar offline:", err);
+        logger.warn("Erro ao salvar offline:", err);
         setError("Erro ao salvar localmente. Tente novamente.");
       }
       setSaving(false);
@@ -208,7 +225,7 @@ export default function ProcedimentosPage() {
           const lojaSlug = getLojaSlug();
           
           // Verificar se já existe na lista local (evitar duplicação)
-          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => p.name.toLowerCase() === form.name.trim().toLowerCase());
+          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => getName(p).toLowerCase() === form.name.trim().toLowerCase());
           
           if (jaExisteLocal && !editing) {
             setError("Este procedimento já foi adicionado offline. Aguarde a sincronização.");
@@ -247,7 +264,7 @@ export default function ProcedimentosPage() {
           setShowModal(false);
           alert("Sem conexão. Procedimento salvo offline e será sincronizado quando você estiver online.");
         } catch (err) {
-          console.error("Erro ao salvar offline:", err);
+          logger.warn("Erro ao salvar offline:", err);
           setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
         }
       } else {
@@ -259,7 +276,7 @@ export default function ProcedimentosPage() {
   };
 
   const exclude = async (p: Procedure) => {
-    if (!confirm(`Desativar o procedimento "${p.name}"?`)) return;
+    if (!confirm(`Desativar o procedimento "${getName(p)}"?`)) return;
     try {
       await clinicaBelezaFetch(`/procedures/${p.id}/`, { method: "DELETE" });
       load();
@@ -269,7 +286,7 @@ export default function ProcedimentosPage() {
   };
 
   useClinicaBelezaDark(); // Aplica tema escuro (localStorage + document.documentElement)
-  const activeList = list.filter((p) => p.active);
+  const activeList = list.filter((p) => isActive(p));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
@@ -310,6 +327,7 @@ export default function ProcedimentosPage() {
                 <thead className="bg-gray-100 dark:bg-neutral-700 text-gray-600 dark:text-gray-300">
                   <tr>
                     <th className="text-left p-3">Nome</th>
+                    <th className="text-left p-3">Categoria</th>
                     <th className="text-left p-3">Duração</th>
                     <th className="text-left p-3">Preço</th>
                     <th className="w-24 p-3">Ações</th>
@@ -318,9 +336,10 @@ export default function ProcedimentosPage() {
                 <tbody>
                   {activeList.map((p) => (
                     <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
-                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{p.name}</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">{p.duration} min</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">{formatCurrency(p.price)}</td>
+                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{getName(p)}</td>
+                      <td className="p-3 text-gray-600 dark:text-gray-400">{getCategoria(p) || '—'}</td>
+                      <td className="p-3 text-gray-700 dark:text-gray-300">{getDuration(p)} min</td>
+                      <td className="p-3 text-gray-700 dark:text-gray-300">{formatCurrency(getPrice(p))}</td>
                       <td className="p-3">
                         <div className="flex gap-2">
                           <button
@@ -401,6 +420,15 @@ export default function ProcedimentosPage() {
                   rows={2}
                   className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 resize-none"
                   placeholder="Descrição opcional"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
+                <input
+                  value={form.categoria}
+                  onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))}
+                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
+                  placeholder="Ex.: Facial, Corporal, Capilar"
                 />
               </div>
             </div>

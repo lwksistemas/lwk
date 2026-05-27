@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { logger } from '@/lib/logger';
 
 interface Estatisticas {
   total_lojas: number;
@@ -73,7 +74,7 @@ export default function RelatoriosPage() {
       const usersData = usersRes.data.results || usersRes.data;
       setUsuarios(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      logger.warn('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,7 @@ import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import ModalChamado from '@/components/suporte/ModalChamado';
+import { logger } from '@/lib/logger';
 
 interface Resposta {
   id: number;
@@ -63,7 +64,7 @@ export default function SuporteHistoricoPage() {
       const response = await apiClient.get('/suporte/meus-chamados/');
       setChamados(response.data);
     } catch (error) {
-      console.error('Erro ao carregar chamados:', error);
+      logger.warn('Erro ao carregar chamados:', error);
     } finally {
       setLoading(false);
     }
@@ -124,7 +125,7 @@ export default function SuporteHistoricoPage() {
       setResposta('');
       alert('Resposta enviada com sucesso!');
     } catch (error) {
-      console.error('Erro ao enviar resposta:', error);
+      logger.warn('Erro ao enviar resposta:', error);
       alert('Erro ao enviar resposta. Tente novamente.');
     } finally {
       setEnviandoResposta(false);

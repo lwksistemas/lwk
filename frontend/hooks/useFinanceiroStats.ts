@@ -4,6 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 export interface FinanceiroStats {
   total_assinaturas: number;
@@ -35,7 +36,7 @@ export function useFinanceiroStats() {
         receita_pendente: data.receita_pendente ?? 0,
       });
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      logger.warn('Erro ao carregar estatísticas:', error);
       setStats(null);
     } finally {
       setLoading(false);

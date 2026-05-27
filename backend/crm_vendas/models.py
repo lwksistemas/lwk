@@ -889,3 +889,6 @@ class AssinaturaDigital(LojaIsolationMixin, models.Model):
 
 # Importar modelo de configuração
 from .models_config import CRMConfig
+
+# Importar modelo de relatório de comissão
+from .models_relatorio_comissao import RelatorioComissao

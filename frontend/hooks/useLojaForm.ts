@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 export interface LojaFormData {
   nome: string;
@@ -111,7 +112,7 @@ export function useLojaForm(incluirSenha: boolean = true) {
       setTipos(tiposRes.data.results || tiposRes.data);
       setPlanos(planosRes.data.results || planosRes.data);
     } catch (error) {
-      console.error('Erro ao carregar tipos e planos:', error);
+      logger.warn('Erro ao carregar tipos e planos:', error);
     }
   };
 
@@ -127,7 +128,7 @@ export function useLojaForm(incluirSenha: boolean = true) {
       const response = await apiClient.get(`${baseUrl}/planos/por_tipo/?tipo_id=${tipoId}`);
       setPlanos(response.data);
     } catch (error) {
-      console.error('Erro ao carregar planos por tipo:', error);
+      logger.warn('Erro ao carregar planos por tipo:', error);
       setPlanos([]);
     }
   };

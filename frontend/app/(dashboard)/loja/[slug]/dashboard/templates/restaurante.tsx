@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/financeiro-helpers';
 import type { LojaInfo, EstatisticasRestaurante, Pedido } from './restaurante/types';
 import { ActionButton, StatCard, PedidoCard, EmptyState } from './restaurante/components/restaurante-shared';
 import BackupButton from '@/components/loja/BackupButton';
+import { logger } from '@/lib/logger';
 
 // Lazy load dos modais: cada um só é baixado quando o usuário abre (dashboard mais rápido)
 const ModalCardapio = dynamic(
@@ -120,7 +121,7 @@ export default function DashboardRestaurante({ loja }: { loja: LojaInfo }) {
           faturamento: statsData?.faturamento ?? 0
         });
       } catch (error) {
-        console.error('Erro ao carregar estatísticas:', error);
+        logger.warn('Erro ao carregar estatísticas:', error);
       }
     };
     loadStats();

@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import { TipoApp } from './useTipoAppActions';
 
 // Re-exportar o tipo para facilitar importações
@@ -23,7 +24,7 @@ export function useTipoAppList() {
       const data = response.data.results || response.data;
       setTipos(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      console.error('Erro ao carregar tipos de app:', err);
+      logger.warn('Erro ao carregar tipos de app:', err);
       setError('Erro ao carregar tipos de app');
       setTipos([]);
     } finally {

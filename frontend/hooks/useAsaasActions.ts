@@ -4,6 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import type { Pagamento } from './useAssinaturas';
 
 export function useAsaasActions() {
@@ -24,7 +25,7 @@ export function useAsaasActions() {
       if (onSuccess) onSuccess();
       alert('Status atualizado com sucesso!');
     } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+      logger.warn('Erro ao atualizar status Asaas:', error);
       alert('Erro ao atualizar status');
     }
   }, []);
@@ -52,7 +53,7 @@ export function useAsaasActions() {
         return false;
       }
     } catch (error: any) {
-      console.error('Erro ao criar cobrança:', error);
+      logger.warn('Erro ao criar cobrança Asaas:', error);
       alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao criar cobrança'}`);
       return false;
     } finally {
@@ -73,7 +74,7 @@ export function useAsaasActions() {
         return false;
       }
     } catch (error: any) {
-      console.error('Erro ao excluir cobrança:', error);
+      logger.warn('Erro ao excluir cobrança Asaas:', error);
       alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao excluir cobrança'}`);
       return false;
     } finally {

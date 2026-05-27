@@ -20,6 +20,8 @@ export interface Lead {
   cidade?: string;
   uf?: string;
   created_at: string;
+  conta?: number | null;
+  conta_nome?: string;
   conta_info?: {
     id: number;
     nome: string;
@@ -89,7 +91,7 @@ export default function LeadsTable({
   // Colunas padrão se não fornecidas
   const colunasVisiveis = colunas || [
     { key: 'nome', label: 'Lead' },
-    { key: 'empresa', label: 'Empresa' },
+    { key: 'empresa', label: 'Empresa / CPF/CNPJ' },
     { key: 'email', label: 'Email' },
     { key: 'origem', label: 'Origem' },
     { key: 'status', label: 'Status' },
@@ -119,7 +121,27 @@ export default function LeadsTable({
           </div>
         );
       case 'empresa':
-        return <span className="text-gray-600 dark:text-gray-400">{lead.empresa || '–'}</span>;
+        // Mostrar nome da empresa (conta vinculada ou campo empresa) + CNPJ/CPF
+        const nomeEmpresa = lead.conta_nome || lead.empresa;
+        if (nomeEmpresa) {
+          return (
+            <div>
+              <span className="text-gray-800 dark:text-white text-sm">{nomeEmpresa}</span>
+              {lead.cpf_cnpj && (
+                <span className="block text-xs text-gray-500 dark:text-gray-400">{lead.cpf_cnpj}</span>
+              )}
+            </div>
+          );
+        }
+        if (lead.cpf_cnpj) {
+          return (
+            <div>
+              <span className="text-gray-600 dark:text-gray-400 text-sm">{lead.cpf_cnpj}</span>
+              <span className="block text-xs text-gray-400 dark:text-gray-500">Pessoa Física</span>
+            </div>
+          );
+        }
+        return <span className="text-gray-400 dark:text-gray-500 italic text-sm">Pessoa Física</span>;
       case 'email':
         return <span className="text-gray-600 dark:text-gray-400">{lead.email || '–'}</span>;
       case 'telefone':

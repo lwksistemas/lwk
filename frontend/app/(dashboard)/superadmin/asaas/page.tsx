@@ -25,6 +25,7 @@ import {
 import Link from 'next/link'
 import { formatCurrency, formatDateTime } from '@/lib/financeiro-helpers'
 import apiClient from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 
 interface AsaasConfig {
   api_key: string
@@ -90,7 +91,7 @@ export default function AsaasConfigPage() {
       const { data } = await apiClient.get('/asaas/config/')
       setConfig(data)
     } catch (error) {
-      console.error('Erro ao carregar configuração:', error)
+      logger.warn('Erro ao carregar configuração Asaas:', error)
     }
   }
 
@@ -99,7 +100,7 @@ export default function AsaasConfigPage() {
       const { data } = await apiClient.get('/asaas/stats/')
       setStats(data)
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error)
+      logger.warn('Erro ao carregar estatísticas Asaas:', error)
     }
   }
 
@@ -108,7 +109,7 @@ export default function AsaasConfigPage() {
       const { data } = await apiClient.get('/asaas/status/')
       setStatus(data)
     } catch (error) {
-      console.error('Erro ao verificar status:', error)
+      logger.warn('Erro ao verificar status Asaas:', error)
     }
   }
 

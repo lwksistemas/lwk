@@ -4,6 +4,7 @@
  */
 import { formatDateTime } from '@/lib/financeiro-helpers';
 import type { Log } from '@/hooks/useLogsList';
+import { logger } from '@/lib/logger';
 
 interface LogTableProps {
   logs: Log[];
@@ -25,7 +26,7 @@ export function LogTable({ logs, loading, searchQuery, onVerDetalhes }: LogTable
           : part
       );
     } catch (error) {
-      console.error('Erro ao destacar texto:', error);
+      logger.warn('Erro ao destacar texto:', error);
       return text;
     }
   };

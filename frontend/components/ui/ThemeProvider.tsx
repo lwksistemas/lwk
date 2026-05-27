@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { logger } from '@/lib/logger';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -64,7 +65,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       applyTheme(resolved);
     } catch (error) {
       // Fallback se localStorage não estiver disponível
-      console.warn('localStorage not available, using default theme');
+      logger.warn('localStorage not available, using default theme');
       setThemeState('light');
       setResolvedTheme('light');
       applyTheme('light');
@@ -87,7 +88,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
     } catch (error) {
-      console.warn('matchMedia not available');
+      logger.warn('matchMedia not available');
     }
   }, [theme, resolveTheme, applyTheme]);
 
@@ -100,7 +101,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('theme', newTheme);
       }
     } catch (error) {
-      console.warn('localStorage not available');
+      logger.warn('localStorage not available');
     }
     
     const resolved = resolveTheme(newTheme);

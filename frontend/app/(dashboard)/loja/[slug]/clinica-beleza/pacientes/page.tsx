@@ -12,6 +12,7 @@ import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { buscarPacientesOffline, salvarPacientesOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
+import { logger } from "@/lib/logger";
 
 /** Monta mensagem legível a partir de serializer.errors (400) da API */
 function formatApiValidationErrors(err: Record<string, unknown>): string {
@@ -37,16 +38,32 @@ function formatApiValidationErrors(err: Record<string, unknown>): string {
 
 interface Patient {
   id: number;
-  name: string;
-  phone: string;
-  email: string | null;
-  cpf: string | null;
-  birth_date: string | null;
-  address: string | null;
-  notes: string | null;
-  active: boolean;
+  name?: string;
+  nome?: string;
+  phone?: string;
+  telefone?: string;
+  email?: string | null;
+  cpf?: string | null;
+  birth_date?: string | null;
+  data_nascimento?: string | null;
+  address?: string | null;
+  endereco?: string | null;
+  notes?: string | null;
+  observacoes?: string | null;
+  active?: boolean;
+  is_active?: boolean;
   allow_whatsapp?: boolean;
 }
+
+// Helpers para acessar campos independente do idioma
+function pName(p: Patient): string { return p.name || p.nome || ''; }
+function pPhone(p: Patient): string { return p.phone || p.telefone || ''; }
+function pEmail(p: Patient): string | null { return p.email ?? null; }
+function pCpf(p: Patient): string | null { return p.cpf ?? null; }
+function pBirthDate(p: Patient): string | null { return p.birth_date ?? p.data_nascimento ?? null; }
+function pAddress(p: Patient): string | null { return p.address ?? p.endereco ?? null; }
+function pNotes(p: Patient): string | null { return p.notes ?? p.observacoes ?? null; }
+function pActive(p: Patient): boolean { return p.active ?? p.is_active ?? true; }
 
 export default function PacientesPage() {
   const params = useParams();
@@ -106,7 +123,6 @@ export default function PacientesPage() {
 
   useEffect(() => {
     const onSyncDone = async () => {
-      console.log("🔄 [pacientes] Sincronização concluída, recarregando dados...");
       if (navigator.onLine) {
         // Aguardar um pouco para garantir que o backend processou
         setTimeout(() => load(), 500);
@@ -135,13 +151,13 @@ export default function PacientesPage() {
   const openEdit = (p: Patient) => {
     setEditing(p);
     setForm({
-      name: p.name,
-      phone: p.phone || "",
-      email: p.email || "",
-      cpf: p.cpf || "",
-      birth_date: p.birth_date ? p.birth_date.slice(0, 10) : "",
-      address: p.address || "",
-      notes: p.notes || "",
+      name: pName(p),
+      phone: pPhone(p) || "",
+      email: pEmail(p) || "",
+      cpf: pCpf(p) || "",
+      birth_date: pBirthDate(p) ? pBirthDate(p)!.slice(0, 10) : "",
+      address: pAddress(p) || "",
+      notes: pNotes(p) || "",
       allow_whatsapp: p.allow_whatsapp !== false,
     });
     setError("");
@@ -177,8 +193,8 @@ export default function PacientesPage() {
         // Verificar se já existe na lista local (evitar duplicação)
         if (!editing || editingIsPendente) {
           const jaExisteLocal = list.some(p => 
-            p.name.toLowerCase() === form.name.trim().toLowerCase() && 
-            (form.phone.trim() ? p.phone === form.phone.trim() : true)
+            pName(p).toLowerCase() === form.name.trim().toLowerCase() && 
+            (form.phone.trim() ? pPhone(p) === form.phone.trim() : true)
           );
           
           if (jaExisteLocal) {
@@ -228,7 +244,7 @@ export default function PacientesPage() {
         alert("Salvo offline. O paciente será sincronizado quando você estiver online.");
         return;
       } catch (e) {
-        console.error("Erro ao salvar offline:", e);
+        logger.warn("Erro ao salvar offline:", e);
         setError("Erro ao salvar localmente. Tente novamente.");
         setSaving(false);
         return;
@@ -266,7 +282,7 @@ export default function PacientesPage() {
           const lojaSlug = getLojaSlug();
           
           // Verificar se já existe na lista local (evitar duplicação)
-          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => p.name.toLowerCase() === form.name.trim().toLowerCase());
+          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => pName(p).toLowerCase() === form.name.trim().toLowerCase());
           
           if (jaExisteLocal && !editing) {
             setError("Este paciente já foi adicionado offline. Aguarde a sincronização.");
@@ -307,7 +323,7 @@ export default function PacientesPage() {
           setShowModal(false);
           alert("Sem conexão. Paciente salvo offline e será sincronizado quando você estiver online.");
         } catch (err) {
-          console.error("Erro ao salvar offline:", err);
+          logger.warn("Erro ao salvar offline:", err);
           setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
         }
       } else {
@@ -319,7 +335,7 @@ export default function PacientesPage() {
   };
 
   const exclude = async (p: Patient) => {
-    if (!confirm(`Desativar o paciente "${p.name}"?`)) return;
+    if (!confirm(`Desativar o paciente "${pName(p)}"?`)) return;
     try {
       await clinicaBelezaFetch(`/patients/${p.id}/`, { method: "DELETE" });
       load();
@@ -328,7 +344,7 @@ export default function PacientesPage() {
     }
   };
 
-  const activeList = list.filter((p) => p.active);
+  const activeList = list.filter((p) => pActive(p));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
@@ -380,15 +396,15 @@ export default function PacientesPage() {
                     return (
                       <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
                         <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
-                          {p.name}
+                          {pName(p)}
                           {isPendenteSync && (
                             <span className="ml-2 text-xs text-amber-600 dark:text-amber-400" title="Será sincronizado quando estiver online">
                               (offline)
                             </span>
                           )}
                         </td>
-                        <td className="p-3 text-gray-700 dark:text-gray-300">{p.phone || "—"}</td>
-                        <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{p.email || "—"}</td>
+                        <td className="p-3 text-gray-700 dark:text-gray-300">{pPhone(p) || "—"}</td>
+                        <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{pEmail(p) || "—"}</td>
                         <td className="p-3">
                           <div className="flex gap-2">
                             <button

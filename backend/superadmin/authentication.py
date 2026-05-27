@@ -1,51 +1,62 @@
 """
-Authenticator customizado que verifica sessão única usando banco de dados
+Authenticator customizado que verifica sessão única usando banco de dados.
+Garante bloqueio de acesso simultâneo: se outro dispositivo fez login,
+o token antigo é invalidado imediatamente (não espera heartbeat de 60s).
 """
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from superadmin.session_manager import SessionManager
+from superadmin.session_manager import SessionManager, SESSION_TIMEOUT_MINUTES
 import logging
+import time
 
 logger = logging.getLogger(__name__)
+
+# Cache em memória para evitar query no DB a cada request.
+# Formato: { user_id: (session_id, timestamp) }
+# Invalidado a cada 10 segundos por user.
+_session_cache = {}
+_CACHE_TTL_SECONDS = 10
 
 
 class SessionAwareJWTAuthentication(JWTAuthentication):
     """
-    Authenticator JWT que verifica sessão única usando PostgreSQL
-    Garante que cada usuário tenha apenas uma sessão ativa por vez
+    Authenticator JWT que verifica sessão única usando PostgreSQL.
+    Garante que cada usuário tenha apenas uma sessão ativa por vez.
+    
+    Fluxo:
+    1. Valida JWT normalmente
+    2. Extrai X-Session-ID do header (enviado pelo frontend)
+    3. Compara com session_id no banco (com cache de 10s)
+    4. Se diferente → rejeita com DIFFERENT_SESSION (401)
+    5. Se expirado por inatividade → rejeita com TIMEOUT (401)
     """
     
     def authenticate(self, request):
         """
-        Autentica o usuário e verifica sessão única
-        ✅ FIX: Retry logic para evitar timeout do PostgreSQL
+        Autentica o usuário e verifica sessão única.
         """
         from django.db import OperationalError
-        import time
         
-        logger.debug(f"🔑 SessionAwareJWTAuthentication.authenticate() - Path: {request.path}")
-        
-        # ✅ FIX: Retry logic para autenticação JWT
+        # Retry logic para autenticação JWT (evitar timeout do PostgreSQL)
         max_retries = 3
-        retry_delay = 1  # segundos
+        retry_delay = 1
         result = None
         
         for attempt in range(max_retries):
             try:
-                # Autenticação JWT padrão
                 result = super().authenticate(request)
-                break  # Sucesso, sair do loop
+                break
                 
             except OperationalError as e:
                 if 'timeout' in str(e).lower() and attempt < max_retries - 1:
                     logger.warning(
-                        f"⚠️ Timeout na autenticação JWT (tentativa {attempt + 1}/{max_retries}). "
-                        f"Tentando novamente em {retry_delay}s..."
+                        "⚠️ Timeout na autenticação JWT (tentativa %d/%d). Retrying em %ds...",
+                        attempt + 1, max_retries, retry_delay
                     )
                     time.sleep(retry_delay)
-                    retry_delay *= 2  # Backoff exponencial
+                    retry_delay *= 2
                 else:
-                    logger.error(f"❌ Falha na autenticação JWT após {max_retries} tentativas: {e}")
+                    logger.error("❌ Falha na autenticação JWT após %d tentativas: %s", max_retries, e)
                     raise AuthenticationFailed({
                         'detail': 'Erro ao conectar ao banco de dados. Tente novamente.',
                         'code': 'database_timeout'
@@ -55,21 +66,108 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
             return None
         
         user, token = result
-        logger.debug(f"✅ JWT autenticado: {user.username} (ID: {user.id})")
         
-        # Ignorar validação para endpoints de login/logout/refresh
+        # Ignorar validação de sessão para endpoints de auth (login/logout/refresh)
         if request.path.startswith('/api/auth/'):
             return user, token
         
-        # Validar sessão única: verificar se a sessão do user ainda existe
-        # (outro login deleta a sessão anterior via update_or_create com novo session_id)
-        # Não comparar token (muda no refresh) — comparar session_id do sessionStorage
-        # Se não tiver session_id no request, deixar passar (compatibilidade)
+        # Extrair session_id do header X-Session-ID
+        client_session_id = request.headers.get('X-Session-ID', '').strip()
         
-        # Atualizar atividade da sessão (best-effort)
-        try:
-            SessionManager.update_activity(user.id)
-        except Exception:
-            pass
+        # Se o frontend não enviou session_id, deixar passar (compatibilidade com
+        # requests que não passam pelo interceptor, ex: heartbeat via axios direto)
+        if not client_session_id:
+            # Apenas atualizar atividade (best-effort)
+            try:
+                SessionManager.update_activity(user.id)
+            except Exception:
+                pass
+            return user, token
+        
+        # Validar sessão única com cache
+        validation = self._validate_with_cache(user.id, client_session_id)
+        
+        if not validation['valid']:
+            reason = validation.get('reason', 'UNKNOWN')
+            message = validation.get('message', 'Sessão inválida')
+            logger.warning(
+                "🚫 Sessão bloqueada: user_id=%s reason=%s path=%s",
+                user.id, reason, request.path
+            )
+            raise AuthenticationFailed({
+                'detail': message,
+                'code': reason,
+                'message': message,
+            })
         
         return user, token
+    
+    def _validate_with_cache(self, user_id: int, client_session_id: str) -> dict:
+        """
+        Valida sessão usando cache em memória (TTL de 10s).
+        Evita query no DB a cada request.
+        """
+        import time as _time
+        from superadmin.models import UserSession
+        
+        now = _time.time()
+        cached = _session_cache.get(user_id)
+        
+        # Se cache válido, comparar direto
+        if cached:
+            cached_sid, cached_ts = cached
+            if (now - cached_ts) < _CACHE_TTL_SECONDS:
+                if cached_sid != client_session_id:
+                    return {
+                        'valid': False,
+                        'reason': 'DIFFERENT_SESSION',
+                        'message': 'Sessão encerrada — login realizado em outro dispositivo. Faça login novamente.'
+                    }
+                return {'valid': True}
+        
+        # Cache expirado ou inexistente — consultar DB
+        try:
+            session = UserSession.objects.filter(user_id=user_id).first()
+            
+            if not session:
+                # Sem sessão no banco — sessão foi destruída (logout)
+                _session_cache.pop(user_id, None)
+                return {
+                    'valid': False,
+                    'reason': 'NO_SESSION',
+                    'message': 'Nenhuma sessão ativa encontrada. Faça login novamente.'
+                }
+            
+            # Verificar timeout de inatividade
+            if session.is_expired(SESSION_TIMEOUT_MINUTES):
+                session.delete()
+                _session_cache.pop(user_id, None)
+                return {
+                    'valid': False,
+                    'reason': 'TIMEOUT',
+                    'message': f'Sessão expirou por inatividade ({SESSION_TIMEOUT_MINUTES} minutos). Faça login novamente.'
+                }
+            
+            # Atualizar cache
+            _session_cache[user_id] = (session.session_id, now)
+            
+            # Comparar session_id
+            if session.session_id != client_session_id:
+                return {
+                    'valid': False,
+                    'reason': 'DIFFERENT_SESSION',
+                    'message': 'Sessão encerrada — login realizado em outro dispositivo. Faça login novamente.'
+                }
+            
+            # Sessão válida — atualizar atividade (best-effort)
+            try:
+                session.update_activity()
+            except Exception:
+                pass
+            
+            return {'valid': True}
+            
+        except Exception as e:
+            logger.error("session.validate_with_cache: error: %s", e)
+            # Em caso de erro no DB, permitir acesso (fail-open para não bloquear o sistema)
+            return {'valid': True}

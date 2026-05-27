@@ -5,6 +5,7 @@ import apiClient from '@/lib/api-client';
 import { useToast, ToastContainer } from '@/components/ToastNotificacao';
 import { getBackupErrorMessage, BACKUP_MAX_UPLOAD_BYTES } from '@/lib/backup-utils';
 import BackupConfigModal from '@/components/loja/BackupConfigModal';
+import { logger } from '@/lib/logger';
 
 interface BackupButtonProps {
   lojaId: number;
@@ -94,7 +95,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
         mensagem
       });
     } catch (error: any) {
-      console.error('Erro ao exportar backup:', error);
+      logger.warn('Erro ao exportar backup:', error);
       const msg = await getBackupErrorMessage(error, 'Erro ao exportar backup');
       addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
     } finally {
@@ -174,7 +175,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
           });
         }
       } catch (error: any) {
-        console.error('Erro ao importar backup:', error);
+        logger.warn('Erro ao importar backup:', error);
         const msg = await getBackupErrorMessage(error, 'Erro ao importar backup', { isImport: true });
         addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
       } finally {

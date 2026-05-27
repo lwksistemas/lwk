@@ -92,7 +92,7 @@ interface ModalPropostaFormProps {
   /** Templates disponíveis */
   templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
   /** Callback quando seleciona template */
-  onSelecionarTemplate?: (conteudo: string) => void;
+  onSelecionarTemplate?: (conteudo: string, nomeTemplate?: string) => void;
   /** Nome do vendedor logado */
   vendedorNome?: string;
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { logger } from '@/lib/logger';
 
 interface Consulta {
   id: number;
@@ -118,7 +119,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       setConsultas(data);
       setConsultasFiltered(data);
     } catch (error) {
-      console.error('Erro ao carregar consultas:', error);
+      logger.warn('Erro ao carregar consultas:', error);
     } finally {
       setLoading(false);
     }
@@ -129,7 +130,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       const response = await clinicaApiClient.get('/clinica/profissionais/');
       setProfissionais(ensureArray<any>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar profissionais:', error);
+      logger.warn('Erro ao carregar profissionais:', error);
     }
   };
 
@@ -138,7 +139,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       const response = await clinicaApiClient.get(`/clinica/evolucoes/?consulta_id=${consultaId}`);
       setEvolucoes(ensureArray<EvolucaoPaciente>(response.data));
     } catch (error) {
-      console.error('Erro ao carregar evoluções:', error);
+      logger.warn('Erro ao carregar evoluções:', error);
     }
   };
 
@@ -162,7 +163,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       // Recarregar em background para garantir consistência
       loadConsultas();
     } catch (error: any) {
-      console.error('Erro ao iniciar consulta:', error);
+      logger.warn('Erro ao iniciar consulta:', error);
 
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.error || error?.response?.data?.detail || error?.message;
@@ -207,7 +208,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       // Sair do modo fullscreen quando finalizar consulta
       setModoFullscreen(false);
     } catch (error: any) {
-      console.error('Erro ao finalizar consulta:', error);
+      logger.warn('Erro ao finalizar consulta:', error);
       const status = error?.response?.status;
       const serverMsg =
         error?.response?.data?.error || error?.response?.data?.detail || error?.message;
@@ -249,7 +250,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       
       alert('✅ Consulta excluída com sucesso!');
     } catch (error) {
-      console.error('Erro ao excluir consulta:', error);
+      logger.warn('Erro ao excluir consulta:', error);
       alert('❌ Erro ao excluir consulta');
     }
   };
@@ -322,7 +323,7 @@ export default function GerenciadorConsultas({ loja, onClose }: { loja: LojaInfo
       });
       
     } catch (error) {
-      console.error('Erro ao registrar evolução:', error);
+      logger.warn('Erro ao registrar evolução:', error);
       alert('❌ Erro ao registrar evolução');
     }
   };

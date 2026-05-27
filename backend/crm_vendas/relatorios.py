@@ -172,12 +172,21 @@ def calcular_periodo(periodo_tipo: str):
 
 
 def _filtro_datas_fechamento_ganho(data_inicio, data_fim):
-    """Mesmo critério do dashboard e de gerar_relatorio_vendas_* (DateField)."""
+    """Mesmo critério do dashboard e de gerar_relatorio_vendas_* (DateField).
+    
+    Prioridade: data_fechamento_ganho > data_fechamento > created_at.
+    Garante que oportunidades closed_won sem datas preenchidas não fiquem invisíveis.
+    """
     return (
         Q(data_fechamento_ganho__gte=data_inicio, data_fechamento_ganho__lte=data_fim)
         | (
             Q(data_fechamento_ganho__isnull=True)
             & Q(data_fechamento__gte=data_inicio, data_fechamento__lte=data_fim)
+        )
+        | (
+            Q(data_fechamento_ganho__isnull=True)
+            & Q(data_fechamento__isnull=True)
+            & Q(created_at__date__gte=data_inicio, created_at__date__lte=data_fim)
         )
     )
 
@@ -374,9 +383,13 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
         etapa='closed_won',
     ).filter(_filtro_datas_fechamento_ganho(data_inicio, data_fim)).select_related('vendedor', 'lead', 'lead__conta', 'empresa_prestadora')
 
-    # Filtro por empresa prestadora
+    # Filtro por empresa prestadora (inclui vendas sem empresa prestadora definida)
     if empresa_prestadora_id:
-        oportunidades = oportunidades.filter(empresa_prestadora_id=empresa_prestadora_id)
+        from .models import Conta
+        oportunidades = oportunidades.filter(
+            Q(empresa_prestadora_id=empresa_prestadora_id)
+            | Q(empresa_prestadora_id__isnull=True)
+        )
         try:
             from .models import Conta
             ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
@@ -501,9 +514,13 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
         .select_related('vendedor', 'lead', 'lead__conta', 'empresa_prestadora')
     )
 
-    # Filtro por empresa prestadora
+    # Filtro por empresa prestadora (inclui vendas sem empresa prestadora definida)
     if empresa_prestadora_id:
-        base = base.filter(empresa_prestadora_id=empresa_prestadora_id)
+        from .models import Conta
+        base = base.filter(
+            Q(empresa_prestadora_id=empresa_prestadora_id)
+            | Q(empresa_prestadora_id__isnull=True)
+        )
 
     titulo = 'Relatório de Vendas por Vendedor'
     is_todos = vendedor_id is None or str(vendedor_id).lower() == 'todos'

@@ -3,6 +3,7 @@
  */
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface LojaInfo {
   id: number;
@@ -47,7 +48,7 @@ export function useLojaInfo() {
       setLojaInfo(response.data);
       return true;
     } catch (err: any) {
-      console.error('Erro ao carregar informações da loja:', err);
+      logger.warn('Erro ao carregar informações da loja:', err);
       const mensagemErro = `Erro ao carregar informações: ${err.response?.data?.error || 'Erro desconhecido'}`;
       setError(mensagemErro);
       return false;

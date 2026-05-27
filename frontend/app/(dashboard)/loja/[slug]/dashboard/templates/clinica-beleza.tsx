@@ -29,6 +29,7 @@ import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { getClinicaBelezaHeadersWithLoja } from '@/lib/clinica-beleza-api';
 import BackupButton from '@/components/loja/BackupButton';
+import { logger } from '@/lib/logger';
 
 interface DashboardStats {
   appointments_today: number;
@@ -212,7 +213,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
         });
       }
     } catch (error) {
-      console.error('Erro ao carregar dashboard:', error);
+      logger.warn('Erro ao carregar dashboard:', error);
       setData({
         statistics: { appointments_today: 0, patients_total: 0, procedures_total: 0, revenue_month: 0 },
         next_appointments: [],

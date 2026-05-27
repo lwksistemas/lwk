@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import apiClient from '@/lib/api-client'
+import { logger } from '@/lib/logger'
 
 interface NFSeConfig {
   provedor_nfse: 'issnet' | 'nacional' | 'desabilitado'
@@ -89,7 +90,7 @@ export default function NFSeConfigPage() {
       const { data } = await apiClient.get('/asaas/nfse-config/', { timeout: 20000 })
       setConfig(data)
     } catch (error) {
-      console.error('Erro ao carregar configuração NFS-e:', error)
+      logger.warn('Erro ao carregar configuração NFS-e:', error)
       setMessage({ type: 'error', text: 'Erro ao carregar configuração' })
     } finally {
       setLoading(false)
@@ -408,6 +409,16 @@ export default function NFSeConfigPage() {
                 placeholder="900"
                 maxLength={5}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Próximo Nº RPS</Label>
+              <Input
+                type="number"
+                value={config.nacional_ultimo_dps}
+                onChange={(e) => setConfig(prev => ({ ...prev, nacional_ultimo_dps: parseInt(e.target.value) || 0 }))}
+                placeholder="50"
+              />
+              <p className="text-xs text-muted-foreground">Último RPS emitido (próximo será +1)</p>
             </div>
           </div>
 

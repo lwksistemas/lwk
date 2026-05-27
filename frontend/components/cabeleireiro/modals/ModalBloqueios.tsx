@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface Bloqueio {
   id: number;
@@ -51,7 +52,7 @@ export function ModalBloqueios({ loja, onClose }: { loja: LojaInfo; onClose: () 
       setBloqueios(bloqueiosArray);
       setProfissionais(profissionaisAtivos);
     } catch (error) {
-      console.error('❌ [ModalBloqueios] Erro ao carregar dados:', error);
+      logger.warn('❌ [ModalBloqueios] Erro ao carregar dados:', error);
       toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
@@ -79,7 +80,7 @@ export function ModalBloqueios({ loja, onClose }: { loja: LojaInfo; onClose: () 
       resetForm();
       carregarDados();
     } catch (error) {
-      console.error('Erro ao salvar bloqueio:', error);
+      logger.warn('Erro ao salvar bloqueio:', error);
       toast.error('Erro ao salvar bloqueio');
     }
   };
@@ -103,7 +104,7 @@ export function ModalBloqueios({ loja, onClose }: { loja: LojaInfo; onClose: () 
       toast.success('Bloqueio excluído!');
       carregarDados();
     } catch (error) {
-      console.error('Erro ao excluir bloqueio:', error);
+      logger.warn('Erro ao excluir bloqueio:', error);
       toast.error('Erro ao excluir bloqueio');
     }
   };

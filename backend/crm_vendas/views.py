@@ -1162,7 +1162,7 @@ class PropostaViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuery
 
     @action(detail=True, methods=['post'])
     def cancelar(self, request, pk=None):
-        """Cancela a proposta com motivo obrigatório."""
+        """Cancela a proposta com motivo obrigatório. Move a oportunidade para 'Fechado perdido'."""
         proposta = self.get_object()
         if proposta.status == 'cancelada':
             return Response({'detail': 'Proposta já está cancelada.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1171,7 +1171,21 @@ class PropostaViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuery
             return Response({'detail': 'Informe o motivo do cancelamento.'}, status=status.HTTP_400_BAD_REQUEST)
         proposta.status = 'cancelada'
         proposta.motivo_cancelamento = motivo
-        proposta.save(update_fields=['status', 'motivo_cancelamento', 'updated_at'])
+        # Cancelar assinatura digital se estiver em andamento
+        if proposta.status_assinatura not in ('rascunho', 'concluido', 'cancelado'):
+            proposta.status_assinatura = 'cancelado'
+            proposta.save(update_fields=['status', 'motivo_cancelamento', 'status_assinatura', 'updated_at'])
+        else:
+            proposta.save(update_fields=['status', 'motivo_cancelamento', 'updated_at'])
+
+        # Mover oportunidade para "Fechado perdido" automaticamente
+        oportunidade = proposta.oportunidade
+        if oportunidade and oportunidade.etapa not in ('closed_won', 'closed_lost'):
+            from django.utils import timezone
+            oportunidade.etapa = 'closed_lost'
+            oportunidade.data_fechamento_perdido = timezone.now().date()
+            oportunidade.save(update_fields=['etapa', 'data_fechamento_perdido', 'updated_at'])
+
         return Response({'detail': 'Proposta cancelada com sucesso.', 'status': 'cancelada'})
 
     @action(detail=True, methods=['get'])

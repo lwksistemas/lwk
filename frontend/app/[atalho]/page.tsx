@@ -34,12 +34,8 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
         const resolvedParams = await params;
         const { atalho } = resolvedParams;
 
-        console.log(`[AtalhoPage] Buscando loja com atalho: ${atalho}`);
-
         const apiUrl = getPrimaryApiRoot();
         const url = `${apiUrl}/api/superadmin/lojas/por-atalho/?atalho=${atalho}`;
-
-        console.log(`[AtalhoPage] URL: ${url}`);
 
         const response = await fetch(url, {
           cache: 'no-store',
@@ -48,18 +44,13 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
           },
         });
 
-        console.log(`[AtalhoPage] Status: ${response.status}`);
-
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`[AtalhoPage] Erro: ${response.status} - ${errorText}`);
           setError('Loja não encontrada');
           setLoading(false);
           return;
         }
 
         const data = await response.json();
-        console.log(`[AtalhoPage] Dados recebidos:`, data);
 
         if (!data.slug) {
           setError('Loja não encontrada');
@@ -72,8 +63,6 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
         setRedirectUrl(targetUrl);
 
         // Redirecionar para a página de login
-        console.log(`[AtalhoPage] Redirecionando para: ${targetUrl}`);
-        
         // Usar window.location para redirecionamento mais confiável
         if (typeof window !== 'undefined') {
           window.location.href = targetUrl;
@@ -87,7 +76,6 @@ export default function AtalhoPage({ params }: AtalhoPageProps) {
           setLoading(false);
         }, 2000);
       } catch (err) {
-        console.error('[AtalhoPage] Exceção:', err);
         setError('Erro ao carregar loja');
         setLoading(false);
       }

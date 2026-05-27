@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import apiClient from '@/lib/api-client';
 import { extractArrayData, formatApiError } from '@/lib/api-helpers';
+import { logger } from '@/lib/logger';
 
 export interface FieldConfig {
   name: string;
@@ -72,7 +73,7 @@ export function GenericCrudModal<T extends { id: number }>({
       const data = extractArrayData<T>(response);
       setItems(data);
     } catch (error: any) {
-      console.error(`Erro ao carregar ${title}:`, error);
+      logger.warn(`Erro ao carregar ${title}:`, error);
       setLoadError(true);
     } finally {
       setLoading(false);

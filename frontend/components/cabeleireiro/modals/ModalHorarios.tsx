@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LojaInfo } from '@/types/dashboard';
 import { ensureArray } from '@/lib/array-helpers';
 import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface Horario {
   id: number;
@@ -49,7 +50,7 @@ export function ModalHorarios({ loja, onClose }: { loja: LojaInfo; onClose: () =
       const response = await apiClient.get('/cabeleireiro/horarios/');
       setHorarios(ensureArray(response.data));
     } catch (error) {
-      console.error('Erro ao carregar horários:', error);
+      logger.warn('Erro ao carregar horários:', error);
       toast.error('Erro ao carregar horários');
     } finally {
       setLoading(false);
@@ -75,7 +76,7 @@ export function ModalHorarios({ loja, onClose }: { loja: LojaInfo; onClose: () =
       resetForm();
       carregarHorarios();
     } catch (error) {
-      console.error('Erro ao salvar horário:', error);
+      logger.warn('Erro ao salvar horário:', error);
       toast.error('Erro ao salvar horário');
     }
   };
@@ -97,7 +98,7 @@ export function ModalHorarios({ loja, onClose }: { loja: LojaInfo; onClose: () =
       toast.success('Horário excluído!');
       carregarHorarios();
     } catch (error) {
-      console.error('Erro ao excluir horário:', error);
+      logger.warn('Erro ao excluir horário:', error);
       toast.error('Erro ao excluir horário');
     }
   };

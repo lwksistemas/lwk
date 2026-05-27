@@ -948,7 +948,7 @@ class ISSNetClient:
                 'ConsultarLoteRps',
                 'ConsultarUrlNfse',
                 'CancelarNfse',
-                'ConsultarNfseRpsEnvio',
+                'ConsultarNfsePorRps',
             ):
                 try:
                     rz = self._zeep_chamar_com_mtls(

@@ -100,6 +100,54 @@ def cancelar_nfse_emitida_superadmin(
                 'message': f'NFS-e {nf.numero_nf} cancelada no ISSNet e no sistema.',
             }
 
+        # Se o ISSNet cancelou mas o retorno veio ambíguo/erro, tentar confirmar e sincronizar.
+        # (Mesma ideia aplicada no fluxo da loja.)
+        try:
+            with issnet_client_superadmin(config) as client:
+                # 1) Tentar confirmar via RPS quando disponível
+                if getattr(nf, 'numero_rps', 0):
+                    serie = (getattr(nf, 'serie_rps', '') or '1').strip() or '1'
+                    ver = client.consultar_nfse_por_rps(
+                        numero_rps=int(nf.numero_rps),
+                        serie_rps=str(serie),
+                        prestador_cnpj=config.prestador_cnpj or '',
+                        inscricao_municipal=config.prestador_inscricao_municipal or '',
+                    )
+                    if ver.get('cancelada'):
+                        nf.status = 'cancelada'
+                        nf.data_cancelamento = nf.data_cancelamento or timezone.now()
+                        nf.save(update_fields=['status', 'data_cancelamento'])
+                        return {
+                            'success': True,
+                            'message': (
+                                f'NFS-e {nf.numero_nf} cancelada no ISSNet. '
+                                'Status sincronizado após confirmação por RPS.'
+                            ),
+                        }
+
+                # 2) Fallback via URL do portal (útil quando ConsultarNfsePorRps falha com E160/E183)
+                url_out = client.consultar_url_nfse(
+                    numero_nf=str(nf.numero_nf),
+                    prestador_cnpj=config.prestador_cnpj or '',
+                    inscricao_municipal=config.prestador_inscricao_municipal or '',
+                )
+                if url_out.get('success') and url_out.get('url'):
+                    inf = client.inferir_cancelada_por_url(url=str(url_out['url']))
+                    if inf.get('success') and inf.get('cancelada'):
+                        nf.status = 'cancelada'
+                        nf.data_cancelamento = nf.data_cancelamento or timezone.now()
+                        nf.save(update_fields=['status', 'data_cancelamento'])
+                        return {
+                            'success': True,
+                            'message': (
+                                f'NFS-e {nf.numero_nf} marcada como cancelada '
+                                'conforme o portal ISSNet.'
+                            ),
+                        }
+        except Exception:
+            # Não quebrar o cancelamento por falha de verificação.
+            pass
+
         return {
             'success': False,
             'error': (

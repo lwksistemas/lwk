@@ -13,7 +13,7 @@ from django.core.mail import EmailMessage
 
 from tenants.middleware import get_current_loja_id
 from .utils import get_current_vendedor_id
-from .views_config import _get_crm_config_for_loja
+from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,6 @@ from django.utils.dateparse import parse_datetime
 from django.http import HttpResponse, JsonResponse
 from django.core.mail import EmailMessage
 from django.conf import settings
-from django.contrib.auth.models import Group
 from datetime import timedelta
 import logging
 
@@ -51,33 +50,16 @@ from .services import (
     ContratoService,
     ProdutoServicoService,
 )
+from .vendedor_admin_service import (
+    aplicar_cache_control_sem_store,
+    ajustar_lista_vendedores_com_admin,
+    listar_grupos_crm_disponiveis,
+    reenviar_senha_administrador_loja,
+    reenviar_senha_vendedor,
+    resposta_vendedor_me,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _get_crm_config_for_loja(loja_id: int):
-    """
-    Obtém CRMConfig. Se faltar coluna (ex.: 0045 asaas_api_key), aplica patch SQL no tenant.
-    """
-    from django.db.utils import ProgrammingError
-    from .models import CRMConfig
-
-    try:
-        return CRMConfig.get_or_create_for_loja(loja_id)
-    except ProgrammingError as e:
-        err = str(e).lower()
-        if 'column' not in err or 'does not exist' not in err:
-            raise
-        db_name = get_current_tenant_db()
-        if not db_name or db_name == 'default':
-            raise
-        logger.warning(
-            'CRMConfig: colunas ausentes no tenant, aplicando patch 0045 em %s',
-            db_name,
-        )
-        from .schema_service import patch_crm_vendas_asaas_columns_if_missing
-        patch_crm_vendas_asaas_columns_if_missing(db_name)
-        return CRMConfig.get_or_create_for_loja(loja_id)
 
 
 # ✅ OTIMIZAÇÃO: Paginação para reduzir tempo de resposta
@@ -91,29 +73,6 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     queryset = Vendedor.objects.all()
     serializer_class = VendedorSerializer
     pagination_class = CRMPagination  # ✅ OTIMIZAÇÃO: Paginação
-
-    def _obter_funcionario_administrador_da_loja(self, loja):
-        """
-        Obtém o funcionário que representa o administrador da loja.
-        
-        Args:
-            loja: Instância da Loja
-        
-        Returns:
-            dict: Dados do funcionário administrador
-        """
-        owner = loja.owner
-        nome = owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]
-        return {
-            'id': 'admin',
-            'nome': nome,
-            'email': owner.email or '',
-            'telefone': getattr(loja, 'owner_telefone', '') or '',
-            'cargo': 'Administrador',
-            'is_admin': True,
-            'is_active': True,
-            'tem_acesso': True,
-        }
 
     def get_queryset(self):
         """✅ OTIMIZAÇÃO: Anotar tem_acesso para evitar N+1 queries"""
@@ -130,135 +89,26 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
 
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def list(self, request, *args, **kwargs):
-        import logging
-        logger = logging.getLogger(__name__)
-        
         loja_id = get_current_loja_id()
-        logger.debug(
-            "[VendedorViewSet.list] loja_id=%s, user=%s",
-            loja_id,
-            request.user.id if request.user else None,
-        )
-        
         for attempt in range(2):
             try:
                 response = super().list(request, *args, **kwargs)
-                
-                logger.debug(
-                    "[VendedorViewSet.list] response count=%s",
-                    response.data.get('count')
-                    if isinstance(response.data, dict)
-                    else len(response.data),
-                )
-                
-                # Prepend admin (owner) como primeiro item APENAS se não tiver vendedor vinculado
                 loja_id = get_current_loja_id()
                 if loja_id:
-                    from superadmin.models import Loja, VendedorUsuario
+                    from superadmin.models import Loja
+
                     try:
                         loja = Loja.objects.select_related('owner').get(id=loja_id)
-                        owner_email_lower = (loja.owner.email or '').strip().lower()
-                        
-                        # Verificar se owner tem VendedorUsuario vinculado
-                        owner_tem_vendedor = VendedorUsuario.objects.using('default').filter(
-                            user=loja.owner,
-                            loja_id=loja_id,
-                        ).exists()
-                        
-                        logger.debug(
-                            "[VendedorViewSet.list] owner_tem_vendedor=%s, owner_email=%s",
-                            owner_tem_vendedor,
-                            owner_email_lower,
-                        )
-                        
                         data = response.data
-                        results = list(data.get('results', []) if isinstance(data, dict) else (data or []))
-                        
-                        logger.debug("[VendedorViewSet.list] results ANTES de filtrar: %s", len(results))
-                        
-                        # Filtrar vendedores legacy (is_admin) que eram owner — só quando o admin
-                        # virtual será inserido (owner sem VendedorUsuario). Se o owner já tem
-                        # VendedorUsuario, o registro na lista é a representação dele; filtrar aqui
-                        # remove o administrador da UI por completo.
-                        if owner_email_lower and not owner_tem_vendedor:
-                            results = [r for r in results if not (
-                                r.get('is_admin') and
-                                (r.get('email') or '').strip().lower() == owner_email_lower
-                            )]
-                        
-                        logger.debug("[VendedorViewSet.list] results DEPOIS de filtrar: %s", len(results))
-                        
-                        # Verificar se owner já existe como vendedor comum (mesmo email)
-                        owner_ja_existe_como_vendedor = False
-                        for r in results:
-                            if (r.get('email') or '').strip().lower() == owner_email_lower:
-                                owner_ja_existe_como_vendedor = True
-                                # Marcar este vendedor como administrador
-                                r['is_admin'] = True
-                                r['cargo'] = 'Administrador'
-                                break
-                        
-                        logger.debug(
-                            "[VendedorViewSet.list] owner_ja_existe_como_vendedor=%s",
-                            owner_ja_existe_como_vendedor,
+                        results = list(
+                            data.get('results', []) if isinstance(data, dict) else (data or [])
                         )
-                        
-                        # Adicionar admin virtual APENAS se:
-                        # 1. Owner NÃO tem VendedorUsuario vinculado E
-                        # 2. Owner NÃO existe como vendedor comum na lista
-                        if not owner_tem_vendedor and not owner_ja_existe_como_vendedor:
-                            admin_item = self._obter_funcionario_administrador_da_loja(loja)
-                            results.insert(0, admin_item)
-                            logger.debug("[VendedorViewSet.list] Admin virtual adicionado")
-                        
-                        # Lista vazia com VendedorUsuario: vínculo no public sem linha ativa no tenant
-                        # (órfão, inativo ou loja_id divergente) — recuperar por vendedor_id ou fallback.
-                        if not results and owner_tem_vendedor:
-                            vu = VendedorUsuario.objects.using('default').filter(
-                                user=loja.owner,
-                                loja_id=loja_id,
-                            ).first()
-                            recovered = False
-                            if vu:
-                                tenant_db = get_current_tenant_db()
-                                qs = Vendedor.objects.all_without_filter()
-                                if tenant_db and tenant_db != 'default':
-                                    qs = qs.using(tenant_db)
-                                vend = qs.filter(pk=vu.vendedor_id).first()
-                                if vend and vend.loja_id == loja_id and vend.is_active:
-                                    row = self.get_serializer(vend).data
-                                    if owner_email_lower and (row.get('email') or '').strip().lower() == owner_email_lower:
-                                        row['is_admin'] = True
-                                        row['cargo'] = 'Administrador'
-                                    results = [row]
-                                    recovered = True
-                                    logger.debug(
-                                        "[VendedorViewSet.list] Recuperado Vendedor pk=%s (lista estava vazia)",
-                                        vu.vendedor_id,
-                                    )
-                                elif vend:
-                                    logger.warning(
-                                        "[VendedorViewSet.list] Vendedor %s inconsistente "
-                                        "(loja_id=%s, is_active=%s, contexto=%s)",
-                                        vu.vendedor_id,
-                                        vend.loja_id,
-                                        vend.is_active,
-                                        loja_id,
-                                    )
-                                else:
-                                    logger.warning(
-                                        "[VendedorViewSet.list] VendedorUsuario órfão: vendedor_id=%s",
-                                        vu.vendedor_id,
-                                    )
-                            if not recovered:
-                                admin_item = self._obter_funcionario_administrador_da_loja(loja)
-                                results.insert(0, admin_item)
-                                logger.debug(
-                                    "[VendedorViewSet.list] Admin virtual (fallback lista vazia + VU)"
-                                )
-                        
-                        logger.debug("[VendedorViewSet.list] results FINAL: %s", len(results))
-                        
+                        results = ajustar_lista_vendedores_com_admin(
+                            loja,
+                            loja_id,
+                            results,
+                            serialize_vendedor=lambda v: self.get_serializer(v).data,
+                        )
                         if isinstance(data, dict):
                             response.data['results'] = results
                             response.data['count'] = len(results)
@@ -266,12 +116,7 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
                             response.data = results
                     except Loja.DoesNotExist:
                         pass
-                
-                # Adicionar headers para evitar cache
-                response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-                response['Pragma'] = 'no-cache'
-                response['Expires'] = '0'
-                
+                aplicar_cache_control_sem_store(response)
                 return response
             except Exception as e:
                 from django.db.utils import ProgrammingError, OperationalError
@@ -314,198 +159,49 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     @action(detail=False, methods=['get'])
     def me(self, request):
         """Retorna informações do vendedor logado."""
-        from superadmin.models import VendedorUsuario
-        
         loja_id = get_current_loja_id()
         if not loja_id:
             return Response(
                 {'detail': 'Contexto de loja não encontrado.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        # Verificar se é o owner (admin)
-        from superadmin.models import Loja
-        try:
-            loja = Loja.objects.select_related('owner').get(id=loja_id)
-            if request.user == loja.owner:
-                nome = request.user.get_full_name() or request.user.username or (request.user.email or '').split('@')[0]
-                return Response({
-                    'id': 'admin',
-                    'nome': nome,
-                    'email': request.user.email or '',
-                    'is_admin': True,
-                })
-        except Loja.DoesNotExist:
-            pass
-        
-        # Verificar se é vendedor
-        try:
-            vu = VendedorUsuario.objects.using('default').select_related('vendedor').get(
-                user=request.user,
-                loja_id=loja_id,
-            )
-            vendedor = vu.vendedor
-            return Response({
-                'id': vendedor.id,
-                'nome': vendedor.nome,
-                'email': vendedor.email or '',
-                'is_admin': vendedor.is_admin,
-            })
-        except VendedorUsuario.DoesNotExist:
-            return Response(
-                {'detail': 'Vendedor não encontrado.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        return resposta_vendedor_me(request, loja_id)
 
     @action(detail=False, methods=['post'])
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def reenviar_senha_administrador(self, request):
         """Reenvia senha provisória do administrador (Loja.owner)."""
-        from django.utils.crypto import get_random_string
-        from django.core.mail import send_mail
-        from django.conf import settings
-        from superadmin.models import Loja
-
         loja_id = get_current_loja_id()
         if not loja_id:
             return Response(
                 {'detail': 'Contexto de loja não encontrado.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        try:
-            loja = Loja.objects.select_related('owner').get(id=loja_id)
-        except Loja.DoesNotExist:
-            return Response(
-                {'detail': 'Loja não encontrada.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        owner = loja.owner
-        if not owner.email:
-            return Response(
-                {'detail': 'Administrador não possui e-mail cadastrado.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        senha_provisoria = get_random_string(8)
-        owner.set_password(senha_provisoria)
-        owner.save(update_fields=['password'])
-        loja.senha_provisoria = senha_provisoria
-        loja.senha_foi_alterada = False
-        loja.save(update_fields=['senha_provisoria', 'senha_foi_alterada'])
-        site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
-        login_url = f"{site_url}/loja/{loja.slug}/login"
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
-        try:
-            send_mail(
-                subject='Nova senha provisória - CRM Vendas',
-                message=(
-                    f"Olá, {owner.get_full_name() or owner.username}!\n\n"
-                    f"Sua senha foi redefinida.\n\n"
-                    f"Login: {owner.username}\n"
-                    f"Nova senha provisória: {senha_provisoria}\n\n"
-                    f"Acesse: {login_url}\n\n"
-                    f"Por segurança, altere sua senha no primeiro acesso."
-                ),
-                from_email=from_email,
-                recipient_list=[owner.email],
-                fail_silently=True,
-            )
-        except Exception:
-            pass
-        return Response({
-            'detail': f'Senha provisória enviada para {owner.email}',
-            'email_enviado': owner.email,
-        })
+        payload, erro, http_status = reenviar_senha_administrador_loja(loja_id)
+        if erro:
+            return Response({'detail': erro}, status=http_status)
+        return Response(payload, status=http_status)
 
     @action(detail=True, methods=['post'])
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def reenviar_senha(self, request, pk=None):
         """Gera nova senha provisória e envia por e-mail. Funciona para vendedores e para o admin (owner)."""
-        vendedor = self.get_object()
-        if not vendedor.email:
-            return Response(
-                {'detail': 'Vendedor não possui e-mail cadastrado.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        from django.contrib.auth import get_user_model
-        from django.utils.crypto import get_random_string
-        from django.core.mail import send_mail
-        from django.conf import settings
-        from superadmin.models import Loja, VendedorUsuario
-
-        User = get_user_model()
         loja_id = get_current_loja_id()
         if not loja_id:
             return Response(
                 {'detail': 'Contexto de loja não encontrado.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        loja = Loja.objects.using('default').select_related('owner').get(id=loja_id)
-        senha_provisoria = get_random_string(8)
-        site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
-        login_url = f"{site_url}/loja/{loja.slug}/login"
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
-
-        # Admin (owner): usa Loja.owner, não VendedorUsuario
-        if vendedor.is_admin:
-            if loja.owner.email.lower() != (vendedor.email or '').strip().lower():
-                return Response(
-                    {'detail': 'E-mail do administrador não corresponde ao proprietário da loja.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            loja.owner.set_password(senha_provisoria)
-            loja.owner.save(update_fields=['password'])
-            loja.senha_provisoria = senha_provisoria
-            loja.senha_foi_alterada = False
-            loja.save(update_fields=['senha_provisoria', 'senha_foi_alterada'])
-        else:
-            # Vendedor comum: usa VendedorUsuario
-            try:
-                vu = VendedorUsuario.objects.using('default').get(
-                    loja_id=loja_id,
-                    vendedor_id=vendedor.id,
-                )
-            except VendedorUsuario.DoesNotExist:
-                return Response(
-                    {'detail': 'Vendedor ainda não possui acesso ao sistema. Use "Criar acesso" ao editar.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            vu.user.set_password(senha_provisoria)
-            vu.user.save(update_fields=['password'])
-            vu.precisa_trocar_senha = True
-            vu.save(update_fields=['precisa_trocar_senha'])
-
-        try:
-            send_mail(
-                subject='Nova senha provisória - CRM Vendas',
-                message=(
-                    f"Olá, {vendedor.nome or 'Vendedor'}!\n\n"
-                    f"Sua senha foi redefinida.\n\n"
-                    f"Login: {vendedor.email}\n"
-                    f"Nova senha provisória: {senha_provisoria}\n\n"
-                    f"Acesse: {login_url}\n\n"
-                    f"Por segurança, altere sua senha no primeiro acesso."
-                ),
-                from_email=from_email,
-                recipient_list=[vendedor.email],
-                fail_silently=True,
-            )
-        except Exception:
-            pass
-        return Response({
-            'detail': f'Senha provisória enviada para {vendedor.email}',
-            'email_enviado': vendedor.email,
-        })
+        payload, erro, http_status = reenviar_senha_vendedor(loja_id, self.get_object())
+        if erro:
+            return Response({'detail': erro}, status=http_status)
+        return Response(payload, status=http_status)
 
     @action(detail=False, methods=['get'])
     @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
     def grupos_disponiveis(self, request):
         """Lista grupos disponíveis para atribuir a vendedores."""
-        # Filtrar apenas grupos relacionados ao CRM
-        grupos_crm = Group.objects.using('default').filter(
-            name__in=['Gerente de Vendas', 'Vendedor']
-        ).values('id', 'name').order_by('name')
-        
-        return Response(list(grupos_crm))
+        return Response(listar_grupos_crm_disponiveis())
 
 
 class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
@@ -1326,8 +1022,8 @@ class ContratoViewSet(AssinaturaDigitalMixin, EnviarClienteMixin, DocumentoQuery
 # Re-exports para compatibilidade com urls.py
 # Funções movidas para arquivos separados (refatoração)
 # ===========================================================================
+from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja  # noqa: F401, E402
 from .views_config import (  # noqa: F401, E402
-    _get_crm_config_for_loja,
     _empty_dashboard_response,
     crm_me,
     dashboard_data,

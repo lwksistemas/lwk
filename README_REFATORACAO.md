@@ -240,6 +240,13 @@ backend/
 │   ├── emissao_issnet_superadmin.py / emissao_nacional_superadmin.py
 │   ├── persistencia_nfse_superadmin.py / emissao_manual_types.py
 │   └── superadmin_nfse_api.py # listagem/serialização superadmin
+├── crm_vendas/
+│   ├── crm_config_helpers.py       # CRMConfig + patch tenant (compartilhado)
+│   ├── vendedor_admin_service.py   # lista admin virtual, me, reenvio senha
+│   ├── services_relatorio_comissao.py
+│   ├── views_relatorio_comissao.py
+│   ├── views_config.py
+│   └── views.py                    # ViewSets principais (reduzido)
 └── scripts/archive/ removido
     └── scripts one-off/debug não devem ser versionados quando contêm contexto de cliente
 ```
@@ -267,6 +274,6 @@ backend/
 
 ---
 
-**Última Atualização:** 31 de Março de 2026  
+**Última Atualização:** 27 de Maio de 2026  
 **Status:** ✅ CONCLUÍDA COM SUCESSO  
 **Qualidade:** ⭐⭐⭐⭐⭐ (5/5)

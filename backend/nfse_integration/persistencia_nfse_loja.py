@@ -35,6 +35,8 @@ def salvar_nfse_emitida(
     from nfse_integration.models import NFSe
 
     try:
+        aliquota_iss = Decimal(str(resultado.get('aliquota_iss', 0) or 0))
+        valor_iss = Decimal(str(resultado.get('valor_iss', 0) or 0))
         NFSe.objects.create(
             loja_id=loja_id,
             numero_nf=resultado['numero_nf'],
@@ -42,6 +44,8 @@ def salvar_nfse_emitida(
             codigo_verificacao=resultado.get('codigo_verificacao', ''),
             data_emissao=resultado.get('data_emissao', timezone.now()),
             valor=resultado.get('valor', 0),
+            aliquota_iss=aliquota_iss,
+            valor_iss=valor_iss,
             tomador_email=tomador_email,
             tomador_nome=resultado.get('tomador_nome', ''),
             tomador_cpf_cnpj=resultado.get('tomador_cpf_cnpj', ''),

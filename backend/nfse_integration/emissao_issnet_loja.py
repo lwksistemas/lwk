@@ -2,6 +2,7 @@
 import logging
 import re
 from decimal import Decimal
+from decimal import ROUND_HALF_UP
 from typing import Any, Callable, Dict, Optional
 
 from django.utils import timezone
@@ -50,7 +51,11 @@ def emitir_via_issnet_loja(
             or '1401'
         )
         codigo_cnae_final = codigo_cnae_override or (getattr(config, 'codigo_cnae', '') or '').strip()
-        aliquota = float(getattr(config, 'aliquota_iss', 2.00))
+        aliquota = Decimal(str(getattr(config, 'aliquota_iss', 2.00) or 0))
+        valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal('100')).quantize(
+            Decimal('0.01'),
+            rounding=ROUND_HALF_UP,
+        )
 
         with issnet_client_loja(config) as client:
             numero_rps = gerar_proximo_numero_rps(loja.id, config)
@@ -64,7 +69,7 @@ def emitir_via_issnet_loja(
                 servico_codigo=codigo_servico_final,
                 servico_descricao=servico_descricao or 'Serviço prestado',
                 valor_servicos=Decimal(str(valor_servicos)),
-                aliquota_iss=Decimal(str(aliquota)),
+                aliquota_iss=aliquota,
                 numero_rps=numero_rps,
                 serie_rps=getattr(config, 'issnet_serie_rps', '1') or '1',
                 codigo_cnae=codigo_cnae_final or None,
@@ -78,6 +83,8 @@ def emitir_via_issnet_loja(
                 'numero_rps': numero_rps,
                 'data_emissao': timezone.now(),
                 'valor': float(valor_servicos),
+                'aliquota_iss': float(aliquota),
+                'valor_iss': float(valor_iss),
                 'xml_nfse': resultado.get('xml_nfse', ''),
                 'pdf_url': resultado.get('link_pdf', ''),
                 'tomador_nome': tomador_nome,

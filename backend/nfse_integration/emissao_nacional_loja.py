@@ -2,6 +2,7 @@
 import logging
 import re
 from decimal import Decimal
+from decimal import ROUND_HALF_UP
 from typing import Any, Callable, Dict, Optional
 
 from django.utils import timezone
@@ -77,7 +78,11 @@ def emitir_via_nacional_loja(
             or '14.01'
         )
         codigo_cnae_final = codigo_cnae_override or (getattr(config, 'codigo_cnae', '') or '').strip()
-        aliquota = getattr(config, 'aliquota_iss', Decimal('2.00'))
+        aliquota = Decimal(str(getattr(config, 'aliquota_iss', Decimal('2.00')) or 0))
+        valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal('100')).quantize(
+            Decimal('0.01'),
+            rounding=ROUND_HALF_UP,
+        )
         serie_dps = getattr(config, 'nacional_serie_dps', '900') or '900'
 
         resultado = client.emitir_nfse(
@@ -115,6 +120,8 @@ def emitir_via_nacional_loja(
                 'numero_rps': numero_dps,
                 'data_emissao': timezone.now(),
                 'valor': float(valor_servicos),
+                'aliquota_iss': float(aliquota),
+                'valor_iss': float(valor_iss),
                 'xml_nfse': resultado.get('xml_dps', ''),
                 'pdf_url': '',
                 'tomador_nome': tomador_nome,

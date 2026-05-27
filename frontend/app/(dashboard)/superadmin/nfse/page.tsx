@@ -293,7 +293,7 @@ export default function NFSeEmitidasPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 space-x-1">
-                        {nf.status === 'emitida' && (
+                        {(nf.status === 'emitida' || nf.status === 'cancelada') && (
                           <Button size="sm" variant="ghost" onClick={() => handleBaixarPdf(nf)} title="Baixar/Consultar PDF">
                             <FileText className="w-4 h-4" />
                           </Button>
@@ -303,7 +303,7 @@ export default function NFSeEmitidasPage() {
                             <Download className="w-4 h-4" />
                           </Button>
                         )}
-                        {nf.status === 'emitida' && nf.tomador_email && (
+                        {(nf.status === 'emitida' || nf.status === 'cancelada') && nf.tomador_email && (
                           <Button size="sm" variant="ghost" onClick={() => handleReenviar(nf)} title="Reenviar email">
                             <Mail className="w-4 h-4" />
                           </Button>

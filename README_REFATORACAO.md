@@ -232,6 +232,7 @@ backend/
 │   ├── issnet_loja.py         # cliente ISSNet (CRMConfig)
 │   ├── issnet_superadmin.py   # cliente ISSNet + cancelamento (superadmin)
 │   ├── loja_nfse_api.py       # emissão/reenvio/exclusão (ViewSet loja)
+│   ├── nfse_geo.py            # código IBGE por CEP (ViaCEP)
 │   ├── emissao_manual_superadmin.py
 │   └── superadmin_nfse_api.py # listagem/serialização superadmin
 └── scripts/archive/ removido

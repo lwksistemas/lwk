@@ -1,8 +1,15 @@
 """Ações de NFS-e no contexto da loja (CRM / ViewSet)."""
+import logging
 from decimal import Decimal
 from typing import Any
 
 from rest_framework import status
+
+logger = logging.getLogger(__name__)
+
+
+class ConfigLojaInconsistenteError(ValueError):
+    """CRMConfig não pertence à loja informada."""
 
 
 class ReenvioNFSeLojaError(Exception):
@@ -16,6 +23,66 @@ class ExclusaoNFSeLojaError(Exception):
         self.message = message
         self.http_status = http_status
         super().__init__(message)
+
+
+def validar_config_crm_loja(loja: Any, config: Any) -> None:
+    """Garante que a CRMConfig carregada é da mesma loja do serviço."""
+    config_loja_id = getattr(config, 'loja_id', None)
+    if config_loja_id is not None and int(config_loja_id) != int(loja.id):
+        raise ConfigLojaInconsistenteError(
+            f'CRMConfig loja_id={config_loja_id} não corresponde à loja {loja.id}'
+        )
+
+
+def provedor_nf_loja(config: Any) -> str:
+    return (getattr(config, 'provedor_nf', None) or 'issnet').strip().lower()
+
+
+def enviar_email_pos_emissao_loja(
+    loja: Any,
+    config: Any,
+    *,
+    numero_nf: str,
+    tomador_email: str,
+    tomador_nome: str,
+    valor: Decimal,
+    descricao: str,
+    fail_silently: bool = True,
+) -> None:
+    """E-mail ao tomador após emissão (inclui DANFE ISSNet quando aplicável)."""
+    from nfse_integration.danfe import buscar_url_danfe_issnet
+    from nfse_integration.email_nfse import enviar_email_nfse_tomador
+    from nfse_integration.models import NFSe
+
+    nfse_obj = (
+        NFSe.objects.filter(loja_id=loja.id, numero_nf=numero_nf)
+        .order_by('-data_emissao')
+        .first()
+    )
+    url_danfe = ''
+    if provedor_nf_loja(config) == 'issnet':
+        url_danfe = buscar_url_danfe_issnet(
+            nfse_obj,
+            numero_nf=numero_nf,
+            loja_id=loja.id,
+            loja=loja,
+            config=config,
+        )
+
+    enviar_email_nfse_tomador(
+        loja=loja,
+        tomador_email=tomador_email,
+        tomador_nome=tomador_nome,
+        numero_nf=numero_nf,
+        valor=valor,
+        descricao=descricao,
+        url_danfe=url_danfe,
+        xml_content=nfse_obj.xml_nfse if nfse_obj and nfse_obj.xml_nfse else '',
+        fail_silently=fail_silently,
+        intro='A nota fiscal de serviço foi emitida.',
+        incluir_codigo_verificacao=False,
+        xml_filename=f'nfse_{numero_nf[:20]}.xml',
+    )
 
 
 def reenviar_email_nfse_loja(nfse: Any, loja: Any, loja_id: int) -> str:

@@ -9,29 +9,17 @@ import logging
 import re
 from typing import Dict, Any, Optional
 from decimal import Decimal
-from datetime import datetime
 from uuid import uuid4
 
 from django.utils import timezone
 
+from nfse_integration.loja_nfse_api import (
+    enviar_email_pos_emissao_loja,
+    validar_config_crm_loja,
+)
+from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep
+
 logger = logging.getLogger(__name__)
-
-
-def _buscar_codigo_ibge(cep: str) -> str:
-    """Busca código IBGE do município pelo CEP (via ViaCEP)."""
-    import requests
-    cep_digits = re.sub(r'\D', '', cep or '')
-    if len(cep_digits) == 8:
-        try:
-            resp = requests.get(f'https://viacep.com.br/ws/{cep_digits}/json/', timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                ibge = data.get('ibge', '')
-                if ibge:
-                    return str(ibge)
-        except Exception as e:
-            logger.warning('Erro ao buscar IBGE pelo CEP %s: %s', cep_digits, e)
-    return ''
 
 
 class NFSeService:
@@ -42,6 +30,7 @@ class NFSeService:
     def __init__(self, loja):
         self.loja = loja
         self.config = self._get_config()
+        validar_config_crm_loja(self.loja, self.config)
 
     def _get_config(self):
         """Obtém configuração de NFS-e da loja."""
@@ -215,7 +204,7 @@ class NFSeService:
             if not codigo_municipio:
                 # Tentar buscar pelo CEP da loja
                 cep_loja = getattr(self.loja, 'cep', '') or ''
-                codigo_municipio = _buscar_codigo_ibge(cep_loja)
+                codigo_municipio = buscar_codigo_ibge_por_cep(cep_loja)
                 if not codigo_municipio:
                     return {'success': False, 'error': 'Código IBGE do município não configurado'}
 
@@ -234,7 +223,7 @@ class NFSeService:
             cep_tomador = (tomador_endereco.get('cep') or '').strip()
             codigo_municipio_tomador = (tomador_endereco.get('codigo_municipio') or '').strip()
             if not codigo_municipio_tomador and cep_tomador:
-                codigo_municipio_tomador = _buscar_codigo_ibge(cep_tomador)
+                codigo_municipio_tomador = buscar_codigo_ibge_por_cep(cep_tomador)
             tomador_endereco_final = {**tomador_endereco, 'codigo_municipio': codigo_municipio_tomador}
 
             # Dados fiscais
@@ -472,43 +461,15 @@ class NFSeService:
     ):
         """Envia email para o tomador com a NFS-e — inclui link da DANFE real (ISSNet)."""
         try:
-            from .danfe import buscar_url_danfe_issnet
-            from .email_nfse import enviar_email_nfse_tomador
-            from .models import NFSe
-
-            # Buscar NFS-e salva para obter xml e pdf_url
-            nfse_obj = None
-            try:
-                nfse_obj = NFSe.objects.filter(
-                    loja_id=self.loja.id, numero_nf=numero_nf
-                ).order_by('-data_emissao').first()
-            except Exception:
-                pass
-
-            # Tentar buscar URL real da DANFE via ConsultarUrlNfse (ISSNet)
-            url_danfe = ''
-            if getattr(self.config, 'provedor_nfse', '') == 'issnet':
-                url_danfe = buscar_url_danfe_issnet(
-                    nfse_obj,
-                    numero_nf=numero_nf,
-                    loja_id=self.loja.id,
-                    loja=self.loja,
-                    config=self.config,
-                )
-
-            enviar_email_nfse_tomador(
-                loja=self.loja,
+            enviar_email_pos_emissao_loja(
+                self.loja,
+                self.config,
+                numero_nf=numero_nf,
                 tomador_email=tomador_email,
                 tomador_nome=tomador_nome,
-                numero_nf=numero_nf,
                 valor=valor,
                 descricao=descricao,
-                url_danfe=url_danfe,
-                xml_content=nfse_obj.xml_nfse if nfse_obj and nfse_obj.xml_nfse else '',
                 fail_silently=True,
-                intro='A nota fiscal de serviço foi emitida.',
-                incluir_codigo_verificacao=False,
-                xml_filename=f'nfse_{numero_nf[:20]}.xml',
             )
         except Exception as e:
             logger.error('Erro ao enviar email NFS-e: %s', e)

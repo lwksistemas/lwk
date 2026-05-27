@@ -989,24 +989,48 @@ class ISSNetClient:
                     'User-Agent': 'LWK-Sistemas/CRM (ISSNet ABRASF 2.04)',
                 }
 
-            # POST manual: ordem como lib PHP (aninhado), depois CDATA, por ultimo string escapada.
-            strategies = (
-                (
-                    _montar_soap_envelope_issnet(nome_operacao, dados_xml),
-                    _headers('application/soap+xml; charset=utf-8'),
-                    'XML aninhado + application/soap+xml (PHP)',
-                ),
-                (
-                    _montar_soap_envelope_issnet_cdata(nome_operacao, dados_xml),
-                    _headers('text/xml; charset=utf-8'),
-                    'CDATA + text/xml',
-                ),
-                (
-                    _montar_soap_envelope_issnet_xsd_string(nome_operacao, dados_xml),
-                    _headers('text/xml; charset=utf-8'),
-                    'xsd:string (XML escapado) + text/xml',
-                ),
-            )
+            # POST manual: ISSNet varia o esperado por operação.
+            #
+            # - Em geral, a ordem "XML aninhado" (como lib PHP) funciona bem.
+            # - Para ConsultarNfsePorRps, alguns ambientes rejeitam o XML aninhado com E160
+            #   e aceitam o payload como xsd:string/CDATA (WSDL/ASMX).
+            if nome_operacao == 'ConsultarNfsePorRps':
+                strategies = (
+                    (
+                        _montar_soap_envelope_issnet_xsd_string(nome_operacao, dados_xml),
+                        _headers('text/xml; charset=utf-8'),
+                        'xsd:string (XML escapado) + text/xml',
+                    ),
+                    (
+                        _montar_soap_envelope_issnet_cdata(nome_operacao, dados_xml),
+                        _headers('text/xml; charset=utf-8'),
+                        'CDATA + text/xml',
+                    ),
+                    (
+                        _montar_soap_envelope_issnet(nome_operacao, dados_xml),
+                        _headers('application/soap+xml; charset=utf-8'),
+                        'XML aninhado + application/soap+xml (PHP)',
+                    ),
+                )
+            else:
+                # Ordem como lib PHP (aninhado), depois CDATA, por último string escapada.
+                strategies = (
+                    (
+                        _montar_soap_envelope_issnet(nome_operacao, dados_xml),
+                        _headers('application/soap+xml; charset=utf-8'),
+                        'XML aninhado + application/soap+xml (PHP)',
+                    ),
+                    (
+                        _montar_soap_envelope_issnet_cdata(nome_operacao, dados_xml),
+                        _headers('text/xml; charset=utf-8'),
+                        'CDATA + text/xml',
+                    ),
+                    (
+                        _montar_soap_envelope_issnet_xsd_string(nome_operacao, dados_xml),
+                        _headers('text/xml; charset=utf-8'),
+                        'xsd:string (XML escapado) + text/xml',
+                    ),
+                )
 
             def _do_post(soap_body: str, hdrs: dict):
                 return req.post(
@@ -1071,6 +1095,20 @@ class ISSNetClient:
                         },
                         '',
                     )
+
+                # Para ConsultarNfsePorRps: se o ISSNet responder E160 (schema),
+                # tentar o próximo formato de envelope ao invés de parar na 1ª resposta.
+                if (
+                    nome_operacao == 'ConsultarNfsePorRps'
+                    and strat_idx < len(strategies) - 1
+                    and re.search(r'<\s*Codigo\s*>\s*E160\s*<\s*/\s*Codigo\s*>', (r.text or ''), re.I)
+                ):
+                    logger.warning(
+                        'ISSNet %s retornou E160 (schema) com %r; tentando formato alternativo',
+                        nome_operacao,
+                        label,
+                    )
+                    continue
 
                 if not (
                     _issnet_corpo_parece_xml(r.text or '')

@@ -1522,7 +1522,6 @@ class ISSNetClient:
             serie = (serie_rps or '').strip() or '1'
             xml_consulta = (
                 f'<ConsultarNfseRpsEnvio xmlns="{NS_NFSE}">'
-                f'<Pedido>'
                 f'<IdentificacaoRps>'
                 f'<Numero>{int(numero_rps)}</Numero>'
                 f'<Serie>{serie}</Serie>'
@@ -1532,7 +1531,6 @@ class ISSNetClient:
                 f'<CpfCnpj><Cnpj>{cnpj_digits}</Cnpj></CpfCnpj>'
                 f'<InscricaoMunicipal>{im}</InscricaoMunicipal>'
                 f'</Prestador>'
-                f'</Pedido>'
                 f'</ConsultarNfseRpsEnvio>'
             )
 

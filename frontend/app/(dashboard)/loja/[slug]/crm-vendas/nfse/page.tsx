@@ -154,6 +154,15 @@ export default function NFSePage() {
       // Se retornou JSON com URL (DANFE real do ISSNet)
       if (res.data && res.data.url) {
         window.open(res.data.url, '_blank');
+        // Se o PDF já mostra "cancelada" e o CRM ainda não, sincronizar em 2º plano.
+        if (nfUsaIssnet(nf, lojaProvedor)) {
+          try {
+            await apiClient.post(`/nfse/${nf.id}/sincronizar-issnet/`);
+            await carregarNFSes();
+          } catch {
+            // silencioso: download do PDF não deve falhar por causa da sincronização
+          }
+        }
         return;
       }
       

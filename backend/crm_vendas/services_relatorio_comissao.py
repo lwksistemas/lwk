@@ -24,31 +24,46 @@ def _fmt_cpf_cnpj(valor: str) -> str:
     return valor  # retorna original se não reconhecer
 
 
-def criar_relatorio_comissao(
-    loja_id: int,
-    empresa_prestadora_id: int,
-    vendedor_id: int = None,
-    periodo_inicio=None,
-    periodo_fim=None,
-    periodo_descricao: str = '',
-    observacoes: str = '',
+def resolver_periodo_relatorio(
+    periodo: str = 'mes_atual',
+    data_inicio_str: str | None = None,
+    data_fim_str: str | None = None,
 ):
     """
-    Cria um RelatorioComissao com snapshot das oportunidades.
+    Retorna (periodo_inicio, periodo_fim, periodo_descricao, erro).
+    erro é str quando inválido.
     """
-    from .models import Oportunidade, Vendedor, Conta
-    from .models_relatorio_comissao import RelatorioComissao
+    from datetime import date as date_type
+
+    from .relatorios import calcular_periodo
+
+    if data_inicio_str and data_fim_str:
+        try:
+            periodo_inicio = date_type.fromisoformat(data_inicio_str)
+            periodo_fim = date_type.fromisoformat(data_fim_str)
+        except ValueError:
+            return None, None, None, 'Datas inválidas.'
+        periodo_descricao = (
+            f'{periodo_inicio.strftime("%d/%m/%Y")} a {periodo_fim.strftime("%d/%m/%Y")}'
+        )
+        return periodo_inicio, periodo_fim, periodo_descricao, None
+
+    periodo_inicio, periodo_fim = calcular_periodo(periodo)
+    periodo_descricao = periodo.replace('_', ' ').title()
+    return periodo_inicio, periodo_fim, periodo_descricao, None
+
+
+def queryset_oportunidades_comissao(
+    loja_id: int,
+    empresa_prestadora_id: int,
+    vendedor_id: int | None,
+    periodo_inicio,
+    periodo_fim,
+):
+    """Oportunidades closed_won no período para uma empresa prestadora."""
+    from .models import Oportunidade
     from .relatorios import _filtro_datas_fechamento_ganho
 
-    ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
-    if not ep:
-        return None, 'Empresa prestadora não encontrada.'
-
-    vendedor = None
-    if vendedor_id:
-        vendedor = Vendedor.objects.filter(id=vendedor_id, loja_id=loja_id).first()
-
-    # Buscar oportunidades fechadas no período (apenas com empresa prestadora definida)
     qs = Oportunidade.objects.filter(
         loja_id=loja_id,
         etapa='closed_won',
@@ -58,11 +73,10 @@ def criar_relatorio_comissao(
     ).select_related('lead', 'lead__conta', 'vendedor')
 
     if vendedor_id:
-        # Incluir vendas de vendedores inativos que seriam mescladas neste vendedor
         from .utils import get_vendedor_destino_merge_loja
+
         destino = get_vendedor_destino_merge_loja(loja_id)
         if destino and destino.id == vendedor_id:
-            # Este vendedor é o destino de merge: incluir vendas sem vendedor ou com vendedor inativo
             qs = qs.filter(
                 Q(vendedor_id=vendedor_id)
                 | Q(vendedor_id__isnull=True)
@@ -71,17 +85,18 @@ def criar_relatorio_comissao(
         else:
             qs = qs.filter(vendedor_id=vendedor_id)
 
-    # Calcular totais
-    totais = qs.aggregate(
+    return qs
+
+
+def agregar_totais_oportunidades(qs):
+    return qs.aggregate(
         total_vendas=Sum('valor'),
         total_comissao=Sum('valor_comissao'),
         qtd=Count('id'),
     )
 
-    if not totais['qtd']:
-        return None, 'Nenhuma venda encontrada no período para esta empresa.'
 
-    # Snapshot das oportunidades para o PDF
+def montar_dados_oportunidades_snapshot(qs, *, incluir_id: bool = True) -> list[dict]:
     dados_ops = []
     for op in qs.order_by('-data_fechamento_ganho', '-data_fechamento'):
         data = op.data_fechamento_ganho or op.data_fechamento
@@ -94,14 +109,175 @@ def criar_relatorio_comissao(
             else:
                 cliente = op.lead.nome
                 cpf_cnpj = op.lead.cpf_cnpj or ''
-        dados_ops.append({
-            'id': op.id,
+        item = {
             'data': data.strftime('%d/%m/%Y') if data else '—',
-            'cliente': f"{_fmt_cpf_cnpj(cpf_cnpj)} {cliente}".strip() if cpf_cnpj else (cliente or op.titulo),
+            'cliente': (
+                f'{_fmt_cpf_cnpj(cpf_cnpj)} {cliente}'.strip()
+                if cpf_cnpj
+                else (cliente or op.titulo)
+            ),
             'valor': float(op.valor or 0),
             'comissao': float(op.valor_comissao or 0),
-            'titulo': op.titulo,
-        })
+        }
+        if incluir_id:
+            item['id'] = op.id
+            item['titulo'] = op.titulo
+        dados_ops.append(item)
+    return dados_ops
+
+
+def nome_arquivo_pdf_comissao(empresa_nome: str, vendedor_nome: str, numero: str = '') -> str:
+    nome_empresa = (empresa_nome or 'empresa').replace(' ', '_')[:30]
+    nome_vend = (vendedor_nome or 'vendedor').replace(' ', '_')[:30]
+    sufixo = f'_{numero}' if numero else ''
+    return f'comissao_{nome_empresa}_{nome_vend}{sufixo}.pdf'
+
+
+def serializar_relatorio_lista(relatorio) -> dict:
+    return {
+        'id': relatorio.id,
+        'numero': relatorio.numero,
+        'titulo': relatorio.titulo,
+        'status': relatorio.status,
+        'status_display': relatorio.get_status_display(),
+        'empresa_prestadora_nome': (
+            relatorio.empresa_prestadora.nome if relatorio.empresa_prestadora else ''
+        ),
+        'vendedor_nome': relatorio.vendedor.nome if relatorio.vendedor else '',
+        'periodo_descricao': relatorio.periodo_descricao,
+        'valor_total_vendas': str(relatorio.valor_total_vendas),
+        'valor_total_comissao': str(relatorio.valor_total_comissao),
+        'quantidade_vendas': relatorio.quantidade_vendas,
+        'boleto_url': relatorio.boleto_url,
+        'nfse_numero': relatorio.nfse_numero,
+        'created_at': relatorio.created_at.isoformat() if relatorio.created_at else None,
+    }
+
+
+def gerar_preview_pdf_comissao(
+    loja_id: int,
+    empresa_prestadora_id: int,
+    vendedor_id: int | None,
+    periodo: str = 'mes_atual',
+    data_inicio_str: str | None = None,
+    data_fim_str: str | None = None,
+):
+    """
+    Gera PDF de preview sem persistir relatório.
+    Retorna (pdf_bytes, filename, erro).
+    """
+    from .models import Conta, Vendedor
+    from .models_relatorio_comissao import RelatorioComissao
+    from .pdf_relatorio_comissao import gerar_pdf_relatorio_comissao
+    from superadmin.models import Loja
+
+    ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
+    if not ep:
+        return None, None, 'Empresa prestadora não encontrada.'
+
+    periodo_inicio, periodo_fim, periodo_descricao, err = resolver_periodo_relatorio(
+        periodo, data_inicio_str, data_fim_str
+    )
+    if err:
+        return None, None, err
+
+    qs = queryset_oportunidades_comissao(
+        loja_id, empresa_prestadora_id, vendedor_id, periodo_inicio, periodo_fim
+    )
+    totais = agregar_totais_oportunidades(qs)
+    if not totais['qtd']:
+        return None, None, 'Nenhuma venda encontrada no período para esta empresa.'
+
+    dados_ops = montar_dados_oportunidades_snapshot(qs, incluir_id=False)
+    vendedor = (
+        Vendedor.objects.filter(id=int(vendedor_id), loja_id=loja_id).first()
+        if vendedor_id
+        else None
+    )
+
+    fake_relatorio = RelatorioComissao(
+        loja_id=loja_id,
+        numero='PREVIEW',
+        titulo=f'Comissões {periodo_descricao} — {ep.nome}',
+        empresa_prestadora=ep,
+        vendedor=vendedor,
+        periodo_inicio=periodo_inicio,
+        periodo_fim=periodo_fim,
+        periodo_descricao=periodo_descricao,
+        valor_total_vendas=Decimal(str(totais['total_vendas'] or 0)),
+        valor_total_comissao=Decimal(str(totais['total_comissao'] or 0)),
+        quantidade_vendas=totais['qtd'] or 0,
+        dados_oportunidades=dados_ops,
+    )
+
+    loja = Loja.objects.using('default').filter(id=loja_id).first()
+    pdf_buffer = gerar_pdf_relatorio_comissao(fake_relatorio, loja)
+    filename = nome_arquivo_pdf_comissao(
+        ep.nome,
+        vendedor.nome if vendedor else 'vendedor',
+    )
+    return pdf_buffer.read(), filename, None
+
+
+def configurar_tenant_relatorio_publico(loja_id: int):
+    """Configura tenant para rotas públicas. Retorna (loja, erro)."""
+    from django.conf import settings
+
+    from core.db_config import ensure_loja_database_config
+    from superadmin.models import Loja
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+    set_current_loja_id(loja_id)
+    loja = Loja.objects.using('default').filter(id=loja_id).first()
+    if not loja:
+        return None, 'Link inválido.'
+
+    db_name = getattr(loja, 'database_name', None) or f'loja_{loja.slug}'
+    if not ensure_loja_database_config(db_name, conn_max_age=0) or db_name not in settings.DATABASES:
+        return None, 'Serviço temporariamente indisponível.'
+
+    set_current_tenant_db(db_name)
+    return loja, None
+
+
+def extrair_ip_cliente(request) -> str:
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
+    if ',' in ip:
+        ip = ip.split(',')[0].strip()
+    return ip
+
+
+def criar_relatorio_comissao(
+    loja_id: int,
+    empresa_prestadora_id: int,
+    vendedor_id: int = None,
+    periodo_inicio=None,
+    periodo_fim=None,
+    periodo_descricao: str = '',
+    observacoes: str = '',
+):
+    """
+    Cria um RelatorioComissao com snapshot das oportunidades.
+    """
+    from .models import Vendedor, Conta
+    from .models_relatorio_comissao import RelatorioComissao
+
+    ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
+    if not ep:
+        return None, 'Empresa prestadora não encontrada.'
+
+    vendedor = None
+    if vendedor_id:
+        vendedor = Vendedor.objects.filter(id=vendedor_id, loja_id=loja_id).first()
+
+    qs = queryset_oportunidades_comissao(
+        loja_id, empresa_prestadora_id, vendedor_id, periodo_inicio, periodo_fim
+    )
+    totais = agregar_totais_oportunidades(qs)
+    if not totais['qtd']:
+        return None, 'Nenhuma venda encontrada no período para esta empresa.'
+
+    dados_ops = montar_dados_oportunidades_snapshot(qs, incluir_id=True)
 
     # Criar relatório
     relatorio = RelatorioComissao.objects.create(

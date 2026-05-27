@@ -5,6 +5,24 @@ import { FileText, Plus, Search, X, Check, AlertCircle, RefreshCw, Trash2, Downl
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { ModalEmitirNFSe } from './components/ModalEmitirNFSe';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
+
+function nfUsaIssnet(nf: NFSe, lojaProvedor?: string): boolean {
+  const p = (nf.provedor || '').toLowerCase();
+  const d = (nf.provedor_display || '').toLowerCase();
+  const loja = (lojaProvedor || '').toLowerCase();
+  if (p === 'issnet' || d.includes('issnet')) return true;
+  if (loja === 'issnet') return true;
+  return false;
+}
+
+function syncEndpoint(nf: NFSe, lojaProvedor?: string): 'sincronizar-issnet' | 'sincronizar-asaas' | null {
+  if (nfUsaIssnet(nf, lojaProvedor)) return 'sincronizar-issnet';
+  if ((nf.provedor || '').toLowerCase() === 'asaas' || (lojaProvedor || '').toLowerCase() === 'asaas') {
+    return 'sincronizar-asaas';
+  }
+  return null;
+}
 
 interface NFSe {
   id: number;
@@ -43,6 +61,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function NFSePage() {
+  const { config } = useCRMConfig();
+  const lojaProvedor = config?.provedor_nf;
   const [nfses, setNfses] = useState<NFSe[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -83,9 +103,7 @@ export default function NFSePage() {
   const sincronizarStatus = async (e: React.MouseEvent, nf: NFSe) => {
     e.preventDefault();
     e.stopPropagation();
-    const prov = (nf.provedor || '').toLowerCase();
-    const endpoint =
-      prov === 'issnet' ? 'sincronizar-issnet' : prov === 'asaas' ? 'sincronizar-asaas' : '';
+    const endpoint = syncEndpoint(nf, lojaProvedor);
     if (!endpoint) {
       setSyncMsg({ type: 'err', text: 'Sincronização não disponível para este provedor.' });
       return;
@@ -96,7 +114,9 @@ export default function NFSePage() {
       const res = await apiClient.post(`/nfse/${nf.id}/${endpoint}/`);
       const msg =
         (res.data as { message?: string })?.message ||
-        (prov === 'issnet' ? 'Status atualizado conforme o ISSNet.' : 'Status atualizado conforme o Asaas.');
+        (endpoint === 'sincronizar-issnet'
+          ? 'Status atualizado conforme o ISSNet.'
+          : 'Status atualizado conforme o Asaas.');
       setSyncMsg({ type: 'ok', text: msg });
       await carregarNFSes();
     } catch (err: unknown) {
@@ -180,6 +200,7 @@ export default function NFSePage() {
       ) : (
         <NfseTable
           nfses={nfsesFiltradas}
+          lojaProvedor={lojaProvedor}
           syncingId={syncingId}
           deletingId={deletingId}
           onSync={sincronizarStatus}
@@ -276,8 +297,9 @@ function EmptyState({ hasFiltros, onEmitir }: { hasFiltros: boolean; onEmitir: (
   );
 }
 
-function NfseTable({ nfses, syncingId, deletingId, onSync, onDelete, onDownloadPdf, onReenviarEmail }: {
+function NfseTable({ nfses, lojaProvedor, syncingId, deletingId, onSync, onDelete, onDownloadPdf, onReenviarEmail }: {
   nfses: NFSe[];
+  lojaProvedor?: string;
   syncingId: number | null;
   deletingId: number | null;
   onSync: (e: React.MouseEvent, nf: NFSe) => void;
@@ -307,7 +329,7 @@ function NfseTable({ nfses, syncingId, deletingId, onSync, onDelete, onDownloadP
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {nfses.map((nf) => (
-              <NfseRow key={nf.id} nf={nf} syncingId={syncingId} deletingId={deletingId} onSync={onSync} onDelete={onDelete} onDownloadPdf={onDownloadPdf} onReenviarEmail={onReenviarEmail} />
+              <NfseRow key={nf.id} nf={nf} lojaProvedor={lojaProvedor} syncingId={syncingId} deletingId={deletingId} onSync={onSync} onDelete={onDelete} onDownloadPdf={onDownloadPdf} onReenviarEmail={onReenviarEmail} />
             ))}
           </tbody>
         </table>
@@ -316,8 +338,8 @@ function NfseTable({ nfses, syncingId, deletingId, onSync, onDelete, onDownloadP
   );
 }
 
-function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, onReenviarEmail }: {
-  nf: NFSe; syncingId: number | null; deletingId: number | null;
+function NfseRow({ nf, lojaProvedor, syncingId, deletingId, onSync, onDelete, onDownloadPdf, onReenviarEmail }: {
+  nf: NFSe; lojaProvedor?: string; syncingId: number | null; deletingId: number | null;
   onSync: (e: React.MouseEvent, nf: NFSe) => void;
   onDelete: (e: React.MouseEvent, nf: NFSe) => void;
   onDownloadPdf: (e: React.MouseEvent, nf: NFSe) => void;
@@ -405,20 +427,20 @@ function NfseRow({ nf, syncingId, deletingId, onSync, onDelete, onDownloadPdf, o
               </button>
             </>
           )}
-          {((nf.provedor || '').toLowerCase() === 'asaas' ||
-            (nf.provedor || '').toLowerCase() === 'issnet') && (
+          {syncEndpoint(nf, lojaProvedor) && (
             <button
               type="button"
               title={
-                (nf.provedor || '').toLowerCase() === 'issnet'
+                nfUsaIssnet(nf, lojaProvedor)
                   ? 'Sincronizar status com ISSNet (portal da prefeitura)'
                   : 'Sincronizar com Asaas'
               }
               onClick={(e) => onSync(e, nf)}
               disabled={syncingId === nf.id}
-              className="p-1.5 text-gray-600 hover:text-[#0176d3] hover:bg-[#0176d3]/10 rounded disabled:opacity-50"
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0176d3] hover:bg-[#0176d3]/10 border border-[#0176d3]/30 rounded disabled:opacity-50 whitespace-nowrap"
             >
-              <RefreshCw size={16} className={syncingId === nf.id ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={syncingId === nf.id ? 'animate-spin shrink-0' : 'shrink-0'} />
+              Sincronizar
             </button>
           )}
           {nf.status !== 'emitida' && nf.status !== 'cancelada' && (

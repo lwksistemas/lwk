@@ -179,7 +179,10 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
     from nfse_integration.issnet_loja import issnet_client_loja
     from nfse_integration.serializers import NFSeSerializer
 
-    if (nfse.provedor or '').lower() != 'issnet':
+    cfg = CRMConfig.get_or_create_for_loja(loja_id)
+    cfg_provedor = (getattr(cfg, 'provedor_nf', '') or '').strip().lower()
+    nf_provedor = (nfse.provedor or '').strip().lower()
+    if nf_provedor != 'issnet' and cfg_provedor != 'issnet':
         return (
             {'error': 'Sincronização disponível apenas para NFS-e emitidas via ISSNet.'},
             http_status.HTTP_400_BAD_REQUEST,
@@ -190,8 +193,6 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
             {'error': 'NFS-e não possui número de RPS para consulta no ISSNet.'},
             http_status.HTTP_400_BAD_REQUEST,
         )
-
-    cfg = CRMConfig.get_or_create_for_loja(loja_id)
     serie = getattr(cfg, 'issnet_serie_rps', '1') or '1'
     cnpj_prestador = getattr(loja, 'cpf_cnpj', '') or ''
     im_prestador = (

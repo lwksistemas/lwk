@@ -1302,6 +1302,79 @@ class ISSNetClient:
         erros = re.findall(r'<Mensagem>(.*?)</Mensagem>', texto)
         return '; '.join(erros) if erros else texto[:500]
 
+    def _parse_resposta_cancelamento(self, xml_str: str) -> Dict[str, Any]:
+        """Interpreta CancelarNfseResposta (sucesso != InfNfse de emissão)."""
+        texto = (xml_str or '').strip()
+        if not texto:
+            return {'success': False, 'error': 'Resposta vazia do ISSNet no cancelamento.'}
+
+        if re.search(r'<\s*Fault\b', texto, re.I):
+            return {
+                'success': False,
+                'error': (
+                    'Erro genérico do webservice ISSNet no cancelamento. '
+                    'Tente novamente ou sincronize o status da nota.'
+                ),
+            }
+
+        try:
+            root = etree.fromstring(texto.encode('utf-8'))
+        except etree.XMLSyntaxError:
+            amostra = ' '.join(texto[:400].split())
+            return {'success': False, 'error': f'XML inválido na resposta do cancelamento: {amostra}'}
+
+        nsmap = {'ns': NS_NFSE}
+        msgs = root.findall('.//ns:MensagemRetorno', nsmap)
+        if not msgs:
+            msgs = root.findall('.//MensagemRetorno')
+
+        if msgs:
+            erros = []
+            for msg in msgs:
+                codigo = (msg.findtext('ns:Codigo', '', nsmap) or msg.findtext('Codigo') or '').strip()
+                mensagem = msg.findtext('ns:Mensagem', '', nsmap) or msg.findtext('Mensagem') or ''
+                correcao = msg.findtext('ns:Correcao', '', nsmap) or msg.findtext('Correcao') or ''
+                texto_erro = f'[{codigo}] {mensagem}'.strip()
+                if correcao:
+                    texto_erro += f' - {correcao}'
+                if codigo.upper() == 'E206':
+                    texto_erro += (
+                        ' Para “Erro na emissão”, a prefeitura exige substituição de NFS-e '
+                        '(não cancelamento via webservice). Use o motivo 2 (Serviço não prestado) '
+                        'ou cancele/substitua no portal ISSNet.'
+                    )
+                erros.append(texto_erro)
+            return {'success': False, 'error': '; '.join(erros)}
+
+        if re.search(
+            r'<\s*(Cancelamento|CancelarNfseResposta|NfseCancelada|ConfirmacaoCancelamento)\b',
+            texto,
+            re.I,
+        ):
+            return {'success': True, 'message': 'NFS-e cancelada com sucesso no ISSNet'}
+
+        if re.search(r'DataHoraCancelamento|DataHora\s*Cancelamento', texto, re.I):
+            return {'success': True, 'message': 'NFS-e cancelada com sucesso no ISSNet'}
+
+        return {
+            'success': False,
+            'error': f'Cancelamento não confirmado na resposta do ISSNet: {texto[:500]}',
+        }
+
+    def _interpretar_cancelamento(self, parsed: Dict[str, Any], xml_body: str) -> Dict[str, Any]:
+        """Combina parser genérico + parser específico de cancelamento."""
+        especifico = self._parse_resposta_cancelamento(xml_body or '')
+        if especifico.get('success'):
+            return especifico
+        if especifico.get('error') and 'MensagemRetorno' in (xml_body or ''):
+            return especifico
+
+        err = str((parsed or {}).get('error') or '')
+        if parsed and parsed.get('success') is False and 'NFS-e nao encontrada na resposta' in err:
+            return especifico
+
+        return parsed if parsed else especifico
+
     # ------------------------------------------------------------------
     # Consultar NFS-e por RPS
     # ------------------------------------------------------------------
@@ -1456,13 +1529,16 @@ class ISSNetClient:
             
             def _tentar_cancelamento(xml_payload: str, *, label: str):
                 xml_assinado = self._assinar_xml(xml_payload)
-                parsed, xml_body = self._post_soap_operacao(
+                parsed_raw, xml_body = self._post_soap_operacao(
                     nome_operacao='CancelarNfse',
                     soap_action_uri='http://nfse.abrasf.org.br/CancelarNfse',
                     dados_xml=xml_assinado,
                 )
-                if parsed and parsed.get('success') is False:
+                parsed = self._interpretar_cancelamento(parsed_raw or {}, xml_body or '')
+                if parsed.get('success') is False:
                     logger.warning('ISSNet cancelar_nfse falhou (%s): %s', label, parsed.get('error'))
+                elif parsed.get('success'):
+                    logger.info('ISSNet cancelar_nfse OK (%s)', label)
                 return parsed, xml_body
 
             # Tentativa 1 (padrão): assina Pedido (Id=Pedido1) com InfPedidoCancelamento Id=s01.
@@ -1504,19 +1580,11 @@ class ISSNetClient:
                     f'</CancelarNfseEnvio>'
                 )
                 parsed, xml_body = _tentar_cancelamento(xml_cancelar_2, label='inf_pedido')
-            if parsed and parsed.get('success') is False:
+
+            if parsed.get('success'):
                 return parsed
-            
-            resp_str = xml_body or str(parsed)
-            if 'MensagemRetorno' in resp_str:
-                erros = self._extrair_erros(resp_str)
-                return {'success': False, 'error': erros}
-            
-            # Verificar se cancelou com sucesso
-            if 'Cancelamento' in resp_str or 'DataHora' in resp_str:
-                return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
-            
-            return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
+
+            return self._interpretar_cancelamento(parsed, xml_body or '')
         except Exception as e:
             logger.exception('Erro ao cancelar NFS-e: %s', e)
             return {'success': False, 'error': str(e)}

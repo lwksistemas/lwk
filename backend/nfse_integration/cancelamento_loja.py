@@ -66,6 +66,31 @@ def cancelar_nfse_loja(
                 nfse.data_cancelamento = timezone.now()
                 nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
                 return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
+
+            # Cancelou no ISSNet mas o retorno veio ambíguo/erro de parser — confirmar por RPS.
+            if nfse.numero_rps:
+                try:
+                    serie = getattr(config, 'issnet_serie_rps', '1') or '1'
+                    verif = client.consultar_nfse_por_rps(
+                        numero_rps=int(nfse.numero_rps),
+                        serie_rps=str(serie),
+                        prestador_cnpj=cnpj_prestador,
+                        inscricao_municipal=im_prestador,
+                    )
+                    if verif.get('cancelada'):
+                        nfse.status = 'cancelada'
+                        nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
+                        nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+                        return {
+                            'success': True,
+                            'message': (
+                                'NFS-e cancelada no ISSNet. O status foi sincronizado '
+                                '(a prefeitura confirmou o cancelamento).'
+                            ),
+                        }
+                except Exception as exc:
+                    logger.warning('Falha ao verificar cancelamento por RPS: %s', exc)
+
             return {
                 'success': False,
                 'error': resultado.get('error', 'Erro ao cancelar no ISSNet'),

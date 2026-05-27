@@ -201,9 +201,14 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
         or ''
     )
 
+    from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
+    from nfse_integration.email_nfse import notificar_cancelamento_nfse
+
     try:
         with issnet_client_loja(cfg) as client:
-            out = client.consultar_nfse_por_rps(
+            cancelada_portal = consultar_nfse_cancelada_issnet(
+                client,
+                numero_nf=str(nfse.numero_nf or ''),
                 numero_rps=int(nfse.numero_rps),
                 serie_rps=str(serie),
                 prestador_cnpj=str(cnpj_prestador),
@@ -212,45 +217,7 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
     except Exception as exc:
         return ({'error': str(exc)}, http_status.HTTP_400_BAD_REQUEST)
 
-    if out.get('success') is False:
-        # Fallback: quando a prefeitura rejeita o ConsultarNfsePorRps por schema (E160/E183),
-        # mas a nota existe e o portal já indica "cancelada", tentar via URL oficial.
-        err = str(out.get('error') or '')
-        if (
-            ('E160' in err or 'E183' in err or 'XML Schema' in err)
-            and getattr(nfse, 'numero_nf', None)
-        ):
-            try:
-                with issnet_client_loja(cfg) as client2:
-                    url_out = client2.consultar_url_nfse(
-                        numero_nf=str(nfse.numero_nf),
-                        prestador_cnpj=str(cnpj_prestador),
-                        inscricao_municipal=str(im_prestador),
-                    )
-                    if url_out.get('success') and url_out.get('url'):
-                        ver = client2.inferir_cancelada_por_url(url=str(url_out['url']))
-                        if ver.get('success') and ver.get('cancelada'):
-                            from django.utils import timezone
-
-                            if nfse.status != 'cancelada':
-                                nfse.status = 'cancelada'
-                                nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
-                                nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
-                            nfse.refresh_from_db()
-                            return (
-                                {
-                                    'success': True,
-                                    'message': 'NFS-e marcada como cancelada conforme o portal ISSNet.',
-                                    'nfse': NFSeSerializer(nfse).data,
-                                },
-                                http_status.HTTP_200_OK,
-                            )
-            except Exception:
-                pass
-
-        return ({'error': out.get('error', 'Erro ao consultar ISSNet')}, http_status.HTTP_400_BAD_REQUEST)
-
-    if out.get('cancelada'):
+    if cancelada_portal:
         if nfse.status != 'cancelada':
             from django.utils import timezone
 
@@ -258,26 +225,15 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
             nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
             nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
             message = 'NFS-e marcada como cancelada conforme o ISSNet.'
-            # Se a nota foi cancelada fora do fluxo (ex.: no portal), avisar o tomador automaticamente.
-            if getattr(nfse, 'tomador_email', None):
-                try:
-                    from nfse_integration.danfe import buscar_url_danfe_issnet
-                    from nfse_integration.email_nfse import enviar_email_nfse_cancelada_tomador
-
-                    url_danfe = buscar_url_danfe_issnet(nfse, loja_id=loja_id, loja=loja, config=cfg)
-                    enviar_email_nfse_cancelada_tomador(
-                        loja=loja,
-                        tomador_email=nfse.tomador_email,
-                        tomador_nome=getattr(nfse, 'tomador_nome', '') or 'Cliente',
-                        numero_nf=str(nfse.numero_nf or ''),
-                        valor=getattr(nfse, 'valor', 0) or 0,
-                        descricao=getattr(nfse, 'servico_descricao', '') or '',
-                        url_danfe=url_danfe,
-                        xml_content=xml_nfse_conteudo(nfse),
-                        fail_silently=True,
-                    )
-                except Exception:
-                    pass
+            try:
+                notificar_cancelamento_nfse(
+                    nfse=nfse,
+                    loja=loja,
+                    loja_id=loja_id,
+                    config=cfg,
+                )
+            except Exception:
+                pass
         else:
             message = 'NFS-e já constava como cancelada no sistema.'
     else:

@@ -125,6 +125,53 @@ def enviar_email_nfse_tomador(
     )
 
 
+def notificar_cancelamento_nfse(
+    *,
+    nfse: Any,
+    loja: Any,
+    loja_id: int | None = None,
+    config: Any | None = None,
+    fail_silently: bool = True,
+) -> None:
+    """Envia e-mail de cancelamento ao tomador (loja CRM ou superadmin)."""
+    email = (getattr(nfse, 'tomador_email', None) or '').strip()
+    if not email:
+        return
+
+    from nfse_integration.danfe import buscar_url_danfe_issnet, buscar_url_danfe_issnet_superadmin
+
+    numero_nf = str(getattr(nfse, 'numero_nf', '') or '')
+    descricao = (
+        getattr(nfse, 'servico_descricao', '')
+        or getattr(nfse, 'descricao_servico', '')
+        or ''
+    )
+    xml_content = getattr(nfse, 'xml_nfse', '') or getattr(nfse, 'xml_rps', '') or ''
+
+    if config is not None and hasattr(config, 'prestador_cnpj'):
+        url_danfe = buscar_url_danfe_issnet_superadmin(nfse, config)
+    else:
+        url_danfe = buscar_url_danfe_issnet(
+            nfse,
+            numero_nf=numero_nf,
+            loja_id=loja_id or getattr(loja, 'id', None),
+            loja=loja,
+            config=config,
+        )
+
+    enviar_email_nfse_cancelada_tomador(
+        loja=loja,
+        tomador_email=email,
+        tomador_nome=getattr(nfse, 'tomador_nome', '') or 'Cliente',
+        numero_nf=numero_nf,
+        valor=getattr(nfse, 'valor', 0) or 0,
+        descricao=descricao,
+        url_danfe=url_danfe,
+        xml_content=xml_content,
+        fail_silently=fail_silently,
+    )
+
+
 def enviar_email_nfse_cancelada_tomador(
     *,
     loja: Any,

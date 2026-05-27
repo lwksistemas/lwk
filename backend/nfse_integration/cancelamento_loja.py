@@ -5,10 +5,18 @@ from typing import Any
 
 from django.utils import timezone
 
+from nfse_integration.email_nfse import notificar_cancelamento_nfse
 from nfse_integration.issnet_loja import certificado_configurado_loja, issnet_client_loja
 from nfse_integration.issnet_shared import CODIGOS_CANCELAMENTO, normalizar_codigo_cancelamento
+from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
 
 logger = logging.getLogger(__name__)
+
+
+def _marcar_cancelada_loja(nfse: Any) -> None:
+    nfse.status = 'cancelada'
+    nfse.data_cancelamento = timezone.now()
+    nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
 
 
 def cancelar_nfse_loja(
@@ -19,7 +27,7 @@ def cancelar_nfse_loja(
     motivo: str,
     codigo_cancelamento: str | int | None = '1',
 ) -> dict[str, Any]:
-    """Cancela NFS-e no ISSNet (quando aplicavel) e atualiza status local."""
+    """Cancela NFS-e no ISSNet (quando aplicável) e atualiza status local."""
     if not nfse.pode_cancelar():
         return {'success': False, 'error': 'Esta NFS-e não pode ser cancelada'}
 
@@ -35,9 +43,7 @@ def cancelar_nfse_loja(
 
     if provedor == 'issnet' and numero_nf and not str(numero_nf).startswith('FALHA-'):
         if not certificado_configurado_loja(config):
-            nfse.status = 'cancelada'
-            nfse.data_cancelamento = timezone.now()
-            nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+            _marcar_cancelada_loja(nfse)
             return {
                 'success': True,
                 'message': (
@@ -46,13 +52,16 @@ def cancelar_nfse_loja(
                 ),
             }
 
+        cnpj_prestador = re.sub(r'\D', '', loja.cpf_cnpj or '')
+        im_prestador = (
+            getattr(config, 'inscricao_municipal', '')
+            or getattr(loja, 'inscricao_municipal', '')
+            or ''
+        )
+        serie = getattr(config, 'issnet_serie_rps', '1') or '1'
+        numero_rps = int(nfse.numero_rps) if nfse.numero_rps else None
+
         try:
-            cnpj_prestador = re.sub(r'\D', '', loja.cpf_cnpj or '')
-            im_prestador = (
-                getattr(config, 'inscricao_municipal', '')
-                or getattr(loja, 'inscricao_municipal', '')
-                or ''
-            )
             with issnet_client_loja(config) as client:
                 resultado = client.cancelar_nfse(
                     numero_nf=numero_nf,
@@ -61,62 +70,44 @@ def cancelar_nfse_loja(
                     inscricao_municipal=im_prestador,
                     codigo_cancelamento=codigo,
                 )
-            if resultado.get('success'):
-                nfse.status = 'cancelada'
-                nfse.data_cancelamento = timezone.now()
-                nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
-                # Enviar e-mail automático ao tomador, se existir.
-                if getattr(nfse, 'tomador_email', None):
+                if resultado.get('success'):
+                    _marcar_cancelada_loja(nfse)
                     try:
-                        from nfse_integration.danfe import buscar_url_danfe_issnet
-                        from nfse_integration.email_nfse import (
-                            enviar_email_nfse_cancelada_tomador,
-                        )
-
-                        url_danfe = buscar_url_danfe_issnet(
-                            nfse,
+                        notificar_cancelamento_nfse(
+                            nfse=nfse,
+                            loja=loja,
                             loja_id=getattr(loja, 'id', None),
-                            loja=loja,
                             config=config,
-                        )
-                        enviar_email_nfse_cancelada_tomador(
-                            loja=loja,
-                            tomador_email=nfse.tomador_email,
-                            tomador_nome=getattr(nfse, 'tomador_nome', '') or 'Cliente',
-                            numero_nf=str(nfse.numero_nf or numero_nf),
-                            valor=getattr(nfse, 'valor', 0) or 0,
-                            descricao=getattr(nfse, 'servico_descricao', '') or '',
-                            url_danfe=url_danfe,
-                            xml_content=(getattr(nfse, 'xml_nfse', '') or getattr(nfse, 'xml_rps', '') or ''),
-                            fail_silently=True,
                         )
                     except Exception as exc:
                         logger.warning('Falha ao enviar email de cancelamento: %s', exc)
-                return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
+                    return {'success': True, 'message': 'NFS-e cancelada com sucesso'}
 
-            # Cancelou no ISSNet mas o retorno veio ambíguo/erro de parser — confirmar por RPS.
-            if nfse.numero_rps:
-                try:
-                    serie = getattr(config, 'issnet_serie_rps', '1') or '1'
-                    verif = client.consultar_nfse_por_rps(
-                        numero_rps=int(nfse.numero_rps),
-                        serie_rps=str(serie),
-                        prestador_cnpj=cnpj_prestador,
-                        inscricao_municipal=im_prestador,
-                    )
-                    if verif.get('cancelada'):
-                        nfse.status = 'cancelada'
-                        nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
-                        nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
-                        return {
-                            'success': True,
-                            'message': (
-                                'NFS-e cancelada no ISSNet. O status foi sincronizado '
-                                '(a prefeitura confirmou o cancelamento).'
-                            ),
-                        }
-                except Exception as exc:
-                    logger.warning('Falha ao verificar cancelamento por RPS: %s', exc)
+                if consultar_nfse_cancelada_issnet(
+                    client,
+                    numero_nf=str(numero_nf),
+                    numero_rps=numero_rps,
+                    serie_rps=str(serie),
+                    prestador_cnpj=cnpj_prestador,
+                    inscricao_municipal=im_prestador,
+                ):
+                    _marcar_cancelada_loja(nfse)
+                    try:
+                        notificar_cancelamento_nfse(
+                            nfse=nfse,
+                            loja=loja,
+                            loja_id=getattr(loja, 'id', None),
+                            config=config,
+                        )
+                    except Exception as exc:
+                        logger.warning('Falha ao enviar email de cancelamento: %s', exc)
+                    return {
+                        'success': True,
+                        'message': (
+                            'NFS-e cancelada no ISSNet. O status foi sincronizado '
+                            '(a prefeitura confirmou o cancelamento).'
+                        ),
+                    }
 
             return {
                 'success': False,
@@ -126,7 +117,5 @@ def cancelar_nfse_loja(
             logger.exception('Erro ao cancelar NFS-e via ISSNet: %s', exc)
             return {'success': False, 'error': str(exc)}
 
-    nfse.status = 'cancelada'
-    nfse.data_cancelamento = timezone.now()
-    nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+    _marcar_cancelada_loja(nfse)
     return {'success': True, 'message': 'NFS-e marcada como cancelada'}

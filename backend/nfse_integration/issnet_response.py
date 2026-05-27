@@ -1,0 +1,202 @@
+"""Parsers de resposta XML/SOAP do ISSNet."""
+import re
+from datetime import datetime
+from typing import Any, Dict
+
+from lxml import etree
+from xml.sax.saxutils import escape as xml_escape
+
+from nfse_integration.issnet_constants import NS_NFSE
+
+
+def extrair_body_soap(soap_xml: str) -> str:
+    try:
+        root = etree.fromstring(soap_xml.encode('utf-8') if isinstance(soap_xml, str) else soap_xml)
+        body = root.find('.//{http://schemas.xmlsoap.org/soap/envelope/}Body')
+        if body is None:
+            body = root.find('.//{http://www.w3.org/2003/05/soap-envelope}Body')
+        if body is not None and len(body) > 0:
+            first = body[0]
+            tag = etree.QName(first.tag).localname if isinstance(first.tag, str) else ''
+            if tag == 'Fault':
+                faultstring = first.findtext(
+                    '{http://schemas.xmlsoap.org/soap/envelope/}faultstring', ''
+                ) or first.findtext('faultstring', '')
+                detail = first.findtext(
+                    '{http://schemas.xmlsoap.org/soap/envelope/}detail', ''
+                ) or first.findtext('detail', '')
+                if not (detail or '').strip():
+                    for el in first.iter():
+                        if etree.QName(el.tag).localname == 'detail':
+                            detail = ''.join(el.itertext()).strip()
+                            break
+                msg = faultstring or 'Erro SOAP desconhecido'
+                if (msg or '').strip().lower() == 'error':
+                    msg = (
+                        'Erro genérico do webservice ISSNet (sem detail). '
+                        'Verifique certificado mTLS, cadastro na prefeitura e XML (RPS/assinatura). '
+                        'Se o mesmo RPS foi tentado várias vezes, confira no portal ISSNet o último '
+                        'RPS aceito e atualize no CRM o campo «Último RPS conhecido».'
+                    )
+                if detail:
+                    msg += f' - {detail}'
+                return (
+                    f'<ListaMensagemRetorno xmlns="{NS_NFSE}">'
+                    f'<MensagemRetorno>'
+                    f'<Codigo>SOAP</Codigo>'
+                    f'<Mensagem>{xml_escape(msg)}</Mensagem>'
+                    f'</MensagemRetorno>'
+                    f'</ListaMensagemRetorno>'
+                )
+            for el in first.iter():
+                if etree.QName(el.tag).localname == 'outputXML':
+                    inner = (el.text or '').strip()
+                    if inner:
+                        return inner
+            return etree.tostring(first, encoding='unicode')
+        return soap_xml
+    except Exception:
+        return soap_xml
+
+
+def parse_resposta_xml(xml_str: str) -> Dict[str, Any]:
+    try:
+        root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
+    except etree.XMLSyntaxError:
+        amostra = (xml_str or '')[:400].strip()
+        amostra = ' '.join(amostra.split())
+        if amostra and not amostra.startswith('<'):
+            return {
+                'success': False,
+                'error': (
+                    'Resposta do ISSNet não é XML válido (provável indisponibilidade do serviço). '
+                    f'{amostra}'
+                ),
+            }
+        return {'success': False, 'error': f'XML inválido na resposta do ISSNet: {amostra}'}
+
+    nsmap = {'ns': NS_NFSE}
+    msgs = root.findall('.//ns:MensagemRetorno', nsmap)
+    if msgs:
+        erros = []
+        for msg in msgs:
+            codigo = (msg.findtext('ns:Codigo', '', nsmap) or '').strip()
+            mensagem = msg.findtext('ns:Mensagem', '', nsmap)
+            correcao = msg.findtext('ns:Correcao', '', nsmap)
+            texto = f'[{codigo}] {mensagem}'
+            if correcao:
+                texto += f' - {correcao}'
+            if codigo.upper() == 'E138':
+                texto += (
+                    ' Em Ribeirao Preto (ISSNet), o codigo E138 costuma indicar falta de '
+                    'autorizacao da prefeitura para emissao via webservice em producao para este CNPJ; '
+                    'abra protocolo ou e-mail ao ISS municipal solicitando liberacao do ambiente de '
+                    'integracao (conforme orientacao da prefeitura / Nota Control).'
+                )
+            erros.append(texto)
+        return {'success': False, 'error': '; '.join(erros)}
+
+    nfse_el = root.find('.//ns:CompNfse/ns:Nfse/ns:InfNfse', nsmap)
+    if nfse_el is None:
+        nfse_el = root.find('.//ns:Nfse/ns:InfNfse', nsmap)
+    if nfse_el is None:
+        nfse_el = root.find('.//{%s}InfNfse' % NS_NFSE)
+
+    if nfse_el is not None:
+        numero = nfse_el.findtext('{%s}Numero' % NS_NFSE, '')
+        cod_ver = nfse_el.findtext('{%s}CodigoVerificacao' % NS_NFSE, '')
+        dt_text = nfse_el.findtext('{%s}DataEmissao' % NS_NFSE, '')
+        dt_emissao = datetime.now()
+        if dt_text:
+            try:
+                dt_emissao = datetime.fromisoformat(dt_text.replace('Z', '+00:00'))
+            except Exception:
+                pass
+        return {
+            'success': True,
+            'numero_nf': numero,
+            'codigo_verificacao': cod_ver,
+            'data_emissao': dt_emissao,
+            'xml_nfse': xml_str,
+        }
+
+    return {
+        'success': False,
+        'error': f'NFS-e nao encontrada na resposta: {xml_str[:500]}',
+    }
+
+
+def extrair_erros(texto: str) -> str:
+    erros = re.findall(r'<Mensagem>(.*?)</Mensagem>', texto)
+    return '; '.join(erros) if erros else texto[:500]
+
+
+def parse_resposta_cancelamento(xml_str: str) -> Dict[str, Any]:
+    texto = (xml_str or '').strip()
+    if not texto:
+        return {'success': False, 'error': 'Resposta vazia do ISSNet no cancelamento.'}
+
+    if re.search(r'<\s*Fault\b', texto, re.I):
+        return {
+            'success': False,
+            'error': (
+                'Erro genérico do webservice ISSNet no cancelamento. '
+                'Tente novamente ou sincronize o status da nota.'
+            ),
+        }
+
+    try:
+        root = etree.fromstring(texto.encode('utf-8'))
+    except etree.XMLSyntaxError:
+        amostra = ' '.join(texto[:400].split())
+        return {'success': False, 'error': f'XML inválido na resposta do cancelamento: {amostra}'}
+
+    nsmap = {'ns': NS_NFSE}
+    msgs = root.findall('.//ns:MensagemRetorno', nsmap)
+    if not msgs:
+        msgs = root.findall('.//MensagemRetorno')
+
+    if msgs:
+        erros = []
+        for msg in msgs:
+            codigo = (msg.findtext('ns:Codigo', '', nsmap) or msg.findtext('Codigo') or '').strip()
+            mensagem = msg.findtext('ns:Mensagem', '', nsmap) or msg.findtext('Mensagem') or ''
+            correcao = msg.findtext('ns:Correcao', '', nsmap) or msg.findtext('Correcao') or ''
+            texto_erro = f'[{codigo}] {mensagem}'.strip()
+            if correcao:
+                texto_erro += f' - {correcao}'
+            if codigo.upper() == 'E206':
+                texto_erro += (
+                    ' Para “Erro na emissão”, a prefeitura exige substituição de NFS-e '
+                    '(não cancelamento via webservice). Use o motivo 2 (Serviço não prestado) '
+                    'ou cancele/substitua no portal ISSNet.'
+                )
+            erros.append(texto_erro)
+        return {'success': False, 'error': '; '.join(erros)}
+
+    if re.search(
+        r'<\s*(Cancelamento|CancelarNfseResposta|NfseCancelada|ConfirmacaoCancelamento)\b',
+        texto,
+        re.I,
+    ):
+        return {'success': True, 'message': 'NFS-e cancelada com sucesso no ISSNet'}
+
+    if re.search(r'DataHoraCancelamento|DataHora\s*Cancelamento', texto, re.I):
+        return {'success': True, 'message': 'NFS-e cancelada com sucesso no ISSNet'}
+
+    return {
+        'success': False,
+        'error': f'Cancelamento não confirmado na resposta do ISSNet: {texto[:500]}',
+    }
+
+
+def interpretar_cancelamento(parsed: Dict[str, Any], xml_body: str) -> Dict[str, Any]:
+    especifico = parse_resposta_cancelamento(xml_body or '')
+    if especifico.get('success'):
+        return especifico
+    if especifico.get('error') and 'MensagemRetorno' in (xml_body or ''):
+        return especifico
+    err = str((parsed or {}).get('error') or '')
+    if parsed and parsed.get('success') is False and 'NFS-e nao encontrada na resposta' in err:
+        return especifico
+    return parsed if parsed else especifico

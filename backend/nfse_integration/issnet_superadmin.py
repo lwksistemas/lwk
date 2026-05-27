@@ -1,15 +1,22 @@
-"""Cliente ISSNet a partir da SuperadminNFSeConfig (certificado em arquivo temporario)."""
+"""ISSNet no contexto superadmin (NFSeEmitida). Cliente em issnet_client_factory."""
 import logging
-import os
-import tempfile
-from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any
 
 from django.utils import timezone
 
+from nfse_integration.issnet_client_factory import issnet_client_superadmin
 from nfse_integration.issnet_shared import CODIGOS_CANCELAMENTO, normalizar_codigo_cancelamento
+from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    'certificado_configurado',
+    'senha_certificado_configurada',
+    'issnet_client_superadmin',
+    'cancelar_nfse_emitida_superadmin',
+    'consultar_url_nfse_superadmin',
+]
 
 
 def certificado_configurado(config: Any) -> bool:
@@ -17,43 +24,13 @@ def certificado_configurado(config: Any) -> bool:
 
 
 def senha_certificado_configurada(config: Any) -> bool:
-    return bool(
-        config.issnet_senha_certificado or config.nacional_senha_certificado
-    )
+    return bool(config.issnet_senha_certificado or config.nacional_senha_certificado)
 
 
-@contextmanager
-def issnet_client_superadmin(
-    config: Any, *, prefix: str = 'issnet_'
-) -> Generator[Any, None, None]:
-    """Abre ISSNetClient com certificado PFX temporario; remove o arquivo ao sair."""
-    from nfse_integration.issnet_client import ISSNetClient
-
-    cert_data = config.issnet_certificado or config.nacional_certificado
-    if not cert_data:
-        raise ValueError('Certificado não configurado')
-
-    senha_cert = (
-        config.issnet_senha_certificado or config.nacional_senha_certificado or ''
-    )
-    cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix=prefix)
-    try:
-        cert_tmp.write(bytes(cert_data))
-        cert_tmp.close()
-        client = ISSNetClient(
-            usuario=config.issnet_usuario or '',
-            senha=config.issnet_senha or '',
-            certificado_path=cert_tmp.name,
-            senha_certificado=senha_cert,
-            ambiente=config.nacional_ambiente or 'producao',
-        )
-        yield client
-    finally:
-        if os.path.isfile(cert_tmp.name):
-            try:
-                os.unlink(cert_tmp.name)
-            except OSError:
-                pass
+def _marcar_cancelada(nf: Any) -> None:
+    nf.status = 'cancelada'
+    nf.data_cancelamento = nf.data_cancelamento or timezone.now()
+    nf.save(update_fields=['status', 'data_cancelamento'])
 
 
 def cancelar_nfse_emitida_superadmin(
@@ -62,18 +39,13 @@ def cancelar_nfse_emitida_superadmin(
     codigo_cancelamento: str | int | None,
     motivo_texto: str,
 ) -> dict[str, Any]:
-    """
-    Cancela NFSeEmitida no ISSNet (quando aplicavel) e atualiza status local.
-    Retorna dict com success, message ou error.
-    """
+    """Cancela NFSeEmitida no ISSNet (quando aplicável) e atualiza status local."""
     codigo = normalizar_codigo_cancelamento(codigo_cancelamento)
     motivo_issnet = motivo_texto or CODIGOS_CANCELAMENTO[codigo]
 
     if nf.provedor == 'issnet' and nf.numero_nf:
         if not certificado_configurado(config):
-            nf.status = 'cancelada'
-            nf.data_cancelamento = timezone.now()
-            nf.save()
+            _marcar_cancelada(nf)
             return {
                 'success': True,
                 'message': (
@@ -82,88 +54,61 @@ def cancelar_nfse_emitida_superadmin(
                 ),
             }
 
-        with issnet_client_superadmin(config) as client:
-            resultado = client.cancelar_nfse(
-                numero_nf=nf.numero_nf,
-                motivo=motivo_issnet,
-                prestador_cnpj=config.prestador_cnpj or '',
-                inscricao_municipal=config.prestador_inscricao_municipal or '',
-                codigo_cancelamento=codigo,
-            )
+        cnpj = config.prestador_cnpj or ''
+        im = config.prestador_inscricao_municipal or ''
+        serie = (getattr(nf, 'serie_rps', '') or '1').strip() or '1'
+        numero_rps = int(nf.numero_rps) if getattr(nf, 'numero_rps', 0) else None
 
-        if resultado.get('success'):
-            nf.status = 'cancelada'
-            nf.data_cancelamento = timezone.now()
-            nf.save()
-            return {
-                'success': True,
-                'message': f'NFS-e {nf.numero_nf} cancelada no ISSNet e no sistema.',
-            }
-
-        # Se o ISSNet cancelou mas o retorno veio ambíguo/erro, tentar confirmar e sincronizar.
-        # (Mesma ideia aplicada no fluxo da loja.)
         try:
             with issnet_client_superadmin(config) as client:
-                # 1) Tentar confirmar via RPS quando disponível
-                if getattr(nf, 'numero_rps', 0):
-                    serie = (getattr(nf, 'serie_rps', '') or '1').strip() or '1'
-                    ver = client.consultar_nfse_por_rps(
-                        numero_rps=int(nf.numero_rps),
-                        serie_rps=str(serie),
-                        prestador_cnpj=config.prestador_cnpj or '',
-                        inscricao_municipal=config.prestador_inscricao_municipal or '',
-                    )
-                    if ver.get('cancelada'):
-                        nf.status = 'cancelada'
-                        nf.data_cancelamento = nf.data_cancelamento or timezone.now()
-                        nf.save(update_fields=['status', 'data_cancelamento'])
-                        return {
-                            'success': True,
-                            'message': (
-                                f'NFS-e {nf.numero_nf} cancelada no ISSNet. '
-                                'Status sincronizado após confirmação por RPS.'
-                            ),
-                        }
-
-                # 2) Fallback via URL do portal (útil quando ConsultarNfsePorRps falha com E160/E183)
-                url_out = client.consultar_url_nfse(
-                    numero_nf=str(nf.numero_nf),
-                    prestador_cnpj=config.prestador_cnpj or '',
-                    inscricao_municipal=config.prestador_inscricao_municipal or '',
+                resultado = client.cancelar_nfse(
+                    numero_nf=nf.numero_nf,
+                    motivo=motivo_issnet,
+                    prestador_cnpj=cnpj,
+                    inscricao_municipal=im,
+                    codigo_cancelamento=codigo,
                 )
-                if url_out.get('success') and url_out.get('url'):
-                    inf = client.inferir_cancelada_por_url(url=str(url_out['url']))
-                    if inf.get('success') and inf.get('cancelada'):
-                        nf.status = 'cancelada'
-                        nf.data_cancelamento = nf.data_cancelamento or timezone.now()
-                        nf.save(update_fields=['status', 'data_cancelamento'])
-                        return {
-                            'success': True,
-                            'message': (
-                                f'NFS-e {nf.numero_nf} marcada como cancelada '
-                                'conforme o portal ISSNet.'
-                            ),
-                        }
-        except Exception:
-            # Não quebrar o cancelamento por falha de verificação.
-            pass
+                if resultado.get('success'):
+                    _marcar_cancelada(nf)
+                    return {
+                        'success': True,
+                        'message': f'NFS-e {nf.numero_nf} cancelada no ISSNet e no sistema.',
+                    }
 
-        return {
-            'success': False,
-            'error': (
-                f'Erro ao cancelar no ISSNet: '
-                f'{resultado.get("error", "Erro desconhecido")}'
-            ),
-        }
+                if consultar_nfse_cancelada_issnet(
+                    client,
+                    numero_nf=str(nf.numero_nf),
+                    numero_rps=numero_rps,
+                    serie_rps=serie,
+                    prestador_cnpj=cnpj,
+                    inscricao_municipal=im,
+                ):
+                    _marcar_cancelada(nf)
+                    return {
+                        'success': True,
+                        'message': (
+                            f'NFS-e {nf.numero_nf} cancelada no ISSNet. '
+                            'Status sincronizado com o portal.'
+                        ),
+                    }
 
-    nf.status = 'cancelada'
-    nf.data_cancelamento = timezone.now()
-    nf.save()
+                return {
+                    'success': False,
+                    'error': (
+                        f'Erro ao cancelar no ISSNet: '
+                        f'{resultado.get("error", "Erro desconhecido")}'
+                    ),
+                }
+        except Exception as exc:
+            logger.exception('Erro ao cancelar NFS-e superadmin via ISSNet: %s', exc)
+            return {'success': False, 'error': str(exc)}
+
+    _marcar_cancelada(nf)
     return {'success': True, 'message': 'NFS-e marcada como cancelada'}
 
 
 def consultar_url_nfse_superadmin(nf: Any, config: Any) -> dict[str, Any]:
-    """Chama ConsultarUrlNfse no ISSNet (diagnostico superadmin)."""
+    """Chama ConsultarUrlNfse no ISSNet (diagnóstico superadmin)."""
     with issnet_client_superadmin(config, prefix='issnet_dbg_') as client:
         return client.consultar_url_nfse(
             numero_nf=nf.numero_nf,

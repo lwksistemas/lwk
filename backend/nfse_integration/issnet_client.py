@@ -21,35 +21,45 @@ from decimal import Decimal
 
 from lxml import etree
 
+from nfse_integration.issnet_constants import (
+    CABEC_MSG,
+    COD_MUNICIPIO_RP,
+    ISSNET_RP_NFSE_ASMX,
+    ISSNET_RP_NFSE_HOMOLOG,
+    ISSNET_URLS,
+    NS_NFSE,
+    NS_NFSE_WSDL,
+    SOAP_ACTION_CONSULTAR_LOTE_RPS,
+    SOAP_ACTION_RECEPCIONAR_LOTE_RPS,
+    SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO,
+)
+from nfse_integration.issnet_response import (
+    extrair_body_soap,
+    extrair_erros,
+    interpretar_cancelamento,
+    parse_resposta_cancelamento,
+    parse_resposta_xml,
+)
+from nfse_integration.issnet_soap import (
+    issnet_corpo_parece_xml,
+    issnet_decodificar_corpo,
+    issnet_fault_soap_generico,
+    montar_soap_envelope_aninhado,
+    montar_soap_envelope_cdata,
+    montar_soap_envelope_xsd_string,
+    strip_xml_declaration,
+)
+
 logger = logging.getLogger(__name__)
 
-NS_NFSE = 'http://www.abrasf.org.br/nfse.xsd'
-# Namespace das mensagens / operacoes no WSDL (prefixo nfse: no envelope PHP).
-NS_NFSE_WSDL = 'http://nfse.abrasf.org.br'
-COD_MUNICIPIO_RP = '3543402'
-
-ISSNET_RP_NFSE_ASMX = (
-    'https://nfse.issnetonline.com.br/abrasf204/ribeiraopreto/nfse.asmx'
-)
-ISSNET_RP_NFSE_HOMOLOG = (
-    'https://nfse.issnetonline.com.br/wsnfsenacional/homologacao/nfse.asmx'
-)
-SOAP_ACTION_RECEPCIONAR_LOTE_RPS = 'http://nfse.abrasf.org.br/RecepcionarLoteRps'
-SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO = (
-    'http://nfse.abrasf.org.br/RecepcionarLoteRpsSincrono'
-)
-SOAP_ACTION_CONSULTAR_LOTE_RPS = 'http://nfse.abrasf.org.br/ConsultarLoteRps'
-ISSNET_URLS = {
-    'producao': ISSNET_RP_NFSE_ASMX,
-    'homologacao': ISSNET_RP_NFSE_HOMOLOG,
-}
-
-# XML do cabecalho ABRASF (vai como *texto* de nfseCabecMsg no ASMX, com entidades XML).
-CABEC_MSG = (
-    '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
-    '<versaoDados>2.04</versaoDados>'
-    '</cabecalho>'
-)
+# Aliases internos (compatibilidade com chamadas existentes no módulo).
+_strip_xml_declaration = strip_xml_declaration
+_montar_soap_envelope_issnet_xsd_string = montar_soap_envelope_xsd_string
+_montar_soap_envelope_issnet = montar_soap_envelope_aninhado
+_montar_soap_envelope_issnet_cdata = montar_soap_envelope_cdata
+_issnet_fault_soap_generico = issnet_fault_soap_generico
+_issnet_corpo_parece_xml = issnet_corpo_parece_xml
+_issnet_decodificar_corpo = issnet_decodificar_corpo
 
 
 def _xml_envio_para_raiz_sincrono_sem_assinar(xml_envio: str) -> str:
@@ -115,131 +125,6 @@ def _codigo_tributacao_municipio_xml(
         return digits[:20] if digits else raw.replace('.', '')
     fb = _somente_digitos(_item_lista_abrasf)
     return (fb[:20] if fb else '1401')
-
-
-def _strip_xml_declaration(fragment: str) -> str:
-    """Remove declaração <?xml ...?> do início (envelope SOAP já define encoding)."""
-    s = (fragment or '').strip()
-    if s.startswith('<?xml'):
-        s = re.sub(r'^\s*<\?xml[^>]*\?>\s*', '', s, count=1, flags=re.I)
-    return s
-
-
-def _cdata_section(payload: str) -> str:
-    """Envolve em CDATA; se existir ']]>', quebra em dois CDATA adjacentes (regra XML)."""
-    s = payload or ''
-    if ']]>' in s:
-        s = s.replace(']]>', ']]]]><![CDATA[>')
-    return f'<![CDATA[{s}]]>'
-
-
-def _montar_soap_envelope_issnet_xsd_string(nome_operacao: str, dados_xml: str) -> str:
-    """
-    nfseCabecMsg / nfseDadosMsg como conteudo textual unico (entidades XML), alinhado ao tipo WSDL xsd:string.
-    Evita que o XmlSerializer do ASMX trate filhos XML como estrutura em vez de string.
-    """
-    dados = _strip_xml_declaration(dados_xml or '')
-    cabec_raw = (
-        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
-        '<versaoDados>2.04</versaoDados>'
-        '</cabecalho>'
-    )
-    return (
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        'xmlns:nfse="http://nfse.abrasf.org.br">'
-        '<soap:Header/>'
-        '<soap:Body>'
-        f'<nfse:{nome_operacao}>'
-        f'<nfseCabecMsg>{_xml_escape(cabec_raw)}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{_xml_escape(dados)}</nfseDadosMsg>'
-        f'</nfse:{nome_operacao}>'
-        '</soap:Body>'
-        '</soap:Envelope>'
-    )
-
-
-def _montar_soap_envelope_issnet(nome_operacao: str, dados_xml: str) -> str:
-    """
-    Espelha NFePHP NFSe\\ISSNET\\Common\\Tools::envelopSOAP: corpo SOAP 1.1 com
-    ``<nfse:Operacao>``, ``nfseCabecMsg`` / ``nfseDadosMsg`` contendo filhos XML
-    reais (nao CDATA). Esse e o formato usado pelo sped-nfse-issnet em producao.
-    """
-    dados = _strip_xml_declaration(dados_xml or '')
-    cabec_txt = (
-        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
-        '<versaoDados>2.04</versaoDados>'
-        '</cabecalho>'
-    )
-    return (
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        'xmlns:nfse="http://nfse.abrasf.org.br">'
-        '<soap:Header/>'
-        '<soap:Body>'
-        f'<nfse:{nome_operacao}>'
-        f'<nfseCabecMsg>{cabec_txt}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{dados}</nfseDadosMsg>'
-        f'</nfse:{nome_operacao}>'
-        '</soap:Body>'
-        '</soap:Envelope>'
-    )
-
-
-def _montar_soap_envelope_issnet_cdata(nome_operacao: str, dados_xml: str) -> str:
-    """Mensagens em CDATA com nfse:Operacao (igual Tools::envelopSOAP)."""
-    dados = _strip_xml_declaration(dados_xml or '')
-    cabec_txt = (
-        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
-        '<versaoDados>2.04</versaoDados>'
-        '</cabecalho>'
-    )
-    return (
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        'xmlns:nfse="http://nfse.abrasf.org.br">'
-        '<soap:Header/>'
-        '<soap:Body>'
-        f'<nfse:{nome_operacao}>'
-        f'<nfseCabecMsg>{_cdata_section(cabec_txt)}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{_cdata_section(dados)}</nfseDadosMsg>'
-        f'</nfse:{nome_operacao}>'
-        '</soap:Body>'
-        '</soap:Envelope>'
-    )
-
-
-def _issnet_fault_soap_generico(texto: str) -> bool:
-    """Fault tipico ASMX sem detalhe (s:Client + faultstring Error)."""
-    t = (texto or '')
-    if 's:Client' not in t and 'Client</faultcode>' not in t:
-        return False
-    return bool(re.search(r'<faultstring>\s*Error\s*</faultstring>', t, re.I))
-
-
-def _issnet_corpo_parece_xml(texto: str) -> bool:
-    if not (texto or '').strip():
-        return False
-    return texto.lstrip().startswith('<')
-
-
-def _issnet_decodificar_corpo(resposta) -> str:
-    """Decodifica bytes da resposta HTTP para mensagens de erro legíveis (UTF-8 / Latin-1)."""
-    raw = getattr(resposta, 'content', None) or b''
-    if not raw:
-        return (getattr(resposta, 'text', None) or '').strip()
-    for enc in ('utf-8', 'utf-8-sig', 'iso-8859-1', 'windows-1252'):
-        try:
-            return raw.decode(enc)
-        except UnicodeDecodeError:
-            continue
-    return raw.decode('utf-8', errors='replace')
 
 
 def _carregar_certificado(pfx_path: str, senha: str):
@@ -1210,208 +1095,19 @@ class ISSNetClient:
             return {'success': False, 'error': str(e)}
 
     def _extrair_body_soap(self, soap_xml: str) -> str:
-        """Extrai conteudo do SOAP Body da resposta."""
-        try:
-            root = etree.fromstring(soap_xml.encode('utf-8') if isinstance(soap_xml, str) else soap_xml)
-            # Buscar Body em qualquer namespace SOAP
-            body = root.find('.//{http://schemas.xmlsoap.org/soap/envelope/}Body')
-            if body is None:
-                body = root.find('.//{http://www.w3.org/2003/05/soap-envelope}Body')
-            if body is not None and len(body) > 0:
-                first = body[0]
-                # Verificar se eh SOAP Fault
-                tag = etree.QName(first.tag).localname if isinstance(first.tag, str) else ''
-                if tag == 'Fault':
-                    faultstring = first.findtext(
-                        '{http://schemas.xmlsoap.org/soap/envelope/}faultstring', ''
-                    ) or first.findtext('faultstring', '')
-                    detail = first.findtext(
-                        '{http://schemas.xmlsoap.org/soap/envelope/}detail', ''
-                    ) or first.findtext('detail', '')
-                    if not (detail or '').strip():
-                        for el in first.iter():
-                            if etree.QName(el.tag).localname == 'detail':
-                                detail = ''.join(el.itertext()).strip()
-                                break
-                    msg = faultstring or 'Erro SOAP desconhecido'
-                    if (msg or '').strip().lower() == 'error':
-                        msg = (
-                            'Erro genérico do webservice ISSNet (sem detail). '
-                            'Verifique certificado mTLS, cadastro na prefeitura e XML (RPS/assinatura). '
-                            'Se o mesmo RPS foi tentado várias vezes, confira no portal ISSNet o último '
-                            'RPS aceito e atualize no CRM o campo «Último RPS conhecido».'
-                        )
-                    if detail:
-                        msg += f' - {detail}'
-                    # Retornar XML de erro formatado para o parser
-                    ns = NS_NFSE
-                    return (
-                        f'<ListaMensagemRetorno xmlns="{ns}">'
-                        f'<MensagemRetorno>'
-                        f'<Codigo>SOAP</Codigo>'
-                        f'<Mensagem>{_xml_escape(msg)}</Mensagem>'
-                        f'</MensagemRetorno>'
-                        f'</ListaMensagemRetorno>'
-                    )
-                # ASMX devolve o XML ABRASF dentro de outputXML (xsd:string no WSDL).
-                for el in first.iter():
-                    if etree.QName(el.tag).localname == 'outputXML':
-                        inner = (el.text or '').strip()
-                        if inner:
-                            return inner
-                return etree.tostring(first, encoding='unicode')
-            return soap_xml
-        except Exception:
-            return soap_xml
+        return extrair_body_soap(soap_xml)
 
     def _parse_resposta_xml(self, xml_str: str) -> Dict[str, Any]:
-        """Parse da resposta XML do ISSNet para extrair NFS-e ou erros."""
-        try:
-            root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
-        except etree.XMLSyntaxError:
-            amostra = (xml_str or '')[:400].strip()
-            amostra = ' '.join(amostra.split())
-            if amostra and not amostra.startswith('<'):
-                return {
-                    'success': False,
-                    'error': (
-                        'Resposta do ISSNet não é XML válido (provável indisponibilidade do serviço). '
-                        f'{amostra}'
-                    ),
-                }
-            return {'success': False, 'error': f'XML inválido na resposta do ISSNet: {amostra}'}
-
-        nsmap = {'ns': NS_NFSE}
-
-        # Verificar erros
-        msgs = root.findall('.//ns:MensagemRetorno', nsmap)
-        if msgs:
-            erros = []
-            for msg in msgs:
-                codigo = (msg.findtext('ns:Codigo', '', nsmap) or '').strip()
-                mensagem = msg.findtext('ns:Mensagem', '', nsmap)
-                correcao = msg.findtext('ns:Correcao', '', nsmap)
-                texto = f'[{codigo}] {mensagem}'
-                if correcao:
-                    texto += f' - {correcao}'
-                if codigo.upper() == 'E138':
-                    texto += (
-                        ' Em Ribeirao Preto (ISSNet), o codigo E138 costuma indicar falta de '
-                        'autorizacao da prefeitura para emissao via webservice em producao para este CNPJ; '
-                        'abra protocolo ou e-mail ao ISS municipal solicitando liberacao do ambiente de '
-                        'integracao (conforme orientacao da prefeitura / Nota Control).'
-                    )
-                erros.append(texto)
-            return {'success': False, 'error': '; '.join(erros)}
-
-        # Extrair dados da NFS-e gerada
-        nfse_el = root.find('.//ns:CompNfse/ns:Nfse/ns:InfNfse', nsmap)
-        if nfse_el is None:
-            nfse_el = root.find('.//ns:Nfse/ns:InfNfse', nsmap)
-        if nfse_el is None:
-            nfse_el = root.find('.//{%s}InfNfse' % NS_NFSE)
-
-        if nfse_el is not None:
-            numero = nfse_el.findtext('{%s}Numero' % NS_NFSE, '')
-            cod_ver = nfse_el.findtext('{%s}CodigoVerificacao' % NS_NFSE, '')
-            dt_text = nfse_el.findtext('{%s}DataEmissao' % NS_NFSE, '')
-            dt_emissao = datetime.now()
-            if dt_text:
-                try:
-                    dt_emissao = datetime.fromisoformat(dt_text.replace('Z', '+00:00'))
-                except Exception:
-                    pass
-
-            return {
-                'success': True,
-                'numero_nf': numero,
-                'codigo_verificacao': cod_ver,
-                'data_emissao': dt_emissao,
-                'xml_nfse': xml_str,
-            }
-
-        return {
-            'success': False,
-            'error': f'NFS-e nao encontrada na resposta: {xml_str[:500]}'
-        }
+        return parse_resposta_xml(xml_str)
 
     def _extrair_erros(self, texto: str) -> str:
-        """Extrai mensagens de erro de texto/XML."""
-        erros = re.findall(r'<Mensagem>(.*?)</Mensagem>', texto)
-        return '; '.join(erros) if erros else texto[:500]
+        return extrair_erros(texto)
 
     def _parse_resposta_cancelamento(self, xml_str: str) -> Dict[str, Any]:
-        """Interpreta CancelarNfseResposta (sucesso != InfNfse de emissão)."""
-        texto = (xml_str or '').strip()
-        if not texto:
-            return {'success': False, 'error': 'Resposta vazia do ISSNet no cancelamento.'}
-
-        if re.search(r'<\s*Fault\b', texto, re.I):
-            return {
-                'success': False,
-                'error': (
-                    'Erro genérico do webservice ISSNet no cancelamento. '
-                    'Tente novamente ou sincronize o status da nota.'
-                ),
-            }
-
-        try:
-            root = etree.fromstring(texto.encode('utf-8'))
-        except etree.XMLSyntaxError:
-            amostra = ' '.join(texto[:400].split())
-            return {'success': False, 'error': f'XML inválido na resposta do cancelamento: {amostra}'}
-
-        nsmap = {'ns': NS_NFSE}
-        msgs = root.findall('.//ns:MensagemRetorno', nsmap)
-        if not msgs:
-            msgs = root.findall('.//MensagemRetorno')
-
-        if msgs:
-            erros = []
-            for msg in msgs:
-                codigo = (msg.findtext('ns:Codigo', '', nsmap) or msg.findtext('Codigo') or '').strip()
-                mensagem = msg.findtext('ns:Mensagem', '', nsmap) or msg.findtext('Mensagem') or ''
-                correcao = msg.findtext('ns:Correcao', '', nsmap) or msg.findtext('Correcao') or ''
-                texto_erro = f'[{codigo}] {mensagem}'.strip()
-                if correcao:
-                    texto_erro += f' - {correcao}'
-                if codigo.upper() == 'E206':
-                    texto_erro += (
-                        ' Para “Erro na emissão”, a prefeitura exige substituição de NFS-e '
-                        '(não cancelamento via webservice). Use o motivo 2 (Serviço não prestado) '
-                        'ou cancele/substitua no portal ISSNet.'
-                    )
-                erros.append(texto_erro)
-            return {'success': False, 'error': '; '.join(erros)}
-
-        if re.search(
-            r'<\s*(Cancelamento|CancelarNfseResposta|NfseCancelada|ConfirmacaoCancelamento)\b',
-            texto,
-            re.I,
-        ):
-            return {'success': True, 'message': 'NFS-e cancelada com sucesso no ISSNet'}
-
-        if re.search(r'DataHoraCancelamento|DataHora\s*Cancelamento', texto, re.I):
-            return {'success': True, 'message': 'NFS-e cancelada com sucesso no ISSNet'}
-
-        return {
-            'success': False,
-            'error': f'Cancelamento não confirmado na resposta do ISSNet: {texto[:500]}',
-        }
+        return parse_resposta_cancelamento(xml_str)
 
     def _interpretar_cancelamento(self, parsed: Dict[str, Any], xml_body: str) -> Dict[str, Any]:
-        """Combina parser genérico + parser específico de cancelamento."""
-        especifico = self._parse_resposta_cancelamento(xml_body or '')
-        if especifico.get('success'):
-            return especifico
-        if especifico.get('error') and 'MensagemRetorno' in (xml_body or ''):
-            return especifico
-
-        err = str((parsed or {}).get('error') or '')
-        if parsed and parsed.get('success') is False and 'NFS-e nao encontrada na resposta' in err:
-            return especifico
-
-        return parsed if parsed else especifico
+        return interpretar_cancelamento(parsed, xml_body)
 
     # ------------------------------------------------------------------
     # Consultar NFS-e por RPS

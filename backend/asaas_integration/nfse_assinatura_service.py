@@ -211,6 +211,8 @@ def _emitir_via_issnet(
     try:
         from nfse_integration.issnet_client import ISSNetClient
         import re
+        import tempfile
+        import os
 
         cert_data = config.issnet_certificado or config.nacional_certificado
         senha_cert = config.issnet_senha_certificado or config.nacional_senha_certificado
@@ -229,29 +231,46 @@ def _emitir_via_issnet(
         config.save(update_fields=['ultimo_rps', 'updated_at'])
         numero_rps = config.ultimo_rps
 
-        client = ISSNetClient(
-            pfx_bytes=bytes(cert_data),
-            senha_pfx=senha_cert,
-            cnpj_prestador=cnpj_digits,
-            inscricao_municipal=im,
-            usuario=config.issnet_usuario or '',
-            senha=config.issnet_senha or '',
-        )
+        # Salvar certificado em arquivo temporário (ISSNetClient precisa de path)
+        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_auto_')
+        cert_tmp.write(bytes(cert_data))
+        cert_tmp.close()
 
-        resultado = client.emitir_nfse(
-            numero_rps=numero_rps,
-            serie_rps=config.serie_rps or 'E',
-            tomador_cpf_cnpj=tomador_cpf_cnpj,
-            tomador_nome=tomador_nome,
-            tomador_email=tomador_email,
-            tomador_endereco=tomador_endereco,
-            servico_descricao=descricao,
-            valor_servicos=float(valor),
-            aliquota_iss=float(config.aliquota_iss),
-            codigo_servico=config.codigo_servico_municipal or '1401',
-            codigo_cnae=(config.codigo_cnae or '').strip(),
-            optante_simples=config.optante_simples_nacional,
-        )
+        try:
+            client = ISSNetClient(
+                usuario=config.issnet_usuario or '',
+                senha=config.issnet_senha or '',
+                certificado_path=cert_tmp.name,
+                senha_certificado=senha_cert,
+                ambiente=config.nacional_ambiente or 'producao',
+            )
+
+            # Configurar flags
+            client._optante_simples = config.optante_simples_nacional
+            client._incentivador_cultural = getattr(config, 'incentivador_cultural', False)
+            regime = str(getattr(config, 'regime_especial_tributacao', '0') or '0').strip()
+            client._regime_especial = regime
+
+            resultado = client.emitir_nfse(
+                prestador_cnpj=cnpj_digits,
+                prestador_inscricao_municipal=im,
+                prestador_razao_social=config.prestador_razao_social or '',
+                tomador_cpf_cnpj=tomador_cpf_cnpj,
+                tomador_nome=tomador_nome,
+                tomador_endereco=tomador_endereco,
+                servico_codigo=config.codigo_servico_municipal or '1401',
+                servico_descricao=descricao,
+                valor_servicos=float(valor),
+                aliquota_iss=float(config.aliquota_iss),
+                numero_rps=numero_rps,
+                serie_rps=config.serie_rps or 'E',
+                codigo_cnae=(config.codigo_cnae or '').strip() or None,
+            )
+        finally:
+            try:
+                os.unlink(cert_tmp.name)
+            except OSError:
+                pass
 
         if resultado.get('success'):
             logger.info(

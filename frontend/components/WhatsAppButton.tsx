@@ -11,10 +11,19 @@ interface EmpresaData {
   mensagem_whatsapp: string;
 }
 
-export default function WhatsAppButton() {
+interface WhatsAppButtonProps {
+  empresa?: EmpresaData | null;
+}
+
+export default function WhatsAppButton({ empresa: empresaProp }: WhatsAppButtonProps) {
   const [empresa, setEmpresa] = useState<EmpresaData | null>(null);
 
   useEffect(() => {
+    if (empresaProp?.telefone_whatsapp) {
+      setEmpresa(empresaProp);
+      return;
+    }
+
     fetch(`${API_URL}/api/homepage/`, {
       headers: { Accept: 'application/json' },
     })
@@ -28,7 +37,7 @@ export default function WhatsAppButton() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [empresaProp]);
 
   // Não exibe o botão se não houver número configurado
   if (!empresa?.telefone_whatsapp) return null;

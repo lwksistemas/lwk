@@ -13,10 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Modal } from '@/components/ui/Modal';
-import { Home, RefreshCw, Plus, Save } from 'lucide-react';
+import { Home, RefreshCw, Save } from 'lucide-react';
 import CloudinaryConfig from '@/components/superadmin/CloudinaryConfig';
 import { ImageUpload } from '@/components/ImageUpload';
-import { BulkActionList } from '@/components/superadmin/BulkActionList';
 import { FuncionalidadeForm } from '@/components/superadmin/homepage/FuncionalidadeForm';
 import { ModuloForm } from '@/components/superadmin/homepage/ModuloForm';
 import { WhyUsForm } from '@/components/superadmin/homepage/WhyUsForm';
@@ -24,6 +23,7 @@ import { WhyUsForm } from '@/components/superadmin/homepage/WhyUsForm';
 import { useHomepageConfig } from './useHomepageConfig';
 import { HeroImagensTab } from './HeroImagensTab';
 import { EmpresaTab } from './EmpresaTab';
+import { ListSectionCard } from './ListSectionCard';
 
 export default function HomepageConfigPage() {
   const config = useHomepageConfig();
@@ -105,140 +105,113 @@ export default function HomepageConfigPage() {
 
           {/* Funcionalidades */}
           <TabsContent value="funcionalidades">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Funcionalidades</CardTitle>
-                  <CardDescription>Destaques exibidos na homepage (título, descrição, ícone)</CardDescription>
-                </div>
-                <Button size="sm" onClick={() => config.setShowAddFunc(true)}>
-                  <Plus className="w-4 h-4 mr-2" />Nova
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <BulkActionList
-                  items={config.funcionalidades}
-                  searchValue={config.searchFunc}
-                  onSearchChange={config.setSearchFunc}
-                  filterValue={config.filterFuncAtivo}
-                  onFilterChange={config.setFilterFuncAtivo}
-                  selectedIds={config.selectedFunc}
-                  onToggleSelect={config.toggleSelectFunc}
-                  onToggleSelectAll={config.toggleSelectAllFunc}
-                  onBulkAction={(action) => config.bulkAction('func', action)}
-                  onReorder={(id, direction) => config.reorderItem('func', id, direction)}
-                  onEdit={(item) => config.setEditingFunc(item)}
-                  onDelete={(id, name) => config.setDeleteConfirm({ type: 'func', id, nome: name })}
-                  renderItem={(f) => (
-                    <>
-                      <p className="font-medium">{f.titulo}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{f.descricao}</p>
-                      {f.icone && <span className="text-xs text-gray-500">Ícone: {f.icone}</span>}
-                    </>
-                  )}
-                  getItemName={(f) => f.titulo}
-                  searchPlaceholder="Buscar por título ou descrição..."
-                  emptyMessage={
-                    config.searchFunc || config.filterFuncAtivo !== 'all'
-                      ? 'Nenhuma funcionalidade encontrada com os filtros aplicados.'
-                      : 'Nenhuma funcionalidade. Clique em Nova para adicionar.'
-                  }
-                  saving={config.saving}
-                />
-              </CardContent>
-            </Card>
+            <ListSectionCard
+              title="Funcionalidades"
+              description="Destaques exibidos na homepage (título, descrição, ícone)"
+              addLabel="Nova"
+              onAdd={() => config.setShowAddFunc(true)}
+              items={config.funcionalidades}
+              searchValue={config.searchFunc}
+              onSearchChange={config.setSearchFunc}
+              filterValue={config.filterFuncAtivo}
+              onFilterChange={config.setFilterFuncAtivo}
+              selectedIds={config.selectedFunc}
+              onToggleSelect={config.toggleSelectFunc}
+              onToggleSelectAll={config.toggleSelectAllFunc}
+              onBulkAction={(action) => config.bulkAction('func', action)}
+              onReorder={(id, direction) => config.reorderItem('func', id, direction)}
+              onEdit={(item) => config.setEditingFunc(item as any)}
+              onDelete={(id, name) => config.setDeleteConfirm({ type: 'func', id, nome: name })}
+              renderItem={(f: any) => (
+                <>
+                  <p className="font-medium">{f.titulo}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{f.descricao}</p>
+                  {f.icone && <span className="text-xs text-gray-500">Ícone: {f.icone}</span>}
+                </>
+              )}
+              getItemName={(f: any) => f.titulo}
+              searchPlaceholder="Buscar por título ou descrição..."
+              emptyMessage={
+                config.searchFunc || config.filterFuncAtivo !== 'all'
+                  ? 'Nenhuma funcionalidade encontrada com os filtros aplicados.'
+                  : 'Nenhuma funcionalidade. Clique em Nova para adicionar.'
+              }
+              saving={config.saving}
+            />
           </TabsContent>
 
           {/* Módulos */}
           <TabsContent value="modulos">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Módulos do Sistema</CardTitle>
-                  <CardDescription>Sistemas disponíveis com links para login (slug = /loja/slug/login)</CardDescription>
-                </div>
-                <Button size="sm" onClick={() => config.setShowAddMod(true)}>
-                  <Plus className="w-4 h-4 mr-2" />Novo
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <BulkActionList
-                  items={config.modulos}
-                  searchValue={config.searchMod}
-                  onSearchChange={config.setSearchMod}
-                  filterValue={config.filterModAtivo}
-                  onFilterChange={config.setFilterModAtivo}
-                  selectedIds={config.selectedMod}
-                  onToggleSelect={config.toggleSelectMod}
-                  onToggleSelectAll={config.toggleSelectAllMod}
-                  onBulkAction={(action) => config.bulkAction('mod', action)}
-                  onReorder={(id, direction) => config.reorderItem('mod', id, direction)}
-                  onEdit={(item) => config.setEditingMod(item)}
-                  onDelete={(id, name) => config.setDeleteConfirm({ type: 'mod', id, nome: name })}
-                  renderItem={(m) => (
-                    <>
-                      <p className="font-medium">{m.nome}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{m.descricao}</p>
-                      {m.slug && <p className="text-xs text-gray-500">/loja/{m.slug}/login</p>}
-                    </>
-                  )}
-                  getItemName={(m) => m.nome}
-                  searchPlaceholder="Buscar por nome, descrição ou slug..."
-                  emptyMessage={
-                    config.searchMod || config.filterModAtivo !== 'all'
-                      ? 'Nenhum módulo encontrado com os filtros aplicados.'
-                      : 'Nenhum módulo. Clique em Novo para adicionar.'
-                  }
-                  saving={config.saving}
-                />
-              </CardContent>
-            </Card>
+            <ListSectionCard
+              title="Módulos do Sistema"
+              description="Sistemas disponíveis com links para login (slug = /loja/slug/login)"
+              addLabel="Novo"
+              onAdd={() => config.setShowAddMod(true)}
+              items={config.modulos}
+              searchValue={config.searchMod}
+              onSearchChange={config.setSearchMod}
+              filterValue={config.filterModAtivo}
+              onFilterChange={config.setFilterModAtivo}
+              selectedIds={config.selectedMod}
+              onToggleSelect={config.toggleSelectMod}
+              onToggleSelectAll={config.toggleSelectAllMod}
+              onBulkAction={(action) => config.bulkAction('mod', action)}
+              onReorder={(id, direction) => config.reorderItem('mod', id, direction)}
+              onEdit={(item) => config.setEditingMod(item as any)}
+              onDelete={(id, name) => config.setDeleteConfirm({ type: 'mod', id, nome: name })}
+              renderItem={(m: any) => (
+                <>
+                  <p className="font-medium">{m.nome}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{m.descricao}</p>
+                  {m.slug && <p className="text-xs text-gray-500">/loja/{m.slug}/login</p>}
+                </>
+              )}
+              getItemName={(m: any) => m.nome}
+              searchPlaceholder="Buscar por nome, descrição ou slug..."
+              emptyMessage={
+                config.searchMod || config.filterModAtivo !== 'all'
+                  ? 'Nenhum módulo encontrado com os filtros aplicados.'
+                  : 'Nenhum módulo. Clique em Novo para adicionar.'
+              }
+              saving={config.saving}
+            />
           </TabsContent>
 
           {/* WhyUs */}
           <TabsContent value="whyus">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Benefícios WhyUs</CardTitle>
-                  <CardDescription>Benefícios exibidos na seção &quot;Por que usar o LWKS?&quot;</CardDescription>
-                </div>
-                <Button size="sm" onClick={() => config.setShowAddWhyUs(true)}>
-                  <Plus className="w-4 h-4 mr-2" />Novo
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <BulkActionList
-                  items={config.whyus}
-                  searchValue={config.searchWhyUs}
-                  onSearchChange={config.setSearchWhyUs}
-                  filterValue={config.filterWhyUsAtivo}
-                  onFilterChange={config.setFilterWhyUsAtivo}
-                  selectedIds={config.selectedWhyUs}
-                  onToggleSelect={config.toggleSelectWhyUs}
-                  onToggleSelectAll={config.toggleSelectAllWhyUs}
-                  onBulkAction={(action) => config.bulkAction('whyus', action)}
-                  onReorder={(id, direction) => config.reorderItem('whyus', id, direction)}
-                  onEdit={(item) => config.setEditingWhyUs(item)}
-                  onDelete={(id, name) => config.setDeleteConfirm({ type: 'whyus', id, nome: name })}
-                  renderItem={(w) => (
-                    <>
-                      <p className="font-medium">{w.titulo}</p>
-                      {w.descricao && <p className="text-sm text-gray-600 dark:text-gray-400">{w.descricao}</p>}
-                      {w.icone && <span className="text-xs text-gray-500">Ícone: {w.icone}</span>}
-                    </>
-                  )}
-                  getItemName={(w) => w.titulo}
-                  searchPlaceholder="Buscar por título ou descrição..."
-                  emptyMessage={
-                    config.searchWhyUs || config.filterWhyUsAtivo !== 'all'
-                      ? 'Nenhum benefício encontrado com os filtros aplicados.'
-                      : 'Nenhum benefício. Clique em Novo para adicionar.'
-                  }
-                  saving={config.saving}
-                />
-              </CardContent>
-            </Card>
+            <ListSectionCard
+              title="Benefícios WhyUs"
+              description='Benefícios exibidos na seção "Por que usar o LWKS?"'
+              addLabel="Novo"
+              onAdd={() => config.setShowAddWhyUs(true)}
+              items={config.whyus}
+              searchValue={config.searchWhyUs}
+              onSearchChange={config.setSearchWhyUs}
+              filterValue={config.filterWhyUsAtivo}
+              onFilterChange={config.setFilterWhyUsAtivo}
+              selectedIds={config.selectedWhyUs}
+              onToggleSelect={config.toggleSelectWhyUs}
+              onToggleSelectAll={config.toggleSelectAllWhyUs}
+              onBulkAction={(action) => config.bulkAction('whyus', action)}
+              onReorder={(id, direction) => config.reorderItem('whyus', id, direction)}
+              onEdit={(item) => config.setEditingWhyUs(item as any)}
+              onDelete={(id, name) => config.setDeleteConfirm({ type: 'whyus', id, nome: name })}
+              renderItem={(w: any) => (
+                <>
+                  <p className="font-medium">{w.titulo}</p>
+                  {w.descricao && <p className="text-sm text-gray-600 dark:text-gray-400">{w.descricao}</p>}
+                  {w.icone && <span className="text-xs text-gray-500">Ícone: {w.icone}</span>}
+                </>
+              )}
+              getItemName={(w: any) => w.titulo}
+              searchPlaceholder="Buscar por título ou descrição..."
+              emptyMessage={
+                config.searchWhyUs || config.filterWhyUsAtivo !== 'all'
+                  ? 'Nenhum benefício encontrado com os filtros aplicados.'
+                  : 'Nenhum benefício. Clique em Novo para adicionar.'
+              }
+              saving={config.saving}
+            />
           </TabsContent>
 
           {/* Empresa */}

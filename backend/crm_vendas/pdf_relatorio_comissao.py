@@ -30,12 +30,27 @@ def _fmt_brl(valor) -> str:
 
 
 def _fmt_data(d) -> str:
+    """Formata data/datetime para exibição no fuso de Brasília (UTC-3)."""
     if not d:
         return '—'
     if hasattr(d, 'strftime'):
-        # Se tem hora (datetime), mostrar data + hora
         if hasattr(d, 'hour'):
-            return d.strftime('%d/%m/%Y %H:%M')
+            # Converter UTC → Brasília (UTC-3)
+            try:
+                import pytz
+                tz_brasilia = pytz.timezone('America/Sao_Paulo')
+                if d.tzinfo is not None:
+                    d_local = d.astimezone(tz_brasilia)
+                else:
+                    # Sem tzinfo: assumir UTC e converter
+                    import pytz as _pytz
+                    d_local = _pytz.utc.localize(d).astimezone(tz_brasilia)
+                return d_local.strftime('%d/%m/%Y %H:%M')
+            except Exception:
+                # Fallback: subtrair 3h manualmente
+                from datetime import timedelta
+                d_local = d - timedelta(hours=3)
+                return d_local.strftime('%d/%m/%Y %H:%M')
         return d.strftime('%d/%m/%Y')
     return str(d)
 
@@ -415,8 +430,14 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     elements.append(HRFlowable(width='100%', thickness=0.5, color=_CINZA_ESCURO))
     elements.append(Spacer(1, 0.1 * cm))
     from django.utils import timezone
+    try:
+        import pytz
+        agora_brasilia = timezone.now().astimezone(pytz.timezone('America/Sao_Paulo'))
+    except Exception:
+        from datetime import timedelta
+        agora_brasilia = timezone.now() - timedelta(hours=3)
     elements.append(Paragraph(
-        f'Documento gerado em {timezone.now().strftime("%d/%m/%Y às %H:%M")} | '
+        f'Documento gerado em {agora_brasilia.strftime("%d/%m/%Y às %H:%M")} | '
         f'Nº {relatorio.numero} | LWK Sistemas',
         rodape_style,
     ))

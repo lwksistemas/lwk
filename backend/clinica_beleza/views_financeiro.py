@@ -89,12 +89,22 @@ class FinanceiroResumoView(APIView):
         def _sum(qs):
             return float(qs.aggregate(total=Sum('amount'))['total'] or 0)
 
+        faturamento = _sum(Payment.objects.filter(status='PAID', payment_date__date__gte=first_day, payment_date__date__lte=today))
+        contas_a_receber = _sum(Payment.objects.filter(status='PENDING'))
+        comissao_mes = float(
+            Payment.objects.filter(status='PAID', payment_date__date__gte=first_day, payment_date__date__lte=today)
+            .aggregate(total=Sum('comissao_valor'))['total'] or 0
+        )
+        # Despesas: comissões pagas são o custo principal da clínica
+        despesas = comissao_mes
+
         return Response({
             'caixa_diario': _sum(Payment.objects.filter(status='PAID', payment_date__date=today)),
-            'total_mes': _sum(Payment.objects.filter(status='PAID', payment_date__date__gte=first_day, payment_date__date__lte=today)),
-            'contas_a_receber': _sum(Payment.objects.filter(status='PENDING')),
-            'comissao_mes': float(
-                Payment.objects.filter(status='PAID', payment_date__date__gte=first_day, payment_date__date__lte=today)
-                .aggregate(total=Sum('comissao_valor'))['total'] or 0
-            ),
+            'total_mes': faturamento,
+            'contas_a_receber': contas_a_receber,
+            'comissao_mes': comissao_mes,
+            # Campos para o dashboard moderno
+            'faturamento': faturamento,
+            'despesas': despesas,
+            'lucro': faturamento - despesas,
         })

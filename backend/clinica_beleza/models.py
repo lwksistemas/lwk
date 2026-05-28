@@ -381,3 +381,82 @@ class CampanhaPromocao(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return self.titulo
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ESTOQUE — Controle de produtos (botox, ácido hialurônico, soros, etc.)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class ProdutoEstoque(LojaIsolationMixin, models.Model):
+    """Produto do estoque da clínica (botox, ácido hialurônico, soro, etc.)"""
+    CATEGORIA_CHOICES = [
+        ('injetavel', 'Injetável'),
+        ('soroterapia', 'Soroterapia'),
+        ('cosmético', 'Cosmético'),
+        ('descartavel', 'Descartável'),
+        ('equipamento', 'Equipamento'),
+        ('outro', 'Outro'),
+    ]
+
+    nome = models.CharField(max_length=200, verbose_name="Nome do produto")
+    categoria = models.CharField(max_length=30, choices=CATEGORIA_CHOICES, default='outro', verbose_name="Categoria")
+    marca = models.CharField(max_length=100, blank=True, default='', verbose_name="Marca/Fabricante")
+    unidade_medida = models.CharField(max_length=30, default='unidade', verbose_name="Unidade de medida",
+                                      help_text="Ex: unidade, ml, mg, ampola, frasco")
+    quantidade_atual = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Quantidade atual")
+    quantidade_minima = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Estoque mínimo",
+                                            help_text="Alerta quando atingir este valor")
+    preco_custo = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Preço de custo (R$)")
+    preco_venda = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Preço de venda (R$)")
+    validade = models.DateField(null=True, blank=True, verbose_name="Data de validade")
+    lote = models.CharField(max_length=50, blank=True, default='', verbose_name="Lote")
+    observacoes = models.TextField(blank=True, default='', verbose_name="Observações")
+    is_active = models.BooleanField(default=True, verbose_name="Ativo")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        verbose_name = "Produto do estoque"
+        verbose_name_plural = "Produtos do estoque"
+        ordering = ['nome']
+
+    def __str__(self):
+        return f"{self.nome} ({self.quantidade_atual} {self.unidade_medida})"
+
+    @property
+    def estoque_baixo(self):
+        """Retorna True se estoque está abaixo do mínimo."""
+        return self.quantidade_atual <= self.quantidade_minima
+
+
+class MovimentacaoEstoque(LojaIsolationMixin, models.Model):
+    """Registro de entrada/saída de produtos do estoque."""
+    TIPO_CHOICES = [
+        ('entrada', 'Entrada'),
+        ('saida', 'Saída'),
+        ('ajuste', 'Ajuste de inventário'),
+    ]
+
+    produto = models.ForeignKey(ProdutoEstoque, on_delete=models.CASCADE, related_name='movimentacoes')
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Quantidade")
+    motivo = models.CharField(max_length=200, blank=True, default='', verbose_name="Motivo/Observação")
+    profissional = models.ForeignKey(Professional, on_delete=models.SET_NULL, null=True, blank=True,
+                                     verbose_name="Profissional responsável")
+    appointment = models.ForeignKey(Appointment, on_delete=models.SET_NULL, null=True, blank=True,
+                                    verbose_name="Agendamento vinculado")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data da movimentação")
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        verbose_name = "Movimentação de estoque"
+        verbose_name_plural = "Movimentações de estoque"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.produto.nome} ({self.quantidade})"

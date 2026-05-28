@@ -18,6 +18,10 @@ from .views import (
     WhatsAppConfigView,
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )
+from .views_estoque import (
+    ProdutoEstoqueListView, ProdutoEstoqueDetailView,
+    MovimentacaoEstoqueView, HistoricoEstoqueView, EstoqueResumoView,
+)
 
 app_name = 'clinica_beleza'
 
@@ -65,4 +69,10 @@ urlpatterns = [
     path('campanhas/', CampanhaPromocaoListView.as_view(), name='campanhas-list'),
     path('campanhas/<int:pk>/', CampanhaPromocaoDetailView.as_view(), name='campanhas-detail'),
     path('campanhas/<int:pk>/enviar/', CampanhaPromocaoEnviarView.as_view(), name='campanhas-enviar'),
+    # Estoque
+    path('estoque/', ProdutoEstoqueListView.as_view(), name='estoque-list'),
+    path('estoque/resumo/', EstoqueResumoView.as_view(), name='estoque-resumo'),
+    path('estoque/<int:pk>/', ProdutoEstoqueDetailView.as_view(), name='estoque-detail'),
+    path('estoque/<int:pk>/movimentar/', MovimentacaoEstoqueView.as_view(), name='estoque-movimentar'),
+    path('estoque/<int:pk>/historico/', HistoricoEstoqueView.as_view(), name='estoque-historico'),
 ]

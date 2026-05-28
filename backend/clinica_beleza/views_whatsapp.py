@@ -46,27 +46,31 @@ class WhatsAppConfigView(APIView):
         try:
             loja = Loja.objects.using('default').get(id=loja_id)
             owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip()
-            config, created = WhatsAppConfig.objects.get_or_create(
-                loja=loja,
-                defaults={
-                    'enviar_confirmacao': True,
-                    'enviar_lembrete_24h': True,
-                    'enviar_lembrete_2h': True,
-                    'enviar_cobranca': True,
-                    'whatsapp_numero': owner_tel or '',
-                },
-            )
-            if not created and not (config.whatsapp_numero or '').strip() and owner_tel:
+            # Usar loja_id para evitar erro de database router (FK cross-database)
+            config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+            if not config:
+                config = WhatsAppConfig(
+                    loja_id=loja_id,
+                    enviar_confirmacao=True,
+                    enviar_lembrete_24h=True,
+                    enviar_lembrete_2h=True,
+                    enviar_cobranca=True,
+                    whatsapp_numero=owner_tel or '',
+                )
+                config.save()
+            elif not (config.whatsapp_numero or '').strip() and owner_tel:
                 config.whatsapp_numero = owner_tel
                 config.save(update_fields=['whatsapp_numero', 'updated_at'])
+            # Anexar loja como atributo para uso no _serialize (evita query cross-db)
+            config._loja_cache = loja
             return config
         except Exception as e:
             logger.exception('WhatsAppConfigView._get_config erro loja_id=%s: %s', loja_id, e)
             return None
 
     def _serialize(self, config):
-        loja = config.loja
-        owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
+        loja = getattr(config, '_loja_cache', None)
+        owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip() if loja else ''
         return {
             'enviar_confirmacao': config.enviar_confirmacao,
             'enviar_lembrete_24h': config.enviar_lembrete_24h,

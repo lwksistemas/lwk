@@ -149,11 +149,12 @@ function AppointmentItem({ appt, slug }: { appt: Appointment; slug: string }) {
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: LayoutDashboard, path: 'dashboard' },
   { label: 'Agenda', icon: CalendarDays, path: 'agenda' },
-  { label: 'Pacientes', icon: Users, path: 'pacientes' },
-  { label: 'Profissionais', icon: UserCog, path: 'profissionais' },
-  { label: 'Procedimentos', icon: ClipboardList, path: 'procedimentos' },
-  { label: 'Financeiro', icon: DollarSign, path: 'financeiro' },
-  { label: 'Configurações', icon: Settings, path: 'configuracoes' },
+  { label: 'Pacientes', icon: Users, path: 'clinica-beleza/pacientes' },
+  { label: 'Profissionais', icon: UserCog, path: 'clinica-beleza/profissionais' },
+  { label: 'Procedimentos', icon: ClipboardList, path: 'clinica-beleza/procedimentos' },
+  { label: 'Estoque', icon: Activity, path: 'clinica-beleza/estoque' },
+  { label: 'Financeiro', icon: DollarSign, path: 'clinica-beleza/financeiro' },
+  { label: 'Configurações', icon: Settings, path: 'clinica-beleza/configuracoes' },
 ];
 
 // ─── Main Component ──────────────────────────────────────────────────────────

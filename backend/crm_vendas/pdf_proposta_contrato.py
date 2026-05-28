@@ -88,7 +88,7 @@ def _html_to_paragraphs(html):
 
 
 def _obter_dados_loja(loja_id):
-    """Obtém dados da loja do superadmin (nome, endereço, CPF/CNPJ, admin, logo)."""
+    """Obtém dados da loja do superadmin (nome, endereço, CPF/CNPJ, admin, logo, telefone)."""
     try:
         from superadmin.models import Loja
         loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
@@ -112,10 +112,12 @@ def _obter_dados_loja(loja_id):
         if owner:
             admin_nome = f"{getattr(owner, 'first_name', '') or ''} {getattr(owner, 'last_name', '') or ''}".strip() or getattr(owner, 'username', '') or None
             admin_email = getattr(owner, 'email', None) or None
+        telefone = getattr(loja, 'owner_telefone', '') or getattr(loja, 'telefone', '') or ''
         return {
             'nome': getattr(loja, 'nome', '') or '',
             'endereco': endereco,
             'cpf_cnpj': getattr(loja, 'cpf_cnpj', '') or None,
+            'telefone': telefone.strip() or None,
             'admin_nome': admin_nome,
             'admin_email': admin_email,
             'logo': getattr(loja, 'logo', '') or None,
@@ -174,6 +176,9 @@ def _build_cabecalho(elements, logo_url, titulo):
 
 def _build_secao_empresa(elements, loja_data, style):
     """Adiciona seção Dados da Empresa."""
+    from reportlab.platypus import Spacer
+    from reportlab.lib.units import cm
+    elements.append(Spacer(1, 0.4 * cm))
     section = ParagraphStyle('SecEmpresa', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Dados da Empresa</b>', section))
     linhas = [f"<b>Nome:</b> {loja_data.get('nome') or '—'}"]
@@ -181,6 +186,8 @@ def _build_secao_empresa(elements, loja_data, style):
         linhas.append(f"<b>Endereço:</b> {loja_data['endereco']}")
     if loja_data.get('cpf_cnpj'):
         linhas.append(f"<b>CPF/CNPJ:</b> {loja_data['cpf_cnpj']}")
+    if loja_data.get('telefone'):
+        linhas.append(f"<b>Telefone:</b> {loja_data['telefone']}")
     if loja_data.get('admin_nome'):
         linhas.append(f"<b>Administrador:</b> {loja_data['admin_nome']}")
     if loja_data.get('admin_email'):
@@ -191,6 +198,9 @@ def _build_secao_empresa(elements, loja_data, style):
 
 def _build_secao_cliente(elements, lead, style):
     """Adiciona seção Dados do Cliente."""
+    from reportlab.platypus import Spacer
+    from reportlab.lib.units import cm
+    elements.append(Spacer(1, 0.4 * cm))
     section = ParagraphStyle('SecCliente', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Dados do Cliente</b>', section))
     conta = getattr(lead, 'conta', None)
@@ -212,6 +222,9 @@ def _build_secao_cliente(elements, lead, style):
 
 def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=True):
     """Adiciona seção Produtos e Serviços."""
+    from reportlab.platypus import Spacer
+    from reportlab.lib.units import cm
+    elements.append(Spacer(1, 0.4 * cm))
     section = ParagraphStyle('SecProd', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Produtos e Serviços da Oportunidade</b>', section))
     itens = list(oportunidade.itens.select_related('produto_servico').all()) if oportunidade else []
@@ -342,6 +355,9 @@ def _build_secao_conteudo(elements, conteudo, style):
 
 def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir_assinaturas=True, tipo_doc='proposta'):
     """Adiciona seção Assinaturas com dados digitais."""
+    from reportlab.platypus import Spacer
+    from reportlab.lib.units import cm
+    elements.append(Spacer(1, 0.4 * cm))
     section = ParagraphStyle('SecAssin', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Assinaturas</b>', section))
 
@@ -459,6 +475,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     loja_data = _obter_dados_loja(loja_id) if loja_id else {}
     logo_url = loja_data.get('logo')
     _build_cabecalho(elements, logo_url, 'PROPOSTA COMERCIAL')
+    elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
 
     # Dados da Empresa
@@ -543,7 +560,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     loja_data = _obter_dados_loja(loja_id) if loja_id else {}
     logo_url = loja_data.get('logo')
     _build_cabecalho(elements, logo_url, 'CONTRATO')
-    elements.append(Spacer(1, 0.01 * cm))
+    elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', normal))
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', normal))
 

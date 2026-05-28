@@ -38,7 +38,7 @@ export default function HomepageConfigPage() {
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-zinc-950">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto px-3 py-4 sm:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
@@ -73,14 +73,14 @@ export default function HomepageConfigPage() {
         )}
 
         <Tabs defaultValue="hero-imagens" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="hero-imagens">🖼️ Imagens</TabsTrigger>
-            <TabsTrigger value="funcionalidades">Funcionalidades</TabsTrigger>
-            <TabsTrigger value="modulos">Módulos</TabsTrigger>
-            <TabsTrigger value="whyus">WhyUs</TabsTrigger>
-            <TabsTrigger value="empresa">🏢 Empresa</TabsTrigger>
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="cloudinary">Cloudinary</TabsTrigger>
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1">
+            <TabsTrigger value="hero-imagens" className="text-xs sm:text-sm">🖼️ Imagens</TabsTrigger>
+            <TabsTrigger value="funcionalidades" className="text-xs sm:text-sm">Funcionalidades</TabsTrigger>
+            <TabsTrigger value="modulos" className="text-xs sm:text-sm">Módulos</TabsTrigger>
+            <TabsTrigger value="whyus" className="text-xs sm:text-sm">WhyUs</TabsTrigger>
+            <TabsTrigger value="empresa" className="text-xs sm:text-sm">🏢 Empresa</TabsTrigger>
+            <TabsTrigger value="login" className="text-xs sm:text-sm">Login</TabsTrigger>
+            <TabsTrigger value="cloudinary" className="text-xs sm:text-sm">Cloudinary</TabsTrigger>
           </TabsList>
 
           {/* Hero Imagens */}

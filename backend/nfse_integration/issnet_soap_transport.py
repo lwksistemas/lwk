@@ -21,6 +21,18 @@ from nfse_integration.issnet_soap import (
 
 logger = logging.getLogger(__name__)
 
+# Configuração de retry
+MAX_RETRIES = 2  # Tentativas extras além da primeira
+RETRY_BACKOFF_SECONDS = [2.0, 4.0]  # Espera entre tentativas (backoff crescente)
+RETRYABLE_EXCEPTIONS = (
+    req.exceptions.ConnectionError,
+    req.exceptions.ChunkedEncodingError,
+    req.exceptions.ReadTimeout,
+    req.exceptions.ConnectTimeout,
+    ConnectionResetError,
+    OSError,
+)
+
 ZEEP_OPERACOES_MTLS = frozenset({
     'RecepcionarLoteRps',
     'RecepcionarLoteRpsSincrono',
@@ -81,9 +93,50 @@ def post_soap_operacao(
 ) -> Tuple[Dict[str, Any], str]:
     """
     POST SOAP 1.1 com mTLS; tenta Zeep primeiro, depois envelopes manuais.
+    Inclui retry com backoff exponencial para erros de rede/timeout.
     Retorna (parsed_dict, xml_body).
     """
     logger.debug('ISSNet %s SOAPAction=%s', nome_operacao, soap_action_uri)
+
+    last_error = None
+    for attempt in range(1 + MAX_RETRIES):
+        try:
+            result = _post_soap_operacao_inner(
+                base_url=base_url,
+                wsdl_url=wsdl_url,
+                certificado_path=certificado_path,
+                senha_certificado=senha_certificado,
+                nome_operacao=nome_operacao,
+                soap_action_uri=soap_action_uri,
+                dados_xml=dados_xml,
+            )
+            return result
+        except RETRYABLE_EXCEPTIONS as e:
+            last_error = e
+            if attempt < MAX_RETRIES:
+                wait = RETRY_BACKOFF_SECONDS[attempt] if attempt < len(RETRY_BACKOFF_SECONDS) else 4.0
+                logger.warning(
+                    'ISSNet %s tentativa %d/%d falhou (%s); retry em %.1fs',
+                    nome_operacao, attempt + 1, 1 + MAX_RETRIES, type(e).__name__, wait,
+                )
+                time.sleep(wait)
+            else:
+                logger.error('ISSNet %s todas as %d tentativas falharam: %s', nome_operacao, 1 + MAX_RETRIES, e)
+
+    return {'success': False, 'error': f'Erro de conexão após {1 + MAX_RETRIES} tentativas: {last_error}'}, ''
+
+
+def _post_soap_operacao_inner(
+    *,
+    base_url: str,
+    wsdl_url: str,
+    certificado_path: str,
+    senha_certificado: str,
+    nome_operacao: str,
+    soap_action_uri: str,
+    dados_xml: str,
+) -> Tuple[Dict[str, Any], str]:
+    """Implementação interna do POST SOAP (sem retry — chamada pelo wrapper)."""
 
     try:
         with certificado_mtls_temporario(certificado_path, senha_certificado) as (cert_path, key_path):
@@ -131,6 +184,8 @@ def post_soap_operacao(
                 key_path=key_path,
                 http_timeout=http_timeout,
             )
+    except RETRYABLE_EXCEPTIONS:
+        raise  # Propagar para o wrapper de retry
     except Exception as e:
         logger.exception('Erro ao enviar SOAP: %s', e)
         return {'success': False, 'error': str(e)}, ''

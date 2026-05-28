@@ -86,7 +86,18 @@ class WhatsAppConfigView(APIView):
     def get(self, request):
         config = self._get_config(request)
         if config is None:
-            return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            # Retornar config padrão em vez de 404 (tabela pode não existir ainda)
+            return Response({
+                'enviar_confirmacao': True,
+                'enviar_lembrete_24h': True,
+                'enviar_lembrete_2h': True,
+                'enviar_cobranca': True,
+                'owner_telefone': '',
+                'whatsapp_numero': '',
+                'whatsapp_ativo': False,
+                'whatsapp_phone_id': '',
+                'whatsapp_token_set': False,
+            })
         return Response(self._serialize(config))
 
     def patch(self, request):

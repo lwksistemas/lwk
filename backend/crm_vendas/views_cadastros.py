@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
 from .cache import CRMCacheManager
-from .mixins import CacheInvalidationMixin, VendedorFilterMixin
-from .models import Atividade, Conta, Contato, Lead, Vendedor
+from .mixins import CacheInvalidationMixin, VendedorAutoAssignCreateMixin, VendedorFilterMixin
+from .models import Atividade, Conta, Contato, Lead
 from .serializers import (
     AtividadeListSerializer,
     ContaSerializer,
@@ -16,13 +16,17 @@ from .serializers import (
     LeadListSerializer,
     LeadSerializer,
 )
-from .utils import get_current_vendedor_id
-from .views_common import CRMPagination
+from .views_common import CRMNoCacheListMixin, CRMPagination, filtrar_queryset_por_query_params
 
 logger = logging.getLogger(__name__)
 
 
-class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
+class ContaViewSet(
+    CRMNoCacheListMixin,
+    CacheInvalidationMixin,
+    VendedorAutoAssignCreateMixin,
+    BaseModelViewSet,
+):
     queryset = Conta.objects.select_related('vendedor').prefetch_related('leads', 'contatos').all()
     serializer_class = ContaSerializer
     pagination_class = CRMPagination
@@ -41,28 +45,7 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
                 qs = qs.filter(tipo=tipo)
         return qs
 
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        return response
-
-    def perform_create(self, serializer):
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is not None:
-            if Vendedor.objects.filter(id=vendedor_id).exists():
-                serializer.save(vendedor_id=vendedor_id)
-            else:
-                logger.warning(
-                    '[ContaViewSet.perform_create] vendedor_id=%s não existe no schema, '
-                    'salvando conta sem vendedor',
-                    vendedor_id,
-                )
-                serializer.save()
-        else:
-            serializer.save()
-        self._invalidate_caches()
+    vendedor_create_entity_label = 'conta'
 
     @action(detail=True, methods=['get'])
     def atividades(self, request, pk=None):
@@ -72,7 +55,13 @@ class ContaViewSet(CacheInvalidationMixin, BaseModelViewSet):
         return Response(serializer.data)
 
 
-class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
+class LeadViewSet(
+    CRMNoCacheListMixin,
+    CacheInvalidationMixin,
+    VendedorAutoAssignCreateMixin,
+    VendedorFilterMixin,
+    BaseModelViewSet,
+):
     queryset = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()
     serializer_class = LeadSerializer
     pagination_class = CRMPagination
@@ -101,69 +90,38 @@ class LeadViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet)
                 try:
                     loja = Loja.objects.using('default').filter(id=loja_id).first()
                     if loja and loja.owner_id == self.request.user.id:
-                        status = self.request.query_params.get('status')
-                        if status:
-                            qs = qs.filter(status=status)
-                        origem = self.request.query_params.get('origem')
-                        if origem:
-                            qs = qs.filter(origem=origem)
-                        return qs
+                        return filtrar_queryset_por_query_params(
+                            qs,
+                            self.request,
+                            {'status': 'status', 'origem': 'origem'},
+                        )
                 except Exception:
                     pass
 
         qs = self.filter_by_vendedor(qs)
-        status = self.request.query_params.get('status')
-        if status:
-            qs = qs.filter(status=status)
-        origem = self.request.query_params.get('origem')
-        if origem:
-            qs = qs.filter(origem=origem)
-        return qs
+        return filtrar_queryset_por_query_params(
+            qs,
+            self.request,
+            {'status': 'status', 'origem': 'origem'},
+        )
 
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        return response
-
-    def perform_create(self, serializer):
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id is not None:
-            if Vendedor.objects.filter(id=vendedor_id).exists():
-                serializer.save(vendedor_id=vendedor_id)
-            else:
-                logger.warning(
-                    '[LeadViewSet.perform_create] vendedor_id=%s não existe no schema, '
-                    'salvando lead sem vendedor',
-                    vendedor_id,
-                )
-                serializer.save()
-        else:
-            serializer.save()
-        self._invalidate_caches()
+    vendedor_create_entity_label = 'lead'
 
 
-class ContatoViewSet(CacheInvalidationMixin, BaseModelViewSet):
+class ContatoViewSet(CRMNoCacheListMixin, CacheInvalidationMixin, BaseModelViewSet):
     queryset = Contato.objects.select_related('conta').all()
     serializer_class = ContatoSerializer
     pagination_class = CRMPagination
     cache_keys = ['contatos']
 
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        return response
-
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.select_related('conta')
-        conta_id = self.request.query_params.get('conta_id')
-        if conta_id:
-            qs = qs.filter(conta_id=conta_id)
-        return qs
+        return filtrar_queryset_por_query_params(
+            qs,
+            self.request,
+            {'conta_id': 'conta_id'},
+        )
 
     def perform_update(self, serializer):
         instance_antes = self.get_object()

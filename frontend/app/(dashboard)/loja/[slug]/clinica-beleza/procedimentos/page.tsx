@@ -7,9 +7,26 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Trash2, X } from "lucide-react";
+import {
+  entityActive,
+  entityName,
+  procedureCategoria,
+  procedureDescription,
+  procedureDuration,
+  procedurePrice,
+} from "@/lib/clinica-beleza-entities";
+import { formatProcedimentoApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import {
+  bloquearCriacaoDuplicadaOffline,
+  deveVerificarDuplicataOffline,
+  gerarIdTemporarioOffline,
+  isBrowserOffline,
+  isFetchNetworkError,
+  temDuplicataNaLista,
+} from "@/lib/clinica-beleza-offline";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { logger } from "@/lib/logger";
@@ -28,14 +45,6 @@ interface Procedure {
   is_active?: boolean;
   categoria?: string;
 }
-
-// Helpers para acessar campos independente do idioma
-function getName(p: Procedure): string { return p.name || p.nome || ''; }
-function getDescription(p: Procedure): string | null { return p.description ?? p.descricao ?? null; }
-function getPrice(p: Procedure): string { return p.price || p.preco || '0'; }
-function getDuration(p: Procedure): number { return p.duration ?? p.duracao_minutos ?? 30; }
-function isActive(p: Procedure): boolean { return p.active ?? p.is_active ?? true; }
-function getCategoria(p: Procedure): string { return p.categoria || ''; }
 
 export default function ProcedimentosPage() {
   const params = useParams();
@@ -103,11 +112,11 @@ export default function ProcedimentosPage() {
   const openEdit = (p: Procedure) => {
     setEditing(p);
     setForm({
-      name: getName(p),
-      description: getDescription(p) || "",
-      price: String(getPrice(p)),
-      duration: String(getDuration(p)),
-      categoria: getCategoria(p),
+      name: entityName(p),
+      description: procedureDescription(p) || "",
+      price: String(procedurePrice(p)),
+      duration: String(procedureDuration(p)),
+      categoria: procedureCategoria(p),
     });
     setError("");
     setShowModal(true);
@@ -139,24 +148,21 @@ export default function ProcedimentosPage() {
       category: form.categoria.trim(),
     };
 
-    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
-    if (isOffline) {
+    if (isBrowserOffline()) {
       try {
         const lojaSlug = getLojaSlug();
-        
-        // Verificar se já existe na lista local (evitar duplicação)
-        if (!editing || (editing && editing.id < 0)) {
-          const jaExisteLocal = list.some(p => 
-            getName(p).toLowerCase() === form.name.trim().toLowerCase()
+
+        if (deveVerificarDuplicataOffline(editing)) {
+          const jaExisteLocal = temDuplicataNaLista(list, (p) =>
+            entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
           );
-          
           if (jaExisteLocal) {
             setError("Este procedimento já foi adicionado. Aguarde a sincronização.");
             setSaving(false);
             return;
           }
         }
-        
+
         if (editing && editing.id > 0) {
           await adicionarNaFilaSync({
             tipo: "procedimento",
@@ -172,7 +178,7 @@ export default function ProcedimentosPage() {
           await salvarProcedimentosOffline(updatedList);
         } else {
           await adicionarNaFilaSync({ tipo: "procedimento", payload: { action: "create", body }, lojaSlug });
-          const tempId = -Date.now();
+          const tempId = gerarIdTemporarioOffline();
           const newProc: Procedure = {
             id: tempId,
             name: body.name,
@@ -203,7 +209,7 @@ export default function ProcedimentosPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.name?.[0] || err.detail || "Erro ao atualizar");
+          throw new Error(formatProcedimentoApiErrors(err as Record<string, unknown>) || "Erro ao atualizar");
         }
       } else {
         const res = await clinicaBelezaFetch("/procedures/", {
@@ -212,22 +218,20 @@ export default function ProcedimentosPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.name?.[0] || err.detail || "Erro ao cadastrar");
+          throw new Error(formatProcedimentoApiErrors(err as Record<string, unknown>) || "Erro ao cadastrar");
         }
       }
       setShowModal(false);
       load();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erro ao salvar";
-      const isNetworkError = msg.toLowerCase().includes("fetch") || msg === "Failed to fetch";
-      if (isNetworkError) {
+      if (isFetchNetworkError(msg)) {
         try {
           const lojaSlug = getLojaSlug();
-          
-          // Verificar se já existe na lista local (evitar duplicação)
-          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => getName(p).toLowerCase() === form.name.trim().toLowerCase());
-          
-          if (jaExisteLocal && !editing) {
+
+          if (bloquearCriacaoDuplicadaOffline(editing, list, (p) =>
+            entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
+          )) {
             setError("Este procedimento já foi adicionado offline. Aguarde a sincronização.");
             setSaving(false);
             return;
@@ -248,7 +252,7 @@ export default function ProcedimentosPage() {
             await salvarProcedimentosOffline(updatedList);
           } else {
             await adicionarNaFilaSync({ tipo: "procedimento", payload: { action: "create", body }, lojaSlug });
-            const tempId = -Date.now();
+            const tempId = gerarIdTemporarioOffline();
             const newProc: Procedure = {
               id: tempId,
               name: body.name,
@@ -276,7 +280,7 @@ export default function ProcedimentosPage() {
   };
 
   const exclude = async (p: Procedure) => {
-    if (!confirm(`Desativar o procedimento "${getName(p)}"?`)) return;
+    if (!confirm(`Desativar o procedimento "${entityName(p)}"?`)) return;
     try {
       await clinicaBelezaFetch(`/procedures/${p.id}/`, { method: "DELETE" });
       load();
@@ -286,7 +290,7 @@ export default function ProcedimentosPage() {
   };
 
   useClinicaBelezaDark(); // Aplica tema escuro (localStorage + document.documentElement)
-  const activeList = list.filter((p) => isActive(p));
+  const activeList = list.filter((p) => entityActive(p));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
@@ -336,10 +340,10 @@ export default function ProcedimentosPage() {
                 <tbody>
                   {activeList.map((p) => (
                     <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
-                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{getName(p)}</td>
-                      <td className="p-3 text-gray-600 dark:text-gray-400">{getCategoria(p) || '—'}</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">{getDuration(p)} min</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">{formatCurrency(getPrice(p))}</td>
+                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</td>
+                      <td className="p-3 text-gray-600 dark:text-gray-400">{procedureCategoria(p) || '—'}</td>
+                      <td className="p-3 text-gray-700 dark:text-gray-300">{procedureDuration(p)} min</td>
+                      <td className="p-3 text-gray-700 dark:text-gray-300">{formatCurrency(procedurePrice(p))}</td>
                       <td className="p-3">
                         <div className="flex gap-2">
                           <button

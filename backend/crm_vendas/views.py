@@ -21,7 +21,7 @@ from .serializers import (
     CategoriaProdutoServicoSerializer,
     OportunidadeItemSerializer,
 )
-from tenants.middleware import get_current_loja_id, ensure_loja_context
+from tenants.middleware import get_current_loja_id
 from .mixins import CRMPermissionMixin, VendedorFilterMixin, CacheInvalidationMixin
 from .decorators import require_admin_access
 from .vendedor_admin_service import (
@@ -33,7 +33,12 @@ from .vendedor_admin_service import (
     resposta_vendedor_me,
 )
 
-from .views_common import CRMPagination
+from .views_common import (
+    CRMPagination,
+    LojaScopedCatalogMixin,
+    filtrar_ativo_query_param,
+    filtrar_queryset_por_query_params,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -173,87 +178,35 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
         return Response(listar_grupos_crm_disponiveis())
 
 
-class CategoriaProdutoServicoViewSet(BaseModelViewSet):
+class CategoriaProdutoServicoViewSet(LojaScopedCatalogMixin, BaseModelViewSet):
     """CRUD de categorias para organizar produtos e serviços."""
-    queryset = CategoriaProdutoServico.objects.select_related('loja').all()  # ✅ OTIMIZAÇÃO: select_related
+    queryset = CategoriaProdutoServico.objects.select_related('loja').all()
     serializer_class = CategoriaProdutoServicoSerializer
     pagination_class = CRMPagination
-
-    def perform_create(self, serializer):
-        """Garante que loja_id seja definido ao criar categoria."""
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
-        if loja_id:
-            serializer.save(loja_id=loja_id)
-        else:
-            serializer.save()
+    loja_catalog_model = CategoriaProdutoServico
+    loja_catalog_label = 'CategoriaProdutoServicoViewSet'
 
     def get_queryset(self):
-        """Filtra categorias por loja_id e aplica filtros adicionais."""
-        from tenants.middleware import get_current_loja_id
-        if hasattr(self, 'request') and self.request:
-            ensure_loja_context(self.request)
-        loja_id = get_current_loja_id()
-        
-        if not loja_id:
-            logger.warning(f"[CategoriaProdutoServicoViewSet] Acesso sem loja_id no contexto")
-            return CategoriaProdutoServico.objects.none()
-        
-        # Filtrar por loja_id explicitamente
-        qs = CategoriaProdutoServico.objects.filter(loja_id=loja_id)
-        
-        # Filtros adicionais
-        ativo = self.request.query_params.get('ativo')
-        if ativo is not None:
-            qs = qs.filter(ativo=ativo.lower() == 'true')
-        
-        return qs
+        qs = self.get_loja_catalog_base_qs()
+        return filtrar_ativo_query_param(qs, self.request)
 
 
-class ProdutoServicoViewSet(BaseModelViewSet):
+class ProdutoServicoViewSet(LojaScopedCatalogMixin, BaseModelViewSet):
     """CRUD de produtos e serviços para uso em oportunidades."""
-    queryset = ProdutoServico.objects.select_related('loja', 'categoria').all()  # ✅ OTIMIZAÇÃO: select_related
+    queryset = ProdutoServico.objects.select_related('loja', 'categoria').all()
     serializer_class = ProdutoServicoSerializer
     pagination_class = CRMPagination
-
-    def perform_create(self, serializer):
-        """Garante que loja_id seja definido ao criar produto/serviço."""
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id()
-        if loja_id:
-            serializer.save(loja_id=loja_id)
-        else:
-            serializer.save()
+    loja_catalog_model = ProdutoServico
+    loja_catalog_label = 'ProdutoServicoViewSet'
 
     def get_queryset(self):
-        """Filtra produtos/serviços por loja_id e aplica filtros adicionais."""
-        from tenants.middleware import get_current_loja_id
-        if hasattr(self, 'request') and self.request:
-            ensure_loja_context(self.request)
-        loja_id = get_current_loja_id()
-        
-        if not loja_id:
-            logger.warning(f"[ProdutoServicoViewSet] Acesso sem loja_id no contexto")
-            return ProdutoServico.objects.none()
-        
-        # Filtrar por loja_id explicitamente
-        qs = ProdutoServico.objects.filter(loja_id=loja_id)
-        
-        # Filtros adicionais
-        ativo = self.request.query_params.get('ativo')
-        if ativo is not None:
-            qs = qs.filter(ativo=ativo.lower() == 'true')
-        tipo = self.request.query_params.get('tipo')
-        if tipo:
-            qs = qs.filter(tipo=tipo)
+        qs = self.get_loja_catalog_base_qs()
+        qs = filtrar_ativo_query_param(qs, self.request)
+        qs = filtrar_queryset_por_query_params(qs, self.request, {'tipo': 'tipo'})
         sem_cat = self.request.query_params.get('sem_categoria')
         if sem_cat and str(sem_cat).lower() in ('1', 'true', 'yes'):
-            qs = qs.filter(categoria__isnull=True)
-        else:
-            categoria = self.request.query_params.get('categoria')
-            if categoria:
-                qs = qs.filter(categoria_id=categoria)
-        return qs
+            return qs.filter(categoria__isnull=True)
+        return filtrar_queryset_por_query_params(qs, self.request, {'categoria': 'categoria_id'})
 
 
 class OportunidadeItemViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
@@ -271,10 +224,11 @@ class OportunidadeItemViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseM
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.select_related('oportunidade', 'produto_servico')
-        oportunidade_id = self.request.query_params.get('oportunidade_id')
-        if oportunidade_id:
-            qs = qs.filter(oportunidade_id=oportunidade_id)
-        return qs
+        return filtrar_queryset_por_query_params(
+            qs,
+            self.request,
+            {'oportunidade_id': 'oportunidade_id'},
+        )
 
     def _recalcular_valor_oportunidade(self, oportunidade_id):
         """Recalcula valor da oportunidade e sincroniza propostas/contratos em rascunho."""

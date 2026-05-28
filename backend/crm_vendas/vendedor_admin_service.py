@@ -30,9 +30,9 @@ def dict_admin_loja(loja) -> dict[str, Any]:
 
 
 def aplicar_cache_control_sem_store(response) -> None:
-    response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-    response['Pragma'] = 'no-cache'
-    response['Expires'] = '0'
+    from .views_common import aplicar_cache_control_sem_store as _aplicar
+
+    _aplicar(response)
 
 
 def ajustar_lista_vendedores_com_admin(

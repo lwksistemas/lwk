@@ -10,29 +10,15 @@ from datetime import timedelta
 from urllib.parse import quote, unquote
 import logging
 
+from core.assinatura_service import normalizar_token_url
+
 logger = logging.getLogger(__name__)
 
 # Configurações
 TOKEN_EXPIRACAO_DIAS = 7  # Token válido por 7 dias
 
-
-def normalizar_token_assinatura_url(token) -> str:
-    """
-    Normaliza o token vindo da URL (e-mail, navegador, proxies).
-    Garante string idêntica à salva em AssinaturaDigital.token para o lookup.
-    """
-    if token is None:
-        return ''
-    t = str(token).strip()
-    # Alguns clientes duplicam encoding (%253A); desfaz até estabilizar
-    for _ in range(4):
-        if '%' not in t:
-            break
-        prev = t
-        t = unquote(t)
-        if t == prev:
-            break
-    return t
+# Alias CRM — mesma lógica de core.assinatura_service (evita duplicar unquote em loop).
+normalizar_token_assinatura_url = normalizar_token_url
 
 
 def criar_token_assinatura(documento, tipo, loja_id):

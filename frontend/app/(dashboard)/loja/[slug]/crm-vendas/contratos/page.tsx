@@ -5,7 +5,12 @@ import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso, downloadBlobAsFile } from '@/lib/crm-utils';
+import {
+  normalizeListResponse,
+  getCrmApiErrorDetail,
+  crmMensagemEnvioCanalSucesso,
+  downloadCrmDocumento,
+} from '@/lib/crm-utils';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
@@ -105,13 +110,7 @@ export default function CrmVendasContratosPage() {
 
   const handleDownloadPdf = async (contratoId: number, titulo: string) => {
     try {
-      const response = await apiClient.get(`/crm-vendas/contratos/${contratoId}/download_pdf/`, {
-        responseType: 'blob',
-      });
-      downloadBlobAsFile(
-        response.data instanceof Blob ? response.data : new Blob([response.data]),
-        `contrato_${contratoId}_${titulo.replace(/\s+/g, '_')}.pdf`
-      );
+      await downloadCrmDocumento('contratos', contratoId, titulo, 'pdf');
     } catch (err: unknown) {
       alert(getCrmApiErrorDetail(err, 'Erro ao baixar PDF.'));
     }
@@ -119,13 +118,7 @@ export default function CrmVendasContratosPage() {
 
   const handleDownloadDocx = async (contratoId: number, titulo: string) => {
     try {
-      const response = await apiClient.get(`/crm-vendas/contratos/${contratoId}/download_docx/`, {
-        responseType: 'blob',
-      });
-      downloadBlobAsFile(
-        response.data instanceof Blob ? response.data : new Blob([response.data]),
-        `contrato_${contratoId}_${titulo.replace(/\s+/g, '_')}.docx`
-      );
+      await downloadCrmDocumento('contratos', contratoId, titulo, 'docx');
     } catch (err: unknown) {
       alert(getCrmApiErrorDetail(err, 'Erro ao baixar Word.'));
     }

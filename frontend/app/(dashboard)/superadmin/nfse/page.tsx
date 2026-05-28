@@ -1,343 +1,156 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, RefreshCw, FileText, Download, Mail, XCircle, PlusCircle, Trash2 } from 'lucide-react'
-import apiClient from '@/lib/api-client'
-import { logger } from '@/lib/logger'
-import { ModalEmitirNFSeManual } from './components/ModalEmitirNFSeManual'
-
-interface NFSeEmitida {
-  id: number
-  numero_nf: string
-  codigo_verificacao: string
-  numero_rps: number
-  serie_rps: string
-  provedor: 'nacional' | 'issnet' | 'asaas'
-  status: 'emitida' | 'cancelada' | 'erro' | 'pendente'
-  valor: string
-  aliquota_iss: string
-  valor_iss: string
-  tomador_nome: string
-  tomador_cpf_cnpj: string
-  tomador_email: string
-  descricao_servico: string
-  loja_nome: string
-  loja_slug: string
-  asaas_payment_id: string
-  data_emissao: string | null
-  data_cancelamento: string | null
-  created_at: string | null
-  tem_xml: boolean
-  pdf_url: string
-  erro_mensagem: string
-}
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'emitida':
-      return <Badge variant="default" className="bg-green-600">Emitida</Badge>
-    case 'cancelada':
-      return <Badge variant="destructive">Cancelada</Badge>
-    case 'erro':
-      return <Badge variant="destructive">Erro</Badge>
-    case 'pendente':
-      return <Badge variant="secondary">Pendente</Badge>
-    default:
-      return <Badge variant="secondary">{status}</Badge>
-  }
-}
-
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return '-'
-  try {
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    })
-  } catch { return dateStr }
-}
+import { useState, useEffect } from 'react';
+import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
+import {
+  downloadBlobFile,
+  nfseIdentificador,
+  openPdfFromApiBlobResponse,
+  solicitarCancelamentoNFSe,
+} from '@/lib/nfse-helpers';
+import { ModalEmitirNFSeManual } from './components/ModalEmitirNFSeManual';
+import { NfseSuperadminFilters } from './components/NfseSuperadminFilters';
+import { NfseSuperadminHeader } from './components/NfseSuperadminHeader';
+import { NfseSuperadminMessage } from './components/NfseSuperadminMessage';
+import { NfseSuperadminTable } from './components/NfseSuperadminTable';
+import type { NFSeEmitida } from './types';
 
 export default function NFSeEmitidasPage() {
-  const [notas, setNotas] = useState<NFSeEmitida[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [filtroStatus, setFiltroStatus] = useState('')
-  const [showModalEmitir, setShowModalEmitir] = useState(false)
+  const [notas, setNotas] = useState<NFSeEmitida[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState('');
+  const [showModalEmitir, setShowModalEmitir] = useState(false);
 
   useEffect(() => {
-    loadNotas()
-  }, [filtroStatus])
+    loadNotas();
+  }, [filtroStatus]);
 
   const loadNotas = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const params = new URLSearchParams()
-      if (filtroStatus) params.append('status', filtroStatus)
-      const { data } = await apiClient.get(`/superadmin/nfse-emitidas/?${params.toString()}`)
-      setNotas(data.notas || [])
-      setTotal(data.total || 0)
+      const params = new URLSearchParams();
+      if (filtroStatus) params.append('status', filtroStatus);
+      const { data } = await apiClient.get(`/superadmin/nfse-emitidas/?${params.toString()}`);
+      setNotas(data.notas || []);
+      setTotal(data.total || 0);
     } catch (error) {
-      logger.warn('Erro ao carregar NFS-e:', error)
+      logger.warn('Erro ao carregar NFS-e:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleBaixarXml = async (nf: NFSeEmitida) => {
     try {
-      const { data } = await apiClient.get(`/superadmin/nfse-emitidas/${nf.id}/xml/`)
+      const { data } = await apiClient.get(`/superadmin/nfse-emitidas/${nf.id}/xml/`);
       if (data.success && data.xml) {
-        const blob = new Blob([data.xml], { type: 'application/xml' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `nfse_${nf.numero_nf || nf.id}.xml`
-        a.click()
-        URL.revokeObjectURL(url)
+        const blob = new Blob([data.xml], { type: 'application/xml' });
+        downloadBlobFile(blob, `nfse_${nf.numero_nf || nf.id}.xml`);
       } else {
-        setMessage({ type: 'error', text: data.error || 'XML não disponível' })
+        setMessage({ type: 'error', text: data.error || 'XML não disponível' });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Erro ao baixar XML' })
+      setMessage({ type: 'error', text: 'Erro ao baixar XML' });
     }
-  }
+  };
 
   const handleBaixarPdf = async (nf: NFSeEmitida) => {
     try {
-      // Asaas retorna JSON com {url}, ISSNet retorna blob direto
       const res = await apiClient.get(`/superadmin/nfse-emitidas/${nf.id}/pdf/`, { responseType: 'blob' });
-      const contentType = res.headers?.['content-type'] || '';
-      if (contentType.includes('application/json')) {
-        // Asaas: ler JSON do blob e abrir URL
-        const text = await (res.data as Blob).text();
-        const json = JSON.parse(text);
-        if (json.url) { window.open(json.url, '_blank'); return; }
-      }
-      // PDF blob — abrir em nova aba
-      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      await openPdfFromApiBlobResponse(res);
     } catch {
       setMessage({ type: 'error', text: 'PDF não disponível.' });
     }
-  }
+  };
 
   const handleReenviar = async (nf: NFSeEmitida) => {
-    if (!confirm(`Reenviar NFS-e ${nf.numero_nf} por email para ${nf.tomador_email}?`)) return
+    if (!confirm(`Reenviar NFS-e ${nf.numero_nf} por email para ${nf.tomador_email}?`)) return;
     try {
-      const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nf.id}/reenviar/`)
+      const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nf.id}/reenviar/`);
       if (data.success) {
-        setMessage({ type: 'success', text: data.message })
+        setMessage({ type: 'success', text: data.message });
       } else {
-        setMessage({ type: 'error', text: data.error })
+        setMessage({ type: 'error', text: data.error });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Erro ao reenviar' })
+      setMessage({ type: 'error', text: 'Erro ao reenviar' });
     }
-  }
+  };
 
   const handleCancelar = async (nf: NFSeEmitida) => {
-    const motivos: Record<string, string> = {
-      '1': 'Erro na emissão',
-      '2': 'Serviço não prestado',
-      '4': 'Duplicidade da nota',
-    }
-    const opcao = prompt(
-      `CANCELAR NFS-e ${nf.numero_nf}?\n\nEscolha o motivo:\n1 - Erro na emissão\n2 - Serviço não prestado\n4 - Duplicidade da nota\n\nDigite o número (1, 2 ou 4):`
-    )
-    if (!opcao || !motivos[opcao]) return
-    const motivoTexto = prompt('Descreva o motivo (opcional):') || motivos[opcao]
+    const escolha = solicitarCancelamentoNFSe(nfseIdentificador(nf), {
+      provedor: nf.provedor,
+      avisarIssnetErroEmissao: true,
+    });
+    if (!escolha) return;
     try {
       const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nf.id}/cancelar/`, {
-        codigo_cancelamento: opcao,
-        motivo: motivoTexto,
-      })
+        codigo_cancelamento: escolha.codigo,
+        motivo: escolha.motivo,
+      });
       if (data.success) {
-        setMessage({ type: 'success', text: data.message })
-        loadNotas()
+        setMessage({ type: 'success', text: data.message });
+        loadNotas();
       } else {
-        setMessage({ type: 'error', text: data.error })
+        setMessage({ type: 'error', text: data.error });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Erro ao cancelar' })
+      setMessage({ type: 'error', text: 'Erro ao cancelar' });
     }
-  }
+  };
 
   const handleExcluir = async (nf: NFSeEmitida) => {
-    if (!confirm(`EXCLUIR registro da NFS-e ${nf.numero_nf || `RPS ${nf.numero_rps}`}? O registro será removido do sistema.`)) return
+    if (!confirm(`EXCLUIR registro da NFS-e ${nf.numero_nf || `RPS ${nf.numero_rps}`}? O registro será removido do sistema.`))
+      return;
     try {
-      const { data } = await apiClient.delete(`/superadmin/nfse-emitidas/${nf.id}/excluir/`)
+      const { data } = await apiClient.delete(`/superadmin/nfse-emitidas/${nf.id}/excluir/`);
       if (data.success) {
-        setMessage({ type: 'success', text: data.message })
-        loadNotas()
+        setMessage({ type: 'success', text: data.message });
+        loadNotas();
       } else {
-        setMessage({ type: 'error', text: data.error })
+        setMessage({ type: 'error', text: data.error });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Erro ao excluir' })
+      setMessage({ type: 'error', text: 'Erro ao excluir' });
     }
-  }
+  };
 
   return (
     <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <a href="/superadmin/dashboard" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-          </a>
-          <div>
-            <h1 className="text-3xl font-bold">NFS-e Emitidas</h1>
-            <p className="text-muted-foreground">
-              Notas fiscais emitidas pela LWK para as lojas ({total} notas)
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowModalEmitir(true)}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Emitir NFS-e
-          </Button>
-          <Button variant="outline" onClick={loadNotas} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
-        </div>
-      </div>
+      <NfseSuperadminHeader
+        total={total}
+        loading={loading}
+        onEmitir={() => setShowModalEmitir(true)}
+        onAtualizar={loadNotas}
+      />
 
-      {message && (
-        <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      )}
+      {message && <NfseSuperadminMessage type={message.type} text={message.text} />}
 
-      {/* Filtros */}
-      <div className="flex gap-2">
-        {['', 'emitida', 'cancelada', 'erro'].map((s) => (
-          <Button
-            key={s}
-            variant={filtroStatus === s ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFiltroStatus(s)}
-          >
-            {s === '' ? 'Todas' : s === 'emitida' ? '✅ Emitidas' : s === 'cancelada' ? '❌ Canceladas' : '⚠️ Erros'}
-          </Button>
-        ))}
-      </div>
+      <NfseSuperadminFilters filtroStatus={filtroStatus} onFiltroChange={setFiltroStatus} />
 
-      {/* Tabela */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Notas Fiscais
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : notas.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma NFS-e encontrada. As notas aparecerão aqui quando forem emitidas automaticamente após pagamentos.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    {['NF', 'Data', 'Tomador', 'Valor', 'ISS', 'Status', 'Provedor', 'Ações'].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {notas.map((nf) => (
-                    <tr key={nf.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{nf.numero_nf || '-'}</div>
-                        <div className="text-xs text-muted-foreground">RPS {nf.numero_rps}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {formatDate(nf.data_emissao)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-sm">{nf.tomador_nome}</div>
-                        <div className="text-xs text-muted-foreground">{nf.tomador_cpf_cnpj}</div>
-                        <div className="text-xs text-muted-foreground">{nf.loja_nome}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium">
-                        R$ {parseFloat(nf.valor).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        R$ {parseFloat(nf.valor_iss).toFixed(2)}
-                        <div className="text-xs">{nf.aliquota_iss}%</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {getStatusBadge(nf.status)}
-                        {nf.erro_mensagem && (
-                          <div className="text-xs text-red-500 mt-1 max-w-[200px] truncate" title={nf.erro_mensagem}>
-                            {nf.erro_mensagem}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="secondary" className="text-xs">
-                          {nf.provedor === 'nacional' ? '🇧🇷 Nacional' : nf.provedor === 'issnet' ? '🏛️ ISSNet' : '🔵 Asaas'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 space-x-1">
-                        {(nf.status === 'emitida' || nf.status === 'cancelada') && (
-                          <Button size="sm" variant="ghost" onClick={() => handleBaixarPdf(nf)} title="Baixar/Consultar PDF">
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {nf.tem_xml && (
-                          <Button size="sm" variant="ghost" onClick={() => handleBaixarXml(nf)} title="Baixar XML">
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {(nf.status === 'emitida' || nf.status === 'cancelada') && nf.tomador_email && (
-                          <Button size="sm" variant="ghost" onClick={() => handleReenviar(nf)} title="Reenviar email">
-                            <Mail className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {nf.status === 'emitida' && (
-                          <Button size="sm" variant="ghost" onClick={() => handleCancelar(nf)} title="Cancelar NF" className="text-red-500 hover:text-red-700">
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {(nf.status === 'erro' || nf.status === 'pendente') && (
-                          <Button size="sm" variant="ghost" onClick={() => handleExcluir(nf)} title="Excluir registro" className="text-red-500 hover:text-red-700">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      {/* Modal Emitir NFS-e Manual */}
+      <NfseSuperadminTable
+        notas={notas}
+        loading={loading}
+        onBaixarPdf={handleBaixarPdf}
+        onBaixarXml={handleBaixarXml}
+        onReenviar={handleReenviar}
+        onCancelar={handleCancelar}
+        onExcluir={handleExcluir}
+      />
+
       {showModalEmitir && (
         <ModalEmitirNFSeManual
           onClose={() => setShowModalEmitir(false)}
           onSuccess={() => {
-            setShowModalEmitir(false)
-            setMessage({ type: 'success', text: 'NFS-e emitida com sucesso!' })
-            loadNotas()
+            setShowModalEmitir(false);
+            setMessage({ type: 'success', text: 'NFS-e emitida com sucesso!' });
+            loadNotas();
           }}
         />
       )}
     </div>
-  )
+  );
 }

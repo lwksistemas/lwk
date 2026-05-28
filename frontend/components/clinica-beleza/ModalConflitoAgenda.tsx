@@ -6,17 +6,8 @@
  */
 
 import { X, Server, Smartphone, AlertTriangle } from "lucide-react";
+import { CLINICA_AGENDA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatDateTime } from "@/lib/financeiro-helpers";
-
-const STATUS_LABEL: Record<string, string> = {
-  SCHEDULED: "Agendado",
-  CONFIRMED: "Confirmado",
-  PENDING: "Pendente",
-  IN_PROGRESS: "Em Atendimento",
-  COMPLETED: "Concluído",
-  CANCELLED: "Cancelado",
-  NO_SHOW: "Faltou",
-};
 
 export interface ConflitoAgendaData {
   server: {
@@ -108,7 +99,7 @@ export function ModalConflitoAgenda({
                 <div>
                   <dt className="text-gray-500 dark:text-gray-400">Status</dt>
                   <dd className="font-medium text-gray-900 dark:text-gray-100">
-                    {STATUS_LABEL[server.status ?? ""] ?? server.status ?? "—"}
+                    {CLINICA_AGENDA_STATUS_LABEL[server.status ?? ""] ?? server.status ?? "—"}
                   </dd>
                 </div>
                 <div>
@@ -141,7 +132,7 @@ export function ModalConflitoAgenda({
                 <div>
                   <dt className="text-gray-500 dark:text-gray-400">Status</dt>
                   <dd className="font-medium text-gray-900 dark:text-gray-100">
-                    {STATUS_LABEL[local.status ?? ""] ?? local.status ?? "—"}
+                    {CLINICA_AGENDA_STATUS_LABEL[local.status ?? ""] ?? local.status ?? "—"}
                   </dd>
                 </div>
                 <div>

@@ -25,7 +25,7 @@ from .serializers import (
 )
 from .services import OportunidadeService
 from .utils import get_current_vendedor_id
-from .views_common import CRMPagination
+from .views_common import CRMPagination, aplicar_cache_control_sem_store, filtrar_queryset_por_query_params
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +86,7 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        return response
+        return aplicar_cache_control_sem_store(super().list(request, *args, **kwargs))
 
     def perform_create(self, serializer):
         service = OportunidadeService(self.request)
@@ -116,13 +112,8 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
             'itens__produto_servico',
         )
         if get_current_vendedor_id(self.request) is None:
-            vendedor_id = self.request.query_params.get('vendedor_id')
-            if vendedor_id:
-                qs = qs.filter(vendedor_id=vendedor_id)
-        etapa = self.request.query_params.get('etapa')
-        if etapa:
-            qs = qs.filter(etapa=etapa)
-        return qs
+            qs = filtrar_queryset_por_query_params(qs, self.request, {'vendedor_id': 'vendedor_id'})
+        return filtrar_queryset_por_query_params(qs, self.request, {'etapa': 'etapa'})
 
 
 class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
@@ -214,11 +205,7 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
 
     @cache_list_response(CRMCacheManager.ATIVIDADES, ttl=30, extra_keys=['data_inicio', 'data_fim'])
     def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        return response
+        return aplicar_cache_control_sem_store(super().list(request, *args, **kwargs))
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
@@ -258,12 +245,11 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
         concluido = self.request.query_params.get('concluido')
         if concluido is not None:
             qs = qs.filter(concluido=concluido.lower() == 'true')
-        oportunidade_id = self.request.query_params.get('oportunidade_id')
-        if oportunidade_id:
-            qs = qs.filter(oportunidade_id=oportunidade_id)
-        lead_id = self.request.query_params.get('lead_id')
-        if lead_id:
-            qs = qs.filter(lead_id=lead_id)
+        qs = filtrar_queryset_por_query_params(
+            qs,
+            self.request,
+            {'oportunidade_id': 'oportunidade_id', 'lead_id': 'lead_id'},
+        )
         data_inicio = self.request.query_params.get('data_inicio')
         if data_inicio:
             dt = parse_datetime(data_inicio)

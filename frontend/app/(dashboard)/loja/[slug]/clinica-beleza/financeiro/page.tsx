@@ -9,24 +9,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
+import {
+  CLINICA_FORMA_PAGAMENTO_LABEL,
+  CLINICA_PAGAMENTO_STATUS_LABEL,
+} from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
-
-const FORMA_PAGAMENTO: Record<string, string> = {
-  CASH: "Dinheiro",
-  CREDIT_CARD: "Crédito",
-  DEBIT_CARD: "Débito",
-  PIX: "PIX",
-  TRANSFER: "Transferência",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: "Pendente",
-  PAID: "Pago",
-  CANCELLED: "Cancelado",
-};
 
 interface Resumo {
   caixa_diario: number;
@@ -288,7 +278,7 @@ export default function FinanceiroClinicaPage() {
                             {formatCurrency(p.amount)}
                           </td>
                           <td className="py-3 px-4 text-gray-700 dark:text-gray-300">
-                            {FORMA_PAGAMENTO[p.payment_method] || p.payment_method}
+                            {CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
                           </td>
                           <td className="py-3 px-4">
                             <span
@@ -300,7 +290,7 @@ export default function FinanceiroClinicaPage() {
                                     : "bg-gray-100 dark:bg-neutral-600 text-gray-600 dark:text-gray-300"
                               }`}
                             >
-                              {STATUS_LABEL[p.status] || p.status}
+                              {CLINICA_PAGAMENTO_STATUS_LABEL[p.status] || p.status}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">

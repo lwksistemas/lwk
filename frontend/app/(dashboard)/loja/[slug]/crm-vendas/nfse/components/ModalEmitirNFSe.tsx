@@ -1,19 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import {
+  NFSE_EMISSAO_INITIAL_FORM,
+  carregarContasLeadsParaNfse,
+  type NfseEmissaoContaOption,
+} from '@/lib/nfse-emissao-form';
 import { ServicoFields } from './ServicoFields';
 import { ModalFormButtons } from './ModalFormButtons';
-
-function unwrapDrfList<T>(data: unknown): T[] {
-  if (Array.isArray(data)) return data as T[];
-  if (data && typeof data === 'object' && Array.isArray((data as { results?: unknown }).results)) {
-    return (data as { results: T[] }).results;
-  }
-  return [];
-}
+import { ModalEmitirNFSeStepEscolha } from './ModalEmitirNFSeStepEscolha';
+import { ModalEmitirNFSeContaSelector } from './ModalEmitirNFSeContaSelector';
+import { ModalEmitirNFSeTomadorFields } from './ModalEmitirNFSeTomadorFields';
+import { ModalEmitirNFSeEnderecoFields } from './ModalEmitirNFSeEnderecoFields';
 
 interface ModalEmitirNFSeProps {
   onClose: () => void;
@@ -21,32 +22,13 @@ interface ModalEmitirNFSeProps {
   onRefreshList?: () => void;
 }
 
-const INITIAL_FORM = {
-  conta_id: null as number | null,
-  tomador_cpf_cnpj: '',
-  tomador_nome: '',
-  tomador_email: '',
-  tomador_logradouro: '',
-  tomador_numero: '',
-  tomador_complemento: '',
-  tomador_bairro: '',
-  tomador_cidade: '',
-  tomador_uf: '',
-  tomador_cep: '',
-  servico_descricao: '',
-  valor_servicos: '',
-  enviar_email: true,
-  codigo_cnae: '',
-  codigo_servico: '',
-};
-
 export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmitirNFSeProps) {
   const [step, setStep] = useState<'escolha' | 'manual' | 'conta'>('escolha');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [contas, setContas] = useState<any[]>([]);
+  const [contas, setContas] = useState<NfseEmissaoContaOption[]>([]);
   const [loadingContas, setLoadingContas] = useState(false);
-  const [formData, setFormData] = useState(INITIAL_FORM);
+  const [formData, setFormData] = useState(NFSE_EMISSAO_INITIAL_FORM);
   const [selectedId, setSelectedId] = useState('');
 
   useEffect(() => {
@@ -58,35 +40,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
   const carregarContas = async () => {
     try {
       setLoadingContas(true);
-      const [resContas, resLeads] = await Promise.all([
-        apiClient.get('/crm-vendas/contas/'),
-        apiClient.get('/crm-vendas/leads/'),
-      ]);
-      const contasList = unwrapDrfList(resContas.data).map((c: any) => ({
-        ...c,
-        _tipo: 'conta',
-        _display: c.nome + (c.cnpj ? ` - ${c.cnpj}` : ''),
-      }));
-      const leadsList = unwrapDrfList(resLeads.data)
-        .filter((l: any) => l.cpf_cnpj)
-        .map((l: any) => ({
-          id: `lead_${l.id}`,
-          _tipo: 'lead',
-          _lead_id: l.id,
-          nome: l.nome,
-          cnpj: l.cpf_cnpj || '',
-          razao_social: l.nome,
-          email: l.email || '',
-          logradouro: l.logradouro || '',
-          numero: l.numero || '',
-          complemento: l.complemento || '',
-          bairro: l.bairro || '',
-          cidade: l.cidade || '',
-          uf: l.uf || '',
-          cep: l.cep || '',
-          _display: l.nome + (l.cpf_cnpj ? ` - ${l.cpf_cnpj}` : ''),
-        }));
-      setContas([...contasList, ...leadsList]);
+      setContas(await carregarContasLeadsParaNfse());
     } catch (err) {
       logger.warn('Erro ao carregar contas para NFS-e:', err);
     } finally {
@@ -96,13 +50,13 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
 
   const handleContaChange = (contaId: number | string) => {
     setSelectedId(String(contaId));
-    const conta = contas.find((c: any) => String(c.id) === String(contaId));
+    const conta = contas.find((c) => String(c.id) === String(contaId));
     if (conta) {
       setFormData({
         ...formData,
         conta_id: conta._tipo === 'conta' ? Number(conta.id) : null,
         tomador_cpf_cnpj: conta.cnpj || '',
-        tomador_nome: conta.razao_social || conta.nome,
+        tomador_nome: conta.razao_social || conta.nome || '',
         tomador_email: conta.email || '',
         tomador_logradouro: conta.logradouro || '',
         tomador_numero: conta.numero || '',
@@ -153,9 +107,10 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
             };
       await apiClient.post('/nfse/emitir/', payload);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.warn('Erro ao emitir NFS-e:', err);
-      setError(err.response?.data?.error || 'Erro ao emitir NFS-e');
+      const ax = err as { response?: { data?: { error?: string } } };
+      setError(ax.response?.data?.error || 'Erro ao emitir NFS-e');
       onRefreshList?.();
     } finally {
       setLoading(false);
@@ -166,7 +121,6 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-[#16325c] rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Emitir NFS-e</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -181,15 +135,22 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
             </div>
           )}
 
-          {/* Step: Escolha */}
           {step === 'escolha' && (
-            <StepEscolha onSelectConta={() => setStep('conta')} onSelectManual={() => setStep('manual')} onClose={onClose} />
+            <ModalEmitirNFSeStepEscolha
+              onSelectConta={() => setStep('conta')}
+              onSelectManual={() => setStep('manual')}
+              onClose={onClose}
+            />
           )}
 
-          {/* Step: Conta */}
           {step === 'conta' && (
             <form onSubmit={handleSubmit} className="space-y-6">
-              <ContaSelector contas={contas} loading={loadingContas} value={selectedId} onChange={handleContaChange} />
+              <ModalEmitirNFSeContaSelector
+                contas={contas}
+                loading={loadingContas}
+                value={selectedId}
+                onChange={handleContaChange}
+              />
               <ServicoFields
                 servico_descricao={formData.servico_descricao}
                 valor_servicos={formData.valor_servicos}
@@ -202,11 +163,10 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
             </form>
           )}
 
-          {/* Step: Manual */}
           {step === 'manual' && (
             <form onSubmit={handleSubmit} className="space-y-6">
-              <TomadorFields formData={formData} onChange={handleFieldChange} />
-              <EnderecoFields formData={formData} onChange={handleFieldChange} />
+              <ModalEmitirNFSeTomadorFields formData={formData} onChange={handleFieldChange} />
+              <ModalEmitirNFSeEnderecoFields formData={formData} onChange={handleFieldChange} />
               <ServicoFields
                 servico_descricao={formData.servico_descricao}
                 valor_servicos={formData.valor_servicos}
@@ -218,125 +178,6 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
               <ModalFormButtons loading={loading} onBack={() => setStep('escolha')} onClose={onClose} />
             </form>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-/* ── Sub-components ── */
-
-function StepEscolha({ onSelectConta, onSelectManual, onClose }: { onSelectConta: () => void; onSelectManual: () => void; onClose: () => void }) {
-  return (
-    <div className="space-y-4">
-      <p className="text-gray-600 dark:text-gray-400 mb-6">Como deseja preencher os dados do cliente?</p>
-      <button onClick={onSelectConta} className="w-full p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-[#0176d3] hover:bg-[#e3f3ff] dark:hover:bg-[#0176d3]/10 transition-all text-left">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-[#0176d3]/10 rounded-lg"><FileText size={24} className="text-[#0176d3]" /></div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Selecionar Cliente Cadastrado</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Escolha uma empresa ou pessoa física já cadastrada no CRM.</p>
-          </div>
-        </div>
-      </button>
-      <button onClick={onSelectManual} className="w-full p-6 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-[#0176d3] hover:bg-[#e3f3ff] dark:hover:bg-[#0176d3]/10 transition-all text-left">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-[#0176d3]/10 rounded-lg"><Plus size={24} className="text-[#0176d3]" /></div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Preencher Manualmente</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Digite os dados do cliente manualmente.</p>
-          </div>
-        </div>
-      </button>
-      <div className="flex justify-end pt-4">
-        <button onClick={onClose} className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg">Cancelar</button>
-      </div>
-    </div>
-  );
-}
-
-function ContaSelector({ contas, loading, value, onChange }: { contas: any[]; loading: boolean; value: string; onChange: (id: number | string) => void }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Empresa / Pessoa Física *</label>
-      {loading ? (
-        <div className="text-center py-4"><div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-[#0176d3]" /></div>
-      ) : (
-        <select value={value || ''} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white">
-          <option value="">Selecione...</option>
-          {contas.filter((c: any) => c._tipo === 'conta').length > 0 && (
-            <optgroup label="Empresas (Contas)">
-              {contas.filter((c: any) => c._tipo === 'conta').map((c: any) => <option key={c.id} value={c.id}>{c._display || c.nome}</option>)}
-            </optgroup>
-          )}
-          {contas.filter((c: any) => c._tipo === 'lead').length > 0 && (
-            <optgroup label="Pessoa Física (Leads com CPF/CNPJ)">
-              {contas.filter((c: any) => c._tipo === 'lead').map((c: any) => <option key={c.id} value={c.id}>{c._display || c.nome}</option>)}
-            </optgroup>
-          )}
-        </select>
-      )}
-    </div>
-  );
-}
-
-const inputClass = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white";
-
-function TomadorFields({ formData, onChange }: { formData: any; onChange: (f: string, v: string) => void }) {
-  return (
-    <div>
-      <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Dados do Cliente</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">CPF/CNPJ *</label>
-          <input type="text" value={formData.tomador_cpf_cnpj} onChange={(e) => onChange('tomador_cpf_cnpj', e.target.value)} required className={inputClass} placeholder="000.000.000-00" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome/Razão Social *</label>
-          <input type="text" value={formData.tomador_nome} onChange={(e) => onChange('tomador_nome', e.target.value)} required className={inputClass} />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
-          <input type="email" value={formData.tomador_email} onChange={(e) => onChange('tomador_email', e.target.value)} className={inputClass} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EnderecoFields({ formData, onChange }: { formData: any; onChange: (f: string, v: string) => void }) {
-  return (
-    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-      <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Endereço</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">CEP</label>
-          <input type="text" value={formData.tomador_cep} onChange={(e) => onChange('tomador_cep', e.target.value)} className={inputClass} placeholder="00000-000" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Logradouro</label>
-          <input type="text" value={formData.tomador_logradouro} onChange={(e) => onChange('tomador_logradouro', e.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Número</label>
-          <input type="text" value={formData.tomador_numero} onChange={(e) => onChange('tomador_numero', e.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Complemento</label>
-          <input type="text" value={formData.tomador_complemento} onChange={(e) => onChange('tomador_complemento', e.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bairro</label>
-          <input type="text" value={formData.tomador_bairro} onChange={(e) => onChange('tomador_bairro', e.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cidade *</label>
-          <input type="text" value={formData.tomador_cidade} onChange={(e) => onChange('tomador_cidade', e.target.value)} required className={inputClass} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">UF *</label>
-          <input type="text" maxLength={2} value={formData.tomador_uf} onChange={(e) => onChange('tomador_uf', e.target.value.toUpperCase())} required className={inputClass} placeholder="SP" />
         </div>
       </div>
     </div>

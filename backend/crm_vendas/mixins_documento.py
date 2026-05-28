@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from tenants.middleware import get_current_loja_id, ensure_loja_context
+from .views_common import filtrar_queryset_por_query_params
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +30,11 @@ class DocumentoQuerysetMixin:
         qs = qs.select_related(*self.documento_select_related).prefetch_related(
             *self.documento_prefetch_related
         )
-        oportunidade_id = self.request.query_params.get('oportunidade_id')
-        if oportunidade_id:
-            qs = qs.filter(oportunidade_id=oportunidade_id)
-        status_filter = self.request.query_params.get('status')
-        if status_filter:
-            qs = qs.filter(status=status_filter)
-        return qs
+        return filtrar_queryset_por_query_params(
+            qs,
+            self.request,
+            {'oportunidade_id': 'oportunidade_id', 'status': 'status'},
+        )
 
 
 class EnviarClienteMixin:

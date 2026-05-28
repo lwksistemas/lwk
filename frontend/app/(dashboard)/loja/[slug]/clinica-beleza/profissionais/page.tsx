@@ -12,6 +12,23 @@ import { ProfissionalFormModal } from "./components/ProfissionalFormModal";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
+import {
+  entityActive,
+  entityEmail,
+  entityName,
+  entityPhone,
+  professionalSpecialty,
+} from "@/lib/clinica-beleza-entities";
+import { formatProfissionalApiErrors } from "@/lib/clinica-beleza-form-errors";
+import {
+  bloquearCriacaoDuplicadaOffline,
+  deveVerificarDuplicataOffline,
+  gerarIdTemporarioOffline,
+  isBrowserOffline,
+  isFetchNetworkError,
+  isRegistroPendenteSync,
+  temDuplicataNaLista,
+} from "@/lib/clinica-beleza-offline";
 import { buscarProfissionaisOffline, salvarProfissionaisOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 import { logger } from "@/lib/logger";
 
@@ -30,13 +47,6 @@ interface Professional {
   is_active?: boolean;
   is_administrador_vinculado?: boolean;
 }
-
-// Helpers
-function prName(p: Professional): string { return p.name || p.nome || ''; }
-function prSpecialty(p: Professional): string { return p.specialty || p.especialidade || ''; }
-function prPhone(p: Professional): string { return p.phone || p.telefone || ''; }
-function prEmail(p: Professional): string | null { return p.email ?? null; }
-function prActive(p: Professional): boolean { return p.active ?? p.is_active ?? true; }
 
 interface LojaOwnerInfo {
   owner_username: string;
@@ -136,10 +146,10 @@ export default function ProfissionaisPage() {
   const openEdit = (p: Professional) => {
     setEditing(p);
     setForm({
-      name: prName(p),
-      specialty: prSpecialty(p) || "",
-      phone: prPhone(p) || "",
-      email: prEmail(p) || "",
+      name: entityName(p),
+      specialty: professionalSpecialty(p) || "",
+      phone: entityPhone(p) || "",
+      email: entityEmail(p) || "",
       criar_acesso: false,
       perfil: "profissional",
     });
@@ -175,27 +185,23 @@ export default function ProfissionaisPage() {
       body.perfil = form.perfil;
     }
 
-    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
-    if (isOffline) {
+    if (isBrowserOffline()) {
       try {
         const lojaSlug = getLojaSlug();
-        const editingIsPendente = editing && editing.id < 0;
-        
-        // Verificar se já existe na lista local (evitar duplicação)
-        if (!editing || editingIsPendente) {
-          const jaExisteLocal = list.some(p => 
-            prName(p).toLowerCase() === form.name.trim().toLowerCase() && 
-            prSpecialty(p).toLowerCase() === form.specialty.trim().toLowerCase()
+
+        if (deveVerificarDuplicataOffline(editing)) {
+          const jaExisteLocal = temDuplicataNaLista(list, (p) =>
+            entityName(p).toLowerCase() === form.name.trim().toLowerCase() &&
+            professionalSpecialty(p).toLowerCase() === form.specialty.trim().toLowerCase(),
           );
-          
           if (jaExisteLocal) {
             setError("Este profissional já foi adicionado. Aguarde a sincronização.");
             setSaving(false);
             return;
           }
         }
-        
-        if (editing && !editingIsPendente) {
+
+        if (editing && !isRegistroPendenteSync(editing.id)) {
           await adicionarNaFilaSync({
             tipo: "profissional",
             payload: { action: "update", id: editing.id, body: { ...body, criar_acesso: undefined } },
@@ -203,7 +209,7 @@ export default function ProfissionaisPage() {
           });
           const updatedList = list.map((p) =>
             p.id === editing.id
-              ? { ...p, name: String(body.name), specialty: String(body.specialty), phone: (body.phone as string) ?? prPhone(p), email: (body.email as string) ?? prEmail(p) }
+              ? { ...p, name: String(body.name), specialty: String(body.specialty), phone: (body.phone as string) ?? entityPhone(p), email: (body.email as string) ?? entityEmail(p) }
               : p
           );
           setList(updatedList);
@@ -214,7 +220,7 @@ export default function ProfissionaisPage() {
             payload: { action: "create", body },
             lojaSlug,
           });
-          const tempId = -Date.now();
+          const tempId = gerarIdTemporarioOffline();
           const newProf: Professional = {
             id: tempId,
             name: String(body.name),
@@ -245,15 +251,7 @@ export default function ProfissionaisPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-          const messages: string[] = [];
-          if (typeof err.detail === "string") messages.push(err.detail);
-          else if (Array.isArray(err.detail)) messages.push(...(err.detail as string[]));
-          for (const [key, v] of Object.entries(err)) {
-            if (key === "detail") continue;
-            if (Array.isArray(v) && v.every((x) => typeof x === "string")) messages.push(...(v as string[]));
-            else if (typeof v === "string" && v.trim()) messages.push(v.trim());
-          }
-          throw new Error(messages.length ? messages.join(". ") : "Erro ao atualizar");
+          throw new Error(formatProfissionalApiErrors(err) || "Erro ao atualizar");
         }
       } else {
         const res = await clinicaBelezaFetch("/professionals/", {
@@ -262,34 +260,7 @@ export default function ProfissionaisPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-          const messages: string[] = [];
-          if (typeof err.detail === "string") messages.push(err.detail);
-          else if (Array.isArray(err.detail)) messages.push(...(err.detail as string[]));
-          
-          // Processar erros de campos específicos (email, loja, etc.) — aceitar string ou array
-          for (const [key, v] of Object.entries(err)) {
-            if (key === "detail") continue; // já tratado acima
-            if (key === "email" && Array.isArray(v)) {
-              const emailErrors = (v as string[]).map((msg) =>
-                msg.includes("Já existe") || msg.includes("já existe")
-                  ? `${msg}\n\nSoluções:\n• Desmarque "Criar acesso" para cadastrar sem login\n• Use um email diferente\n• Deixe o campo email vazio`
-                  : msg
-              );
-              messages.push(...emailErrors);
-            } else if (Array.isArray(v) && v.every((x) => typeof x === "string")) {
-              messages.push(...(v as string[]));
-            } else if (typeof v === "string" && v.trim()) {
-              const s = v.trim();
-              if (key === "email" && (s.includes("Já existe") || s.includes("já existe"))) {
-                messages.push(`${s}\n\nSoluções:\n• Desmarque "Criar acesso" para cadastrar sem login\n• Use um email diferente\n• Ou use um e-mail que não esteja em uso no sistema`);
-              } else {
-                messages.push(s);
-              }
-            }
-          }
-
-          const errorMsg = messages.length ? messages.join("\n\n") : "Erro ao cadastrar";
-          throw new Error(errorMsg);
+          throw new Error(formatProfissionalApiErrors(err) || "Erro ao cadastrar");
         }
       }
       setShowModal(false);
@@ -299,14 +270,13 @@ export default function ProfissionaisPage() {
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erro ao salvar";
-      const isNetworkError = msg.toLowerCase().includes("fetch") || msg === "Failed to fetch";
-      if (isNetworkError) {
+      if (isFetchNetworkError(msg)) {
         try {
           const lojaSlug = getLojaSlug();
-          // Verificar se já existe na lista local (evitar duplicação)
-          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => prName(p) === form.name.trim() && prSpecialty(p) === form.specialty.trim());
-          
-          if (jaExisteLocal && !editing) {
+
+          if (bloquearCriacaoDuplicadaOffline(editing, list, (p) =>
+            entityName(p) === form.name.trim() && professionalSpecialty(p) === form.specialty.trim(),
+          )) {
             setError("Este profissional já foi adicionado offline. Aguarde a sincronização.");
             setSaving(false);
             return;
@@ -320,14 +290,14 @@ export default function ProfissionaisPage() {
             });
             const updatedList = list.map((p) =>
               p.id === editing.id
-                ? { ...p, name: String(body.name), specialty: String(body.specialty), phone: (body.phone as string) ?? prPhone(p), email: (body.email as string) ?? prEmail(p) }
+                ? { ...p, name: String(body.name), specialty: String(body.specialty), phone: (body.phone as string) ?? entityPhone(p), email: (body.email as string) ?? entityEmail(p) }
                 : p
             );
             setList(updatedList);
             await salvarProfissionaisOffline(updatedList);
           } else {
             await adicionarNaFilaSync({ tipo: "profissional", payload: { action: "create", body }, lojaSlug });
-            const tempId = -Date.now();
+            const tempId = gerarIdTemporarioOffline();
             const newProf: Professional = {
               id: tempId,
               name: String(body.name),
@@ -355,7 +325,7 @@ export default function ProfissionaisPage() {
   };
 
   const exclude = async (p: Professional) => {
-    if (!confirm(`Desativar o profissional "${prName(p)}"?`)) return;
+    if (!confirm(`Desativar o profissional "${entityName(p)}"?`)) return;
     try {
       await clinicaBelezaFetch(`/professionals/${p.id}/`, { method: "DELETE" });
       load();
@@ -365,7 +335,7 @@ export default function ProfissionaisPage() {
   };
 
   useClinicaBelezaDark(); // Aplica tema escuro (localStorage + document.documentElement)
-  const activeList = list.filter((p) => prActive(p));
+  const activeList = list.filter((p) => entityActive(p));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
@@ -419,9 +389,9 @@ export default function ProfissionaisPage() {
                 <tbody>
                   {activeList.map((p) => (
                     <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
-                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{prName(p)}</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">{prSpecialty(p) || "—"}</td>
-                      <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{prPhone(p) || "—"}</td>
+                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</td>
+                      <td className="p-3 text-gray-700 dark:text-gray-300">{professionalSpecialty(p) || "—"}</td>
+                      <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
                       <td className="p-3">
                         <div className="flex gap-2">
                           {p.is_administrador_vinculado ? (

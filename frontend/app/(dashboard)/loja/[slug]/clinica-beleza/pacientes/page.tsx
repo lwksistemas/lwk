@@ -11,30 +11,28 @@ import { ArrowLeft, Plus, Pencil, Trash2, X, Moon, Sun } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
+import {
+  entityEmail,
+  entityName,
+  entityPhone,
+  entityActive,
+  patientAddress,
+  patientBirthDate,
+  patientCpf,
+  patientNotes,
+} from "@/lib/clinica-beleza-entities";
+import { formatClinicaApiValidationErrors } from "@/lib/clinica-beleza-form-errors";
+import {
+  bloquearCriacaoDuplicadaOffline,
+  deveVerificarDuplicataOffline,
+  gerarIdTemporarioOffline,
+  isBrowserOffline,
+  isFetchNetworkError,
+  isRegistroPendenteSync,
+  temDuplicataNaLista,
+} from "@/lib/clinica-beleza-offline";
 import { buscarPacientesOffline, salvarPacientesOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 import { logger } from "@/lib/logger";
-
-/** Monta mensagem legível a partir de serializer.errors (400) da API */
-function formatApiValidationErrors(err: Record<string, unknown>): string {
-  if (err?.detail && typeof err.detail === "string") return err.detail;
-  const msgs: string[] = [];
-  const labels: Record<string, string> = {
-    name: "Nome",
-    phone: "Telefone",
-    email: "E-mail",
-    cpf: "CPF",
-    birth_date: "Data de Nascimento",
-    address: "Endereço",
-    notes: "Observações",
-  };
-  for (const [key, val] of Object.entries(err)) {
-    if (Array.isArray(val) && val.length) {
-      const label = labels[key] || key;
-      msgs.push(`${label}: ${val[0]}`);
-    }
-  }
-  return msgs.length ? msgs.join(". ") : "";
-}
 
 interface Patient {
   id: number;
@@ -54,16 +52,6 @@ interface Patient {
   is_active?: boolean;
   allow_whatsapp?: boolean;
 }
-
-// Helpers para acessar campos independente do idioma
-function pName(p: Patient): string { return p.name || p.nome || ''; }
-function pPhone(p: Patient): string { return p.phone || p.telefone || ''; }
-function pEmail(p: Patient): string | null { return p.email ?? null; }
-function pCpf(p: Patient): string | null { return p.cpf ?? null; }
-function pBirthDate(p: Patient): string | null { return p.birth_date ?? p.data_nascimento ?? null; }
-function pAddress(p: Patient): string | null { return p.address ?? p.endereco ?? null; }
-function pNotes(p: Patient): string | null { return p.notes ?? p.observacoes ?? null; }
-function pActive(p: Patient): boolean { return p.active ?? p.is_active ?? true; }
 
 export default function PacientesPage() {
   const params = useParams();
@@ -151,13 +139,13 @@ export default function PacientesPage() {
   const openEdit = (p: Patient) => {
     setEditing(p);
     setForm({
-      name: pName(p),
-      phone: pPhone(p) || "",
-      email: pEmail(p) || "",
-      cpf: pCpf(p) || "",
-      birth_date: pBirthDate(p) ? pBirthDate(p)!.slice(0, 10) : "",
-      address: pAddress(p) || "",
-      notes: pNotes(p) || "",
+      name: entityName(p),
+      phone: entityPhone(p) || "",
+      email: entityEmail(p) || "",
+      cpf: patientCpf(p) || "",
+      birth_date: patientBirthDate(p) ? patientBirthDate(p)!.slice(0, 10) : "",
+      address: patientAddress(p) || "",
+      notes: patientNotes(p) || "",
       allow_whatsapp: p.allow_whatsapp !== false,
     });
     setError("");
@@ -183,28 +171,23 @@ export default function PacientesPage() {
       allow_whatsapp: form.allow_whatsapp,
     };
 
-    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
-
-    if (isOffline) {
+    if (isBrowserOffline()) {
       try {
         const lojaSlug = getLojaSlug();
-        const editingIsPendente = editing && editing.id < 0;
-        
-        // Verificar se já existe na lista local (evitar duplicação)
-        if (!editing || editingIsPendente) {
-          const jaExisteLocal = list.some(p => 
-            pName(p).toLowerCase() === form.name.trim().toLowerCase() && 
-            (form.phone.trim() ? pPhone(p) === form.phone.trim() : true)
+
+        if (deveVerificarDuplicataOffline(editing)) {
+          const jaExisteLocal = temDuplicataNaLista(list, (p) =>
+            entityName(p).toLowerCase() === form.name.trim().toLowerCase() &&
+            (form.phone.trim() ? entityPhone(p) === form.phone.trim() : true),
           );
-          
           if (jaExisteLocal) {
             setError("Este paciente já foi adicionado. Aguarde a sincronização.");
             setSaving(false);
             return;
           }
         }
-        
-        if (editing && !editingIsPendente) {
+
+        if (editing && !isRegistroPendenteSync(editing.id)) {
           await adicionarNaFilaSync({
             tipo: "paciente",
             payload: { action: "update", id: editing.id, body },
@@ -222,7 +205,7 @@ export default function PacientesPage() {
             payload: { action: "create", body },
             lojaSlug,
           });
-          const tempId = -Date.now();
+          const tempId = gerarIdTemporarioOffline();
           const newPatient: Patient = {
             id: tempId,
             name: body.name,
@@ -259,7 +242,7 @@ export default function PacientesPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(formatApiValidationErrors(err) || "Erro ao atualizar");
+          throw new Error(formatClinicaApiValidationErrors(err) || "Erro ao atualizar");
         }
       } else {
         const res = await clinicaBelezaFetch("/patients/", {
@@ -268,7 +251,7 @@ export default function PacientesPage() {
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(formatApiValidationErrors(err) || "Erro ao cadastrar");
+          throw new Error(formatClinicaApiValidationErrors(err) || "Erro ao cadastrar");
         }
       }
       setShowModal(false);
@@ -276,15 +259,13 @@ export default function PacientesPage() {
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "SESSION_ENDED") return;
       const msg = e instanceof Error ? e.message : "Erro ao salvar";
-      const isNetworkError = msg.toLowerCase().includes("fetch") || msg === "Failed to fetch";
-      if (isNetworkError) {
+      if (isFetchNetworkError(msg)) {
         try {
           const lojaSlug = getLojaSlug();
-          
-          // Verificar se já existe na lista local (evitar duplicação)
-          const jaExisteLocal = editing ? list.some(p => p.id === editing.id) : list.some(p => pName(p).toLowerCase() === form.name.trim().toLowerCase());
-          
-          if (jaExisteLocal && !editing) {
+
+          if (bloquearCriacaoDuplicadaOffline(editing, list, (p) =>
+            entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
+          )) {
             setError("Este paciente já foi adicionado offline. Aguarde a sincronização.");
             setSaving(false);
             return;
@@ -303,7 +284,7 @@ export default function PacientesPage() {
             await salvarPacientesOffline(updatedList);
           } else {
             await adicionarNaFilaSync({ tipo: "paciente", payload: { action: "create", body }, lojaSlug });
-            const tempId = -Date.now();
+            const tempId = gerarIdTemporarioOffline();
             const newPatient: Patient = {
               id: tempId,
               name: body.name,
@@ -335,7 +316,7 @@ export default function PacientesPage() {
   };
 
   const exclude = async (p: Patient) => {
-    if (!confirm(`Desativar o paciente "${pName(p)}"?`)) return;
+    if (!confirm(`Desativar o paciente "${entityName(p)}"?`)) return;
     try {
       await clinicaBelezaFetch(`/patients/${p.id}/`, { method: "DELETE" });
       load();
@@ -344,7 +325,7 @@ export default function PacientesPage() {
     }
   };
 
-  const activeList = list.filter((p) => pActive(p));
+  const activeList = list.filter((p) => entityActive(p));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
@@ -396,15 +377,15 @@ export default function PacientesPage() {
                     return (
                       <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
                         <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
-                          {pName(p)}
+                          {entityName(p)}
                           {isPendenteSync && (
                             <span className="ml-2 text-xs text-amber-600 dark:text-amber-400" title="Será sincronizado quando estiver online">
                               (offline)
                             </span>
                           )}
                         </td>
-                        <td className="p-3 text-gray-700 dark:text-gray-300">{pPhone(p) || "—"}</td>
-                        <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{pEmail(p) || "—"}</td>
+                        <td className="p-3 text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
+                        <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityEmail(p) || "—"}</td>
                         <td className="p-3">
                           <div className="flex gap-2">
                             <button

@@ -2,6 +2,7 @@
  * Utilitários para o CRM Vendas.
  * Centraliza helpers de tratamento de respostas da API.
  */
+import apiClient from '@/lib/api-client';
 
 /**
  * Normaliza resposta paginada ou array da API para um array de itens.
@@ -39,6 +40,37 @@ export function crmMensagemEnvioCanalSucesso(canal: 'email' | 'whatsapp'): strin
 /** Formata valor monetário para exibição (listagens/modais CRM).
  * @deprecated Use formatCurrency de financeiro-helpers.ts para novos componentes.
  */
+export type CrmDocumentoTipo = 'propostas' | 'contratos';
+
+function crmSanitizeTituloArquivo(titulo: string): string {
+  return titulo.replace(/\s+/g, '_');
+}
+
+export function crmDocumentoDownloadFilename(
+  tipo: CrmDocumentoTipo,
+  id: number,
+  titulo: string,
+  ext: 'pdf' | 'docx',
+): string {
+  const prefix = tipo === 'propostas' ? 'proposta' : 'contrato';
+  return `${prefix}_${id}_${crmSanitizeTituloArquivo(titulo)}.${ext}`;
+}
+
+/** Baixa PDF ou DOCX de proposta/contrato (mesma lógica das páginas de listagem). */
+export async function downloadCrmDocumento(
+  tipo: CrmDocumentoTipo,
+  id: number,
+  titulo: string,
+  formato: 'pdf' | 'docx',
+): Promise<void> {
+  const endpoint = formato === 'pdf' ? 'download_pdf' : 'download_docx';
+  const response = await apiClient.get(`/crm-vendas/${tipo}/${id}/${endpoint}/`, {
+    responseType: 'blob',
+  });
+  const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
+  downloadBlobAsFile(blob, crmDocumentoDownloadFilename(tipo, id, titulo, formato));
+}
+
 export function formatCrmBrl(valor: string | number | null | undefined): string {
   if (valor == null || valor === '') return '';
   const n = typeof valor === 'string' ? parseFloat(valor) : valor;

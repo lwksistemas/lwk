@@ -194,3 +194,41 @@ class CacheInvalidationMixin:
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f'Erro ao invalidar cache: {e}')
+
+
+class VendedorAutoAssignCreateMixin:
+    """
+    Atribui vendedor_id na criação quando o usuário logado é vendedor.
+    Usado em ContaViewSet e LeadViewSet (mesma lógica, evita duplicação).
+    """
+
+    vendedor_create_entity_label = 'registro'
+
+    def _save_create_with_optional_vendedor(self, serializer):
+        import logging
+
+        from .models import Vendedor
+        from .utils import get_current_vendedor_id
+
+        logger = logging.getLogger(__name__)
+        vendedor_id = get_current_vendedor_id(self.request)
+        if vendedor_id is None:
+            serializer.save()
+            return
+
+        if Vendedor.objects.filter(id=vendedor_id).exists():
+            serializer.save(vendedor_id=vendedor_id)
+            return
+
+        logger.warning(
+            '[%s.perform_create] vendedor_id=%s não existe no schema, salvando %s sem vendedor',
+            self.__class__.__name__,
+            vendedor_id,
+            self.vendedor_create_entity_label,
+        )
+        serializer.save()
+
+    def perform_create(self, serializer):
+        self._save_create_with_optional_vendedor(serializer)
+        if hasattr(self, '_invalidate_caches'):
+            self._invalidate_caches()

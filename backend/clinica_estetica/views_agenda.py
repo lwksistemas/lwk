@@ -1,0 +1,412 @@
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum, Q
+from django.utils import timezone
+from datetime import date, datetime, timedelta
+from core.views import BaseModelViewSet
+from core.throttling import DashboardRateThrottle
+from .models import (
+    Cliente, Profissional, Procedimento, Agendamento,
+    BloqueioAgenda, Consulta, HorarioTrabalhoProfissional,
+)
+from .serializers import (
+    AgendamentoSerializer, BloqueioAgendaSerializer, ConsultaSerializer,
+)
+
+
+class AgendamentoViewSet(BaseModelViewSet):
+    serializer_class = AgendamentoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Retorna queryset filtrado por loja com select_related"""
+        queryset = Agendamento.objects.select_related('cliente', 'profissional', 'procedimento')
+        
+        # Aplicar filtro is_active
+        if hasattr(Agendamento, 'is_active'):
+            queryset = queryset.filter(is_active=True)
+        params = getattr(self.request, 'query_params', self.request.GET)
+        
+        # Filtros
+        data = params.get('data')
+        if data:
+            queryset = queryset.filter(data=data)
+        
+        status_param = params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        
+        cliente_id = params.get('cliente_id')
+        if cliente_id:
+            queryset = queryset.filter(cliente_id=cliente_id)
+        
+        profissional_id = params.get('profissional_id')
+        if profissional_id:
+            queryset = queryset.filter(profissional_id=profissional_id)
+        
+        return queryset
+
+    @action(detail=False, methods=['get'])
+    def calendario(self, request):
+        """Retorna agendamentos para visualização em calendário"""
+        params = getattr(request, 'query_params', request.GET)
+        data_inicio = params.get('data_inicio')
+        data_fim = params.get('data_fim')
+        
+        if not data_inicio or not data_fim:
+            return Response({'error': 'data_inicio e data_fim são obrigatórios'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        # Usar get_queryset() para respeitar filtros (ex.: profissional_id) e isolamento por loja
+        qs = self.get_queryset()
+        agendamentos = qs.filter(
+            data__gte=data_inicio,
+            data__lte=data_fim
+        ).order_by('data', 'horario')
+        
+        serializer = self.get_serializer(agendamentos, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def proximos(self, request):
+        """Retorna próximos agendamentos"""
+        hoje = date.today()
+        agendamentos = self.get_queryset().filter(
+            data__gte=hoje,
+            status__in=['agendado', 'confirmado']
+        ).order_by('data', 'horario')[:10]
+        
+        serializer = self.get_serializer(agendamentos, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def estatisticas(self, request):
+        """Retorna estatísticas do dashboard"""
+        hoje = date.today()
+        primeiro_dia_mes = hoje.replace(day=1)
+        qs = self.get_queryset()
+        
+        stats = {
+            'agendamentos_hoje': qs.filter(data=hoje).count(),
+            'agendamentos_mes': qs.filter(
+                data__gte=primeiro_dia_mes,
+                data__lte=hoje
+            ).count(),
+            'receita_mensal': float(
+                qs.filter(
+                    data__gte=primeiro_dia_mes,
+                    data__lte=hoje,
+                    status='concluido'
+                ).aggregate(total=Sum('valor'))['total'] or 0
+            ),
+            'clientes_ativos': Cliente.objects.filter(is_active=True).count(),
+            'procedimentos_ativos': Procedimento.objects.filter(is_active=True).count()
+        }
+        
+        return Response(stats)
+
+    @action(detail=False, methods=['get'], throttle_classes=[DashboardRateThrottle])
+    def dashboard(self, request):
+        """
+        Retorna estatísticas + próximos agendamentos em uma única resposta (menos round-trips).
+        Rate limited: 10 requisições por minuto para prevenir loops infinitos.
+        """
+        hoje = date.today()
+        primeiro_dia_mes = hoje.replace(day=1)
+        qs = self.get_queryset()
+
+        stats = {
+            'agendamentos_hoje': qs.filter(data=hoje).count(),
+            'agendamentos_mes': qs.filter(data__gte=primeiro_dia_mes, data__lte=hoje).count(),
+            'receita_mensal': float(
+                qs.filter(
+                    data__gte=primeiro_dia_mes,
+                    data__lte=hoje,
+                    status='concluido'
+                ).aggregate(total=Sum('valor'))['total'] or 0
+            ),
+            'clientes_ativos': Cliente.objects.filter(is_active=True).count(),
+            'procedimentos_ativos': Procedimento.objects.filter(is_active=True).count(),
+        }
+
+        agendamentos = qs.filter(
+            data__gte=hoje,
+            status__in=['agendado', 'confirmado', 'em_atendimento']
+        ).order_by('data', 'horario')[:10]
+        serializer = self.get_serializer(agendamentos, many=True)
+
+        return Response({
+            'estatisticas': stats,
+            'proximos': serializer.data,
+        })
+
+
+class BloqueioAgendaViewSet(BaseModelViewSet):
+    serializer_class = BloqueioAgendaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Retorna bloqueios filtrados por loja, data e profissional"""
+        from tenants.middleware import get_current_loja_id, get_current_tenant_db
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        loja_id = get_current_loja_id()
+        tenant_db = get_current_tenant_db()
+        
+        logger.info(f"🔍 [BloqueioAgendaViewSet] loja_id={loja_id}, tenant_db={tenant_db}")
+        
+        if not loja_id:
+            logger.warning("⚠️ [BloqueioAgendaViewSet] Nenhuma loja no contexto")
+            return BloqueioAgenda.objects.none()
+        
+        # CRÍTICO: Usar o banco correto (schema isolado)
+        queryset = BloqueioAgenda.objects.all()
+        
+        # Se temos um tenant_db específico, usar ele
+        if tenant_db and tenant_db != 'default':
+            queryset = queryset.using(tenant_db)
+            logger.info(f"✅ [BloqueioAgendaViewSet] Usando banco: {tenant_db}")
+        
+        # Filtrar por loja_id explicitamente (camada extra de segurança)
+        queryset = queryset.filter(loja_id=loja_id).select_related('profissional')
+        
+        params = getattr(self.request, "query_params", self.request.GET)
+        data_inicio_str = params.get('data_inicio')
+        data_fim_str = params.get('data_fim')
+        profissional_id = params.get('profissional_id')
+
+        # Apenas bloqueios ativos
+        queryset = queryset.filter(is_active=True)
+        
+        if data_inicio_str and data_fim_str:
+            from datetime import datetime
+            try:
+                data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
+                data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                data_inicio = data_fim = None
+            if data_inicio is not None and data_fim is not None:
+                queryset = queryset.filter(
+                    data_inicio__lte=data_fim,
+                    data_fim__gte=data_inicio
+                )
+                logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro de data: {data_inicio} a {data_fim}")
+
+        # Se filtrar por profissional, incluir bloqueios do profissional E bloqueios globais (profissional null)
+        if profissional_id:
+            queryset = queryset.filter(Q(profissional_id=profissional_id) | Q(profissional__isnull=True))
+            logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro profissional_id={profissional_id}")
+        
+        # Query completa apenas em debug para evitar ruído e detalhes internos em produção.
+        logger.debug("[BloqueioAgendaViewSet] SQL: %s", queryset.query)
+        
+        count = queryset.count()
+        logger.info(f"✅ [BloqueioAgendaViewSet] Retornando {count} bloqueios para loja_id={loja_id}")
+        
+        # Aviso só quando não há filtro de data: 0 resultados pode indicar problema de tenant/DB
+        if count == 0 and not (data_inicio_str and data_fim_str):
+            from django.db import connection, connections
+            conn = connections[tenant_db] if (tenant_db and tenant_db != 'default') else connection
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM clinica_bloqueios_agenda WHERE loja_id = %s", [loja_id])
+                total_bloqueios = cursor.fetchone()[0]
+                if total_bloqueios > 0:
+                    logger.warning(
+                        "⚠️ [BloqueioAgendaViewSet] Query retornou 0, mas existem %s bloqueios no banco para loja_id=%s (verifique tenant/DB)",
+                        total_bloqueios, loja_id
+                    )
+        
+        return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """Sobrescreve create para logar erros de validação"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"[BloqueioAgenda] Erro ao criar bloqueio: {str(e)}")
+            logger.debug("[BloqueioAgenda] Campos recebidos: %s", sorted(request.data.keys()))
+            raise
+    
+    def perform_create(self, serializer):
+        """
+        Preenche automaticamente o loja_id do contexto
+        
+        Logs detalhados para debug de problemas de isolamento multi-tenant
+        """
+        from tenants.middleware import get_current_loja_id
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        loja_id = get_current_loja_id()
+        profissional_id = self.request.data.get('profissional')
+        
+        # Evitar registrar payload completo do request.
+        logger.debug("[BloqueioAgenda] Campos recebidos: %s", sorted(self.request.data.keys()))
+        logger.info(f"[BloqueioAgenda] loja_id do contexto: {loja_id}")
+        logger.info(f"[BloqueioAgenda] profissional_id recebido: {profissional_id}")
+        
+        # Verificar se profissional existe no schema da loja (antes de salvar)
+        if profissional_id:
+            existe = Profissional.objects.filter(id=profissional_id, is_active=True).exists()
+            logger.info(f"[BloqueioAgenda] Profissional {profissional_id} existe no schema da loja? {existe}")
+            
+            if not existe:
+                logger.error(f"[BloqueioAgenda] ERRO CRÍTICO: Tentativa de criar bloqueio com profissional_id={profissional_id} que não existe no schema da loja {loja_id}")
+        
+        # Salvar e logar o que foi realmente salvo
+        bloqueio = serializer.save(loja_id=loja_id)
+        logger.info(f"🔍 [BloqueioAgenda] SALVO NO BANCO: id={bloqueio.id}, data_inicio={bloqueio.data_inicio}, data_fim={bloqueio.data_fim}")
+        
+        return bloqueio
+
+
+class ConsultaViewSet(BaseModelViewSet):
+    serializer_class = ConsultaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Usar loja_id do header da requisição (não depender de thread-local em produção)
+        loja_id = self.request.headers.get('X-Loja-ID') or getattr(
+            self.request, 'META', {}
+        ).get('HTTP_X_LOJA_ID')
+        if not loja_id:
+            from tenants.middleware import get_current_loja_id
+            loja_id = get_current_loja_id()
+        if not loja_id:
+            return Consulta.objects.none()
+        try:
+            loja_id = int(loja_id)
+        except (ValueError, TypeError):
+            return Consulta.objects.none()
+
+        # Filtrar explicitamente por loja_id (all_without_filter + filter evita 404 em DELETE)
+        base = Consulta.objects.all_without_filter().filter(loja_id=loja_id).select_related(
+            'cliente', 'profissional', 'procedimento', 'agendamento'
+        )
+
+        params = getattr(self.request, 'query_params', self.request.GET)
+        if params.get('cliente_id'):
+            base = base.filter(cliente_id=params.get('cliente_id'))
+        if params.get('profissional_id'):
+            base = base.filter(profissional_id=params.get('profissional_id'))
+        if params.get('status'):
+            base = base.filter(status=params.get('status'))
+        
+        # Filtro para mostrar apenas consultas cujo agendamento foi confirmado
+        if params.get('agendamento_confirmado') == 'true':
+            base = base.filter(agendamento__status__in=['confirmado', 'em_atendimento', 'concluido'])
+
+        return base
+
+    @action(detail=True, methods=['post'])
+    def iniciar_consulta(self, request, pk=None):
+        """Inicia uma consulta (muda status para em_andamento)"""
+        consulta = self.get_object()
+        
+        if consulta.status != 'agendada':
+            return Response(
+                {'error': 'Consulta deve estar agendada para ser iniciada'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        consulta.status = 'em_andamento'
+        consulta.data_inicio = timezone.now()
+        consulta.save()
+        
+        serializer = self.get_serializer(consulta)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def finalizar_consulta(self, request, pk=None):
+        """Finaliza uma consulta (muda status para concluida)"""
+        consulta = self.get_object()
+        
+        if consulta.status != 'em_andamento':
+            return Response(
+                {'error': 'Consulta deve estar em andamento para ser finalizada'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        consulta.status = 'concluida'
+        consulta.data_fim = timezone.now()
+        
+        # Atualizar dados do pagamento se fornecidos
+        valor_pago = request.data.get('valor_pago')
+        forma_pagamento = request.data.get('forma_pagamento')
+        observacoes = request.data.get('observacoes_gerais')
+        
+        if valor_pago is not None:
+            consulta.valor_pago = valor_pago
+        if forma_pagamento:
+            consulta.forma_pagamento = forma_pagamento
+        if observacoes:
+            consulta.observacoes_gerais = observacoes
+        
+        consulta.save()
+        
+        # Atualizar status do agendamento
+        consulta.agendamento.status = 'concluido'
+        consulta.agendamento.save()
+        
+        serializer = self.get_serializer(consulta)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def sync_from_agendamentos(self, request):
+        """
+        Cria Consulta para Agendamentos que ainda não têm.
+        Assim agendamentos já cadastrados passam a aparecer na Lista de Consultas.
+        """
+        from tenants.middleware import get_current_loja_id
+
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'error': 'Contexto de loja não definido (X-Loja-ID)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Agendamentos da loja que ainda não têm Consulta
+        agendamentos_sem_consulta = Agendamento.objects.filter(
+            loja_id=loja_id
+        ).exclude(
+            id__in=Consulta.objects.values_list('agendamento_id', flat=True)
+        )
+
+        criadas = 0
+        for ag in agendamentos_sem_consulta:
+            Consulta.objects.get_or_create(
+                agendamento=ag,
+                defaults={
+                    'cliente_id': ag.cliente_id,
+                    'profissional_id': ag.profissional_id,
+                    'procedimento_id': ag.procedimento_id,
+                    'status': 'agendada',
+                    'valor_consulta': ag.valor,
+                    'loja_id': loja_id,
+                }
+            )
+            criadas += 1
+
+        return Response({'criadas': criadas, 'message': f'{criadas} consulta(s) criada(s) a partir de agendamentos.'})
+
+    @action(detail=False, methods=['get'])
+    def em_andamento(self, request):
+        """Retorna consultas em andamento"""
+        consultas = self.queryset.filter(status='em_andamento')
+        serializer = self.get_serializer(consultas, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def hoje(self, request):
+        """Retorna consultas de hoje"""
+        hoje = date.today()
+        consultas = self.queryset.filter(agendamento__data=hoje)
+        serializer = self.get_serializer(consultas, many=True)
+        return Response(serializer.data)

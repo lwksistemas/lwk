@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import models
 from .models import Loja, FinanceiroLoja, PagamentoLoja
+from .loja_utils import resolve_loja_by_slug_or_atalho
 from .serializers import FinanceiroLojaSerializer, PagamentoLojaSerializer
 from .asaas_service import LojaAsaasService
 import logging
@@ -585,16 +586,18 @@ def _get_or_create_financeiro_loja(loja):
 
 
 def _dashboard_financeiro_loja_impl(request, loja_slug):
-    # Verificar permissão
+    # Verificar permissão (slug ou atalho na URL, ex.: /loja/beleza/ ou /loja/34787081845/)
     if not request.user.is_superuser:
-        loja = Loja.objects.filter(slug=loja_slug, owner=request.user, is_active=True).select_related('plano').first()
+        loja = resolve_loja_by_slug_or_atalho(loja_slug, owner=request.user, is_active=True)
         if not loja:
             return Response(
-                {'error': 'Sem permissão. Apenas o responsável pela loja pode acessar.'},
+                {'error': 'Sem permissão. Apenas o responsável pode acessar.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
     else:
-        loja = get_object_or_404(Loja.objects.select_related('plano'), slug=loja_slug, is_active=True)
+        loja = resolve_loja_by_slug_or_atalho(loja_slug, is_active=True)
+        if not loja:
+            return Response({'error': 'Loja não encontrada'}, status=status.HTTP_404_NOT_FOUND)
 
     try:
         financeiro = _get_or_create_financeiro_loja(loja)

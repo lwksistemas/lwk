@@ -150,36 +150,32 @@ class SuperAdminSecurityMiddleware:
                     logger.info(f"Acesso de proprietário permitido: {request.user.username} -> {request.path}")
                     pass
                 
-                # Permitir acesso a dados financeiros da própria loja para administradores
+                # Permitir acesso a dados financeiros da própria loja (slug ou atalho na URL)
                 elif '/loja/' in request.path and '/financeiro/' in request.path:
-                    # Extrair slug da loja da URL
                     path_parts = request.path.split('/')
                     if 'loja' in path_parts:
                         loja_index = path_parts.index('loja')
                         if loja_index + 1 < len(path_parts):
-                            loja_slug = path_parts[loja_index + 1]
-                            
-                            # Verificar se o usuário é admin da loja específica
+                            loja_key = path_parts[loja_index + 1]
                             try:
-                                from stores.models import Store
-                                loja = Store.objects.get(slug=loja_slug)
-                                if request.user == loja.owner:
-                                    # Usuário é owner da loja, permitir acesso aos dados financeiros
-                                    pass
-                                elif not request.user.is_superuser:
-                                    logger.warning(f"Usuário {request.user.username} tentou acessar dados financeiros de loja não autorizada: {loja_slug}")
+                                from superadmin.loja_utils import resolve_loja_by_slug_or_atalho
+                                loja = resolve_loja_by_slug_or_atalho(loja_key, is_active=True)
+                                if not loja:
+                                    return JsonResponse({
+                                        'error': 'Loja não encontrada',
+                                        'code': 'STORE_NOT_FOUND'
+                                    }, status=404)
+                                if request.user != loja.owner and not request.user.is_superuser:
+                                    logger.warning(
+                                        'Usuário %s tentou acessar financeiro de loja não autorizada: %s',
+                                        request.user.username, loja_key,
+                                    )
                                     return JsonResponse({
                                         'error': 'Acesso negado - Você só pode acessar dados da sua loja',
                                         'code': 'STORE_ACCESS_DENIED'
                                     }, status=403)
-                            except Store.DoesNotExist:
-                                logger.warning(f"Tentativa de acesso a loja inexistente: {loja_slug}")
-                                return JsonResponse({
-                                    'error': 'Loja não encontrada',
-                                    'code': 'STORE_NOT_FOUND'
-                                }, status=404)
                             except Exception as e:
-                                logger.error(f"Erro ao verificar permissões da loja: {e}")
+                                logger.error('Erro ao verificar permissões da loja: %s', e)
                                 return JsonResponse({
                                     'error': 'Erro interno do servidor',
                                     'code': 'INTERNAL_ERROR'

@@ -35,8 +35,9 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
             loja = financeiro.loja
             
             dia_vencimento = request.data.get('dia_vencimento')
+            antecipado = bool(request.data.get('antecipado', False))
             
-            if dia_vencimento:
+            if dia_vencimento and not antecipado:
                 try:
                     dia_vencimento = int(dia_vencimento)
                     if dia_vencimento < 1 or dia_vencimento > 28:
@@ -53,7 +54,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
             logger.info(f"Renovando assinatura para loja {loja.slug} (dia_vencimento={dia_vencimento})")
             
             service = CobrancaService()
-            result = service.renovar_cobranca(loja, financeiro, dia_vencimento)
+            result = service.renovar_cobranca(loja, financeiro, dia_vencimento, antecipado=antecipado)
             
             if result.get('success'):
                 logger.info(f"✅ Cobrança renovada para loja {loja.slug}: {result.get('payment_id')}")

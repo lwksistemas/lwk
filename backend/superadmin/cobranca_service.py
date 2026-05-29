@@ -15,11 +15,64 @@ from calendar import monthrange
 logger = logging.getLogger(__name__)
 
 
+def _parse_due_date(value) -> date:
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str) and value.strip():
+        return date.fromisoformat(value.strip()[:10])
+    return date.today()
+
+
+def _registrar_pagamento_loja_pendente(loja, financeiro, result: Dict[str, Any], provedor: str, due_date) -> None:
+    """Registra PagamentoLoja pendente para histórico, boleto e NFS-e após confirmação."""
+    from django.utils import timezone
+    from .models import PagamentoLoja
+
+    payment_id = (result.get('payment_id') or '').strip()
+    if not payment_id:
+        return
+
+    due = _parse_due_date(due_date)
+    valor = result.get('value', financeiro.valor_mensalidade)
+    defaults = {
+        'valor': valor,
+        'status': 'pendente',
+        'data_vencimento': due,
+        'referencia_mes': timezone.now().date().replace(day=1),
+        'forma_pagamento': 'BOLETO',
+        'provedor_boleto': provedor,
+        'boleto_url': (result.get('boleto_url') or '')[:200],
+        'pix_qr_code': (result.get('pix_qr_code') or '')[:2000],
+        'pix_copy_paste': (result.get('pix_copy_paste') or '')[:500],
+    }
+
+    if provedor == 'mercadopago':
+        defaults['mercadopago_payment_id'] = payment_id[:100]
+        pix_id = (result.get('pix_payment_id') or '').strip()
+        if pix_id:
+            defaults['mercadopago_pix_payment_id'] = pix_id[:100]
+        pl, _ = PagamentoLoja.objects.update_or_create(
+            loja=loja,
+            financeiro=financeiro,
+            mercadopago_payment_id=payment_id[:100],
+            defaults=defaults,
+        )
+    else:
+        defaults['asaas_payment_id'] = payment_id[:100]
+        pl, _ = PagamentoLoja.objects.update_or_create(
+            loja=loja,
+            financeiro=financeiro,
+            asaas_payment_id=payment_id[:100],
+            defaults=defaults,
+        )
+    logger.info('PagamentoLoja pendente registrado id=%s loja=%s venc=%s', pl.id, loja.slug, due)
+
+
 class PaymentProviderStrategy(ABC):
     """Interface abstrata para estratégias de provedor de pagamento"""
     
     @abstractmethod
-    def criar_cobranca(self, loja, financeiro) -> Dict[str, Any]:
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> Dict[str, Any]:
         """
         Cria cobrança no provedor de pagamento
         
@@ -44,7 +97,7 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
     def get_provider_name(self) -> str:
         return 'asaas'
     
-    def criar_cobranca(self, loja, financeiro) -> Dict[str, Any]:
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> Dict[str, Any]:
         """Cria cobrança no Asaas"""
         try:
             from asaas_integration.client import AsaasPaymentService
@@ -54,8 +107,8 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
             
             logger.info(f"Criando cobrança Asaas para loja: {loja.nome}")
             
-            # Preparar dados
-            due_date_str = financeiro.data_proxima_cobranca.strftime('%Y-%m-%d')
+            due = due_date_override or financeiro.data_proxima_cobranca
+            due_date_str = due.strftime('%Y-%m-%d') if hasattr(due, 'strftime') else str(due)[:10]
             
             loja_data = {
                 'nome': loja.nome,
@@ -171,8 +224,8 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
                 ])
             
             logger.info(f"✅ Cobrança Asaas criada: payment_id={result['payment_id']}")
-            
-            return {
+
+            payload = {
                 'success': True,
                 'provedor': 'asaas',
                 'payment_id': result['payment_id'],
@@ -180,8 +233,10 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
                 'pix_qr_code': result.get('pix_qr_code', ''),
                 'pix_copy_paste': result.get('pix_copy_paste', ''),
                 'due_date': result['due_date'],
-                'value': result['value']
+                'value': result['value'],
             }
+            _registrar_pagamento_loja_pendente(loja, financeiro, payload, 'asaas', result['due_date'])
+            return payload
             
         except Exception as e:
             logger.exception(f"Erro ao criar cobrança Asaas para loja {loja.slug}: {e}")
@@ -194,16 +249,23 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
     def get_provider_name(self) -> str:
         return 'mercadopago'
     
-    def criar_cobranca(self, loja, financeiro) -> Dict[str, Any]:
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> Dict[str, Any]:
         """Cria cobrança no Mercado Pago"""
         try:
             from superadmin.mercadopago_service import LojaMercadoPagoService
             
             logger.info(f"Criando cobrança Mercado Pago para loja: {loja.nome}")
-            
-            # Usar serviço existente
+
+            original_due = None
+            if due_date_override is not None:
+                original_due = financeiro.data_proxima_cobranca
+                financeiro.data_proxima_cobranca = _parse_due_date(due_date_override)
+
             service = LojaMercadoPagoService()
             result = service.criar_cobranca_loja(loja, financeiro, criar_pix=True)
+
+            if original_due is not None:
+                financeiro.data_proxima_cobranca = original_due
             
             if not result.get('success'):
                 logger.error(f"Erro ao criar cobrança Mercado Pago: {result.get('error')}")
@@ -222,8 +284,8 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
             ])
             
             logger.info(f"✅ Cobrança Mercado Pago criada: payment_id={result.get('payment_id')}")
-            
-            return {
+
+            payload = {
                 'success': True,
                 'provedor': 'mercadopago',
                 'payment_id': result.get('payment_id'),
@@ -231,8 +293,11 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
                 'pix_qr_code': result.get('pix_qr_code', ''),
                 'pix_copy_paste': result.get('pix_copy_paste', ''),
                 'due_date': result.get('due_date'),
-                'value': result.get('value')
+                'value': result.get('value'),
+                'pix_payment_id': result.get('pix_payment_id'),
             }
+            _registrar_pagamento_loja_pendente(loja, financeiro, payload, 'mercadopago', result.get('due_date'))
+            return payload
             
         except Exception as e:
             logger.exception(f"Erro ao criar cobrança Mercado Pago para loja {loja.slug}: {e}")
@@ -252,23 +317,22 @@ class CobrancaService:
             'mercadopago': MercadoPagoPaymentStrategy()
         }
     
-    def criar_cobranca(self, loja, financeiro) -> Dict[str, Any]:
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> Dict[str, Any]:
         """
         Cria cobrança no provedor escolhido pela loja
         
         Args:
             loja: Instância do modelo Loja
             financeiro: Instância do modelo FinanceiroLoja
+            due_date_override: Vencimento do boleto (ex.: pagamento antecipado)
         
         Returns:
             dict com success, provedor, payment_id, boleto_url, pix_qr_code, error
         """
-        # Validar dados da loja
         validation_error = self._validar_dados_loja(loja)
         if validation_error:
             return {'success': False, 'error': validation_error}
         
-        # Escolher provedor
         provedor = loja.provedor_boleto_preferido or 'asaas'
         strategy = self.strategies.get(provedor)
         
@@ -277,30 +341,25 @@ class CobrancaService:
         
         logger.info(f"Criando cobrança para loja {loja.slug} usando provedor {provedor}")
         
-        # Criar cobrança
-        return strategy.criar_cobranca(loja, financeiro)
+        return strategy.criar_cobranca(loja, financeiro, due_date_override=due_date_override)
     
-    def renovar_cobranca(self, loja, financeiro, dia_vencimento=None) -> Dict[str, Any]:
+    def renovar_cobranca(self, loja, financeiro, dia_vencimento=None, antecipado=False) -> Dict[str, Any]:
         """
-        Cria nova cobrança para renovação de assinatura
+        Cria nova cobrança para o proprietário pagar (antecipado ou renovação).
         
-        Args:
-            loja: Instância do modelo Loja
-            financeiro: Instância do modelo FinanceiroLoja
-            dia_vencimento: Dia do mês para vencimento (opcional)
-        
-        Returns:
-            dict com success, provedor, payment_id, boleto_url, pix_qr_code, error
+        antecipado=True: boleto com vencimento em 3 dias, sem alterar o ciclo futuro.
         """
-        # Atualizar data_proxima_cobranca se dia_vencimento fornecido
-        if dia_vencimento:
+        due_date_override = None
+        if antecipado:
+            due_date_override = date.today() + timedelta(days=3)
+            logger.info('Cobrança antecipada loja %s, vencimento %s', loja.slug, due_date_override)
+        elif dia_vencimento is not None:
             financeiro.dia_vencimento = dia_vencimento
             financeiro.data_proxima_cobranca = self._calcular_proxima_cobranca(dia_vencimento, loja.tipo_assinatura)
             financeiro.save(update_fields=['dia_vencimento', 'data_proxima_cobranca'])
             logger.info(f"Data de vencimento atualizada para dia {dia_vencimento}")
         
-        # Criar cobrança usando mesmo fluxo
-        return self.criar_cobranca(loja, financeiro)
+        return self.criar_cobranca(loja, financeiro, due_date_override=due_date_override)
     
     def _validar_dados_loja(self, loja) -> str:
         """

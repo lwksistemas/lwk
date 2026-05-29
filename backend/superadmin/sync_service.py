@@ -12,6 +12,37 @@ from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
 
+
+def tentar_emitir_nfse_assinatura(pagamento, payment_id=''):
+    """Emite NFS-e da assinatura se configurado no superadmin."""
+    if not pagamento:
+        logger.warning('PagamentoLoja não encontrado para emitir NFS-e: %s', payment_id)
+        return
+    try:
+        from asaas_integration.models_nfse_config import SuperadminNFSeConfig
+        nfse_config = SuperadminNFSeConfig.get_config()
+        if nfse_config.provedor_nfse == 'desabilitado':
+            logger.info('NFS-e desabilitada — não emitindo para %s', payment_id)
+            return
+        if not nfse_config.emitir_automaticamente:
+            logger.info('Emissão automática desativada — não emitindo para %s', payment_id)
+            return
+        from asaas_integration.nfse_assinatura_service import emitir_nfse_assinatura
+        nf_result = emitir_nfse_assinatura(pagamento)
+        if nf_result.get('success'):
+            logger.info(
+                'NFS-e emitida (%s) pagamento %s: %s',
+                nfse_config.provedor_nfse, payment_id, nf_result.get('numero_nf'),
+            )
+        else:
+            logger.warning(
+                'Falha NFS-e (%s) pagamento %s: %s',
+                nfse_config.provedor_nfse, payment_id, nf_result.get('error'),
+            )
+    except Exception as nf_err:
+        logger.exception('Erro ao emitir NF assinatura %s: %s', payment_id, nf_err)
+
+
 class AsaasSyncService:
     """Serviço para sincronização automática com Asaas"""
     
@@ -470,27 +501,7 @@ class AsaasSyncService:
                 logger.info(f"Loja {loja.slug} desbloqueada")
             
             # Emitir nota fiscal — roteia pelo provedor configurado no superadmin
-            try:
-                from asaas_integration.models_nfse_config import SuperadminNFSeConfig
-                nfse_config = SuperadminNFSeConfig.get_config()
-
-                if nfse_config.provedor_nfse == 'desabilitado':
-                    logger.info(f"NFS-e desabilitada — não emitindo para {payment_id}")
-                elif not nfse_config.emitir_automaticamente:
-                    logger.info(f"Emissão automática desativada — não emitindo para {payment_id}")
-                else:
-                    # Emitir via provedor configurado (nacional, issnet, etc.)
-                    if pagamento:
-                        from asaas_integration.nfse_assinatura_service import emitir_nfse_assinatura
-                        nf_result = emitir_nfse_assinatura(pagamento)
-                        if nf_result.get('success'):
-                            logger.info(f"NFS-e emitida ({nfse_config.provedor_nfse}) para pagamento {payment_id}: {nf_result.get('numero_nf')}")
-                        else:
-                            logger.warning(f"Falha NFS-e ({nfse_config.provedor_nfse}) para {payment_id}: {nf_result.get('error')}")
-                    else:
-                        logger.warning(f"PagamentoLoja não encontrado para emitir NFS-e: {payment_id}")
-            except Exception as nf_err:
-                logger.exception(f"Erro ao emitir NF no webhook: {nf_err}")
+            tentar_emitir_nfse_assinatura(pagamento, payment_id)
             
             return {
                 'success': True,
@@ -1169,6 +1180,7 @@ def process_mercadopago_webhook_payment(payment_id: str, loja=None) -> dict:
                 loja.days_overdue = 0
                 loja.save(update_fields=['is_blocked', 'blocked_at', 'blocked_reason', 'days_overdue'])
             logger.info(f"Financeiro da loja {loja.nome} atualizado via webhook MP (payment {payment_id})")
+            tentar_emitir_nfse_assinatura(pagamento, payment_id)
             return {'success': True, 'processed': True, 'loja_slug': loja.slug}
         except FinanceiroLoja.DoesNotExist:
             logger.warning(f"Webhook MP: pagamento {payment_id} não encontrado em PagamentoLoja nem em FinanceiroLoja")
@@ -1190,6 +1202,7 @@ def process_mercadopago_webhook_payment(payment_id: str, loja=None) -> dict:
         loja.days_overdue = 0
         loja.save(update_fields=['is_blocked', 'blocked_at', 'blocked_reason', 'days_overdue'])
     logger.info(f"Pagamento MP {payment_id} marcado como pago; financeiro da loja {loja.nome} atualizado")
+    tentar_emitir_nfse_assinatura(pagamento, payment_id)
     return {'success': True, 'processed': True, 'loja_slug': loja.slug}
 
 

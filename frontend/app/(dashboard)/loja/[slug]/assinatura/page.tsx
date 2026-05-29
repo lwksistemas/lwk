@@ -133,7 +133,7 @@ export default function AssinaturaLojaPage() {
     try {
       setGerandoCobranca(true);
       const res = await apiClient.post(`/superadmin/loja-financeiro/${financeiroId}/renovar/`, {
-        dia_vencimento: data!.financeiro.dia_vencimento,
+        antecipado: true,
       });
       setNovaCobranca(res.data); setShowModal(true); await carregarDados();
     } catch (err: any) {
@@ -194,28 +194,36 @@ export default function AssinaturaLojaPage() {
           </CardContent>
         </Card>
         <Card className="dark:bg-neutral-800 dark:border-neutral-700">
-          <CardHeader className="pb-2"><CardTitle className="text-base dark:text-gray-100">Próxima cobrança</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base dark:text-gray-100">Próxima cobrança automática</CardTitle></CardHeader>
           <CardContent>
             <p className="text-xl font-bold dark:text-gray-100">{formatDate(fin.data_proxima_cobranca)}</p>
             <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
-              O boleto do próximo ciclo é gerado automaticamente alguns dias antes desta data. Com assinatura ativa, não é necessário gerar manualmente.
+              Se não pagar antes, o sistema gera o boleto automaticamente perto desta data.
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Renovar */}
+      {/* Pagar antes do vencimento */}
       <Card className="dark:bg-neutral-800 dark:border-neutral-700">
         <CardHeader>
-          <CardTitle className="text-base dark:text-gray-100">Renovar Assinatura</CardTitle>
+          <CardTitle className="text-base dark:text-gray-100">Pagar antes do vencimento</CardTitle>
           <CardDescription className="dark:text-gray-400">
-            Use apenas se precisar de um boleto agora (ex.: vencido ou antecipado). Caso contrário, aguarde a cobrança automática em {formatDate(fin.data_proxima_cobranca)}.
+            Quer antecipar o pagamento da assinatura? Gere o boleto ou PIX, pague e a nota fiscal será emitida automaticamente após a confirmação.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <ol className="text-sm text-muted-foreground dark:text-gray-400 space-y-1 list-decimal list-inside">
+            <li>Clique em <strong className="text-gray-700 dark:text-gray-200">Gerar boleto agora</strong></li>
+            <li>Pague por boleto ou PIX (vencimento em até 3 dias)</li>
+            <li>Após o pagamento, a NFS-e aparece no histórico abaixo</li>
+          </ol>
           <Button onClick={gerarNovaCobranca} disabled={gerandoCobranca} className="w-full sm:w-auto">
-            {gerandoCobranca ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Gerando...</> : <><CreditCard className="w-4 h-4 mr-2" /> Gerar Nova Cobrança</>}
+            {gerandoCobranca ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Gerando...</> : <><CreditCard className="w-4 h-4 mr-2" /> Gerar boleto agora</>}
           </Button>
+          <p className="text-xs text-muted-foreground dark:text-gray-500">
+            Próximo ciclo automático previsto para {formatDate(fin.data_proxima_cobranca)} (dia {fin.dia_vencimento}).
+          </p>
         </CardContent>
       </Card>
 

@@ -28,10 +28,13 @@ export function NovaCobrancaModal({ data, onClose, onCopiarPix }: Props) {
           <h2 className="text-xl font-bold">Nova Cobrança Gerada</h2>
         </div>
         <div className="p-6 space-y-4">
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-            <p className="text-green-900 dark:text-green-100 font-medium">✅ Cobrança gerada com sucesso!</p>
-            {data.due_date && <p className="text-sm text-green-800 dark:text-green-200 mt-1">Vencimento: {formatDate(data.due_date)}</p>}
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 space-y-2">
+            <p className="text-green-900 dark:text-green-100 font-medium">Cobrança gerada com sucesso!</p>
+            {data.due_date && <p className="text-sm text-green-800 dark:text-green-200">Vencimento: {formatDate(data.due_date)}</p>}
             {data.value && <p className="text-sm text-green-800 dark:text-green-200">Valor: {formatCurrency(data.value)}</p>}
+            <p className="text-sm text-green-800 dark:text-green-200">
+              Após o pagamento ser confirmado, a nota fiscal (NFS-e) será emitida automaticamente e ficará disponível no histórico de pagamentos.
+            </p>
           </div>
 
           <Tabs defaultValue={data.boleto_url ? 'boleto' : 'pix'}>

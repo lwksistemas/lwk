@@ -82,15 +82,30 @@ def _resolve_asaas_payment_id(pagamento):
 
 
 def _nfse_para_pagamento(pagamento, asaas_id=''):
-    """NFS-e vinculada ao PagamentoLoja (local ou por asaas_payment_id)."""
+    """NFS-e vinculada ao PagamentoLoja (local, Asaas ou emissão manual da mesma loja/valor)."""
     try:
+        from decimal import Decimal
         from .models import NFSeEmitida
 
         nf = NFSeEmitida.objects.filter(pagamento=pagamento, status='emitida').first()
         if not nf and asaas_id:
             nf = NFSeEmitida.objects.filter(asaas_payment_id=asaas_id, status='emitida').first()
-        if not nf:
-            return None
+        if not nf and pagamento.loja_id:
+            pl_valor = Decimal(str(pagamento.valor or 0)).quantize(Decimal('0.01'))
+            candidatas = NFSeEmitida.objects.filter(
+                loja_id=pagamento.loja_id,
+                status='emitida',
+                pagamento__isnull=True,
+            ).order_by('-created_at')
+            for cand in candidatas:
+                cand_valor = Decimal(str(cand.valor or 0)).quantize(Decimal('0.01'))
+                if cand_valor == pl_valor:
+                    nf = cand
+                    nf.pagamento = pagamento
+                    if asaas_id and not (nf.asaas_payment_id or '').strip():
+                        nf.asaas_payment_id = asaas_id
+                    nf.save(update_fields=['pagamento', 'asaas_payment_id'])
+                    break
         return nf
     except Exception as e:
         logger.warning('nfse para pagamento %s: %s', getattr(pagamento, 'id', '?'), e)
@@ -550,13 +565,26 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
         asaas_id = _resolve_asaas_payment_id(pagamento)
 
         nf = _nfse_para_pagamento(pagamento, asaas_id)
-        if nf and (nf.pdf_url or '').strip():
-            return Response({
-                'success': True,
-                'pdf_url': nf.pdf_url.strip(),
-                'numero_nf': nf.numero_nf or '',
-                'provedor': nf.provedor,
-            })
+        if nf:
+            if (nf.pdf_url or '').strip():
+                return Response({
+                    'success': True,
+                    'pdf_url': nf.pdf_url.strip(),
+                    'numero_nf': nf.numero_nf or '',
+                    'provedor': nf.provedor,
+                })
+            try:
+                from nfse_integration.pdf_download import resolver_download_pdf_superadmin
+                resultado = resolver_download_pdf_superadmin(nf)
+                if resultado.tipo == 'url' and resultado.url:
+                    return Response({
+                        'success': True,
+                        'pdf_url': resultado.url,
+                        'numero_nf': nf.numero_nf or '',
+                        'provedor': nf.provedor,
+                    })
+            except Exception as e:
+                logger.warning('nota_fiscal resolver pagamento %s: %s', pk, e)
 
         if asaas_id:
             try:
@@ -585,6 +613,29 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
             },
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    @action(detail=True, methods=['get'], url_path='nota-fiscal-arquivo')
+    def nota_fiscal_arquivo(self, request, pk=None):
+        """Baixa PDF da NFS-e (gerado internamente ou URL resolvida)."""
+        pagamento = self.get_object()
+        asaas_id = _resolve_asaas_payment_id(pagamento)
+        nf = _nfse_para_pagamento(pagamento, asaas_id)
+        if not nf:
+            return Response({'error': 'Nota fiscal não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            from nfse_integration.pdf_download import resolver_download_pdf_superadmin
+            resultado = resolver_download_pdf_superadmin(nf)
+            if resultado.tipo == 'url' and resultado.url:
+                return Response({'success': True, 'pdf_url': resultado.url, 'numero_nf': nf.numero_nf or ''})
+            if resultado.tipo == 'pdf' and resultado.conteudo_pdf:
+                response = HttpResponse(resultado.conteudo_pdf, content_type='application/pdf')
+                response['Content-Disposition'] = (
+                    f'{resultado.content_disposition}; filename="{resultado.nome_arquivo}"'
+                )
+                return response
+        except Exception as e:
+            logger.exception('nota_fiscal_arquivo pagamento %s: %s', pk, e)
+        return Response({'error': 'Não foi possível gerar o PDF da nota fiscal.'}, status=status.HTTP_404_NOT_FOUND)
     
     @action(detail=False, methods=['get'], url_path='baixar_boleto_mercadopago')
     def baixar_boleto_mercadopago(self, request):

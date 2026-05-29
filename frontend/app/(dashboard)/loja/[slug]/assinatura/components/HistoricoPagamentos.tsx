@@ -140,9 +140,26 @@ export function HistoricoPagamentos({ itens, slug }: Props) {
       }>(`/superadmin/loja-pagamentos/${pagamentoId}/nota-fiscal/`);
       if (data?.success && data.pdf_url) {
         window.open(data.pdf_url, '_blank');
-      } else {
-        alert(data?.error || 'Nota fiscal não encontrada.');
+        return;
       }
+      const res = await apiClient.get(
+        `/superadmin/loja-pagamentos/${pagamentoId}/nota-fiscal-arquivo/`,
+        { responseType: 'blob' }
+      );
+      const blob = res.data as Blob;
+      const ct = res.headers?.['content-type'] || blob.type || '';
+      if (ct.includes('json') || blob.type?.includes('json')) {
+        const d = JSON.parse(await blob.text());
+        if (d?.pdf_url) {
+          window.open(d.pdf_url, '_blank');
+          return;
+        }
+        alert(d?.error || 'Nota fiscal não encontrada.');
+        return;
+      }
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { error?: string } } };
       alert(ax?.response?.data?.error || 'Nota fiscal não disponível.');
@@ -252,7 +269,9 @@ export function HistoricoPagamentos({ itens, slug }: Props) {
                     </Button>
                   )}
                   {item.is_paid && !item.tem_nota_fiscal && !item.nf_pdf_url && (
-                    <span className="text-xs text-gray-400 self-center px-1">NF em processamento</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400 self-center px-1">
+                      Clique em Nota fiscal para baixar
+                    </span>
                   )}
                 </div>
               </div>

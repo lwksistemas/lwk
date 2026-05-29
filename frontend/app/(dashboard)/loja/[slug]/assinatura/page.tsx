@@ -114,25 +114,10 @@ export default function AssinaturaLojaPage() {
   };
 
   const gerarNovaCobranca = async () => {
-    let financeiroId = data?.financeiro?.id;
-    if (!financeiroId && data?.loja?.id) {
-      try {
-        const { data: lista } = await apiClient.get<{ id: number; loja: number }[] | { results: { id: number; loja: number }[] }>(
-          '/superadmin/loja-financeiro/'
-        );
-        const itens = Array.isArray(lista) ? lista : lista?.results ?? [];
-        financeiroId = itens.find((f) => f.loja === data.loja.id)?.id;
-      } catch {
-        /* ignore */
-      }
-    }
-    if (!financeiroId) {
-      alert('Dados financeiros indisponíveis. Recarregue a página ou aguarde alguns minutos.');
-      return;
-    }
     try {
       setGerandoCobranca(true);
-      const res = await apiClient.post(`/superadmin/loja-financeiro/${financeiroId}/renovar/`, {
+      const apiSlug = await resolveLojaApiSlug(slug);
+      const res = await apiClient.post(`/superadmin/loja/${apiSlug}/financeiro/renovar/`, {
         antecipado: true,
       });
       setNovaCobranca(res.data); setShowModal(true); await carregarDados();

@@ -226,10 +226,11 @@ def _emitir_via_issnet(
         cnpj_digits = re.sub(r'\D', '', config.prestador_cnpj)
         im = config.prestador_inscricao_municipal or ''
 
-        # Número RPS
-        config.ultimo_rps += 1
-        config.save(update_fields=['ultimo_rps', 'updated_at'])
-        numero_rps = config.ultimo_rps
+        from nfse_integration.persistencia_nfse_superadmin import (
+            gerar_proximo_numero_rps_superadmin,
+            sincronizar_contadores_rps_superadmin,
+        )
+        numero_rps = gerar_proximo_numero_rps_superadmin(config)
 
         # Salvar certificado em arquivo temporário (ISSNetClient precisa de path)
         cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_auto_')
@@ -285,6 +286,7 @@ def _emitir_via_issnet(
                 'xml_nfse': resultado.get('xml_nfse', ''),
                 'data_emissao': None,
             }
+            sincronizar_contadores_rps_superadmin(config, numero_rps)
             _salvar_nfse_emitida_issnet(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
             _enviar_email_nfse(config, tomador_email, tomador_nome, resultado_padrao, valor, descricao)
             return resultado_padrao

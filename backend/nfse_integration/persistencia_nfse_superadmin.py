@@ -1,8 +1,37 @@
 """Persistencia de NFSeEmitida (superadmin)."""
+import logging
 from decimal import Decimal
 from typing import Any
 
+from django.db.models import Max
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+
+def gerar_proximo_numero_rps_superadmin(config: Any) -> int:
+    """
+    Próximo RPS para assinatura/superadmin: maior entre BD, config (tela) e legado.
+    """
+    from superadmin.models import NFSeEmitida
+
+    mx = NFSeEmitida.objects.aggregate(m=Max('numero_rps'))['m']
+    mx = int(mx or 0)
+    portal_ult = max(
+        int(getattr(config, 'nacional_ultimo_dps', 0) or 0),
+        int(getattr(config, 'ultimo_rps', 0) or 0),
+    )
+    nxt = max(mx, portal_ult) + 1
+    logger.info('NFS-e superadmin próximo RPS: max_BD=%s config=%s -> %s', mx, portal_ult, nxt)
+    return nxt
+
+
+def sincronizar_contadores_rps_superadmin(config: Any, numero_rps: int) -> None:
+    """Mantém nacional_ultimo_dps (tela) e ultimo_rps (legado) alinhados após emissão."""
+    n = int(numero_rps)
+    config.nacional_ultimo_dps = n
+    config.ultimo_rps = n
+    config.save(update_fields=['nacional_ultimo_dps', 'ultimo_rps', 'updated_at'])
 
 
 def salvar_nfse_emitida_issnet_superadmin(

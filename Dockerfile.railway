@@ -20,8 +20,8 @@ WORKDIR /app
 
 # Dependências: backend (base) + raiz (NFS-e, docs, etc.)
 # django-q importa pkg_resources; manter setuptools abaixo da faixa que remove/alerta esse shim.
-ARG PIP_CACHE_BUST=2026-05-29-financeiro-post-renovar-v2
-ENV LWK_BUILD=financeiro-post-20260529
+ARG PIP_CACHE_BUST=2026-05-29-nfse-rps-sync
+ENV LWK_BUILD=nfse-rps-sync-20260529
 COPY backend/requirements.txt ./requirements-backend.txt
 COPY requirements.txt ./requirements-root.txt
 RUN pip install --upgrade pip "setuptools>=65.0.0,<81" wheel \

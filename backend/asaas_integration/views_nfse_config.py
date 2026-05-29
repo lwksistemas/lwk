@@ -68,6 +68,8 @@ def nfse_config_view(request):
                 val = bool(val)
             elif field == 'nacional_ultimo_dps':
                 val = int(val) if val else 0
+                config.ultimo_rps = max(int(config.ultimo_rps or 0), val)
+                update_fields.append('ultimo_rps')
             setattr(config, field, val)
             update_fields.append(field)
 

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CreditCard, Download, RefreshCw, CheckCircle, Clock, AlertTriangle, ArrowLeft } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import { PaymentTabs } from './components/PaymentTabs';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
@@ -58,7 +59,8 @@ export default function AssinaturaLojaPage() {
   const carregarDados = useCallback(async () => {
     try {
       setLoading(true); setError(null);
-      const { data: d } = await apiClient.get(`/superadmin/loja/${slug}/financeiro/`);
+      const apiSlug = await resolveLojaApiSlug(slug);
+      const { data: d } = await apiClient.get(`/superadmin/loja/${apiSlug}/financeiro/`);
       setData(d);
     } catch (err: any) {
       const ax = err?.response;

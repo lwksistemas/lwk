@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers'
 import { getCurrentApiBaseUrl } from '@/lib/api-client'
+import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug'
 import { logger } from '@/lib/logger'
 
 interface FinanceiroData {
@@ -72,7 +73,8 @@ export default function FinanceiroLojaPage() {
     try {
       setLoading(true)
       const apiBase = getCurrentApiBaseUrl()
-      const response = await fetch(`${apiBase}/superadmin/loja/${slug}/financeiro/`, {
+      const apiSlug = await resolveLojaApiSlug(slug)
+      const response = await fetch(`${apiBase}/superadmin/loja/${apiSlug}/financeiro/`, {
         headers: {
           'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`
         }

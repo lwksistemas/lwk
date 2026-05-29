@@ -20,7 +20,7 @@ WORKDIR /app
 
 # Dependências: backend (base) + raiz (NFS-e, docs, etc.)
 # django-q importa pkg_resources; manter setuptools abaixo da faixa que remove/alerta esse shim.
-ARG PIP_CACHE_BUST=2026-05-26-setuptools80
+ARG PIP_CACHE_BUST=2026-05-29-assinatura-protocolos
 COPY backend/requirements.txt ./requirements-backend.txt
 COPY requirements.txt ./requirements-root.txt
 RUN pip install --upgrade pip "setuptools>=65.0.0,<81" wheel \
@@ -35,4 +35,4 @@ COPY backend/ .
 RUN mkdir -p staticfiles
 
 EXPOSE 8000
-CMD ["sh", "-c", "gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 2 --worker-class gthread --timeout 30 --log-file - --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 2 --worker-class gthread --worker-connections 500 --timeout 60 --log-file - --access-logfile - --error-logfile -"]

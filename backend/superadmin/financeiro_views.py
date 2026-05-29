@@ -571,24 +571,38 @@ def dashboard_financeiro_loja(request, loja_slug):
         )
 
 
+def _get_or_create_financeiro_loja(loja):
+    """Retorna FinanceiroLoja existente ou cria registro mínimo para lojas antigas sem financeiro."""
+    try:
+        return loja.financeiro
+    except FinanceiroLoja.DoesNotExist:
+        from superadmin.services import FinanceiroService
+
+        dia = getattr(loja, 'dia_vencimento', None) or 10
+        financeiro = FinanceiroService.criar_financeiro_loja(loja, dia_vencimento=dia)
+        logger.warning('Financeiro auto-criado para loja %s (id=%s)', loja.slug, loja.id)
+        return financeiro
+
+
 def _dashboard_financeiro_loja_impl(request, loja_slug):
     # Verificar permissão
     if not request.user.is_superuser:
-        loja = Loja.objects.filter(slug=loja_slug, owner=request.user, is_active=True).first()
+        loja = Loja.objects.filter(slug=loja_slug, owner=request.user, is_active=True).select_related('plano').first()
         if not loja:
             return Response(
                 {'error': 'Sem permissão. Apenas o responsável pela loja pode acessar.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
     else:
-        loja = get_object_or_404(Loja, slug=loja_slug, is_active=True)
-    
+        loja = get_object_or_404(Loja.objects.select_related('plano'), slug=loja_slug, is_active=True)
+
     try:
-        financeiro = loja.financeiro
-    except FinanceiroLoja.DoesNotExist:
+        financeiro = _get_or_create_financeiro_loja(loja)
+    except Exception as e:
+        logger.exception('Erro ao obter/criar financeiro loja %s: %s', loja_slug, e)
         return Response(
-            {'error': 'Financeiro não encontrado para esta loja'},
-            status=status.HTTP_404_NOT_FOUND
+            {'error': 'Não foi possível carregar o financeiro desta loja. Tente novamente ou contate o suporte.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
     
     # Buscar dados financeiros

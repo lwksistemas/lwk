@@ -649,10 +649,35 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def dashboard_financeiro_loja(request, loja_slug):
-    """Dashboard financeiro específico de uma loja"""
+    """Dashboard financeiro específico de uma loja (GET). POST gera cobrança antecipada."""
+    if request.method == 'POST':
+        if not request.user.is_superuser:
+            loja = resolve_loja_by_slug_or_atalho(loja_slug, owner=request.user, is_active=True)
+            if not loja:
+                return Response(
+                    {'success': False, 'error': 'Sem permissão. Apenas o responsável pode gerar cobrança.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            loja = resolve_loja_by_slug_or_atalho(loja_slug, is_active=True)
+            if not loja:
+                return Response(
+                    {'success': False, 'error': 'Loja não encontrada'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        try:
+            financeiro = _get_or_create_financeiro_loja(loja)
+        except Exception as e:
+            logger.exception('dashboard_financeiro_loja POST %s: %s', loja_slug, e)
+            return Response(
+                {'success': False, 'error': 'Não foi possível carregar o financeiro da loja.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return _executar_renovar_financeiro(financeiro, request.data)
+
     try:
         return _dashboard_financeiro_loja_impl(request, loja_slug)
     except Exception as e:

@@ -392,18 +392,15 @@ class AsaasSyncService:
             financeiro.status_pagamento = 'ativo'
             financeiro.ultimo_pagamento = timezone.now()
             
-            # Calcular próxima data de cobrança baseada no tipo de assinatura
             data_pagamento = timezone.now().date()
-            tipo_assinatura = loja.tipo_assinatura
-            if tipo_assinatura == 'anual':
-                proxima_data = data_pagamento + timedelta(days=365)
-            else:
-                proxima_data = data_pagamento + timedelta(days=30)
-            
+            from superadmin.services import FinanceiroService
+            proxima_data = FinanceiroService.calcular_proxima_cobranca_apos_pagamento(
+                financeiro, loja, data_pagamento
+            )
             financeiro.data_proxima_cobranca = proxima_data
             financeiro.save()
             
-            logger.info(f"📅 Próxima cobrança: {proxima_data} ({tipo_assinatura}, +{'365' if tipo_assinatura == 'anual' else '30'} dias)")
+            logger.info(f"📅 Próxima cobrança: {proxima_data}")
             
             # Atualizar AsaasPayment local se existir
             try:
@@ -905,27 +902,14 @@ Equipe LWK Sistemas
             except Exception as e:
                 logger.warning(f"⚠️ Erro ao atualizar AsaasPayment local: {e}")
             
-            # ✅ MODIFICAÇÃO: Calcular próxima data de cobrança baseada no tipo de assinatura
-            # Mensal: 30 dias após pagamento | Anual: 365 dias após pagamento
-            data_pagamento = timezone.now().date()  # Data em que o pagamento foi confirmado
-            dia_vencimento = financeiro.dia_vencimento
-            tipo_assinatura = loja.tipo_assinatura
+            # Próxima cobrança (justa com antecipação: ciclo + dias pagos antes do vencimento)
+            data_pagamento = timezone.now().date()
+            from superadmin.services import FinanceiroService
+            proxima_data_cobranca = FinanceiroService.calcular_proxima_cobranca_apos_pagamento(
+                financeiro, loja, data_pagamento
+            )
             
-            logger.info(f"📅 Cálculo de próxima cobrança:")
-            logger.info(f"   - Data do Pagamento: {data_pagamento}")
-            logger.info(f"   - Dia Vencimento Configurado: {dia_vencimento}")
-            logger.info(f"   - Tipo de Assinatura: {tipo_assinatura}")
-            
-            # Calcular próxima data de cobrança baseada no tipo de assinatura
-            if tipo_assinatura == 'anual':
-                dias_adicionar = 365
-                proxima_data_cobranca = data_pagamento + timedelta(days=dias_adicionar)
-            else:  # mensal
-                dias_adicionar = 30
-                proxima_data_cobranca = data_pagamento + timedelta(days=dias_adicionar)
-            
-            logger.info(f"   - Próxima Cobrança Calculada ({dias_adicionar} dias após pagamento): {proxima_data_cobranca}")
-            logger.info(f"   - Diferença: {data_pagamento} → {proxima_data_cobranca} ({dias_adicionar} dias)")
+            logger.info(f"   - Próxima Cobrança Calculada: {proxima_data_cobranca}")
             
             financeiro.data_proxima_cobranca = proxima_data_cobranca
             
@@ -1218,18 +1202,14 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
     
     ✅ MODIFICAÇÃO v735: Criar automaticamente o próximo boleto após pagamento confirmado.
     """
-    from calendar import monthrange
+    from superadmin.services import FinanceiroService
+
     financeiro.status_pagamento = 'ativo'
     financeiro.ultimo_pagamento = timezone.now()
-    data_vencimento_atual = financeiro.data_proxima_cobranca
-    dia_vencimento = getattr(financeiro, 'dia_vencimento', 10) or 10
-    if data_vencimento_atual.month == 12:
-        proximo_mes, proximo_ano = 1, data_vencimento_atual.year + 1
-    else:
-        proximo_mes, proximo_ano = data_vencimento_atual.month + 1, data_vencimento_atual.year
-    ultimo_dia = monthrange(proximo_ano, proximo_mes)[1]
-    dia_cobranca = min(dia_vencimento, ultimo_dia)
-    financeiro.data_proxima_cobranca = date(proximo_ano, proximo_mes, dia_cobranca)
+    data_pagamento = timezone.now().date()
+    financeiro.data_proxima_cobranca = FinanceiroService.calcular_proxima_cobranca_apos_pagamento(
+        financeiro, loja, data_pagamento
+    )
     # ✅ Removido update_fields para disparar signal on_payment_confirmed
     financeiro.save()
     

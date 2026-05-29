@@ -114,17 +114,47 @@ export default function AssinaturaLojaPage() {
   };
 
   const gerarNovaCobranca = async () => {
+    const financeiroId = data?.financeiro?.id;
+    if (!financeiroId) {
+      alert('Dados do financeiro não carregados. Recarregue a página e tente novamente.');
+      return;
+    }
+    const body = { antecipado: true };
+    const apiSlug = await resolveLojaApiSlug(slug);
+    // POST em /financeiro/ usa a mesma rota do GET (já no deploy); /renovar/ é fallback.
+    const endpoints = [
+      `/superadmin/loja/${apiSlug}/financeiro/`,
+      `/superadmin/loja/${slug}/financeiro/`,
+      `/superadmin/loja-financeiro/${financeiroId}/renovar/`,
+      `/superadmin/loja/${apiSlug}/financeiro/renovar/`,
+    ];
     try {
       setGerandoCobranca(true);
-      const apiSlug = await resolveLojaApiSlug(slug);
-      const res = await apiClient.post(`/superadmin/loja/${apiSlug}/financeiro/renovar/`, {
-        antecipado: true,
-      });
-      setNovaCobranca(res.data); setShowModal(true); await carregarDados();
+      let lastErr: unknown = null;
+      for (const url of endpoints) {
+        try {
+          const res = await apiClient.post(url, body);
+          setNovaCobranca(res.data);
+          setShowModal(true);
+          await carregarDados();
+          return;
+        } catch (err: any) {
+          lastErr = err;
+          const st = err?.response?.status;
+          if (st !== 404 && st !== 405) break;
+        }
+      }
+      throw lastErr;
     } catch (err: any) {
       const ax = err?.response;
-      const msg = ax?.data?.error || ax?.data?.detail || 'Erro ao gerar cobrança';
-      alert(`Erro: ${typeof msg === 'string' ? msg : 'Erro ao gerar cobrança'}`);
+      const raw = ax?.data?.error ?? ax?.data?.detail;
+      const msg =
+        typeof raw === 'string'
+          ? raw
+          : ax?.status === 404
+            ? 'Serviço de cobrança indisponível (404). O backend pode estar desatualizado — tente em alguns minutos ou avise o suporte.'
+            : 'Erro ao gerar cobrança';
+      alert(`Erro: ${msg}`);
     } finally { setGerandoCobranca(false); }
   };
 
@@ -203,6 +233,10 @@ export default function AssinaturaLojaPage() {
             <li>Pague por boleto ou PIX (vencimento em até 3 dias)</li>
             <li>Após o pagamento, a NFS-e aparece no histórico abaixo</li>
           </ol>
+          <p className="text-xs text-muted-foreground dark:text-gray-500">
+            Pagamento antecipado é justo: se você pagar antes do vencimento, esses dias entram no próximo ciclo
+            (ex.: 10 dias antes → próxima cobrança em 40 dias).
+          </p>
           <Button onClick={gerarNovaCobranca} disabled={gerandoCobranca} className="w-full sm:w-auto">
             {gerandoCobranca ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Gerando...</> : <><CreditCard className="w-4 h-4 mr-2" /> Gerar boleto agora</>}
           </Button>

@@ -153,3 +153,41 @@ class FinanceiroService:
         financeiro.save()
         
         logger.info(f"Próxima cobrança atualizada para {proxima_cobranca} (tipo: {tipo_assinatura})")
+
+    @staticmethod
+    def calcular_proxima_cobranca_apos_pagamento(financeiro, loja, data_pagamento=None) -> date:
+        """
+        Próximo vencimento após pagamento confirmado.
+
+        Pagamento antecipado: soma os dias de antecipação ao ciclo
+        (ex.: 10 dias antes do vencimento → 40 dias até a próxima mensalidade).
+        Pagamento em atraso: ciclo a partir da data do pagamento.
+        """
+        from django.utils import timezone as tz
+
+        if data_pagamento is None:
+            data_pagamento = tz.now().date()
+        elif hasattr(data_pagamento, 'date'):
+            try:
+                data_pagamento = data_pagamento.date()
+            except (AttributeError, TypeError):
+                pass
+
+        vencimento_periodo = financeiro.data_proxima_cobranca
+        ciclo_dias = 365 if getattr(loja, 'tipo_assinatura', 'mensal') == 'anual' else 30
+
+        if vencimento_periodo and vencimento_periodo >= data_pagamento:
+            dias_antecipacao = (vencimento_periodo - data_pagamento).days
+            proxima = data_pagamento + timedelta(days=ciclo_dias + dias_antecipacao)
+            logger.info(
+                'Próxima cobrança justa: pagamento=%s vencimento=%s antecipação=%sd → %s',
+                data_pagamento, vencimento_periodo, dias_antecipacao, proxima,
+            )
+        else:
+            proxima = data_pagamento + timedelta(days=ciclo_dias)
+            logger.info(
+                'Próxima cobrança (atraso ou sem vencimento): pagamento=%s + %sd → %s',
+                data_pagamento, ciclo_dias, proxima,
+            )
+
+        return proxima

@@ -80,6 +80,142 @@ def _resolve_asaas_payment_id(pagamento):
     return ''
 
 
+def _nfse_para_pagamento(pagamento, asaas_id=''):
+    """NFS-e vinculada ao PagamentoLoja (local ou por asaas_payment_id)."""
+    from .models import NFSeEmitida
+
+    nf = NFSeEmitida.objects.filter(pagamento=pagamento, status='emitida').first()
+    if not nf and asaas_id:
+        nf = NFSeEmitida.objects.filter(asaas_payment_id=asaas_id, status='emitida').first()
+    if not nf:
+        return None
+    return nf
+
+
+def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', pix_copy_fallback=''):
+    """
+    Histórico unificado para o painel da loja (PagamentoLoja + dados Asaas quando existir).
+    Cada item usa pagamento_loja_id para baixar boleto / NFS-e.
+    """
+    from asaas_integration.models import LojaAssinatura, AsaasPayment
+
+    asaas_by_id = {}
+    try:
+        ass = LojaAssinatura.objects.filter(loja_slug=loja.slug).select_related('asaas_customer').first()
+        if ass:
+            for ap in AsaasPayment.objects.filter(customer=ass.asaas_customer).order_by('-due_date'):
+                if ap.asaas_id:
+                    asaas_by_id[ap.asaas_id] = ap
+    except Exception as e:
+        logger.warning('historico loja %s: AsaasPayment: %s', loja.slug, e)
+
+    historico = []
+    pls = PagamentoLoja.objects.filter(loja=loja).select_related('financeiro').order_by('-data_vencimento')
+
+    for pl in pls:
+        asaas_id = _resolve_asaas_payment_id(pl)
+        ap = asaas_by_id.get(asaas_id) if asaas_id else None
+        provedor = (getattr(pl, 'provedor_boleto', None) or getattr(financeiro, 'provedor_boleto', None) or 'asaas')
+
+        if pl.status == 'pago':
+            status_display = 'Pago'
+            is_paid, is_pending, is_overdue = True, False, False
+            status_raw = 'RECEIVED' if ap else 'pago'
+        elif pl.status == 'atrasado':
+            status_display = 'Vencido'
+            is_paid, is_pending, is_overdue = False, False, True
+            status_raw = 'OVERDUE' if ap else 'atrasado'
+        else:
+            status_display = 'Aguardando pagamento'
+            is_paid, is_pending, is_overdue = False, True, False
+            status_raw = 'PENDING' if ap else 'pendente'
+
+        if ap:
+            if ap.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
+                status_display = 'Recebida'
+                is_paid, is_pending, is_overdue = True, False, False
+                status_raw = ap.status
+            elif ap.status == 'OVERDUE':
+                status_display = 'Vencida'
+                is_paid, is_pending, is_overdue = False, False, True
+                status_raw = ap.status
+            elif ap.status == 'PENDING':
+                status_raw = ap.status
+
+        boleto_url = (pl.boleto_url or '').strip()
+        if not boleto_url and ap:
+            boleto_url = (ap.bank_slip_url or ap.invoice_url or '').strip()
+        if not boleto_url and is_pending and boleto_url_fallback:
+            boleto_url = boleto_url_fallback
+
+        pix_copy = (pl.pix_copy_paste or '').strip()
+        pix_qr = (pl.pix_qr_code or '').strip()
+        if ap:
+            pix_copy = pix_copy or (ap.pix_copy_paste or '').strip()
+            pix_qr = pix_qr or (ap.pix_qr_code or '').strip()
+        if not pix_copy and is_pending:
+            pix_copy = (pix_copy_fallback or '').strip()
+
+        data_pagamento = None
+        if pl.data_pagamento:
+            data_pagamento = pl.data_pagamento.strftime('%Y-%m-%d')
+        elif ap and ap.payment_date:
+            data_pagamento = ap.payment_date.strftime('%Y-%m-%d')
+
+        nf = _nfse_para_pagamento(pl, asaas_id)
+
+        historico.append({
+            'pagamento_loja_id': pl.id,
+            'id': pl.id,
+            'asaas_id': asaas_id or '',
+            'mercadopago_payment_id': (pl.mercadopago_payment_id or '').strip(),
+            'provedor_boleto': provedor,
+            'valor': float(ap.value if ap else pl.valor),
+            'status': status_raw,
+            'status_display': status_display,
+            'data_vencimento': pl.data_vencimento.strftime('%Y-%m-%d') if pl.data_vencimento else None,
+            'data_pagamento': data_pagamento,
+            'boleto_url': boleto_url,
+            'pix_copy_paste': pix_copy,
+            'pix_qr_code': pix_qr,
+            'is_paid': is_paid,
+            'is_pending': is_pending,
+            'is_overdue': is_overdue,
+            'tem_nota_fiscal': bool(nf),
+            'numero_nf': (nf.numero_nf or '') if nf else '',
+            'nf_pdf_url': (nf.pdf_url or '') if nf else '',
+            'referencia_mes': pl.referencia_mes.strftime('%Y-%m-%d') if pl.referencia_mes else None,
+            'pode_baixar_boleto': bool(asaas_id or boleto_url or pl.mercadopago_payment_id),
+        })
+
+    if not historico and boleto_url_fallback:
+        mp_id = (getattr(financeiro, 'mercadopago_payment_id', None) or '').strip()
+        historico.append({
+            'pagamento_loja_id': 0,
+            'id': 0,
+            'asaas_id': mp_id,
+            'mercadopago_payment_id': mp_id,
+            'provedor_boleto': getattr(financeiro, 'provedor_boleto', 'mercadopago'),
+            'valor': float(financeiro.valor_mensalidade),
+            'status': 'PENDING',
+            'status_display': 'Aguardando pagamento',
+            'data_vencimento': financeiro.data_proxima_cobranca.strftime('%Y-%m-%d') if financeiro.data_proxima_cobranca else None,
+            'data_pagamento': None,
+            'boleto_url': boleto_url_fallback,
+            'pix_copy_paste': pix_copy_fallback or '',
+            'pix_qr_code': '',
+            'is_paid': False,
+            'is_pending': True,
+            'is_overdue': False,
+            'tem_nota_fiscal': False,
+            'numero_nf': '',
+            'nf_pdf_url': '',
+            'referencia_mes': None,
+        })
+
+    return historico
+
+
 class IsLojaOwner(permissions.BasePermission):
     """Permissão para proprietário da loja"""
     def has_permission(self, request, view):
@@ -308,6 +444,49 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
                 {'error': f'Erro interno: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['get'], url_path='nota-fiscal')
+    def nota_fiscal(self, request, pk=None):
+        """PDF/link da NFS-e da assinatura (proprietário da loja)."""
+        pagamento = self.get_object()
+        asaas_id = _resolve_asaas_payment_id(pagamento)
+
+        nf = _nfse_para_pagamento(pagamento, asaas_id)
+        if nf and (nf.pdf_url or '').strip():
+            return Response({
+                'success': True,
+                'pdf_url': nf.pdf_url.strip(),
+                'numero_nf': nf.numero_nf or '',
+                'provedor': nf.provedor,
+            })
+
+        if asaas_id:
+            try:
+                client = _get_asaas_client()
+                if client:
+                    invoice, _ = _find_invoice_for_payment(client, asaas_id)
+                    if invoice and invoice.get('status') == 'AUTHORIZED':
+                        pdf_url = invoice.get('pdfUrl') or invoice.get('invoicePdfUrl') or invoice.get('invoiceUrl')
+                        if pdf_url:
+                            return Response({
+                                'success': True,
+                                'pdf_url': pdf_url,
+                                'numero_nf': str(invoice.get('number') or invoice.get('id') or ''),
+                                'provedor': 'asaas',
+                            })
+            except Exception as e:
+                logger.warning('nota_fiscal asaas pagamento %s: %s', pk, e)
+
+        return Response(
+            {
+                'success': False,
+                'error': (
+                    'Nota fiscal não disponível para este pagamento. '
+                    'Ela é gerada após a confirmação do pagamento.'
+                ),
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
     
     @action(detail=False, methods=['get'], url_path='baixar_boleto_mercadopago')
     def baixar_boleto_mercadopago(self, request):
@@ -527,74 +706,10 @@ def dashboard_financeiro_loja(request, loja_slug):
     logger.info(f"   - Valor Pago: R$ {valor_total_pago} (Asaas: {valor_total_pago_asaas}, Loja: {valor_total_pago_loja})")
     logger.info(f"   - Valor Pendente: R$ {valor_total_pendente} (Asaas: {valor_total_pendente_asaas}, Loja: {valor_total_pendente_loja})")
     
-    # Preparar histórico: Asaas e/ou cobrança atual Mercado Pago
-    historico_pagamentos = []
-    try:
-        if 'todos_pagamentos' in locals() and todos_pagamentos:
-            for pag in todos_pagamentos:
-                # Determinar status display de forma limpa
-                if pag.status in ['RECEIVED', 'CONFIRMED']:
-                    status_display = 'Recebida'
-                elif pag.status == 'PENDING':
-                    status_display = 'Aguardando pagamento'
-                else:
-                    status_display = 'Vencida'
-                
-                historico_pagamentos.append({
-                    'id': pag.id,
-                    'asaas_id': pag.asaas_id,
-                    'mercadopago_payment_id': '',  # ✅ NOVO v736: Vazio para Asaas
-                    'provedor_boleto': 'asaas',  # ✅ NOVO v736: Identificar provedor
-                    'valor': float(pag.value),
-                    'status': pag.status,
-                    'status_display': status_display,
-                    'data_vencimento': pag.due_date.strftime('%Y-%m-%d') if pag.due_date else None,
-                    'data_pagamento': pag.payment_date.strftime('%Y-%m-%d') if pag.payment_date else None,
-                    'boleto_url': pag.bank_slip_url or pag.invoice_url,
-                    'pix_copy_paste': pag.pix_copy_paste or '',  # ✅ NOVO v735: Incluir PIX no histórico
-                    'pix_qr_code': pag.pix_qr_code or '',  # ✅ NOVO v735: Incluir QR Code no histórico
-                    'is_paid': pag.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'],
-                    'is_pending': pag.status == 'PENDING',
-                    'is_overdue': pag.status == 'OVERDUE'
-                })
-            logger.info(f"✅ Histórico preparado: {len(historico_pagamentos)} pagamentos")
-    except Exception as e:
-        logger.error(f"❌ Erro ao preparar histórico: {e}")
-
-    # Se for loja só Mercado Pago e tiver boleto, incluir cobrança atual no histórico para aparecer no dashboard
-    if not historico_pagamentos and boleto_url and getattr(financeiro, 'provedor_boleto', '') == 'mercadopago':
-        # Buscar PagamentoLoja correspondente (pendente ou mais recente)
-        pagamento_mp = PagamentoLoja.objects.filter(
-            loja=loja,
-            financeiro=financeiro,
-            provedor_boleto='mercadopago'
-        ).order_by('-data_vencimento').first()
-        
-        # Se não existir PagamentoLoja, criar um temporário para o histórico
-        if not pagamento_mp:
-            logger.warning(f"⚠️ PagamentoLoja não encontrado para loja MP {loja.nome}, criando entrada temporária")
-            pagamento_id = 0  # ID temporário, frontend não conseguirá baixar boleto
-        else:
-            pagamento_id = pagamento_mp.id
-        
-        historico_pagamentos.append({
-            'id': pagamento_id,
-            'asaas_id': getattr(financeiro, 'mercadopago_payment_id', '') or '',
-            'mercadopago_payment_id': getattr(financeiro, 'mercadopago_payment_id', '') or '',  # ✅ NOVO v736: ID do MP
-            'provedor_boleto': 'mercadopago',  # ✅ NOVO v736: Identificar provedor
-            'valor': float(financeiro.valor_mensalidade),
-            'status': 'PENDING',
-            'status_display': 'Aguardando pagamento',
-            'data_vencimento': financeiro.data_proxima_cobranca.strftime('%Y-%m-%d') if financeiro.data_proxima_cobranca else None,
-            'data_pagamento': None,
-            'boleto_url': boleto_url,
-            'pix_copy_paste': pix_copy_paste or '',  # ✅ NOVO v736: Incluir PIX
-            'pix_qr_code': pix_qr_code or '',  # ✅ NOVO v736: Incluir QR Code
-            'is_paid': False,
-            'is_pending': True,
-            'is_overdue': False,
-        })
-        logger.info(f"✅ Histórico MP: 1 cobrança atual incluída para {loja.nome} (PagamentoLoja ID: {pagamento_id})")
+    historico_pagamentos = _build_historico_pagamentos_loja(
+        loja, financeiro, boleto_url or '', pix_copy_paste or ''
+    )
+    logger.info(f"✅ Histórico loja {loja.slug}: {len(historico_pagamentos)} itens")
 
     # Fallback: se for Mercado Pago e não tiver PIX dinâmico, usar chave PIX estática da config
     if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and not (pix_copy_paste or '').strip():

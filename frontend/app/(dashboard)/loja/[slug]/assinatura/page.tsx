@@ -12,6 +12,7 @@ import apiClient from '@/lib/api-client';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import { PaymentTabs } from './components/PaymentTabs';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
+import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
 
 interface AssinaturaData {
   loja: { id: number; nome: string; slug: string; plano: string; tipo_assinatura: string };
@@ -21,6 +22,7 @@ interface AssinaturaData {
     provedor_boleto?: 'asaas' | 'mercadopago'; boleto_url: string; pix_qr_code: string; pix_copy_paste: string;
   };
   proximo_pagamento: { id: number; valor: number; data_vencimento: string; referencia_mes: string; boleto_url?: string; asaas_payment_id?: string } | null;
+  historico_pagamentos?: HistoricoPagamentoItem[];
 }
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
@@ -193,23 +195,18 @@ export default function AssinaturaLojaPage() {
       )}
 
       {/* Próximo pagamento */}
-      {pp && (
-        <Card className="dark:bg-neutral-800 dark:border-neutral-700">
-          <CardHeader>
-            <CardTitle className="text-base dark:text-gray-100">Próximo pagamento</CardTitle>
-            <CardDescription className="dark:text-gray-400">Vencimento: {formatDate(pp.data_vencimento)} – Ref. {formatDate(pp.referencia_mes)}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <p className="text-xl font-bold dark:text-gray-100">{formatCurrency(pp.valor)}</p>
-              <div className="flex gap-2">
-                {pp.boleto_url && <Button variant="outline" size="sm" onClick={() => window.open(pp.boleto_url, '_blank')}>Ver boleto</Button>}
-                {pp.asaas_payment_id && <Button size="sm" onClick={() => baixarBoleto(pp.id)}><Download className="w-4 h-4 mr-1" /> Baixar PDF</Button>}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Histórico de pagamentos */}
+      <Card className="dark:bg-neutral-800 dark:border-neutral-700">
+        <CardHeader>
+          <CardTitle className="text-base dark:text-gray-100">Histórico de pagamentos</CardTitle>
+          <CardDescription className="dark:text-gray-400">
+            Consulte cobranças anteriores, baixe boletos e acesse as notas fiscais emitidas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <HistoricoPagamentos itens={data.historico_pagamentos ?? []} slug={slug} />
+        </CardContent>
+      </Card>
 
       {showModal && novaCobranca && (
         <NovaCobrancaModal data={novaCobranca} onClose={() => setShowModal(false)} onCopiarPix={() => copiarPix(novaCobranca.pix_copy_paste)} />

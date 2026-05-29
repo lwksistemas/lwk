@@ -28,6 +28,7 @@ from .views_profissionais import (  # noqa: F401
 
 # Procedimentos
 from .views_procedimentos import ProcedureListView, ProcedureDetailView  # noqa: F401
+from .views_protocolos import ProtocolListView, ProtocolDetailView  # noqa: F401
 
 # Financeiro
 from .views_financeiro import PaymentListView, PaymentDetailView, FinanceiroResumoView  # noqa: F401

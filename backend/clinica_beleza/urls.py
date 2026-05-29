@@ -22,6 +22,7 @@ from .views_estoque import (
     ProdutoEstoqueListView, ProdutoEstoqueDetailView,
     MovimentacaoEstoqueView, HistoricoEstoqueView, EstoqueResumoView,
 )
+from .views_protocolos import ProtocolListView, ProtocolDetailView
 
 app_name = 'clinica_beleza'
 
@@ -47,6 +48,9 @@ urlpatterns = [
     # Procedimentos
     path('procedures/', ProcedureListView.as_view(), name='procedures-list'),
     path('procedures/<int:pk>/', ProcedureDetailView.as_view(), name='procedures-detail'),
+    # Protocolos de procedimentos
+    path('protocolos/', ProtocolListView.as_view(), name='protocolos-list'),
+    path('protocolos/<int:pk>/', ProtocolDetailView.as_view(), name='protocolos-detail'),
     
     # Pagamentos / Financeiro
     path('payments/', PaymentListView.as_view(), name='payments-list'),

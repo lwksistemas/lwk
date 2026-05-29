@@ -1,0 +1,215 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
+import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
+
+interface WhatsAppConfigData {
+  enviar_confirmacao: boolean;
+  enviar_lembrete_24h: boolean;
+  enviar_lembrete_2h: boolean;
+  enviar_cobranca: boolean;
+  whatsapp_numero: string;
+  whatsapp_ativo: boolean;
+  whatsapp_phone_id: string;
+  whatsapp_token_set: boolean;
+}
+
+export default function ClinicaBelezaConfiguracoesWhatsappPage() {
+  const slug = (useParams()?.slug as string) ?? '';
+  const base = `/loja/${slug}/clinica-beleza/configuracoes`;
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [whatsappNumero, setWhatsappNumero] = useState('');
+  const [whatsappAtivo, setWhatsappAtivo] = useState(false);
+  const [whatsappPhoneId, setWhatsappPhoneId] = useState('');
+  const [whatsappToken, setWhatsappToken] = useState('');
+  const [whatsappTokenSet, setWhatsappTokenSet] = useState(false);
+  const [enviarConfirmacao, setEnviarConfirmacao] = useState(true);
+  const [enviarLembrete24h, setEnviarLembrete24h] = useState(true);
+  const [enviarLembrete2h, setEnviarLembrete2h] = useState(true);
+  const [enviarCobranca, setEnviarCobranca] = useState(true);
+
+  const loadConfig = async () => {
+    setLoading(true);
+    try {
+      const res = await clinicaBelezaFetch('/whatsapp-config/');
+      if (res.ok) {
+        const data = (await res.json()) as WhatsAppConfigData;
+        setWhatsappNumero((data.whatsapp_numero ?? '').toString());
+        setWhatsappAtivo(!!data.whatsapp_ativo);
+        setWhatsappPhoneId((data.whatsapp_phone_id ?? '').toString());
+        setWhatsappTokenSet(!!data.whatsapp_token_set);
+        setWhatsappToken('');
+        setEnviarConfirmacao(data.enviar_confirmacao ?? true);
+        setEnviarLembrete24h(data.enviar_lembrete_24h ?? true);
+        setEnviarLembrete2h(data.enviar_lembrete_2h ?? true);
+        setEnviarCobranca(data.enviar_cobranca ?? true);
+      }
+    } catch {
+      /* defaults */
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  const saveConfig = async () => {
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        whatsapp_numero: whatsappNumero,
+        whatsapp_ativo: whatsappAtivo,
+        whatsapp_phone_id: whatsappPhoneId.trim() || '',
+        enviar_confirmacao: enviarConfirmacao,
+        enviar_lembrete_24h: enviarLembrete24h,
+        enviar_lembrete_2h: enviarLembrete2h,
+        enviar_cobranca: enviarCobranca,
+        ...(whatsappToken.trim() ? { whatsapp_token: whatsappToken.trim() } : {}),
+      };
+      const res = await clinicaBelezaFetch('/whatsapp-config/', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setWhatsappTokenSet(!!(whatsappToken.trim() || whatsappTokenSet));
+      setWhatsappToken('');
+      alert('Configurações WhatsApp salvas.');
+      await loadConfig();
+    } catch {
+      alert('Erro ao salvar. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 p-4 md:p-6 max-w-3xl mx-auto">
+      <Link
+        href={base}
+        className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:underline"
+        style={{ color: undefined }}
+      >
+        <ArrowLeft size={16} />
+        Voltar às configurações
+      </Link>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2.5 rounded-lg text-white" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
+            <MessageCircle size={24} />
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Configurar WhatsApp</h1>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          Confirmações de agendamento, lembretes para pacientes e integração com a API Meta (WhatsApp Business).
+        </p>
+
+        {loading ? (
+          <p className="text-sm text-gray-500">Carregando...</p>
+        ) : (
+          <div className="space-y-6">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 space-y-3">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Integração WhatsApp Business (Meta)
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={whatsappAtivo}
+                  onChange={(e) => setWhatsappAtivo(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-800 dark:text-gray-200">
+                  WhatsApp ativo — usar esta integração para enviar mensagens
+                </span>
+              </label>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Phone Number ID (Meta)
+                </label>
+                <input
+                  type="text"
+                  value={whatsappPhoneId}
+                  onChange={(e) => setWhatsappPhoneId(e.target.value)}
+                  placeholder="Ex: 123456789012345"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Token de acesso (Meta)
+                </label>
+                <input
+                  type="password"
+                  value={whatsappToken}
+                  onChange={(e) => setWhatsappToken(e.target.value)}
+                  placeholder={
+                    whatsappTokenSet ? 'Deixe em branco para não alterar' : 'Cole o token permanente da API'
+                  }
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"
+                  autoComplete="off"
+                />
+                {whatsappTokenSet && !whatsappToken && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">Token já configurado</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Número WhatsApp da clínica
+              </label>
+              <input
+                type="text"
+                value={whatsappNumero}
+                onChange={(e) => setWhatsappNumero(e.target.value)}
+                placeholder="Ex: 5511999999999 (DDD + número)"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-3 space-y-3">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Mensagens automáticas</p>
+              {[
+                { checked: enviarConfirmacao, set: setEnviarConfirmacao, label: 'Enviar confirmação de agendamento' },
+                { checked: enviarLembrete24h, set: setEnviarLembrete24h, label: 'Lembrete 24h antes da consulta' },
+                { checked: enviarLembrete2h, set: setEnviarLembrete2h, label: 'Lembrete 2h antes da consulta' },
+                { checked: enviarCobranca, set: setEnviarCobranca, label: 'Enviar cobrança' },
+              ].map(({ checked, set, label }) => (
+                <label key={label} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => set(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={saveConfig}
+                disabled={saving}
+                className="px-4 py-2 text-white rounded-lg disabled:opacity-50"
+                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              >
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

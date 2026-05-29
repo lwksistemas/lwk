@@ -2,7 +2,10 @@
 Serializers para Clínica da Beleza
 """
 from rest_framework import serializers
-from .models import Patient, Professional, Procedure, Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional
+from .models import (
+    Patient, Professional, Procedure, ProcedureProtocol,
+    Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional,
+)
 from core.serializer_mixins import TextNormalizationMixin
 from core.logging_utils import mask_email
 
@@ -244,6 +247,24 @@ class ProcedureSerializer(serializers.ModelSerializer):
         exclude = ['loja_id']
         extra_kwargs = {
             'categoria': {'required': False, 'allow_blank': True, 'default': ''},
+        }
+
+
+class ProcedureProtocolSerializer(serializers.ModelSerializer):
+    procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+    procedure_categoria = serializers.CharField(source='procedure.categoria', read_only=True)
+
+    class Meta:
+        model = ProcedureProtocol
+        exclude = ['loja_id']
+        extra_kwargs = {
+            'descricao': {'required': False, 'allow_blank': True},
+            'preparacao': {'required': False, 'allow_blank': True},
+            'execucao': {'required': False, 'allow_blank': True},
+            'pos_procedimento': {'required': False, 'allow_blank': True},
+            'materiais_necessarios': {'required': False, 'allow_blank': True},
+            'contraindicacoes': {'required': False, 'allow_blank': True},
+            'cuidados_especiais': {'required': False, 'allow_blank': True},
         }
 
 

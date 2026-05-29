@@ -2,22 +2,170 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import { LogOut, Menu, Moon, Sun } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Moon, Sun } from 'lucide-react';
+import { ClinicaBelezaTopBar } from './ClinicaBelezaTopBar';
 import type { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
 import { syncLojaTenantSlug } from '@/lib/auth';
 import {
   CLINICA_BELEZA_NAV_ITEMS,
+  CLINICA_BELEZA_PRIMARY,
   getClinicaBelezaNavHref,
   isClinicaBelezaNavActive,
+  isClinicaBelezaNavGroupActive,
+  type ClinicaBelezaNavItem,
 } from './clinica-beleza-nav';
 
 interface ClinicaBelezaShellProps {
   loja: LojaInfo;
   onLogout?: () => void;
   children: React.ReactNode;
-  /** Classes extras no `<main>` (ex.: agenda fullscreen) */
   mainClassName?: string;
+}
+
+function NavItemButton({
+  label,
+  icon: Icon,
+  isActive,
+  collapsed,
+  hasChildren,
+  expanded,
+  onClick,
+}: {
+  label: string;
+  icon: React.ElementType;
+  isActive: boolean;
+  collapsed: boolean;
+  hasChildren?: boolean;
+  expanded?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={collapsed ? label : undefined}
+      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+        collapsed ? 'justify-center px-2' : ''
+      } ${
+        isActive
+          ? 'text-white shadow-sm'
+          : 'text-gray-600 hover:bg-white/80 dark:text-gray-300 dark:hover:bg-gray-700/50'
+      }`}
+      style={isActive ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+    >
+      <Icon className="w-5 h-5 shrink-0" />
+      {!collapsed && (
+        <>
+          <span className="flex-1 text-left">{label}</span>
+          {hasChildren && (
+            <ChevronDown
+              className={`w-4 h-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            />
+          )}
+        </>
+      )}
+    </button>
+  );
+}
+
+function SidebarNav({
+  slug,
+  pathname,
+  collapsed,
+  onNavigate,
+}: {
+  slug: string;
+  pathname: string;
+  collapsed: boolean;
+  onNavigate: (href: string) => void;
+}) {
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const initial: Record<string, boolean> = {};
+    CLINICA_BELEZA_NAV_ITEMS.forEach((item) => {
+      if (item.children && isClinicaBelezaNavGroupActive(pathname, slug, item)) {
+        initial[item.label] = true;
+      }
+    });
+    setOpenGroups((prev) => ({ ...initial, ...prev }));
+  }, [pathname, slug]);
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const renderItem = (item: ClinicaBelezaNavItem) => {
+    if (item.children && item.children.length > 0) {
+      const groupActive = isClinicaBelezaNavGroupActive(pathname, slug, item);
+      const expanded = openGroups[item.label] ?? groupActive;
+
+      return (
+        <div key={item.label} className="space-y-0.5">
+          <NavItemButton
+            label={item.label}
+            icon={item.icon}
+            isActive={groupActive && !expanded}
+            collapsed={collapsed}
+            hasChildren={!collapsed}
+            expanded={expanded}
+            onClick={() => {
+              if (collapsed && item.children?.[0]) {
+                onNavigate(getClinicaBelezaNavHref(slug, item.children[0].path));
+              } else {
+                toggleGroup(item.label);
+              }
+            }}
+          />
+          {!collapsed && expanded && (
+            <div className="ml-4 pl-3 border-l border-gray-200 dark:border-gray-600 space-y-0.5">
+              {item.children.map((child) => {
+                const href = getClinicaBelezaNavHref(slug, child.path);
+                const childActive = isClinicaBelezaNavActive(pathname, slug, child.path);
+                return (
+                  <button
+                    key={child.path}
+                    type="button"
+                    onClick={() => onNavigate(href)}
+                    className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                      childActive
+                        ? 'font-medium text-white'
+                        : 'text-gray-500 hover:text-gray-800 hover:bg-white/60 dark:text-gray-400 dark:hover:bg-gray-700/40'
+                    }`}
+                    style={childActive ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+                  >
+                    {child.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const path = item.path!;
+    const href = getClinicaBelezaNavHref(slug, path);
+    const isActive = isClinicaBelezaNavActive(pathname, slug, path);
+
+    return (
+      <NavItemButton
+        key={path}
+        label={item.label}
+        icon={item.icon}
+        isActive={isActive}
+        collapsed={collapsed}
+        onClick={() => onNavigate(href)}
+      />
+    );
+  };
+
+  return (
+    <nav className={`flex-1 overflow-y-auto space-y-0.5 ${collapsed ? 'p-2' : 'px-3 py-2'}`}>
+      {CLINICA_BELEZA_NAV_ITEMS.map(renderItem)}
+    </nav>
+  );
 }
 
 function SidebarContent({
@@ -44,49 +192,46 @@ function SidebarContent({
   return (
     <>
       <div
-        className={`border-b border-gray-100 dark:border-gray-700 ${sidebarCollapsed ? 'p-3 flex justify-center' : 'p-5'}`}
+        className={`border-b border-gray-200/80 dark:border-gray-700 ${sidebarCollapsed ? 'p-3 flex justify-center' : 'px-4 py-5'}`}
       >
         <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
-          {loja?.logo && (
-            <img src={loja.logo} alt={loja.nome} className="w-9 h-9 rounded-lg object-cover shrink-0" />
+          {loja?.logo ? (
+            <img src={loja.logo} alt={loja.nome} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+          ) : (
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg font-bold shrink-0"
+              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            >
+              {loja?.nome?.charAt(0) || 'B'}
+            </div>
           )}
           {!sidebarCollapsed && (
             <div className="min-w-0">
-              <h2 className="text-sm font-bold text-gray-800 dark:text-white truncate">{loja?.nome}</h2>
-              <p className="text-xs text-gray-400">Clínica de Beleza</p>
+              <h2 className="text-xs font-bold text-gray-800 dark:text-white uppercase leading-tight tracking-wide truncate">
+                {loja?.nome || 'Clínica'}
+              </h2>
+              <p className="text-[10px] text-gray-500 leading-snug mt-0.5">
+                Clínica de Estética Avançada
+              </p>
             </div>
           )}
         </div>
       </div>
 
-      <nav className={`flex-1 p-3 space-y-1 overflow-y-auto ${sidebarCollapsed ? 'p-2' : ''}`}>
-        {CLINICA_BELEZA_NAV_ITEMS.map((item) => {
-          const href = getClinicaBelezaNavHref(slug, item.path);
-          const isActive = isClinicaBelezaNavActive(pathname, slug, item.path);
-          return (
-            <button
-              key={item.path}
-              type="button"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors w-full text-left cursor-pointer ${sidebarCollapsed ? 'justify-center px-2' : ''} ${
-                isActive
-                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-                  : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700/50'
-              }`}
-              onClick={() => onNavigate(href)}
-              title={sidebarCollapsed ? item.label : undefined}
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {!sidebarCollapsed && <span>{item.label}</span>}
-            </button>
-          );
-        })}
-      </nav>
+      <SidebarNav
+        slug={slug}
+        pathname={pathname}
+        collapsed={sidebarCollapsed}
+        onNavigate={onNavigate}
+      />
 
-      <div className={`p-3 border-t border-gray-100 dark:border-gray-700 space-y-1 ${sidebarCollapsed ? 'p-2' : ''}`}>
+      <div
+        className={`border-t border-gray-200/80 dark:border-gray-700 space-y-0.5 ${sidebarCollapsed ? 'p-2' : 'px-3 py-2'}`}
+      >
         <button
           type="button"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="hidden lg:flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+          className="hidden lg:flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-white/80 dark:hover:bg-gray-700/50 transition-colors"
           title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
         >
           <Menu className="w-5 h-5 shrink-0" />
@@ -95,7 +240,7 @@ function SidebarContent({
         <button
           type="button"
           onClick={() => setDarkMode(!darkMode)}
-          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}`}
+          className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-white/80 dark:hover:bg-gray-700/50 transition-colors ${sidebarCollapsed ? 'lg:justify-center' : ''}`}
           title={darkMode ? 'Modo claro' : 'Modo escuro'}
         >
           {darkMode ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
@@ -105,7 +250,7 @@ function SidebarContent({
           <button
             type="button"
             onClick={onLogout}
-            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}`}
+            className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${sidebarCollapsed ? 'lg:justify-center' : ''}`}
             title="Sair"
           >
             <LogOut className="w-5 h-5 shrink-0" />
@@ -137,9 +282,9 @@ export function ClinicaBelezaShell({
 
   const handleNavigate = (href: string) => {
     setSidebarOpen(false);
-    const normalizedPath = pathname.replace(/\/$/, '');
-    const normalizedHref = href.replace(/\/$/, '');
-    if (normalizedPath === normalizedHref) return;
+    const normalizedPath = pathname.replace(/\/$/, '').split('?')[0];
+    const normalizedHref = href.replace(/\/$/, '').split('?')[0];
+    if (normalizedPath === normalizedHref && !href.includes('?')) return;
     syncLojaTenantSlug(slug);
     router.push(href);
   };
@@ -156,20 +301,21 @@ export function ClinicaBelezaShell({
     onNavigate: handleNavigate,
   };
 
+  const sidebarClass = `flex flex-col shrink-0 sticky top-0 h-screen z-20 bg-[#f3f4f6] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
+    sidebarCollapsed ? 'w-16' : 'w-64'
+  }`;
+
+  const isDashboard =
+    pathname === `/loja/${slug}/dashboard` || pathname === `/loja/${slug}/dashboard/`;
+
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-950">
-      {/* Sidebar desktop — coluna fixa no fluxo (sem position:fixed) */}
-      <aside
-        className={`hidden lg:flex lg:flex-col lg:shrink-0 lg:sticky lg:top-0 lg:h-screen lg:z-20 bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 ${
-          sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
-        }`}
-      >
+    <div className="flex min-h-screen bg-[#f8f9fa] dark:bg-gray-950">
+      <aside className={`hidden lg:flex ${sidebarClass}`}>
         <SidebarContent {...sidebarProps} />
       </aside>
 
-      {/* Sidebar mobile — drawer */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-[100] w-64 flex flex-col bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 shadow-xl transform transition-transform duration-200 ${
+        className={`lg:hidden fixed inset-y-0 left-0 z-[100] w-64 flex flex-col bg-[#f3f4f6] dark:bg-gray-900 border-r border-gray-200 shadow-xl transform transition-transform duration-200 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
         aria-hidden={!sidebarOpen}
@@ -187,17 +333,12 @@ export function ClinicaBelezaShell({
       )}
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <div className="lg:hidden sticky top-0 z-50 flex items-center gap-2 px-4 py-3 bg-white/95 dark:bg-gray-800/95 backdrop-blur border-b border-gray-100 dark:border-gray-700">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            aria-label="Abrir menu"
-          >
-            <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-          </button>
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{loja?.nome}</span>
-        </div>
+        <ClinicaBelezaTopBar
+          slug={slug}
+          loja={loja}
+          isDashboard={isDashboard}
+          onOpenMobileMenu={() => setSidebarOpen(true)}
+        />
         <main className={`relative flex-1 min-h-0 min-w-0 overflow-y-auto ${mainClassName}`}>{children}</main>
       </div>
     </div>

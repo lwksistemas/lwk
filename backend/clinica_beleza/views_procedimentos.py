@@ -40,9 +40,12 @@ class ProcedureListView(APIView):
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
+        categoria = (request.query_params.get('categoria') or '').strip()
         queryset = Procedure.objects.all().order_by('nome')
         if active_only:
             queryset = queryset.filter(is_active=True)
+        if categoria:
+            queryset = queryset.filter(categoria__icontains=categoria)
         return Response(ProcedureSerializer(queryset, many=True).data)
 
     def post(self, request):

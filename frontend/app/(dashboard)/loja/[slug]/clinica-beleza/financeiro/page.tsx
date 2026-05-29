@@ -15,6 +15,7 @@ import {
 } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { entityName } from "@/lib/clinica-beleza-entities";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 
@@ -43,8 +44,10 @@ interface Payment {
 
 interface Professional {
   id: number;
-  name: string;
-  specialty: string;
+  name?: string;
+  nome?: string;
+  specialty?: string;
+  especialidade?: string;
 }
 
 export default function FinanceiroClinicaPage() {
@@ -225,7 +228,7 @@ export default function FinanceiroClinicaPage() {
                 <option value="">Todos os profissionais</option>
                 {professionals.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name}
+                    {entityName(p)}
                   </option>
                 ))}
               </select>

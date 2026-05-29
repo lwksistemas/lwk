@@ -3,11 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  CalendarDays, Users, Sparkles, Moon, Sun, Settings,
-  CreditCard, LogOut, Menu, X, TrendingUp, Activity,
-  LayoutDashboard, UserCog, ClipboardList, DollarSign,
-} from 'lucide-react';
+import { CalendarDays, Users, TrendingUp, Activity } from 'lucide-react';
+import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
@@ -144,19 +141,6 @@ function AppointmentItem({ appt, slug }: { appt: Appointment; slug: string }) {
   );
 }
 
-// ─── Sidebar nav items ───────────────────────────────────────────────────────
-
-const NAV_ITEMS = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: 'dashboard' },
-  { label: 'Agenda', icon: CalendarDays, path: 'agenda' },
-  { label: 'Pacientes', icon: Users, path: 'clinica-beleza/pacientes' },
-  { label: 'Profissionais', icon: UserCog, path: 'clinica-beleza/profissionais' },
-  { label: 'Procedimentos', icon: ClipboardList, path: 'clinica-beleza/procedimentos' },
-  { label: 'Estoque', icon: Activity, path: 'clinica-beleza/estoque' },
-  { label: 'Financeiro', icon: DollarSign, path: 'clinica-beleza/financeiro' },
-  { label: 'Configurações', icon: Settings, path: 'clinica-beleza/configuracoes' },
-];
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaInfo; onLogout?: () => void }) {
@@ -165,8 +149,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
   const [data, setData] = useState<DashboardData | null>(null);
   const [financial, setFinancial] = useState<FinancialSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [darkMode, setDarkMode] = useClinicaBelezaDark();
+  const [darkMode] = useClinicaBelezaDark();
 
   useEffect(() => {
     if (!loja?.id && !loja?.slug) return;
@@ -208,88 +191,18 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
     : null;
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-950">
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 transform transition-transform duration-200 lg:translate-x-0 lg:static lg:inset-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex flex-col h-full">
-          <div className="p-5 border-b border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3">
-              {loja?.logo && (
-                <img src={loja.logo} alt={loja.nome} className="w-9 h-9 rounded-lg object-cover" />
-              )}
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold text-gray-800 dark:text-white truncate">{loja?.nome}</h2>
-                <p className="text-xs text-gray-400">Clínica de Beleza</p>
-              </div>
-            </div>
-          </div>
-
-          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-            {NAV_ITEMS.map((item) => {
-              const isActive = item.path === 'dashboard';
-              return (
-                <Link
-                  key={item.path}
-                  href={`/loja/${slug}/${item.path}`}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-                      : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700/50'
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon className="w-5 h-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="p-3 border-t border-gray-100 dark:border-gray-700 space-y-1">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-            >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              {darkMode ? 'Modo claro' : 'Modo escuro'}
-            </button>
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              >
-                <LogOut className="w-5 h-5" />
-                Sair
-              </button>
-            )}
-          </div>
-        </div>
-      </aside>
-
-      {/* Overlay mobile */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/30 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
-        {/* Top bar */}
+    <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
         <header className="sticky top-0 z-20 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-700 px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Bem-vinda, {loja?.nome?.split(' ')[0] || 'Usuária'}! 👋
-                </p>
-              </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Bem-vinda, {loja?.nome?.split(' ')[0] || 'Usuária'}! 👋
+              </p>
             </div>
             <p className="hidden sm:block text-xs text-gray-400 dark:text-gray-500 capitalize">{formatDate()}</p>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 lg:mt-0">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
             Aqui está o resumo da sua clínica hoje.
           </p>
         </header>
@@ -473,7 +386,6 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </ClinicaBelezaShell>
   );
 }

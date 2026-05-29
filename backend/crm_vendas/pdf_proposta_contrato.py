@@ -40,6 +40,28 @@ def _formatar_valor(valor):
         return '—'
 
 
+def _title_case_endereco(texto: str) -> str:
+    """Normaliza capitalização de endereço: se tudo maiúsculo, converte para Title Case."""
+    if not texto or texto == '—':
+        return texto
+    # Se mais de 60% das letras são maiúsculas, converter para title case
+    letras = [c for c in texto if c.isalpha()]
+    if letras and sum(1 for c in letras if c.isupper()) / len(letras) > 0.6:
+        # Preservar siglas de estado (SP, PR, RJ, etc.) e CEP
+        import re
+        def _title_part(part):
+            part = part.strip()
+            if re.match(r'^[A-Z]{2}$', part):  # UF
+                return part
+            if re.match(r'^CEP\s', part, re.I):  # CEP XXXXX
+                return part
+            if re.match(r'^nº\s', part, re.I):  # nº 123
+                return part
+            return part.title()
+        return ', '.join(_title_part(p) for p in texto.split(','))
+    return texto
+
+
 def _formatar_endereco_lead(lead):
     """Monta string de endereço do lead."""
     if not lead:
@@ -53,7 +75,8 @@ def _formatar_endereco_lead(lead):
          else (getattr(lead, 'cidade', '') or getattr(lead, 'uf', ''))),
         f"CEP {lead.cep}" if getattr(lead, 'cep', '') else '',
     ]
-    return ', '.join(p for p in parts if p).strip() or '—'
+    raw = ', '.join(p for p in parts if p).strip() or '—'
+    return _title_case_endereco(raw)
 
 
 def _formatar_nome_usuario(user):
@@ -178,20 +201,28 @@ def _build_secao_empresa(elements, loja_data, style):
     """Adiciona seção Dados da Empresa."""
     from reportlab.platypus import Spacer
     from reportlab.lib.units import cm
-    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle('SecEmpresa', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Dados da Empresa</b>', section))
     linhas = [f"<b>Nome:</b> {loja_data.get('nome') or '—'}"]
     if loja_data.get('endereco'):
-        linhas.append(f"<b>Endereço:</b> {loja_data['endereco']}")
+        linhas.append(f"<b>Endereço:</b> {_title_case_endereco(loja_data['endereco'])}")
     if loja_data.get('cpf_cnpj'):
         linhas.append(f"<b>CPF/CNPJ:</b> {loja_data['cpf_cnpj']}")
     if loja_data.get('telefone'):
-        linhas.append(f"<b>Telefone:</b> {loja_data['telefone']}")
+        tel = loja_data['telefone'].strip()
+        digits = ''.join(c for c in tel if c.isdigit())
+        if len(digits) == 11:
+            tel_fmt = f"({digits[:2]}) {digits[2:7]}-{digits[7:]}"
+        elif len(digits) == 10:
+            tel_fmt = f"({digits[:2]}) {digits[2:6]}-{digits[6:]}"
+        else:
+            tel_fmt = tel
+        linhas.append(f"<b>Telefone:</b> {tel_fmt}")
     if loja_data.get('admin_nome'):
-        linhas.append(f"<b>Administrador:</b> {loja_data['admin_nome']}")
+        linhas.append(f"<b>Responsável:</b> {loja_data['admin_nome']}")
     if loja_data.get('admin_email'):
-        linhas.append(f"<b>Email do administrador:</b> {loja_data['admin_email']}")
+        linhas.append(f"<b>Email:</b> {loja_data['admin_email']}")
     for ln in linhas:
         elements.append(Paragraph(ln, style))
 
@@ -200,12 +231,12 @@ def _build_secao_cliente(elements, lead, style):
     """Adiciona seção Dados do Cliente."""
     from reportlab.platypus import Spacer
     from reportlab.lib.units import cm
-    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle('SecCliente', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Dados do Cliente</b>', section))
     conta = getattr(lead, 'conta', None)
     if conta:
-        elements.append(Paragraph(f"<b>Nome de contato:</b> {lead.nome}", style))
+        elements.append(Paragraph(f"<b>Nome:</b> {lead.nome}", style))
         empresa_nome = conta.razao_social or conta.nome or ''
         if empresa_nome:
             elements.append(Paragraph(f"<b>Empresa:</b> {empresa_nome}", style))
@@ -213,10 +244,18 @@ def _build_secao_cliente(elements, lead, style):
         elements.append(Paragraph(f"<b>Nome:</b> {lead.nome}", style))
     if getattr(lead, 'cpf_cnpj', ''):
         elements.append(Paragraph(f"<b>CPF/CNPJ:</b> {lead.cpf_cnpj}", style))
+    if getattr(lead, 'telefone', ''):
+        tel = (lead.telefone or '').strip()
+        digits = ''.join(c for c in tel if c.isdigit())
+        if len(digits) == 11:
+            tel_fmt = f"({digits[:2]}) {digits[2:7]}-{digits[7:]}"
+        elif len(digits) == 10:
+            tel_fmt = f"({digits[:2]}) {digits[2:6]}-{digits[6:]}"
+        else:
+            tel_fmt = tel
+        elements.append(Paragraph(f"<b>Telefone:</b> {tel_fmt}", style))
     if getattr(lead, 'email', ''):
         elements.append(Paragraph(f"<b>Email:</b> {lead.email}", style))
-    if getattr(lead, 'telefone', ''):
-        elements.append(Paragraph(f"<b>Telefone:</b> {lead.telefone}", style))
     elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", style))
 
 
@@ -224,7 +263,7 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
     """Adiciona seção Produtos e Serviços."""
     from reportlab.platypus import Spacer
     from reportlab.lib.units import cm
-    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle('SecProd', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Produtos e Serviços da Oportunidade</b>', section))
     itens = list(oportunidade.itens.select_related('produto_servico').all()) if oportunidade else []
@@ -357,7 +396,7 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
     """Adiciona seção Assinaturas com dados digitais."""
     from reportlab.platypus import Spacer
     from reportlab.lib.units import cm
-    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle('SecAssin', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Assinaturas</b>', section))
 
@@ -475,7 +514,6 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     loja_data = _obter_dados_loja(loja_id) if loja_id else {}
     logo_url = loja_data.get('logo')
     _build_cabecalho(elements, logo_url, 'PROPOSTA COMERCIAL')
-    elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
 
     # Dados da Empresa
@@ -519,13 +557,14 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
                     from reportlab.lib.utils import ImageReader
                     img = ImageReader(BytesIO(self.wm_bytes))
                     iw, ih = img.getSize()
-                    wm_w = 5.5 * cm
+                    # Preencher o quadrado inteiro de cada célula de assinatura
+                    wm_w = 7.5 * cm  # quase toda a largura da célula (8cm)
                     wm_h = wm_w * (ih / float(iw))
-                    if wm_h > 3.5 * cm:
-                        wm_h = 3.5 * cm
+                    if wm_h > 5 * cm:
+                        wm_h = 5 * cm
                         wm_w = wm_h / (ih / float(iw))
-                    # Topo da marca d'água alinhado com a linha do email (row 1)
-                    y_offset = -(wm_h)
+                    # Centralizar verticalmente na área da assinatura
+                    y_offset = -(wm_h * 0.8)
                     x_left = (8 * cm - wm_w) / 2
                     x_right = 8 * cm + (8 * cm - wm_w) / 2
                     self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)

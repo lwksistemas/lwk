@@ -8,8 +8,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { Plus, Lock, Moon, Sun, ArrowLeft } from "lucide-react";
+import { Plus, Lock, Moon, Sun } from "lucide-react";
+import apiClient from "@/lib/api-client";
+import { useLojaAuth } from "@/hooks/useLojaAuth";
+import { ClinicaBelezaShell } from "@/components/clinica-beleza/ClinicaBelezaShell";
+import type { LojaInfo } from "@/types/dashboard";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
 import { ModalConflitoAgenda, type ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
@@ -80,6 +83,9 @@ export default function AgendaPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const { handleLogout } = useLojaAuth(slug);
+  const [loja, setLoja] = useState<LojaInfo | null>(null);
+  const [lojaLoading, setLojaLoading] = useState(true);
   const [eventos, setEventos] = useState<AgendaEventData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfessional, setSelectedProfessional] = useState<string>("");
@@ -117,6 +123,16 @@ export default function AgendaPage() {
     if (!sessionStorage.getItem("current_loja_id") || !sessionStorage.getItem("loja_slug")) {
       sessionStorage.setItem("loja_slug", slug);
     }
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug) return;
+    setLojaLoading(true);
+    apiClient
+      .get(`/superadmin/lojas/info_publica/?slug=${slug}`)
+      .then((res) => setLoja(res.data as LojaInfo))
+      .catch(() => setLoja(null))
+      .finally(() => setLojaLoading(false));
   }, [slug]);
 
   useEffect(() => {
@@ -411,26 +427,30 @@ export default function AgendaPage() {
     finally { setConflictResolving(false); }
   };
 
-  if (loading) {
+  if (lojaLoading || !loja) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Carregando agenda...</p>
+          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-300">Carregando...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="w-screen h-screen flex flex-col bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 overflow-hidden">
+  const agendaBody = loading ? (
+    <div className="flex flex-1 items-center justify-center min-h-[320px]">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-600 dark:text-gray-300">Carregando agenda...</p>
+      </div>
+    </div>
+  ) : (
+    <div className="flex flex-col flex-1 min-h-0">
       <header className="bg-purple-600 dark:bg-purple-800 text-white shadow-lg shrink-0">
         <div className="px-3 sm:px-4 py-2 sm:py-3 flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <Link href={`/loja/${slug}/dashboard`} className="flex items-center gap-1.5 p-1.5 sm:p-2 rounded-lg hover:bg-purple-500 dark:hover:bg-purple-700 transition-colors text-white/95 font-medium shrink-0" aria-label="Voltar ao dashboard">
-                <ArrowLeft className="w-5 h-5 shrink-0" /><span className="hidden sm:inline">Voltar</span>
-              </Link>
               <span className="text-lg sm:text-xl font-bold shrink-0">📅 Calendário</span>
               {viewTitle && <span className="text-xs sm:text-sm text-white/90 truncate max-w-[180px] sm:max-w-none">{viewTitle}</span>}
             </div>
@@ -508,5 +528,13 @@ export default function AgendaPage() {
       <ModalBloqueioHorario isOpen={showModalBloqueio} onClose={() => setShowModalBloqueio(false)} onSuccess={() => carregarDados()} professionals={professionals as any} />
       <ModalConflitoAgenda open={conflictData != null} onClose={() => setConflictData(null)} data={conflictData} onUseServer={handleConflitoUseServer} onUseLocal={handleConflitoUseLocal} resolving={conflictResolving} />
     </div>
+  );
+
+  return (
+    <ClinicaBelezaShell loja={loja} onLogout={handleLogout} mainClassName="overflow-hidden !overflow-y-hidden flex flex-col">
+      <div className="flex flex-col flex-1 min-h-0 bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100">
+        {agendaBody}
+      </div>
+    </ClinicaBelezaShell>
   );
 }

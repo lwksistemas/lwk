@@ -199,7 +199,8 @@ class TenantMiddleware:
                     'database': 'connected' if db_ok else 'disconnected',
                     'lojas_count': loja_count,
                     'timestamp': timezone.now().isoformat(),
-                    'version': 'v750',
+                    'version': 'v751',
+                    'build': os.environ.get('LWK_BUILD', 'unknown'),
                 }
                 response = JsonResponse(payload, status=200)
                 set_current_loja_id(None)

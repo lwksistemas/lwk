@@ -150,12 +150,14 @@ def health_check(request):
     except Exception as e:
         logger.warning(f'Health check: Loja.objects.count() falhou: {e}')
 
+    import os
     return JsonResponse({
         'status': 'healthy',
         'database': 'connected',
         'lojas_count': loja_count,
         'timestamp': timezone.now().isoformat(),
-        'version': 'v750'
+        'version': 'v751',
+        'build': os.environ.get('LWK_BUILD', 'unknown'),
     }, status=200)
 
 

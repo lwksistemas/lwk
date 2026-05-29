@@ -654,6 +654,7 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
 def dashboard_financeiro_loja(request, loja_slug):
     """Dashboard financeiro específico de uma loja (GET). POST gera cobrança antecipada."""
     if request.method == 'POST':
+        logger.info('POST financeiro/ (gerar cobrança) loja_slug=%s user=%s', loja_slug, request.user.username)
         if not request.user.is_superuser:
             loja = resolve_loja_by_slug_or_atalho(loja_slug, owner=request.user, is_active=True)
             if not loja:

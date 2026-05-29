@@ -18,6 +18,7 @@ import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/H
 interface AssinaturaData {
   loja: { id: number; nome: string; slug: string; plano: string; tipo_assinatura: string };
   financeiro: {
+    id?: number;
     status_pagamento: string; valor_mensalidade: number; data_proxima_cobranca: string;
     dia_vencimento: number; tem_asaas: boolean; tem_mercadopago?: boolean;
     provedor_boleto?: 'asaas' | 'mercadopago'; boleto_url: string; pix_qr_code: string; pix_copy_paste: string;
@@ -113,13 +114,33 @@ export default function AssinaturaLojaPage() {
   };
 
   const gerarNovaCobranca = async () => {
-    if (!data?.loja.id) return;
+    let financeiroId = data?.financeiro?.id;
+    if (!financeiroId && data?.loja?.id) {
+      try {
+        const { data: lista } = await apiClient.get<{ id: number; loja: number }[] | { results: { id: number; loja: number }[] }>(
+          '/superadmin/loja-financeiro/'
+        );
+        const itens = Array.isArray(lista) ? lista : lista?.results ?? [];
+        financeiroId = itens.find((f) => f.loja === data.loja.id)?.id;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!financeiroId) {
+      alert('Dados financeiros indisponíveis. Recarregue a página ou aguarde alguns minutos.');
+      return;
+    }
     try {
       setGerandoCobranca(true);
-      const res = await apiClient.post(`/superadmin/financeiro/${data.loja.id}/renovar/`, { dia_vencimento: data.financeiro.dia_vencimento });
+      const res = await apiClient.post(`/superadmin/loja-financeiro/${financeiroId}/renovar/`, {
+        dia_vencimento: data!.financeiro.dia_vencimento,
+      });
       setNovaCobranca(res.data); setShowModal(true); await carregarDados();
-    } catch (err: any) { alert(`Erro: ${err.response?.data?.error || 'Erro ao gerar cobrança'}`); }
-    finally { setGerandoCobranca(false); }
+    } catch (err: any) {
+      const ax = err?.response;
+      const msg = ax?.data?.error || ax?.data?.detail || 'Erro ao gerar cobrança';
+      alert(`Erro: ${typeof msg === 'string' ? msg : 'Erro ao gerar cobrança'}`);
+    } finally { setGerandoCobranca(false); }
   };
 
   const copiarPix = (text?: string) => { if (text) { navigator.clipboard.writeText(text); alert('Código PIX copiado!'); } };
@@ -174,7 +195,12 @@ export default function AssinaturaLojaPage() {
         </Card>
         <Card className="dark:bg-neutral-800 dark:border-neutral-700">
           <CardHeader className="pb-2"><CardTitle className="text-base dark:text-gray-100">Próxima cobrança</CardTitle></CardHeader>
-          <CardContent><p className="text-xl font-bold dark:text-gray-100">{formatDate(fin.data_proxima_cobranca)}</p></CardContent>
+          <CardContent>
+            <p className="text-xl font-bold dark:text-gray-100">{formatDate(fin.data_proxima_cobranca)}</p>
+            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+              O boleto do próximo ciclo é gerado automaticamente alguns dias antes desta data. Com assinatura ativa, não é necessário gerar manualmente.
+            </p>
+          </CardContent>
         </Card>
       </div>
 
@@ -182,7 +208,9 @@ export default function AssinaturaLojaPage() {
       <Card className="dark:bg-neutral-800 dark:border-neutral-700">
         <CardHeader>
           <CardTitle className="text-base dark:text-gray-100">Renovar Assinatura</CardTitle>
-          <CardDescription className="dark:text-gray-400">Gere uma nova cobrança para renovar</CardDescription>
+          <CardDescription className="dark:text-gray-400">
+            Use apenas se precisar de um boleto agora (ex.: vencido ou antecipado). Caso contrário, aguarde a cobrança automática em {formatDate(fin.data_proxima_cobranca)}.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={gerarNovaCobranca} disabled={gerandoCobranca} className="w-full sm:w-auto">

@@ -347,6 +347,42 @@ class FinanceiroLojaViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=['post'])
+    def renovar(self, request, pk=None):
+        """Cria nova cobrança de assinatura (proprietário da loja)."""
+        from superadmin.cobranca_service import CobrancaService
+
+        financeiro = self.get_object()
+        loja = financeiro.loja
+        dia_vencimento = request.data.get('dia_vencimento')
+
+        if dia_vencimento is not None:
+            try:
+                dia_vencimento = int(dia_vencimento)
+                if dia_vencimento < 1 or dia_vencimento > 28:
+                    return Response(
+                        {'success': False, 'error': 'dia_vencimento deve estar entre 1 e 28'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            except (ValueError, TypeError):
+                return Response(
+                    {'success': False, 'error': 'dia_vencimento deve ser um número inteiro'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            logger.info('Renovando assinatura loja %s (financeiro_id=%s)', loja.slug, financeiro.id)
+            result = CobrancaService().renovar_cobranca(loja, financeiro, dia_vencimento)
+            if result.get('success'):
+                return Response(result, status=status.HTTP_200_OK)
+            return Response(
+                {'success': False, 'error': result.get('error', 'Erro ao gerar cobrança')},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.exception('Erro ao renovar assinatura loja %s: %s', loja.slug, e)
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para pagamentos das lojas (somente leitura para proprietários)"""
@@ -776,6 +812,7 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
             'tipo_assinatura': loja.get_tipo_assinatura_display()
         },
         'financeiro': {
+            'id': financeiro.id,
             'status_pagamento': financeiro.get_status_pagamento_display(),
             'valor_mensalidade': float(financeiro.valor_mensalidade),
             'data_proxima_cobranca': financeiro.data_proxima_cobranca.strftime('%Y-%m-%d') if financeiro.data_proxima_cobranca else None,

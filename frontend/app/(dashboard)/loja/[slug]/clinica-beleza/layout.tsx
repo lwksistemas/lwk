@@ -36,12 +36,18 @@ export default function ClinicaBelezaLayout({ children }: { children: React.Reac
     if (ready && !isLoja) window.location.href = loginPath;
   }, [ready, isLoja, loginPath]);
 
-  if (!ready || !isLoja) return null;
+  if (!ready || !isLoja) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-500">Carregando...</p>
+      </div>
+    );
+  }
 
   if (!loja) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-500">Carregando...</p>
+        <p className="text-gray-500">Carregando módulo...</p>
       </div>
     );
   }

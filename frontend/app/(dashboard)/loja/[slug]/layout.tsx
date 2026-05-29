@@ -6,6 +6,7 @@ import RouteGuard from '@/components/RouteGuard';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
 import { registrarSincronizacaoAoVoltarOnline } from '@/lib/offline-sync';
 import CapturaErrosNavegador from '@/components/suporte/CapturaErrosNavegador';
+import { authService, syncLojaTenantSlug } from '@/lib/auth';
 
 const PWA_LOJA_SLUG_KEY = 'pwa_loja_slug';
 
@@ -29,6 +30,14 @@ export default function LojaLayout({
   useEffect(() => {
     if (slug?.trim()) {
       localStorage.setItem(PWA_LOJA_SLUG_KEY, slug.trim());
+    }
+  }, [slug]);
+
+  // Manter cookie/session alinhados com a URL (evita middleware bloquear cliques no menu)
+  useEffect(() => {
+    if (!slug?.trim()) return;
+    if (authService.getUserType() === 'loja') {
+      syncLojaTenantSlug(slug.trim());
     }
   }, [slug]);
 

@@ -58,10 +58,19 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
         return;
       }
       
-      // Se é loja, verificar se está tentando acessar outra loja
-      if (allowedUserType === 'loja' && requiredSlug && lojaSlug && requiredSlug !== lojaSlug) {
-        router.replace(getLojaDashboardPath(lojaSlug));
-        return;
+      // Se é loja, sincronizar slug da URL quando session ainda não tem (evita bloquear menu)
+      if (allowedUserType === 'loja' && requiredSlug) {
+        if (!lojaSlug) {
+          authService.setLojaSlug(requiredSlug);
+          if (typeof document !== 'undefined') {
+            document.cookie = `loja_slug=${encodeURIComponent(requiredSlug)}; path=/; max-age=86400; SameSite=Lax`;
+          }
+          return;
+        }
+        if (requiredSlug !== lojaSlug) {
+          router.replace(getLojaDashboardPath(lojaSlug));
+          return;
+        }
       }
     };
     

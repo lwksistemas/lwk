@@ -159,11 +159,12 @@ export default function LojaDashboardDinamicoPage() {
 
   // Renderizar dashboard específico por tipo de app
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Para cabeleireiro e clínica da beleza, renderizar SEM header/container (layout próprio) */}
+    <>
+      {/* Clínica da beleza / cabeleireiro: layout próprio (shell interno), sem wrapper extra */}
       {(isCabeleireiro || isClinicaBeleza) ? (
         renderDashboardPorTipo(lojaInfo, handleLogout)
       ) : (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
         <>
           {/* Header */}
           <nav 
@@ -306,8 +307,9 @@ export default function LojaDashboardDinamicoPage() {
         />
       )}
         </>
-      )}
     </div>
+      )}
+    </>
   );
 }
 

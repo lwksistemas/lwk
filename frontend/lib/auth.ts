@@ -354,6 +354,16 @@ class AuthService {
 // Exportar instância única
 export const authService = new AuthService();
 
+/** Alinha sessionStorage e cookie com o slug da URL (middleware + RouteGuard). */
+export function syncLojaTenantSlug(slug: string): void {
+  if (typeof window === 'undefined' || !slug?.trim()) return;
+  const s = slug.trim();
+  const stored = authService.getLojaSlug();
+  if (stored === s) return;
+  authService.setLojaSlug(s);
+  document.cookie = `loja_slug=${encodeURIComponent(s)}; path=/; max-age=86400; SameSite=Lax`;
+}
+
 // Exportar função helper para marcar navegação interna
 export const markInternalNavigation = () => authService.markInternalNavigation();
 

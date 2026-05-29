@@ -82,14 +82,18 @@ def _resolve_asaas_payment_id(pagamento):
 
 def _nfse_para_pagamento(pagamento, asaas_id=''):
     """NFS-e vinculada ao PagamentoLoja (local ou por asaas_payment_id)."""
-    from .models import NFSeEmitida
+    try:
+        from .models import NFSeEmitida
 
-    nf = NFSeEmitida.objects.filter(pagamento=pagamento, status='emitida').first()
-    if not nf and asaas_id:
-        nf = NFSeEmitida.objects.filter(asaas_payment_id=asaas_id, status='emitida').first()
-    if not nf:
+        nf = NFSeEmitida.objects.filter(pagamento=pagamento, status='emitida').first()
+        if not nf and asaas_id:
+            nf = NFSeEmitida.objects.filter(asaas_payment_id=asaas_id, status='emitida').first()
+        if not nf:
+            return None
+        return nf
+    except Exception as e:
+        logger.warning('nfse para pagamento %s: %s', getattr(pagamento, 'id', '?'), e)
         return None
-    return nf
 
 
 def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', pix_copy_fallback=''):
@@ -113,7 +117,9 @@ def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', p
     pls = PagamentoLoja.objects.filter(loja=loja).select_related('financeiro').order_by('-data_vencimento')
 
     for pl in pls:
-        asaas_id = _resolve_asaas_payment_id(pl)
+        asaas_id = (pl.asaas_payment_id or '').strip()
+        if not asaas_id and getattr(pl, 'financeiro', None):
+            asaas_id = (pl.financeiro.asaas_payment_id or '').strip()
         ap = asaas_by_id.get(asaas_id) if asaas_id else None
         provedor = (getattr(pl, 'provedor_boleto', None) or getattr(financeiro, 'provedor_boleto', None) or 'asaas')
 
@@ -170,7 +176,7 @@ def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', p
             'asaas_id': asaas_id or '',
             'mercadopago_payment_id': (pl.mercadopago_payment_id or '').strip(),
             'provedor_boleto': provedor,
-            'valor': float(ap.value if ap else pl.valor),
+            'valor': float(ap.value if ap and ap.value is not None else (pl.valor or 0)),
             'status': status_raw,
             'status_display': status_display,
             'data_vencimento': pl.data_vencimento.strftime('%Y-%m-%d') if pl.data_vencimento else None,
@@ -555,10 +561,25 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
 @permission_classes([IsAuthenticated])
 def dashboard_financeiro_loja(request, loja_slug):
     """Dashboard financeiro específico de uma loja"""
-    
+    try:
+        return _dashboard_financeiro_loja_impl(request, loja_slug)
+    except Exception as e:
+        logger.exception('dashboard_financeiro_loja %s: %s', loja_slug, e)
+        return Response(
+            {'error': 'Erro ao carregar dados financeiros. Tente novamente em instantes.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+def _dashboard_financeiro_loja_impl(request, loja_slug):
     # Verificar permissão
     if not request.user.is_superuser:
-        loja = get_object_or_404(Loja, slug=loja_slug, owner=request.user, is_active=True)
+        loja = Loja.objects.filter(slug=loja_slug, owner=request.user, is_active=True).first()
+        if not loja:
+            return Response(
+                {'error': 'Sem permissão. Apenas o responsável pela loja pode acessar.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
     else:
         loja = get_object_or_404(Loja, slug=loja_slug, is_active=True)
     
@@ -614,9 +635,13 @@ def dashboard_financeiro_loja(request, loja_slug):
             pix_copy_paste = financeiro.pix_copy_paste or ''
             # URL do boleto MP: só da API (a salva é truncada a 200 chars e gera "Pagamento não encontrado")
             if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and getattr(financeiro, 'mercadopago_payment_id', ''):
-                from .mercadopago_service import LojaMercadoPagoService
-                mp_svc = LojaMercadoPagoService()
-                boleto_url = mp_svc.get_boleto_url(financeiro.mercadopago_payment_id) or ''
+                try:
+                    from .mercadopago_service import LojaMercadoPagoService
+                    mp_svc = LojaMercadoPagoService()
+                    boleto_url = mp_svc.get_boleto_url(financeiro.mercadopago_payment_id) or ''
+                except Exception as mp_err:
+                    logger.warning('MP get_boleto_url loja %s: %s', loja.slug, mp_err)
+                    boleto_url = ''
                 # Não usar financeiro.boleto_url (truncada); se API falhar, front deve chamar baixar_boleto_pdf
             else:
                 boleto_url = financeiro.boleto_url or ''
@@ -629,9 +654,7 @@ def dashboard_financeiro_loja(request, loja_slug):
                 customer=loja_assinatura.asaas_customer
             ).order_by('-due_date')
 
-            logger.info(f"📊 Total de pagamentos no Asaas: {todos_pagamentos.count()}")
-            for pag in todos_pagamentos[:5]:
-                logger.info(f"   - ID: {pag.asaas_id}, Status: {pag.status}, Vencimento: {pag.due_date}, Valor: R$ {pag.value}")
+            logger.debug('Total pagamentos Asaas loja %s: %s', loja.slug, todos_pagamentos.count())
 
             # Buscar próximo pagamento pendente (mais recente)
             proximo_boleto = AsaasPayment.objects.filter(
@@ -706,10 +729,14 @@ def dashboard_financeiro_loja(request, loja_slug):
     logger.info(f"   - Valor Pago: R$ {valor_total_pago} (Asaas: {valor_total_pago_asaas}, Loja: {valor_total_pago_loja})")
     logger.info(f"   - Valor Pendente: R$ {valor_total_pendente} (Asaas: {valor_total_pendente_asaas}, Loja: {valor_total_pendente_loja})")
     
-    historico_pagamentos = _build_historico_pagamentos_loja(
-        loja, financeiro, boleto_url or '', pix_copy_paste or ''
-    )
-    logger.info(f"✅ Histórico loja {loja.slug}: {len(historico_pagamentos)} itens")
+    try:
+        historico_pagamentos = _build_historico_pagamentos_loja(
+            loja, financeiro, boleto_url or '', pix_copy_paste or ''
+        )
+        logger.info(f"✅ Histórico loja {loja.slug}: {len(historico_pagamentos)} itens")
+    except Exception as e:
+        logger.exception('Erro ao montar histórico de pagamentos loja %s: %s', loja.slug, e)
+        historico_pagamentos = []
 
     # Fallback: se for Mercado Pago e não tiver PIX dinâmico, usar chave PIX estática da config
     if getattr(financeiro, 'provedor_boleto', '') == 'mercadopago' and not (pix_copy_paste or '').strip():

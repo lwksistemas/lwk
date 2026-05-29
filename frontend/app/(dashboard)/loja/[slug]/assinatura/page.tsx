@@ -62,7 +62,21 @@ export default function AssinaturaLojaPage() {
       setData(d);
     } catch (err: any) {
       const ax = err?.response;
-      setError(ax?.status === 403 ? 'Sem permissão. Apenas o responsável pode acessar.' : (ax?.data?.error || 'Erro de conexão'));
+      const detail = ax?.data?.error ?? ax?.data?.detail;
+      const detailStr = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.join(', ') : '';
+      if (ax?.status === 403) {
+        setError('Sem permissão. Apenas o responsável pode acessar.');
+      } else if (detailStr) {
+        setError(detailStr);
+      } else if (ax?.status === 404) {
+        setError('Financeiro não encontrado para esta loja.');
+      } else if (ax?.status && ax.status >= 500) {
+        setError('Erro no servidor. Aguarde um momento e tente novamente.');
+      } else if (!ax && (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network'))) {
+        setError('Erro de conexão com o servidor. Verifique sua internet e tente novamente.');
+      } else {
+        setError('Não foi possível carregar os dados. Faça login novamente se o problema continuar.');
+      }
     } finally { setLoading(false); }
   }, [slug]);
 

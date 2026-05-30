@@ -8,12 +8,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Plus, Lock, Moon, Sun } from "lucide-react";
+import { Plus, Lock } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { useLojaAuth } from "@/hooks/useLojaAuth";
 import { ClinicaBelezaShell } from "@/components/clinica-beleza/ClinicaBelezaShell";
 import type { LojaInfo } from "@/types/dashboard";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
 import { ModalConflitoAgenda, type ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
@@ -106,9 +107,8 @@ export default function AgendaPage() {
   const [conflictResolving, setConflictResolving] = useState(false);
   const [calendarPlugins, setCalendarPlugins] = useState<any[]>([]);
   const [ptBrLocale, setPtBrLocale] = useState<any>(null);
-  const [darkMode, setDarkMode] = useClinicaBelezaDark();
+  useClinicaBelezaDark();
   const [isMobile, setIsMobile] = useState(false);
-  const [viewTitle, setViewTitle] = useState("");
 
   // Abrir modal "Novo Agendamento" quando ?novo=1 na URL
   useEffect(() => {
@@ -429,10 +429,13 @@ export default function AgendaPage() {
 
   if (lojaLoading || !loja) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa] dark:bg-gray-950">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-300">Carregando...</p>
+          <div
+            className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{ borderColor: `${CLINICA_BELEZA_PRIMARY} transparent transparent transparent` }}
+          />
+          <p className="text-sm text-gray-600 dark:text-gray-300">Carregando...</p>
         </div>
       </div>
     );
@@ -441,47 +444,62 @@ export default function AgendaPage() {
   const agendaBody = loading ? (
     <div className="flex flex-1 items-center justify-center min-h-[320px]">
       <div className="text-center">
-        <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-600 dark:text-gray-300">Carregando agenda...</p>
+        <div
+          className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+          style={{ borderColor: `${CLINICA_BELEZA_PRIMARY} transparent transparent transparent` }}
+        />
+        <p className="text-sm text-gray-600 dark:text-gray-300">Carregando agenda...</p>
       </div>
     </div>
   ) : (
-    <div className="flex flex-col flex-1 min-h-0">
-      <header className="bg-purple-600 dark:bg-purple-800 text-white shadow-lg shrink-0">
-        <div className="px-3 sm:px-4 py-2 sm:py-3 flex flex-col gap-2">
+    <div className="flex flex-col flex-1 min-h-0 p-3 sm:p-4 lg:p-6">
+      <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="px-3 sm:px-4 py-3 border-b border-gray-200 dark:border-gray-700 shrink-0 space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <span className="text-lg sm:text-xl font-bold shrink-0">📅 Calendário</span>
-              {viewTitle && <span className="text-xs sm:text-sm text-white/90 truncate max-w-[180px] sm:max-w-none">{viewTitle}</span>}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+              <OfflineIndicator />
+              <select
+                value={selectedProfessional}
+                onChange={(e) => setSelectedProfessional(e.target.value)}
+                className="px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8B3D52]/30 max-w-[140px] sm:max-w-none"
+              >
+                <option value="">Todos</option>
+                {professionals.map((prof) => (
+                  <option key={prof.id} value={prof.id}>{gName(prof)}</option>
+                ))}
+              </select>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
-              <OfflineIndicator />
-              <button type="button" onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-lg hover:bg-purple-500 dark:hover:bg-purple-700 transition-colors shrink-0" title={darkMode ? "Modo claro" : "Modo escuro"} aria-label={darkMode ? "Modo claro" : "Modo escuro"}>
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              <button
+                type="button"
+                onClick={() => setShowModalBloqueio(true)}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shrink-0 text-xs sm:text-sm"
+                title="Bloquear horário"
+              >
+                <Lock size={16} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Bloquear</span>
               </button>
-              <select value={selectedProfessional} onChange={(e) => setSelectedProfessional(e.target.value)} className="px-2 sm:px-3 py-1.5 border border-white/30 rounded-lg bg-white/15 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 max-w-[100px] sm:max-w-none [&>option]:bg-neutral-800">
-                <option value="">Todos</option>
-                {professionals.map((prof) => <option key={prof.id} value={prof.id}>{gName(prof)}</option>)}
-              </select>
-              <button onClick={() => setShowModalBloqueio(true)} className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shrink-0 text-xs sm:text-sm" title="Bloquear horário">
-                <Lock size={16} className="sm:w-4 sm:h-4" /><span className="hidden sm:inline">Bloquear</span>
-              </button>
-              <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors shrink-0 text-xs sm:text-sm font-medium" title="Novo agendamento">
-                <Plus size={16} className="sm:w-4 sm:h-4" /><span className="hidden sm:inline">Novo</span>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-white rounded-lg hover:opacity-90 transition-opacity shrink-0 text-xs sm:text-sm font-medium"
+                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                title="Novo agendamento"
+              >
+                <Plus size={16} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Novo</span>
               </button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-white/95">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#a855f7]" aria-hidden />Agendado</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#22c55e]" aria-hidden />Confirmado</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#b45309]" aria-hidden />Faltou</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
           </div>
         </div>
-      </header>
 
-      <div className="flex-1 min-h-0 p-2 sm:p-4 overflow-hidden">
-        <div className="bg-white/70 dark:bg-neutral-800/70 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-lg h-full p-2 sm:p-4 fc-agenda-mobile">
+        <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-hidden fc-agenda-mobile">
           {calendarPlugins.length > 0 && ptBrLocale && (
             <FullCalendar
               key={`${isMobile ? "mobile" : "desktop"}-${selectedProfessional}-${horariosTrabalho.length}`}
@@ -499,7 +517,6 @@ export default function AgendaPage() {
               eventDrop={moverEvento}
               eventClick={handleEventClick}
               dateClick={handleDateClick}
-              datesSet={(arg) => setViewTitle(arg.view.title)}
               height="100%"
               headerToolbar={isMobile ? { left: "prev,next", center: "title", right: "today" } : { left: "prev,next today", center: "title", right: "timeGridDay,timeGridWeek,dayGridMonth" }}
               buttonText={isMobile ? { today: "Hoje" } : undefined}
@@ -532,9 +549,7 @@ export default function AgendaPage() {
 
   return (
     <ClinicaBelezaShell loja={loja} onLogout={handleLogout} mainClassName="overflow-hidden !overflow-y-hidden flex flex-col">
-      <div className="flex flex-col flex-1 min-h-0 bg-gradient-to-br from-pink-100 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100">
-        {agendaBody}
-      </div>
+      {agendaBody}
     </ClinicaBelezaShell>
   );
 }

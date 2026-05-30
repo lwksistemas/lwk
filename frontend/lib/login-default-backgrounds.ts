@@ -13,18 +13,17 @@ import {
   isTipoServicos,
 } from '@/lib/loja-tipo';
 
-/** Arquivos em /public/login-backgrounds/ (adicione novos JPG por tipo quando quiser) */
+/** Arquivos em /public/login-backgrounds/ — um por tipo de app */
 const LOCAL = {
   clinicaBeleza: '/login-backgrounds/clinica-beleza.jpg',
-  /** Demais tipos: reutilizam a arte de clínica até existir arquivo dedicado */
-  clinicaEstetica: '/login-backgrounds/clinica-beleza.jpg',
-  cabeleireiro: '/login-backgrounds/clinica-beleza.jpg',
-  hotel: '/login-backgrounds/clinica-beleza.jpg',
-  restaurante: '/login-backgrounds/clinica-beleza.jpg',
-  crm: '/login-backgrounds/clinica-beleza.jpg',
-  servicos: '/login-backgrounds/clinica-beleza.jpg',
-  commerce: '/login-backgrounds/clinica-beleza.jpg',
-  default: '/login-backgrounds/clinica-beleza.jpg',
+  clinicaEstetica: '/login-backgrounds/clinica-estetica.jpg',
+  cabeleireiro: '/login-backgrounds/cabeleireiro.jpg',
+  hotel: '/login-backgrounds/hotel.jpg',
+  restaurante: '/login-backgrounds/restaurante.jpg',
+  crm: '/login-backgrounds/crm-vendas.jpg',
+  servicos: '/login-backgrounds/servicos.jpg',
+  commerce: '/login-backgrounds/commerce.jpg',
+  default: '/login-backgrounds/default.jpg',
 } as const;
 
 /**

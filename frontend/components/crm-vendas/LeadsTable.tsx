@@ -19,6 +19,7 @@ export interface Lead {
   bairro?: string;
   cidade?: string;
   uf?: string;
+  observacoes?: string;
   created_at: string;
   conta?: number | null;
   conta_nome?: string;

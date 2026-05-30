@@ -140,8 +140,15 @@ class LojaAsaasService:
             # Criar cobrança via serviço Asaas
             service = self.AsaasPaymentService()
             
-            # Verificar se já existe customer_id no financeiro
-            customer_id = financeiro.asaas_customer_id if financeiro.asaas_customer_id else None
+            # Verificar se já existe customer_id no financeiro ou na assinatura
+            from asaas_integration.models import LojaAssinatura
+            customer_id = (financeiro.asaas_customer_id or '').strip() or None
+            if not customer_id:
+                loja_assinatura = LojaAssinatura.objects.filter(
+                    loja_slug=loja.slug,
+                ).select_related('asaas_customer').first()
+                if loja_assinatura and loja_assinatura.asaas_customer_id:
+                    customer_id = loja_assinatura.asaas_customer.asaas_id
             
             resultado = service.create_loja_subscription_payment(
                 loja_data, 

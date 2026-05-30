@@ -10,7 +10,6 @@ from datetime import timedelta
 from urllib.parse import quote, unquote
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.core.signing import dumps, loads, BadSignature
 from django.utils import timezone
 from core.logging_utils import mask_email
@@ -370,12 +369,11 @@ def enviar_pdf_final(adapter: AssinaturaAdapter, documento, loja_id: int) -> tup
 
 
 def _enviar_email(subject, html, texto_fallback, to, loja_nome, pdf_bytes=None, pdf_filename=None) -> tuple[bool, str | None]:
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lwksistemas.com.br')
+    from core.email_delivery import create_email_multipart
     if isinstance(to, str):
         to = [to]
     try:
-        email = EmailMultiAlternatives(subject=subject, body=texto_fallback, from_email=from_email, to=to)
-        email.attach_alternative(html, 'text/html')
+        email = create_email_multipart(subject, texto_fallback, to, html=html)
         if pdf_bytes and pdf_filename:
             email.attach(pdf_filename, pdf_bytes, 'application/pdf')
         email.send(fail_silently=False)

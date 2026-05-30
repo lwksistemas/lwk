@@ -1398,9 +1398,9 @@ def nf_reenviar_por_payment(request, payment_id):
             f'Acesse a nota fiscal: {pdf_url}\n\n'
             f'Atenciosamente,\nEquipe LWK Sistemas'
         )
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lwksistemas.com.br')
-        msg = EmailMessage(subject=assunto, body=corpo, from_email=from_email, to=[email_destino])
-        msg.send(fail_silently=False)
+        from core.email_delivery import create_email_message, send_prepared
+        msg = create_email_message(subject=assunto, body=corpo, to=[email_destino])
+        send_prepared(msg, fail_silently=False)
 
         logger.info(f"✅ NF {invoice_id} reenviada para {email_destino}")
         return Response({'success': True, 'message': f'Nota fiscal reenviada para {email_destino}', 'invoice_id': invoice_id})

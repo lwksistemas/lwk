@@ -103,12 +103,9 @@ def enviar_email_nfse_tomador(
         incluir_cnpj_prestador=incluir_cnpj_prestador,
     )
 
-    email = EmailMessage(
-        subject=assunto,
-        body=corpo,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[tomador_email],
-    )
+    from core.email_delivery import create_email_message, send_prepared
+
+    email = create_email_message(subject=assunto, body=corpo, to=[tomador_email])
 
     if xml_content:
         email.attach(
@@ -117,7 +114,7 @@ def enviar_email_nfse_tomador(
             'application/xml',
         )
 
-    email.send(fail_silently=fail_silently)
+    send_prepared(email, fail_silently=fail_silently)
     logger.info(
         'Email NFS-e enviado para tomador_email=%s (url_danfe=%s)',
         mask_email(tomador_email),

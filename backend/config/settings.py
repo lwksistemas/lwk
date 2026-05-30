@@ -377,14 +377,29 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
-# Email Settings
+# Email Settings (dev: console; prod: ver settings_production — Resend ou Gmail)
+RESEND_API_KEY = config('RESEND_API_KEY', default='').strip()
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Sistema Multi-Loja <noreply@multloja.com>')
+if RESEND_API_KEY:
+    EMAIL_HOST = config('EMAIL_HOST', default='smtp.resend.com')
+    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='resend')
+    EMAIL_HOST_PASSWORD = RESEND_API_KEY
+    DEFAULT_FROM_EMAIL = config(
+        'DEFAULT_FROM_EMAIL',
+        default='LWK Sistemas <noreply@lwksistemas.com.br>',
+    )
+else:
+    EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+    _dev_from = EMAIL_HOST_USER or 'noreply@lwksistemas.com.br'
+    DEFAULT_FROM_EMAIL = config(
+        'DEFAULT_FROM_EMAIL',
+        default=f'LWK Sistemas <{_dev_from}>',
+    )
+DEFAULT_REPLY_TO = config('DEFAULT_REPLY_TO', default='contato@lwksistemas.com.br')
 
 # Para desenvolvimento, usar console backend (mostra emails no terminal)
 if DEBUG:

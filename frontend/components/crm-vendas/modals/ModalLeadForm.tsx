@@ -20,6 +20,7 @@ export interface FormDataLead {
   bairro: string;
   cidade: string;
   uf: string;
+  observacoes: string;
 }
 
 interface ModalLeadFormProps {
@@ -243,6 +244,21 @@ export default function ModalLeadForm({
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
+            </div>
+          </div>
+          <div className={`space-y-3 border-t border-gray-200 dark:border-gray-600 pt-4 ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Observações</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Notas sobre o lead
+              </label>
+              <textarea
+                value={form.observacoes}
+                onChange={(e) => onFormChange((f) => ({ ...f, observacoes: e.target.value }))}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-y min-h-[96px]"
+                placeholder="Anotações, histórico de contato, detalhes da negociação..."
+              />
             </div>
           </div>
           <div className={`space-y-3 border-t border-gray-200 dark:border-gray-600 pt-4 ${fullScreenOnDesktop ? 'md:col-span-2' : ''}`}>

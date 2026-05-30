@@ -7,8 +7,8 @@ de retry automático em caso de falhas temporárias.
 import logging
 from typing import Optional
 from datetime import timedelta
-from django.core.mail import send_mail
 from django.conf import settings
+from core.email_delivery import create_email_multipart, get_from_email, send_system_mail
 from django.utils import timezone
 from core.logging_utils import mask_email
 
@@ -53,16 +53,12 @@ class EmailService:
                 logger.warning("DEFAULT_FROM_EMAIL não configurado. Email não será enviado.")
                 return False
             
-            # Enviar email com HTML
-            from django.core.mail import EmailMultiAlternatives
-            
-            email_msg = EmailMultiAlternatives(
-                subject=assunto,
-                body=texto_plano,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[email],
+            email_msg = create_email_multipart(
+                assunto,
+                texto_plano,
+                [email],
+                html=html_content,
             )
-            email_msg.attach_alternative(html_content, "text/html")
             email_msg.send(fail_silently=False)
             
             # Atualizar FinanceiroLoja
@@ -115,12 +111,11 @@ class EmailService:
                 return False
             
             # Tentar enviar
-            send_mail(
-                subject=retry.assunto,
-                message=retry.mensagem,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[retry.destinatario],
-                fail_silently=False
+            send_system_mail(
+                retry.assunto,
+                retry.mensagem,
+                [retry.destinatario],
+                fail_silently=False,
             )
             
             # Marcar como enviado

@@ -4,8 +4,8 @@ Centraliza lógica de emails do superadmin
 """
 import logging
 from typing import Dict, List, Optional
-from django.core.mail import send_mail
 from django.conf import settings
+from core.email_delivery import get_from_email, send_system_mail
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,9 @@ class EmailValidationService:
         Returns:
             True se configurado corretamente
         """
+        if getattr(settings, 'RESEND_API_KEY', '').strip():
+            return bool(getattr(settings, 'DEFAULT_FROM_EMAIL', ''))
+
         required_settings = [
             'EMAIL_HOST',
             'EMAIL_PORT',
@@ -61,13 +64,11 @@ class EmailValidationService:
             return False
         
         try:
-            from_email = remetente or settings.DEFAULT_FROM_EMAIL
-            
-            send_mail(
-                subject=assunto,
-                message=mensagem,
-                from_email=from_email,
-                recipient_list=[destinatario],
+            send_system_mail(
+                assunto,
+                mensagem,
+                [destinatario],
+                from_email=remetente or get_from_email(),
                 fail_silently=False,
             )
             

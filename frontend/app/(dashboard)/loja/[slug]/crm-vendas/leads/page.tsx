@@ -73,6 +73,7 @@ export default function CrmVendasLeadsPage() {
     bairro: '',
     cidade: '',
     uf: '',
+    observacoes: '',
   });
 
   useEffect(() => {
@@ -130,6 +131,7 @@ export default function CrmVendasLeadsPage() {
       bairro: lead.bairro || '',
       cidade: lead.cidade || '',
       uf: lead.uf || '',
+      observacoes: lead.observacoes || '',
     });
     setFormErro(null);
   };
@@ -159,6 +161,7 @@ export default function CrmVendasLeadsPage() {
         bairro: form.bairro.trim() || undefined,
         cidade: form.cidade.trim() || undefined,
         uf: form.uf.trim().toUpperCase() || undefined,
+        observacoes: form.observacoes.trim() || undefined,
       })
       .then(() => {
         setLeadEditar(null);
@@ -276,6 +279,10 @@ export default function CrmVendasLeadsPage() {
           statusLabel={statusLabel}
           formatarData={formatarData}
           onClose={() => setLeadVer(null)}
+          onEditar={(lead) => {
+            setLeadVer(null);
+            handleEditarLead(lead);
+          }}
         />
       )}
 

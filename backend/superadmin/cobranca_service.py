@@ -135,8 +135,14 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
             # Criar cobrança no Asaas
             service = AsaasPaymentService()
             
-            # Verificar se já existe customer_id no financeiro
-            customer_id = financeiro.asaas_customer_id if financeiro.asaas_customer_id else None
+            # Verificar se já existe customer_id no financeiro ou na assinatura
+            customer_id = (financeiro.asaas_customer_id or '').strip() or None
+            if not customer_id:
+                loja_assinatura = LojaAssinatura.objects.filter(
+                    loja_slug=loja.slug,
+                ).select_related('asaas_customer').first()
+                if loja_assinatura and loja_assinatura.asaas_customer_id:
+                    customer_id = loja_assinatura.asaas_customer.asaas_id
             
             result = service.create_loja_subscription_payment(
                 loja_data, 

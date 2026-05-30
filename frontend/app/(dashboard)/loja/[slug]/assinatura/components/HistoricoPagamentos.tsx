@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, ExternalLink, FileText, Loader2 } from 'lucide-react';
+import { Download, ExternalLink, FileText, Loader2, Receipt } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
 
@@ -34,9 +34,13 @@ interface Props {
   slug: string;
 }
 
-function statusBadge(item: HistoricoPagamentoItem) {
+function StatusBadge({ item }: { item: HistoricoPagamentoItem }) {
   if (item.is_paid) {
-    return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">Pago</Badge>;
+    return (
+      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+        Pago
+      </Badge>
+    );
   }
   if (item.is_overdue) {
     return <Badge variant="destructive">Vencido</Badge>;
@@ -105,7 +109,7 @@ export function HistoricoPagamentos({ itens, slug }: Props) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string }; status?: number } };
+      const ax = err as { response?: { data?: { error?: string } } };
       if (item.boleto_url) {
         window.open(item.boleto_url, '_blank');
       } else {
@@ -135,7 +139,6 @@ export function HistoricoPagamentos({ itens, slug }: Props) {
       const { data } = await apiClient.get<{
         success: boolean;
         pdf_url?: string;
-        numero_nf?: string;
         error?: string;
       }>(`/superadmin/loja-pagamentos/${pagamentoId}/nota-fiscal/`);
       if (data?.success && data.pdf_url) {
@@ -177,108 +180,91 @@ export function HistoricoPagamentos({ itens, slug }: Props) {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-neutral-700 overflow-hidden">
-      <div className="hidden sm:grid sm:grid-cols-[1fr_auto] gap-2 px-4 py-3 bg-gray-50 dark:bg-neutral-800/80 border-b border-gray-200 dark:border-neutral-700 text-xs font-medium text-gray-600 dark:text-gray-400">
-        <span>Pagamento</span>
-        <span>Ações</span>
-      </div>
-      <ul className="divide-y divide-gray-200 dark:divide-neutral-700">
-        {itens.map((item, index) => {
-          const pid = item.pagamento_loja_id || item.id;
-          const podeBoleto =
-            item.pode_baixar_boleto !== false &&
-            (pid > 0 ||
-              Boolean(item.boleto_url) ||
-              Boolean(item.asaas_id) ||
-              Boolean(item.mercadopago_payment_id));
-          const showBaixarPdf = pid > 0 || Boolean(item.asaas_id);
-          const podeNf = item.tem_nota_fiscal || item.is_paid;
+    <ul className="space-y-3">
+      {itens.map((item, index) => {
+        const pid = item.pagamento_loja_id || item.id;
+        const podeBoleto =
+          item.pode_baixar_boleto !== false &&
+          (pid > 0 ||
+            Boolean(item.boleto_url) ||
+            Boolean(item.asaas_id) ||
+            Boolean(item.mercadopago_payment_id));
+        const showBaixarPdf = pid > 0 || Boolean(item.asaas_id);
+        const podeNf = item.tem_nota_fiscal || item.is_paid;
 
-          return (
-            <li key={`${pid}-${item.asaas_id || index}`} className="px-4 py-4 hover:bg-gray-50/80 dark:hover:bg-neutral-800/50">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    {statusBadge(item)}
-                    <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {formatCurrency(item.valor)}
+        return (
+          <li
+            key={`${pid}-${item.asaas_id || index}`}
+            className="rounded-lg border border-gray-200 dark:border-neutral-700 bg-card p-4 sm:p-5"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <StatusBadge item={item} />
+                  <span className="text-lg font-semibold dark:text-gray-100">
+                    {formatCurrency(item.valor)}
+                  </span>
+                  {item.numero_nf ? (
+                    <span className="text-xs text-muted-foreground dark:text-gray-400">
+                      NF {item.numero_nf}
                     </span>
-                    {item.numero_nf ? (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">NF {item.numero_nf}</span>
-                    ) : null}
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Vencimento: {formatDate(item.data_vencimento)}
-                    {item.data_pagamento ? (
-                      <span className="text-green-700 dark:text-green-400"> · Pago em {formatDate(item.data_pagamento)}</span>
-                    ) : null}
-                  </p>
-                  {item.referencia_mes ? (
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
-                      Referência: {formatDate(item.referencia_mes)}
-                    </p>
                   ) : null}
                 </div>
-
-                <div className="flex flex-wrap gap-2 shrink-0">
-                  {podeBoleto && (
-                    <>
-                      {item.boleto_url && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(item.boleto_url, '_blank')}
-                        >
-                          <ExternalLink className="w-4 h-4 mr-1" />
-                          Ver boleto
-                        </Button>
-                      )}
-                      {(showBaixarPdf || item.mercadopago_payment_id) && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={loadingBoleto === pid || loadingBoleto === -1}
-                          onClick={() => baixarBoleto(item)}
-                        >
-                          {loadingBoleto === pid || (loadingBoleto === -1 && !pid) ? (
-                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                          ) : (
-                            <Download className="w-4 h-4 mr-1" />
-                          )}
-                          Baixar boleto
-                        </Button>
-                      )}
-                    </>
-                  )}
-                  {podeNf && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={loadingNf === pid}
-                      onClick={() => abrirNotaFiscal(item)}
-                    >
-                      {loadingNf === pid ? (
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      ) : (
-                        <FileText className="w-4 h-4 mr-1" />
-                      )}
-                      Nota fiscal
-                    </Button>
-                  )}
-                  {item.is_paid && !item.tem_nota_fiscal && !item.nf_pdf_url && (
-                    <span className="text-xs text-amber-600 dark:text-amber-400 self-center px-1">
-                      Clique em Nota fiscal para baixar
+                <p className="text-sm text-muted-foreground dark:text-gray-400">
+                  Vencimento: {formatDate(item.data_vencimento)}
+                  {item.data_pagamento ? (
+                    <span className="text-green-700 dark:text-green-400">
+                      {' '}
+                      · Pago em {formatDate(item.data_pagamento)}
                     </span>
-                  )}
-                </div>
+                  ) : null}
+                </p>
               </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+
+              <div className="flex flex-wrap gap-2 shrink-0">
+                {podeBoleto && item.boleto_url && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => window.open(item.boleto_url, '_blank')}>
+                    <ExternalLink className="w-4 h-4 mr-1" />
+                    Ver boleto
+                  </Button>
+                )}
+                {podeBoleto && (showBaixarPdf || item.mercadopago_payment_id) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loadingBoleto === pid || loadingBoleto === -1}
+                    onClick={() => baixarBoleto(item)}
+                  >
+                    {loadingBoleto === pid || (loadingBoleto === -1 && !pid) ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-1" />
+                    )}
+                    Baixar boleto
+                  </Button>
+                )}
+                {podeNf && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loadingNf === pid}
+                    onClick={() => abrirNotaFiscal(item)}
+                  >
+                    {loadingNf === pid ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <FileText className="w-4 h-4 mr-1" />
+                    )}
+                    Nota fiscal
+                  </Button>
+                )}
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

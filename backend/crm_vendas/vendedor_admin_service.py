@@ -4,7 +4,7 @@ from typing import Any, Callable
 
 from django.conf import settings
 from django.contrib.auth.models import Group
-from django.core.mail import send_mail
+from core.email_delivery import send_system_mail
 from django.utils.crypto import get_random_string
 from rest_framework import status
 from rest_framework.response import Response
@@ -149,11 +149,10 @@ def resposta_vendedor_me(request, loja_id: int) -> Response:
 def _enviar_email_senha_provisoria(loja, destino_email: str, nome: str, login: str, senha: str) -> None:
     site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
     login_url = f'{site_url}/loja/{loja.slug}/login'
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
     try:
-        send_mail(
-            subject='Nova senha provisória - CRM Vendas',
-            message=(
+        send_system_mail(
+            'Nova senha provisória - CRM Vendas',
+            (
                 f'Olá, {nome}!\n\n'
                 f'Sua senha foi redefinida.\n\n'
                 f'Login: {login}\n'
@@ -161,8 +160,7 @@ def _enviar_email_senha_provisoria(loja, destino_email: str, nome: str, login: s
                 f'Acesse: {login_url}\n\n'
                 f'Por segurança, altere sua senha no primeiro acesso.'
             ),
-            from_email=from_email,
-            recipient_list=[destino_email],
+            [destino_email],
             fail_silently=True,
         )
     except Exception as exc:

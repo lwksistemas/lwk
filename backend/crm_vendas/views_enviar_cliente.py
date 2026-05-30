@@ -116,7 +116,7 @@ def _enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bo
     canal: 'email' | 'whatsapp'
     Retorna (sucesso, mensagem_erro)
     """
-    from django.core.mail import EmailMessage
+    from core.email_delivery import create_email_message, send_prepared
     from whatsapp.services import send_whatsapp_document
 
     oportunidade = instance.oportunidade
@@ -142,17 +142,11 @@ def _enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bo
         if not email_dest:
             return False, 'Lead não possui e-mail cadastrado.'
         try:
-            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
             assunto = f'{tipo.capitalize()}: {instance.titulo or instance.numero or "Documento"}'
             corpo = f'Prezado(a) {lead.nome},\n\nSegue em anexo o documento solicitado.\n\nAtenciosamente.'
-            email = EmailMessage(
-                subject=assunto,
-                body=corpo,
-                from_email=from_email,
-                to=[email_dest],
-            )
+            email = create_email_message(subject=assunto, body=corpo, to=[email_dest])
             email.attach(filename, pdf_bytes, 'application/pdf')
-            email.send(fail_silently=False)
+            send_prepared(email, fail_silently=False)
             return True, None
         except Exception as e:
             logger.exception('Erro ao enviar email: %s', e)

@@ -178,8 +178,8 @@ def _emitir_via_nacional(
                 'resposta_adn': resultado.get('resposta_adn_raw', ''),
                 'data_emissao': None,
             }
-            _salvar_nfse_emitida(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
-            _enviar_email_nfse(config, tomador_email, tomador_nome, resultado_padrao, valor, descricao)
+            nf = _salvar_nfse_emitida(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
+            _enviar_email_nfse_assinatura(nf, config)
             return resultado_padrao
         else:
             error_msg = resultado.get('error', 'Erro desconhecido')
@@ -287,8 +287,8 @@ def _emitir_via_issnet(
                 'data_emissao': None,
             }
             sincronizar_contadores_rps_superadmin(config, numero_rps)
-            _salvar_nfse_emitida_issnet(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
-            _enviar_email_nfse(config, tomador_email, tomador_nome, resultado_padrao, valor, descricao)
+            nf = _salvar_nfse_emitida_issnet(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
+            _enviar_email_nfse_assinatura(nf, config)
             return resultado_padrao
         else:
             error_msg = resultado.get('error', 'Erro desconhecido ISSNet')
@@ -309,7 +309,7 @@ def _salvar_nfse_emitida_issnet(pagamento, config, resultado, tomador_nome, toma
         aliquota = Decimal(str(config.aliquota_iss))
         valor_iss = (valor_dec * aliquota / 100).quantize(Decimal('0.01'))
 
-        NFSeEmitida.objects.create(
+        nf = NFSeEmitida.objects.create(
             loja=pagamento.loja,
             pagamento=pagamento,
             numero_nf=resultado.get('numero_nf', ''),
@@ -326,12 +326,15 @@ def _salvar_nfse_emitida_issnet(pagamento, config, resultado, tomador_nome, toma
             tomador_email=tomador_email,
             descricao_servico=descricao[:500],
             xml_nfse=resultado.get('xml_nfse', ''),
+            pdf_url=(resultado.get('pdf_url') or '')[:500],
             asaas_payment_id=pagamento.asaas_payment_id or '',
             data_emissao=resultado.get('data_emissao'),
         )
         logger.info('NFSeEmitida ISSNet salva: %s, loja %s', resultado.get('numero_nf'), pagamento.loja.slug)
+        return nf
     except Exception as e:
         logger.warning('Erro ao salvar NFSeEmitida ISSNet: %s', e)
+        return None
 
 
 def _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor):
@@ -343,7 +346,7 @@ def _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf
         aliquota = Decimal(str(config.aliquota_iss))
         valor_iss = (valor_dec * aliquota / 100).quantize(Decimal('0.01'))
 
-        NFSeEmitida.objects.create(
+        nf = NFSeEmitida.objects.create(
             loja=pagamento.loja,
             pagamento=pagamento,
             numero_nf=resultado.get('numero_nf', ''),
@@ -362,53 +365,30 @@ def _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf
             xml_nfse=resultado.get('xml_nfse', ''),
             xml_dps_assinado=resultado.get('xml_dps_assinado', ''),
             resposta_adn=resultado.get('resposta_adn', ''),
+            pdf_url=(resultado.get('pdf_url') or '')[:500],
             asaas_payment_id=pagamento.asaas_payment_id or '',
             data_emissao=resultado.get('data_emissao'),
         )
         logger.info('NFSeEmitida salva: %s, loja %s', resultado.get('numero_nf'), pagamento.loja.slug)
+        return nf
     except Exception as e:
         logger.warning('Erro ao salvar NFSeEmitida: %s', e)
+        return None
 
 
-def _enviar_email_nfse(config, tomador_email, tomador_nome, resultado, valor, descricao):
-    """Envia email com dados da NFS-e emitida para a loja."""
-    if not tomador_email:
+def _enviar_email_nfse_assinatura(nf, config) -> None:
+    """Envia e-mail da NFS-e com link DANFE (mesmo fluxo do reenvio manual)."""
+    if not nf or not getattr(nf, 'tomador_email', None):
         return
     try:
-        from django.core.mail import EmailMessage
-        from django.conf import settings
-
-        numero_nf = resultado.get('numero_nf', '')
-        prestador = config.prestador_razao_social or 'LWK Sistemas'
-
-        assunto = f'Nota Fiscal de Serviço - {prestador}'
-        corpo = (
-            f'Olá {tomador_nome}!\n\n'
-            f'A nota fiscal referente à sua assinatura foi emitida.\n\n'
-            f'📋 DADOS DA NOTA FISCAL:\n'
-            f'• Chave de Acesso: {numero_nf}\n'
-            f'• Prestador: {prestador}\n'
-            f'• CNPJ: {config.prestador_cnpj}\n'
-            f'• Valor: R$ {valor:.2f}\n'
-            f'• Descrição: {descricao}\n\n'
-            f'---\n'
-            f'Atenciosamente,\n'
-            f'{prestador}'
+        from nfse_integration.superadmin_nfse_api import (
+            ReenvioNFSeError,
+            reenviar_email_nfse_superadmin,
         )
 
-        email = EmailMessage(
-            subject=assunto,
-            body=corpo,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[tomador_email],
-        )
-
-        # Anexar XML se disponível
-        xml_content = resultado.get('xml_nfse', '')
-        if xml_content:
-            email.attach(f'nfse_{numero_nf[:20]}.xml', xml_content.encode('utf-8'), 'application/xml')
-
-        email.send(fail_silently=True)
-        logger.info('Email NFS-e enviado para %s', tomador_email)
+        reenviar_email_nfse_superadmin(nf, config)
+        logger.info('Email NFS-e assinatura enviado para %s (NF %s)', nf.tomador_email, nf.numero_nf)
+    except ReenvioNFSeError as e:
+        logger.warning('NFS-e assinatura: email não enviado: %s', e.message)
     except Exception as e:
-        logger.warning('Erro ao enviar email NFS-e: %s', e)
+        logger.warning('Erro ao enviar email NFS-e assinatura: %s', e)

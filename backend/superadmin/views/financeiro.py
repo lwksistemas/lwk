@@ -298,15 +298,9 @@ Atenciosamente,
 Equipe LWK Sistemas
 """
                 
-                from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lwksistemas.com.br')
-                
-                msg = EmailMessage(
-                    subject=assunto,
-                    body=corpo,
-                    from_email=from_email,
-                    to=[owner.email]
-                )
-                msg.send(fail_silently=False)
+                from core.email_delivery import create_email_message, send_prepared
+                msg = create_email_message(subject=assunto, body=corpo, to=[owner.email])
+                send_prepared(msg, fail_silently=False)
                 
                 logger.info("Nota fiscal reenviada: loja=%s, owner_email=%s", loja.slug, owner_email_log)
                 

@@ -43,8 +43,6 @@ def enviar_email_assinatura_cliente(documento, assinatura, request):
     
     tipo_doc = 'Proposta' if documento.__class__.__name__ == 'Proposta' else 'Contrato'
     
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lwksistemas.com.br')
-    
     # Template HTML profissional
     html_content = f"""
     <!DOCTYPE html>
@@ -207,16 +205,14 @@ Este é um email automático. Por favor, não responda.
     """
     
     try:
-        from django.core.mail import EmailMultiAlternatives
-        
-        email = EmailMultiAlternatives(
+        from core.email_delivery import create_email_multipart
+
+        email = create_email_multipart(
             subject=f'📄 Assinatura Digital - {tipo_doc}: {documento.titulo}',
             body=texto_plano,
-            from_email=from_email,
             to=[lead.email],
+            html=html_content,
         )
-        
-        email.attach_alternative(html_content, "text/html")
         email.send(fail_silently=False)
         
         logger.info(
@@ -259,8 +255,6 @@ def enviar_email_assinatura_vendedor(documento, assinatura, request):
     
     tipo_doc = 'Proposta' if documento.__class__.__name__ == 'Proposta' else 'Contrato'
     lead = documento.oportunidade.lead
-    
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lwksistemas.com.br')
     
     # Template HTML profissional
     html_content = f"""
@@ -440,16 +434,14 @@ Este é um email automático. Por favor, não responda.
     """
     
     try:
-        from django.core.mail import EmailMultiAlternatives
-        
-        email = EmailMultiAlternatives(
+        from core.email_delivery import create_email_multipart
+
+        email = create_email_multipart(
             subject=f'✅ Cliente Assinou - {tipo_doc}: {documento.titulo}',
             body=texto_plano,
-            from_email=from_email,
             to=[assinatura.email_assinante],
+            html=html_content,
         )
-        
-        email.attach_alternative(html_content, "text/html")
         email.send(fail_silently=False)
         
         logger.info(
@@ -495,7 +487,6 @@ def enviar_pdf_final(documento, loja_id):
     loja = Loja.objects.using('default').filter(id=loja_id).first()
     loja_nome = loja.nome if loja else 'Sistema'
     
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lwksistemas.com.br')
     
     # Preparar lista de destinatários
     destinatarios = []
@@ -667,16 +658,14 @@ Obrigado por utilizar nossos serviços!
     """
     
     try:
-        from django.core.mail import EmailMultiAlternatives
-        
-        email = EmailMultiAlternatives(
+        from core.email_delivery import create_email_multipart
+
+        email = create_email_multipart(
             subject=f'🎉 {tipo_doc} Assinado: {documento.titulo}',
             body=texto_plano,
-            from_email=from_email,
             to=destinatarios,
+            html=html_content,
         )
-        
-        email.attach_alternative(html_content, "text/html")
         email.attach(filename, pdf_bytes, 'application/pdf')
         email.send(fail_silently=False)
         

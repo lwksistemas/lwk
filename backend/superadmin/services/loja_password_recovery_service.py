@@ -74,15 +74,14 @@ class LojaPasswordRecoveryService:
         )
 
         try:
-            from django.core.mail import EmailMultiAlternatives
-            
-            email_msg = EmailMultiAlternatives(
-                subject=assunto,
-                body=texto_plano,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[email],
+            from core.email_delivery import create_email_multipart
+
+            email_msg = create_email_multipart(
+                assunto,
+                texto_plano,
+                [email],
+                html=html_content,
             )
-            email_msg.attach_alternative(html_content, "text/html")
             email_msg.send(fail_silently=False)
         except Exception as e:
             logger.exception('Erro ao enviar email de recuperação de senha: %s', e)

@@ -7,8 +7,8 @@ from decimal import Decimal
 
 from django.utils import timezone
 from django.db.models import Sum, Count, Q
-from django.core.mail import EmailMessage
 from django.conf import settings
+from core.email_delivery import create_email_message, send_prepared
 from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
@@ -331,15 +331,14 @@ def enviar_relatorio_para_empresa(relatorio, loja):
     )
 
     try:
-        email = EmailMessage(
+        email = create_email_message(
             subject=f'Relatório de Comissão {relatorio.numero} — {loja.nome}',
             body=corpo,
-            from_email=settings.DEFAULT_FROM_EMAIL,
             to=[ep.email],
         )
         filename = f'relatorio_comissao_{relatorio.numero}.pdf'
         email.attach(filename, pdf_bytes, 'application/pdf')
-        email.send(fail_silently=False)
+        send_prepared(email, fail_silently=False)
         logger.info('Relatório %s enviado para empresa_prestadora_email=%s', relatorio.numero, mask_email(ep.email))
         return True, None
     except Exception as e:
@@ -395,13 +394,12 @@ def _enviar_email_vendedor_assinar(relatorio):
             f'Atenciosamente,\nSistema LWK'
         )
 
-        email = EmailMessage(
+        email = create_email_message(
             subject=f'✅ Relatório {relatorio.numero} aprovado — assine para gerar boleto',
             body=corpo,
-            from_email=settings.DEFAULT_FROM_EMAIL,
             to=[vendedor.email],
         )
-        email.send(fail_silently=False)
+        send_prepared(email, fail_silently=False)
         logger.info('Email de assinatura enviado para vendedor_email=%s', mask_email(vendedor.email))
     except Exception as e:
         logger.warning('Erro ao enviar email ao vendedor: %s', e)
@@ -474,14 +472,13 @@ def _enviar_pdf_assinado(relatorio):
         if not destinatarios:
             return
 
-        email = EmailMessage(
+        email = create_email_message(
             subject=f'Relatório de Comissão {relatorio.numero} — Assinado',
             body=(
                 f'O relatório de comissão {relatorio.numero} foi assinado por ambas as partes.\n'
                 f'Segue em anexo o PDF com os registros de assinatura.\n\n'
                 f'Atenciosamente,\n{loja.nome}'
             ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
             to=destinatarios,
         )
         email.attach(
@@ -489,7 +486,7 @@ def _enviar_pdf_assinado(relatorio):
             pdf_bytes,
             'application/pdf',
         )
-        email.send(fail_silently=True)
+        send_prepared(email, fail_silently=True)
         logger.info('PDF assinado enviado para %s', destinatarios)
     except Exception as e:
         logger.warning('Erro ao enviar PDF assinado: %s', e)
@@ -522,8 +519,32 @@ def gerar_boleto_comissao(relatorio):
             'name': ep.nome,
             'cpfCnpj': cnpj_digits,
             'email': ep.email or '',
+            'externalReference': f'ep_{ep.id}_comissao',
         }
-        customer = client.create_customer(customer_data)
+
+        customer_id = (relatorio.asaas_customer_id or '').strip()
+        if not customer_id:
+            from .models_relatorio_comissao import RelatorioComissao
+            prev = (
+                RelatorioComissao.objects.filter(
+                    empresa_prestadora_id=ep.id,
+                    loja_id=relatorio.loja_id,
+                )
+                .exclude(asaas_customer_id='')
+                .order_by('-id')
+                .first()
+            )
+            if prev:
+                customer_id = prev.asaas_customer_id.strip()
+
+        if customer_id:
+            try:
+                customer = client.get_customer(customer_id)
+            except Exception:
+                customer = client.get_or_create_customer(customer_data)
+        else:
+            customer = client.get_or_create_customer(customer_data)
+
         customer_id = customer.get('id')
         if not customer_id:
             return False, 'Falha ao criar cliente no Asaas.'

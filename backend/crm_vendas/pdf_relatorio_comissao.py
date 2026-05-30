@@ -86,14 +86,6 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
         spaceBefore=0,
         spaceAfter=6,
     )
-    subtitulo_style = ParagraphStyle(
-        'RCSubtitulo',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=_CINZA_ESCURO,
-        alignment=TA_CENTER,
-        spaceAfter=4,
-    )
     secao_style = ParagraphStyle(
         'RCSecao',
         parent=styles['Heading2'],
@@ -170,11 +162,6 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     else:
         elements.append(Paragraph('RELATÓRIO DE COMISSÃO', titulo_style))
 
-    elements.append(Paragraph(relatorio.titulo or relatorio.numero, subtitulo_style))
-    elements.append(Paragraph(
-        f'Período: {_fmt_data(relatorio.periodo_inicio)} a {_fmt_data(relatorio.periodo_fim)}',
-        subtitulo_style,
-    ))
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(HRFlowable(width='100%', thickness=1, color=_AZUL))
     elements.append(Spacer(1, 0.3 * cm))

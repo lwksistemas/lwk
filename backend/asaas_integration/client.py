@@ -4,6 +4,7 @@ Gera boletos e PIX para cobrança de assinaturas das lojas
 """
 import requests
 import json
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from django.conf import settings
@@ -86,6 +87,64 @@ class AsaasClient:
         """Cria um cliente no Asaas"""
         endpoint = 'customers'
         return self._make_request('POST', endpoint, customer_data)
+
+    @staticmethod
+    def _only_digits(value: str) -> str:
+        return re.sub(r'\D', '', value or '')
+
+    def search_customer(
+        self,
+        cpf_cnpj: Optional[str] = None,
+        email: Optional[str] = None,
+        external_reference: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Busca cliente existente no Asaas (evita duplicatas).
+        Prioridade: CPF/CNPJ → externalReference → e-mail.
+        """
+        searches = []
+        cpf_digits = self._only_digits(cpf_cnpj or '')
+        if cpf_digits:
+            searches.append({'cpfCnpj': cpf_digits})
+        ext = (external_reference or '').strip()
+        if ext:
+            searches.append({'externalReference': ext})
+        email_clean = (email or '').strip().lower()
+        if email_clean:
+            searches.append({'email': email_clean})
+
+        for params in searches:
+            try:
+                response = self._make_request('GET', 'customers', params)
+                items = response.get('data') or []
+                if items:
+                    found = items[0]
+                    logger.info(
+                        'Cliente Asaas encontrado: id=%s filtro=%s',
+                        found.get('id'),
+                        list(params.keys())[0],
+                    )
+                    return found
+            except Exception as exc:
+                logger.warning('Busca cliente Asaas falhou (%s): %s', params, exc)
+        return None
+
+    def get_or_create_customer(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Reutiliza cliente por CPF/CNPJ, referência externa ou e-mail; cria só se não existir."""
+        payload = dict(customer_data)
+        if payload.get('cpfCnpj'):
+            payload['cpfCnpj'] = self._only_digits(str(payload['cpfCnpj']))
+
+        existing = self.search_customer(
+            cpf_cnpj=payload.get('cpfCnpj'),
+            email=payload.get('email'),
+            external_reference=payload.get('externalReference'),
+        )
+        if existing:
+            return existing
+
+        logger.info('Criando novo cliente Asaas: %s', payload.get('name'))
+        return self.create_customer(payload)
     
     def update_customer(self, customer_id: str, customer_data: Dict[str, Any]) -> Dict[str, Any]:
         """Atualiza um cliente no Asaas"""
@@ -397,21 +456,23 @@ class AsaasPaymentService:
             Dict com dados da cobrança criada
         """
         try:
-            # 1. Usar customer existente ou criar novo
+            # 1. Usar customer existente ou buscar/criar sem duplicar
+            customer_id = (customer_id or '').strip() or None
             if customer_id:
                 logger.info(f"Usando customer existente: {customer_id}")
-                # Buscar dados do customer para retornar
                 try:
                     customer = self.client.get_customer(customer_id)
-                except:
-                    # Se não conseguir buscar, usar o ID fornecido mesmo assim
-                    customer = {'id': customer_id}
-            else:
-                # Criar novo customer
-                # ✅ CORREÇÃO v1328: Remover formatação do CEP (apenas dígitos)
+                except Exception:
+                    logger.warning(
+                        'Customer %s inválido; buscando por CPF/e-mail/referência',
+                        customer_id,
+                    )
+                    customer_id = None
+
+            if not customer_id:
                 cep_raw = loja_data.get('cep', '')
                 cep_limpo = ''.join(c for c in cep_raw if c.isdigit())
-                
+
                 customer_data = {
                     'name': loja_data['nome'],
                     'email': loja_data['email'],
@@ -423,12 +484,12 @@ class AsaasPaymentService:
                     'province': loja_data.get('bairro', ''),
                     'city': loja_data.get('cidade', ''),
                     'state': loja_data.get('estado', ''),
-                    'postalCode': cep_limpo,  # CEP sem formatação (apenas dígitos)
-                    'externalReference': f"loja_{loja_data['slug']}"
+                    'postalCode': cep_limpo,
+                    'externalReference': f"loja_{loja_data['slug']}",
                 }
-                
-                logger.info(f"Criando cliente Asaas para loja: {loja_data['nome']}")
-                customer = self.client.create_customer(customer_data)
+
+                logger.info(f"Buscando/criando cliente Asaas para loja: {loja_data['nome']}")
+                customer = self.client.get_or_create_customer(customer_data)
             
             customer_id = customer['id']
             

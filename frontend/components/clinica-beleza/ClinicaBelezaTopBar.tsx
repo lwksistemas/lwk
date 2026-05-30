@@ -3,7 +3,6 @@
 import { CalendarDays, Menu } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { CLINICA_BELEZA_PRIMARY } from './clinica-beleza-nav';
-import { ClinicaBelezaSuporteButton } from './ClinicaBelezaSuporteButton';
 
 function formatDatePicker(): string {
   return new Date().toLocaleDateString('pt-BR', {
@@ -38,23 +37,20 @@ function DashboardTopBarRight({ loja }: { loja: LojaInfo }) {
 }
 
 interface ClinicaBelezaTopBarProps {
-  slug: string;
   loja: LojaInfo;
   isDashboard?: boolean;
   onOpenMobileMenu?: () => void;
 }
 
 export function ClinicaBelezaTopBar({
-  slug,
   loja,
   isDashboard = false,
   onOpenMobileMenu,
 }: ClinicaBelezaTopBarProps) {
   return (
     <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
-      <div className="grid grid-cols-[auto_1fr_auto] lg:grid-cols-[1fr_auto_1fr] items-center gap-2 min-h-[3.5rem] px-3 sm:px-6 lg:px-8">
-        {/* Esquerda: menu mobile / espaço em desktop */}
-        <div className="flex items-center justify-start min-w-0">
+      <div className="flex items-center justify-between gap-2 min-h-[3.5rem] px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center min-w-0">
           <button
             type="button"
             onClick={onOpenMobileMenu}
@@ -65,12 +61,6 @@ export function ClinicaBelezaTopBar({
           </button>
         </div>
 
-        {/* Centro: Suporte */}
-        <div className="flex justify-center items-center px-1">
-          <ClinicaBelezaSuporteButton slug={slug} />
-        </div>
-
-        {/* Direita: data + perfil no dashboard; vazio nas demais páginas */}
         <div className="flex items-center justify-end min-w-0">
           {isDashboard ? (
             <DashboardTopBarRight loja={loja} />

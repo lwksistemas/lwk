@@ -33,6 +33,7 @@ export default function NovoLeadPage() {
     bairro: '',
     cidade: '',
     uf: '',
+    observacoes: '',
   });
   const [enviando, setEnviando] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
@@ -136,6 +137,7 @@ export default function NovoLeadPage() {
         bairro: form.bairro.trim() || undefined,
         cidade: form.cidade.trim() || undefined,
         uf: form.uf.trim().toUpperCase() || undefined,
+        observacoes: form.observacoes.trim() || undefined,
       })
       .then(() => {
         router.push(`/loja/${slug}/crm-vendas/leads`);
@@ -361,6 +363,23 @@ export default function NovoLeadPage() {
                 placeholder="UF"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Observações */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-medium text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-600 pb-2">
+            Observações
+          </h2>
+          <div>
+            <label className={labelClass}>Notas sobre o lead</label>
+            <textarea
+              value={form.observacoes}
+              onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
+              rows={4}
+              className={`${inputClass} resize-y min-h-[96px]`}
+              placeholder="Anotações, histórico de contato, detalhes da negociação..."
+            />
           </div>
         </div>
 

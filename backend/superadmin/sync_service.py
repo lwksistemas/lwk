@@ -9,6 +9,7 @@ from django.db import transaction
 from .models import Loja, FinanceiroLoja, PagamentoLoja
 from .asaas_service import LojaAsaasService
 from core.logging_utils import mask_email
+from core.email_delivery import send_system_mail
 
 logger = logging.getLogger(__name__)
 
@@ -561,7 +562,6 @@ class AsaasSyncService:
     
     def _enviar_email_senha_acesso(self, loja):
         """Envia email com senha de acesso após primeiro pagamento"""
-        from django.core.mail import send_mail
         from django.conf import settings
         
         assunto = f"Bem-vindo ao LWK Sistemas - {loja.nome}"
@@ -594,20 +594,13 @@ https://lwksistemas.com.br
 """
         
         try:
-            send_mail(
-                assunto,
-                mensagem,
-                settings.DEFAULT_FROM_EMAIL,
-                [loja.owner.email],
-                fail_silently=False,
-            )
+            send_system_mail(assunto, mensagem, [loja.owner.email], fail_silently=False)
             logger.info("Email de senha enviado para owner_email=%s", mask_email(loja.owner.email))
         except Exception as e:
             logger.error(f"Erro ao enviar email de senha: {e}")
     
     def _enviar_link_cadastro_cartao(self, loja, financeiro):
         """Envia email com link para cadastrar cartão após primeiro pagamento"""
-        from django.core.mail import send_mail
         from django.conf import settings
         from asaas_integration.client import AsaasClient
         from asaas_integration.models import AsaasConfig
@@ -678,13 +671,7 @@ Equipe LWK Sistemas
 https://lwksistemas.com.br
 """
             
-            send_mail(
-                assunto,
-                mensagem,
-                settings.DEFAULT_FROM_EMAIL,
-                [loja.owner.email],
-                fail_silently=False,
-            )
+            send_system_mail(assunto, mensagem, [loja.owner.email], fail_silently=False)
             
             logger.info("Email de link de cartão enviado para owner_email=%s", mask_email(loja.owner.email))
             
@@ -693,7 +680,6 @@ https://lwksistemas.com.br
     
     def _enviar_email_confirmacao_pagamento(self, loja):
         """Envia email de confirmação de pagamento de renovação"""
-        from django.core.mail import send_mail
         from django.conf import settings
         
         assunto = f"Pagamento Confirmado - {loja.nome}"
@@ -718,19 +704,12 @@ Equipe LWK Sistemas
 """
         
         try:
-            send_mail(
-                assunto,
-                mensagem,
-                settings.DEFAULT_FROM_EMAIL,
-                [loja.owner.email],
-                fail_silently=False,
-            )
+            send_system_mail(assunto, mensagem, [loja.owner.email], fail_silently=False)
         except Exception as e:
             logger.error(f"Erro ao enviar email de confirmação: {e}")
     
     def _enviar_email_cartao_cadastrado(self, loja):
         """Envia email confirmando cadastro do cartão"""
-        from django.core.mail import send_mail
         from django.conf import settings
         
         assunto = f"Cartão cadastrado com sucesso - {loja.nome}"
@@ -757,13 +736,7 @@ Equipe LWK Sistemas
 """
         
         try:
-            send_mail(
-                assunto,
-                mensagem,
-                settings.DEFAULT_FROM_EMAIL,
-                [loja.owner.email],
-                fail_silently=False,
-            )
+            send_system_mail(assunto, mensagem, [loja.owner.email], fail_silently=False)
         except Exception as e:
             logger.error(f"Erro ao enviar email de cartão cadastrado: {e}")
     

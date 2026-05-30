@@ -286,15 +286,9 @@ Atenciosamente,
 Equipe LWK Sistemas
 """
             
-            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lwksistemas.com.br')
-            
-            msg = EmailMessage(
-                subject=assunto,
-                body=corpo,
-                from_email=from_email,
-                to=[email_destino]
-            )
-            msg.send(fail_silently=False)
+            from core.email_delivery import create_email_message, send_prepared
+            msg = create_email_message(subject=assunto, body=corpo, to=[email_destino])
+            send_prepared(msg, fail_silently=False)
             
             logger.info(f"Email de boleto enviado para {loja.nome} ({email_destino})")
             return True

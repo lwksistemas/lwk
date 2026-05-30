@@ -113,8 +113,6 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
 
                 site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
                 login_url = f"{site_url}/loja/{loja.slug}/login"
-                from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
-                
                 # Mapear perfil para nome amigável
                 perfil_nome = {
                     'administrador': 'Administrador',
@@ -147,13 +145,12 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                         nome_sistema=loja.nome
                     )
                     
-                    email_msg = EmailMultiAlternatives(
-                        subject=f'Acesso ao Sistema - {loja.nome}',
-                        body=texto_plano,
-                        from_email=from_email,
-                        to=[email],
+                    email_msg = create_email_multipart(
+                        f'Acesso ao Sistema - {loja.nome}',
+                        texto_plano,
+                        [email],
+                        html=html_content,
                     )
-                    email_msg.attach_alternative(html_content, "text/html")
                     email_msg.send(fail_silently=True)
                 except Exception as mail_err:
                     logger.warning('Envio de e-mail ao criar profissional falhou: %s', mail_err)

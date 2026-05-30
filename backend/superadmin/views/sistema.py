@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.conf import settings
 from django.db import connection, DatabaseError
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
@@ -151,6 +152,8 @@ def health_check(request):
         logger.warning(f'Health check: Loja.objects.count() falhou: {e}')
 
     import os
+    from core.resend_api import resend_api_key
+    email_provider = 'resend' if resend_api_key() else 'smtp'
     return JsonResponse({
         'status': 'healthy',
         'database': 'connected',
@@ -158,6 +161,8 @@ def health_check(request):
         'timestamp': timezone.now().isoformat(),
         'version': 'v751',
         'build': os.environ.get('LWK_BUILD', 'unknown'),
+        'email_provider': email_provider,
+        'email_backend': getattr(settings, 'EMAIL_BACKEND', ''),
     }, status=200)
 
 

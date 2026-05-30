@@ -30,7 +30,8 @@ class BackupEmailService:
     """
     
     def __init__(self):
-        self.from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@sistema.com')
+        from core.email_delivery import get_from_email
+        self.from_email = get_from_email()
     
     def enviar_backup_email(
         self,
@@ -71,10 +72,10 @@ class BackupEmailService:
             corpo_texto = self._criar_corpo_texto(loja, historico)
             
             # Criar email
-            email = EmailMessage(
+            from core.email_delivery import create_email_message, send_prepared
+            email = create_email_message(
                 subject=assunto,
                 body=corpo_texto,
-                from_email=self.from_email,
                 to=[destinatario],
             )
             

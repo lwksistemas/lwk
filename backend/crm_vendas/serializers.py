@@ -228,8 +228,6 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao Sistema - CRM Vendas', reenviar=False):
     site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
     login_url = f"{site_url}/loja/{loja.slug}/login"
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'noreply@lwksistemas.com.br'
-    
     if reenviar:
         titulo = "Senha Redefinida"
         subtitulo = "Sua senha foi redefinida com sucesso"
@@ -239,7 +237,7 @@ def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso
     
     try:
         from core.email_templates import email_senha_provisoria_html
-        from django.core.mail import EmailMultiAlternatives
+        from core.email_delivery import create_email_multipart
         
         info_adicional = {
             "Loja": loja.nome,
@@ -259,13 +257,12 @@ def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso
             nome_sistema=loja.nome
         )
         
-        email_msg = EmailMultiAlternatives(
-            subject=assunto,
-            body=texto_plano,
-            from_email=from_email,
-            to=[email],
+        email_msg = create_email_multipart(
+            assunto,
+            texto_plano,
+            [email],
+            html=html_content,
         )
-        email_msg.attach_alternative(html_content, "text/html")
         email_msg.send(fail_silently=True)
     except Exception as mail_err:
         logger.warning('Envio de e-mail ao criar vendedor falhou: %s', mail_err)

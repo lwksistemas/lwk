@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { X } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
 
 interface ModalLeadVerProps {
@@ -11,6 +11,7 @@ interface ModalLeadVerProps {
   statusLabel: (value: string) => string;
   formatarData: (s: string) => string;
   onClose: () => void;
+  onEditar?: (lead: Lead) => void;
 }
 
 export default function ModalLeadVer({
@@ -20,6 +21,7 @@ export default function ModalLeadVer({
   statusLabel,
   formatarData,
   onClose,
+  onEditar,
 }: ModalLeadVerProps) {
   return (
     <div
@@ -51,7 +53,17 @@ export default function ModalLeadVer({
               <p className="text-sm text-gray-500 dark:text-gray-400">{lead.empresa || 'Sem empresa'}</p>
             </div>
           </div>
-          <div className="flex gap-2 pb-3 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex flex-wrap gap-2 pb-3 border-b border-gray-100 dark:border-gray-700">
+            {onEditar && (
+              <button
+                type="button"
+                onClick={() => onEditar(lead)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+              >
+                <Pencil size={16} />
+                Editar lead
+              </button>
+            )}
             <Link
               href={`/loja/${slug}/crm-vendas/pipeline`}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -144,6 +156,16 @@ export default function ModalLeadVer({
                 </dd>
               </div>
             )}
+            <div>
+              <dt className="text-gray-500 dark:text-gray-400 font-medium">Observações</dt>
+              <dd className="text-gray-900 dark:text-white mt-0.5 whitespace-pre-wrap">
+                {lead.observacoes?.trim() ? (
+                  lead.observacoes
+                ) : (
+                  <span className="text-gray-400 dark:text-gray-500 italic">Nenhuma observação cadastrada.</span>
+                )}
+              </dd>
+            </div>
             <div>
               <dt className="text-gray-500 dark:text-gray-400 font-medium">Cadastrado em</dt>
               <dd className="text-gray-900 dark:text-white mt-0.5">{formatarData(lead.created_at)}</dd>

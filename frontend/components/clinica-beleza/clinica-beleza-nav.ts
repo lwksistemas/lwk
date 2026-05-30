@@ -12,6 +12,7 @@ import {
   BarChart3,
   Settings,
   UserCog,
+  Headphones,
 } from 'lucide-react';
 
 /** Cor principal do app (mockup Beleza & Vitalidade) */
@@ -77,6 +78,7 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   },
   { label: 'Relatórios', icon: BarChart3, path: 'relatorios' },
   { label: 'Configurações', icon: Settings, path: 'clinica-beleza/configuracoes' },
+  { label: 'Suporte', icon: Headphones, path: 'suporte' },
 ];
 
 /** Atalho opcional (ex.: rodapé) — não duplicado no menu principal */

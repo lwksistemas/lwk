@@ -102,13 +102,8 @@ Sua conta foi criada no LWK Sistemas.
 Equipe LWK Sistemas
             """.strip()
             
-            send_mail(
-                subject=assunto,
-                message=mensagem,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True
-            )
+            from core.email_delivery import send_system_mail
+            send_system_mail(assunto, mensagem, [user.email], fail_silently=True)
             logger.info("Email com senha provisória enviado: email=%s", mask_email(user.email))
         except Exception as e:
             logger.warning("Erro ao enviar email com senha provisória: %s", e)

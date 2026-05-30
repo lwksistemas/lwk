@@ -8,7 +8,7 @@ críticas são detectadas, implementando agrupamento para evitar spam.
 import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
-from django.core.mail import send_mail
+from core.email_delivery import send_system_mail
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -158,11 +158,10 @@ class NotificationService:
         
         # Enviar email
         try:
-            send_mail(
-                subject=assunto,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=destinatarios,
+            send_system_mail(
+                assunto,
+                plain_message,
+                destinatarios,
                 html_message=html_message,
                 fail_silently=False,
             )
@@ -264,11 +263,10 @@ class NotificationService:
         
         # Enviar email
         try:
-            send_mail(
-                subject=assunto,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=destinatarios,
+            send_system_mail(
+                assunto,
+                plain_message,
+                destinatarios,
                 html_message=html_message,
                 fail_silently=False,
             )

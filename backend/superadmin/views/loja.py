@@ -602,13 +602,8 @@ Sua senha foi resetada para a loja "{loja.nome}".
 ---
 Equipe de Suporte
 """
-                send_mail(
-                    subject=assunto,
-                    message=mensagem,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    fail_silently=True
-                )
+                from core.email_delivery import send_system_mail
+                send_system_mail(assunto, mensagem, [user.email], fail_silently=True)
                 email_enviado = True
                 logger.info("Email de senha provisória enviado: email=%s, loja=%s", mask_email(user.email), loja.slug)
         except Exception as e:
@@ -676,7 +671,6 @@ Equipe de Suporte
             )
         
         try:
-            from django.core.mail import EmailMultiAlternatives
             import random
             import string
             
@@ -713,13 +707,13 @@ Equipe de Suporte
 
             assunto = f"Nova Senha Provisória - {loja.nome}"
             
-            email_msg = EmailMultiAlternatives(
-                subject=assunto,
-                body=texto_plano,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[loja.owner.email],
+            from core.email_delivery import create_email_multipart
+            email_msg = create_email_multipart(
+                assunto,
+                texto_plano,
+                [loja.owner.email],
+                html=html_content,
             )
-            email_msg.attach_alternative(html_content, "text/html")
             email_msg.send(fail_silently=False)
             
             return Response({

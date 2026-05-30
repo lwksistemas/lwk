@@ -335,14 +335,30 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-# EMAIL (Gmail SMTP)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'lwksistemas@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# EMAIL — Resend (API HTTP) ou Gmail SMTP (fallback legado)
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+
+if RESEND_API_KEY:
+    # Ignora EMAIL_HOST/USER/PASSWORD antigos do Gmail no Railway — usam só a API Resend
+    EMAIL_BACKEND = 'core.email_backends.ResendEmailBackend'
+    DEFAULT_FROM_EMAIL = os.environ.get(
+        'DEFAULT_FROM_EMAIL',
+        'LWK Sistemas <noreply@lwksistemas.com.br>',
+    )
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_USE_TLS = True
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'lwksistemas@gmail.com')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    _smtp_user = EMAIL_HOST_USER or 'lwksistemas@gmail.com'
+    DEFAULT_FROM_EMAIL = os.environ.get(
+        'DEFAULT_FROM_EMAIL',
+        f'LWK Sistemas <{_smtp_user}>',
+    )
+
+DEFAULT_REPLY_TO = os.environ.get('DEFAULT_REPLY_TO', 'contato@lwksistemas.com.br')
 
 # SECURITY SETTINGS
 # Railway (e similares): TLS termina no edge; o probe interno chama HTTP sem

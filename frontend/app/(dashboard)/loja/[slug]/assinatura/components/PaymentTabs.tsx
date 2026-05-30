@@ -15,23 +15,33 @@ interface Props {
   onCopiarPix?: () => void;
 }
 
-export function PaymentTabs({ boletoUrl, pixQrCode, pixCopyPaste, proximoPagamentoId, asaasPaymentId, onBaixarBoleto, onCopiarPix }: Props) {
+export function PaymentTabs({
+  boletoUrl,
+  pixQrCode,
+  pixCopyPaste,
+  proximoPagamentoId,
+  asaasPaymentId,
+  onBaixarBoleto,
+  onCopiarPix,
+}: Props) {
   return (
     <Tabs defaultValue={boletoUrl ? 'boleto' : 'pix'}>
       <TabsList className="w-full sm:w-auto dark:bg-neutral-700">
-        {boletoUrl && <TabsTrigger value="boleto" className="flex-1 sm:flex-none">Boleto</TabsTrigger>}
-        {(pixQrCode || pixCopyPaste) && <TabsTrigger value="pix" className="flex-1 sm:flex-none">PIX</TabsTrigger>}
+        {boletoUrl && <TabsTrigger value="boleto">Boleto</TabsTrigger>}
+        {(pixQrCode || pixCopyPaste) && <TabsTrigger value="pix">PIX</TabsTrigger>}
       </TabsList>
 
       {boletoUrl && (
         <TabsContent value="boleto" className="space-y-4 pt-4">
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => window.open(boletoUrl, '_blank')}>
-              <CreditCard className="w-4 h-4 mr-2" /> Abrir boleto
+              <CreditCard className="w-4 h-4 mr-2" />
+              Abrir boleto
             </Button>
             {asaasPaymentId && proximoPagamentoId && onBaixarBoleto && (
               <Button onClick={() => onBaixarBoleto(proximoPagamentoId)}>
-                <Download className="w-4 h-4 mr-2" /> Baixar PDF
+                <Download className="w-4 h-4 mr-2" />
+                Baixar PDF
               </Button>
             )}
           </div>
@@ -45,7 +55,14 @@ export function PaymentTabs({ boletoUrl, pixQrCode, pixCopyPaste, proximoPagamen
               <div className="text-center">
                 <h4 className="font-medium mb-2 dark:text-gray-200">QR Code PIX</h4>
                 <div className="bg-white dark:bg-neutral-700 p-4 rounded border dark:border-neutral-600 inline-block">
-                  <Image src={`data:image/png;base64,${pixQrCode}`} alt="QR Code PIX" width={192} height={192} className="w-32 h-32 sm:w-48 sm:h-48" unoptimized />
+                  <Image
+                    src={`data:image/png;base64,${pixQrCode}`}
+                    alt="QR Code PIX"
+                    width={192}
+                    height={192}
+                    className="w-32 h-32 sm:w-48 sm:h-48"
+                    unoptimized
+                  />
                 </div>
               </div>
             )}
@@ -56,7 +73,8 @@ export function PaymentTabs({ boletoUrl, pixQrCode, pixCopyPaste, proximoPagamen
               </div>
               {pixCopyPaste && onCopiarPix && (
                 <Button variant="outline" className="mt-2" onClick={onCopiarPix}>
-                  <Copy className="w-4 h-4 mr-2" /> Copiar código
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar código
                 </Button>
               )}
             </div>

@@ -9,7 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.http import HttpResponse
-from django.core.mail import EmailMessage
+from core.email_delivery import create_email_message, send_prepared
 
 from tenants.middleware import get_current_loja_id
 from .utils import get_current_vendedor_id
@@ -96,15 +96,13 @@ def gerar_relatorio(request):
             if not user_email:
                 return Response({'detail': 'Usuário não possui email cadastrado.'}, status=400)
             
-            email = EmailMessage(
+            email = create_email_message(
                 subject=f'Relatório de Vendas - {loja.nome}',
                 body=f'Segue em anexo o relatório de vendas solicitado.\n\nPeríodo: {periodo}\nTipo: {tipo}',
-                from_email='noreply@lwksistemas.com.br',
                 to=[user_email],
             )
-            
             email.attach(filename, pdf_buffer.read(), 'application/pdf')
-            email.send(fail_silently=False)
+            send_prepared(email, fail_silently=False)
             
             return Response({
                 'success': True,

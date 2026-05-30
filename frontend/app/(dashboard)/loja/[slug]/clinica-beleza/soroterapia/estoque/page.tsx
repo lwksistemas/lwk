@@ -1,17 +1,21 @@
 'use client';
 
-import { EstoquePageContent } from '@/components/clinica-beleza/EstoquePageContent';
-import { useParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 
-export default function SoroterapiaEstoquePage() {
-  const slug = useParams().slug as string;
+/** Compatibilidade: URL antiga redireciona para estoque unificado com filtro. */
+export default function SoroterapiaEstoqueRedirectPage() {
+  const params = useParams();
+  const router = useRouter();
+  const slug = params.slug as string;
+
+  useEffect(() => {
+    router.replace(`/loja/${slug}/clinica-beleza/estoque?categoria=soroterapia`);
+  }, [slug, router]);
+
   return (
-    <EstoquePageContent
-      title="Soroterapia — Estoque"
-      subtitle="Ampolas, soros e insumos"
-      defaultCategoria="soroterapia"
-      backHref={`/loja/${slug}/dashboard`}
-      relatedLinks={[{ label: 'Estoque geral', href: `/loja/${slug}/clinica-beleza/estoque` }]}
-    />
+    <div className="flex min-h-[40vh] items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
+      Redirecionando…
+    </div>
   );
 }

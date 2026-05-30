@@ -4,9 +4,8 @@ import {
   CalendarDays,
   Users,
   Stethoscope,
+  ListChecks,
   ClipboardList,
-  Droplets,
-  Sparkles,
   DollarSign,
   Package,
   Megaphone,
@@ -39,28 +38,9 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Agenda', icon: CalendarDays, path: 'agenda' },
   { label: 'Clientes', icon: Users, path: 'clinica-beleza/pacientes' },
   { label: 'Consultas', icon: Stethoscope, path: 'clinica-beleza/consultas' },
-  {
-    label: 'Protocolos (geral)',
-    icon: ClipboardList,
-    path: 'clinica-beleza/protocolos',
-  },
-  {
-    label: 'Soroterapia',
-    icon: Droplets,
-    children: [
-      { label: 'Procedimentos', path: 'clinica-beleza/soroterapia/procedimentos' },
-      { label: 'Protocolos do módulo', path: 'clinica-beleza/soroterapia/protocolos' },
-      { label: 'Estoque de soros', path: 'clinica-beleza/soroterapia/estoque' },
-    ],
-  },
-  {
-    label: 'Estética',
-    icon: Sparkles,
-    children: [
-      { label: 'Procedimentos', path: 'clinica-beleza/estetica/procedimentos' },
-      { label: 'Protocolos do módulo', path: 'clinica-beleza/estetica/protocolos' },
-    ],
-  },
+  { label: 'Procedimentos', icon: ListChecks, path: 'clinica-beleza/procedimentos' },
+  { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },
+  { label: 'Estoque', icon: Package, path: 'clinica-beleza/estoque' },
   {
     label: 'Financeiro',
     icon: DollarSign,
@@ -69,7 +49,6 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
       { label: 'Profissionais', path: 'clinica-beleza/profissionais' },
     ],
   },
-  { label: 'Estoque geral', icon: Package, path: 'clinica-beleza/estoque' },
   {
     label: 'Marketing',
     icon: Megaphone,
@@ -116,8 +95,5 @@ export function isClinicaBelezaNavActive(pathname: string, slug: string, path: s
 
 export function isClinicaBelezaNavGroupActive(pathname: string, slug: string, item: ClinicaBelezaNavItem): boolean {
   if (item.path && isClinicaBelezaNavActive(pathname, slug, item.path)) return true;
-  const current = normalizePath(pathname);
-  if (item.label === 'Soroterapia' && current.includes('/clinica-beleza/soroterapia')) return true;
-  if (item.label === 'Estética' && current.includes('/clinica-beleza/estetica')) return true;
   return item.children?.some((c) => isClinicaBelezaNavActive(pathname, slug, c.path)) ?? false;
 }

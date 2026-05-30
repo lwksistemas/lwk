@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X } from "lucide-react";
@@ -27,7 +27,7 @@ interface Produto {
 interface Resumo {
   total_produtos: number;
   estoque_baixo: number;
-  valor_total: number;
+  valor_total_estoque: number;
 }
 
 const CATEGORIAS = [
@@ -54,13 +54,14 @@ export interface EstoquePageContentProps {
 
 export function EstoquePageContent({
   title = 'Estoque',
-  subtitle = 'Controle de produtos e movimentações',
+  subtitle = 'Produtos, insumos e movimentações da clínica',
   defaultCategoria = '',
   backHref,
   relatedLinks = [],
 }: EstoquePageContentProps) {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
 
@@ -80,8 +81,17 @@ export function EstoquePageContent({
 
   useEffect(() => {
     const cat = searchParams.get("categoria") || defaultCategoria;
-    if (cat) setCategoriaFilter(cat);
+    setCategoriaFilter(cat);
   }, [searchParams, defaultCategoria]);
+
+  const setCategoriaFilterAndUrl = (value: string) => {
+    setCategoriaFilter(value);
+    const qp = new URLSearchParams(searchParams.toString());
+    if (value) qp.set("categoria", value);
+    else qp.delete("categoria");
+    const qs = qp.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   const loadProdutos = useCallback(async () => {
     try {
@@ -329,13 +339,18 @@ export function EstoquePageContent({
                   <span className="text-sm font-medium">Valor Total Estoque</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {formatBRL(resumo?.valor_total ?? 0)}
+                  {formatBRL(resumo?.valor_total_estoque ?? 0)}
                 </p>
               </div>
             </section>
 
             {/* Filters */}
-            <div className="flex flex-wrap gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              {categoriaFilter && (
+                <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 text-sm">
+                  Filtro: {categoriaLabel(categoriaFilter)}
+                </span>
+              )}
               <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -348,7 +363,7 @@ export function EstoquePageContent({
               </div>
               <select
                 value={categoriaFilter}
-                onChange={(e) => setCategoriaFilter(e.target.value)}
+                onChange={(e) => setCategoriaFilterAndUrl(e.target.value)}
                 className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm"
               >
                 <option value="">Todas as categorias</option>

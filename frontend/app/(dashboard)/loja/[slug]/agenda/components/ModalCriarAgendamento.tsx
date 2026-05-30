@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "@/lib/clinica-beleza-api";
 import { adicionarNaFilaSync } from "@/lib/offline-db";
@@ -37,11 +37,16 @@ function gDuration(o: { duration?: number; duracao_minutos?: number }): number {
   return o.duration ?? o.duracao_minutos ?? 30;
 }
 
+function formatTimeFromDate(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 interface ModalCriarAgendamentoProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
   selectedDate: Date | null;
+  defaultProfessionalId?: string;
   professionals: Professional[];
   patients: Patient[];
   procedures: Procedure[];
@@ -54,6 +59,7 @@ export function ModalCriarAgendamento({
   onClose,
   onSuccess,
   selectedDate,
+  defaultProfessionalId = "",
   professionals,
   patients,
   procedures,
@@ -63,13 +69,23 @@ export function ModalCriarAgendamento({
     patientId: "",
     professionalId: "",
     procedureId: "",
-    time: selectedDate
-      ? selectedDate.getHours().toString().padStart(2, "0") + ":" + selectedDate.getMinutes().toString().padStart(2, "0")
-      : "09:00",
+    time: "09:00",
     notes: "",
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setCreateForm({
+      patientId: "",
+      professionalId: defaultProfessionalId,
+      procedureId: "",
+      time: selectedDate ? formatTimeFromDate(selectedDate) : "09:00",
+      notes: "",
+    });
+    setCreateError("");
+  }, [open, selectedDate, defaultProfessionalId]);
 
   if (!open) return null;
 

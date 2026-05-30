@@ -510,7 +510,10 @@ export default function AgendaPage() {
             </button>
             <button
               type="button"
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                setSelectedDate(new Date());
+                setShowCreateModal(true);
+              }}
               className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 transition-opacity shrink-0 text-xs sm:text-sm font-medium"
               style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
               title="Novo agendamento"
@@ -577,7 +580,8 @@ export default function AgendaPage() {
       />
       <ModalCriarAgendamento
         open={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={carregarDados}
-        selectedDate={selectedDate} professionals={professionals} patients={patients} procedures={procedures}
+        selectedDate={selectedDate} defaultProfessionalId={selectedProfessional}
+        professionals={professionals} patients={patients} procedures={procedures}
         onOfflineEventCreated={(evt) => setEventos((prev) => [...prev, evt as AgendaEventData])}
       />
       <ModalBloqueioHorario isOpen={showModalBloqueio} onClose={() => setShowModalBloqueio(false)} onSuccess={() => carregarDados()} professionals={professionals as any} />

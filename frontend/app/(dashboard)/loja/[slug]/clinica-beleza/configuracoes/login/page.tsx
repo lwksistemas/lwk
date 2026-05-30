@@ -7,6 +7,7 @@ import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
 import { logger } from '@/lib/logger';
+import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
 interface LoginConfigData {
@@ -86,7 +87,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
   const corSecundariaHex = corSecundaria.startsWith('#') ? corSecundaria : `#${corSecundaria}`;
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-4xl mx-auto">
+    <ClinicaBelezaPageContent className="space-y-6">
       <Link
         href={base}
         className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:underline"
@@ -239,6 +240,6 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
           </div>
         )}
       </div>
-    </div>
+    </ClinicaBelezaPageContent>
   );
 }

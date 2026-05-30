@@ -7,6 +7,7 @@ import Link from 'next/link';
 import BackupButton from '@/components/loja/BackupButton';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
 interface LojaInfo {
@@ -54,16 +55,16 @@ export default function ClinicaBelezaBackupPage() {
 
   if (!loja) {
     return (
-      <div className="p-6 max-w-3xl mx-auto">
+      <ClinicaBelezaPageContent>
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <p className="text-sm text-red-600 dark:text-red-400">Erro ao carregar informações da loja.</p>
         </div>
-      </div>
+      </ClinicaBelezaPageContent>
     );
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-5xl mx-auto">
+    <ClinicaBelezaPageContent className="space-y-6">
       <Link
         href={base}
         className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:underline"
@@ -144,6 +145,6 @@ export default function ClinicaBelezaBackupPage() {
           <BackupButton lojaId={loja.id} lojaNome={loja.nome} className="w-full" configOnly />
         </div>
       </div>
-    </div>
+    </ClinicaBelezaPageContent>
   );
 }

@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Pencil, Trash2, X, Send } from "lucide-react";
+import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
@@ -164,8 +165,7 @@ export default function CampanhasPage() {
         newLabel="Nova Campanha"
         onNew={openNew}
       />
-      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
+      <ClinicaBelezaPageContent>
 
         {loading ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
@@ -312,8 +312,7 @@ export default function CampanhasPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </ClinicaBelezaPageContent>
     </>
   );
 }

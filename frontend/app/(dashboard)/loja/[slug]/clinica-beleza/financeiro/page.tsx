@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
+import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
@@ -145,8 +146,7 @@ export default function FinanceiroClinicaPage() {
           </button>
         }
       />
-      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
-      <div className="max-w-6xl mx-auto">
+      <ClinicaBelezaPageContent>
 
         {loading && !resumo ? (
           <div className="flex justify-center py-12">
@@ -308,8 +308,7 @@ export default function FinanceiroClinicaPage() {
             )}
           </>
         )}
-      </div>
-    </div>
+      </ClinicaBelezaPageContent>
     </>
   );
 }

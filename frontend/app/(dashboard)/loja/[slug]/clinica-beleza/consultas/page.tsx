@@ -18,6 +18,7 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
+import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
@@ -373,7 +374,7 @@ export default function ConsultasPage() {
             </div>
           </div>
 
-          <div className="flex-1 p-4 md:p-6 max-w-5xl mx-auto w-full">
+          <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
             {loadingDetalhe ? (
               <div className="text-center py-16 text-gray-500">Carregando consulta...</div>
             ) : (
@@ -682,42 +683,51 @@ export default function ConsultasPage() {
         title="Consultas"
         subtitle="Selecione uma consulta ou inicie pela Agenda"
       />
-      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
-        <div className="max-w-3xl mx-auto">
+      <ClinicaBelezaPageContent>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
             As consultas são criadas ao alterar o status do agendamento na Agenda.
           </p>
           {loading ? (
             <div className="text-center py-16 text-gray-500">Carregando...</div>
           ) : consultas.length === 0 ? (
-            <div className="rounded-xl bg-white/80 dark:bg-neutral-800/80 p-8 text-center text-gray-500 text-sm shadow">
+            <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
               Nenhuma consulta ainda. Altere o status de um agendamento na Agenda.
-            </div>
+            </ClinicaBelezaPanel>
           ) : (
-            <ul className="space-y-2">
-              {consultas.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => loadDetalhes(c)}
-                    className="w-full text-left rounded-xl bg-white/80 dark:bg-neutral-800/80 shadow px-4 py-4 hover:bg-[#F5E6EA]/60 dark:hover:bg-neutral-700/80 transition-colors flex items-center justify-between gap-3"
-                  >
-                    <div>
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">{c.patient_name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{c.procedure_name}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatData(c.data_inicio || c.appointment_date)}
-                        {c.professional_name ? ` · ${c.professional_name}` : ""}
-                      </p>
-                    </div>
-                    <ChevronRight size={20} className="text-gray-400 shrink-0" />
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <ClinicaBelezaPanel>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
+                    <tr>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Cliente</th>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Procedimento</th>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden sm:table-cell">Data</th>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden md:table-cell">Profissional</th>
+                      <th className="w-12" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {consultas.map((c) => (
+                      <tr
+                        key={c.id}
+                        onClick={() => loadDetalhes(c)}
+                        className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/40 dark:hover:bg-neutral-700/30 transition-colors cursor-pointer"
+                      >
+                        <td className="px-4 md:px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{c.patient_name}</td>
+                        <td className="px-4 md:px-6 py-4 text-gray-700 dark:text-gray-300">{c.procedure_name}</td>
+                        <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-gray-600 dark:text-gray-400 text-xs">
+                          {formatData(c.data_inicio || c.appointment_date)}
+                        </td>
+                        <td className="px-4 md:px-6 py-4 hidden md:table-cell text-gray-600 dark:text-gray-400">{c.professional_name || "—"}</td>
+                        <td className="px-4 py-4 text-gray-400"><ChevronRight size={18} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ClinicaBelezaPanel>
           )}
-        </div>
-      </div>
+      </ClinicaBelezaPageContent>
     </>
   );
 }

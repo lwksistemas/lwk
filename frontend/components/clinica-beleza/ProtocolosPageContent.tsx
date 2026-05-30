@@ -8,6 +8,7 @@ import { entityName, procedureCategoria } from '@/lib/clinica-beleza-entities';
 import { procedureMatchesModule } from '@/lib/clinica-beleza-categories';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { ClinicaBelezaRelatedLinks } from '@/components/clinica-beleza/ClinicaBelezaRelatedLinks';
+import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 
 interface Protocol {
@@ -178,7 +179,7 @@ export function ProtocolosPageContent({
   };
 
   return (
-    <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
+    <>
       <ClinicaBelezaStandardPageHeader
         title={title}
         subtitle={subtitle}
@@ -187,7 +188,7 @@ export function ProtocolosPageContent({
         newLabel="Novo protocolo"
         onNew={openNew}
       />
-      <div className="max-w-4xl mx-auto">
+      <ClinicaBelezaPageContent>
 
         {loading ? (
           <p className="text-center py-12 text-gray-500">Carregando...</p>
@@ -246,7 +247,8 @@ export function ProtocolosPageContent({
             ))}
           </div>
         )}
-      </div>
+        <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
+      </ClinicaBelezaPageContent>
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -329,7 +331,6 @@ export function ProtocolosPageContent({
         </div>
       )}
 
-      <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
-    </div>
+    </>
   );
 }

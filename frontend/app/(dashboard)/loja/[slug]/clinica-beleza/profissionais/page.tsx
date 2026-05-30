@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Pencil, Trash2, Clock } from "lucide-react";
+import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
 import { ProfissionalFormModal } from "./components/ProfissionalFormModal";
@@ -345,8 +346,7 @@ export default function ProfissionaisPage() {
         newLabel="Novo Profissional"
         onNew={openNew}
       />
-      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
+      <ClinicaBelezaPageContent>
         {lojaOwnerInfo && (
           <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
             <span className="text-amber-700 dark:text-amber-400">O administrador da loja aparece na tabela abaixo (linha &quot;Administrador - somente leitura&quot;) e não pode ser editado nem excluído.</span>
@@ -417,7 +417,7 @@ export default function ProfissionaisPage() {
             </div>
           </div>
         )}
-      </div>
+      </ClinicaBelezaPageContent>
 
       {showModal && (
         <ProfissionalFormModal
@@ -439,7 +439,6 @@ export default function ProfissionaisPage() {
           onSaved={() => load()}
         />
       )}
-    </div>
     </>
   );
 }

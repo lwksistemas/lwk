@@ -7,6 +7,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
@@ -294,8 +295,7 @@ export function EstoquePageContent({
         newLabel="Novo Produto"
         onNew={() => { setEditingProduto(null); setShowProdutoModal(true); }}
       />
-      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
-      <div className="max-w-6xl mx-auto">
+      <ClinicaBelezaPageContent>
 
         {loading && !resumo ? (
           <div className="flex justify-center py-12">
@@ -427,14 +427,13 @@ export function EstoquePageContent({
             </section>
           </>
         )}
-      </div>
+        <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
+      </ClinicaBelezaPageContent>
 
       {/* Modals */}
       {showProdutoModal && <ProdutoModal />}
       {showMovModal && movProduto && <MovimentacaoModal />}
 
-      <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
-    </div>
     </>
   );
 }

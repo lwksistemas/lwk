@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { MessageCircle } from 'lucide-react';
+import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
@@ -99,7 +100,7 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
         icon={MessageCircle}
         showOffline={false}
       />
-      <div className="space-y-6 p-4 md:p-6 max-w-3xl mx-auto">
+      <ClinicaBelezaPageContent className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
           Confirmações de agendamento, lembretes para pacientes e integração com a API Meta (WhatsApp Business).
@@ -203,7 +204,7 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
           </div>
         )}
       </div>
-    </div>
+      </ClinicaBelezaPageContent>
     </>
   );
 }

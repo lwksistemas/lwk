@@ -10,6 +10,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronRight, Pencil, Save, Trash2, Users } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
@@ -331,8 +332,8 @@ export default function PacientesPage() {
           backHref={basePath}
           icon={Users}
         />
-        <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 flex flex-col">
-          <div className="px-4 md:px-6 pt-2 pb-3 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">
+          <ClinicaBelezaPageContent className="flex flex-col flex-1 !p-0">
+          <div className="px-4 md:px-6 lg:px-8 pt-2 pb-3 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">
             <button
               type="button"
               onClick={voltarLista}
@@ -343,9 +344,8 @@ export default function PacientesPage() {
             </button>
           </div>
 
-          <div className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="max-w-5xl mx-auto w-full">
-              <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/90 shadow-sm p-5 md:p-8">
+          <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
+            <ClinicaBelezaPanel className="p-5 md:p-8">
                 {error && (
                   <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
                     {error}
@@ -454,10 +454,9 @@ export default function PacientesPage() {
                     {saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar cliente"}
                   </button>
                 </div>
-              </div>
-            </div>
+            </ClinicaBelezaPanel>
           </div>
-        </div>
+          </ClinicaBelezaPageContent>
       </>
     );
   }
@@ -472,7 +471,7 @@ export default function PacientesPage() {
         onNew={openNew}
         icon={Users}
       />
-      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6 lg:p-8">
+      <ClinicaBelezaPageContent>
         {loading ? (
           <div className="text-center py-20 text-gray-500 dark:text-gray-400">Carregando...</div>
         ) : activeList.length === 0 ? (
@@ -544,7 +543,7 @@ export default function PacientesPage() {
             </div>
           </div>
         )}
-      </div>
+      </ClinicaBelezaPageContent>
     </>
   );
 }

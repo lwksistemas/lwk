@@ -28,6 +28,7 @@ import {
   temDuplicataNaLista,
 } from "@/lib/clinica-beleza-offline";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
+import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
 import { logger } from "@/lib/logger";
@@ -339,7 +340,7 @@ export function ProcedimentosPageContent({
     moduleKey && !showAllCategories ? activeList.length - filteredList.length : 0;
 
   return (
-    <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
+    <>
       <ClinicaBelezaStandardPageHeader
         title={title}
         subtitle={subtitle}
@@ -347,7 +348,7 @@ export function ProcedimentosPageContent({
         newLabel="Novo Procedimento"
         onNew={openNew}
       />
-      <div className="max-w-4xl mx-auto">
+      <ClinicaBelezaPageContent>
 
         {moduleKey && (
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
@@ -439,7 +440,8 @@ export function ProcedimentosPageContent({
             </div>
           </div>
         )}
-      </div>
+        <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
+      </ClinicaBelezaPageContent>
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -531,7 +533,6 @@ export function ProcedimentosPageContent({
         </div>
       )}
 
-      <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
-    </div>
+    </>
   );
 }

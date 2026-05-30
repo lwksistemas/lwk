@@ -201,7 +201,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
 
   return (
     <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
-      <header className="px-4 sm:px-8 pt-5 pb-4 max-w-7xl mx-auto w-full">
+      <header className="px-4 md:px-6 lg:px-8 pt-5 pb-4 w-full">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           Bem-vinda, {displayName}! 👋
@@ -217,7 +217,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
           />
         </div>
       ) : (
-        <div className="p-4 sm:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <StatCard
               title="Atendimentos hoje"

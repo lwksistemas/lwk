@@ -13,6 +13,7 @@ import {
   Database,
   FileText,
 } from 'lucide-react';
+import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 
@@ -72,7 +73,7 @@ export default function ClinicaBelezaConfiguracoesPage() {
         subtitle="Gerencie assinatura, login, equipe, WhatsApp e integrações"
         showOffline={false}
       />
-      <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
+      <ClinicaBelezaPageContent className="space-y-6">
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {opcoes.map((op) => {
@@ -121,7 +122,7 @@ export default function ClinicaBelezaConfiguracoesPage() {
           );
         })}
       </div>
-    </div>
+      </ClinicaBelezaPageContent>
     </>
   );
 }

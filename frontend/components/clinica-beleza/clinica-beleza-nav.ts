@@ -11,7 +11,6 @@ import {
   Megaphone,
   BarChart3,
   Settings,
-  UserCog,
   Headphones,
 } from 'lucide-react';
 
@@ -41,14 +40,7 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Procedimentos', icon: ListChecks, path: 'clinica-beleza/procedimentos' },
   { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },
   { label: 'Estoque', icon: Package, path: 'clinica-beleza/estoque' },
-  {
-    label: 'Financeiro',
-    icon: DollarSign,
-    children: [
-      { label: 'Resumo e caixa', path: 'clinica-beleza/financeiro' },
-      { label: 'Profissionais', path: 'clinica-beleza/profissionais' },
-    ],
-  },
+  { label: 'Financeiro', icon: DollarSign, path: 'clinica-beleza/financeiro' },
   {
     label: 'Marketing',
     icon: Megaphone,
@@ -60,11 +52,6 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Relatórios', icon: BarChart3, path: 'relatorios' },
   { label: 'Configurações', icon: Settings, path: 'clinica-beleza/configuracoes' },
   { label: 'Suporte', icon: Headphones, path: 'suporte' },
-];
-
-/** Atalho opcional (ex.: rodapé) — não duplicado no menu principal */
-export const CLINICA_BELEZA_NAV_EXTRA: ClinicaBelezaNavItem[] = [
-  { label: 'Profissionais', icon: UserCog, path: 'clinica-beleza/profissionais' },
 ];
 
 export function getClinicaBelezaNavHref(slug: string, path: string): string {

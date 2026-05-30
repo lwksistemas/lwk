@@ -408,11 +408,18 @@ class BloqueioHorarioSerializer(serializers.ModelSerializer):
         read_only_fields = ['criado_em']
 
     def to_representation(self, instance):
-        ret = super().to_representation(instance)
         inicio, fim = bloqueio_datetime_range(instance)
-        ret['data_inicio'] = inicio.isoformat()
-        ret['data_fim'] = fim.isoformat()
-        return ret
+        prof = instance.professional
+        return {
+            'id': instance.id,
+            'professional': instance.professional_id,
+            'professional_name': prof.nome if prof else None,
+            'data_inicio': inicio.isoformat(),
+            'data_fim': fim.isoformat(),
+            'motivo': instance.motivo,
+            'observacoes': instance.observacoes,
+            'criado_em': instance.criado_em,
+        }
 
     def validate(self, attrs):
         inicio = attrs.get('data_inicio')

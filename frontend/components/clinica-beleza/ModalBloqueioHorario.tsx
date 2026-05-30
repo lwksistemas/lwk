@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 
 const TIPOS_BLOQUEIO = [
   { value: "Horário de almoço", label: "🚫 Horário de almoço" },
@@ -101,9 +102,6 @@ export function ModalBloqueioHorario({
     setErro("");
 
     try {
-      const { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } = await import("@/lib/clinica-beleza-api");
-      const baseURL = getClinicaBelezaBaseUrl();
-      const headers = getClinicaBelezaHeaders();
       const inicioDate = dataInicio.includes("T") ? new Date(dataInicio) : new Date(`${dataInicio}T12:00:00`);
       const fimDate = dataFim.includes("T") ? new Date(dataFim) : new Date(`${dataFim}T14:00:00`);
 
@@ -115,9 +113,8 @@ export function ModalBloqueioHorario({
       if (observacoes.trim()) body.observacoes = observacoes.trim();
       if (professionalId) body.professional = parseInt(professionalId, 10);
 
-      const res = await fetch(`${baseURL}/bloqueios/`, {
+      const res = await clinicaBelezaFetch("/bloqueios/", {
         method: "POST",
-        headers,
         body: JSON.stringify(body),
       });
 

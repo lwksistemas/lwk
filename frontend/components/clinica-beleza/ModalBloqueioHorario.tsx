@@ -29,8 +29,13 @@ function formatDateTimeLocal(d: Date): string {
 
 interface Professional {
   id: number;
-  name: string;
+  name?: string;
+  nome?: string;
   specialty?: string;
+}
+
+function profLabel(p: Professional): string {
+  return p.nome ?? p.name ?? `Profissional #${p.id}`;
 }
 
 interface ModalBloqueioHorarioProps {
@@ -40,6 +45,8 @@ interface ModalBloqueioHorarioProps {
   professionals: Professional[];
   /** Data/hora inicial sugerida (ex.: clique no calendário) */
   dataInicioSugerida?: Date | null;
+  /** Profissional pré-selecionado (filtro da agenda) */
+  defaultProfessionalId?: string;
 }
 
 export function ModalBloqueioHorario({
@@ -48,6 +55,7 @@ export function ModalBloqueioHorario({
   onSuccess,
   professionals,
   dataInicioSugerida,
+  defaultProfessionalId,
 }: ModalBloqueioHorarioProps) {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -67,14 +75,14 @@ export function ModalBloqueioHorario({
     const base = dataInicioSugerida || now;
     setTipoSelecionado(TIPOS_BLOQUEIO[0].value);
     setMotivoOutro("");
-    setProfessionalId("");
+    setProfessionalId(defaultProfessionalId || "");
     setObservacoes("");
     // Padrão "Horário de almoço": 12:00 às 14:00 no dia selecionado
     const inicio = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 12, 0, 0);
     const fim = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 14, 0, 0);
     setDataInicio(formatDateTimeLocal(inicio));
     setDataFim(formatDateTimeLocal(fim));
-  }, [isOpen, dataInicioSugerida]);
+  }, [isOpen, dataInicioSugerida, defaultProfessionalId]);
 
   const salvar = async () => {
     if (!dataInicio || !dataFim) {
@@ -198,7 +206,7 @@ export function ModalBloqueioHorario({
               <option value="">Bloqueio geral (todos)</option>
               {professionals.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}
+                  {profLabel(p)}
                 </option>
               ))}
             </select>

@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.timezone import now
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
 from .models import Appointment, BloqueioHorario
+from .bloqueio_utils import bloqueio_datetime_range, intervalos_sobrepoem
 from .serializers import (
     AppointmentListSerializer, AppointmentDetailSerializer,
     AppointmentCreateSerializer, AgendaEventSerializer,
@@ -26,10 +28,17 @@ logger = logging.getLogger(__name__)
 
 def _bloqueio_impede_agendamento(data_inicio, data_fim, professional_id, bloqueios_queryset):
     """Retorna True se algum bloqueio sobrepõe o intervalo [data_inicio, data_fim]."""
+    if timezone.is_naive(data_inicio):
+        data_inicio = timezone.make_aware(data_inicio, timezone.get_current_timezone())
+    if timezone.is_naive(data_fim):
+        data_fim = timezone.make_aware(data_fim, timezone.get_current_timezone())
+
     for b in bloqueios_queryset:
-        if b.professional_id is None or b.professional_id == professional_id:
-            if data_inicio < b.data_fim and data_fim > b.data_inicio:
-                return True
+        if b.professional_id is not None and b.professional_id != professional_id:
+            continue
+        b_inicio, b_fim = bloqueio_datetime_range(b)
+        if intervalos_sobrepoem(data_inicio, data_fim, b_inicio, b_fim):
+            return True
     return False
 
 

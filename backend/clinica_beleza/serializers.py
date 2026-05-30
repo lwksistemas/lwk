@@ -2,6 +2,8 @@
 Serializers para Clínica da Beleza
 """
 from rest_framework import serializers
+
+from .bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 from .models import (
     Patient, Professional, Procedure, ProcedureProtocol,
     Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional,
@@ -385,8 +387,10 @@ class AgendaEventSerializer(serializers.ModelSerializer):
 
 
 class BloqueioHorarioSerializer(serializers.ModelSerializer):
-    """Serializer para Bloqueio de Horário"""
+    """Serializer para Bloqueio de Horário (API usa datetime ISO; model usa date + time)."""
     professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
+    data_inicio = serializers.DateTimeField()
+    data_fim = serializers.DateTimeField()
 
     class Meta:
         model = BloqueioHorario
@@ -395,6 +399,46 @@ class BloqueioHorarioSerializer(serializers.ModelSerializer):
             'data_inicio', 'data_fim', 'motivo', 'observacoes', 'criado_em',
         ]
         read_only_fields = ['criado_em']
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        inicio, fim = bloqueio_datetime_range(instance)
+        ret['data_inicio'] = inicio.isoformat()
+        ret['data_fim'] = fim.isoformat()
+        return ret
+
+    def validate(self, attrs):
+        inicio = attrs.get('data_inicio')
+        fim = attrs.get('data_fim')
+        if inicio and fim and fim <= inicio:
+            raise serializers.ValidationError({'data_fim': 'O fim deve ser depois do início.'})
+        return attrs
+
+    def create(self, validated_data):
+        start = validated_data.pop('data_inicio')
+        end = validated_data.pop('data_fim')
+        parts = split_datetime_range(start, end)
+        motivo = (validated_data.get('motivo') or '').strip() or 'Bloqueio'
+        return BloqueioHorario.objects.create(
+            **validated_data,
+            **parts,
+            titulo=motivo,
+            tipo='outros',
+        )
+
+    def update(self, instance, validated_data):
+        start = validated_data.pop('data_inicio', None)
+        end = validated_data.pop('data_fim', None)
+        if start is not None and end is not None:
+            for k, v in split_datetime_range(start, end).items():
+                setattr(instance, k, v)
+        motivo = validated_data.get('motivo')
+        if motivo is not None:
+            instance.titulo = motivo
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save()
+        return instance
 
 
 class PatientAnamneseSerializer(serializers.ModelSerializer):

@@ -385,11 +385,17 @@ export default function AgendaPage() {
     }
   };
 
-  const conflitoComBloqueio = (date: Date) => bloqueios.some((b) => {
-    const dentro = date >= new Date(b.data_inicio) && date <= new Date(b.data_fim);
-    if (!dentro) return false;
-    return !b.professional || selectedProfessional === String(b.professional);
-  });
+  const conflitoComBloqueio = (date: Date, durationMin = 30) => {
+    const apptEnd = new Date(date.getTime() + durationMin * 60000);
+    return bloqueios.some((b) => {
+      const profMatch = !b.professional || selectedProfessional === String(b.professional);
+      if (!profMatch) return false;
+      const bStart = new Date(b.data_inicio);
+      const bEnd = new Date(b.data_fim);
+      if (Number.isNaN(bStart.getTime()) || Number.isNaN(bEnd.getTime())) return false;
+      return date < bEnd && apptEnd > bStart;
+    });
+  };
 
   const handleDateClick = (info: any) => {
     const date = info.date as Date;
@@ -612,7 +618,7 @@ export default function AgendaPage() {
         professionals={professionals} patients={patients} procedures={procedures}
         onOfflineEventCreated={(evt) => setEventos((prev) => [...prev, evt as AgendaEventData])}
       />
-      <ModalBloqueioHorario isOpen={showModalBloqueio} onClose={() => setShowModalBloqueio(false)} onSuccess={() => carregarDados()} professionals={professionals as any} />
+      <ModalBloqueioHorario isOpen={showModalBloqueio} onClose={() => setShowModalBloqueio(false)} onSuccess={() => carregarDados()} professionals={professionals as any} defaultProfessionalId={selectedProfessional} />
       <ModalConflitoAgenda open={conflictData != null} onClose={() => setConflictData(null)} data={conflictData} onUseServer={handleConflitoUseServer} onUseLocal={handleConflitoUseLocal} resolving={conflictResolving} />
     </>
   );

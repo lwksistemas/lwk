@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "@/lib/clinica-beleza-api";
+import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { adicionarNaFilaSync } from "@/lib/offline-db";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
+import {
+  type HorarioTrabalho,
+  workHoursRejectionMessage,
+} from "@/lib/clinica-beleza-work-hours";
 
 interface Professional {
   id: number;
@@ -74,6 +78,7 @@ export function ModalCriarAgendamento({
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [horariosProfissional, setHorariosProfissional] = useState<HorarioTrabalho[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +91,27 @@ export function ModalCriarAgendamento({
     });
     setCreateError("");
   }, [open, selectedDate, defaultProfessionalId]);
+
+  useEffect(() => {
+    if (!open || !createForm.professionalId) {
+      setHorariosProfissional([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await clinicaBelezaFetch(
+          `/professionals/${createForm.professionalId}/horarios-trabalho/`,
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        setHorariosProfissional(Array.isArray(data) ? data : []);
+      } catch {
+        if (!cancelled) setHorariosProfissional([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, createForm.professionalId]);
 
   if (!open) return null;
 
@@ -102,6 +128,13 @@ export function ModalCriarAgendamento({
     const [h, m] = createForm.time.split(":").map(Number);
     const date = new Date(selectedDate);
     date.setHours(h, m, 0, 0);
+    const procedure = procedures.find((p) => p.id === parseInt(createForm.procedureId, 10));
+    const durationMin = gDuration(procedure || {});
+    const horarioMsg = workHoursRejectionMessage(date, durationMin, horariosProfissional);
+    if (horarioMsg) {
+      setCreateError(horarioMsg);
+      return;
+    }
     setCreateLoading(true);
     setCreateError("");
     const payload = {

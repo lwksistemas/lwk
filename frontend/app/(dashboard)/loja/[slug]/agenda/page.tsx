@@ -30,6 +30,10 @@ import {
   salvarAgendamentosOffline, buscarAgendamentosOffline, obterFilaSync,
 } from "@/lib/offline-db";
 import { logger } from "@/lib/logger";
+import {
+  type HorarioTrabalho,
+  workHoursRejectionMessage,
+} from "@/lib/clinica-beleza-work-hours";
 import { ModalDetalheAgendamento, type AgendaEventData } from "./components/ModalDetalheAgendamento";
 import { ModalCriarAgendamento } from "./components/ModalCriarAgendamento";
 import { ModalBloqueio } from "./components/ModalBloqueio";
@@ -51,7 +55,15 @@ const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
 });
 
 interface Professional { id: number; name?: string; nome?: string; specialty?: string; especialidade?: string; }
-interface HorarioTrabalho { id: number; dia_semana: number; hora_entrada: string; hora_saida: string; intervalo_inicio: string | null; intervalo_fim: string | null; ativo: boolean; }
+interface HorarioTrabalhoRow {
+  id: number;
+  dia_semana: number;
+  hora_entrada: string;
+  hora_saida: string;
+  intervalo_inicio: string | null;
+  intervalo_fim: string | null;
+  ativo: boolean;
+}
 interface Patient { id: number; name?: string; nome?: string; phone?: string; telefone?: string; }
 interface Procedure { id: number; name?: string; nome?: string; duration?: number; duracao_minutos?: number; price?: string; preco?: string; }
 interface BloqueioHorario { id: number; professional: number | null; professional_name: string | null; data_inicio: string; data_fim: string; motivo: string; observacoes: string | null; criado_em: string; }
@@ -59,7 +71,7 @@ interface BloqueioHorario { id: number; professional: number | null; professiona
 function gName(o: { name?: string; nome?: string }): string { return o.name || o.nome || ''; }
 
 /** Gera eventos de intervalo (almoço) para os próximos 30 dias */
-function criarIntervalosEvents(profId: string, horarios: HorarioTrabalho[], profName: string): any[] {
+function criarIntervalosEvents(profId: string, horarios: HorarioTrabalhoRow[], profName: string): any[] {
   const result: any[] = [];
   const hoje = new Date();
   for (let i = 0; i < 30; i++) {
@@ -96,7 +108,7 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(true);
   const [selectedProfessional, setSelectedProfessional] = useState<string>("");
   const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [horariosTrabalho, setHorariosTrabalho] = useState<HorarioTrabalho[]>([]);
+  const [horariosTrabalho, setHorariosTrabalho] = useState<HorarioTrabalhoRow[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<AgendaEventData | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -210,9 +222,14 @@ export default function AgendaPage() {
   };
 
   const getBusinessHours = () => {
-    if (!selectedProfessional || horariosTrabalho.length === 0)
-      return { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: "08:00", endTime: "18:00" };
-    return horariosTrabalho.filter((h) => h.ativo).map((h) => {
+    if (!selectedProfessional || horariosTrabalho.length === 0) {
+      return { daysOfWeek: [1, 2, 3, 4, 5], startTime: "08:00", endTime: "18:00" };
+    }
+    const ativos = horariosTrabalho.filter((h) => h.ativo);
+    if (!ativos.length) {
+      return { daysOfWeek: [1, 2, 3, 4, 5], startTime: "08:00", endTime: "18:00" };
+    }
+    return ativos.map((h) => {
       const fcDay = h.dia_semana === 6 ? 0 : h.dia_semana + 1;
       return { daysOfWeek: [fcDay], startTime: (h.hora_entrada || '08:00').slice(0, 5), endTime: (h.hora_saida || '18:00').slice(0, 5) };
     });
@@ -376,6 +393,15 @@ export default function AgendaPage() {
 
   const handleDateClick = (info: any) => {
     const date = info.date as Date;
+    if (!selectedProfessional) {
+      alert("Selecione um profissional no filtro acima para agendar dentro do horário de trabalho.");
+      return;
+    }
+    const msg = workHoursRejectionMessage(date, 30, horariosTrabalho as HorarioTrabalho[]);
+    if (msg) {
+      alert(msg);
+      return;
+    }
     if (conflitoComBloqueio(date)) { alert("Horário bloqueado. Escolha outro horário ou gerencie bloqueios no botão \"Bloquear horário\"."); return; }
     setSelectedDate(date);
     setShowCreateModal(true);
@@ -545,8 +571,10 @@ export default function AgendaPage() {
               editable
               eventStartEditable={true}
               eventDurationEditable={false}
-              selectable
+              selectable={!!selectedProfessional}
               selectMirror
+              selectConstraint={selectedProfessional && horariosTrabalho.some((h) => h.ativo) ? "businessHours" : undefined}
+              eventConstraint={selectedProfessional && horariosTrabalho.some((h) => h.ativo) ? "businessHours" : undefined}
               dayMaxEvents={isMobile ? 6 : true}
               weekends
               events={eventos}

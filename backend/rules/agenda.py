@@ -31,7 +31,8 @@ def bloquear_conflitos(contexto):
         .select_related("procedure")
     )
     for outro in outros:
-        o_end = outro.date + timedelta(minutes=outro.procedure.duration)
+        dur = getattr(outro.procedure, 'duracao_minutos', None) or getattr(outro.procedure, 'duration', 30)
+        o_end = outro.date + timedelta(minutes=dur)
         if date_start < o_end and date_end > outro.date:
             raise ValidationError("Horário já ocupado para este profissional.")
 

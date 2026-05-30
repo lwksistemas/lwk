@@ -4,10 +4,19 @@ Emite nota fiscal quando o pagamento da assinatura é confirmado.
 Provedor: Nacional (ADN - Padrão Nacional NFS-e).
 """
 import logging
+from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any
 
+from django.utils import timezone
+
 logger = logging.getLogger(__name__)
+
+
+def _data_emissao_resultado(resultado: dict) -> datetime:
+    """Data/hora da emissão a partir da resposta do provedor ou agora."""
+    dt = resultado.get('data_emissao')
+    return dt if dt else timezone.now()
 
 
 def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
@@ -160,7 +169,7 @@ def _emitir_via_nacional(
                 'xml_nfse': resultado.get('xml_dps', ''),
                 'xml_dps_assinado': resultado.get('xml_dps', ''),
                 'resposta_adn': resultado.get('resposta_adn_raw', ''),
-                'data_emissao': None,
+                'data_emissao': _data_emissao_resultado(resultado),
             }
             nf = _salvar_nfse_emitida(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
             _enviar_email_nfse_assinatura(nf, config)
@@ -268,7 +277,7 @@ def _emitir_via_issnet(
                 'codigo_verificacao': resultado.get('codigo_verificacao', ''),
                 'numero_rps': numero_rps,
                 'xml_nfse': resultado.get('xml_nfse', ''),
-                'data_emissao': None,
+                'data_emissao': _data_emissao_resultado(resultado),
             }
             sincronizar_contadores_rps_superadmin(config, numero_rps)
             nf = _salvar_nfse_emitida_issnet(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
@@ -312,7 +321,7 @@ def _salvar_nfse_emitida_issnet(pagamento, config, resultado, tomador_nome, toma
             xml_nfse=resultado.get('xml_nfse', ''),
             pdf_url=(resultado.get('pdf_url') or '')[:500],
             asaas_payment_id=pagamento.asaas_payment_id or '',
-            data_emissao=resultado.get('data_emissao'),
+            data_emissao=_data_emissao_resultado(resultado),
         )
         logger.info('NFSeEmitida ISSNet salva: %s, loja %s', resultado.get('numero_nf'), pagamento.loja.slug)
         return nf
@@ -351,7 +360,7 @@ def _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf
             resposta_adn=resultado.get('resposta_adn', ''),
             pdf_url=(resultado.get('pdf_url') or '')[:500],
             asaas_payment_id=pagamento.asaas_payment_id or '',
-            data_emissao=resultado.get('data_emissao'),
+            data_emissao=_data_emissao_resultado(resultado),
         )
         logger.info('NFSeEmitida salva: %s, loja %s', resultado.get('numero_nf'), pagamento.loja.slug)
         return nf

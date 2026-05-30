@@ -16,6 +16,7 @@ import { formatCurrency } from "@/lib/financeiro-helpers";
 import { logger } from "@/lib/logger";
 
 const STATUS_LABEL: Record<string, string> = {
+  SCHEDULED: "Agendada",
   IN_PROGRESS: "Em Atendimento",
   COMPLETED: "Concluída",
   CANCELLED: "Cancelada",
@@ -248,6 +249,7 @@ export default function ConsultasPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-sm"
               >
                 <option value="">Todos os status</option>
+                <option value="SCHEDULED">Agendadas</option>
                 <option value="IN_PROGRESS">Em Atendimento</option>
                 <option value="COMPLETED">Concluídas</option>
                 <option value="CANCELLED">Canceladas</option>

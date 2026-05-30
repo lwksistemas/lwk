@@ -499,6 +499,7 @@ class MovimentacaoEstoque(LojaIsolationMixin, models.Model):
 class Consulta(LojaIsolationMixin, models.Model):
     """Consulta clínica — criada automaticamente ao mudar status do agendamento na agenda."""
     STATUS_CHOICES = (
+        ('SCHEDULED', 'Agendada'),
         ('IN_PROGRESS', 'Em Atendimento'),
         ('COMPLETED', 'Concluída'),
         ('CANCELLED', 'Cancelada'),
@@ -523,7 +524,7 @@ class Consulta(LojaIsolationMixin, models.Model):
         related_name='consultas',
         verbose_name='Protocolo aplicado',
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='IN_PROGRESS', verbose_name='Status')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED', verbose_name='Status')
     data_inicio = models.DateTimeField(null=True, blank=True, verbose_name='Início')
     data_fim = models.DateTimeField(null=True, blank=True, verbose_name='Fim')
     observacoes_gerais = models.TextField(blank=True, default='', verbose_name='Observações gerais')

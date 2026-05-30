@@ -24,6 +24,23 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
 
     ts = now()
 
+    if new_status == 'CONFIRMED':
+        consulta, created = Consulta.objects.get_or_create(
+            appointment=appointment,
+            defaults={
+                'patient_id': appointment.patient_id,
+                'professional_id': appointment.professional_id,
+                'procedure_id': appointment.procedure_id,
+                'status': 'SCHEDULED',
+                'valor_consulta': _valor_consulta(appointment),
+                'loja_id': appointment.loja_id,
+            },
+        )
+        if not created and consulta.status not in ('IN_PROGRESS', 'COMPLETED'):
+            consulta.status = 'SCHEDULED'
+            consulta.save(update_fields=['status', 'updated_at'])
+        return consulta
+
     if new_status == 'IN_PROGRESS':
         consulta, created = Consulta.objects.get_or_create(
             appointment=appointment,

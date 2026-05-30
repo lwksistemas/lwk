@@ -192,11 +192,16 @@ class AgendaUpdateView(APIView):
             appointment.save()
 
             consulta_id = None
+            consulta_error = None
             if new_status is not None:
                 from .consulta_service import sync_consulta_from_appointment_status
-                consulta = sync_consulta_from_appointment_status(appointment, new_status, old_status)
-                if consulta:
-                    consulta_id = consulta.id
+                try:
+                    consulta = sync_consulta_from_appointment_status(appointment, new_status, old_status)
+                    if consulta:
+                        consulta_id = consulta.id
+                except Exception as e:
+                    logger.exception('Erro ao sincronizar consulta agendamento %s status %s: %s', pk, new_status, e)
+                    consulta_error = 'Consulta não criada. Execute a atualização do sistema ou contate o suporte.'
 
             if new_status == 'COMPLETED':
                 try:
@@ -217,6 +222,8 @@ class AgendaUpdateView(APIView):
             response_data = AgendaEventSerializer(appointment).data
             if consulta_id is not None:
                 response_data['consulta_id'] = consulta_id
+            if consulta_error:
+                response_data['consulta_error'] = consulta_error
             return Response(response_data)
 
         except Appointment.DoesNotExist:

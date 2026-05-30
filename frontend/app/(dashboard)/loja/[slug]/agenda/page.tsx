@@ -357,7 +357,7 @@ export default function AgendaPage() {
     setShowModal(true);
     const dbId = info.event.extendedProps?.dbId;
     const st = info.event.extendedProps?.status;
-    if (dbId && (st === "IN_PROGRESS" || st === "COMPLETED")) {
+    if (dbId && (st === "IN_PROGRESS" || st === "COMPLETED" || st === "CONFIRMED")) {
       clinicaBelezaFetch(`/consultas/?appointment=${dbId}`)
         .then((r) => r.json())
         .then((data) => {
@@ -412,6 +412,9 @@ export default function AgendaPage() {
       }
       if (!res.ok) throw new Error(data.error || "Erro ao atualizar status");
       setSelectedEvent((prev) => prev ? { ...prev, extendedProps: { ...prev.extendedProps, status: novoStatus } } : null);
+      if (data.consulta_error) {
+        alert(data.consulta_error);
+      }
       if (data.consulta_id) {
         setConsultaId(data.consulta_id);
         if (novoStatus === "IN_PROGRESS") {

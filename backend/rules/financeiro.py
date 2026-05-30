@@ -17,12 +17,13 @@ def gerar_lancamento(contexto):
     if Payment.objects.filter(appointment=appointment).exists():
         return
 
-    valor = getattr(appointment.procedure, "price", None) or 0
+    valor = getattr(appointment.procedure, "preco", None) or getattr(appointment.procedure, "price", None) or 0
     Payment.objects.create(
         appointment=appointment,
         amount=valor,
         payment_method="CASH",  # default; pode ser alterado no caixa
         status="PENDING",
+        loja_id=getattr(appointment, "loja_id", None),
     )
 
 

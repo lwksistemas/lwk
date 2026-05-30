@@ -17,6 +17,7 @@ import {
   Pencil,
   X,
   ChevronRight,
+  CheckCircle2,
 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -24,6 +25,7 @@ import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-bele
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { logger } from "@/lib/logger";
 
 interface Consulta {
@@ -42,8 +44,16 @@ interface Consulta {
   protocolo_notas?: string;
   valor_consulta: string | number;
   appointment_date?: string;
+  appointment_status?: string;
   total_evolucoes: number;
 }
+
+const CONSULTA_STATUS_LABEL: Record<string, string> = {
+  SCHEDULED: "Agendada",
+  IN_PROGRESS: "Em atendimento",
+  COMPLETED: "Concluída",
+  CANCELLED: "Cancelada",
+};
 
 interface Protocolo {
   id: number;
@@ -159,6 +169,13 @@ export default function ConsultasPage() {
   const [editEvolucao, setEditEvolucao] = useState(false);
   const [protocoloPreview, setProtocoloPreview] = useState<Protocolo | null>(null);
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
+  const [showFinalizarModal, setShowFinalizarModal] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
+  const [finalizarForm, setFinalizarForm] = useState({
+    payment_method: "CASH",
+    mark_as_paid: false,
+    amount: "",
+  });
 
   const [evolucaoForm, setEvolucaoForm] = useState({
     descricao: "",
@@ -315,6 +332,43 @@ export default function ConsultasPage() {
     }
   };
 
+  const abrirFinalizarModal = () => {
+    if (!selected) return;
+    setFinalizarForm({
+      payment_method: "CASH",
+      mark_as_paid: false,
+      amount: String(selected.valor_consulta ?? ""),
+    });
+    setShowFinalizarModal(true);
+  };
+
+  const finalizarConsulta = async () => {
+    if (!selected) return;
+    setFinalizando(true);
+    try {
+      const updated = await ClinicaBelezaAPI.consultas.finalizar(selected.id, {
+        payment_method: finalizarForm.payment_method,
+        mark_as_paid: finalizarForm.mark_as_paid,
+        amount: finalizarForm.amount || selected.valor_consulta,
+      });
+      setSelected({ ...selected, ...updated });
+      setShowFinalizarModal(false);
+      await loadConsultas();
+      alert(
+        finalizarForm.mark_as_paid
+          ? "Consulta finalizada. Pagamento registrado no Financeiro."
+          : "Consulta finalizada. Lançamento pendente criado no Financeiro e agenda atualizada.",
+      );
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao finalizar consulta.";
+      alert(msg);
+    } finally {
+      setFinalizando(false);
+    }
+  };
+
+  const podeFinalizar = selected && selected.status !== "COMPLETED" && selected.status !== "CANCELLED";
+
   const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
     { id: "atendimento", label: "Atendimento", icon: ClipboardList },
     { id: "anamnese", label: "Anamnese", icon: FileText },
@@ -343,11 +397,25 @@ export default function ConsultasPage() {
               <ArrowLeft size={16} />
               Voltar à lista
             </button>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
               <span>{formatData(selected.data_inicio || selected.appointment_date)}</span>
               <span>{formatCurrency(Number(selected.valor_consulta))}</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
+                {CONSULTA_STATUS_LABEL[selected.status] || selected.status}
+              </span>
               {selected.protocol_name && (
                 <span>Protocolo: <strong className="text-gray-800 dark:text-gray-200">{selected.protocol_name}</strong></span>
+              )}
+              {podeFinalizar && (
+                <button
+                  type="button"
+                  onClick={abrirFinalizarModal}
+                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium"
+                  style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                >
+                  <CheckCircle2 size={16} />
+                  Finalizar consulta
+                </button>
               )}
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
@@ -672,6 +740,73 @@ export default function ConsultasPage() {
             )}
           </div>
         </div>
+
+        {showFinalizarModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Finalizar consulta</h2>
+                <button type="button" onClick={() => setShowFinalizarModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  A agenda será marcada como <strong>Concluída</strong> e um lançamento será criado no Financeiro.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Valor (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={finalizarForm.amount}
+                    onChange={(e) => setFinalizarForm((f) => ({ ...f, amount: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Forma de pagamento</label>
+                  <select
+                    value={finalizarForm.payment_method}
+                    onChange={(e) => setFinalizarForm((f) => ({ ...f, payment_method: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                  >
+                    {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={finalizarForm.mark_as_paid}
+                    onChange={(e) => setFinalizarForm((f) => ({ ...f, mark_as_paid: e.target.checked }))}
+                  />
+                  Registrar como pago agora
+                </label>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFinalizarModal(false)}
+                    className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-neutral-600"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={finalizarConsulta}
+                    disabled={finalizando}
+                    className="flex-1 py-2 rounded-lg text-white disabled:opacity-50"
+                    style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                  >
+                    {finalizando ? "Finalizando..." : "Confirmar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -703,6 +838,7 @@ export default function ConsultasPage() {
                       <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Procedimento</th>
                       <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden sm:table-cell">Data</th>
                       <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden md:table-cell">Profissional</th>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden lg:table-cell">Status</th>
                       <th className="w-12" />
                     </tr>
                   </thead>
@@ -719,6 +855,11 @@ export default function ConsultasPage() {
                           {formatData(c.data_inicio || c.appointment_date)}
                         </td>
                         <td className="px-4 md:px-6 py-4 hidden md:table-cell text-gray-600 dark:text-gray-400">{c.professional_name || "—"}</td>
+                        <td className="px-4 md:px-6 py-4 hidden lg:table-cell">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400">
+                            {CONSULTA_STATUS_LABEL[c.status] || c.status}
+                          </span>
+                        </td>
                         <td className="px-4 py-4 text-gray-400"><ChevronRight size={18} /></td>
                       </tr>
                     ))}

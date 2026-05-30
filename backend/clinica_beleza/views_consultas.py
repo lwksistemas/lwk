@@ -8,6 +8,7 @@ from rest_framework import status
 
 from .models import Consulta, PatientAnamnese, ConsultaEvolucao, ProcedureProtocol, Patient
 from .serializers import ConsultaSerializer, PatientAnamneseSerializer, ConsultaEvolucaoSerializer
+from .consulta_service import finalizar_consulta
 
 
 class ConsultaListView(APIView):
@@ -57,6 +58,38 @@ class ConsultaDetailView(APIView):
 
     def patch(self, request, pk):
         return self.put(request, pk)
+
+
+class ConsultaFinalizarView(APIView):
+    """POST /clinica-beleza/consultas/<id>/finalizar/ — conclui consulta, agenda e financeiro."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            consulta = Consulta.objects.select_related(
+                'patient', 'professional', 'procedure', 'protocol', 'appointment', 'appointment__procedure',
+            ).get(pk=pk)
+        except Consulta.DoesNotExist:
+            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+        mark_as_paid = bool(request.data.get('mark_as_paid'))
+        payment_method = (request.data.get('payment_method') or request.data.get('forma_pagamento') or '').strip() or None
+        amount = request.data.get('amount') or request.data.get('valor')
+
+        try:
+            finalizar_consulta(
+                consulta,
+                payment_method=payment_method,
+                mark_as_paid=mark_as_paid,
+                amount=amount,
+            )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        consulta = Consulta.objects.select_related(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment',
+        ).get(pk=pk)
+        return Response(ConsultaSerializer(consulta).data)
 
 
 class ConsultaAplicarProtocoloView(APIView):

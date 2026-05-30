@@ -30,7 +30,7 @@ from .views_profissionais import (  # noqa: F401
 from .views_procedimentos import ProcedureListView, ProcedureDetailView  # noqa: F401
 from .views_protocolos import ProtocolListView, ProtocolDetailView
 from .views_consultas import (
-    ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView,
+    ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView, ConsultaFinalizarView,
     PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
 )  # noqa: F401
 

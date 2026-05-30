@@ -306,6 +306,10 @@ export class ClinicaBelezaAPI {
     update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.patch(`/consultas/${id}/`, data),
     aplicarProtocolo: (id: number, protocolId: number) =>
       ClinicaBelezaAPI.post(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
+    finalizar: (
+      id: number,
+      data?: { payment_method?: string; mark_as_paid?: boolean; amount?: number | string },
+    ) => ClinicaBelezaAPI.post(`/consultas/${id}/finalizar/`, data ?? {}),
     evolucoes: {
       list: (consultaId: number) => ClinicaBelezaAPI.get(`/consultas/${consultaId}/evolucoes/`),
       create: (consultaId: number, data: Record<string, unknown>) =>

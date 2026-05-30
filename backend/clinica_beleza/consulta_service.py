@@ -2,9 +2,14 @@
 Sincronização de Consulta com mudanças de status do agendamento na agenda.
 A consulta só é criada/atualizada quando o status muda na agenda — não manualmente na listagem.
 """
+import logging
+from decimal import Decimal
+
 from django.utils.timezone import now
 
-from .models import Appointment, Consulta
+from .models import Appointment, Consulta, Payment
+
+logger = logging.getLogger(__name__)
 
 
 def _valor_consulta(appointment):
@@ -94,3 +99,80 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
         return consulta
 
     return None
+
+
+def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=None, mark_as_paid=False, amount=None):
+    """Garante lançamento financeiro do atendimento (cria ou atualiza)."""
+    payment = Payment.objects.filter(appointment=appointment).first()
+    valor = amount if amount is not None else (consulta.valor_consulta or _valor_consulta(appointment))
+    if isinstance(valor, (int, float, str)):
+        valor = Decimal(str(valor))
+
+    if not payment:
+        return Payment.objects.create(
+            appointment=appointment,
+            amount=valor,
+            payment_method=payment_method or 'CASH',
+            status='PAID' if mark_as_paid else 'PENDING',
+            payment_date=now() if mark_as_paid else None,
+            loja_id=appointment.loja_id,
+        )
+
+    if payment_method:
+        payment.payment_method = payment_method
+    if amount is not None:
+        payment.amount = valor
+    if mark_as_paid:
+        payment.status = 'PAID'
+        if not payment.payment_date:
+            payment.payment_date = now()
+    payment.save()
+    return payment
+
+
+def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amount=None):
+    """
+    Finaliza consulta clínica: agenda → COMPLETED, consulta concluída e lançamento financeiro.
+    """
+    from rules.base import MotorRegras
+
+    appointment = consulta.appointment
+    old_status = appointment.status
+
+    if consulta.status == 'COMPLETED':
+        if appointment.status != 'COMPLETED':
+            appointment.status = 'COMPLETED'
+            appointment.version = (appointment.version or 1) + 1
+            appointment.save(update_fields=['status', 'version', 'updated_at'])
+            sync_consulta_from_appointment_status(appointment, 'COMPLETED', old_status)
+        try:
+            MotorRegras().executar('AGENDAMENTO_FINALIZADO', {'appointment': appointment})
+        except Exception:
+            logger.exception('Erro ao executar regra financeira (consulta %s)', consulta.id)
+        _ensure_payment_for_appointment(
+            appointment, consulta,
+            payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+        )
+        consulta.refresh_from_db()
+        return consulta
+
+    if consulta.status not in ('IN_PROGRESS', 'SCHEDULED'):
+        raise ValueError('A consulta precisa estar em atendimento para ser finalizada.')
+
+    appointment.status = 'COMPLETED'
+    appointment.version = (appointment.version or 1) + 1
+    appointment.save(update_fields=['status', 'version', 'updated_at'])
+
+    sync_consulta_from_appointment_status(appointment, 'COMPLETED', old_status)
+
+    try:
+        MotorRegras().executar('AGENDAMENTO_FINALIZADO', {'appointment': appointment})
+    except Exception:
+        logger.exception('Erro ao executar regra financeira (consulta %s)', consulta.id)
+
+    _ensure_payment_for_appointment(
+        appointment, consulta,
+        payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+    )
+    consulta.refresh_from_db()
+    return consulta

@@ -8,7 +8,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
+import { DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
+import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   CLINICA_FORMA_PAGAMENTO_LABEL,
   CLINICA_PAGAMENTO_STATUS_LABEL,
@@ -17,7 +19,6 @@ import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
-import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 
 interface Resumo {
   caixa_diario: number;
@@ -127,33 +128,25 @@ export default function FinanceiroClinicaPage() {
   const totalLista = payments.reduce((s, p) => s + (p.status === "PAID" ? Number(p.amount) : 0), 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push(`/loja/${slug}/dashboard`)}
-              className="p-2 hover:bg-white/80 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-              aria-label="Voltar"
-            >
-              <ArrowLeft size={24} className="text-gray-800 dark:text-gray-200" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Financeiro da Clínica</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Caixa, contas a receber e comissões</p>
-            </div>
-            <OfflineIndicator />
-          </div>
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Financeiro da Clínica"
+        subtitle="Caixa, contas a receber e comissões"
+        extraActions={
           <button
+            type="button"
             onClick={() => loadAll()}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 disabled:opacity-50 text-xs sm:text-sm font-medium"
+            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
           >
-            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-            Atualizar
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            <span className="hidden sm:inline">Atualizar</span>
           </button>
-        </div>
+        }
+      />
+      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
 
         {loading && !resumo ? (
           <div className="flex justify-center py-12">
@@ -317,5 +310,6 @@ export default function FinanceiroClinicaPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

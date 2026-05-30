@@ -1,8 +1,10 @@
 'use client';
 
+import { useCallback } from 'react';
 import { CalendarDays, Menu } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { CLINICA_BELEZA_PRIMARY } from './clinica-beleza-nav';
+import { useClinicaBelezaPageHeaderMount } from './ClinicaBelezaPageHeaderContext';
 
 function formatDatePicker(): string {
   return new Date().toLocaleDateString('pt-BR', {
@@ -47,30 +49,55 @@ export function ClinicaBelezaTopBar({
   isDashboard = false,
   onOpenMobileMenu,
 }: ClinicaBelezaTopBarProps) {
+  const { setMainTarget, setSecondaryTarget } = useClinicaBelezaPageHeaderMount();
+
+  const mainRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setMainTarget(node);
+    },
+    [setMainTarget],
+  );
+
+  const secondaryRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setSecondaryTarget(node);
+    },
+    [setSecondaryTarget],
+  );
+
   return (
     <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
-      <div className="flex items-center justify-between gap-2 min-h-[3.5rem] px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-h-[3.5rem] px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center shrink-0 lg:hidden">
           <button
             type="button"
             onClick={onOpenMobileMenu}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
             aria-label="Abrir menu"
           >
             <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
         </div>
 
-        <div className="flex items-center justify-end min-w-0">
-          {isDashboard ? (
+        <div ref={mainRef} className="flex-1 min-w-0 flex items-center" />
+
+        {!isDashboard && (
+          <span className="lg:hidden text-xs font-medium text-gray-500 truncate max-w-[80px] shrink-0">
+            {loja?.nome}
+          </span>
+        )}
+
+        {isDashboard && (
+          <div className="shrink-0">
             <DashboardTopBarRight loja={loja} />
-          ) : (
-            <span className="lg:hidden text-xs font-medium text-gray-500 truncate max-w-[100px]">
-              {loja?.nome}
-            </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+
+      <div
+        ref={secondaryRef}
+        className="empty:hidden px-3 sm:px-6 lg:px-8 py-2 border-t border-gray-100 dark:border-gray-700/80"
+      />
     </header>
   );
 }

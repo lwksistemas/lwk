@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import {
   entityActive,
   entityName,
@@ -28,7 +28,7 @@ import {
   temDuplicataNaLista,
 } from "@/lib/clinica-beleza-offline";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
-import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
+import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
 import { logger } from "@/lib/logger";
 import {
@@ -339,30 +339,15 @@ export function ProcedimentosPageContent({
     moduleKey && !showAllCategories ? activeList.length - filteredList.length : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
+    <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
+      <ClinicaBelezaStandardPageHeader
+        title={title}
+        subtitle={subtitle}
+        backHref={backHref}
+        newLabel="Novo Procedimento"
+        onNew={openNew}
+      />
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <button
-            onClick={() => router.push(backHref || `/loja/${slug}/dashboard`)}
-            className="p-2 hover:bg-white/80 dark:hover:bg-neutral-700 rounded-lg"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{title}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <OfflineIndicator />
-            <button
-              onClick={openNew}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-            >
-              <Plus size={20} />
-              Novo Procedimento
-            </button>
-          </div>
-        </div>
 
         {moduleKey && (
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">

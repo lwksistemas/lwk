@@ -7,7 +7,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Package, Plus, ArrowDown, ArrowUp, AlertTriangle, Search, X, ArrowLeft } from "lucide-react";
+import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
 
@@ -284,31 +285,17 @@ export function EstoquePageContent({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title={title}
+        subtitle={subtitle}
+        backHref={backHref}
+        icon={Package}
+        newLabel="Novo Produto"
+        onNew={() => { setEditingProduto(null); setShowProdutoModal(true); }}
+      />
+      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push(backHref || `/loja/${slug}/dashboard`)}
-              className="p-2 hover:bg-white/80 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-              aria-label="Voltar"
-            >
-              <ArrowLeft size={24} className="text-gray-800 dark:text-gray-200" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => { setEditingProduto(null); setShowProdutoModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
-          >
-            <Plus size={18} />
-            Novo Produto
-          </button>
-        </div>
 
         {loading && !resumo ? (
           <div className="flex justify-center py-12">
@@ -448,5 +435,6 @@ export function EstoquePageContent({
 
       <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
     </div>
+    </>
   );
 }

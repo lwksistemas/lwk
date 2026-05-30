@@ -6,12 +6,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Plus, Pencil, Trash2, Clock } from "lucide-react";
+import { Pencil, Trash2, Clock } from "lucide-react";
+import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
 import { ProfissionalFormModal } from "./components/ProfissionalFormModal";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
-import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import {
   entityActive,
   entityEmail,
@@ -338,35 +338,20 @@ export default function ProfissionaisPage() {
   const activeList = list.filter((p) => entityActive(p));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Profissionais"
+        subtitle="Cadastro de profissionais da clínica"
+        newLabel="Novo Profissional"
+        onNew={openNew}
+      />
+      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <button
-            onClick={() => router.push(`/loja/${slug}/dashboard`)}
-            className="p-2 hover:bg-white/80 dark:hover:bg-neutral-700 rounded-lg"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Profissionais</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Cadastro de profissionais da clínica</p>
-            {lojaOwnerInfo && (
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                <span className="text-amber-700 dark:text-amber-400">O administrador da loja aparece na tabela abaixo (linha &quot;Administrador - somente leitura&quot;) e não pode ser editado nem excluído.</span>
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <OfflineIndicator />
-            <button
-              onClick={openNew}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-            >
-              <Plus size={20} />
-              Novo Profissional
-            </button>
-          </div>
-        </div>
+        {lojaOwnerInfo && (
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
+            <span className="text-amber-700 dark:text-amber-400">O administrador da loja aparece na tabela abaixo (linha &quot;Administrador - somente leitura&quot;) e não pode ser editado nem excluído.</span>
+          </p>
+        )}
 
         {loading ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
@@ -455,5 +440,6 @@ export default function ProfissionaisPage() {
         />
       )}
     </div>
+    </>
   );
 }

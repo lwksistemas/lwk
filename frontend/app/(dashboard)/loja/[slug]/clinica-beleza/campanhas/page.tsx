@@ -7,7 +7,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Pencil, Trash2, X, Send } from "lucide-react";
+import { Pencil, Trash2, X, Send } from "lucide-react";
+import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 
@@ -156,27 +157,15 @@ export default function CampanhasPage() {
   const [darkMode] = useClinicaBelezaDark();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 text-gray-800 dark:text-gray-100 p-4 md:p-6">
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Campanhas de Promoções"
+        subtitle="Crie promoções e envie por WhatsApp para os pacientes"
+        newLabel="Nova Campanha"
+        onNew={openNew}
+      />
+      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <button
-            onClick={() => router.push(`/loja/${slug}/dashboard`)}
-            className="p-2 hover:bg-white/80 dark:hover:bg-neutral-700 rounded-lg"
-          >
-            <ArrowLeft size={24} className="text-gray-800 dark:text-gray-200" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Campanhas de Promoções</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Crie promoções e envie por WhatsApp para os pacientes</p>
-          </div>
-          <button
-            onClick={openNew}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-          >
-            <Plus size={20} />
-            Nova Campanha
-          </button>
-        </div>
 
         {loading ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
@@ -325,5 +314,6 @@ export default function CampanhasPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

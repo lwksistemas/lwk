@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Pencil, Trash2, X, ClipboardList } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { Pencil, Trash2, X, ClipboardList } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { entityName, procedureCategoria } from '@/lib/clinica-beleza-entities';
 import { procedureMatchesModule } from '@/lib/clinica-beleza-categories';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { ClinicaBelezaRelatedLinks } from '@/components/clinica-beleza/ClinicaBelezaRelatedLinks';
-import { OfflineIndicator } from '@/components/clinica-beleza/OfflineIndicator';
+import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 
 interface Protocol {
   id: number;
@@ -63,7 +63,6 @@ export function ProtocolosPageContent({
   relatedLinks = [],
 }: ProtocolosPageContentProps) {
   const params = useParams();
-  const router = useRouter();
   const slug = params.slug as string;
   const [list, setList] = useState<Protocol[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
@@ -179,39 +178,16 @@ export function ProtocolosPageContent({
   };
 
   return (
-    <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-8">
+    <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
+      <ClinicaBelezaStandardPageHeader
+        title={title}
+        subtitle={subtitle}
+        backHref={backHref}
+        icon={ClipboardList}
+        newLabel="Novo protocolo"
+        onNew={openNew}
+      />
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <button
-            type="button"
-            onClick={() => router.push(backHref || `/loja/${slug}/dashboard`)}
-            className="p-2 hover:bg-white dark:hover:bg-gray-800 rounded-lg"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <div className="flex-1 min-w-0 flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}18` }}
-            >
-              <ClipboardList className="w-5 h-5" style={{ color: CLINICA_BELEZA_PRIMARY }} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
-              <p className="text-sm text-gray-500">{subtitle}</p>
-            </div>
-          </div>
-          <OfflineIndicator />
-          <button
-            type="button"
-            onClick={openNew}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-          >
-            <Plus size={20} />
-            Novo protocolo
-          </button>
-        </div>
 
         {loading ? (
           <p className="text-center py-12 text-gray-500">Carregando...</p>

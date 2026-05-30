@@ -12,6 +12,10 @@ import { Plus, Lock } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { useLojaAuth } from "@/hooks/useLojaAuth";
 import { ClinicaBelezaShell } from "@/components/clinica-beleza/ClinicaBelezaShell";
+import {
+  ClinicaBelezaPageHeaderFooter,
+  ClinicaBelezaStandardPageHeader,
+} from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import type { LojaInfo } from "@/types/dashboard";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
@@ -452,54 +456,59 @@ export default function AgendaPage() {
       </div>
     </div>
   ) : (
-    <div className="flex flex-col flex-1 min-h-0 p-3 sm:p-4 lg:p-6">
-      <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="px-3 sm:px-4 py-3 border-b border-gray-200 dark:border-gray-700 shrink-0 space-y-2.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-              <OfflineIndicator />
-              <select
-                value={selectedProfessional}
-                onChange={(e) => setSelectedProfessional(e.target.value)}
-                className="px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8B3D52]/30 max-w-[140px] sm:max-w-none"
-              >
-                <option value="">Todos</option>
-                {professionals.map((prof) => (
-                  <option key={prof.id} value={prof.id}>{gName(prof)}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
-              <button
-                type="button"
-                onClick={() => setShowModalBloqueio(true)}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shrink-0 text-xs sm:text-sm"
-                title="Bloquear horário"
-              >
-                <Lock size={16} className="sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Bloquear</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-white rounded-lg hover:opacity-90 transition-opacity shrink-0 text-xs sm:text-sm font-medium"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                title="Novo agendamento"
-              >
-                <Plus size={16} className="sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Novo</span>
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#a855f7]" aria-hidden />Agendado</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#22c55e]" aria-hidden />Confirmado</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#b45309]" aria-hidden />Faltou</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
-          </div>
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Agenda"
+        subtitle="Calendário de agendamentos"
+        backHref={`/loja/${slug}/dashboard`}
+        showOffline={false}
+        extraActions={
+          <>
+            <OfflineIndicator />
+            <select
+              value={selectedProfessional}
+              onChange={(e) => setSelectedProfessional(e.target.value)}
+              className="px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8B3D52]/30 max-w-[120px] sm:max-w-none"
+            >
+              <option value="">Todos</option>
+              {professionals.map((prof) => (
+                <option key={prof.id} value={prof.id}>{gName(prof)}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowModalBloqueio(true)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shrink-0 text-xs sm:text-sm"
+              title="Bloquear horário"
+            >
+              <Lock size={16} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Bloquear</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 transition-opacity shrink-0 text-xs sm:text-sm font-medium"
+              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              title="Novo agendamento"
+            >
+              <Plus size={16} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Novo</span>
+            </button>
+          </>
+        }
+      />
+      <ClinicaBelezaPageHeaderFooter>
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#a855f7]" aria-hidden />Agendado</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#22c55e]" aria-hidden />Confirmado</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#b45309]" aria-hidden />Faltou</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
         </div>
+      </ClinicaBelezaPageHeaderFooter>
 
-        <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-hidden fc-agenda-mobile">
+      <div className="flex flex-col flex-1 min-h-0 p-3 sm:p-4 lg:p-6">
+        <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-hidden fc-agenda-mobile">
           {calendarPlugins.length > 0 && ptBrLocale && (
             <FullCalendar
               key={`${isMobile ? "mobile" : "desktop"}-${selectedProfessional}-${horariosTrabalho.length}`}
@@ -528,6 +537,7 @@ export default function AgendaPage() {
               hiddenDays={getHiddenDays()}
             />
           )}
+          </div>
         </div>
       </div>
 
@@ -544,7 +554,7 @@ export default function AgendaPage() {
       />
       <ModalBloqueioHorario isOpen={showModalBloqueio} onClose={() => setShowModalBloqueio(false)} onSuccess={() => carregarDados()} professionals={professionals as any} />
       <ModalConflitoAgenda open={conflictData != null} onClose={() => setConflictData(null)} data={conflictData} onUseServer={handleConflitoUseServer} onUseLocal={handleConflitoUseLocal} resolving={conflictResolving} />
-    </div>
+    </>
   );
 
   return (

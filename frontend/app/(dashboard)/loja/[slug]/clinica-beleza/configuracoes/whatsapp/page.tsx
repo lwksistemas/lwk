@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
+import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
@@ -91,23 +91,16 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-3xl mx-auto">
-      <Link
-        href={base}
-        className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:underline"
-        style={{ color: undefined }}
-      >
-        <ArrowLeft size={16} />
-        Voltar às configurações
-      </Link>
-
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Configurar WhatsApp"
+        subtitle="Confirmações, lembretes e integração Meta"
+        backHref={base}
+        icon={MessageCircle}
+        showOffline={false}
+      />
+      <div className="space-y-6 p-4 md:p-6 max-w-3xl mx-auto">
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 rounded-lg text-white" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
-            <MessageCircle size={24} />
-          </div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Configurar WhatsApp</h1>
-        </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
           Confirmações de agendamento, lembretes para pacientes e integração com a API Meta (WhatsApp Business).
         </p>
@@ -211,5 +204,6 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

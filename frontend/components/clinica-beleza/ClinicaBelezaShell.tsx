@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { ChevronDown, LogOut, Menu, Moon, Sun } from 'lucide-react';
 import { ClinicaBelezaTopBar } from './ClinicaBelezaTopBar';
+import { ClinicaBelezaPageHeaderProvider } from './ClinicaBelezaPageHeaderContext';
 import type { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
 import { syncLojaTenantSlug } from '@/lib/auth';
@@ -333,12 +334,14 @@ export function ClinicaBelezaShell({
       )}
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <ClinicaBelezaTopBar
-          loja={loja}
-          isDashboard={isDashboard}
-          onOpenMobileMenu={() => setSidebarOpen(true)}
-        />
-        <main className={`relative flex-1 min-h-0 min-w-0 overflow-y-auto ${mainClassName}`}>{children}</main>
+        <ClinicaBelezaPageHeaderProvider>
+          <ClinicaBelezaTopBar
+            loja={loja}
+            isDashboard={isDashboard}
+            onOpenMobileMenu={() => setSidebarOpen(true)}
+          />
+          <main className={`relative flex-1 min-h-0 min-w-0 overflow-y-auto ${mainClassName}`}>{children}</main>
+        </ClinicaBelezaPageHeaderProvider>
       </div>
     </div>
   );

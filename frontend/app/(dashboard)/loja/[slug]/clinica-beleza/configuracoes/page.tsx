@@ -14,6 +14,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
+import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 
 export default function ClinicaBelezaConfiguracoesPage() {
   const slug = (useParams()?.slug as string) ?? '';
@@ -65,13 +66,13 @@ export default function ClinicaBelezaConfiguracoesPage() {
   ];
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configurações</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Gerencie assinatura, login, equipe, WhatsApp e integrações
-        </p>
-      </div>
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Configurações"
+        subtitle="Gerencie assinatura, login, equipe, WhatsApp e integrações"
+        showOffline={false}
+      />
+      <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {opcoes.map((op) => {
@@ -121,5 +122,6 @@ export default function ClinicaBelezaConfiguracoesPage() {
         })}
       </div>
     </div>
+    </>
   );
 }

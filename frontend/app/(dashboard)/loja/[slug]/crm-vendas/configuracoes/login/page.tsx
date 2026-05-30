@@ -148,7 +148,7 @@ export default function ConfiguracoesLoginPage() {
             {/* Imagem de fundo do login */}
             <ImageUpload
               label="Imagem de fundo da tela de login"
-              description="Imagem de fundo exibida na tela de login (opcional, deixe vazio para usar gradiente de cores)"
+              description="Imagem de fundo exibida na tela de login (opcional — se vazio, usa a imagem padrão do tipo de loja)"
               value={loginBackground}
               onChange={(url) => setLoginBackground(url)}
               maxSize={5}

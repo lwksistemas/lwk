@@ -6,6 +6,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
+import { resolveLoginBackground } from '@/lib/login-default-backgrounds';
+import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
 import PasswordInput from '@/components/auth/PasswordInput';
@@ -235,49 +237,20 @@ export default function LojaLoginDinamicoPage() {
   // Usar cores da loja
   const corPrimaria = lojaInfo.cor_primaria;
   const corSecundaria = lojaInfo.cor_secundaria;
-  const loginBackground = lojaInfo.login_background;
+  const loginBackground = resolveLoginBackground(lojaInfo.tipo_loja_nome, lojaInfo.login_background);
   const loginLogo = lojaInfo.login_logo || lojaInfo.logo;
+  const hasBackgroundImage = Boolean(loginBackground);
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-      style={{
-        background: `linear-gradient(to bottom right, ${corPrimaria}, ${corSecundaria})`,
-      }}
+      style={
+        hasBackgroundImage
+          ? undefined
+          : { background: `linear-gradient(to bottom right, ${corPrimaria}, ${corSecundaria})` }
+      }
     >
-      {loginBackground && (
-        <>
-          {/* Foto completa na lateral esquerda */}
-          <div
-            className="hidden sm:block absolute inset-y-0 left-0 w-1/2"
-            style={{
-              background: `url(${loginBackground}) left center / auto 100% no-repeat`,
-              zIndex: 0,
-            }}
-          />
-          {/* Foto completa na lateral direita */}
-          <div
-            className="hidden sm:block absolute inset-y-0 right-0 w-1/2"
-            style={{
-              background: `url(${loginBackground}) right center / auto 100% no-repeat`,
-              zIndex: 0,
-            }}
-          />
-          {/* Em telas pequenas, usa cover como fallback */}
-          <div
-            className="sm:hidden absolute inset-0"
-            style={{
-              background: `url(${loginBackground}) center/cover no-repeat`,
-              zIndex: 0,
-            }}
-          />
-          {/* Overlay leve para legibilidade do card */}
-          <div
-            className="absolute inset-0 bg-black/25"
-            style={{ zIndex: 1 }}
-          />
-        </>
-      )}
+      {hasBackgroundImage && <LoginBackgroundLayer imageUrl={loginBackground} />}
       
       <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 2 }}>
         {/* Header */}

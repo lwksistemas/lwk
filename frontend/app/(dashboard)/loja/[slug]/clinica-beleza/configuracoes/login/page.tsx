@@ -120,7 +120,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
             />
             <ImageUpload
               label="Imagem de fundo da tela de login"
-              description="Opcional — deixe vazio para usar gradiente de cores"
+              description="Opcional — se vazio, usa a imagem padrão do tipo de loja (ex.: clínica de beleza)"
               value={loginBackground}
               onChange={setLoginBackground}
               maxSize={5}

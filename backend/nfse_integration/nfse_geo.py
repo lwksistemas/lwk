@@ -2,6 +2,7 @@
 import logging
 import re
 import unicodedata
+from urllib.parse import quote
 
 import requests
 
@@ -13,6 +14,31 @@ _MUNICIPIOS_IBGE_CACHE: dict[str, list[dict]] = {}
 def _normalizar_nome_municipio(nome: str) -> str:
     s = unicodedata.normalize('NFD', (nome or '').upper())
     return ''.join(c for c in s if unicodedata.category(c) != 'Mn').strip()
+
+
+def _formatar_cep(cep_digits: str) -> str:
+    d = re.sub(r'\D', '', cep_digits or '')
+    if len(d) != 8:
+        return cep_digits or ''
+    return f'{d[:5]}-{d[5:]}'
+
+
+def _cep_generico_municipio(cep_digits: str) -> bool:
+    """CEP terminado em 000 e tipico de municipio (nao aceito pelo ISSNet com IBGE)."""
+    d = re.sub(r'\D', '', cep_digits or '')
+    return len(d) == 8 and d.endswith('000')
+
+
+def _viacep_item_to_dict(data: dict) -> dict[str, str]:
+    cep_raw = re.sub(r'\D', '', str(data.get('cep') or ''))
+    return {
+        'cep': _formatar_cep(cep_raw),
+        'ibge': str(data.get('ibge') or ''),
+        'localidade': (data.get('localidade') or '').strip(),
+        'uf': (data.get('uf') or '').strip(),
+        'logradouro': (data.get('logradouro') or '').strip(),
+        'bairro': (data.get('bairro') or '').strip(),
+    }
 
 
 def consultar_viacep(cep: str) -> dict[str, str]:
@@ -27,15 +53,50 @@ def consultar_viacep(cep: str) -> dict[str, str]:
         data = resp.json()
         if data.get('erro'):
             return {}
-        return {
-            'ibge': str(data.get('ibge') or ''),
-            'localidade': (data.get('localidade') or '').strip(),
-            'uf': (data.get('uf') or '').strip(),
-            'logradouro': (data.get('logradouro') or '').strip(),
-            'bairro': (data.get('bairro') or '').strip(),
-        }
+        return _viacep_item_to_dict(data)
     except Exception as exc:
         logger.warning('Erro ao consultar ViaCEP %s: %s', cep_digits, exc)
+        return {}
+
+
+def consultar_viacep_por_logradouro(
+    uf: str,
+    cidade: str,
+    logradouro: str,
+    bairro: str = '',
+) -> dict[str, str]:
+    """Busca CEP valido por UF/cidade/logradouro (CEPs genericos xxx00-000 falham no ISSNet)."""
+    uf_sigla = (uf or '').strip().upper()
+    cidade_nome = (cidade or '').strip()
+    logradouro_nome = (logradouro or '').strip()
+    if not uf_sigla or not cidade_nome or not logradouro_nome:
+        return {}
+    try:
+        url = (
+            f'https://viacep.com.br/ws/{quote(uf_sigla)}/'
+            f'{quote(cidade_nome)}/{quote(logradouro_nome)}/json/'
+        )
+        resp = requests.get(url, timeout=8)
+        if resp.status_code != 200:
+            return {}
+        data = resp.json()
+        if not isinstance(data, list) or not data:
+            return {}
+        bairro_norm = _normalizar_nome_municipio(bairro)
+        if bairro_norm:
+            for item in data:
+                parsed = _viacep_item_to_dict(item)
+                if _normalizar_nome_municipio(parsed.get('bairro', '')) == bairro_norm:
+                    return parsed
+        return _viacep_item_to_dict(data[0])
+    except Exception as exc:
+        logger.warning(
+            'Erro ao consultar ViaCEP por logradouro (%s/%s/%s): %s',
+            uf_sigla,
+            cidade_nome,
+            logradouro_nome,
+            exc,
+        )
         return {}
 
 
@@ -93,27 +154,34 @@ def buscar_codigo_ibge_por_cep(cep: str) -> str:
     return endereco.get('codigo_municipio', '') if enriquecer_endereco_por_cep(endereco) else ''
 
 
+def _aplicar_endereco_viacep(endereco: dict[str, str], viacep: dict[str, str]) -> None:
+    if viacep.get('cep'):
+        endereco['cep'] = viacep['cep']
+    if viacep.get('ibge'):
+        endereco['codigo_municipio'] = viacep['ibge']
+    if viacep.get('localidade'):
+        endereco['cidade'] = viacep['localidade']
+    if viacep.get('uf'):
+        endereco['uf'] = viacep['uf']
+    if viacep.get('logradouro'):
+        endereco['logradouro'] = viacep['logradouro']
+    if viacep.get('bairro'):
+        endereco['bairro'] = viacep['bairro']
+
+
 def enriquecer_endereco_por_cep(endereco: dict[str, str]) -> bool:
     """
-    Alinha codigo IBGE, cidade e UF ao CEP (exigencia ISSNet E058/E061).
-    ViaCEP para CEPs de logradouro; BrasilAPI + IBGE para CEPs genericos de municipio.
-    Retorna True se obteve codigo de municipio.
+    Alinha codigo IBGE, cidade, UF e CEP (exigencia ISSNet E058/E061).
+    ViaCEP para CEPs de logradouro; busca por rua para CEPs genericos de municipio.
+    Retorna True se obteve codigo de municipio e CEP valido para o ISSNet.
     """
     cep_digits = re.sub(r'\D', '', endereco.get('cep') or '')
     if len(cep_digits) != 8:
         return False
 
     viacep = consultar_viacep(cep_digits)
-    if viacep.get('ibge'):
-        endereco['codigo_municipio'] = viacep['ibge']
-        if viacep.get('localidade'):
-            endereco['cidade'] = viacep['localidade']
-        if viacep.get('uf'):
-            endereco['uf'] = viacep['uf']
-        if not (endereco.get('logradouro') or '').strip() and viacep.get('logradouro'):
-            endereco['logradouro'] = viacep['logradouro']
-        if not (endereco.get('bairro') or '').strip() and viacep.get('bairro'):
-            endereco['bairro'] = viacep['bairro']
+    if viacep.get('ibge') and not _cep_generico_municipio(cep_digits):
+        _aplicar_endereco_viacep(endereco, viacep)
         return True
 
     brasilapi = consultar_brasilapi_cep(cep_digits)
@@ -126,15 +194,42 @@ def enriquecer_endereco_por_cep(endereco: dict[str, str]) -> bool:
     if not (endereco.get('bairro') or '').strip() and brasilapi.get('bairro'):
         endereco['bairro'] = brasilapi['bairro']
 
+    logradouro = (endereco.get('logradouro') or '').strip()
+    if logradouro:
+        por_rua = consultar_viacep_por_logradouro(
+            endereco.get('uf') or '',
+            endereco.get('cidade') or '',
+            logradouro,
+            endereco.get('bairro') or '',
+        )
+        if por_rua.get('ibge') and por_rua.get('cep'):
+            _aplicar_endereco_viacep(endereco, por_rua)
+            logger.info(
+                'CEP generic %s substituido por %s via logradouro %r',
+                cep_digits,
+                endereco.get('cep'),
+                logradouro,
+            )
+            return True
+
+    if viacep.get('ibge'):
+        _aplicar_endereco_viacep(endereco, viacep)
+        return True
+
     cidade = (endereco.get('cidade') or '').strip()
     uf = (endereco.get('uf') or '').strip()
     ibge = buscar_codigo_ibge_por_cidade_uf(cidade, uf) if cidade and uf else ''
     if ibge:
         endereco['codigo_municipio'] = ibge
+        logger.warning(
+            'IBGE %s resolvido mas CEP %s permanece generico — ISSNet pode rejeitar',
+            ibge,
+            cep_digits,
+        )
         return True
 
     logger.warning(
-        'Nao foi possivel resolver IBGE para CEP %s (cidade=%r, uf=%r)',
+        'Nao foi possivel resolver endereco para CEP %s (cidade=%r, uf=%r)',
         cep_digits,
         cidade,
         uf,

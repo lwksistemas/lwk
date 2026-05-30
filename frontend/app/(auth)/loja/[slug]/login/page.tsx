@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
-import { resolveLoginBackground, getLoginBackgroundHintFromSlug, preloadLoginBackground } from '@/lib/login-default-backgrounds';
+import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground } from '@/lib/login-default-backgrounds';
 import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
@@ -40,6 +40,7 @@ export default function LojaLoginDinamicoPage() {
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
   const backgroundHint = getLoginBackgroundHintFromSlug(slug);
+  const backgroundFallback = getLoginBackgroundFallbackFromSlug(slug);
 
   // Preload imediato — não espera a API da loja
   useEffect(() => {
@@ -196,7 +197,7 @@ export default function LojaLoginDinamicoPage() {
   if (loadingInfo) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-        <LoginBackgroundLayer imageUrl={backgroundHint} />
+        <LoginBackgroundLayer imageUrl={backgroundHint} fallbackColor={backgroundFallback} />
         <div className="relative z-10 text-white text-lg sm:text-xl flex items-center drop-shadow-md">
           <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -248,6 +249,7 @@ export default function LojaLoginDinamicoPage() {
   const loginBackground = resolveLoginBackground(lojaInfo.tipo_loja_nome, lojaInfo.login_background);
   const loginLogo = lojaInfo.login_logo || lojaInfo.logo;
   const hasBackgroundImage = Boolean(loginBackground);
+  const loginBackgroundFallback = getLoginBackgroundFallbackColor(loginBackground);
 
   return (
     <div
@@ -258,7 +260,9 @@ export default function LojaLoginDinamicoPage() {
           : { background: `linear-gradient(to bottom right, ${corPrimaria}, ${corSecundaria})` }
       }
     >
-      {hasBackgroundImage && <LoginBackgroundLayer imageUrl={loginBackground} />}
+      {hasBackgroundImage && (
+        <LoginBackgroundLayer imageUrl={loginBackground} fallbackColor={loginBackgroundFallback} />
+      )}
       
       <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 2 }}>
         {/* Header */}

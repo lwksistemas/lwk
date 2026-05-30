@@ -7,40 +7,16 @@ import logging
 from decimal import Decimal
 from typing import Dict, Any
 
-from django.utils import timezone
-
 logger = logging.getLogger(__name__)
-
-
-def _buscar_codigo_ibge(cep: str, cidade: str) -> str:
-    """
-    Busca código IBGE do município pelo CEP (via API ViaCEP).
-    Fallback: retorna código de Ribeirão Preto se não encontrar.
-    """
-    import re
-    cep_digits = re.sub(r'\D', '', cep or '')
-    if len(cep_digits) == 8:
-        try:
-            import requests
-            resp = requests.get(f'https://viacep.com.br/ws/{cep_digits}/json/', timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                ibge = data.get('ibge', '')
-                if ibge:
-                    return str(ibge)
-        except Exception as e:
-            logger.warning(f'Erro ao buscar IBGE pelo CEP {cep_digits}: {e}')
-    # Fallback: Ribeirão Preto
-    return '3543402'
 
 
 def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
     """
     Emite NFS-e para um pagamento de assinatura confirmado.
-    
+
     Args:
         pagamento: instância de PagamentoLoja (superadmin)
-    
+
     Returns:
         dict com resultado: {'success': bool, 'numero_nf': str, ...}
     """
@@ -73,7 +49,9 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
     tomador_nome = loja.nome or ''
     tomador_email = getattr(loja, 'owner', None) and getattr(loja.owner, 'email', '') or ''
 
-    # Endereço do tomador
+    # Endereço do tomador — cidade/UF/IBGE devem bater com o CEP (ISSNet E058/E061)
+    from nfse_integration.nfse_geo import enriquecer_endereco_por_cep
+
     tomador_endereco = {
         'logradouro': getattr(loja, 'logradouro', '') or '',
         'numero': getattr(loja, 'numero', '') or 'S/N',
@@ -82,10 +60,16 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
         'cidade': getattr(loja, 'cidade', '') or '',
         'uf': getattr(loja, 'uf', '') or '',
         'cep': getattr(loja, 'cep', '') or '',
-        'codigo_municipio': _buscar_codigo_ibge(getattr(loja, 'cep', '') or '', getattr(loja, 'cidade', '') or ''),
         'email': tomador_email,
         'telefone': getattr(loja, 'owner_telefone', '') or '',
     }
+    if not enriquecer_endereco_por_cep(tomador_endereco):
+        msg = (
+            f'CEP do tomador inválido ou não localizado ({tomador_endereco.get("cep") or "vazio"}). '
+            'Corrija o endereço da loja antes de emitir a NFS-e.'
+        )
+        logger.warning('NFS-e assinatura: %s (loja=%s)', msg, loja.slug)
+        return {'success': False, 'error': msg}
 
     # Descrição do serviço
     referencia = pagamento.referencia_mes.strftime('%m/%Y') if pagamento.referencia_mes else ''

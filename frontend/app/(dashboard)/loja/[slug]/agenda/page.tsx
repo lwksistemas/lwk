@@ -32,6 +32,8 @@ import {
 import { logger } from "@/lib/logger";
 import {
   type HorarioTrabalho,
+  businessHoursFromHorarios,
+  intervalosEventsFromHorarios,
   workHoursRejectionMessage,
 } from "@/lib/clinica-beleza-work-hours";
 import { ModalDetalheAgendamento, type AgendaEventData } from "./components/ModalDetalheAgendamento";
@@ -69,32 +71,6 @@ interface Procedure { id: number; name?: string; nome?: string; duration?: numbe
 interface BloqueioHorario { id: number; professional: number | null; professional_name: string | null; data_inicio: string; data_fim: string; motivo: string; observacoes: string | null; criado_em: string; }
 
 function gName(o: { name?: string; nome?: string }): string { return o.name || o.nome || ''; }
-
-/** Gera eventos de intervalo (almoço) para os próximos 30 dias */
-function criarIntervalosEvents(profId: string, horarios: HorarioTrabalhoRow[], profName: string): any[] {
-  const result: any[] = [];
-  const hoje = new Date();
-  for (let i = 0; i < 30; i++) {
-    const data = new Date(hoje);
-    data.setDate(hoje.getDate() + i);
-    const diaBackend = data.getDay() === 0 ? 6 : data.getDay() - 1;
-    const horario = horarios.find(h => h.ativo && h.dia_semana === diaBackend);
-    if (horario?.intervalo_inicio && horario?.intervalo_fim) {
-      const y = data.getFullYear();
-      const m = String(data.getMonth() + 1).padStart(2, "0");
-      const d = String(data.getDate()).padStart(2, "0");
-      const ini = typeof horario.intervalo_inicio === 'string' ? horario.intervalo_inicio.slice(0, 5) : '12:00';
-      const fim = typeof horario.intervalo_fim === 'string' ? horario.intervalo_fim.slice(0, 5) : '13:00';
-      result.push({
-        id: `intervalo-${profId}-${y}${m}${d}`, title: "🍽️ Intervalo",
-        start: `${y}-${m}-${d}T${ini}:00`, end: `${y}-${m}-${d}T${fim}:00`,
-        allDay: false, backgroundColor: "#f59e0b", borderColor: "#d97706", textColor: "#fff", editable: false,
-        extendedProps: { isIntervalo: true, professional_name: profName },
-      });
-    }
-  }
-  return result;
-}
 
 export default function AgendaPage() {
   const params = useParams();
@@ -184,16 +160,6 @@ export default function AgendaPage() {
   }, [selectedProfessional, calendarPlugins]);
 
   useEffect(() => {
-    if (!selectedProfessional) { setHorariosTrabalho([]); return; }
-    (async () => {
-      try {
-        const res = await clinicaBelezaFetch(`/professionals/${selectedProfessional}/horarios-trabalho/`);
-        setHorariosTrabalho(res.ok ? (await res.json()) : []);
-      } catch { setHorariosTrabalho([]); }
-    })();
-  }, [selectedProfessional]);
-
-  useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 640);
     check(); window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
@@ -221,19 +187,7 @@ export default function AgendaPage() {
     };
   };
 
-  const getBusinessHours = () => {
-    if (!selectedProfessional || horariosTrabalho.length === 0) {
-      return { daysOfWeek: [1, 2, 3, 4, 5], startTime: "08:00", endTime: "18:00" };
-    }
-    const ativos = horariosTrabalho.filter((h) => h.ativo);
-    if (!ativos.length) {
-      return { daysOfWeek: [1, 2, 3, 4, 5], startTime: "08:00", endTime: "18:00" };
-    }
-    return ativos.map((h) => {
-      const fcDay = h.dia_semana === 6 ? 0 : h.dia_semana + 1;
-      return { daysOfWeek: [fcDay], startTime: (h.hora_entrada || '08:00').slice(0, 5), endTime: (h.hora_saida || '18:00').slice(0, 5) };
-    });
-  };
+  const getBusinessHours = () => businessHoursFromHorarios(horariosTrabalho as HorarioTrabalho[]);
 
   const getHiddenDays = () => {
     if (!selectedProfessional || horariosTrabalho.length === 0) return [0];
@@ -261,14 +215,25 @@ export default function AgendaPage() {
       if (online) {
         const agendaPath = selectedProfessional ? `/agenda/?professional=${selectedProfessional}` : "/agenda/";
         const bloqueiosPath = selectedProfessional ? `/bloqueios/?professional=${selectedProfessional}` : "/bloqueios/";
-        const [resEv, resBl, resProf, resPat, resProc] = await Promise.all([
+        const horariosReq = selectedProfessional
+          ? clinicaBelezaFetch(`/professionals/${selectedProfessional}/horarios-trabalho/`)
+          : Promise.resolve(null);
+        const [resEv, resBl, resProf, resPat, resProc, resHor] = await Promise.all([
           clinicaBelezaFetch(agendaPath), clinicaBelezaFetch(bloqueiosPath),
           clinicaBelezaFetch("/professionals/?with_schedule=true"),
           clinicaBelezaFetch("/patients/"), clinicaBelezaFetch("/procedures/"),
+          horariosReq,
         ]);
         const profs: Professional[] = resProf.ok ? await resProf.json() : [];
         const pacs: Patient[] = resPat.ok ? await resPat.json() : [];
         const procs: Procedure[] = resProc.ok ? await resProc.json() : [];
+        let horariosAtivos: HorarioTrabalhoRow[] = [];
+        if (resHor?.ok) {
+          horariosAtivos = await resHor.json();
+          setHorariosTrabalho(horariosAtivos);
+        } else {
+          setHorariosTrabalho([]);
+        }
         if (profs.length) { setProfessionals(profs); await salvarProfissionaisOffline(profs); }
         if (pacs.length) { setPatients(pacs); await salvarPacientesOffline(pacs); }
         if (procs.length) { setProcedures(procs); await salvarProcedimentosOffline(procs); }
@@ -293,9 +258,9 @@ export default function AgendaPage() {
           });
         }
 
-        const profName = professionals.find(p => p.id === Number(selectedProfessional))?.name || "Profissional";
-        const intervalos = selectedProfessional && horariosTrabalho.length > 0
-          ? criarIntervalosEvents(selectedProfessional, horariosTrabalho, profName) : [];
+        const profName = gName(profs.find((p) => p.id === Number(selectedProfessional)) || {}) || "Profissional";
+        const intervalos = selectedProfessional && horariosAtivos.length > 0
+          ? intervalosEventsFromHorarios(selectedProfessional, horariosAtivos, profName) : [];
 
         // Mesclar agendamentos pendentes offline
         const fila = await obterFilaSync();
@@ -324,9 +289,9 @@ export default function AgendaPage() {
         if (Array.isArray(profs)) setProfessionals(profs as Professional[]);
         if (Array.isArray(pacs)) setPatients(pacs as Patient[]);
         if (Array.isArray(procs)) setProcedures(procs as Procedure[]);
-        const profName = (profs as Professional[]).find(p => p.id === Number(selectedProfessional))?.name || "Profissional";
+        const profName = gName((profs as Professional[]).find((p) => p.id === Number(selectedProfessional)) || {}) || "Profissional";
         const intervalos = selectedProfessional && horariosTrabalho.length > 0
-          ? criarIntervalosEvents(selectedProfessional, horariosTrabalho, profName) : [];
+          ? intervalosEventsFromHorarios(selectedProfessional, horariosTrabalho, profName) : [];
         if (Array.isArray(agendaRaw) && agendaRaw.length > 0) {
           let list = agendaRaw as any[];
           if (selectedProfessional) list = list.filter((e: any) => String(e.professional) === selectedProfessional);
@@ -562,6 +527,7 @@ export default function AgendaPage() {
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#22c55e]" aria-hidden />Confirmado</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#b45309]" aria-hidden />Faltou</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#f59e0b]" aria-hidden />Intervalo</span>
         </div>
       </ClinicaBelezaPageHeaderFooter>
 

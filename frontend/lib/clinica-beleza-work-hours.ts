@@ -77,3 +77,69 @@ export function workHoursRejectionMessage(
   }
   return `Horário fora do expediente do profissional (${entrada}–${saida}).`;
 }
+
+export type BusinessHoursBlock = {
+  daysOfWeek: number[];
+  startTime: string;
+  endTime: string;
+};
+
+/** Expediente no FullCalendar, respeitando intervalo (ex.: almoço) como faixa excluída. */
+export function businessHoursFromHorarios(horarios: HorarioTrabalho[]): BusinessHoursBlock[] {
+  const ativos = horarios.filter((h) => h.ativo);
+  if (!ativos.length) {
+    return [{ daysOfWeek: [1, 2, 3, 4, 5], startTime: "08:00", endTime: "18:00" }];
+  }
+  const blocks: BusinessHoursBlock[] = [];
+  for (const h of ativos) {
+    const fcDay = h.dia_semana === 6 ? 0 : h.dia_semana + 1;
+    const entrada = (h.hora_entrada || "08:00").slice(0, 5);
+    const saida = (h.hora_saida || "18:00").slice(0, 5);
+    if (h.intervalo_inicio && h.intervalo_fim) {
+      const intIni = h.intervalo_inicio.slice(0, 5);
+      const intFim = h.intervalo_fim.slice(0, 5);
+      blocks.push({ daysOfWeek: [fcDay], startTime: entrada, endTime: intIni });
+      blocks.push({ daysOfWeek: [fcDay], startTime: intFim, endTime: saida });
+    } else {
+      blocks.push({ daysOfWeek: [fcDay], startTime: entrada, endTime: saida });
+    }
+  }
+  return blocks;
+}
+
+/** Eventos visuais de intervalo (almoço) para o calendário da agenda. */
+export function intervalosEventsFromHorarios(
+  profId: string,
+  horarios: HorarioTrabalho[],
+  profName: string,
+  dias = 90,
+) {
+  const result: Array<Record<string, unknown>> = [];
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  for (let i = 0; i < dias; i++) {
+    const data = new Date(hoje);
+    data.setDate(hoje.getDate() + i);
+    const diaBackend = weekdayFromDate(data);
+    const horario = horarios.find((h) => h.ativo && h.dia_semana === diaBackend);
+    if (!horario?.intervalo_inicio || !horario?.intervalo_fim) continue;
+    const y = data.getFullYear();
+    const m = String(data.getMonth() + 1).padStart(2, "0");
+    const d = String(data.getDate()).padStart(2, "0");
+    const ini = horario.intervalo_inicio.slice(0, 5);
+    const fim = horario.intervalo_fim.slice(0, 5);
+    result.push({
+      id: `intervalo-${profId}-${y}${m}${d}`,
+      title: `🍽️ Intervalo ${ini}–${fim}`,
+      start: `${y}-${m}-${d}T${ini}:00`,
+      end: `${y}-${m}-${d}T${fim}:00`,
+      allDay: false,
+      backgroundColor: "#f59e0b",
+      borderColor: "#d97706",
+      textColor: "#fff",
+      editable: false,
+      extendedProps: { isIntervalo: true, professional_name: profName, intervalo_inicio: ini, intervalo_fim: fim },
+    });
+  }
+  return result;
+}

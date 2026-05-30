@@ -2,15 +2,16 @@
 
 /**
  * Cadastro de Clientes - Clínica da Beleza
- * Listagem + criar/editar (integrado com API e permissões)
+ * Lista em tela cheia; novo/editar ocupa a página inteira (sem modal).
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Trash2, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Pencil, Save, Trash2, Users } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   entityEmail,
   entityName,
@@ -53,31 +54,54 @@ interface Patient {
   allow_whatsapp?: boolean;
 }
 
+const EMPTY_FORM = {
+  name: "",
+  phone: "",
+  email: "",
+  cpf: "",
+  birth_date: "",
+  address: "",
+  notes: "",
+  allow_whatsapp: true,
+};
+
+const INPUT =
+  "w-full px-3 py-2.5 border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm";
+
+function patientToForm(p: Patient) {
+  return {
+    name: entityName(p),
+    phone: entityPhone(p) || "",
+    email: entityEmail(p) || "",
+    cpf: patientCpf(p) || "",
+    birth_date: patientBirthDate(p) ? patientBirthDate(p)!.slice(0, 10) : "",
+    address: patientAddress(p) || "",
+    notes: patientNotes(p) || "",
+    allow_whatsapp: p.allow_whatsapp !== false,
+  };
+}
+
 export default function PacientesPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
+
   const [list, setList] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Patient | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    cpf: "",
-    birth_date: "",
-    address: "",
-    notes: "",
-    allow_whatsapp: true,
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useClinicaBelezaDark();
 
-  const load = async () => {
+  const isNovo = searchParams.get("novo") === "1";
+  const editIdParam = searchParams.get("id");
+  const isFormView = isNovo || Boolean(editIdParam);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       if (!navigator.onLine) {
@@ -89,8 +113,6 @@ export default function PacientesPage() {
         if (res.ok) {
           const arr = Array.isArray(data) ? data : [];
           setList(arr);
-          // Salvar dados da API, substituindo completamente os dados offline
-          // Isso remove pacientes temporários (IDs negativos) que já foram sincronizados
           await salvarPacientesOffline(arr);
         } else setList([]);
       }
@@ -99,57 +121,49 @@ export default function PacientesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
-
-  useEffect(() => {
-    if (searchParams.get("novo") === "1") openNew();
-  }, [searchParams]);
+  }, [load]);
 
   useEffect(() => {
     const onSyncDone = async () => {
-      if (navigator.onLine) {
-        // Aguardar um pouco para garantir que o backend processou
-        setTimeout(() => load(), 500);
-      }
+      if (navigator.onLine) setTimeout(() => load(), 500);
     };
     window.addEventListener("offline-sync-done", onSyncDone);
     return () => window.removeEventListener("offline-sync-done", onSyncDone);
-  }, []);
+  }, [load]);
+
+  useEffect(() => {
+    if (isNovo) {
+      setEditing(null);
+      setForm(EMPTY_FORM);
+      setError("");
+      return;
+    }
+    if (editIdParam && list.length > 0) {
+      const p = list.find((x) => String(x.id) === editIdParam);
+      if (p) {
+        setEditing(p);
+        setForm(patientToForm(p));
+        setError("");
+      }
+    }
+  }, [isNovo, editIdParam, list]);
+
+  const voltarLista = () => {
+    setEditing(null);
+    setError("");
+    router.replace(basePath, { scroll: false });
+  };
 
   const openNew = () => {
-    setEditing(null);
-    setForm({
-      name: "",
-      phone: "",
-      email: "",
-      cpf: "",
-      birth_date: "",
-      address: "",
-      notes: "",
-      allow_whatsapp: true,
-    });
-    setError("");
-    setShowModal(true);
+    router.replace(`${basePath}?novo=1`, { scroll: false });
   };
 
   const openEdit = (p: Patient) => {
-    setEditing(p);
-    setForm({
-      name: entityName(p),
-      phone: entityPhone(p) || "",
-      email: entityEmail(p) || "",
-      cpf: patientCpf(p) || "",
-      birth_date: patientBirthDate(p) ? patientBirthDate(p)!.slice(0, 10) : "",
-      address: patientAddress(p) || "",
-      notes: patientNotes(p) || "",
-      allow_whatsapp: p.allow_whatsapp !== false,
-    });
-    setError("");
-    setShowModal(true);
+    router.replace(`${basePath}?id=${p.id}`, { scroll: false });
   };
 
   const save = async () => {
@@ -171,40 +185,34 @@ export default function PacientesPage() {
       allow_whatsapp: form.allow_whatsapp,
     };
 
+    const finishSave = () => {
+      voltarLista();
+      load();
+    };
+
     if (isBrowserOffline()) {
       try {
         const lojaSlug = getLojaSlug();
-
         if (deveVerificarDuplicataOffline(editing)) {
           const jaExisteLocal = temDuplicataNaLista(list, (p) =>
             entityName(p).toLowerCase() === form.name.trim().toLowerCase() &&
             (form.phone.trim() ? entityPhone(p) === form.phone.trim() : true),
           );
           if (jaExisteLocal) {
-            setError("Este paciente já foi adicionado. Aguarde a sincronização.");
+            setError("Este cliente já foi adicionado. Aguarde a sincronização.");
             setSaving(false);
             return;
           }
         }
-
         if (editing && !isRegistroPendenteSync(editing.id)) {
-          await adicionarNaFilaSync({
-            tipo: "paciente",
-            payload: { action: "update", id: editing.id, body },
-            lojaSlug,
-          });
+          await adicionarNaFilaSync({ tipo: "paciente", payload: { action: "update", id: editing.id, body }, lojaSlug });
           const updatedList = list.map((p) =>
             p.id === editing.id ? { ...p, ...body, email: body.email ?? p.email, phone: body.phone ?? p.phone } : p
           );
           setList(updatedList);
           await salvarPacientesOffline(updatedList);
         } else {
-          // Novo paciente ou edição de paciente ainda pendente de sync: enfileirar como create
-          await adicionarNaFilaSync({
-            tipo: "paciente",
-            payload: { action: "create", body },
-            lojaSlug,
-          });
+          await adicionarNaFilaSync({ tipo: "paciente", payload: { action: "create", body }, lojaSlug });
           const tempId = gerarIdTemporarioOffline();
           const newPatient: Patient = {
             id: tempId,
@@ -222,9 +230,8 @@ export default function PacientesPage() {
           setList(updatedList);
           await salvarPacientesOffline(updatedList);
         }
-        setShowModal(false);
-        setSaving(false);
-        alert("Salvo offline. O paciente será sincronizado quando você estiver online.");
+        voltarLista();
+        alert("Salvo offline. O cliente será sincronizado quando você estiver online.");
         return;
       } catch (e) {
         logger.warn("Erro ao salvar offline:", e);
@@ -236,47 +243,34 @@ export default function PacientesPage() {
 
     try {
       if (editing) {
-        const res = await clinicaBelezaFetch(`/patients/${editing.id}/`, {
-          method: "PUT",
-          body: JSON.stringify(body),
-        });
+        const res = await clinicaBelezaFetch(`/patients/${editing.id}/`, { method: "PUT", body: JSON.stringify(body) });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(formatClinicaApiValidationErrors(err) || "Erro ao atualizar");
         }
       } else {
-        const res = await clinicaBelezaFetch("/patients/", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
+        const res = await clinicaBelezaFetch("/patients/", { method: "POST", body: JSON.stringify(body) });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           throw new Error(formatClinicaApiValidationErrors(err) || "Erro ao cadastrar");
         }
       }
-      setShowModal(false);
-      load();
+      finishSave();
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "SESSION_ENDED") return;
       const msg = e instanceof Error ? e.message : "Erro ao salvar";
       if (isFetchNetworkError(msg)) {
         try {
           const lojaSlug = getLojaSlug();
-
           if (bloquearCriacaoDuplicadaOffline(editing, list, (p) =>
             entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
           )) {
-            setError("Este paciente já foi adicionado offline. Aguarde a sincronização.");
+            setError("Este cliente já foi adicionado offline. Aguarde a sincronização.");
             setSaving(false);
             return;
           }
-          
           if (editing && editing.id > 0) {
-            await adicionarNaFilaSync({
-              tipo: "paciente",
-              payload: { action: "update", id: editing.id, body },
-              lojaSlug,
-            });
+            await adicionarNaFilaSync({ tipo: "paciente", payload: { action: "update", id: editing.id, body }, lojaSlug });
             const updatedList = list.map((p) =>
               p.id === editing.id ? { ...p, ...body, email: body.email ?? p.email, phone: body.phone ?? p.phone } : p
             );
@@ -301,8 +295,8 @@ export default function PacientesPage() {
             setList(updatedList);
             await salvarPacientesOffline(updatedList);
           }
-          setShowModal(false);
-          alert("Sem conexão. Paciente salvo offline e será sincronizado quando você estiver online.");
+          voltarLista();
+          alert("Sem conexão. Cliente salvo offline e será sincronizado quando você estiver online.");
         } catch (err) {
           logger.warn("Erro ao salvar offline:", err);
           setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
@@ -327,6 +321,148 @@ export default function PacientesPage() {
 
   const activeList = list.filter((p) => entityActive(p));
 
+  /* ── Formulário em tela cheia ── */
+  if (isFormView) {
+    return (
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title={editing ? "Editar Cliente" : "Novo Cliente"}
+          subtitle={editing ? entityName(editing) : "Preencha os dados do cliente"}
+          backHref={basePath}
+          icon={Users}
+        />
+        <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 flex flex-col">
+          <div className="px-4 md:px-6 pt-2 pb-3 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">
+            <button
+              type="button"
+              onClick={voltarLista}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            >
+              <ArrowLeft size={16} />
+              Voltar à lista
+            </button>
+          </div>
+
+          <div className="flex-1 p-4 md:p-6 lg:p-8">
+            <div className="max-w-5xl mx-auto w-full">
+              <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/90 shadow-sm p-5 md:p-8">
+                {error && (
+                  <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Nome *</label>
+                    <input
+                      value={form.name}
+                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      className={INPUT}
+                      placeholder="Nome completo"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Telefone</label>
+                    <input
+                      value={form.phone}
+                      onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                      className={INPUT}
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">E-mail</label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                      className={INPUT}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CPF</label>
+                    <input
+                      value={form.cpf}
+                      onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))}
+                      className={INPUT}
+                      placeholder="000.000.000-00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Data de Nascimento</label>
+                    <input
+                      type="date"
+                      value={form.birth_date}
+                      onChange={(e) => setForm((f) => ({ ...f, birth_date: e.target.value }))}
+                      className={INPUT}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Endereço</label>
+                    <input
+                      value={form.address}
+                      onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                      className={INPUT}
+                      placeholder="Rua, número, bairro, cidade"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Observações</label>
+                    <textarea
+                      value={form.notes}
+                      onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                      rows={4}
+                      className={`${INPUT} resize-y min-h-[100px]`}
+                      placeholder="Observações sobre o cliente"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="flex items-start gap-3 cursor-pointer p-4 rounded-lg bg-gray-50 dark:bg-neutral-900/50 border border-gray-100 dark:border-neutral-700">
+                      <input
+                        type="checkbox"
+                        checked={form.allow_whatsapp}
+                        onChange={(e) => setForm((f) => ({ ...f, allow_whatsapp: e.target.checked }))}
+                        className="mt-0.5 rounded border-gray-300 dark:border-neutral-600"
+                        style={{ accentColor: CLINICA_BELEZA_PRIMARY }}
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Permitir WhatsApp (lembretes e cobranças) — LGPD: o cliente pode optar por não receber
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex flex-col-reverse sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-100 dark:border-neutral-700">
+                  <button
+                    type="button"
+                    onClick={voltarLista}
+                    className="flex-1 sm:flex-none sm:min-w-[140px] py-2.5 px-6 rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 text-sm font-medium"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={save}
+                    disabled={saving}
+                    className="flex-1 sm:flex-none sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-6 rounded-lg text-white disabled:opacity-50 text-sm font-medium"
+                    style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                  >
+                    <Save size={18} />
+                    {saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar cliente"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  /* ── Lista em tela cheia ── */
   return (
     <>
       <ClinicaBelezaStandardPageHeader
@@ -334,61 +470,70 @@ export default function PacientesPage() {
         subtitle="Cadastro de clientes da clínica"
         newLabel="Novo Cliente"
         onNew={openNew}
+        icon={Users}
       />
-      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
-
+      <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6 lg:p-8">
         {loading ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
+          <div className="text-center py-20 text-gray-500 dark:text-gray-400">Carregando...</div>
         ) : activeList.length === 0 ? (
-          <div className="bg-white/80 dark:bg-neutral-800/80 rounded-xl p-8 text-center text-gray-500 dark:text-gray-400">
+          <div className="rounded-xl bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 p-12 text-center text-gray-500 dark:text-gray-400 shadow-sm">
             Nenhum cliente cadastrado. Clique em &quot;Novo Cliente&quot; para começar.
           </div>
         ) : (
-          <div className="bg-white/80 dark:bg-neutral-800/80 rounded-xl shadow overflow-hidden">
+          <div className="rounded-xl bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 shadow-sm overflow-hidden w-full">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-100 dark:bg-neutral-700 text-gray-600 dark:text-gray-300">
+                <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
                   <tr>
-                    <th className="text-left p-3">Nome</th>
-                    <th className="text-left p-3">Telefone</th>
-                    <th className="text-left p-3 hidden md:table-cell">E-mail</th>
-                    <th className="w-24 p-3">Ações</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Nome</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Telefone</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden sm:table-cell">E-mail</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden lg:table-cell">CPF</th>
+                    <th className="text-right px-4 md:px-6 py-3.5 font-semibold w-32">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activeList.map((p) => {
                     const isPendenteSync = p.id < 0;
                     return (
-                      <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
-                        <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
-                          {entityName(p)}
-                          {isPendenteSync && (
-                            <span className="ml-2 text-xs text-amber-600 dark:text-amber-400" title="Será sincronizado quando estiver online">
-                              (offline)
-                            </span>
-                          )}
+                      <tr
+                        key={p.id}
+                        className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/40 dark:hover:bg-neutral-700/30 transition-colors cursor-pointer"
+                        onClick={() => openEdit(p)}
+                      >
+                        <td className="px-4 md:px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
+                          <div className="flex items-center gap-2">
+                            {entityName(p)}
+                            {isPendenteSync && (
+                              <span className="text-xs text-amber-600 dark:text-amber-400 font-normal">(offline)</span>
+                            )}
+                          </div>
                         </td>
-                        <td className="p-3 text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
-                        <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityEmail(p) || "—"}</td>
-                        <td className="p-3">
-                          <div className="flex gap-2">
+                        <td className="px-4 md:px-6 py-4 text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
+                        <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-gray-700 dark:text-gray-300">{entityEmail(p) || "—"}</td>
+                        <td className="px-4 md:px-6 py-4 hidden lg:table-cell text-gray-700 dark:text-gray-300">{patientCpf(p) || "—"}</td>
+                        <td className="px-4 md:px-6 py-4">
+                          <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             <button
+                              type="button"
                               onClick={() => openEdit(p)}
-                              className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
+                              className="p-2 rounded-lg hover:bg-[#F5E6EA] dark:hover:bg-neutral-600 transition-colors"
+                              style={{ color: CLINICA_BELEZA_PRIMARY }}
                               title="Editar"
                             >
                               <Pencil size={18} />
                             </button>
                             {!isPendenteSync && (
                               <button
+                                type="button"
                                 onClick={() => exclude(p)}
-                                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                                 title="Desativar"
                               >
                                 <Trash2 size={18} />
                               </button>
                             )}
+                            <ChevronRight size={18} className="text-gray-400 ml-1 hidden md:inline self-center" />
                           </div>
                         </td>
                       </tr>
@@ -400,118 +545,6 @@ export default function PacientesPage() {
           </div>
         )}
       </div>
-
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-4 border-b dark:border-neutral-600">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                {editing ? "Editar Cliente" : "Novo Cliente"}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded">
-                <X size={20} className="text-gray-700 dark:text-gray-300" />
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              {error && (
-                <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">{error}</div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                  placeholder="Nome completo"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label>
-                <input
-                  value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                  placeholder="email@exemplo.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CPF</label>
-                <input
-                  value={form.cpf}
-                  onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                  placeholder="000.000.000-00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de Nascimento</label>
-                <input
-                  type="date"
-                  value={form.birth_date}
-                  onChange={(e) => setForm((f) => ({ ...f, birth_date: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Endereço</label>
-                <input
-                  value={form.address}
-                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                  placeholder="Rua, número, bairro"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  rows={2}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg resize-none bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                  placeholder="Observações"
-                />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.allow_whatsapp}
-                  onChange={(e) => setForm((f) => ({ ...f, allow_whatsapp: e.target.checked }))}
-                  className="rounded border-gray-300 dark:border-neutral-600 text-purple-600"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Permitir WhatsApp (lembretes e cobranças) — LGPD: o cliente pode optar por não receber
-                </span>
-              </label>
-            </div>
-            <div className="flex gap-2 p-4 border-t dark:border-neutral-600">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={save}
-                disabled={saving}
-                className="flex-1 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-              >
-                {saving ? "Salvando..." : "Salvar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
     </>
   );
 }

@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
-import { resolveLoginBackground } from '@/lib/login-default-backgrounds';
+import { resolveLoginBackground, getLoginBackgroundHintFromSlug, preloadLoginBackground } from '@/lib/login-default-backgrounds';
 import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
@@ -38,6 +38,13 @@ export default function LojaLoginDinamicoPage() {
   const [loadingInfo, setLoadingInfo] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
+
+  const backgroundHint = getLoginBackgroundHintFromSlug(slug);
+
+  // Preload imediato — não espera a API da loja
+  useEffect(() => {
+    preloadLoginBackground(backgroundHint);
+  }, [backgroundHint]);
 
   const loadLojaInfo = useCallback(async () => {
     try {
@@ -185,11 +192,12 @@ export default function LojaLoginDinamicoPage() {
     }
   };
 
-  // Loading state
+  // Loading — fundo visível desde o primeiro frame; card centralizado
   if (loadingInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-900 to-emerald-900 p-4">
-        <div className="text-white text-lg sm:text-xl flex items-center">
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+        <LoginBackgroundLayer imageUrl={backgroundHint} />
+        <div className="relative z-10 text-white text-lg sm:text-xl flex items-center drop-shadow-md">
           <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>

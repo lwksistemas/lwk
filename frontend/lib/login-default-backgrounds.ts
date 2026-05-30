@@ -50,3 +50,36 @@ export function resolveLoginBackground(
   if (custom) return custom;
   return getDefaultLoginBackground(tipoLojaNome);
 }
+
+/**
+ * Chute imediato pelo slug da URL — exibe fundo antes da API responder.
+ * Slugs conhecidos + heurísticas pelo nome.
+ */
+export function getLoginBackgroundHintFromSlug(slug: string): string {
+  const s = (slug || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const exact: Record<string, string> = {
+    beleza: LOCAL.clinicaBeleza,
+  };
+  if (exact[s]) return exact[s];
+
+  if (s.includes('beleza')) return LOCAL.clinicaBeleza;
+  if (s.includes('estetica')) return LOCAL.clinicaEstetica;
+  if (s.includes('cabeleireiro') || s.includes('salao') || s.includes('barbearia')) return LOCAL.cabeleireiro;
+  if (s.includes('hotel')) return LOCAL.hotel;
+  if (s.includes('restaurante')) return LOCAL.restaurante;
+  if (s.includes('crm') || s.includes('vendas')) return LOCAL.crm;
+  if (s.includes('servico')) return LOCAL.servicos;
+  if (s.includes('commerce') || s.includes('loja')) return LOCAL.commerce;
+
+  return LOCAL.default;
+}
+
+/** Preload no navegador (fire-and-forget). */
+export function preloadLoginBackground(url: string): void {
+  if (typeof window === 'undefined' || !url) return;
+  const img = new window.Image();
+  img.decoding = 'async';
+  img.fetchPriority = 'high';
+  img.src = url;
+}

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getLoginBackgroundHintFromSlug } from '@/lib/login-default-backgrounds';
 
 type Props = {
   children: React.ReactNode;
@@ -12,6 +13,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function LojaSlugAuthLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function LojaSlugAuthLayout({ children, params }: Props) {
+  const { slug } = await params;
+  const bgHint = getLoginBackgroundHintFromSlug(slug);
+
+  return (
+    <>
+      <link rel="preload" as="image" href={bgHint} fetchPriority="high" />
+      {children}
+    </>
+  );
 }
